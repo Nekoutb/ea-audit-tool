@@ -18,10 +18,16 @@ Reference project `EA Financial Audit/platform` uses Next.js 15 + Prisma + Postg
 - Turbopack is now the default bundler for `dev` and `build` (no flag needed).
 - Async `params`/`searchParams`/`cookies`/`headers` fully async only (no sync fallback) — was already true in transition in v15, now enforced.
 
-## 2026-07-09 — Object storage: MinIO (dev) / S3-compatible (prod)
+## 2026-07-09 — No Docker; native PostgreSQL install (supersedes the MinIO/docker-compose decision)
 
-Chosen over local-disk-only or wiring real cloud storage immediately. MinIO runs in `docker-compose` alongside Postgres, speaks the S3 API, and requires no cloud account to start building — the application code targets the S3 API from day one so swapping to a real bucket in production is a config change, not a rewrite.
+Docker Desktop's engine would not finish starting on this machine (processes ran but `docker info` never succeeded), and the user asked to drop Docker entirely. `docker-compose.yml` was removed. PostgreSQL 16 is now installed natively via winget (`PostgreSQL.PostgreSQL.16`), running as the `postgresql-x64-16` Windows service on **port 5433** (5432 was already occupied by a pre-existing Postgres 18 service). This also matches the reference project, which ran bare local Postgres with no containers.
+
+Consequence for CI (Step 0.8): GitHub Actions will use a Postgres **service container** (Actions runners have Docker), so CI parity does not depend on the developer running Docker locally.
+
+## 2026-07-09 — Object storage: local filesystem (dev) / S3-compatible (prod), deferred to Phase 1
+
+Supersedes the earlier MinIO-in-docker-compose plan (Docker removed). File storage is not needed until Build Phase 1 (documents), so the concrete dev backend is deferred to then. Application code will still target the S3 API so production can point at a real S3-compatible bucket; in dev this will be either a local-filesystem shim behind the same interface or a standalone MinIO binary (no container) — decided at Phase 1.
 
 ## 2026-07-09 — Repo hosting: private GitHub repo `ea-audit-tool` under Nekoutb
 
-Standard for an in-progress commercial product handling audit-firm client data.
+Standard for an in-progress commercial product handling audit-firm client data. Created and pushed: https://github.com/Nekoutb/ea-audit-tool

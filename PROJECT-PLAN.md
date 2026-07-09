@@ -27,20 +27,21 @@ Reference for all steps: `EA Financial Audit/platform` structure (Section 0.1 of
 
 | # | Step | Deliverable | Test method | Est. |
 |---|---|---|---|---|
-| 0.1 | Repo scaffold & tooling | Next.js 15 + TS 5.7 (strict) + Tailwind v4 app at reference layout (no `/src`, `@/*` alias); ESLint + Prettier configured fresh; `docker-compose.yml` (Postgres 16, + MinIO if object storage confirmed); `.env.example`; git init + first commit | `npm run dev` boots and serves default page; `npm run typecheck` and `npm run lint` clean | 1 session |
-| 0.2 | DB bootstrap + migration runner | `docker compose up` Postgres; `node-pg-migrate` wired; first migration creates global tables `Tenant`, `User`, `Membership` (raw SQL DDL, translated from reference `schema.prisma` shape); `lib/db.ts` (`pg.Pool` singleton) + `withTenant()` helper | Migration runs clean on fresh DB; Vitest unit test proving `withTenant()` sets the `app.tenant_id` GUC inside its transaction | 1 session |
+| 0.1 | Repo scaffold & tooling | Next.js 16 + TS + Tailwind v4 app at reference layout (no `/src`, `@/*` alias); ESLint + Prettier configured fresh; native PostgreSQL 16 (no Docker); `.env.example`; GitHub repo + first commit | `npm run dev` boots and serves default page; `npm run typecheck` and `npm run lint` clean | 1 session |
+| 0.2 | DB bootstrap + migration runner | Native Postgres (port 5433, `ea_audit` db); `node-pg-migrate` wired; first migration creates global tables `Tenant`, `User`, `Membership` (raw SQL DDL, translated from reference `schema.prisma` shape); `lib/db.ts` (`pg.Pool` singleton) + `withTenant()` helper | Migration runs clean on fresh DB; Vitest unit test proving `withTenant()` sets the `app.tenant_id` GUC inside its transaction | 1 session |
 | 0.3 | RLS bootstrap + isolation proof | `ea_app` non-superuser role creation script; `rls.sql` policy pattern (reference's `FORCE ROW LEVEL SECURITY` approach) applied to a stub tenant-scoped table; automated test proving cross-tenant reads return zero rows under the wrong `tenant_id` GUC | Test suite green — this is the isolation proof Section 2 and the Phase 0 acceptance criteria require | 1 session |
 | 0.4 | Auth core (NextAuth v5) + 2FA + RBAC | Two-file edge/node auth split (`auth.config.ts`/`auth.ts`), Credentials provider + bcrypt, JWT session carrying `tenantId`/`role`; **TOTP 2FA enforced for `partner`/`firm_admin` roles** (Section 15 requirement — not present in reference project, built fresh, likely `otplib` + QR enrollment); `middleware.ts` route gate; `rbac.ts` rank helpers; login page | Two seeded users (different tenants) log in via the preview browser; 2FA challenge required and enforced for the partner-role user; protected route redirects when unauthenticated | 1–2 sessions |
 | 0.5 | Two-tenant seed + cross-tenant E2E proof | Seed script (Tenant A/B, users, roles); minimal protected "Engagements" list page reading through `requireTenant()`→`withTenant()`; Playwright E2E test: logged in as Tenant A, confirm Tenant B data is unreachable via UI *and* a crafted API request | Playwright suite passes; manual click-through in preview | 1 session |
 | 0.6 | i18n plumbing (EN/FR) | i18n approach decided (recommend `next-intl`) and wired; dictionary structure; language switcher; login + Engagements page render in both languages; per-user language preference persisted | Manual toggle in preview confirms string swap; automated test asserts EN/FR dictionaries have matching keys (no silently-missing translations) | 1 session |
 | 0.7 | Notification service skeleton | In-app notification model + inbox UI (Section 13); email sending stubbed/logged only (real provider wiring deferred) | Dev-only trigger action fires a notification; confirm it appears only for the correct user/tenant | 1 session |
-| 0.8 | CI + Phase 0 acceptance demo | GitHub Actions (typecheck incl. reference's isolated-engine-tsconfig pattern, lint, unit, e2e against a service-container Postgres); `ARCHITECTURE.md` + `DECISIONS.md` started, documenting: raw-SQL choice, RLS approach, auth/2FA approach, docker-compose deviation, i18n choice | CI green on a fresh clone; scripted walkthrough of the full Section 17 Phase 0 acceptance criteria, live | 1 session |
+| 0.8 | CI + Phase 0 acceptance demo | GitHub Actions (typecheck incl. reference's isolated-engine-tsconfig pattern, lint, unit, e2e against a service-container Postgres); `ARCHITECTURE.md` + `DECISIONS.md` started, documenting: raw-SQL choice, RLS approach, auth/2FA approach, native-Postgres/no-Docker decision, i18n choice | CI green on a fresh clone; scripted walkthrough of the full Section 17 Phase 0 acceptance criteria, live | 1 session |
 
 **Phase 0 total: 8 steps, ~9–10 sessions.**
 
-**Two decisions still open, needed before/during Phase 0** (flagged in Section 0.1 of the master prompt, not guessed at):
-- Object storage backend for documents (local disk / MinIO / S3-compatible) — affects step 0.1's docker-compose contents.
-- Word↔PDF round-trip mechanism (Section 9 item 2) — not needed until Phase 1, but the storage decision above should be made now since it also affects Phase 1.
+**Decisions resolved:** No Docker — native PostgreSQL 16 on port 5433 (see `platform/DECISIONS.md`). Object storage deferred to Phase 1 (not needed for Phase 0).
+
+**One decision still open, needed at Phase 1** (not guessed at):
+- Word↔PDF round-trip mechanism (Section 9 item 2) — not needed until Phase 1.
 
 ---
 
