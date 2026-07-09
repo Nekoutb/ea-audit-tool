@@ -2,7 +2,7 @@
 
 Updated after every completed step. See `PROJECT-PLAN.md` for step definitions and `EA-Audit-Tool_Master-Build-Prompt.md` for the spec.
 
-**Current phase:** Build Phase 0 — Foundations. Step 0.1 complete & tested. Step 0.2 next.
+**Current phase:** Build Phase 0 — Foundations. Steps 0.1–0.2 complete & tested. Step 0.3 next.
 
 **Last updated:** 2026-07-09
 
@@ -23,7 +23,7 @@ Updated after every completed step. See `PROJECT-PLAN.md` for step definitions a
 | Step | Status | Tested | Notes |
 |---|---|---|---|
 | 0.1 Repo scaffold & tooling | **Done** | ✅ Passed | Next.js 16 + TS + Tailwind v4; ESLint+Prettier; native Postgres 16 (port 5433, `ea_audit` db created); pushed to GitHub. typecheck + lint clean, dev server serves 200. |
-| 0.2 DB bootstrap + migration runner | Not started | — | |
+| 0.2 DB bootstrap + migration runner | **Done** | ✅ Passed | Raw-SQL migration creates tenant/app_user/membership (+ user_role enum, updated_at triggers); `lib/db.ts` pool + `withTenant()`; Vitest 3/3 pass; migration reversible (down/up verified); typecheck + lint clean. |
 | 0.3 RLS bootstrap + isolation proof | Not started | — | |
 | 0.4 Auth core + 2FA + RBAC | Not started | — | |
 | 0.5 Two-tenant seed + E2E proof | Not started | — | |
