@@ -2,15 +2,15 @@ name: CI
 
 on:
   push:
-    branches: [main]
+    branches:
+      - main
   pull_request:
+    branches:
+      - main
 
 jobs:
   build-and-test:
     runs-on: ubuntu-latest
-    defaults:
-      run:
-        working-directory: platform
 
     services:
       postgres:
@@ -28,8 +28,6 @@ jobs:
           --health-retries 5
 
     env:
-      # App connects as ea_app (non-superuser) so RLS is enforced; migrations and
-      # the RLS bootstrap run as postgres (the owner).
       DATABASE_URL: postgresql://postgres:postgres@localhost:5432/ea_audit
       APP_DATABASE_URL: postgresql://ea_app:ea_app_password@localhost:5432/ea_audit
       AUTH_SECRET: ci-only-secret-not-used-in-production
@@ -41,27 +39,34 @@ jobs:
 
       - uses: actions/setup-node@v4
         with:
-          node-version: 22
+          node-version: "22"
           cache: npm
           cache-dependency-path: platform/package-lock.json
 
       - name: Install dependencies
+        working-directory: platform
         run: npm ci
 
       - name: Set up database (migrate + app role + RLS)
+        working-directory: platform
         run: npm run db:setup
 
       - name: Typecheck
+        working-directory: platform
         run: npm run typecheck
 
       - name: Lint
+        working-directory: platform
         run: npm run lint
 
       - name: Unit tests (incl. tenant-isolation RLS proof)
+        working-directory: platform
         run: npm run test
 
       - name: Install Playwright browser
+        working-directory: platform
         run: npx playwright install --with-deps chromium
 
       - name: End-to-end tests (cross-tenant isolation, auth, notifications)
+        working-directory: platform
         run: npm run test:e2e
