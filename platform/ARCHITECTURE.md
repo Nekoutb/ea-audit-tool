@@ -38,16 +38,18 @@ platform/
 
 ## Multi-tenancy pattern
 
-Every tenant-scoped table carries a `tenantId` column. `lib/db.ts#withTenant()` checks out a `pg` client, opens a transaction, sets the `app.tenant_id` Postgres GUC for that transaction only, runs the caller's queries, then commits/rolls back and releases the client. Row-Level Security policies (bootstrapped via a plain `.sql` script, see `migrations/`) restrict every query on tenant-scoped tables to `current_setting('app.tenant_id')`. The app's database role is a non-superuser, non-table-owner role so `FORCE ROW LEVEL SECURITY` actually applies. This is the exact isolation pattern used by the reference project, translated from Prisma's `$transaction`/`$executeRawUnsafe` to plain `pg` client calls.
+Every tenant-scoped table carries a `tenant_id` column. `lib/db.ts#withTenant()` checks out a `pg` client, opens a transaction, sets the `app.tenant_id` Postgres GUC (transaction-local) , runs the caller's queries, then commits/rolls back and releases the client. Row-Level Security policies (bootstrapped by `db/rls.sql`, re-run whenever a new tenant-scoped table is added) restrict every query on tenant-scoped tables to `NULLIF(current_setting('app.tenant_id', true), '')::uuid`. The app connects as `ea_app` — a non-superuser, non-owner role (`db/create-app-role.sql`) — so `FORCE ROW LEVEL SECURITY` actually applies. This is the reference project's isolation pattern, translated from Prisma's `$transaction`/`$executeRawUnsafe` to plain `pg` client calls.
+
+**Fail-closed:** with no tenant context set, the GUC reads as `''` (an undefined custom GUC resets to empty string, not NULL, once touched on a pooled connection); `NULLIF(..., '')` turns that into NULL, so the policy matches zero rows and also avoids a `''::uuid` cast error. A permanent `rls_probe` table + `tests/lib/rls.test.ts` prove isolation on every test run and in CI: one tenant sees only its own rows, cannot read or insert another tenant's rows (`WITH CHECK`), and sees nothing with no context set.
 
 ## Local setup
 
 No Docker. PostgreSQL is installed natively on Windows.
 
 1. **PostgreSQL 16** — installed via `winget install PostgreSQL.PostgreSQL.16`. Runs as the Windows service `postgresql-x64-16` on **port 5433** (5432 was already taken by a pre-existing Postgres 18 install; 5433 keeps them separate). Superuser `postgres` / password `postgres` (dev only). Database `ea_audit` created manually.
-2. Copy `.env.example` → `.env` and confirm `DATABASE_URL` / `APP_DATABASE_URL` point at `localhost:5433/ea_audit`.
-3. `npm install`, then `npm run dev`.
+2. Copy `.env.example` → `.env` and confirm `DATABASE_URL` (owner role) / `APP_DATABASE_URL` (`ea_app`) point at `localhost:5433/ea_audit`.
+3. `npm install`, then `npm run db:setup` (runs migrations → creates the `ea_app` role → applies RLS), then `npm run dev`.
 
-Migrations and the RLS bootstrap (Steps 0.2–0.3) run against this native instance; there is no container to start first.
+`npm run db:setup` = `migrate:up` + `db:role` (`db/create-app-role.sql`) + `db:rls` (`db/rls.sql`). All idempotent; no container to start first. Tests (`npm run test`) run against this same native instance.
 
 (Further sections — data model, document engine, linkage engine, automation engines — added as each Build Phase lands.)

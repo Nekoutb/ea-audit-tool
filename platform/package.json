@@ -14,7 +14,10 @@
     "test:watch": "vitest",
     "migrate": "node-pg-migrate",
     "migrate:up": "node-pg-migrate up",
-    "migrate:down": "node-pg-migrate down"
+    "migrate:down": "node-pg-migrate down",
+    "db:role": "node scripts/run-sql.mjs db/create-app-role.sql",
+    "db:rls": "node scripts/run-sql.mjs db/rls.sql",
+    "db:setup": "npm run migrate:up && npm run db:role && npm run db:rls"
   },
   "dependencies": {
     "dotenv": "^17.4.2",
