@@ -17,11 +17,14 @@
     "migrate:down": "node-pg-migrate down",
     "db:role": "node scripts/run-sql.mjs db/create-app-role.sql",
     "db:rls": "node scripts/run-sql.mjs db/rls.sql",
-    "db:setup": "npm run migrate:up && npm run db:role && npm run db:rls"
+    "db:setup": "npm run migrate:up && npm run db:role && npm run db:rls",
+    "seed:dev": "node scripts/seed-dev.mjs"
   },
   "dependencies": {
+    "bcryptjs": "^3.0.3",
     "dotenv": "^17.4.2",
     "next": "16.2.10",
+    "next-auth": "^5.0.0-beta.31",
     "node-pg-migrate": "^8.0.4",
     "pg": "^8.22.0",
     "react": "19.2.4",
@@ -29,6 +32,7 @@
   },
   "devDependencies": {
     "@tailwindcss/postcss": "^4",
+    "@types/bcryptjs": "^2.4.6",
     "@types/node": "^20",
     "@types/pg": "^8.20.0",
     "@types/react": "^19",

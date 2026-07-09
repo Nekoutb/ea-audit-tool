@@ -2,6 +2,10 @@
 
 Append-only. Each entry: date, decision, why, alternatives considered.
 
+## 2026-07-09 — Drop mandatory TOTP 2FA; standard email/password login only
+
+Master spec §15 called for mandatory TOTP 2FA on partner/firm_admin logins. The user descoped it: a second factor on every login is impractical friction for a tool audit staff live in daily, and it would slow routine operation. Auth is now standard email/password (bcrypt) with JWT sessions. The `app_user.totp_secret` / `totp_enabled` columns are left in place as reserved-for-future (no migration to drop them); 2FA can be reintroduced later as an opt-in, not a hard gate. Security posture otherwise unchanged (RLS tenant isolation, RBAC, server-side authz).
+
 ## 2026-07-09 — Stack: Next.js + raw SQL (no ORM) + Postgres RLS
 
 Reference project `EA Financial Audit/platform` uses Next.js 15 + Prisma + Postgres + NextAuth v5 + Tailwind. That stack is replicated here **except Prisma is dropped** in favor of raw SQL via `pg` (node-postgres), per this project's non-negotiable "no ORM" coding convention (master prompt §0.2). Confirmed with the user after flagging the conflict explicitly.
