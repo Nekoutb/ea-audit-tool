@@ -17,7 +17,9 @@ async function login(page: Page, email: string): Promise<void> {
   await page.goto("/login");
   await page.fill("input[name=email]", email);
   await page.fill("input[name=password]", PASSWORD);
-  await page.click("button[type=submit]");
+  // Target the login button specifically — the language switcher also renders
+  // submit buttons on this page.
+  await page.getByTestId("login-submit").click();
   await page.waitForURL("**/dashboard");
 }
 

@@ -3,8 +3,9 @@
 import { signIn } from "next-auth/react";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
+import type { Messages } from "@/lib/i18n";
 
-export function LoginForm() {
+export function LoginForm({ messages }: { messages: Messages["login"] }) {
   const router = useRouter();
   const [error, setError] = useState<string | null>(null);
   const [pending, setPending] = useState(false);
@@ -23,7 +24,7 @@ export function LoginForm() {
 
     setPending(false);
     if (!result || result.error) {
-      setError("Incorrect email or password.");
+      setError(messages.error);
       return;
     }
     router.push("/dashboard");
@@ -33,7 +34,7 @@ export function LoginForm() {
   return (
     <form onSubmit={onSubmit} className="flex flex-col gap-4">
       <label className="flex flex-col gap-1 text-sm">
-        <span className="font-medium text-slate-700 dark:text-slate-300">Email</span>
+        <span className="font-medium text-slate-700 dark:text-slate-300">{messages.email}</span>
         <input
           name="email"
           type="email"
@@ -44,7 +45,7 @@ export function LoginForm() {
       </label>
 
       <label className="flex flex-col gap-1 text-sm">
-        <span className="font-medium text-slate-700 dark:text-slate-300">Password</span>
+        <span className="font-medium text-slate-700 dark:text-slate-300">{messages.password}</span>
         <input
           name="password"
           type="password"
@@ -62,10 +63,11 @@ export function LoginForm() {
 
       <button
         type="submit"
+        data-testid="login-submit"
         disabled={pending}
         className="mt-2 rounded-md bg-emerald-700 px-4 py-2 font-medium text-white transition hover:bg-emerald-800 focus:outline-none focus:ring-2 focus:ring-emerald-600/40 disabled:opacity-60"
       >
-        {pending ? "Signing in…" : "Sign in"}
+        {pending ? messages.submitting : messages.submit}
       </button>
     </form>
   );

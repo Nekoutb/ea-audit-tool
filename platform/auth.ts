@@ -2,6 +2,7 @@ import bcrypt from "bcryptjs";
 import NextAuth from "next-auth";
 import Credentials from "next-auth/providers/credentials";
 import { pool } from "@/lib/db";
+import { isLocale, type Locale } from "@/lib/i18n";
 import { isRole, type Role } from "@/lib/rbac";
 
 interface UserRow {
@@ -9,6 +10,7 @@ interface UserRow {
   email: string;
   name: string | null;
   password_hash: string;
+  preferred_language: string;
 }
 
 interface MembershipRow {
@@ -34,7 +36,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
         if (!email || !password) return null;
 
         const userResult = await pool.query<UserRow>(
-          "SELECT id, email, name, password_hash FROM app_user WHERE lower(email) = $1",
+          "SELECT id, email, name, password_hash, preferred_language FROM app_user WHERE lower(email) = $1",
           [email],
         );
         const user = userResult.rows[0];
@@ -51,12 +53,17 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
         const membership = membershipResult.rows[0];
         if (!membership || !isRole(membership.role)) return null;
 
+        const locale: Locale = isLocale(user.preferred_language)
+          ? user.preferred_language
+          : "fr";
+
         return {
           id: user.id,
           email: user.email,
           name: user.name ?? undefined,
           tenantId: membership.tenant_id,
           role: membership.role,
+          locale,
         };
       },
     }),
@@ -67,6 +74,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
         token.uid = user.id;
         token.tenantId = user.tenantId;
         token.role = user.role;
+        token.locale = user.locale;
       }
       return token;
     },
@@ -75,6 +83,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
         session.user.id = token.uid as string;
         session.user.tenantId = token.tenantId as string;
         session.user.role = token.role as Role;
+        session.user.locale = token.locale as Locale;
       }
       return session;
     },

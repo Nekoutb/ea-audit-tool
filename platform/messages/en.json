@@ -1,0 +1,26 @@
+{
+  "common": {
+    "appName": "EA Audit",
+    "signOut": "Sign out",
+    "language": "Language",
+    "english": "English",
+    "french": "French"
+  },
+  "login": {
+    "title": "Sign in",
+    "subtitle": "Access your firm's audit engagements.",
+    "email": "Email",
+    "password": "Password",
+    "submit": "Sign in",
+    "submitting": "Signing in…",
+    "error": "Incorrect email or password."
+  },
+  "dashboard": {
+    "title": "Dashboard",
+    "signedInAs": "Signed in as",
+    "role": "Role",
+    "tenant": "Tenant",
+    "firmData": "Your firm's data",
+    "phase1Note": "Engagements and the audit file arrive in Build Phase 1."
+  }
+}

@@ -1,0 +1,26 @@
+{
+  "common": {
+    "appName": "EA Audit",
+    "signOut": "Se déconnecter",
+    "language": "Langue",
+    "english": "Anglais",
+    "french": "Français"
+  },
+  "login": {
+    "title": "Connexion",
+    "subtitle": "Accédez aux missions d'audit de votre cabinet.",
+    "email": "Adresse e-mail",
+    "password": "Mot de passe",
+    "submit": "Se connecter",
+    "submitting": "Connexion…",
+    "error": "Adresse e-mail ou mot de passe incorrect."
+  },
+  "dashboard": {
+    "title": "Tableau de bord",
+    "signedInAs": "Connecté en tant que",
+    "role": "Rôle",
+    "tenant": "Cabinet",
+    "firmData": "Données de votre cabinet",
+    "phase1Note": "Les missions et le dossier d'audit arrivent en phase 1."
+  }
+}
