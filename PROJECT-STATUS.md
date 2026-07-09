@@ -31,7 +31,7 @@ Updated after every completed step. See `PROJECT-PLAN.md` for step definitions a
 | 0.5 Two-tenant seed + E2E proof | **Done** | ✅ Passed | `scripts/seed.mjs` seeds two firms; `/api/probe` + dashboard read tenant-scoped data via session only; Playwright 4/4 pass — Firm A/B each see only own data, crafted `?tenantId=B` request still returns only A, unauth API → 401. |
 | 0.6 i18n plumbing (EN/FR) | **Done** | ✅ Passed | EN/FR dictionaries; `getLocale()` (cookie → user pref → default fr); `LanguageSwitcher` sets cookie + persists to profile; `preferred_language` carried in session; `<html lang>` follows locale; `formatFCFA` (space thousands). Verified in browser (FR default, switch→EN persists). Parity test + 10/10 unit + 4/4 E2E. |
 | 0.7 Notification service skeleton | **Done** | ✅ Passed | Tenant-scoped `notification` table (RLS enabled+forced); `lib/notifications.ts` (create/list/unreadCount/markRead, user+tenant scoped); stubbed `lib/email.ts`; inbox page + dashboard unread badge + test-notification trigger. E2E 2/2 (notification reaches only its user; mark-read clears badge). Full suite 10 unit + 6 E2E. |
-| 0.8 CI + Phase 0 acceptance demo | Not started | — | |
+| 0.8 CI + Phase 0 acceptance demo | **Done** | ✅ Passed | `.github/workflows/ci.yml` (Postgres service container → db:setup → typecheck → lint → unit → E2E); `PHASE-0-ACCEPTANCE.md` maps every acceptance criterion to its proof; ARCHITECTURE.md updated. CI verified green on GitHub. |
 
 ## Phases 1–9
 

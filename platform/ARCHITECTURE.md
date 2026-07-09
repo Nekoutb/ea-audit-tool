@@ -52,4 +52,20 @@ No Docker. PostgreSQL is installed natively on Windows.
 
 `npm run db:setup` = `migrate:up` + `db:role` (`db/create-app-role.sql`) + `db:rls` (`db/rls.sql`). All idempotent; no container to start first. Tests (`npm run test`) run against this same native instance.
 
-(Further sections — data model, document engine, linkage engine, automation engines — added as each Build Phase lands.)
+## Authentication & RBAC
+
+NextAuth v5 (`auth.ts`), Credentials provider + `bcryptjs`, JWT session strategy. `authorize()` looks the user up with raw SQL, verifies the password, and resolves their tenant + firm role via `membership`. The session carries `id`, `tenantId`, `role`, and `locale` (typed in `types/next-auth.d.ts`). `proxy.ts` (Next 16's renamed middleware, Node runtime) redirects unauthenticated requests on protected routes to `/login`; every protected page also calls `auth()`/`requireTenant()` server-side (defense in depth). `trustHost: true` makes redirects port/host-agnostic. `lib/rbac.ts` holds rank-based role helpers. **2FA was descoped** (see `DECISIONS.md`); the `app_user.totp_*` columns remain reserved.
+
+## Internationalisation (EN/FR)
+
+Strings live in `messages/{en,fr}.json`; `lib/i18n.ts` exposes `getMessages()` and `formatFCFA()` (space-grouped, no decimals). `lib/locale.ts#getLocale()` resolves the active locale as cookie → signed-in user's `preferred_language` → default `fr`. `LanguageSwitcher` + the `setLocale` server action set the cookie and persist the choice to the user's profile; `<html lang>` follows. A key-parity test (`tests/lib/i18n.test.ts`) fails the build if EN and FR drift.
+
+## Notifications
+
+`notification` is tenant-scoped (RLS) and additionally user-scoped. `lib/notifications.ts` create/list/count/mark-read all go through `requireTenant()` + `withTenant()`. The email channel is stubbed (`lib/email.ts` logs) until a later phase. UI: `/notifications` inbox + a dashboard unread badge.
+
+## CI
+
+`.github/workflows/ci.yml` runs on every push/PR against a Postgres 16 service container: `db:setup` → typecheck → lint → unit tests (incl. the RLS isolation proof) → Playwright E2E. Matches the local gate exactly.
+
+(Further sections — document engine, linkage engine, automation engines — added as each Build Phase lands.)

@@ -19,7 +19,7 @@ Every step across all 10 build phases. Each step ends with a tested deliverable 
 | ✅ 0.5 | Two-tenant seed + E2E proof | 1 | Two firms seeded; Playwright proves Firm A can't see Firm B via UI or API |
 | ✅ 0.6 | i18n plumbing (EN/FR) | 1 | Every screen renders EN + FR; toggle; missing-translation test |
 | ✅ 0.7 | Notification service skeleton | 1 | In-app inbox; notifications tenant/user-scoped |
-| ⬜ 0.8 | CI + Phase 0 acceptance demo | 1 | GitHub Actions runs typecheck/lint/tests/isolation-proof; live acceptance walkthrough |
+| ✅ 0.8 | CI + Phase 0 acceptance demo | 1 | GitHub Actions runs typecheck/lint/tests/isolation-proof; live acceptance walkthrough |
 
 ## Phase 1 — Engagement & audit file core (12 steps)
 
