@@ -13,6 +13,12 @@ platform/.env*.local
 platform/*.tsbuildinfo
 platform/next-env.d.ts
 
+# playwright
+platform/test-results/
+platform/playwright-report/
+platform/blob-report/
+platform/.playwright/
+
 # misc
 .DS_Store
 *.pem

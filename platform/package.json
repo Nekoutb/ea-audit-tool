@@ -12,12 +12,14 @@
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
     "test:watch": "vitest",
+    "test:e2e": "playwright test",
     "migrate": "node-pg-migrate",
     "migrate:up": "node-pg-migrate up",
     "migrate:down": "node-pg-migrate down",
     "db:role": "node scripts/run-sql.mjs db/create-app-role.sql",
     "db:rls": "node scripts/run-sql.mjs db/rls.sql",
     "db:setup": "npm run migrate:up && npm run db:role && npm run db:rls",
+    "seed": "node scripts/seed.mjs",
     "seed:dev": "node scripts/seed-dev.mjs"
   },
   "dependencies": {
@@ -31,6 +33,7 @@
     "react-dom": "19.2.4"
   },
   "devDependencies": {
+    "@playwright/test": "^1.61.1",
     "@tailwindcss/postcss": "^4",
     "@types/bcryptjs": "^2.4.6",
     "@types/node": "^20",

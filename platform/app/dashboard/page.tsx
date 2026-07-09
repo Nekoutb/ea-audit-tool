@@ -1,5 +1,6 @@
 import { redirect } from "next/navigation";
 import { auth, signOut } from "@/auth";
+import { withTenant } from "@/lib/db";
 
 export default async function DashboardPage() {
   const session = await auth();
@@ -8,6 +9,14 @@ export default async function DashboardPage() {
   }
 
   const { email, role, tenantId } = session.user;
+
+  // Tenant-scoped read: RLS guarantees these rows belong only to this firm.
+  const notes = await withTenant(tenantId, async (client) => {
+    const result = await client.query<{ note: string }>(
+      "SELECT note FROM rls_probe ORDER BY created_at",
+    );
+    return result.rows.map((row) => row.note);
+  });
 
   return (
     <main className="mx-auto min-h-screen max-w-3xl px-6 py-16">
@@ -48,6 +57,20 @@ export default async function DashboardPage() {
             <dd className="mt-1 font-mono text-xs text-slate-900 dark:text-slate-100">{tenantId}</dd>
           </div>
         </dl>
+        <div className="mt-8">
+          <p className="text-sm text-slate-500 dark:text-slate-400">Your firm&rsquo;s data</p>
+          <ul className="mt-2 flex flex-col gap-1" data-testid="firm-notes">
+            {notes.map((note) => (
+              <li
+                key={note}
+                className="rounded-md bg-slate-100 px-3 py-2 text-sm text-slate-800 dark:bg-slate-800 dark:text-slate-200"
+              >
+                {note}
+              </li>
+            ))}
+          </ul>
+        </div>
+
         <p className="mt-8 text-sm text-slate-500 dark:text-slate-400">
           Engagements and the audit file arrive in Build Phase 1.
         </p>
