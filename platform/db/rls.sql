@@ -25,7 +25,8 @@ BEGIN
     -- Tenant-scoped tables. NOTE: tenant, app_user and membership are global and
     -- intentionally absent — they are read during authentication, before a
     -- tenant context exists, and are scoped by user_id/id in app code instead.
-    'rls_probe'
+    'rls_probe',
+    'notification'
   ]
   LOOP
     EXECUTE format('ALTER TABLE %I ENABLE ROW LEVEL SECURITY;', t);

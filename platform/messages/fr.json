@@ -21,6 +21,14 @@
     "role": "Rôle",
     "tenant": "Cabinet",
     "firmData": "Données de votre cabinet",
-    "phase1Note": "Les missions et le dossier d'audit arrivent en phase 1."
+    "phase1Note": "Les missions et le dossier d'audit arrivent en phase 1.",
+    "sendTestNotification": "Envoyer une notification de test"
+  },
+  "notifications": {
+    "title": "Notifications",
+    "link": "Notifications",
+    "empty": "Vous n'avez aucune notification.",
+    "markRead": "Marquer comme lue",
+    "unreadBadge": "non lues"
   }
 }

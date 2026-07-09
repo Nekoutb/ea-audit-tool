@@ -74,6 +74,9 @@ try {
       firm.id,
       firm.probe,
     ]);
+
+    // Clear notifications so E2E runs start from a known-empty inbox.
+    await client.query("DELETE FROM notification WHERE tenant_id = $1", [firm.id]);
   }
 
   console.log(

@@ -1,9 +1,12 @@
+import Link from "next/link";
 import { redirect } from "next/navigation";
 import { auth, signOut } from "@/auth";
+import { sendTestNotification } from "@/app/actions/notifications";
 import { LanguageSwitcher } from "@/components/LanguageSwitcher";
 import { withTenant } from "@/lib/db";
 import { getMessages } from "@/lib/i18n";
 import { getLocale } from "@/lib/locale";
+import { unreadCount } from "@/lib/notifications";
 
 export default async function DashboardPage() {
   const session = await auth();
@@ -23,6 +26,8 @@ export default async function DashboardPage() {
     return result.rows.map((row) => row.note);
   });
 
+  const unread = await unreadCount();
+
   return (
     <main className="mx-auto min-h-screen max-w-3xl px-6 py-16">
       <header className="flex items-start justify-between gap-6 border-b border-slate-200 pb-6 dark:border-slate-800">
@@ -35,6 +40,20 @@ export default async function DashboardPage() {
           </h1>
         </div>
         <div className="flex items-center gap-4">
+          <Link
+            href="/notifications"
+            className="flex items-center gap-1.5 text-sm font-medium text-slate-700 hover:text-emerald-700 dark:text-slate-300 dark:hover:text-emerald-400"
+          >
+            {t.notifications.link}
+            {unread > 0 ? (
+              <span
+                data-testid="unread-badge"
+                className="inline-flex min-w-5 items-center justify-center rounded-full bg-emerald-700 px-1.5 text-xs font-semibold text-white"
+              >
+                {unread}
+              </span>
+            ) : null}
+          </Link>
           <LanguageSwitcher current={locale} />
           <form
             action={async () => {
@@ -79,6 +98,22 @@ export default async function DashboardPage() {
             ))}
           </ul>
         </div>
+
+        <form
+          action={async () => {
+            "use server";
+            await sendTestNotification();
+          }}
+          className="mt-8"
+        >
+          <button
+            type="submit"
+            data-testid="send-test-notification"
+            className="rounded-md border border-emerald-300 px-3 py-1.5 text-sm font-medium text-emerald-800 transition hover:bg-emerald-50 dark:border-emerald-800 dark:text-emerald-300 dark:hover:bg-emerald-950/40"
+          >
+            {t.dashboard.sendTestNotification}
+          </button>
+        </form>
 
         <p className="mt-8 text-sm text-slate-500 dark:text-slate-400">{t.dashboard.phase1Note}</p>
       </section>

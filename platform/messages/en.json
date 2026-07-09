@@ -21,6 +21,14 @@
     "role": "Role",
     "tenant": "Tenant",
     "firmData": "Your firm's data",
-    "phase1Note": "Engagements and the audit file arrive in Build Phase 1."
+    "phase1Note": "Engagements and the audit file arrive in Build Phase 1.",
+    "sendTestNotification": "Send test notification"
+  },
+  "notifications": {
+    "title": "Notifications",
+    "link": "Notifications",
+    "empty": "You have no notifications.",
+    "markRead": "Mark as read",
+    "unreadBadge": "unread"
   }
 }
