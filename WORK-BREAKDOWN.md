@@ -108,14 +108,14 @@ Every step across all 10 build phases. Each step ends with a tested deliverable 
 
 | # | Step | E | Expected outcome |
 |---|---|---|---|
-| ⬜ 6.1 | Selection engine | 1 | Criteria-based selection per type (AR/AP/bank/legal) |
-| ⬜ 6.2 | Letter generation (all types) | 1–2 | positive open/closed, negative, bank, legal, third-party, related-party — bilingual |
-| ⬜ 6.3 | Dispatch (email + print pack) | 1 | Send from tool with unique reply-to tokens; postal pack fallback |
-| ⬜ 6.4 | Tracking lifecycle | 1 | prepared→approved→sent→reply per confirmation |
-| ⬜ 6.5 | Reminder auto-scheduling | 1 | 1st/2nd reminders on configurable cadence |
-| ⬜ 6.6 | Reply evaluation | 1 | confirmed vs book; differences dispositioned → B5 |
-| ⬜ 6.7 | Alternative procedures + summary + B6 | 1 | Non-replies → alt-procedures; summary working paper; outstanding → B6 |
-| ⬜ 6.8 | Phase 6 acceptance E2E | 1 | full AR + bank cycle incl. one non-reply flowing to alternative procedures |
+| ✅ 6.1 | Selection engine | 1 | Criteria-based selection per type (AR/AP/bank/legal) |
+| ✅ 6.2 | Letter generation (all types) | 1–2 | positive open/closed, negative, bank, legal, third-party, related-party — bilingual |
+| ✅ 6.3 | Dispatch (email + print pack) | 1 | Send from tool with unique reply-to tokens; postal pack fallback |
+| ✅ 6.4 | Tracking lifecycle | 1 | prepared→approved→sent→reply per confirmation |
+| ✅ 6.5 | Reminder auto-scheduling | 1 | 1st/2nd reminders on configurable cadence |
+| ✅ 6.6 | Reply evaluation | 1 | confirmed vs book; differences dispositioned → B5 |
+| ✅ 6.7 | Alternative procedures + summary + B6 | 1 | Non-replies → alt-procedures; summary working paper; outstanding → B6 |
+| ✅ 6.8 | Phase 6 acceptance E2E | 1 | full AR + bank cycle incl. one non-reply flowing to alternative procedures |
 
 ## Phase 7 — Conclusion & reporting (12 steps)
 

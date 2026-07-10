@@ -8,7 +8,7 @@ export function EngagementTabs({
 }: {
   engagementId: string;
   locale: Locale;
-  active: "file" | "acceptance" | "planning" | "risks" | "data" | "analytics" | "findings";
+  active: "file" | "acceptance" | "planning" | "risks" | "data" | "analytics" | "findings" | "confirmations";
 }) {
   const t = getMessages(locale);
   const tabs = [
@@ -19,6 +19,7 @@ export function EngagementTabs({
     { key: "data", href: `/engagements/${engagementId}/data`, label: t.planning.dataTitle },
     { key: "analytics", href: `/engagements/${engagementId}/analytics`, label: t.planning.analyticsTitle },
     { key: "findings", href: `/engagements/${engagementId}/findings`, label: t.planning.findings.title },
+    { key: "confirmations", href: `/engagements/${engagementId}/confirmations`, label: t.planning.confirmations.title },
   ] as const;
   return (
     <div className="mt-4 flex flex-wrap gap-2 border-b border-slate-200 pb-2 dark:border-slate-800">

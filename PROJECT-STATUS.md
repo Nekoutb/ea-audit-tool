@@ -2,7 +2,7 @@
 
 Updated after every completed step. See `PROJECT-PLAN.md` for step definitions and `EA-Audit-Tool_Master-Build-Prompt.md` for the spec.
 
-**Current phase:** ✅ **Build Phases 0–5 COMPLETE** (66 of 103 steps, all tested locally: 78 unit + 11 E2E green). Ready for Build Phase 6 — Circularisations. One external follow-up: enable GitHub Actions billing (see CI note under 0.8).
+**Current phase:** ✅ **Build Phases 0–6 COMPLETE** (74 of 103 steps; 82 unit + 12 E2E green). Ready for Build Phase 7 — Conclusion & reporting. One external follow-up: enable GitHub Actions billing (see CI note under 0.8).
 
 **Last updated:** 2026-07-10
 
@@ -89,6 +89,10 @@ All 12 steps done: program-step execution with mandatory conclusions + evidence 
 
 All 10 steps done: reproducible run framework (params + dataset + user recorded; HMAC-seeded deterministic sampling; Excel outputs indexed as engine_output documents); sampling random/systematic/MUS/criteria with projected misstatements auto-raised to B5; sub-ledger/FAR/bank reconciliations vs the TB with unreconciled-difference findings + stale-item aging; supplier-statement comparison; JE testing (round/weekend/period-end/large scoring); substantive analytics with unexplained variance → B5.
 
-## Phases 6–9
+## Phase 6 — Circularisations — COMPLETE ✅
+
+All 8 steps done: dataset-driven selection (threshold / top-N / nil balances, idempotent per party), bilingual letters for all seven confirmation types (negative letters carry the ISA 505 conditions warning) stored as versioned documents with unique reply tokens, prepared→approved→sent lifecycle with reminders, reply evaluation (auto difference; zero reconciles, else exception), dispositions (client error auto-raises the difference into B5), non-reply → alternative procedures, and an auto-produced coverage summary working paper. Outstanding confirmations are queryable for the Phase 7 B6 feed.
+
+## Phases 7–9
 
 Not started. Detailed step tables will be added here as each phase begins.
