@@ -147,6 +147,36 @@
     "sectionTitle": "Espace de section",
     "dataTitle": "Données",
     "analyticsTitle": "Analytique",
+    "tbPage": {
+      "title": "Balance générale",
+      "import": "Importer la balance",
+      "versions": "Versions",
+      "kind": { "initial": "Initiale", "adjusted": "Ajustée", "final": "Finale" },
+      "statusLabel": { "pending": "En attente", "valid": "Valide", "invalid": "Invalide" },
+      "current": "courante",
+      "checks": {
+        "balanced": "Débits = crédits (mouvements)",
+        "openingBalanced": "Débits = crédits (ouverture)",
+        "closingEquation": "Solde = ouverture + mouvements",
+        "codification": "Codification SYSCOHADA",
+        "unknownAccounts": "Comptes non affectés",
+        "openingTiesToPrior": "Ouverture = clôture N-1 (E370)"
+      },
+      "journals": "Écritures d'ajustement",
+      "journalDescription": "Libellé",
+      "journalLines": "Lignes (une par ligne : compte;libellé;débit;crédit)",
+      "createJournal": "Créer l'écriture",
+      "post": "Comptabiliser",
+      "postedAs": "comptabilisée",
+      "diff": "Écart entre versions",
+      "overrides": "Personnalisations de regroupement (client)",
+      "prefix": "Préfixe de compte",
+      "matchType": "Correspondance",
+      "section": "Section",
+      "rationale": "Justification",
+      "addOverride": "Ajouter",
+      "deactivate": "Désactiver"
+    },
     "dataPage": {
       "subledgers": "Balances auxiliaires et fichiers",
       "upload": "Importer",
@@ -357,7 +387,14 @@
       "no-tb": "Aucune balance générale n'a encore été importée pour cette mission.",
       "no-mapped-rows": "Aucun compte de la balance n'est affecté à cette section — vérifiez les regroupements.",
       "unsupported-file": "Seuls les fichiers .csv et .xlsx sont acceptés.",
-      "empty-file": "Le fichier ne contient aucune ligne de données."
+      "empty-file": "Le fichier ne contient aucune ligne de données.",
+      "missing-account-column": "Aucune colonne de numéro de compte n'a été reconnue.",
+      "missing-amount-columns": "Le fichier doit contenir des colonnes de mouvements (débit/crédit) ou de soldes.",
+      "journal-unbalanced": "L'écriture n'est pas équilibrée (débits ≠ crédits).",
+      "journal-lines-required": "Une écriture nécessite au moins deux lignes.",
+      "journal-not-draft": "Seules les écritures en brouillon peuvent être comptabilisées.",
+      "invalid-prefix": "Le préfixe de compte doit comporter 1 à 8 chiffres.",
+      "invalid-section": "La section doit être un code E (ex. E100)."
     }
   }
 }

@@ -67,6 +67,8 @@ ALTER TABLE document ADD CONSTRAINT document_kind_check
 
 -- Down Migration
 
+-- Leadsheet documents must go before the narrower constraint can be restored.
+DELETE FROM document WHERE kind = 'leadsheet';
 ALTER TABLE document DROP CONSTRAINT document_kind_check;
 ALTER TABLE document ADD CONSTRAINT document_kind_check
   CHECK (kind IN ('workpaper', 'letter'));

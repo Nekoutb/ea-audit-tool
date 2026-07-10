@@ -147,6 +147,36 @@
     "sectionTitle": "Section workspace",
     "dataTitle": "Data",
     "analyticsTitle": "Analytics",
+    "tbPage": {
+      "title": "Trial balance",
+      "import": "Import trial balance",
+      "versions": "Versions",
+      "kind": { "initial": "Initial", "adjusted": "Adjusted", "final": "Final" },
+      "statusLabel": { "pending": "Pending", "valid": "Valid", "invalid": "Invalid" },
+      "current": "current",
+      "checks": {
+        "balanced": "Debits = credits (movements)",
+        "openingBalanced": "Debits = credits (opening)",
+        "closingEquation": "Closing = opening + movements",
+        "codification": "SYSCOHADA codification",
+        "unknownAccounts": "Unmapped accounts",
+        "openingTiesToPrior": "Opening ties to prior-year closing (E370)"
+      },
+      "journals": "Adjusting journals",
+      "journalDescription": "Description",
+      "journalLines": "Lines (one per row: account;label;debit;credit)",
+      "createJournal": "Create journal",
+      "post": "Post",
+      "postedAs": "posted",
+      "diff": "Version diff",
+      "overrides": "Client grouping overrides",
+      "prefix": "Account prefix",
+      "matchType": "Match",
+      "section": "Section",
+      "rationale": "Rationale",
+      "addOverride": "Add override",
+      "deactivate": "Deactivate"
+    },
     "dataPage": {
       "subledgers": "Sub-ledger datasets",
       "upload": "Import dataset",
@@ -357,7 +387,14 @@
       "no-tb": "No trial balance has been imported for this engagement yet.",
       "no-mapped-rows": "No trial-balance accounts map to this section — check the groupings.",
       "unsupported-file": "Only .csv and .xlsx files are accepted.",
-      "empty-file": "The file has no data rows."
+      "empty-file": "The file has no data rows.",
+      "missing-account-column": "No account-number column was recognised in the file.",
+      "missing-amount-columns": "The file needs movement (debit/credit) or closing-balance columns.",
+      "journal-unbalanced": "The journal does not balance (total debits ≠ total credits).",
+      "journal-lines-required": "A journal needs at least two lines.",
+      "journal-not-draft": "Only draft journals can be posted.",
+      "invalid-prefix": "The account prefix must be 1–8 digits.",
+      "invalid-section": "The section must be an E-code (e.g. E100)."
     }
   }
 }

@@ -49,7 +49,16 @@ BEGIN
     'risk_section',
     'program_step',
     'risk_response',
-    'planning_snapshot'
+    'planning_snapshot',
+    'trial_balance',
+    'trial_balance_version',
+    'trial_balance_row',
+    'adjusting_journal',
+    'adjusting_journal_line',
+    'trial_balance_version_journal',
+    'client_grouping_override',
+    'sub_ledger_dataset',
+    'sub_ledger_row'
   ]
   LOOP
     EXECUTE format('ALTER TABLE %I ENABLE ROW LEVEL SECURITY;', t);
