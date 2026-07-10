@@ -64,13 +64,13 @@ Every step across all 10 build phases. Each step ends with a tested deliverable 
 | ⬜ 3.1 | TB import (column-mapping wizard) | 1 | Excel/CSV import with saved per-client mappings |
 | ⬜ 3.2 | TB validation | 1 | debits=credits, SYSCOHADA codification, opening-ties-to-prior checks |
 | ⬜ 3.3 | TB versions + diff + adjusting journals | 1 | initial/adjusted/final versions; reproducible final = initial + adjustments |
-| ⬜ 3.4 | Sub-ledger imports | 1 | AR/AP/FAR/inventory/payroll/bank as typed datasets attached to sections |
+| ✅ 3.4 | Sub-ledger imports | 1 | AR/AP/FAR/inventory/payroll/bank as typed datasets attached to sections |
 | ⬜ 3.5 | SYSCOHADA grouping library | 1–2 | 2-digit map + FS REF codes as seed data (from Appendix B) + loader |
 | ⬜ 3.6 | Client grouping overrides | 1 | Per-client override/extend; unmapped accounts block lead-schedule gen |
-| ⬜ 3.7 | Lead schedule generation | 1–2 | Excel (live formulas) + mirrored app tables, per E-section |
-| ⬜ 3.8 | Lead schedule distribution + regen | 1 | Assign/notify/check-in; regenerate preserving commentary & tickmarks |
-| ⬜ 3.9 | Preliminary analytical review (D4.3) | 1 | Auto variance table + ratios + threshold flags with "raise risk?" |
-| ⬜ 3.10 | Phase 3 acceptance E2E | 1 | import demo TB → lead schedules → variance flag → promoted to a risk |
+| ✅ 3.7 | Lead schedule generation | 1–2 | Excel (live formulas) + mirrored app tables, per E-section |
+| ✅ 3.8 | Lead schedule distribution + regen | 1 | Assign/notify/check-in; regenerate preserving commentary & tickmarks |
+| ✅ 3.9 | Preliminary analytical review (D4.3) | 1 | Auto variance table + ratios + threshold flags with "raise risk?" |
+| ▶ 3.10 | Phase 3 acceptance E2E | 1 | import demo TB → lead schedules → variance flag → promoted to a risk |
 
 ## Phase 4 — Execution / fieldwork (12 steps)
 
