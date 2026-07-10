@@ -75,10 +75,11 @@ export async function generateAuditReport(input: {
     const info = await tx.query<{
       client_name: string;
       listed: boolean;
+      co_cac: boolean;
       fiscal_year: number;
       a1_id: string;
     }>(
-      `SELECT c.name AS client_name, c.listed, e.fiscal_year,
+      `SELECT c.name AS client_name, c.listed, c.co_cac, e.fiscal_year,
               (SELECT id FROM file_item WHERE engagement_id = e.id AND code = 'A1') AS a1_id
          FROM engagement e JOIN client c ON c.id = e.client_id
         WHERE e.id = $1`,
@@ -122,7 +123,33 @@ export async function generateAuditReport(input: {
       new Paragraph(
         "Nous avons procédé aux vérifications spécifiques prévues par les textes : concordance et sincérité des informations du rapport de gestion (art. 713), respect de l'égalité entre actionnaires (art. 714), détention d'actions par les administrateurs (art. 417). Les irrégularités et inexactitudes relevées, le cas échéant, sont signalées à la plus proche assemblée générale (art. 716).",
       ),
-      new Paragraph({ children: [new TextRun({ text: `Fait le ${input.reportDate}. Le commissaire aux comptes.`, italics: true })] }),
+    );
+    // F8 (spec §12.5.10): joint report by the co-CACs; any documented
+    // divergence between them is disclosed in the report (art. 719).
+    if (row.co_cac) {
+      const disagreement = await tx.query<{ data: { text?: string } }>(
+        "SELECT data FROM completion_record WHERE engagement_id = $1 AND key = 'f8_disagreement'",
+        [input.engagementId],
+      );
+      const text = disagreement.rows[0]?.data?.text;
+      if (text && text.trim()) {
+        children.push(
+          new Paragraph({ heading: HeadingLevel.HEADING_1, children: [new TextRun("Divergence entre commissaires aux comptes (art. 719)")] }),
+          new Paragraph(text),
+        );
+      }
+    }
+    children.push(
+      new Paragraph({
+        children: [
+          new TextRun({
+            text: row.co_cac
+              ? `Fait le ${input.reportDate}. Les commissaires aux comptes (rapport commun, art. 719).`
+              : `Fait le ${input.reportDate}. Le commissaire aux comptes.`,
+            italics: true,
+          }),
+        ],
+      }),
     );
 
     const content = await Packer.toBuffer(new Document({ sections: [{ children }] }));

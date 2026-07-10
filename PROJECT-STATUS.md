@@ -2,7 +2,7 @@
 
 Updated after every completed step. See `PROJECT-PLAN.md` for step definitions and `EA-Audit-Tool_Master-Build-Prompt.md` for the spec.
 
-**Current phase:** ✅ **Build Phases 0–7 COMPLETE** (86 of 103 steps; 92 unit + 13 E2E green). Ready for Build Phase 8 — OHADA legal module. One external follow-up: enable GitHub Actions billing (see CI note under 0.8).
+**Current phase:** ✅ **Build Phases 0–8 COMPLETE** (95 of 103 steps; 106 unit + 14 E2E green). Ready for Build Phase 9 — portal, dashboards, polish. One external follow-up: enable GitHub Actions billing (see CI note under 0.8).
 
 **Last updated:** 2026-07-10
 
@@ -97,6 +97,10 @@ All 8 steps done: dataset-driven selection (threshold / top-N / nil balances, id
 
 All 12 steps done: B1 completion gates that BLOCK issuance (sections concluded+reviewed, risks concluded, B5 within final materiality, final analytical review, FS tie-out, SYSCOHADA disclosure checklist 1–36, subsequent events to report date, both OHADA rep letters, B4 cleared, B6 confirmations closed, partner conclusion with independence reconfirmation); FS tie-out recomputing the full Appendix B.3 SIG cascade (TA→XI) + bilan equilibrium from the current TB; OHADA double representation-letter layering under B8 (affirmation pre-arrêté DG+chef comptable; complementary post-arrêté PCA+DG) plus the final management letter pulling C1 points; ISA 700/705 opinion decision tree; FR statutory report ("réguliers et sincères… image fidèle", arts. 710–716, EoM going concern, KAM for listed) filed under A1 as kind='report'; issuance in one gated transaction starting the 60-day assembly clock; immutable archive (JSON manifest snapshot; checkout/checkin refused post-archive); rollforward N→N+1 injecting the B10 points forward. Suite: 92 unit + 13 E2E green.
 
-## Phases 8–9
+## Phase 8 — OHADA legal module — COMPLETE ✅
 
-Not started. Detailed step tables will be added here as each phase begins.
+All 9 steps done: F1 statutory deadlines auto-generated from period-end/AGM/mandate (arrêté ≤4 months clamped to month-end, docs to CAC ≥45d, AGO ≤6 months, rapport spécial deposit ≥15d, 60-day assembly, mandate expiry 2/6 years) with countdowns, done-marks and overdue escalation to partners; F2 legal-form-aware conventions register (SA conventions without board authorization flagged per art. 447) + rapport spécial generator (FR, "néant" wording when empty); F3 article 715 report built from live data (program stats, section conclusions, uncorrected B5 adjustments, C1 points, current-vs-prior result); F4 procédure d'alerte state machine with SA (arts. 153-156, board deliberation path) and non-SA (arts. 150-152) variants — registered-letter/rapport documents filed under F4 at each transition, stage deadline timers (15d reply, 8d associé communication, 15d board convocation), satisfactory-reply discontinuation resumable within 6 months; F5 faits délictueux révélation to the ministère public + irregularities signalement letters, partner-only access; F6 titres nominatifs attestation (art. 746-2) with annexed management declaration; F7 equity < ½ capital monitor computed from the final TB (raises the statutory EGM deadline per arts. 664-669/371-373 and notifies partners); F8 co-CAC work-split/cross-review records with the art. 719 disagreement disclosed in the joint report. Suite: 106 unit + 14 E2E green.
+
+## Phase 9
+
+Not started. Detailed step tables will be added here as the phase begins.
