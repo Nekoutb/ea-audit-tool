@@ -33,7 +33,23 @@ BEGIN
     'document',
     'document_version',
     'signoff',
-    'review_note'
+    'review_note',
+    'form_response',
+    'related_party',
+    'accounting_estimate',
+    'independence_campaign',
+    'independence_confirmation',
+    'team_member',
+    'budget_line',
+    'pbc_item',
+    'materiality',
+    'materiality_specific',
+    'potential_risk',
+    'risk',
+    'risk_section',
+    'program_step',
+    'risk_response',
+    'planning_snapshot'
   ]
   LOOP
     EXECUTE format('ALTER TABLE %I ENABLE ROW LEVEL SECURITY;', t);

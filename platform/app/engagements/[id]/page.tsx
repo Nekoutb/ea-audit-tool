@@ -3,6 +3,7 @@ import { notFound, redirect } from "next/navigation";
 import { auth } from "@/auth";
 import { generateDocumentAction } from "@/app/actions/audit-file";
 import { AppNav } from "@/components/AppNav";
+import { EngagementTabs } from "@/components/EngagementTabs";
 import { getEngagement, listFileItems } from "@/lib/engagements";
 import { SECTIONS } from "@/lib/file-index";
 import { getMessages } from "@/lib/i18n";
@@ -32,9 +33,7 @@ export default async function EngagementFilePage(props: { params: Promise<{ id: 
           {t.engagements.periodEnd}: {engagement.periodEnd}
         </span>
       </div>
-      <h2 className="mt-2 text-sm font-medium uppercase tracking-wide text-emerald-700 dark:text-emerald-500">
-        {t.fileIndex.title}
-      </h2>
+      <EngagementTabs engagementId={id} locale={locale} active="file" />
 
       {SECTIONS.map((section) => {
         const sectionItems = items.filter((item) => item.section === section.section);
@@ -57,7 +56,17 @@ export default async function EngagementFilePage(props: { params: Promise<{ id: 
                         {item.code}
                       </td>
                       <td className="px-4 py-2.5 text-slate-700 dark:text-slate-300">
-                        {locale === "fr" ? item.titleFr : item.titleEn}
+                        {item.section === "E" ? (
+                          <Link
+                            href={`/engagements/${id}/sections/${item.id}`}
+                            data-testid={`open-section-${item.code}`}
+                            className="hover:text-emerald-700 hover:underline dark:hover:text-emerald-400"
+                          >
+                            {locale === "fr" ? item.titleFr : item.titleEn}
+                          </Link>
+                        ) : (
+                          <>{locale === "fr" ? item.titleFr : item.titleEn}</>
+                        )}
                         {item.conditional ? (
                           <span className="ml-2 rounded bg-slate-100 px-1.5 py-0.5 text-xs text-slate-500 dark:bg-slate-800 dark:text-slate-400">
                             {t.fileIndex.conditional}

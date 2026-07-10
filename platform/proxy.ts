@@ -20,5 +20,6 @@ export const config = {
     "/clients/:path*",
     "/engagements/:path*",
     "/documents/:path*",
+    "/independence/:path*",
   ],
 };

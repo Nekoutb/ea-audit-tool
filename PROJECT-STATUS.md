@@ -2,7 +2,7 @@
 
 Updated after every completed step. See `PROJECT-PLAN.md` for step definitions and `EA-Audit-Tool_Master-Build-Prompt.md` for the spec.
 
-**Current phase:** ✅ **Build Phases 0 and 1 COMPLETE** (20 of 103 steps, all tested locally). Ready for Build Phase 2 — Acceptance & planning. One external follow-up: enable GitHub Actions billing (see CI note under 0.8).
+**Current phase:** ✅ **Build Phases 0, 1 and 2 COMPLETE** (34 of 103 steps, all tested locally). Ready for Build Phase 3 — TB, groupings & lead schedules. One external follow-up: enable GitHub Actions billing (see CI note under 0.8).
 
 **Last updated:** 2026-07-09
 
@@ -56,6 +56,27 @@ The workflow is correct (validated by `actionlint`, exit 0), but GitHub returns 
 
 **Phase 1 test totals:** 23 unit (file index, docx, full document state machine) + 7 E2E — all green. Typecheck + lint clean.
 
-## Phases 2–9
+## Phase 2 — Acceptance & planning
+
+| Step | Status | Tested | Notes |
+|---|---|---|---|
+| 2.1 D-form structured-field framework | **Done** | ✅ | `form_response` + code-defined bilingual forms (16 D-forms); hybrid app-fields/doc-narrative split; D4.4 enforces documenting BOTH inquiry & inspection for D&I controls. |
+| 2.2 D3.1 + partner acceptance gate | **Done** | ✅ | Acceptance→planning blocked until D3.1 complete + concluded "accept" + partner sign-off on the D3.1 paper. |
+| 2.3 Independence campaign engine | **Done** | ✅ | Unique tokenized links (auth + user-match), IESBA questionnaire, e-signature; any "yes" → exception. |
+| 2.4 Independence dashboard + reminders | **Done** | ✅ | Statuses sent/opened/completed/exception; manual reminders (auto-cadence deferred — needs scheduler); exceptions require partner disposition before acceptance (gated). |
+| 2.5 Engagement letter (+ co-CAC) | **Done** | ✅ | Bilingual letter from merge fields incl. art. 704 mandate wording + co-commissariat variant; C1 planning letter too; letters are versioned documents. |
+| 2.6 Mandate tracking | **Done** | ✅ | 2 years (statutes) / 6 years (AGO); final-year warning on the acceptance page. |
+| 2.7 D6.1 job administration | **Done** | ✅ | Team assignment with EQR-independence block; hours-by-grade budget; PBC list with status flow. |
+| 2.8 D1 engagement strategy driver | **Done** | ✅ | Master planning checklist: 20 D-codes with computed status (not started/in progress/complete/signed) + form links; D1 trigger questions for conditional forms. |
+| 2.9 Materiality calculator | **Done** | ✅ | Benchmark×% → overall; performance (60–85 %); trivial; versioned; FCFA formatting. |
+| 2.10 Materiality approval + propagation | **Done** | ✅ | Partner-only approval; revision supersedes + notifies partners that dependents need review. |
+| 2.11 Understanding forms + rollforward | **Done** | ✅ | D4.x/D5.x structured forms; related-party register + estimates inventory; carry-forward marks fields "confirm or update", editing confirms. |
+| 2.12 Risk register lifecycle | **Done** | ✅ | D7.1 raise-from-any-form → dismiss-with-rationale/promote → D7.2 with likelihood×magnitude, CEAVP mapping, presumed risks auto-seeded (override not rebuttable; revenue fraud partner-rebuttable). |
+| 2.13 Significant-risk consequences + close gates | **Done** | ✅ | 7 planning-close gates BLOCK: materiality approved, D6.1/D7.1/D7.2 partner-signed, significant risks linked, rebuttals approved, material sections covered (stand-back); close takes a planning snapshot → execution. |
+| 2.14 Program library + tailoring + E2E | **Done** | ✅ | ~40-step bilingual library across all E-sections; significant risk → extended procedures auto-linked; coverage matrix; full acceptance E2E green. |
+
+**Phase 2 test totals:** 39 unit + 8 E2E (incl. the full Phase 2 acceptance flow) — all green; typecheck + lint clean; adversarial multi-agent review run before commit.
+
+## Phases 3–9
 
 Not started. Detailed step tables will be added here as each phase begins.

@@ -1,6 +1,7 @@
 import type { PoolClient } from "pg";
 import { withTenant } from "@/lib/db";
 import { DEFAULT_FILE_INDEX, type Section } from "@/lib/file-index";
+import { seedPresumedRisks } from "@/lib/risks";
 import { requireTenant } from "@/lib/tenant";
 
 export type EngagementPhase = "acceptance" | "planning" | "execution" | "conclusion" | "archived";
@@ -122,6 +123,8 @@ export async function createEngagement(input: {
     );
     const engagementId = result.rows[0].id;
     await instantiateFileIndex(tx, tenantId, engagementId);
+    // Spec §3: two presumed ISA 240 risks are auto-seeded on every engagement.
+    await seedPresumedRisks(tx, tenantId, engagementId);
     return engagementId;
   });
 }

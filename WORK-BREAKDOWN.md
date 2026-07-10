@@ -42,20 +42,20 @@ Every step across all 10 build phases. Each step ends with a tested deliverable 
 
 | # | Step | E | Expected outcome |
 |---|---|---|---|
-| ⬜ 2.1 | D-form structured-field framework | 1 | Hybrid "structured fields in app + narrative in doc" pattern working |
-| ⬜ 2.2 | D3.1 acceptance/continuance + partner gate | 1 | New/continuing checklists; engagement can't advance until partner signs |
-| ⬜ 2.3 | Independence campaign engine | 1–2 | Emails staff unique links; structured independence form; e-signature |
-| ⬜ 2.4 | Independence dashboard + reminders | 1 | sent/opened/completed/exceptions; auto-reminders; exception→threat record |
-| ⬜ 2.5 | Engagement letter generator (+ co-CAC) | 1 | Bilingual letter from merge fields; co-commissariat variant |
-| ⬜ 2.6 | Mandate tracking | 1 | 2/6-year mandate start/expiry; final-year warning |
-| ⬜ 2.7 | D6.1 job administration | 1 | Team assignment; hours-by-grade budget; PBC request list |
-| ⬜ 2.8 | D1 Engagement Strategy Driver | 1 | Master planning checklist (status/owner/linked form per step) |
-| ⬜ 2.9 | Materiality calculator | 1–2 | Benchmark×% → overall; performance materiality; trivial threshold; versioned |
-| ⬜ 2.10 | Materiality approval gate + propagation | 1 | Partner gate; revision re-flags dependent artifacts |
-| ⬜ 2.11 | Understanding forms (D4.x) + rollforward | 1–2 | Entity/environment/internal-control forms; carry-forward "confirm or update" |
-| ⬜ 2.12 | Risk register D7.1→D7.2 lifecycle | 1–2 | Raise/dismiss/promote risks; identified→planned→executed→concluded lifecycle |
-| ⬜ 2.13 | Significant-risk consequences + planning-close gates | 1 | Significant-risk rules enforced; stand-back; blocks close on uncovered material area |
-| ⬜ 2.14 | Program library + tailoring; Phase 2 acceptance E2E | 1 | Programs tailored by risk; significant revenue risk appears in E100 header; gates block |
+| ✅ 2.1 | D-form structured-field framework | 1 | Hybrid "structured fields in app + narrative in doc" pattern working |
+| ✅ 2.2 | D3.1 acceptance/continuance + partner gate | 1 | New/continuing checklists; engagement can't advance until partner signs |
+| ✅ 2.3 | Independence campaign engine | 1–2 | Emails staff unique links; structured independence form; e-signature |
+| ✅ 2.4 | Independence dashboard + reminders | 1 | sent/opened/completed/exceptions; auto-reminders; exception→threat record |
+| ✅ 2.5 | Engagement letter generator (+ co-CAC) | 1 | Bilingual letter from merge fields; co-commissariat variant |
+| ✅ 2.6 | Mandate tracking | 1 | 2/6-year mandate start/expiry; final-year warning |
+| ✅ 2.7 | D6.1 job administration | 1 | Team assignment; hours-by-grade budget; PBC request list |
+| ✅ 2.8 | D1 Engagement Strategy Driver | 1 | Master planning checklist (status/owner/linked form per step) |
+| ✅ 2.9 | Materiality calculator | 1–2 | Benchmark×% → overall; performance materiality; trivial threshold; versioned |
+| ✅ 2.10 | Materiality approval gate + propagation | 1 | Partner gate; revision re-flags dependent artifacts |
+| ✅ 2.11 | Understanding forms (D4.x) + rollforward | 1–2 | Entity/environment/internal-control forms; carry-forward "confirm or update" |
+| ✅ 2.12 | Risk register D7.1→D7.2 lifecycle | 1–2 | Raise/dismiss/promote risks; identified→planned→executed→concluded lifecycle |
+| ✅ 2.13 | Significant-risk consequences + planning-close gates | 1 | Significant-risk rules enforced; stand-back; blocks close on uncovered material area |
+| ✅ 2.14 | Program library + tailoring; Phase 2 acceptance E2E | 1 | Programs tailored by risk; significant revenue risk appears in E100 header; gates block |
 
 ## Phase 3 — TB, groupings, lead schedules (10 steps)
 
