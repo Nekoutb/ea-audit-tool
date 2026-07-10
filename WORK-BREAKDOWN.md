@@ -121,45 +121,45 @@ Every step across all 10 build phases. Each step ends with a tested deliverable 
 
 | # | Step | E | Expected outcome |
 |---|---|---|---|
-| ⬜ 7.1 | B1 completion checklist framework | 1 | Completion checklist scaffolding + gate registry |
-| ⬜ 7.2 | Completion gates enforcement | 1–2 | All numbered completion gates block report issuance until satisfied |
-| ⬜ 7.3 | Final analytical review (A1) | 1 | Auto FS-level analytics on final figures; conclusions recorded |
-| ⬜ 7.4 | FS tie-out: Bilan | 1–2 | Recompute Bilan (Brut/Amort/Net) from mapped TB; diff vs client FS |
-| ⬜ 7.5 | FS tie-out: Compte de résultat | 1–2 | Recompute SIG cascade (XA–XI); diff vs client FS |
-| ⬜ 7.6 | Disclosure checklist (Notes 1–36) | 1 | SYSCOHADA annexes checklist |
-| ⬜ 7.7 | Subsequent events (B7/E380) | 1 | Review to report date + facts-after-report-date branch |
-| ⬜ 7.8 | Representation letters | 1 | OHADA two-letter layering (pre-arrêté + complementary) |
-| ⬜ 7.9 | Opinion decision tree | 1 | ISA 700/705/706/570/701 unmodified/qualified/adverse/disclaimer logic |
-| ⬜ 7.10 | Report builder (ISA + OHADA pack) | 1–2 | FR statutory report with vérifications spécifiques; KAM for listed |
-| ⬜ 7.11 | 60-day assembly clock + archive | 1 | Assembly timer; immutable PDF/A + JSON archive; file locks |
-| ⬜ 7.12 | Rollforward N→N+1; Phase 7 acceptance E2E | 1 | issue unmodified OHADA report; archive locks; roll forward carrying understanding |
+| ✅ 7.1 | B1 completion checklist framework | 1 | Completion checklist scaffolding + gate registry |
+| ✅ 7.2 | Completion gates enforcement | 1–2 | All numbered completion gates block report issuance until satisfied |
+| ✅ 7.3 | Final analytical review (A1) | 1 | Auto FS-level analytics on final figures; conclusions recorded |
+| ✅ 7.4 | FS tie-out: Bilan | 1–2 | Recompute Bilan (Brut/Amort/Net) from mapped TB; diff vs client FS |
+| ✅ 7.5 | FS tie-out: Compte de résultat | 1–2 | Recompute SIG cascade (XA–XI); diff vs client FS |
+| ✅ 7.6 | Disclosure checklist (Notes 1–36) | 1 | SYSCOHADA annexes checklist |
+| ✅ 7.7 | Subsequent events (B7/E380) | 1 | Review to report date + facts-after-report-date branch |
+| ✅ 7.8 | Representation letters | 1 | OHADA two-letter layering (pre-arrêté + complementary) |
+| ✅ 7.9 | Opinion decision tree | 1 | ISA 700/705/706/570/701 unmodified/qualified/adverse/disclaimer logic |
+| ✅ 7.10 | Report builder (ISA + OHADA pack) | 1–2 | FR statutory report with vérifications spécifiques; KAM for listed |
+| ✅ 7.11 | 60-day assembly clock + archive | 1 | Assembly timer; immutable PDF/A + JSON archive; file locks |
+| ✅ 7.12 | Rollforward N→N+1; Phase 7 acceptance E2E | 1 | issue unmodified OHADA report; archive locks; roll forward carrying understanding |
 
 ## Phase 8 — OHADA legal module (9 steps)
 
 | # | Step | E | Expected outcome |
 |---|---|---|---|
-| ⬜ 8.1 | F1 statutory deadlines calendar | 1 | Auto-generated deadlines from period-end/AGM; countdowns + escalation |
-| ⬜ 8.2 | F2 conventions register | 1 | Legal-form-aware register of conventions réglementées |
-| ⬜ 8.3 | F2 rapport spécial generator | 1 | Builds the report from the register (FR); 15-day deposit tracked |
-| ⬜ 8.4 | F3 article 715 report | 1 | Generated from live engagement data before the board meeting |
-| ⬜ 8.5 | F4 procédure d'alerte state machine | 1–2 | Non-SA + SA/SAS variants; letters + deadline timers per transition |
-| ⬜ 8.6 | F5 faits délictueux + signalement letters | 1 | Révélation to ministère public + irregularities letters (access-controlled) |
-| ⬜ 8.7 | F6 registres attestation + F7 equity monitoring | 1 | Titres attestation; capitaux propres < ½ capital workflow |
-| ⬜ 8.8 | F8 co-CAC coordination | 1 | Work-split, cross-review, joint report with disagreement disclosure |
-| ⬜ 8.9 | Phase 8 acceptance E2E | 1 | demo SA triggers a conventions rapport spécial + an alerte walkthrough |
+| ✅ 8.1 | F1 statutory deadlines calendar | 1 | Auto-generated deadlines from period-end/AGM; countdowns + escalation |
+| ✅ 8.2 | F2 conventions register | 1 | Legal-form-aware register of conventions réglementées |
+| ✅ 8.3 | F2 rapport spécial generator | 1 | Builds the report from the register (FR); 15-day deposit tracked |
+| ✅ 8.4 | F3 article 715 report | 1 | Generated from live engagement data before the board meeting |
+| ✅ 8.5 | F4 procédure d'alerte state machine | 1–2 | Non-SA + SA/SAS variants; letters + deadline timers per transition |
+| ✅ 8.6 | F5 faits délictueux + signalement letters | 1 | Révélation to ministère public + irregularities letters (access-controlled) |
+| ✅ 8.7 | F6 registres attestation + F7 equity monitoring | 1 | Titres attestation; capitaux propres < ½ capital workflow |
+| ✅ 8.8 | F8 co-CAC coordination | 1 | Work-split, cross-review, joint report with disagreement disclosure |
+| ✅ 8.9 | Phase 8 acceptance E2E | 1 | demo SA triggers a conventions rapport spécial + an alerte walkthrough |
 
 ## Phase 9 — Portal, dashboards, polish (8 steps)
 
 | # | Step | E | Expected outcome |
 |---|---|---|---|
-| ⬜ 9.1 | Client portal auth + PBC flow | 1 | External client users receive PBC requests, upload documents |
-| ⬜ 9.2 | Portal document-response tracking | 1 | requested→uploaded→accepted per item; attach to working papers |
-| ⬜ 9.3 | Engagement dashboard | 1 | Phase progress, forms outstanding, risks by status, B5 vs materiality, deadlines |
-| ⬜ 9.4 | Firm dashboard | 1 | Engagements by phase; deadlines heat list; workload; mandate expiries |
-| ⬜ 9.5 | Portfolio risk views | 1 | Significant risks + B5 exposure across all engagements |
-| ⬜ 9.6 | Exports for regulators | 1 | File index with statuses (Excel/PDF) |
-| ⬜ 9.7 | Performance pass | 1 | TB import <30s, lead-schedule regen <10s, pagination everywhere |
-| ⬜ 9.8 | Security review + demo polish; final acceptance | 1 | Full security review; polished demo tenant; project acceptance |
+| ✅ 9.1 | Client portal auth + PBC flow | 1 | External client users receive PBC requests, upload documents |
+| ✅ 9.2 | Portal document-response tracking | 1 | requested→uploaded→accepted per item; attach to working papers |
+| ✅ 9.3 | Engagement dashboard | 1 | Phase progress, forms outstanding, risks by status, B5 vs materiality, deadlines |
+| ✅ 9.4 | Firm dashboard | 1 | Engagements by phase; deadlines heat list; workload; mandate expiries |
+| ✅ 9.5 | Portfolio risk views | 1 | Significant risks + B5 exposure across all engagements |
+| ✅ 9.6 | Exports for regulators | 1 | File index with statuses (Excel/PDF) |
+| ✅ 9.7 | Performance pass | 1 | TB import <30s, lead-schedule regen <10s, pagination everywhere |
+| ✅ 9.8 | Security review + demo polish; final acceptance | 1 | Full security review; polished demo tenant; project acceptance |
 
 ---
 
