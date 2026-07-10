@@ -177,7 +177,7 @@ describe("section conclusion + review chain (4.11)", () => {
   it("prepares, reviews, and requires partner on significant-risk sections", async () => {
     // E100 carries the presumed significant revenue risk → partner required.
     await saveSectionConclusion(e100, "Objectives achieved; revenue fairly stated.", true);
-    let conclusion = (await import("@/lib/execution")).getSectionConclusion;
+    const conclusion = (await import("@/lib/execution")).getSectionConclusion;
     let state = await conclusion(e100);
     expect(state?.partnerRequired).toBe(true);
     expect(state?.reviewedByName).toBeNull();

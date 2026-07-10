@@ -8,6 +8,8 @@ export const SUB_LEDGER_KINDS = [
   "inventory_listing",
   "payroll_register",
   "bank_statement",
+  "journal_entries",
+  "supplier_statements",
 ] as const;
 export type SubLedgerKind = (typeof SUB_LEDGER_KINDS)[number];
 

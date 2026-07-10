@@ -7,13 +7,22 @@ import {
   routeFindingAction,
   saveConclusionAction,
 } from "@/app/actions/execution";
+import {
+  evaluateSamplingAction,
+  runAnalyticAction,
+  runJeTestingAction,
+  runReconAction,
+  runSamplingAction,
+} from "@/app/actions/engines";
 import { addStepAction, generateProgramAction, linkRiskStepAction } from "@/app/actions/planning";
 import { AppNav } from "@/components/AppNav";
 import { EngagementTabs } from "@/components/EngagementTabs";
 import { ErrorBanner } from "@/components/GatesPanel";
 import { withTenant } from "@/lib/db";
 import { getEngagement } from "@/lib/engagements";
+import { listRuns } from "@/lib/engines";
 import { getSectionConclusion, listControlTests } from "@/lib/execution";
+import { listDatasets } from "@/lib/subledgers";
 import { getMessages } from "@/lib/i18n";
 import { getLocale } from "@/lib/locale";
 import { listProgramSteps, sectionCoverage } from "@/lib/programs";
@@ -54,14 +63,17 @@ export default async function SectionPage(props: {
   const [engagement, section] = await Promise.all([getEngagement(id), sectionInfo(itemId)]);
   if (!engagement || !section || section.engagement_id !== id) notFound();
 
-  const [risks, steps, coverage, controlTests, conclusion] = await Promise.all([
+  const [risks, steps, coverage, controlTests, conclusion, datasets, runs] = await Promise.all([
     risksForSection(itemId),
     listProgramSteps(itemId),
     sectionCoverage(itemId),
     listControlTests(itemId),
     getSectionConclusion(itemId),
+    listDatasets(id),
+    listRuns(itemId),
   ]);
   const te = t.planning.execution;
+  const tg = t.planning.engines;
 
   const input =
     "rounded-md border border-slate-300 bg-white px-2 py-1 text-sm text-slate-900 outline-none focus:border-emerald-600 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-100";
@@ -350,6 +362,113 @@ export default async function SectionPage(props: {
             {te.record}
           </button>
         </form>
+      </section>
+
+      {/* 5.x automation engines */}
+      <section className={card}>
+        <h2 className="text-lg font-semibold text-slate-900 dark:text-slate-100">{tg.title}</h2>
+
+        {runs.length > 0 ? (
+          <ul className="mt-2 flex flex-col gap-1 text-sm" data-testid="engine-runs">
+            {runs.map((run) => (
+              <li key={run.id} className="flex flex-wrap items-center justify-between gap-2 rounded border border-slate-200 px-3 py-1.5 dark:border-slate-800">
+                <span className="font-mono text-xs">{run.engine}</span>
+                <span className="text-xs text-slate-500">{JSON.stringify(run.summary).slice(0, 120)}</span>
+                <span className="flex items-center gap-2">
+                  {run.engine === "sampling" && !("projected" in run.summary) ? (
+                    <form action={evaluateSamplingAction.bind(null, id, itemId, run.id)} className="flex items-center gap-1">
+                      <input name="misstatement" type="number" placeholder={tg.misstatementFound} className={input} data-testid={`evaluate-input-${run.id}`} />
+                      <button type="submit" className={btn} data-testid={`evaluate-run-${run.id}`}>
+                        {tg.evaluate}
+                      </button>
+                    </form>
+                  ) : null}
+                  {run.outputDocumentId ? (
+                    <a href={`/documents/${run.outputDocumentId}`} className="text-xs font-medium text-emerald-700 hover:underline dark:text-emerald-400">
+                      {tg.output}
+                    </a>
+                  ) : null}
+                </span>
+              </li>
+            ))}
+          </ul>
+        ) : null}
+
+        <div className="mt-4 grid grid-cols-1 gap-4 lg:grid-cols-2">
+          <form action={runSamplingAction.bind(null, id, itemId)} className="rounded-lg border border-slate-200 p-3 dark:border-slate-800">
+            <p className="text-sm font-semibold text-slate-900 dark:text-slate-100">{tg.sampling}</p>
+            <div className="mt-2 flex flex-wrap items-end gap-2">
+              <select name="datasetId" required className={input} data-testid="sampling-dataset">
+                {datasets.map((dataset) => (
+                  <option key={dataset.id} value={dataset.id}>
+                    {dataset.name}
+                  </option>
+                ))}
+              </select>
+              <select name="method" className={input} data-testid="sampling-method">
+                {(["random", "systematic", "mus", "criteria"] as const).map((method) => (
+                  <option key={method} value={method}>
+                    {tg.methods[method]}
+                  </option>
+                ))}
+              </select>
+              <input name="sampleSize" type="number" min="1" defaultValue="5" className={input} data-testid="sampling-size" />
+              <input name="seed" placeholder={tg.seed} required className={input} data-testid="sampling-seed" />
+              <input name="threshold" type="number" placeholder={tg.threshold} className={input} />
+              <button type="submit" className={btn} data-testid="run-sampling">
+                {tg.run}
+              </button>
+            </div>
+          </form>
+
+          <form action={runReconAction.bind(null, id, itemId)} className="rounded-lg border border-slate-200 p-3 dark:border-slate-800">
+            <p className="text-sm font-semibold text-slate-900 dark:text-slate-100">{tg.recon}</p>
+            <div className="mt-2 flex flex-wrap items-end gap-2">
+              <select name="datasetId" required className={input} data-testid="recon-dataset">
+                {datasets.map((dataset) => (
+                  <option key={dataset.id} value={dataset.id}>
+                    {dataset.name}
+                  </option>
+                ))}
+              </select>
+              <input name="staleDays" type="number" placeholder={tg.staleDays} className={input} />
+              <input name="periodEnd" type="date" defaultValue={engagement.periodEnd} className={input} />
+              <button type="submit" className={btn} data-testid="run-recon">
+                {tg.run}
+              </button>
+            </div>
+          </form>
+
+          <form action={runJeTestingAction.bind(null, id, itemId)} className="rounded-lg border border-slate-200 p-3 dark:border-slate-800">
+            <p className="text-sm font-semibold text-slate-900 dark:text-slate-100">{tg.je}</p>
+            <div className="mt-2 flex flex-wrap items-end gap-2">
+              <select name="datasetId" required className={input} data-testid="je-dataset">
+                {datasets.map((dataset) => (
+                  <option key={dataset.id} value={dataset.id}>
+                    {dataset.name}
+                  </option>
+                ))}
+              </select>
+              <input name="periodEnd" type="date" defaultValue={engagement.periodEnd} className={input} />
+              <input name="largeThreshold" type="number" placeholder={tg.largeThreshold} className={input} />
+              <button type="submit" className={btn} data-testid="run-je">
+                {tg.run}
+              </button>
+            </div>
+          </form>
+
+          <form action={runAnalyticAction.bind(null, id, itemId)} className="rounded-lg border border-slate-200 p-3 dark:border-slate-800">
+            <p className="text-sm font-semibold text-slate-900 dark:text-slate-100">{tg.analytics}</p>
+            <div className="mt-2 flex flex-wrap items-end gap-2">
+              <input name="expectation" type="number" placeholder={tg.expectation} required className={input} data-testid="analytic-expectation" />
+              <input name="tolerance" type="number" placeholder={tg.tolerance} required className={input} data-testid="analytic-tolerance" />
+              <input name="basis" placeholder={tg.basis} required className={input} data-testid="analytic-basis" />
+              <button type="submit" className={btn} data-testid="run-analytic">
+                {tg.run}
+              </button>
+            </div>
+          </form>
+        </div>
       </section>
 
       {/* 4.11 section conclusion + review chain */}
