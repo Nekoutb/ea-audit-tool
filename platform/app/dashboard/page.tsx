@@ -3,6 +3,7 @@ import { redirect } from "next/navigation";
 import { auth, signOut } from "@/auth";
 import { sendTestNotification } from "@/app/actions/notifications";
 import { LanguageSwitcher } from "@/components/LanguageSwitcher";
+import { getBranding } from "@/lib/branding";
 import { firmDashboard } from "@/lib/dashboards";
 import { withTenant } from "@/lib/db";
 import { formatFCFA, getMessages } from "@/lib/i18n";
@@ -27,14 +28,18 @@ export default async function DashboardPage() {
     return result.rows.map((row) => row.note);
   });
 
-  const [unread, firm] = await Promise.all([unreadCount(), firmDashboard()]);
+  const [unread, firm, branding] = await Promise.all([unreadCount(), firmDashboard(), getBranding()]);
 
   return (
     <main className="mx-auto min-h-screen max-w-5xl px-6 py-16">
       <header className="flex items-start justify-between gap-6 border-b border-slate-200 pb-6 dark:border-slate-800">
         <div>
-          <p className="text-xs font-semibold uppercase tracking-wider text-emerald-700 dark:text-emerald-500">
-            {t.common.appName}
+          <p className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wider text-emerald-700 dark:text-emerald-500">
+            {branding.logo ? (
+              // eslint-disable-next-line @next/next/no-img-element -- data URI, no optimizer benefit
+              <img src={branding.logo} alt="" className="h-6 w-auto" />
+            ) : null}
+            <span data-testid="brand-name">{branding.displayName}</span>
           </p>
           <h1 className="mt-1 text-2xl font-semibold text-slate-900 dark:text-slate-100">
             {t.dashboard.title}

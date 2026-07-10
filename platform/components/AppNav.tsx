@@ -1,21 +1,33 @@
 import Link from "next/link";
 import { signOut } from "@/auth";
 import { LanguageSwitcher } from "@/components/LanguageSwitcher";
+import { getBranding, type Branding } from "@/lib/branding";
 import { getMessages, type Locale } from "@/lib/i18n";
 
-export function AppNav({ locale }: { locale: Locale }) {
+export async function AppNav({ locale }: { locale: Locale }) {
   const t = getMessages(locale);
+  let branding: Branding | null = null;
+  try {
+    branding = await getBranding();
+  } catch {
+    // Nav must render even if branding cannot be loaded.
+  }
   const links = [
     { href: "/dashboard", label: t.nav.dashboard },
     { href: "/clients", label: t.nav.clients },
     { href: "/engagements", label: t.nav.engagements },
     { href: "/notifications", label: t.nav.notifications },
+    { href: "/settings", label: t.nav.settings },
   ];
   return (
     <nav className="flex flex-wrap items-center justify-between gap-4 border-b border-slate-200 pb-4 dark:border-slate-800">
       <div className="flex items-center gap-5">
-        <span className="text-xs font-semibold uppercase tracking-wider text-emerald-700 dark:text-emerald-500">
-          {t.common.appName}
+        <span className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wider text-emerald-700 dark:text-emerald-500">
+          {branding?.logo ? (
+            // eslint-disable-next-line @next/next/no-img-element -- data URI, no optimizer benefit
+            <img src={branding.logo} alt="" className="h-6 w-auto" data-testid="brand-logo" />
+          ) : null}
+          <span data-testid="brand-name">{branding?.displayName ?? t.common.appName}</span>
         </span>
         {links.map((link) => (
           <Link

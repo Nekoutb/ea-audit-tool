@@ -48,7 +48,8 @@ try {
     await client.query(
       `INSERT INTO tenant (id, name, slug)
          VALUES ($1, $2, $3)
-       ON CONFLICT (id) DO UPDATE SET name = EXCLUDED.name, slug = EXCLUDED.slug`,
+       ON CONFLICT (id) DO UPDATE
+         SET name = EXCLUDED.name, slug = EXCLUDED.slug, branding = '{}'::jsonb`,
       [firm.id, firm.name, firm.slug],
     );
 

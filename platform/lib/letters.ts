@@ -3,6 +3,7 @@
 // Letters are stored as documents (kind='letter') under the relevant file item.
 
 import { Document, HeadingLevel, Packer, Paragraph, TextRun } from "docx";
+import { type Branding, letterheadFooter, letterheadParagraphs, loadBranding } from "@/lib/branding";
 import { withTenant } from "@/lib/db";
 import { DOCX_MIME } from "@/lib/documents";
 import type { Locale } from "@/lib/i18n";
@@ -51,9 +52,14 @@ function p(text: string, bold = false): Paragraph {
   return new Paragraph({ children: [new TextRun({ text, bold })] });
 }
 
-async function buildLetter(kind: LetterKind, f: LetterFields, locale: Locale): Promise<Buffer> {
+async function buildLetter(
+  kind: LetterKind,
+  f: LetterFields,
+  locale: Locale,
+  branding: Branding,
+): Promise<Buffer> {
   const fr = locale === "fr";
-  const children: Paragraph[] = [];
+  const children: Paragraph[] = [...letterheadParagraphs(branding)];
 
   if (kind === "engagement") {
     children.push(
@@ -168,6 +174,7 @@ async function buildLetter(kind: LetterKind, f: LetterFields, locale: Locale): P
     );
   }
 
+  children.push(...letterheadFooter(branding));
   const doc = new Document({ sections: [{ children }] });
   return Packer.toBuffer(doc);
 }
@@ -230,6 +237,7 @@ export async function generateLetter(
     };
     const title = TITLES[kind];
 
+    const branding = await loadBranding(tx, tenantId);
     const content = await buildLetter(
       kind,
       {
@@ -243,6 +251,7 @@ export async function generateLetter(
         c1Points,
       },
       locale,
+      branding,
     );
 
     let documentId: string;

@@ -7,6 +7,7 @@
 
 import { createHash } from "node:crypto";
 import { Document, HeadingLevel, Packer, Paragraph, TextRun } from "docx";
+import { letterheadFooter, letterheadParagraphs, loadBranding } from "@/lib/branding";
 import { withTenant } from "@/lib/db";
 import { DOCX_MIME } from "@/lib/documents";
 import { requireTenant } from "@/lib/tenant";
@@ -88,8 +89,10 @@ export async function generateAuditReport(input: {
     const row = info.rows[0];
     if (!row) throw new Error("not-found");
 
+    const branding = await loadBranding(tx, tenantId);
     const opinion = OPINION_FR[input.opinion];
     const children: Paragraph[] = [
+      ...letterheadParagraphs(branding),
       new Paragraph({
         heading: HeadingLevel.TITLE,
         children: [new TextRun("Rapport du commissaire aux comptes sur les états financiers annuels")],
@@ -152,6 +155,7 @@ export async function generateAuditReport(input: {
       }),
     );
 
+    children.push(...letterheadFooter(branding));
     const content = await Packer.toBuffer(new Document({ sections: [{ children }] }));
     const doc = await tx.query<{ id: string }>(
       `INSERT INTO document (tenant_id, engagement_id, file_item_id, title, language, kind, created_by, current_version)

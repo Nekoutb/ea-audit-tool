@@ -8,6 +8,7 @@
 import { createHash } from "node:crypto";
 import { Document, HeadingLevel, Packer, Paragraph, TextRun } from "docx";
 import type { PoolClient } from "pg";
+import { letterheadFooter, letterheadParagraphs, loadBranding } from "@/lib/branding";
 import { withTenant } from "@/lib/db";
 import { DOCX_MIME } from "@/lib/documents";
 import type { Locale } from "@/lib/i18n";
@@ -349,7 +350,9 @@ export async function generateRapportSpecial(engagementId: string): Promise<stri
       return { conventions: rows.rows };
     })();
 
+    const branding = await loadBranding(tx, tenantId);
     const children: Paragraph[] = [
+      ...letterheadParagraphs(branding),
       title("Rapport spécial du commissaire aux comptes sur les conventions réglementées"),
       p(`${e.client_name} — Exercice clos le 31 décembre ${e.fiscal_year}`, true),
       p(
@@ -385,6 +388,7 @@ export async function generateRapportSpecial(engagementId: string): Promise<stri
     }
     children.push(
       p("Le présent rapport est déposé au siège social quinze jours au moins avant la réunion de l'assemblée générale ordinaire (art. 442).", false),
+      ...letterheadFooter(branding),
     );
 
     const content = await Packer.toBuffer(new Document({ sections: [{ children }] }));
@@ -447,7 +451,9 @@ export async function generateArticle715Report(engagementId: string): Promise<st
     const current = results.rows.find((row) => row.fiscal_year === e.fiscal_year);
     const prior = results.rows.find((row) => row.fiscal_year === e.fiscal_year - 1);
 
+    const branding = await loadBranding(tx, tenantId);
     const children: Paragraph[] = [
+      ...letterheadParagraphs(branding),
       title("Rapport du commissaire aux comptes au conseil d'administration (art. 715)"),
       p(`${e.client_name} — Exercice clos le 31 décembre ${e.fiscal_year}`, true),
       h("1. Contrôles et vérifications effectués et sondages opérés"),
@@ -470,6 +476,7 @@ export async function generateArticle715Report(engagementId: string): Promise<st
       p(
         `Résultat de l'exercice ${e.fiscal_year} : ${current?.result ?? "n/d"} FCFA ; exercice ${e.fiscal_year - 1} : ${prior?.result ?? "n/d"} FCFA.`,
       ),
+      ...letterheadFooter(branding),
     ];
 
     const content = await Packer.toBuffer(new Document({ sections: [{ children }] }));
@@ -497,7 +504,9 @@ export async function revealFait(engagementId: string, description: string): Pro
   if (!description.trim()) throw new LegalError("fields-required");
   return withTenant(tenantId, async (tx) => {
     const e = await loadLegalContext(tx, engagementId);
+    const branding = await loadBranding(tx, tenantId);
     const children = [
+      ...letterheadParagraphs(branding),
       title("Révélation de faits délictueux au ministère public (art. 716)"),
       p(`${e.client_name} — Exercice ${e.fiscal_year}`, true),
       p(
@@ -505,6 +514,7 @@ export async function revealFait(engagementId: string, description: string): Pro
       ),
       p(description),
       p("Le commissaire aux comptes.", true),
+      ...letterheadFooter(branding),
     ];
     const content = await Packer.toBuffer(new Document({ sections: [{ children }] }));
     const documentId = await fileUnderCode(tx, {
@@ -550,12 +560,15 @@ export async function generateIrregularitiesLetter(
   return withTenant(tenantId, async (tx) => {
     const e = await loadLegalContext(tx, engagementId);
     const audience = target === "ag" ? "à la plus proche assemblée générale" : "au conseil d'administration";
+    const branding = await loadBranding(tx, tenantId);
     const children = [
+      ...letterheadParagraphs(branding),
       title(`Signalement d'irrégularités et d'inexactitudes ${audience}`),
       p(`${e.client_name} — Exercice ${e.fiscal_year}`, true),
       p("Conformément à l'article 716 de l'AUSCGIE, nous signalons les irrégularités et inexactitudes relevées au cours de l'accomplissement de notre mission :"),
       p(points),
       p("Le commissaire aux comptes.", true),
+      ...letterheadFooter(branding),
     ];
     const content = await Packer.toBuffer(new Document({ sections: [{ children }] }));
     return fileUnderCode(tx, {
@@ -572,7 +585,9 @@ export async function generateTitresAttestation(engagementId: string): Promise<s
   const { tenantId, userId } = await requireTenant();
   return withTenant(tenantId, async (tx) => {
     const e = await loadLegalContext(tx, engagementId);
+    const branding = await loadBranding(tx, tenantId);
     const children = [
+      ...letterheadParagraphs(branding),
       title("Attestation sur les registres de titres nominatifs (art. 746-2)"),
       p(`${e.client_name} — Exercice clos le 31 décembre ${e.fiscal_year}`, true),
       p(
@@ -586,6 +601,7 @@ export async function generateTitresAttestation(engagementId: string): Promise<s
         "La direction déclare que les registres de titres nominatifs présentés au commissaire aux comptes sont complets, à jour, et retracent l'intégralité des mouvements de titres intervenus au cours de l'exercice.",
       ),
       p("Signatures : le représentant légal · le commissaire aux comptes", true),
+      ...letterheadFooter(branding),
     ];
     const content = await Packer.toBuffer(new Document({ sections: [{ children }] }));
     return fileUnderCode(tx, {

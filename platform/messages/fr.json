@@ -17,7 +17,24 @@
     "dashboard": "Tableau de bord",
     "clients": "Clients",
     "engagements": "Missions",
-    "notifications": "Notifications"
+    "notifications": "Notifications",
+    "settings": "Paramètres"
+  },
+  "settings": {
+    "title": "Paramètres du cabinet",
+    "brandingTitle": "Identité visuelle et en-tête",
+    "brandingHint": "S'applique à tous les écrans de votre cabinet et à l'en-tête de chaque lettre et rapport générés.",
+    "displayName": "Nom d'affichage du cabinet",
+    "accent": "Couleur d'accent",
+    "resetAccent": "Rétablir la couleur par défaut",
+    "logo": "Logo (PNG ou JPEG, max 150 Ko)",
+    "removeLogo": "Supprimer le logo actuel",
+    "letterhead1": "En-tête ligne 1 (adresse)",
+    "letterhead2": "En-tête ligne 2 (ville, pays)",
+    "footer": "Pied de page des documents (ex. inscription au tableau de l'Ordre)",
+    "save": "Enregistrer l'identité",
+    "saved": "Identité enregistrée.",
+    "adminOnly": "Seul un administrateur du cabinet peut modifier l'identité visuelle."
   },
   "login": {
     "title": "Connexion",
@@ -752,7 +769,11 @@
       "empty-file": "Le fichier est vide.",
       "file-too-large": "Le fichier dépasse la limite de 25 Mo.",
       "password-too-short": "Le mot de passe doit comporter au moins 8 caractères.",
-      "email-taken": "Un utilisateur avec cet email existe déjà."
+      "email-taken": "Un utilisateur avec cet email existe déjà.",
+      "invalid-color": "L'accent doit être une couleur hexadécimale, ex. #1f6b56.",
+      "invalid-logo-type": "Le logo doit être une image PNG ou JPEG.",
+      "logo-too-large": "Le logo dépasse la limite de 150 Ko.",
+      "text-too-long": "Un des champs texte dépasse 160 caractères."
     }
   }
 }

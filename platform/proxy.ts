@@ -39,6 +39,7 @@ export const config = {
     "/documents/:path*",
     "/independence/:path*",
     "/portal/:path*",
+    "/settings/:path*",
     "/api/engagements/:path*",
   ],
 };

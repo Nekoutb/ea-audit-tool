@@ -5,6 +5,7 @@
 // paragraph.
 
 import { Document, HeadingLevel, Packer, Paragraph, TextRun } from "docx";
+import { type Branding, letterheadFooter, letterheadParagraphs, loadBranding } from "@/lib/branding";
 import { withTenant } from "@/lib/db";
 import { addDaysIso, addMonthsClamped, fileUnderCode, LegalError } from "@/lib/legal";
 import { requireTenant } from "@/lib/tenant";
@@ -75,6 +76,7 @@ function nextStagesOf(variant: AlerteVariant, stage: string, discontinued: boole
 }
 
 async function buildStageLetter(
+  branding: Branding,
   clientName: string,
   fiscalYear: number,
   stage: string,
@@ -83,11 +85,13 @@ async function buildStageLetter(
   const template = STAGE_LETTERS[stage];
   if (!template) return null;
   const children = [
+    ...letterheadParagraphs(branding),
     new Paragraph({ heading: HeadingLevel.TITLE, children: [new TextRun(template.title)] }),
     new Paragraph({ children: [new TextRun({ text: `${clientName} — Exercice ${fiscalYear}`, bold: true })] }),
     new Paragraph(template.body),
     ...(note.trim() ? [new Paragraph(`Faits relevés / observations : ${note}`)] : []),
     new Paragraph({ children: [new TextRun({ text: "Le commissaire aux comptes.", bold: true })] }),
+    ...letterheadFooter(branding),
   ];
   return Packer.toBuffer(new Document({ sections: [{ children }] }));
 }
@@ -118,7 +122,8 @@ export async function startAlerte(engagementId: string, note: string): Promise<s
       [tenantId, engagementId, variant, deadline, userId],
     );
     const alerteId = created.rows[0].id;
-    const letter = await buildStageLetter(info.rows[0].client_name, info.rows[0].fiscal_year, "request_sent", note);
+    const branding = await loadBranding(tx, tenantId);
+    const letter = await buildStageLetter(branding, info.rows[0].client_name, info.rows[0].fiscal_year, "request_sent", note);
     const documentId = letter
       ? await fileUnderCode(tx, {
           tenantId, userId, engagementId, code: "F4",
@@ -185,7 +190,8 @@ export async function advanceAlerte(
     await tx.query("UPDATE alerte SET stage = $2, stage_deadline = $3 WHERE id = $1", [
       alerteId, toStage, deadline,
     ]);
-    const letter = await buildStageLetter(row.client_name, row.fiscal_year, toStage, note);
+    const branding = await loadBranding(tx, tenantId);
+    const letter = await buildStageLetter(branding, row.client_name, row.fiscal_year, toStage, note);
     const documentId = letter
       ? await fileUnderCode(tx, {
           tenantId, userId, engagementId: row.engagement_id, code: "F4",

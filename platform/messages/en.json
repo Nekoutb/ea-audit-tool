@@ -17,7 +17,24 @@
     "dashboard": "Dashboard",
     "clients": "Clients",
     "engagements": "Engagements",
-    "notifications": "Notifications"
+    "notifications": "Notifications",
+    "settings": "Settings"
+  },
+  "settings": {
+    "title": "Firm settings",
+    "brandingTitle": "Branding & letterhead",
+    "brandingHint": "Applies to every screen for your firm and to the header of every generated letter and report.",
+    "displayName": "Firm display name",
+    "accent": "Accent colour",
+    "resetAccent": "Reset to platform default",
+    "logo": "Logo (PNG or JPEG, max 150 KB)",
+    "removeLogo": "Remove current logo",
+    "letterhead1": "Letterhead line 1 (address)",
+    "letterhead2": "Letterhead line 2 (city, country)",
+    "footer": "Document footer (e.g. professional registration)",
+    "save": "Save branding",
+    "saved": "Branding saved.",
+    "adminOnly": "Only a firm administrator can change branding."
   },
   "login": {
     "title": "Sign in",
@@ -752,7 +769,11 @@
       "empty-file": "The file is empty.",
       "file-too-large": "The file exceeds the 25 MB limit.",
       "password-too-short": "The password must be at least 8 characters.",
-      "email-taken": "A user with this email already exists."
+      "email-taken": "A user with this email already exists.",
+      "invalid-color": "The accent must be a hex colour like #1f6b56.",
+      "invalid-logo-type": "The logo must be a PNG or JPEG image.",
+      "logo-too-large": "The logo exceeds the 150 KB limit.",
+      "text-too-long": "One of the text fields exceeds 160 characters."
     }
   }
 }
