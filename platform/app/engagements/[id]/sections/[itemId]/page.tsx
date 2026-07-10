@@ -1,11 +1,19 @@
 import { notFound, redirect } from "next/navigation";
 import { auth } from "@/auth";
+import {
+  completeStepAction,
+  recordControlTestAction,
+  reviewConclusionAction,
+  routeFindingAction,
+  saveConclusionAction,
+} from "@/app/actions/execution";
 import { addStepAction, generateProgramAction, linkRiskStepAction } from "@/app/actions/planning";
 import { AppNav } from "@/components/AppNav";
 import { EngagementTabs } from "@/components/EngagementTabs";
 import { ErrorBanner } from "@/components/GatesPanel";
 import { withTenant } from "@/lib/db";
 import { getEngagement } from "@/lib/engagements";
+import { getSectionConclusion, listControlTests } from "@/lib/execution";
 import { getMessages } from "@/lib/i18n";
 import { getLocale } from "@/lib/locale";
 import { listProgramSteps, sectionCoverage } from "@/lib/programs";
@@ -46,11 +54,14 @@ export default async function SectionPage(props: {
   const [engagement, section] = await Promise.all([getEngagement(id), sectionInfo(itemId)]);
   if (!engagement || !section || section.engagement_id !== id) notFound();
 
-  const [risks, steps, coverage] = await Promise.all([
+  const [risks, steps, coverage, controlTests, conclusion] = await Promise.all([
     risksForSection(itemId),
     listProgramSteps(itemId),
     sectionCoverage(itemId),
+    listControlTests(itemId),
+    getSectionConclusion(itemId),
   ]);
+  const te = t.planning.execution;
 
   const input =
     "rounded-md border border-slate-300 bg-white px-2 py-1 text-sm text-slate-900 outline-none focus:border-emerald-600 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-100";
@@ -132,6 +143,36 @@ export default async function SectionPage(props: {
                     </td>
                     <td className="w-24 px-3 py-2 text-xs text-slate-500">
                       {step.linkedRiskIds.length > 0 ? `⚑ ${step.linkedRiskIds.length}` : ""}
+                    </td>
+                    <td className="px-3 py-2">
+                      {step.status === "planned" ? (
+                        <form
+                          action={completeStepAction.bind(null, id, itemId, step.id)}
+                          className="flex items-center gap-1.5"
+                        >
+                          <input
+                            name="conclusion"
+                            required
+                            placeholder={te.conclusionPlaceholder}
+                            className={input}
+                            data-testid={`step-conclusion-${step.seq}`}
+                          />
+                          <button type="submit" className={btn} data-testid={`complete-step-${step.seq}`}>
+                            {te.complete}
+                          </button>
+                        </form>
+                      ) : (
+                        <span
+                          className={
+                            step.status === "complete"
+                              ? "rounded bg-emerald-100 px-1.5 py-0.5 text-xs font-semibold text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300"
+                              : "rounded bg-slate-100 px-1.5 py-0.5 text-xs text-slate-500 dark:bg-slate-800"
+                          }
+                          data-testid={`step-status-${step.seq}`}
+                        >
+                          {step.status === "complete" ? "✓" : "N/A"}
+                        </span>
+                      )}
                     </td>
                   </tr>
                 ))}
@@ -221,6 +262,154 @@ export default async function SectionPage(props: {
             </tbody>
           </table>
         </div>
+      </section>
+
+      {/* 4.4 matter arising: route to exactly one destination */}
+      <section className={card}>
+        <h2 className="text-lg font-semibold text-slate-900 dark:text-slate-100">
+          {te.matterArising}
+        </h2>
+        <form
+          action={routeFindingAction.bind(null, id, itemId)}
+          className="mt-3 flex flex-wrap items-end gap-2"
+        >
+          <label className="flex flex-col text-xs text-slate-500">
+            {te.routeTo}
+            <select name="route" className={input} data-testid="finding-route">
+              <option value="b4">{te.routes.b4}</option>
+              <option value="c1">{te.routes.c1}</option>
+              <option value="b5">{te.routes.b5}</option>
+              <option value="revise">{te.routes.revise}</option>
+            </select>
+          </label>
+          <input name="title" required placeholder={te.titleField} className={`${input} w-72`} data-testid="finding-title" />
+          <input name="detail" placeholder={te.detailField} className={input} />
+          <input name="amount" type="number" placeholder={te.amount} className={input} data-testid="finding-amount" />
+          <input name="accounts" placeholder={te.accountsField} className={input} />
+          <label className="flex flex-col text-xs text-slate-500">
+            {te.mtype}
+            <select name="mtype" className={input}>
+              {(["factual", "judgmental", "projected", "classification", "disclosure"] as const).map((mtype) => (
+                <option key={mtype} value={mtype}>
+                  {te.mtypes[mtype]}
+                </option>
+              ))}
+            </select>
+          </label>
+          <label className="flex items-center gap-1 text-xs text-slate-500">
+            <input type="checkbox" name="trivialConfirmed" data-testid="trivial-confirm" /> {te.trivialConfirm}
+          </label>
+          <label className="flex items-center gap-1 text-xs text-slate-500">
+            <input type="checkbox" name="significant" /> {te.significantFlag}
+          </label>
+          <button type="submit" className={btn} data-testid="route-finding">
+            {te.raise}
+          </button>
+        </form>
+      </section>
+
+      {/* 4.7 control tests */}
+      <section className={card}>
+        <h2 className="text-lg font-semibold text-slate-900 dark:text-slate-100">{te.controls}</h2>
+        <ul className="mt-2 flex flex-col gap-1 text-sm" data-testid="control-tests">
+          {controlTests.map((test) => (
+            <li key={test.id} className="rounded border border-slate-200 px-3 py-1.5 dark:border-slate-800">
+              {test.description} —{" "}
+              {test.result === "effective" ? (
+                <span className="text-emerald-700 dark:text-emerald-400">{te.results.effective}</span>
+              ) : (
+                <span className="text-red-600 dark:text-red-400">
+                  {te.results.deviation} → {te.decisions[test.deviationDecision as keyof typeof te.decisions]}
+                </span>
+              )}
+            </li>
+          ))}
+        </ul>
+        <form
+          action={recordControlTestAction.bind(null, id, itemId)}
+          className="mt-3 flex flex-wrap items-end gap-2"
+        >
+          <input name="description" required placeholder={te.controlDescription} className={`${input} w-72`} data-testid="control-description" />
+          <label className="flex flex-col text-xs text-slate-500">
+            {te.result}
+            <select name="result" className={input} data-testid="control-result">
+              <option value="effective">{te.results.effective}</option>
+              <option value="deviation">{te.results.deviation}</option>
+            </select>
+          </label>
+          <label className="flex flex-col text-xs text-slate-500">
+            {te.deviationDecision}
+            <select name="deviationDecision" className={input} data-testid="control-decision">
+              <option value="" />
+              <option value="extend">{te.decisions.extend}</option>
+              <option value="abandon">{te.decisions.abandon}</option>
+              <option value="deficiency">{te.decisions.deficiency}</option>
+            </select>
+          </label>
+          <button type="submit" className={btn} data-testid="record-control">
+            {te.record}
+          </button>
+        </form>
+      </section>
+
+      {/* 4.11 section conclusion + review chain */}
+      <section className={card}>
+        <h2 className="text-lg font-semibold text-slate-900 dark:text-slate-100">
+          {te.conclusionTitle}
+        </h2>
+        {conclusion?.partnerRequired ? (
+          <p className="mt-1 text-sm font-medium text-amber-700 dark:text-amber-400" data-testid="partner-required">
+            {te.partnerRequired}
+          </p>
+        ) : null}
+        {conclusion?.conclusion ? (
+          <div className="mt-2 text-sm text-slate-700 dark:text-slate-300" data-testid="conclusion-state">
+            <p>{conclusion.conclusion}</p>
+            <p className="mt-1 text-xs text-slate-500">
+              {te.preparedBy}: {conclusion.preparedByName ?? "—"} · {te.reviewedBy}:{" "}
+              {conclusion.reviewedByName ?? "—"}
+              {conclusion.partnerRequired ? ` · ${te.partnerBy}: ${conclusion.partnerReviewedByName ?? "—"}` : ""}
+            </p>
+          </div>
+        ) : null}
+        <form
+          action={saveConclusionAction.bind(null, id, itemId)}
+          className="mt-3 flex flex-wrap items-end gap-2"
+        >
+          <input
+            name="conclusion"
+            required
+            placeholder={te.conclusionTitle}
+            defaultValue={conclusion?.conclusion ?? ""}
+            className={`${input} w-96 max-w-full`}
+            data-testid="section-conclusion"
+          />
+          <label className="flex items-center gap-1 text-xs text-slate-500">
+            <input type="checkbox" name="objectivesAchieved" defaultChecked={conclusion?.objectivesAchieved ?? true} />
+            {te.objectivesAchieved}
+          </label>
+          <button type="submit" className={btn} data-testid="save-conclusion">
+            {te.saveConclusion}
+          </button>
+        </form>
+        {conclusion?.conclusion ? (
+          <div className="mt-2 flex flex-wrap gap-2">
+            {!conclusion.reviewedByName ? (
+              <form action={reviewConclusionAction.bind(null, id, itemId, false)}>
+                <button type="submit" className={btn} data-testid="review-conclusion">
+                  {te.review}
+                </button>
+              </form>
+            ) : null}
+            {conclusion.partnerRequired && !conclusion.partnerReviewedByName ? (
+              <form action={reviewConclusionAction.bind(null, id, itemId, true)}>
+                <button type="submit" className={btn} data-testid="partner-review-conclusion">
+                  {te.partnerReview}
+                </button>
+              </form>
+            ) : null}
+          </div>
+        ) : null}
       </section>
     </main>
   );

@@ -58,7 +58,13 @@ BEGIN
     'trial_balance_version_journal',
     'client_grouping_override',
     'sub_ledger_dataset',
-    'sub_ledger_row'
+    'sub_ledger_row',
+    'evidence',
+    'finding',
+    'misstatement',
+    'control_test',
+    'revise_log',
+    'section_conclusion'
   ]
   LOOP
     EXECUTE format('ALTER TABLE %I ENABLE ROW LEVEL SECURITY;', t);

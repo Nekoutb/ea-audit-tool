@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
 import { auth } from "@/auth";
+import { approveRiskAdditionAction } from "@/app/actions/execution";
 import {
   dismissPotentialAction,
   mapRiskAction,
@@ -112,7 +113,19 @@ export default async function RisksPage(props: {
                       {tr.rebutted}
                     </span>
                   ) : null}
+                  {risk.addedAfterPlanning && !risk.additionApproved ? (
+                    <span className="ml-2 rounded bg-amber-100 px-1.5 py-0.5 text-xs font-semibold text-amber-800 dark:bg-amber-950 dark:text-amber-300" data-testid={`pending-approval-${risk.id}`}>
+                      {t.planning.execution.pendingApproval}
+                    </span>
+                  ) : null}
                 </p>
+                {risk.addedAfterPlanning && !risk.additionApproved ? (
+                  <form action={approveRiskAdditionAction.bind(null, id, risk.id)} className="mt-1">
+                    <button type="submit" className={btn} data-testid={`approve-addition-${risk.id}`}>
+                      {t.planning.execution.approveAddition}
+                    </button>
+                  </form>
+                ) : null}
                 <span className="text-xs text-slate-500">
                   {tr.rating}: <b className="uppercase">{risk.rating}</b> · {tr.statuses[risk.status]} ·{" "}
                   {risk.linkedStepCount} {tr.linkedSteps}

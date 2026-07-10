@@ -43,6 +43,8 @@ export interface Risk {
   status: RiskStatus;
   presumedType: "revenue_fraud" | "mgmt_override" | null;
   rebutted: boolean;
+  addedAfterPlanning: boolean;
+  additionApproved: boolean;
   sections: RiskSectionLink[];
   linkedStepCount: number;
 }
@@ -203,12 +205,14 @@ export async function listRisks(engagementId: string): Promise<Risk[]> {
       status: RiskStatus;
       presumed_type: Risk["presumedType"];
       rebutted: boolean;
+      added_after_planning: boolean;
+      addition_approved_by: string | null;
       sections: string | null;
       linked_steps: string;
     }>(
       `SELECT r.id, r.description, r.source, r.level, r.likelihood, r.magnitude, r.significant,
               r.substantive_alone_insufficient, r.controls_reliance, r.status, r.presumed_type,
-              r.rebutted,
+              r.rebutted, r.added_after_planning, r.addition_approved_by,
               (SELECT json_agg(json_build_object(
                  'fileItemId', fi.id, 'code', fi.code, 'titleEn', fi.title_en,
                  'titleFr', fi.title_fr, 'assertions', rs.assertions))
@@ -234,6 +238,8 @@ export async function listRisks(engagementId: string): Promise<Risk[]> {
       status: row.status,
       presumedType: row.presumed_type,
       rebutted: row.rebutted,
+      addedAfterPlanning: row.added_after_planning,
+      additionApproved: row.addition_approved_by !== null,
       sections: row.sections ? (JSON.parse(row.sections) as RiskSectionLink[]) : [],
       linkedStepCount: Number(row.linked_steps),
     }));
