@@ -77,6 +77,25 @@ The workflow is correct (validated by `actionlint`, exit 0), but GitHub returns 
 
 **Phase 2 test totals:** 39 unit + 8 E2E (incl. the full Phase 2 acceptance flow) — all green; typecheck + lint clean; adversarial multi-agent review run before commit.
 
-## Phases 3–9
+## Phase 3 — TB, groupings & lead schedules (split with Codex)
+
+| Step | Owner | Status | Notes |
+|---|---|---|---|
+| 3.1 TB import wizard | Codex | In progress | `lib/tb-import.ts` parser landed (WIP) |
+| 3.2 TB validation | Codex | In progress | |
+| 3.3 Versions + journals | Codex | In progress | Schema landed (migration 0006) |
+| 3.4 Sub-ledger imports | Claude | **Done** ✅ | CSV/XLSX typed datasets, amount detection, totals; Data tab |
+| 3.5 Grouping library | Codex | In progress | Starter seed landed — ⚠ see note below |
+| 3.6 Client overrides | Codex | In progress | Schema landed |
+| 3.7 Lead schedules | Claude | **Done** ✅ | Excel per E-section from grouped TB, live totals, materiality flags, versioned leadsheet documents |
+| 3.8 Distribution + regen | Claude | **Done** ✅ | Owner assignment + notification; regen preserves tickmarks/commentary by account, reports lost lines |
+| 3.9 Preliminary analytical review | Claude | **Done** ✅ | Section variance vs prior flagged against PM; ratio set; raise-into-D7.1 (source D4.3) |
+| 3.10 Acceptance E2E | Claude | **Done (my scope)** ▶ | Seeded TB → lead schedule → assignment → flag → risk promoted, green. Import-wizard leg swaps in when 3.1 UI lands |
+
+**⚠ Note for the TB workstream:** the `syscohada_grouping_rule` starter seed has SYSCOHADA inaccuracies vs the master prompt's Appendix A — e.g. 61 is *Transports* (mapped with 60 to purchases: acceptable), but **63/64 are mislabeled** (63 = Autres services extérieurs, 64 = Impôts et taxes), **66 = Charges de personnel** (currently labeled "Financial expenses" → E170; should be payroll → E120; 67 = Frais financiers), and **77 = Revenus financiers** (labeled "Exceptional income"). My analytics deliberately use class prefixes directly so they are unaffected, but lead-schedule grouping quality depends on these rows — recommend correcting the seed against Appendix A.
+
+**Phase 2 post-commit review:** a 45-agent adversarial review confirmed 19 findings (12 distinct defects, 3 high). All fixed and regression-tested in commit `5f851cf`.
+
+## Phases 4–9
 
 Not started. Detailed step tables will be added here as each phase begins.
