@@ -41,6 +41,18 @@ export default async function DashboardPage() {
         </div>
         <div className="flex items-center gap-4">
           <Link
+            href="/clients"
+            className="text-sm font-medium text-slate-700 hover:text-emerald-700 dark:text-slate-300 dark:hover:text-emerald-400"
+          >
+            {t.nav.clients}
+          </Link>
+          <Link
+            href="/engagements"
+            className="text-sm font-medium text-slate-700 hover:text-emerald-700 dark:text-slate-300 dark:hover:text-emerald-400"
+          >
+            {t.nav.engagements}
+          </Link>
+          <Link
             href="/notifications"
             className="flex items-center gap-1.5 text-sm font-medium text-slate-700 hover:text-emerald-700 dark:text-slate-300 dark:hover:text-emerald-400"
           >

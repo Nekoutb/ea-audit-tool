@@ -26,7 +26,14 @@ BEGIN
     -- intentionally absent — they are read during authentication, before a
     -- tenant context exists, and are scoped by user_id/id in app code instead.
     'rls_probe',
-    'notification'
+    'notification',
+    'client',
+    'engagement',
+    'file_item',
+    'document',
+    'document_version',
+    'signoff',
+    'review_note'
   ]
   LOOP
     EXECUTE format('ALTER TABLE %I ENABLE ROW LEVEL SECURITY;', t);

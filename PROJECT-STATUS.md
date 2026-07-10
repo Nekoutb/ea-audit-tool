@@ -2,7 +2,7 @@
 
 Updated after every completed step. See `PROJECT-PLAN.md` for step definitions and `EA-Audit-Tool_Master-Build-Prompt.md` for the spec.
 
-**Current phase:** ✅ **Build Phase 0 — Foundations COMPLETE** (0.1–0.8, all tested locally). Ready for Build Phase 1 — Engagement & audit file core. One external follow-up: enable GitHub Actions billing (see CI note under 0.8).
+**Current phase:** ✅ **Build Phases 0 and 1 COMPLETE** (20 of 103 steps, all tested locally). Ready for Build Phase 2 — Acceptance & planning. One external follow-up: enable GitHub Actions billing (see CI note under 0.8).
 
 **Last updated:** 2026-07-09
 
@@ -37,6 +37,25 @@ Updated after every completed step. See `PROJECT-PLAN.md` for step definitions a
 
 The workflow is correct (validated by `actionlint`, exit 0), but GitHub returns a **0-second `startup_failure`** with no logs. That happens when GitHub **can't provision an Actions runner for a private repo** — typically an account **billing / spending-limit** setting, not a code issue. To enable it: GitHub → Settings → Billing → set up a spending limit / payment method for Actions (private repos get 2,000 free min/month but need billing configured), or make the repo public (Actions free) — not done here since it's a commercial codebase. Until then, run the identical gate locally: `npm run db:setup && npm run typecheck && npm run lint && npm run test && npm run test:e2e`.
 
-## Phases 1–9
+## Phase 1 — Engagement & audit file core
+
+| Step | Status | Tested | Notes |
+|---|---|---|---|
+| 1.1 Clients & engagements data model | **Done** | ✅ | Raw-SQL migration (client, engagement, file_item, document, document_version, signoff, review_note — all RLS enabled+forced); tenant-scoped loaders. |
+| 1.2 Client management UI | **Done** | ✅ | /clients list + create (name, legal form SA/SARL/SAS/GIE, listed, co-CAC). |
+| 1.3 Engagement management UI | **Done** | ✅ | /engagements list; create from client page (fiscal year × period end, unique per client+year). |
+| 1.4 File Index engine (A–F) | **Done** | ✅ | 64-item default index, bilingual titles, numbering gaps preserved (no D2/D5.3 — proven by unit test); instantiated transactionally on engagement creation. |
+| 1.5 Working-paper object model | **Done** | ✅ | document/version/signoff/review-note tables; immutable versions with sha256. |
+| 1.6 Templates + .docx generation | **Done** | ✅ | Bilingual template registry (D3.1 acceptance-specific + generic); merge fields; valid .docx proven by unit test; version stamped `template:id@version`. |
+| 1.7 Round-trip (download/upload) | **Done** | ✅ | Download version → edit → upload as next version. Mechanism decision logged in DECISIONS.md (WebDAV/WOPI deferred). |
+| 1.8 Versioning + check-out/in locking | **Done** | ✅ | Single-editor lock; full history; restore copies forward (history never rewritten). |
+| 1.9 Preview without Word | **Done** | ✅ | In-browser docx rendering (docx-preview); decision logged (PDF/A at Phase 7 archive). |
+| 1.10 Sign-off workflow | **Done** | ✅ | Preparer→reviewer two-stage; reviewer sign locks; reopen requires reason, voids sign-offs, notifies signers. |
+| 1.11 Review notes | **Done** | ✅ | Notes must be cleared (with response) before reviewer sign-off — enforced and tested. |
+| 1.12 Phase 1 acceptance E2E | **Done** | ✅ | Playwright: create engagement → D3.1 from template → download v1 (real ZIP) → upload v2 → note blocks reviewer → clear → sign → **locked** → reopen unlocks. |
+
+**Phase 1 test totals:** 23 unit (file index, docx, full document state machine) + 7 E2E — all green. Typecheck + lint clean.
+
+## Phases 2–9
 
 Not started. Detailed step tables will be added here as each phase begins.

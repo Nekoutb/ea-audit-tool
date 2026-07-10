@@ -25,18 +25,18 @@ Every step across all 10 build phases. Each step ends with a tested deliverable 
 
 | # | Step | E | Expected outcome |
 |---|---|---|---|
-| ⬜ 1.1 | Clients & engagements data model | 1 | Raw-SQL tables + tenant-scoped loaders for clients and engagements |
-| ⬜ 1.2 | Client management UI | 1 | Create/list/view a firm's audit clients |
-| ⬜ 1.3 | Engagement management UI | 1 | Create an engagement (one client × one fiscal year); list/open |
-| ⬜ 1.4 | File Index engine (A–F) | 1 | The exact A/B/C/D/E/F index structure (preserving the numbering gaps) as data + engine |
-| ⬜ 1.5 | Working-paper object model | 1 | workpaper / version / signoff tables + migration |
-| ⬜ 1.6 | Word template library + .docx generation | 1–2 | Versioned bilingual templates; merge-field convention; generate a .docx working paper |
-| ⬜ 1.7 | Document open→edit→close round-trip | 1–2 | Chosen mechanism (WebDAV / OnlyOffice / download-upload fallback) working end-to-end |
-| ⬜ 1.8 | Versioning + check-in/out locking | 1 | Single-editor lock; full version history with restore |
-| ⬜ 1.9 | PDF preview per version | 1 | In-browser PDF render of any version (reviewers need no Word) |
-| ⬜ 1.10 | Sign-off workflow | 1 | Preparer→reviewer; signing freezes version + stores hash; reopen voids sign-off |
-| ⬜ 1.11 | Review notes (coaching notes) | 1 | Point-by-point notes on docs/steps; must be cleared before sign-off |
-| ⬜ 1.12 | Phase 1 acceptance E2E | 1 | create engagement → instantiate D3.1 → open → edit → v2 → sign off → locked |
+| ✅ 1.1 | Clients & engagements data model | 1 | Raw-SQL tables + tenant-scoped loaders for clients and engagements |
+| ✅ 1.2 | Client management UI | 1 | Create/list/view a firm's audit clients |
+| ✅ 1.3 | Engagement management UI | 1 | Create an engagement (one client × one fiscal year); list/open |
+| ✅ 1.4 | File Index engine (A–F) | 1 | The exact A/B/C/D/E/F index structure (preserving the numbering gaps) as data + engine |
+| ✅ 1.5 | Working-paper object model | 1 | workpaper / version / signoff tables + migration |
+| ✅ 1.6 | Word template library + .docx generation | 1–2 | Versioned bilingual templates; merge-field convention; generate a .docx working paper |
+| ✅ 1.7 | Document open→edit→close round-trip | 1–2 | Chosen mechanism (WebDAV / OnlyOffice / download-upload fallback) working end-to-end |
+| ✅ 1.8 | Versioning + check-in/out locking | 1 | Single-editor lock; full version history with restore |
+| ✅ 1.9 | PDF preview per version | 1 | In-browser PDF render of any version (reviewers need no Word) |
+| ✅ 1.10 | Sign-off workflow | 1 | Preparer→reviewer; signing freezes version + stores hash; reopen voids sign-off |
+| ✅ 1.11 | Review notes (coaching notes) | 1 | Point-by-point notes on docs/steps; must be cleared before sign-off |
+| ✅ 1.12 | Phase 1 acceptance E2E | 1 | create engagement → instantiate D3.1 → open → edit → v2 → sign off → locked |
 
 ## Phase 2 — Acceptance & planning (14 steps)
 

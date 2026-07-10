@@ -2,6 +2,15 @@
 
 Append-only. Each entry: date, decision, why, alternatives considered.
 
+## 2026-07-09 — Phase 1 document mechanics (user pre-authorized batch decisions)
+
+The user directed Phases 1.1–1.12 to run without per-decision approval, so the three open document-system decisions from master spec §9 were resolved to the most reversible defaults and are recorded here:
+
+1. **Round-trip mechanism (spec §9.2): download → edit in Word → upload, with check-out/check-in locking.** This is the fallback path the spec requires in every scenario, so building it first is zero-waste. WebDAV `ms-word:ofe|u|` (option a) or OnlyOffice/WOPI (option b) can be layered on later — the storage API in `lib/documents.ts` is the single integration point.
+2. **Hybrid structured-data + document split (spec §9.4): adopted as specified.** Structured facts (sign-offs, statuses, versions) live in the DB; narrative lives in the .docx. No parsing of hand-edited Word content back into fields.
+3. **Version bytes stored in Postgres (`bytea`) for v1**, matching the reference project's `StepDocument Bytes` approach. SME-scale volumes make this fine now; all reads/writes go through `lib/documents.ts`, so an S3-compatible swap later touches one module. The 10-year archive requirement (§9.6) lands in Phase 7 and will use object storage.
+4. **"PDF preview" (spec §9.3) implemented as in-browser DOCX rendering (`docx-preview`)** — the underlying requirement is "reviewers never need Word to read", which client-side rendering satisfies without a native LibreOffice dependency on Windows dev machines or CI. Server-side PDF/A conversion is deferred to the Phase 7 archive step, where it is genuinely required.
+
 ## 2026-07-09 — Drop mandatory TOTP 2FA; standard email/password login only
 
 Master spec §15 called for mandatory TOTP 2FA on partner/firm_admin logins. The user descoped it: a second factor on every login is impractical friction for a tool audit staff live in daily, and it would slow routine operation. Auth is now standard email/password (bcrypt) with JWT sessions. The `app_user.totp_secret` / `totp_enabled` columns are left in place as reserved-for-future (no migration to drop them); 2FA can be reintroduced later as an opt-in, not a hard gate. Security posture otherwise unchanged (RLS tenant isolation, RBAC, server-side authz).
