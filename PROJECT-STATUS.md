@@ -2,7 +2,7 @@
 
 Updated after every completed step. See `PROJECT-PLAN.md` for step definitions and `EA-Audit-Tool_Master-Build-Prompt.md` for the spec.
 
-**Current phase:** ✅ **Build Phases 0–8 COMPLETE** (95 of 103 steps; 106 unit + 14 E2E green). Ready for Build Phase 9 — portal, dashboards, polish. One external follow-up: enable GitHub Actions billing (see CI note under 0.8).
+**Current phase:** 🏁 **ALL BUILD PHASES 0–9 COMPLETE** (103 of 103 steps; 116 unit + 15 E2E green). One external follow-up: enable GitHub Actions billing (see CI note under 0.8).
 
 **Last updated:** 2026-07-10
 
@@ -101,6 +101,15 @@ All 12 steps done: B1 completion gates that BLOCK issuance (sections concluded+r
 
 All 9 steps done: F1 statutory deadlines auto-generated from period-end/AGM/mandate (arrêté ≤4 months clamped to month-end, docs to CAC ≥45d, AGO ≤6 months, rapport spécial deposit ≥15d, 60-day assembly, mandate expiry 2/6 years) with countdowns, done-marks and overdue escalation to partners; F2 legal-form-aware conventions register (SA conventions without board authorization flagged per art. 447) + rapport spécial generator (FR, "néant" wording when empty); F3 article 715 report built from live data (program stats, section conclusions, uncorrected B5 adjustments, C1 points, current-vs-prior result); F4 procédure d'alerte state machine with SA (arts. 153-156, board deliberation path) and non-SA (arts. 150-152) variants — registered-letter/rapport documents filed under F4 at each transition, stage deadline timers (15d reply, 8d associé communication, 15d board convocation), satisfactory-reply discontinuation resumable within 6 months; F5 faits délictueux révélation to the ministère public + irregularities signalement letters, partner-only access; F6 titres nominatifs attestation (art. 746-2) with annexed management declaration; F7 equity < ½ capital monitor computed from the final TB (raises the statutory EGM deadline per arts. 664-669/371-373 and notifies partners); F8 co-CAC work-split/cross-review records with the art. 719 disagreement disclosed in the joint report. Suite: 106 unit + 14 E2E green.
 
-## Phase 9
+## Phase 9 — Portal, dashboards, polish — COMPLETE ✅
 
-Not started. Detailed step tables will be added here as the phase begins.
+All 8 steps done:
+- **9.1/9.2 Client portal + PBC**: portal contacts are `client_user` memberships scoped to ONE client (bcrypt-hashed passwords, min 8 chars, email uniqueness); the proxy walls portal users off from every firm route (pages redirect to /portal, firm APIs return 403) and firm users off the portal; PBC items flow requested → uploaded → accepted with notifications both ways (portal users on request, engagement team on upload); the firm can attach an accepted upload to an E-section as a versioned working-paper document; cross-client uploads are refused at the SQL level.
+- **9.3 Engagement dashboard**: live strip on the file page — program-step progress, risks open/concluded/significant, B5 uncorrected vs approved materiality, draft documents, PBC outstanding, next statutory deadlines.
+- **9.4 Firm dashboard**: engagements by phase, statutory-deadline heat list (overdue highlighted, linked to each engagement's legal tab), workload by section owner, mandate expiries.
+- **9.5 Portfolio risk views**: significant risks across active engagements; uncorrected-B5 exposure per engagement vs materiality with EXCEEDS flag.
+- **9.6 Regulator export**: full file index with owners, document status/version, three-stage sign-offs and section-conclusion state as a real .xlsx (`/api/engagements/[id]/export`).
+- **9.7 Performance pass**: benchmarked in the suite — a 5,000-row TB imports in well under the 30s budget and lead-schedule regeneration is under 10s; notifications and dashboard queries are LIMIT-capped.
+- **9.8 Security review**: verified RLS is enabled AND forced on all 49 tenant-scoped tables (the only non-RLS tables are the intentionally-global four: tenant, app_user, membership, syscohada_grouping_rule); revoked app-role write access to the global SYSCOHADA library (migration 15); audited every SQL interpolation site (all are internal constants — user values are parameterized throughout); no hardcoded secrets, `.env` git-ignored; no `dangerouslySetInnerHTML`; role checks on all sensitive flows (partner: report issuance/archive/faits délictueux; reviewer+: PBC acceptance, portal-contact creation); portal lockout proven in the phase 9 E2E.
+
+Suite: 116 unit + 15 E2E green.

@@ -35,7 +35,50 @@
     "tenant": "Tenant",
     "firmData": "Your firm's data",
     "phase1Note": "Engagements and the audit file arrive in Build Phase 1.",
-    "sendTestNotification": "Send test notification"
+    "sendTestNotification": "Send test notification",
+    "byPhase": "Engagements by phase",
+    "deadlineHeat": "Statutory deadlines — next due",
+    "workload": "Workload (open program steps by owner)",
+    "mandateExpiries": "Mandate expiries",
+    "portfolioRisks": "Portfolio — significant risks",
+    "b5Exposure": "Portfolio — uncorrected B5 exposure",
+    "exceeds": "EXCEEDS",
+    "within": "Within",
+    "noMateriality": "no approved materiality"
+  },
+  "engagementDashboard": {
+    "phase": "Phase",
+    "steps": "Program steps",
+    "risks": "Risks open / concluded / significant",
+    "b5": "B5 uncorrected vs materiality",
+    "unsigned": "Draft documents",
+    "pbcOpen": "PBC outstanding",
+    "deadlines": "Next statutory deadlines",
+    "export": "Export file index (.xlsx)"
+  },
+  "portal": {
+    "title": "Client portal",
+    "welcome": "Documents requested by your auditor",
+    "empty": "No requests at the moment.",
+    "status": "Status",
+    "statuses": { "requested": "Requested", "uploaded": "Uploaded", "accepted": "Accepted" },
+    "upload": "Upload",
+    "uploaded": "Uploaded file",
+    "signOut": "Sign out"
+  },
+  "pbc": {
+    "title": "PBC requests",
+    "add": "Request document",
+    "itemTitle": "Title",
+    "note": "Note to the client",
+    "accept": "Accept",
+    "attachTo": "Attach to section",
+    "noAttach": "— do not attach —",
+    "contacts": "Portal contacts",
+    "contactName": "Name",
+    "contactEmail": "Email",
+    "contactPassword": "Password (min. 8)",
+    "addContact": "Create portal access"
   },
   "notifications": {
     "title": "Notifications",
@@ -704,7 +747,12 @@
       "invalid-capacity": "Unknown interested-party capacity.",
       "share-capital-required": "Record the share capital first.",
       "invalid-amount": "A positive amount is required.",
-      "invalid-key": "Unknown co-CAC record key."
+      "invalid-key": "Unknown co-CAC record key.",
+      "file-required": "Choose a file to upload.",
+      "empty-file": "The file is empty.",
+      "file-too-large": "The file exceeds the 25 MB limit.",
+      "password-too-short": "The password must be at least 8 characters.",
+      "email-taken": "A user with this email already exists."
     }
   }
 }

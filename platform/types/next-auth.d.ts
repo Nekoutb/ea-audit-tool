@@ -9,6 +9,8 @@ declare module "next-auth" {
       tenantId: string;
       role: Role;
       locale: Locale;
+      /** Set only for role 'client_user' — the client the portal user belongs to. */
+      clientId: string | null;
     } & DefaultSession["user"];
   }
 
@@ -16,6 +18,7 @@ declare module "next-auth" {
     tenantId?: string;
     role?: Role;
     locale?: Locale;
+    clientId?: string | null;
   }
 }
 
@@ -25,5 +28,6 @@ declare module "next-auth/jwt" {
     tenantId?: string;
     role?: Role;
     locale?: Locale;
+    clientId?: string | null;
   }
 }

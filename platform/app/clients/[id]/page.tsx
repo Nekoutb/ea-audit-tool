@@ -2,23 +2,30 @@ import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
 import { auth } from "@/auth";
 import { createEngagementAction } from "@/app/actions/audit-file";
+import { addPortalContactAction } from "@/app/actions/pbc";
 import { AppNav } from "@/components/AppNav";
+import { ErrorBanner } from "@/components/GatesPanel";
 import { getClient } from "@/lib/clients";
 import { listEngagements } from "@/lib/engagements";
 import { getMessages } from "@/lib/i18n";
 import { getLocale } from "@/lib/locale";
+import { listPortalContacts } from "@/lib/pbc";
 
-export default async function ClientDetailPage(props: { params: Promise<{ id: string }> }) {
+export default async function ClientDetailPage(props: {
+  params: Promise<{ id: string }>;
+  searchParams: Promise<{ error?: string }>;
+}) {
   const session = await auth();
   if (!session?.user) redirect("/login");
 
   const { id } = await props.params;
+  const { error } = await props.searchParams;
   const locale = await getLocale();
   const t = getMessages(locale);
 
   const client = await getClient(id);
   if (!client) notFound();
-  const engagements = await listEngagements(id);
+  const [engagements, contacts] = await Promise.all([listEngagements(id), listPortalContacts(id)]);
 
   const currentYear = new Date().getFullYear();
   const inputClass =
@@ -101,6 +108,41 @@ export default async function ClientDetailPage(props: { params: Promise<{ id: st
             className="rounded-md bg-emerald-700 px-4 py-2 text-sm font-medium text-white hover:bg-emerald-800"
           >
             {t.engagements.createEngagement}
+          </button>
+        </form>
+      </section>
+
+      <section className="mt-10 rounded-xl border border-slate-200 p-6 dark:border-slate-800">
+        <h2 className="text-lg font-semibold text-slate-900 dark:text-slate-100">{t.pbc.contacts}</h2>
+        <ErrorBanner error={error} locale={locale} />
+        {contacts.length > 0 ? (
+          <ul className="mt-3 flex flex-col gap-1 text-sm text-slate-700 dark:text-slate-300" data-testid="portal-contacts">
+            {contacts.map((contact) => (
+              <li key={contact.id}>
+                {contact.name ?? contact.email} — <span className="font-mono text-xs">{contact.email}</span>
+              </li>
+            ))}
+          </ul>
+        ) : null}
+        <form action={addPortalContactAction.bind(null, client.id)} className="mt-4 flex flex-wrap items-end gap-4">
+          <label className="flex flex-col gap-1 text-sm">
+            <span className="text-slate-600 dark:text-slate-400">{t.pbc.contactName}</span>
+            <input name="name" required className={inputClass} data-testid="contact-name" />
+          </label>
+          <label className="flex flex-col gap-1 text-sm">
+            <span className="text-slate-600 dark:text-slate-400">{t.pbc.contactEmail}</span>
+            <input name="email" type="email" required className={inputClass} data-testid="contact-email" />
+          </label>
+          <label className="flex flex-col gap-1 text-sm">
+            <span className="text-slate-600 dark:text-slate-400">{t.pbc.contactPassword}</span>
+            <input name="password" type="password" required minLength={8} className={inputClass} data-testid="contact-password" />
+          </label>
+          <button
+            type="submit"
+            data-testid="add-contact"
+            className="rounded-md bg-emerald-700 px-4 py-2 text-sm font-medium text-white hover:bg-emerald-800"
+          >
+            {t.pbc.addContact}
           </button>
         </form>
       </section>

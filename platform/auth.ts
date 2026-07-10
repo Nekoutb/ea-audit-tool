@@ -16,6 +16,7 @@ interface UserRow {
 interface MembershipRow {
   tenant_id: string;
   role: Role;
+  client_id: string | null;
 }
 
 export const { handlers, auth, signIn, signOut } = NextAuth({
@@ -47,7 +48,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
 
         // Resolve the user's tenant + firm role via their (first) membership.
         const membershipResult = await pool.query<MembershipRow>(
-          "SELECT tenant_id, role FROM membership WHERE user_id = $1 ORDER BY created_at LIMIT 1",
+          "SELECT tenant_id, role, client_id FROM membership WHERE user_id = $1 ORDER BY created_at LIMIT 1",
           [user.id],
         );
         const membership = membershipResult.rows[0];
@@ -64,6 +65,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
           tenantId: membership.tenant_id,
           role: membership.role,
           locale,
+          clientId: membership.client_id,
         };
       },
     }),
@@ -75,6 +77,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
         token.tenantId = user.tenantId;
         token.role = user.role;
         token.locale = user.locale;
+        token.clientId = user.clientId ?? null;
       }
       return token;
     },
@@ -84,6 +87,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
         session.user.tenantId = token.tenantId as string;
         session.user.role = token.role as Role;
         session.user.locale = token.locale as Locale;
+        session.user.clientId = (token.clientId as string | null) ?? null;
       }
       return session;
     },

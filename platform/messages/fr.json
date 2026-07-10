@@ -35,7 +35,50 @@
     "tenant": "Cabinet",
     "firmData": "Données de votre cabinet",
     "phase1Note": "Les missions et le dossier d'audit arrivent en phase 1.",
-    "sendTestNotification": "Envoyer une notification de test"
+    "sendTestNotification": "Envoyer une notification de test",
+    "byPhase": "Missions par phase",
+    "deadlineHeat": "Échéances légales — prochaines",
+    "workload": "Charge (diligences ouvertes par responsable)",
+    "mandateExpiries": "Expirations de mandats",
+    "portfolioRisks": "Portefeuille — risques importants",
+    "b5Exposure": "Portefeuille — exposition B5 non corrigée",
+    "exceeds": "DÉPASSE",
+    "within": "Sous le seuil",
+    "noMateriality": "pas de seuil approuvé"
+  },
+  "engagementDashboard": {
+    "phase": "Phase",
+    "steps": "Diligences",
+    "risks": "Risques ouverts / conclus / importants",
+    "b5": "B5 non corrigé vs seuil",
+    "unsigned": "Documents en brouillon",
+    "pbcOpen": "PBC en attente",
+    "deadlines": "Prochaines échéances légales",
+    "export": "Exporter l'index du dossier (.xlsx)"
+  },
+  "portal": {
+    "title": "Portail client",
+    "welcome": "Documents demandés par votre auditeur",
+    "empty": "Aucune demande pour le moment.",
+    "status": "Statut",
+    "statuses": { "requested": "Demandé", "uploaded": "Transmis", "accepted": "Accepté" },
+    "upload": "Transmettre",
+    "uploaded": "Fichier transmis",
+    "signOut": "Se déconnecter"
+  },
+  "pbc": {
+    "title": "Demandes PBC",
+    "add": "Demander un document",
+    "itemTitle": "Intitulé",
+    "note": "Note au client",
+    "accept": "Accepter",
+    "attachTo": "Rattacher à la section",
+    "noAttach": "— ne pas rattacher —",
+    "contacts": "Contacts portail",
+    "contactName": "Nom",
+    "contactEmail": "Email",
+    "contactPassword": "Mot de passe (min. 8)",
+    "addContact": "Créer l'accès portail"
   },
   "notifications": {
     "title": "Notifications",
@@ -704,7 +747,12 @@
       "invalid-capacity": "Qualité de personne intéressée inconnue.",
       "share-capital-required": "Enregistrez d'abord le capital social.",
       "invalid-amount": "Un montant positif est requis.",
-      "invalid-key": "Clé d'enregistrement co-CAC inconnue."
+      "invalid-key": "Clé d'enregistrement co-CAC inconnue.",
+      "file-required": "Choisissez un fichier à transmettre.",
+      "empty-file": "Le fichier est vide.",
+      "file-too-large": "Le fichier dépasse la limite de 25 Mo.",
+      "password-too-short": "Le mot de passe doit comporter au moins 8 caractères.",
+      "email-taken": "Un utilisateur avec cet email existe déjà."
     }
   }
 }

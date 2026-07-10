@@ -3,8 +3,9 @@ import { redirect } from "next/navigation";
 import { auth, signOut } from "@/auth";
 import { sendTestNotification } from "@/app/actions/notifications";
 import { LanguageSwitcher } from "@/components/LanguageSwitcher";
+import { firmDashboard } from "@/lib/dashboards";
 import { withTenant } from "@/lib/db";
-import { getMessages } from "@/lib/i18n";
+import { formatFCFA, getMessages } from "@/lib/i18n";
 import { getLocale } from "@/lib/locale";
 import { unreadCount } from "@/lib/notifications";
 
@@ -26,10 +27,10 @@ export default async function DashboardPage() {
     return result.rows.map((row) => row.note);
   });
 
-  const unread = await unreadCount();
+  const [unread, firm] = await Promise.all([unreadCount(), firmDashboard()]);
 
   return (
-    <main className="mx-auto min-h-screen max-w-3xl px-6 py-16">
+    <main className="mx-auto min-h-screen max-w-5xl px-6 py-16">
       <header className="flex items-start justify-between gap-6 border-b border-slate-200 pb-6 dark:border-slate-800">
         <div>
           <p className="text-xs font-semibold uppercase tracking-wider text-emerald-700 dark:text-emerald-500">
@@ -126,6 +127,86 @@ export default async function DashboardPage() {
             {t.dashboard.sendTestNotification}
           </button>
         </form>
+
+        {/* 9.4 firm dashboard */}
+        <div className="mt-10 grid grid-cols-1 gap-6 lg:grid-cols-2">
+          <div className="rounded-xl border border-slate-200 p-5 dark:border-slate-800">
+            <h2 className="text-sm font-semibold text-slate-900 dark:text-slate-100">{t.dashboard.byPhase}</h2>
+            <ul className="mt-2 flex flex-wrap gap-2 text-sm" data-testid="firm-by-phase">
+              {firm.byPhase.map((entry) => (
+                <li key={entry.phase} className="rounded-md bg-slate-100 px-2.5 py-1 text-slate-800 dark:bg-slate-800 dark:text-slate-200">
+                  {t.engagements.phases[entry.phase as keyof typeof t.engagements.phases] ?? entry.phase}:{" "}
+                  <b>{entry.count}</b>
+                </li>
+              ))}
+            </ul>
+            <h2 className="mt-5 text-sm font-semibold text-slate-900 dark:text-slate-100">{t.dashboard.workload}</h2>
+            <ul className="mt-2 flex flex-col gap-1 text-sm text-slate-700 dark:text-slate-300" data-testid="firm-workload">
+              {firm.workload.map((entry) => (
+                <li key={entry.userName}>
+                  {entry.userName} — <b>{entry.openSteps}</b>
+                </li>
+              ))}
+            </ul>
+            <h2 className="mt-5 text-sm font-semibold text-slate-900 dark:text-slate-100">{t.dashboard.mandateExpiries}</h2>
+            <ul className="mt-2 flex flex-col gap-1 text-sm text-slate-700 dark:text-slate-300" data-testid="firm-mandates">
+              {firm.mandateExpiries.map((entry) => (
+                <li key={entry.clientName}>
+                  {entry.clientName} — <b>{entry.expiryYear}</b>
+                </li>
+              ))}
+            </ul>
+          </div>
+          <div className="rounded-xl border border-slate-200 p-5 dark:border-slate-800">
+            <h2 className="text-sm font-semibold text-slate-900 dark:text-slate-100">{t.dashboard.deadlineHeat}</h2>
+            <ul className="mt-2 flex flex-col gap-1 text-sm" data-testid="firm-deadlines">
+              {firm.deadlineHeat.map((entry) => (
+                <li key={`${entry.engagementId}-${entry.key}`}>
+                  <Link href={`/engagements/${entry.engagementId}/legal`} className="hover:underline">
+                    <span className={entry.daysLeft < 0 ? "font-semibold text-red-600 dark:text-red-400" : "text-slate-700 dark:text-slate-300"}>
+                      {entry.dueDate} — {entry.clientName} {entry.fiscalYear} · {entry.key}
+                      {entry.daysLeft < 0 ? " (overdue)" : ""}
+                    </span>
+                  </Link>
+                </li>
+              ))}
+            </ul>
+          </div>
+        </div>
+
+        {/* 9.5 portfolio risk views */}
+        <div className="mt-6 grid grid-cols-1 gap-6 lg:grid-cols-2">
+          <div className="rounded-xl border border-slate-200 p-5 dark:border-slate-800">
+            <h2 className="text-sm font-semibold text-slate-900 dark:text-slate-100">{t.dashboard.portfolioRisks}</h2>
+            <ul className="mt-2 flex flex-col gap-1 text-sm text-slate-700 dark:text-slate-300" data-testid="portfolio-risks">
+              {firm.significantRisks.map((risk, index) => (
+                <li key={`${risk.engagementId}-${index}`}>
+                  <Link href={`/engagements/${risk.engagementId}/risks`} className="hover:underline">
+                    {risk.clientName} {risk.fiscalYear} — {risk.description} ({risk.status})
+                  </Link>
+                </li>
+              ))}
+            </ul>
+          </div>
+          <div className="rounded-xl border border-slate-200 p-5 dark:border-slate-800">
+            <h2 className="text-sm font-semibold text-slate-900 dark:text-slate-100">{t.dashboard.b5Exposure}</h2>
+            <ul className="mt-2 flex flex-col gap-1 text-sm" data-testid="portfolio-b5">
+              {firm.b5Exposure.map((entry) => (
+                <li key={entry.engagementId} className="text-slate-700 dark:text-slate-300">
+                  <Link href={`/engagements/${entry.engagementId}/findings`} className="hover:underline">
+                    {entry.clientName} {entry.fiscalYear} — {formatFCFA(entry.uncorrected)}
+                    {entry.materiality === null
+                      ? ` (${t.dashboard.noMateriality})`
+                      : ` / ${formatFCFA(entry.materiality)}`}
+                    {entry.exceeds ? (
+                      <span className="ml-1 font-semibold text-red-600 dark:text-red-400">{t.dashboard.exceeds}</span>
+                    ) : null}
+                  </Link>
+                </li>
+              ))}
+            </ul>
+          </div>
+        </div>
 
         <p className="mt-8 text-sm text-slate-500 dark:text-slate-400">{t.dashboard.phase1Note}</p>
       </section>

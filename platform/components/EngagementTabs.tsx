@@ -17,6 +17,7 @@ export function EngagementTabs({
     | "analytics"
     | "findings"
     | "confirmations"
+    | "pbc"
     | "legal"
     | "conclusion";
 }) {
@@ -30,6 +31,7 @@ export function EngagementTabs({
     { key: "analytics", href: `/engagements/${engagementId}/analytics`, label: t.planning.analyticsTitle },
     { key: "findings", href: `/engagements/${engagementId}/findings`, label: t.planning.findings.title },
     { key: "confirmations", href: `/engagements/${engagementId}/confirmations`, label: t.planning.confirmations.title },
+    { key: "pbc", href: `/engagements/${engagementId}/pbc`, label: t.pbc.title },
     { key: "legal", href: `/engagements/${engagementId}/legal`, label: t.planning.legal.title },
     { key: "conclusion", href: `/engagements/${engagementId}/conclusion`, label: t.planning.conclusion.title },
   ] as const;

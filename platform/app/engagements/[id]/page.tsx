@@ -4,9 +4,10 @@ import { auth } from "@/auth";
 import { generateDocumentAction } from "@/app/actions/audit-file";
 import { AppNav } from "@/components/AppNav";
 import { EngagementTabs } from "@/components/EngagementTabs";
+import { engagementDashboard } from "@/lib/dashboards";
 import { getEngagement, listFileItems } from "@/lib/engagements";
 import { SECTIONS } from "@/lib/file-index";
-import { getMessages } from "@/lib/i18n";
+import { formatFCFA, getMessages } from "@/lib/i18n";
 import { getLocale } from "@/lib/locale";
 
 export default async function EngagementFilePage(props: { params: Promise<{ id: string }> }) {
@@ -19,7 +20,8 @@ export default async function EngagementFilePage(props: { params: Promise<{ id: 
 
   const engagement = await getEngagement(id);
   if (!engagement) notFound();
-  const items = await listFileItems(id);
+  const [items, dash] = await Promise.all([listFileItems(id), engagementDashboard(id)]);
+  const td = t.engagementDashboard;
 
   return (
     <main className="mx-auto min-h-screen max-w-5xl px-6 py-10">
@@ -34,6 +36,47 @@ export default async function EngagementFilePage(props: { params: Promise<{ id: 
         </span>
       </div>
       <EngagementTabs engagementId={id} locale={locale} active="file" />
+
+      {/* 9.3 engagement dashboard strip */}
+      <section
+        className="mt-6 grid grid-cols-2 gap-3 md:grid-cols-3 lg:grid-cols-6"
+        data-testid="engagement-dashboard"
+      >
+        {[
+          { label: td.steps, value: `${dash.steps.complete + dash.steps.na}/${dash.steps.total}` },
+          {
+            label: td.risks,
+            value: `${dash.risks.identified} / ${dash.risks.concluded} / ${dash.risks.significant}`,
+          },
+          {
+            label: td.b5,
+            value:
+              dash.b5.materiality === null
+                ? formatFCFA(dash.b5.uncorrected)
+                : `${formatFCFA(dash.b5.uncorrected)} / ${formatFCFA(dash.b5.materiality)}`,
+          },
+          { label: td.unsigned, value: String(dash.documentsUnsigned) },
+          { label: td.pbcOpen, value: String(dash.pbcOpen) },
+        ].map((card) => (
+          <div key={card.label} className="rounded-lg border border-slate-200 p-3 dark:border-slate-800">
+            <p className="text-xs text-slate-500 dark:text-slate-400">{card.label}</p>
+            <p className="mt-1 text-sm font-semibold text-slate-900 dark:text-slate-100">{card.value}</p>
+          </div>
+        ))}
+        <div className="rounded-lg border border-slate-200 p-3 dark:border-slate-800">
+          <p className="text-xs text-slate-500 dark:text-slate-400">{td.deadlines}</p>
+          <p className="mt-1 text-xs text-slate-700 dark:text-slate-300">
+            {dash.nextDeadlines.map((deadline) => `${deadline.key} ${deadline.dueDate}`).join(" · ") || "—"}
+          </p>
+          <a
+            href={`/api/engagements/${id}/export`}
+            className="mt-1 inline-block text-xs font-medium text-emerald-700 hover:underline dark:text-emerald-400"
+            data-testid="export-file-index"
+          >
+            {td.export}
+          </a>
+        </div>
+      </section>
 
       {SECTIONS.map((section) => {
         const sectionItems = items.filter((item) => item.section === section.section);

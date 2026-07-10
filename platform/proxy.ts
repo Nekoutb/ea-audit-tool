@@ -7,9 +7,26 @@
 import { auth } from "@/auth";
 
 export const proxy = auth((req) => {
+  const isApi = req.nextUrl.pathname.startsWith("/api/");
   if (!req.auth) {
+    // API routes return their own 401; pages redirect to login.
+    if (isApi) return;
     const loginUrl = new URL("/login", req.nextUrl.origin);
     return Response.redirect(loginUrl);
+  }
+  // Portal users never see the audit file (spec §2.3): firm routes redirect
+  // to the portal, firm APIs are refused outright, and firm users have no
+  // business on the portal.
+  const isClientUser = req.auth.user?.role === "client_user";
+  const onPortal = req.nextUrl.pathname.startsWith("/portal");
+  if (isClientUser && isApi) {
+    return new Response("Forbidden", { status: 403 });
+  }
+  if (isClientUser && !onPortal) {
+    return Response.redirect(new URL("/portal", req.nextUrl.origin));
+  }
+  if (!isClientUser && onPortal) {
+    return Response.redirect(new URL("/dashboard", req.nextUrl.origin));
   }
 });
 
@@ -21,5 +38,7 @@ export const config = {
     "/engagements/:path*",
     "/documents/:path*",
     "/independence/:path*",
+    "/portal/:path*",
+    "/api/engagements/:path*",
   ],
 };
