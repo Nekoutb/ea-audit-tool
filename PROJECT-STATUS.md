@@ -6,9 +6,29 @@ Updated after every completed step. See `PROJECT-PLAN.md` for step definitions a
 
 **Last updated:** 2026-07-10
 
-**Login (dev):** `npm run seed` → `alice@firm-a.test` or `bob@firm-b.test`, both `/ password`, at `/login`.
+**Repo:** https://github.com/Nekoutb/ea-audit-tool (private) · **Charter (live):** https://claude.ai/code/artifact/6c14bb71-c4b1-4709-8879-0edbcda805db
 
-**Repo:** https://github.com/Nekoutb/ea-audit-tool (private)
+---
+
+## How to review the application
+
+The platform runs locally against native PostgreSQL 16 (port 5433) — it is not publicly hosted. Start it and open **http://localhost:3100**:
+
+```
+cd platform
+npm run dev -- -p 3100
+```
+
+| Login | Password | Shows |
+|---|---|---|
+| `alice@firm-a.test` | `password` | Firm A admin — firm dashboard, all demo engagements |
+| `portail@demo.test` | `portal-pass-9` | Client portal user — PBC only, walled off from the audit file |
+| `bob@firm-b.test` | `password` | Firm B — proves cross-tenant isolation |
+
+**Demo tour (Firm A):**
+- **Demo Industrielle du Cameroun SA — FY2025 (archived):** a complete file — Conclusion tab with all 11 B1 gates green, the issued unmodified OHADA report under A1, the 60-day assembly deadline, and the immutable archive. FY2026 is its rollforward.
+- **Demo Distribution Sahel SA — FY2025:** the OHADA legal tab — deadlines calendar, an unauthorized convention (art. 447) with its rapport spécial, an SA alerte at the board stage, the art. 715 report, and the equity < ½-capital breach with its EGM deadline.
+- **Demo Logistique Littoral SA — FY2025:** the PBC round-trip — request → portal upload → accepted and attached to E100. Log in as `portail@demo.test` to see the client side.
 
 ---
 

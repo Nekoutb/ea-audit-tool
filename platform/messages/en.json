@@ -34,7 +34,7 @@
     "role": "Role",
     "tenant": "Tenant",
     "firmData": "Your firm's data",
-    "phase1Note": "Engagements and the audit file arrive in Build Phase 1.",
+    "phase1Note": "All build phases (0–9) complete — 103/103 steps delivered.",
     "sendTestNotification": "Send test notification",
     "byPhase": "Engagements by phase",
     "deadlineHeat": "Statutory deadlines — next due",

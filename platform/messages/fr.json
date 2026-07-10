@@ -34,7 +34,7 @@
     "role": "Rôle",
     "tenant": "Cabinet",
     "firmData": "Données de votre cabinet",
-    "phase1Note": "Les missions et le dossier d'audit arrivent en phase 1.",
+    "phase1Note": "Toutes les phases de construction (0–9) sont terminées — 103/103 étapes livrées.",
     "sendTestNotification": "Envoyer une notification de test",
     "byPhase": "Missions par phase",
     "deadlineHeat": "Échéances légales — prochaines",
