@@ -2,9 +2,9 @@
 
 Updated after every completed step. See `PROJECT-PLAN.md` for step definitions and `EA-Audit-Tool_Master-Build-Prompt.md` for the spec.
 
-**Current phase:** ✅ **Build Phases 0, 1 and 2 COMPLETE** (34 of 103 steps, all tested locally). Ready for Build Phase 3 — TB, groupings & lead schedules. One external follow-up: enable GitHub Actions billing (see CI note under 0.8).
+**Current phase:** ✅ **Build Phases 0–5 COMPLETE** (66 of 103 steps, all tested locally: 78 unit + 11 E2E green). Ready for Build Phase 6 — Circularisations. One external follow-up: enable GitHub Actions billing (see CI note under 0.8).
 
-**Last updated:** 2026-07-09
+**Last updated:** 2026-07-10
 
 **Login (dev):** `npm run seed` → `alice@firm-a.test` or `bob@firm-b.test`, both `/ password`, at `/login`.
 
@@ -77,25 +77,18 @@ The workflow is correct (validated by `actionlint`, exit 0), but GitHub returns 
 
 **Phase 2 test totals:** 39 unit + 8 E2E (incl. the full Phase 2 acceptance flow) — all green; typecheck + lint clean; adversarial multi-agent review run before commit.
 
-## Phase 3 — TB, groupings & lead schedules (split with Codex)
+## Phase 3 — TB, groupings & lead schedules — COMPLETE ✅
 
-| Step | Owner | Status | Notes |
-|---|---|---|---|
-| 3.1 TB import wizard | Codex | In progress | `lib/tb-import.ts` parser landed (WIP) |
-| 3.2 TB validation | Codex | In progress | |
-| 3.3 Versions + journals | Codex | In progress | Schema landed (migration 0006) |
-| 3.4 Sub-ledger imports | Claude | **Done** ✅ | CSV/XLSX typed datasets, amount detection, totals; Data tab |
-| 3.5 Grouping library | Codex | In progress | Starter seed landed — ⚠ see note below |
-| 3.6 Client overrides | Codex | In progress | Schema landed |
-| 3.7 Lead schedules | Claude | **Done** ✅ | Excel per E-section from grouped TB, live totals, materiality flags, versioned leadsheet documents |
-| 3.8 Distribution + regen | Claude | **Done** ✅ | Owner assignment + notification; regen preserves tickmarks/commentary by account, reports lost lines |
-| 3.9 Preliminary analytical review | Claude | **Done** ✅ | Section variance vs prior flagged against PM; ratio set; raise-into-D7.1 (source D4.3) |
-| 3.10 Acceptance E2E | Claude | **Done (my scope)** ▶ | Seeded TB → lead schedule → assignment → flag → risk promoted, green. Import-wizard leg swaps in when 3.1 UI lands |
+All 10 steps done. Per user direction the TB workstream (3.1–3.3, 3.5–3.6) was rebuilt by Claude, replacing the in-progress Codex implementation: import with EN/FR column-mapping inference (balance générale or closing-only), validation engine (balance checks, codification, unknown accounts, opening-ties-to-prior → E370), versions + balanced adjusting journals (FINAL = initial + journals, reproducibly linked, per-account diff), 94-rule SYSCOHADA grouping seed transcribed faithfully from Appendix A/B (fixes the earlier 63/64/65/66/77 mislabels), and client overrides with precedence. Phase 3 E2E runs the REAL import path end-to-end.
 
-**⚠ Note for the TB workstream:** the `syscohada_grouping_rule` starter seed has SYSCOHADA inaccuracies vs the master prompt's Appendix A — e.g. 61 is *Transports* (mapped with 60 to purchases: acceptable), but **63/64 are mislabeled** (63 = Autres services extérieurs, 64 = Impôts et taxes), **66 = Charges de personnel** (currently labeled "Financial expenses" → E170; should be payroll → E120; 67 = Frais financiers), and **77 = Revenus financiers** (labeled "Exceptional income"). My analytics deliberately use class prefixes directly so they are unaffected, but lead-schedule grouping quality depends on these rows — recommend correcting the seed against Appendix A.
+## Phase 4 — Execution / fieldwork — COMPLETE ✅
 
-**Phase 2 post-commit review:** a 45-agent adversarial review confirmed 19 findings (12 distinct defects, 3 high). All fixed and regression-tested in commit `5f851cf`.
+All 12 steps done: program-step execution with mandatory conclusions + evidence (files/datasets/documents); one-destination findings routing (B4/C1/B5/revise-approach) with backlinks; ISA 450 misstatements — below-trivial refused unless confirmed, live corrected/uncorrected totals vs final materiality with exceeds/within verdict; control deviations force extend/abandon/deficiency (extension steps auto-appended, deficiencies → C1, abandon clears controls-reliance); revise-approach adds dated risks requiring partner approval with a section revise log; section conclusions with preparer → reviewer → (partner when significant risk) chain that voids on re-save.
 
-## Phases 4–9
+## Phase 5 — Automation engines — COMPLETE ✅
+
+All 10 steps done: reproducible run framework (params + dataset + user recorded; HMAC-seeded deterministic sampling; Excel outputs indexed as engine_output documents); sampling random/systematic/MUS/criteria with projected misstatements auto-raised to B5; sub-ledger/FAR/bank reconciliations vs the TB with unreconciled-difference findings + stale-item aging; supplier-statement comparison; JE testing (round/weekend/period-end/large scoring); substantive analytics with unexplained variance → B5.
+
+## Phases 6–9
 
 Not started. Detailed step tables will be added here as each phase begins.

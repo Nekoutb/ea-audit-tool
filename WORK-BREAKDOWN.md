@@ -61,48 +61,48 @@ Every step across all 10 build phases. Each step ends with a tested deliverable 
 
 | # | Step | E | Expected outcome |
 |---|---|---|---|
-| ⬜ 3.1 | TB import (column-mapping wizard) | 1 | Excel/CSV import with saved per-client mappings |
-| ⬜ 3.2 | TB validation | 1 | debits=credits, SYSCOHADA codification, opening-ties-to-prior checks |
-| ⬜ 3.3 | TB versions + diff + adjusting journals | 1 | initial/adjusted/final versions; reproducible final = initial + adjustments |
+| ✅ 3.1 | TB import (column-mapping wizard) | 1 | Excel/CSV import with saved per-client mappings |
+| ✅ 3.2 | TB validation | 1 | debits=credits, SYSCOHADA codification, opening-ties-to-prior checks |
+| ✅ 3.3 | TB versions + diff + adjusting journals | 1 | initial/adjusted/final versions; reproducible final = initial + adjustments |
 | ✅ 3.4 | Sub-ledger imports | 1 | AR/AP/FAR/inventory/payroll/bank as typed datasets attached to sections |
-| ⬜ 3.5 | SYSCOHADA grouping library | 1–2 | 2-digit map + FS REF codes as seed data (from Appendix B) + loader |
-| ⬜ 3.6 | Client grouping overrides | 1 | Per-client override/extend; unmapped accounts block lead-schedule gen |
+| ✅ 3.5 | SYSCOHADA grouping library | 1–2 | 2-digit map + FS REF codes as seed data (from Appendix B) + loader |
+| ✅ 3.6 | Client grouping overrides | 1 | Per-client override/extend; unmapped accounts block lead-schedule gen |
 | ✅ 3.7 | Lead schedule generation | 1–2 | Excel (live formulas) + mirrored app tables, per E-section |
 | ✅ 3.8 | Lead schedule distribution + regen | 1 | Assign/notify/check-in; regenerate preserving commentary & tickmarks |
 | ✅ 3.9 | Preliminary analytical review (D4.3) | 1 | Auto variance table + ratios + threshold flags with "raise risk?" |
-| ▶ 3.10 | Phase 3 acceptance E2E | 1 | import demo TB → lead schedules → variance flag → promoted to a risk |
+| ✅ 3.10 | Phase 3 acceptance E2E | 1 | import demo TB → lead schedules → variance flag → promoted to a risk |
 
 ## Phase 4 — Execution / fieldwork (12 steps)
 
 | # | Step | E | Expected outcome |
 |---|---|---|---|
-| ⬜ 4.1 | Section workspace shell | 1 | E-section layout; linked risks pinned at top; program checklist |
-| ⬜ 4.2 | Program-step execution | 1 | Mark complete + conclusion per step |
-| ⬜ 4.3 | Evidence attachment | 1 | File upload / PBC link / automation output attached to steps |
-| ⬜ 4.4 | Matter-arising routing framework | 1 | Route a finding to exactly one of B4/B5/C1/revise-approach with backlink |
-| ⬜ 4.5 | Misstatements B5 | 1 | Raise misstatements (types); trivial threshold; running total |
-| ⬜ 4.6 | B5 evaluation vs materiality | 1 | Individual + aggregate vs final materiality; prior-year effects; adjusting-entry table |
-| ⬜ 4.7 | Control tests + deviations | 1 | Deviation forces extend/abandon/deficiency decision |
-| ⬜ 4.8 | Findings → B4 significant matters | 1 | Opinion-relevant findings aggregate into B4 |
-| ⬜ 4.9 | Findings → C1 management letter | 1 | Control deficiencies aggregate into the management letter |
-| ⬜ 4.10 | Revise-approach loop | 1 | Adds a dated risk to D7.2 after approval; partner re-approval required |
-| ⬜ 4.11 | Review workflow | 1 | Two-stage review; partner review on significant-risk sections |
-| ⬜ 4.12 | Phase 4 acceptance E2E | 1 | run execution; raise misstatements; B5 totals live; revise-approach adds dated risk |
+| ✅ 4.1 | Section workspace shell | 1 | E-section layout; linked risks pinned at top; program checklist |
+| ✅ 4.2 | Program-step execution | 1 | Mark complete + conclusion per step |
+| ✅ 4.3 | Evidence attachment | 1 | File upload / PBC link / automation output attached to steps |
+| ✅ 4.4 | Matter-arising routing framework | 1 | Route a finding to exactly one of B4/B5/C1/revise-approach with backlink |
+| ✅ 4.5 | Misstatements B5 | 1 | Raise misstatements (types); trivial threshold; running total |
+| ✅ 4.6 | B5 evaluation vs materiality | 1 | Individual + aggregate vs final materiality; prior-year effects; adjusting-entry table |
+| ✅ 4.7 | Control tests + deviations | 1 | Deviation forces extend/abandon/deficiency decision |
+| ✅ 4.8 | Findings → B4 significant matters | 1 | Opinion-relevant findings aggregate into B4 |
+| ✅ 4.9 | Findings → C1 management letter | 1 | Control deficiencies aggregate into the management letter |
+| ✅ 4.10 | Revise-approach loop | 1 | Adds a dated risk to D7.2 after approval; partner re-approval required |
+| ✅ 4.11 | Review workflow | 1 | Two-stage review; partner review on significant-risk sections |
+| ✅ 4.12 | Phase 4 acceptance E2E | 1 | run execution; raise misstatements; B5 totals live; revise-approach adds dated risk |
 
 ## Phase 5 — Automation engines (10 steps)
 
 | # | Step | E | Expected outcome |
 |---|---|---|---|
-| ⬜ 5.1 | Automation-run framework | 1 | Every run records inputs/params/timestamp/user; indexed output doc; reproducible |
-| ⬜ 5.2 | Sampling engine (methods) | 1–2 | random / systematic / MUS / criteria-based selection |
-| ⬜ 5.3 | Sampling evaluation | 1 | Projected misstatement auto-computed → B5 |
-| ⬜ 5.4 | Sub-ledger→GL/TB reconciliation | 1 | AR/AP/inventory/payroll reconciled; differences → findings |
-| ⬜ 5.5 | Fixed-asset-register→TB reconciliation | 1 | FAR movements schedule + exceptions; ties to depreciation & bilan lines |
-| ⬜ 5.6 | Bank reconciliation re-performance | 1 | Re-performs client rec; ages/flags stale & window-dressing items |
-| ⬜ 5.7 | Supplier statement reconciliation | 1 | Statement vs ledger per supplier; timing vs true differences |
-| ⬜ 5.8 | Journal-entry testing (E350) | 1–2 | Risk-scoring filters + unpredictability; testing worksheet |
-| ⬜ 5.9 | Analytical procedures engine | 1–2 | 3 modes; ratio library; expectation-vs-actual; unexplained variance → B5 |
-| ⬜ 5.10 | Phase 5 acceptance E2E | 1 | each engine runs on demo data; a projected misstatement lands in B5 |
+| ✅ 5.1 | Automation-run framework | 1 | Every run records inputs/params/timestamp/user; indexed output doc; reproducible |
+| ✅ 5.2 | Sampling engine (methods) | 1–2 | random / systematic / MUS / criteria-based selection |
+| ✅ 5.3 | Sampling evaluation | 1 | Projected misstatement auto-computed → B5 |
+| ✅ 5.4 | Sub-ledger→GL/TB reconciliation | 1 | AR/AP/inventory/payroll reconciled; differences → findings |
+| ✅ 5.5 | Fixed-asset-register→TB reconciliation | 1 | FAR movements schedule + exceptions; ties to depreciation & bilan lines |
+| ✅ 5.6 | Bank reconciliation re-performance | 1 | Re-performs client rec; ages/flags stale & window-dressing items |
+| ✅ 5.7 | Supplier statement reconciliation | 1 | Statement vs ledger per supplier; timing vs true differences |
+| ✅ 5.8 | Journal-entry testing (E350) | 1–2 | Risk-scoring filters + unpredictability; testing worksheet |
+| ✅ 5.9 | Analytical procedures engine | 1–2 | 3 modes; ratio library; expectation-vs-actual; unexplained variance → B5 |
+| ✅ 5.10 | Phase 5 acceptance E2E | 1 | each engine runs on demo data; a projected misstatement lands in B5 |
 
 ## Phase 6 — Circularisations (8 steps)
 
