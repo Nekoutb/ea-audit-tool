@@ -99,7 +99,7 @@ User asked for a single markdown file capturing the session's conversation and a
 | App | `platform/` — Next.js 16, TS strict, Tailwind v4 |
 | Database | PostgreSQL 16 native, port **5433**, db `ea_audit` (no Docker) |
 | DB roles | `postgres` (migrations/RLS bootstrap) · `ea_app` (app — RLS enforced) |
-| Dev logins | `alice@firm-a.test` / `password` · `bob@firm-b.test` / `password` (via `npm run seed`) |
+| Dev logins | `alice@firm-a.test` / `<REDACTED_DEV_PASSWORD>` · `bob@firm-b.test` / `<REDACTED_DEV_PASSWORD>` (via `npm run seed`) |
 | Dev server | `npm run dev -- -p 3100` → http://localhost:3100 |
 | One-shot setup | `npm ci && npm run db:setup && npm run seed` |
 | Full test gate | `npm run typecheck && npm run lint && npm run test && npm run test:e2e` |
@@ -597,7 +597,7 @@ Updated after every completed step. See `PROJECT-PLAN.md` for step definitions a
 
 **Last updated:** 2026-07-09
 
-**Login (dev):** `npm run seed` → `alice@firm-a.test` or `bob@firm-b.test`, both `/ password`, at `/login`.
+**Login (dev):** `npm run seed` → `alice@firm-a.test` or `bob@firm-b.test`; the seeded password is intentionally omitted from this committed session record. Use the local seed script to establish development credentials.
 
 **Repo:** https://github.com/Nekoutb/ea-audit-tool (private)
 
@@ -681,7 +681,7 @@ Native PostgreSQL 16 on port 5433 (no Docker). See `platform/ARCHITECTURE.md`.
 
 | # | Criterion | How it's met | How to verify |
 |---|---|---|---|
-| 1 | **Two firms** | `scripts/seed.mjs` seeds Cabinet Alpha (`alice@firm-a.test`) and Cabinet Beta (`bob@firm-b.test`), password `password`. | `npm run seed` |
+| 1 | **Two firms** | `scripts/seed.mjs` seeds Cabinet Alpha (`alice@firm-a.test`) and Cabinet Beta (`bob@firm-b.test`); the seeded password is intentionally omitted from this session record. | `npm run seed` |
 | 2 | **Cross-tenant isolation proven by tests** | Postgres RLS (`FORCE ROW LEVEL SECURITY`, fail-closed policy) + app connects as non-superuser `ea_app`. Proven at the DB layer (`tests/lib/rls.test.ts`) and end-to-end incl. a crafted API request (`tests/e2e/isolation.spec.ts`). | `npm run test` (RLS unit proof) · `npm run test:e2e` (browser + API proof) |
 | 3 | **Users log in** | NextAuth v5 credentials + bcrypt, JWT session carrying `tenantId`/`role`/`locale`; protected routes via `proxy.ts`. 2FA descoped per decision (see `DECISIONS.md`). | Log in at `/login`; wrong password rejected; unauthenticated `/dashboard` → `/login` |
 | 4 | **Strings render in EN & FR** | Full externalisation to `messages/en.json` + `fr.json`; `getLocale()` (cookie → user preference → default `fr`); language switcher persists per user; `<html lang>` follows. | Toggle the switcher on `/login` or `/dashboard`; `tests/lib/i18n.test.ts` proves EN/FR key parity |
@@ -760,7 +760,7 @@ Every tenant-scoped table carries a `tenant_id` column. `lib/db.ts#withTenant()`
 
 No Docker. PostgreSQL is installed natively on Windows.
 
-1. **PostgreSQL 16** — installed via `winget install PostgreSQL.PostgreSQL.16`. Runs as the Windows service `postgresql-x64-16` on **port 5433** (5432 was already taken by a pre-existing Postgres 18 install; 5433 keeps them separate). Superuser `postgres` / password `postgres` (dev only). Database `ea_audit` created manually.
+1. **PostgreSQL 16** — installed via `winget install PostgreSQL.PostgreSQL.16`. Runs as the Windows service `postgresql-x64-16` on **port 5433** (5432 was already taken by a pre-existing Postgres 18 install; 5433 keeps them separate). The local superuser credential is intentionally omitted from this session record. Database `ea_audit` created manually.
 2. Copy `.env.example` → `.env` and confirm `DATABASE_URL` (owner role) / `APP_DATABASE_URL` (`ea_app`) point at `localhost:5433/ea_audit`.
 3. `npm install`, then `npm run db:setup` (runs migrations → creates the `ea_app` role → applies RLS), then `npm run dev`.
 
