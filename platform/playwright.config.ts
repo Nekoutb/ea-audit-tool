@@ -5,6 +5,8 @@ loadEnv({ path: ".env" });
 
 const PORT = 3100;
 const BASE_URL = `http://localhost:${PORT}`;
+const NEXT_DEV_COMMAND =
+  process.platform === "win32" ? ".\\node_modules\\.bin\\next.cmd" : "./node_modules/.bin/next";
 
 export default defineConfig({
   testDir: "tests/e2e",
@@ -20,7 +22,7 @@ export default defineConfig({
   },
   projects: [{ name: "chromium", use: { ...devices["Desktop Chrome"] } }],
   webServer: {
-    command: `npm run dev -- -p ${PORT}`,
+    command: `${NEXT_DEV_COMMAND} dev -p ${PORT}`,
     url: `${BASE_URL}/login`,
     reuseExistingServer: !process.env.CI,
     timeout: 120_000,
