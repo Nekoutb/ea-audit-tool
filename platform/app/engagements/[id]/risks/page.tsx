@@ -168,7 +168,22 @@ export default async function RisksPage(props: {
                       <input type="checkbox" name="controlsReliance" defaultChecked={risk.controlsReliance} />
                       {tr.controlsReliance}
                     </label>
-                    <button type="submit" className={btn}>
+                    <label className="flex flex-col text-xs text-slate-500">
+                      {tr.statusLabel}
+                      <select
+                        name="status"
+                        defaultValue={risk.status}
+                        className={input}
+                        data-testid={`risk-status-${risk.presumedType ?? risk.id}`}
+                      >
+                        {(["identified", "response_planned", "response_executed", "concluded"] as const).map((status) => (
+                          <option key={status} value={status}>
+                            {tr.statuses[status]}
+                          </option>
+                        ))}
+                      </select>
+                    </label>
+                    <button type="submit" className={btn} data-testid={`risk-update-${risk.presumedType ?? risk.id}`}>
                       {tr.update}
                     </button>
                   </form>

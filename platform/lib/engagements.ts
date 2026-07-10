@@ -22,6 +22,8 @@ export interface FileItem {
   titleEn: string;
   titleFr: string;
   conditional: boolean;
+  ownerId: string | null;
+  ownerName: string | null;
   documentId: string | null;
   documentStatus: "draft" | "signed" | null;
   documentVersion: number | null;
@@ -140,11 +142,14 @@ export async function listFileItems(engagementId: string): Promise<FileItem[]> {
       title_en: string;
       title_fr: string;
       conditional: boolean;
+      owner_id: string | null;
+      owner_name: string | null;
       document_id: string | null;
       document_status: "draft" | "signed" | null;
       document_version: number | null;
     }>(
       `SELECT fi.id, fi.code, fi.section, fi.title_en, fi.title_fr, fi.conditional,
+              fi.owner_id, (SELECT coalesce(name, email) FROM app_user WHERE id = fi.owner_id) AS owner_name,
               d.id AS document_id, d.status AS document_status,
               d.current_version AS document_version
          FROM file_item fi
@@ -166,6 +171,8 @@ export async function listFileItems(engagementId: string): Promise<FileItem[]> {
       titleEn: row.title_en,
       titleFr: row.title_fr,
       conditional: row.conditional,
+      ownerId: row.owner_id,
+      ownerName: row.owner_name,
       documentId: row.document_id,
       documentStatus: row.document_status,
       documentVersion: row.document_version,

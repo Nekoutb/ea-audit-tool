@@ -9,7 +9,21 @@ import type { Locale } from "@/lib/i18n";
 import { requireTenant } from "@/lib/tenant";
 import { createHash } from "node:crypto";
 
-export type LetterKind = "engagement" | "planning_tcwg";
+export type LetterKind =
+  | "engagement"
+  | "planning_tcwg"
+  | "rep_affirmation"
+  | "rep_complementary"
+  | "management_letter";
+
+/** File-index destination per letter kind. */
+const LETTER_CODES: Record<LetterKind, string> = {
+  engagement: "D3.1",
+  planning_tcwg: "C1",
+  rep_affirmation: "B8",
+  rep_complementary: "B8",
+  management_letter: "C1",
+};
 
 interface LetterFields {
   clientName: string;
@@ -19,6 +33,8 @@ interface LetterFields {
   coCac: boolean;
   mandateType: "statutes" | "ago" | null;
   mandateStartYear: number | null;
+  /** management_letter only: the C1 points to include. */
+  c1Points?: string[];
 }
 
 function mandateYears(type: "statutes" | "ago"): number {
@@ -85,7 +101,7 @@ async function buildLetter(kind: LetterKind, f: LetterFields, locale: Locale): P
       ),
       p(fr ? "Signatures : le cabinet / le client" : "Signatures: the firm / the client"),
     );
-  } else {
+  } else if (kind === "planning_tcwg") {
     children.push(
       new Paragraph({
         heading: HeadingLevel.TITLE,
@@ -103,6 +119,52 @@ async function buildLetter(kind: LetterKind, f: LetterFields, locale: Locale): P
           ? "Étendue et calendrier prévus de l'audit : approche par les risques, seuils de signification, calendrier d'intervention et équipe."
           : "Planned scope and timing of the audit: risk-based approach, materiality, fieldwork timetable and team.",
       ),
+    );
+  } else if (kind === "rep_affirmation") {
+    // OHADA layer 1: affirmation letter on the draft FS BEFORE the board
+    // meeting — signed by the DG and the head of accounting (spec §7 item 9).
+    children.push(
+      new Paragraph({
+        heading: HeadingLevel.TITLE,
+        children: [new TextRun(fr ? "Lettre d'affirmation (avant arrêté des comptes)" : "Affirmation letter (before the board's arrêté)")],
+      }),
+      p(`${f.clientName} — ${f.fiscalYear} (${f.periodEnd})`),
+      p(
+        fr
+          ? "Nous vous confirmons, au mieux de notre connaissance, les déclarations suivantes relatives au projet d'états financiers (ISA 580) : exhaustivité des opérations et des passifs, régularité des enregistrements, absence de fraude connue non communiquée, communication de toutes les parties liées et conventions, événements postérieurs jusqu'à ce jour."
+          : "We confirm, to the best of our knowledge, the following representations on the draft financial statements (ISA 580): completeness of transactions and liabilities, propriety of the records, no known undisclosed fraud, disclosure of all related parties and agreements, subsequent events to date.",
+      ),
+      p(fr ? "Signatures : Directeur Général · Chef comptable" : "Signatures: Managing Director · Head of accounting", true),
+    );
+  } else if (kind === "rep_complementary") {
+    // OHADA layer 2: complementary letter AFTER the board arrête les comptes —
+    // signed by the PCA/administrateur général and the DG.
+    children.push(
+      new Paragraph({
+        heading: HeadingLevel.TITLE,
+        children: [new TextRun(fr ? "Lettre d'affirmation complémentaire (après arrêté des comptes)" : "Complementary representation letter (after the board's arrêté)")],
+      }),
+      p(`${f.clientName} — ${f.fiscalYear} (${f.periodEnd})`),
+      p(
+        fr
+          ? "À la suite de l'arrêté des comptes par le conseil, nous confirmons que les déclarations de la lettre d'affirmation initiale demeurent valables et qu'aucun événement postérieur significatif n'est intervenu depuis, autre que ceux portés à votre connaissance."
+          : "Following the board's approval of the accounts, we confirm the representations in the initial affirmation letter remain valid and that no significant subsequent events have occurred other than those communicated to you.",
+      ),
+      p(fr ? "Signatures : Président du Conseil d'Administration · Directeur Général" : "Signatures: Chairman of the Board · Managing Director", true),
+    );
+  } else {
+    children.push(
+      new Paragraph({
+        heading: HeadingLevel.TITLE,
+        children: [new TextRun(fr ? "Lettre de recommandations (ISA 265)" : "Management letter (ISA 265)")],
+      }),
+      p(`${f.clientName} — ${f.fiscalYear}`),
+      p(
+        fr
+          ? "Nous portons à votre attention les déficiences du contrôle interne et points d'amélioration relevés au cours de notre audit, détaillés ci-après."
+          : "We bring to your attention the internal-control deficiencies and improvement points identified during our audit, detailed below.",
+      ),
+      ...(f.c1Points ?? []).map((point) => p(`• ${point}`)),
     );
   }
 
@@ -140,7 +202,7 @@ export async function generateLetter(
     const row = info.rows[0];
     if (!row) throw new Error("not-found");
 
-    const code = kind === "engagement" ? "D3.1" : "C1";
+    const code = LETTER_CODES[kind];
     const item = await tx.query<{ id: string }>(
       "SELECT id FROM file_item WHERE engagement_id = $1 AND code = $2",
       [engagementId, code],
@@ -148,15 +210,25 @@ export async function generateLetter(
     if (!item.rows[0]) throw new Error("not-found");
     const fileItemId = item.rows[0].id;
 
+    // Management letter pulls the C1 control-deficiency points (spec §8.3).
+    let c1Points: string[] | undefined;
+    if (kind === "management_letter") {
+      const findings = await tx.query<{ title: string; detail: string | null }>(
+        "SELECT title, detail FROM finding WHERE engagement_id = $1 AND route = 'c1' ORDER BY created_at",
+        [engagementId],
+      );
+      c1Points = findings.rows.map((f) => (f.detail ? `${f.title} — ${f.detail}` : f.title));
+    }
+
     const fr = locale === "fr";
-    const title =
-      kind === "engagement"
-        ? fr
-          ? "Lettre de mission"
-          : "Engagement letter"
-        : fr
-          ? "Communication de planification (ISA 260)"
-          : "Planning communication (ISA 260)";
+    const TITLES: Record<LetterKind, string> = {
+      engagement: fr ? "Lettre de mission" : "Engagement letter",
+      planning_tcwg: fr ? "Communication de planification (ISA 260)" : "Planning communication (ISA 260)",
+      rep_affirmation: fr ? "Lettre d'affirmation (pré-arrêté)" : "Affirmation letter (pre-arrêté)",
+      rep_complementary: fr ? "Lettre d'affirmation complémentaire" : "Complementary representation letter",
+      management_letter: fr ? "Lettre de recommandations" : "Management letter",
+    };
+    const title = TITLES[kind];
 
     const content = await buildLetter(
       kind,
@@ -168,6 +240,7 @@ export async function generateLetter(
         coCac: row.co_cac,
         mandateType: row.mandate_type,
         mandateStartYear: row.mandate_start_year,
+        c1Points,
       },
       locale,
     );

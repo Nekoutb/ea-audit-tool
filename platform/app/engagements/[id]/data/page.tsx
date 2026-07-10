@@ -304,7 +304,12 @@ export default async function DataPage(props: {
                           action={assignSectionAction.bind(null, id, section.id)}
                           className="flex items-center gap-1.5"
                         >
-                          <select name="userId" className={input} data-testid={`owner-${section.code}`}>
+                          <select
+                            name="userId"
+                            defaultValue={section.ownerId ?? undefined}
+                            className={input}
+                            data-testid={`owner-${section.code}`}
+                          >
                             {users.map((user) => (
                               <option key={user.id} value={user.id}>
                                 {user.name}
@@ -314,6 +319,14 @@ export default async function DataPage(props: {
                           <button type="submit" className={btn} data-testid={`assign-${section.code}`}>
                             {td.assign}
                           </button>
+                          {section.ownerName ? (
+                            <span
+                              className="rounded bg-emerald-100 px-1.5 py-0.5 text-xs text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300"
+                              data-testid={`owner-badge-${section.code}`}
+                            >
+                              {section.ownerName}
+                            </span>
+                          ) : null}
                         </form>
                       </td>
                       <td className="px-4 py-2 text-right">

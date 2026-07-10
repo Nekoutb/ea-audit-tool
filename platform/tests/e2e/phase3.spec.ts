@@ -104,6 +104,7 @@ test("Phase 3 full: import TB → lead schedule → journal → analytics → ri
   await page.goto(`/engagements/${current}/data`);
   await page.getByTestId("owner-E100").selectOption({ label: "Alice Alpha" });
   await page.getByTestId("assign-E100").click();
+  await expect(page.getByTestId("owner-badge-E100")).toContainText("Alice Alpha");
   await page.goto("/notifications");
   await expect(page.getByTestId("notifications-list")).toContainText("E100");
 

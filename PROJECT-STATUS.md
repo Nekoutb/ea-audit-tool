@@ -2,7 +2,7 @@
 
 Updated after every completed step. See `PROJECT-PLAN.md` for step definitions and `EA-Audit-Tool_Master-Build-Prompt.md` for the spec.
 
-**Current phase:** ✅ **Build Phases 0–6 COMPLETE** (74 of 103 steps; 82 unit + 12 E2E green). Ready for Build Phase 7 — Conclusion & reporting. One external follow-up: enable GitHub Actions billing (see CI note under 0.8).
+**Current phase:** ✅ **Build Phases 0–7 COMPLETE** (86 of 103 steps; 92 unit + 13 E2E green). Ready for Build Phase 8 — OHADA legal module. One external follow-up: enable GitHub Actions billing (see CI note under 0.8).
 
 **Last updated:** 2026-07-10
 
@@ -93,6 +93,10 @@ All 10 steps done: reproducible run framework (params + dataset + user recorded;
 
 All 8 steps done: dataset-driven selection (threshold / top-N / nil balances, idempotent per party), bilingual letters for all seven confirmation types (negative letters carry the ISA 505 conditions warning) stored as versioned documents with unique reply tokens, prepared→approved→sent lifecycle with reminders, reply evaluation (auto difference; zero reconciles, else exception), dispositions (client error auto-raises the difference into B5), non-reply → alternative procedures, and an auto-produced coverage summary working paper. Outstanding confirmations are queryable for the Phase 7 B6 feed.
 
-## Phases 7–9
+## Phase 7 — Conclusion & reporting — COMPLETE ✅
+
+All 12 steps done: B1 completion gates that BLOCK issuance (sections concluded+reviewed, risks concluded, B5 within final materiality, final analytical review, FS tie-out, SYSCOHADA disclosure checklist 1–36, subsequent events to report date, both OHADA rep letters, B4 cleared, B6 confirmations closed, partner conclusion with independence reconfirmation); FS tie-out recomputing the full Appendix B.3 SIG cascade (TA→XI) + bilan equilibrium from the current TB; OHADA double representation-letter layering under B8 (affirmation pre-arrêté DG+chef comptable; complementary post-arrêté PCA+DG) plus the final management letter pulling C1 points; ISA 700/705 opinion decision tree; FR statutory report ("réguliers et sincères… image fidèle", arts. 710–716, EoM going concern, KAM for listed) filed under A1 as kind='report'; issuance in one gated transaction starting the 60-day assembly clock; immutable archive (JSON manifest snapshot; checkout/checkin refused post-archive); rollforward N→N+1 injecting the B10 points forward. Suite: 92 unit + 13 E2E green.
+
+## Phases 8–9
 
 Not started. Detailed step tables will be added here as each phase begins.

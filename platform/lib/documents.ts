@@ -265,12 +265,16 @@ export async function getVersionContent(
 export async function checkoutDocument(documentId: string): Promise<void> {
   const { tenantId, userId } = await requireTenant();
   await withTenant(tenantId, async (tx) => {
-    const result = await tx.query<{ status: string; checked_out_by: string | null }>(
-      "SELECT status, checked_out_by FROM document WHERE id = $1 FOR UPDATE",
+    const result = await tx.query<{ status: string; checked_out_by: string | null; archived_at: string | null }>(
+      `SELECT d.status, d.checked_out_by, e.archived_at::text
+         FROM document d JOIN engagement e ON e.id = d.engagement_id
+        WHERE d.id = $1 FOR UPDATE OF d`,
       [documentId],
     );
     const row = result.rows[0];
     if (!row) throw new DocumentRuleError("not-found");
+    // Post-archive modifications are impossible (spec §9.6).
+    if (row.archived_at) throw new DocumentRuleError("archived");
     if (row.status === "signed") throw new DocumentRuleError("signed-locked");
     if (row.checked_out_by && row.checked_out_by !== userId)
       throw new DocumentRuleError("checked-out-by-other");
@@ -295,12 +299,15 @@ export async function cancelCheckout(documentId: string): Promise<void> {
 export async function checkinDocument(documentId: string, content: Buffer): Promise<number> {
   const { tenantId, userId } = await requireTenant();
   return withTenant(tenantId, async (tx) => {
-    const result = await tx.query<{ status: string; checked_out_by: string | null }>(
-      "SELECT status, checked_out_by FROM document WHERE id = $1 FOR UPDATE",
+    const result = await tx.query<{ status: string; checked_out_by: string | null; archived_at: string | null }>(
+      `SELECT d.status, d.checked_out_by, e.archived_at::text
+         FROM document d JOIN engagement e ON e.id = d.engagement_id
+        WHERE d.id = $1 FOR UPDATE OF d`,
       [documentId],
     );
     const row = result.rows[0];
     if (!row) throw new DocumentRuleError("not-found");
+    if (row.archived_at) throw new DocumentRuleError("archived");
     if (row.status === "signed") throw new DocumentRuleError("signed-locked");
     if (row.checked_out_by !== userId) throw new DocumentRuleError("not-checked-out");
     const versionNo = await insertVersion(tx, tenantId, documentId, content, "check-in", userId);
