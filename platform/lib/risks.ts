@@ -167,9 +167,14 @@ export async function dismissPotentialRisk(id: string, rationale: string): Promi
 export async function promotePotentialRisk(id: string): Promise<string> {
   const { tenantId, userId } = await requireTenant();
   return withTenant(tenantId, async (tx) => {
+    // Guarded single-statement transition: a concurrent promote of the same
+    // potential risk finds status already 'promoted' and fails cleanly.
     const source = await tx.query<{ engagement_id: string; description: string; source_code: string }>(
-      "SELECT engagement_id, description, source_code FROM potential_risk WHERE id = $1 AND status = 'open'",
-      [id],
+      `UPDATE potential_risk
+          SET status = 'promoted', decided_by = $2, decided_at = now()
+        WHERE id = $1 AND status = 'open'
+        RETURNING engagement_id, description, source_code`,
+      [id, userId],
     );
     const row = source.rows[0];
     if (!row) throw new Error("not-found");
@@ -177,10 +182,6 @@ export async function promotePotentialRisk(id: string): Promise<string> {
       `INSERT INTO risk (tenant_id, engagement_id, description, source, created_by)
        VALUES ($1, $2, $3, $4, $5) RETURNING id`,
       [tenantId, row.engagement_id, row.description, `D7.1 (${row.source_code})`, userId],
-    );
-    await tx.query(
-      "UPDATE potential_risk SET status = 'promoted', decided_by = $2, decided_at = now() WHERE id = $1",
-      [id, userId],
     );
     return risk.rows[0].id;
   });
@@ -255,13 +256,15 @@ export async function updateRisk(
   const { tenantId } = await requireTenant();
   await withTenant(tenantId, async (tx) => {
     const current = await tx.query<{ presumed_type: string | null }>(
-      "SELECT presumed_type FROM risk WHERE id = $1",
+      "SELECT presumed_type FROM risk WHERE id = $1 FOR UPDATE",
       [riskId],
     );
     if (!current.rows[0]) throw new Error("not-found");
-    // Presumed risks cannot be deleted and management override cannot be
-    // downgraded from significant (spec §3).
-    if (current.rows[0].presumed_type === "mgmt_override" && patch.significant === false) {
+    // Presumed ISA 240 risks (spec §3) cannot be de-flagged through a plain
+    // update: management override is never rebuttable, and the revenue-fraud
+    // presumption is removable ONLY via rebutRevenueFraudRisk (partner +
+    // documented justification). [Adversarial-review fix]
+    if (current.rows[0].presumed_type !== null && patch.significant === false) {
       throw new Error("not-rebuttable");
     }
     await tx.query(

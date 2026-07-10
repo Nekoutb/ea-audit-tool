@@ -124,8 +124,10 @@ export async function generateDocument(fileItemId: string, locale: Locale): Prom
     const row = item.rows[0];
     if (!row) throw new DocumentRuleError("not-found");
 
+    // kind filter matters: letters/leadsheets filed under the same index item
+    // must not hijack the working paper. [Adversarial-review fix]
     const existing = await tx.query<{ id: string }>(
-      "SELECT id FROM document WHERE file_item_id = $1 LIMIT 1",
+      "SELECT id FROM document WHERE file_item_id = $1 AND kind = 'workpaper' LIMIT 1",
       [fileItemId],
     );
     if (existing.rows[0]) return existing.rows[0].id;

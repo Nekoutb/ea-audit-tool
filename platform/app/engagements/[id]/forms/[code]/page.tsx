@@ -97,13 +97,18 @@ export default async function FormPage(props: {
                 ) : null}
               </span>
               {field.type === "boolean" ? (
-                <input
-                  type="checkbox"
+                // Yes/No select (not a checkbox): unanswered stays unanswered,
+                // so required checks are only "complete" once explicitly chosen.
+                <select
                   name={field.key}
-                  defaultChecked={value === true}
-                  className="h-4 w-4"
+                  defaultValue={value === true ? "yes" : value === false ? "no" : ""}
+                  className={input}
                   data-testid={`field-${field.key}`}
-                />
+                >
+                  <option value="" />
+                  <option value="yes">{t.common.yes}</option>
+                  <option value="no">{t.common.no}</option>
+                </select>
               ) : field.type === "select" ? (
                 <select
                   name={field.key}

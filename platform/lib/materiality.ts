@@ -125,6 +125,16 @@ export async function createMaterialityVersion(
 ): Promise<number> {
   const { tenantId, userId } = await requireTenant();
   if (!input.justification.trim()) throw new Error("justification-required");
+  // Validate ranges HERE so bad input becomes a friendly banner, never a DB
+  // CHECK-constraint 500. [Adversarial-review fix]
+  if (
+    !Number.isFinite(input.benchmarkAmount) || input.benchmarkAmount <= 0 ||
+    !Number.isFinite(input.percentage) || input.percentage <= 0 || input.percentage > 100 ||
+    !Number.isFinite(input.performancePct) || input.performancePct < 60 || input.performancePct > 85 ||
+    !Number.isFinite(input.trivialPct) || input.trivialPct <= 0 || input.trivialPct > 10
+  ) {
+    throw new Error("invalid-materiality");
+  }
   const { overall, performance, trivial } = computeMateriality(input);
 
   return withTenant(tenantId, async (tx) => {
@@ -184,11 +194,25 @@ export async function createMaterialityVersion(
   });
 }
 
-/** Partner approval gate (spec §5.1). */
+/**
+ * Partner approval gate (spec §5.1). Only the LATEST version is approvable, and
+ * approving it supersedes any older approved version, so two versions can never
+ * be simultaneously approved. [Adversarial-review fix]
+ */
 export async function approveMateriality(engagementId: string, versionNo: number): Promise<void> {
   const { tenantId, userId, role } = await requireTenant();
   if (!canPartnerSignoff(role)) throw new Error("forbidden");
   await withTenant(tenantId, async (tx) => {
+    const latest = await tx.query<{ v: number }>(
+      "SELECT coalesce(max(version_no), 0) AS v FROM materiality WHERE engagement_id = $1",
+      [engagementId],
+    );
+    if (latest.rows[0].v !== versionNo) throw new Error("stale-version");
+    await tx.query(
+      `UPDATE materiality SET status = 'superseded'
+        WHERE engagement_id = $1 AND status = 'approved' AND version_no <> $2`,
+      [engagementId, versionNo],
+    );
     const updated = await tx.query(
       `UPDATE materiality SET status = 'approved', approved_by = $3, approved_at = now()
         WHERE engagement_id = $1 AND version_no = $2 AND status = 'draft'`,

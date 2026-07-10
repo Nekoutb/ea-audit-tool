@@ -3,8 +3,10 @@
 // "yes" answer is an exception creating a threat-and-safeguard record that a
 // partner must disposition before the engagement can be accepted.
 
-import { randomBytes } from "node:crypto";
+import { createHash, randomBytes } from "node:crypto";
+import { Document, HeadingLevel, Packer, Paragraph, TextRun } from "docx";
 import { withTenant } from "@/lib/db";
+import { DOCX_MIME } from "@/lib/documents";
 import { sendEmail } from "@/lib/email";
 import { createNotification } from "@/lib/notifications";
 import { canPartnerSignoff } from "@/lib/rbac";
@@ -43,7 +45,12 @@ export interface ConfirmationSummary {
   disposition: string | null;
 }
 
-/** Launch a campaign for the engagement, one confirmation per team user id. */
+/**
+ * Launch (or extend) the engagement's campaign — one confirmation per user.
+ * Re-launching reuses the existing campaign and only adds missing recipients,
+ * so double-submits cannot create duplicate outstanding confirmations that
+ * would block the acceptance gate forever. [Adversarial-review fix]
+ */
 export async function launchCampaign(
   engagementId: string,
   userIds: string[],
@@ -51,19 +58,28 @@ export async function launchCampaign(
   const { tenantId, userId } = await requireTenant();
   if (userIds.length === 0) throw new Error("no-recipients");
   return withTenant(tenantId, async (tx) => {
-    const campaign = await tx.query<{ id: string }>(
-      "INSERT INTO independence_campaign (tenant_id, engagement_id, created_by) VALUES ($1, $2, $3) RETURNING id",
-      [tenantId, engagementId, userId],
+    const existing = await tx.query<{ id: string }>(
+      "SELECT id FROM independence_campaign WHERE engagement_id = $1 ORDER BY created_at LIMIT 1 FOR UPDATE",
+      [engagementId],
     );
-    const campaignId = campaign.rows[0].id;
+    let campaignId = existing.rows[0]?.id;
+    if (!campaignId) {
+      const campaign = await tx.query<{ id: string }>(
+        "INSERT INTO independence_campaign (tenant_id, engagement_id, created_by) VALUES ($1, $2, $3) RETURNING id",
+        [tenantId, engagementId, userId],
+      );
+      campaignId = campaign.rows[0].id;
+    }
     for (const recipient of userIds) {
       const token = randomBytes(24).toString("hex");
-      await tx.query(
+      const inserted = await tx.query<{ id: string }>(
         `INSERT INTO independence_confirmation (tenant_id, campaign_id, user_id, token)
          VALUES ($1, $2, $3, $4)
-         ON CONFLICT (campaign_id, user_id) DO NOTHING`,
+         ON CONFLICT (campaign_id, user_id) DO NOTHING
+         RETURNING id`,
         [tenantId, campaignId, recipient, token],
       );
+      if (!inserted.rows[0]) continue; // already invited — no duplicate, no re-email
       const email = await tx.query<{ email: string }>(
         "SELECT email FROM app_user WHERE id = $1",
         [recipient],
@@ -140,7 +156,43 @@ export async function getMyConfirmation(token: string): Promise<{
   });
 }
 
-/** Submit + e-sign a confirmation. Any "yes" → exception (partner disposition required). */
+async function confirmationArtifact(
+  answers: IndependenceAnswers,
+  signatureName: string,
+  status: string,
+): Promise<Buffer> {
+  const children = [
+    new Paragraph({
+      heading: HeadingLevel.TITLE,
+      children: [new TextRun("Independence confirmation / Confirmation d'indépendance")],
+    }),
+    ...INDEPENDENCE_QUESTIONS.map(
+      (question) =>
+        new Paragraph({
+          children: [
+            new TextRun({ text: `${question.labelEn} — ` }),
+            new TextRun({ text: answers[question.key] ? "YES" : "NO", bold: true }),
+          ],
+        }),
+    ),
+    new Paragraph({ children: [new TextRun({ text: `Status: ${status}`, bold: true })] }),
+    new Paragraph({
+      children: [
+        new TextRun({
+          text: `Electronically signed by ${signatureName} on ${new Date().toISOString().slice(0, 10)}`,
+          italics: true,
+        }),
+      ],
+    }),
+  ];
+  return Packer.toBuffer(new Document({ sections: [{ children }] }));
+}
+
+/**
+ * Submit + e-sign a confirmation. Any "yes" → exception (partner disposition
+ * required). The signed confirmation is archived into D3.1 as a Word artifact
+ * (spec §4.2). [Adversarial-review fix]
+ */
 export async function submitConfirmation(
   token: string,
   answers: IndependenceAnswers,
@@ -150,13 +202,45 @@ export async function submitConfirmation(
   if (!signatureName.trim()) throw new Error("signature-required");
   const status = hasException(answers) ? "exception" : "completed";
   await withTenant(tenantId, async (tx) => {
-    const updated = await tx.query(
-      `UPDATE independence_confirmation
+    const updated = await tx.query<{ engagement_id: string }>(
+      `UPDATE independence_confirmation ic
           SET answers = $2, signature_name = $3, signed_at = now(), status = $4
-        WHERE token = $1 AND user_id = $5 AND status IN ('sent', 'opened')`,
+         FROM independence_campaign c
+        WHERE ic.token = $1 AND ic.user_id = $5 AND ic.status IN ('sent', 'opened')
+          AND c.id = ic.campaign_id
+        RETURNING c.engagement_id`,
       [token, JSON.stringify(answers), signatureName, status, userId],
     );
     if (updated.rowCount === 0) throw new Error("not-found");
+
+    // Archive into D3.1 (kind='letter' so it never collides with the working paper).
+    const engagementId = updated.rows[0].engagement_id;
+    const item = await tx.query<{ id: string }>(
+      "SELECT id FROM file_item WHERE engagement_id = $1 AND code = 'D3.1'",
+      [engagementId],
+    );
+    if (item.rows[0]) {
+      const content = await confirmationArtifact(answers, signatureName, status);
+      const created = await tx.query<{ id: string }>(
+        `INSERT INTO document (tenant_id, engagement_id, file_item_id, title, language, kind, created_by, current_version)
+         VALUES ($1, $2, $3, $4, 'en', 'letter', $5, 1) RETURNING id`,
+        [tenantId, engagementId, item.rows[0].id, `Independence confirmation — ${signatureName}`, userId],
+      );
+      await tx.query(
+        `INSERT INTO document_version
+           (tenant_id, document_id, version_no, mime, byte_size, sha256, content, note, created_by)
+         VALUES ($1, $2, 1, $3, $4, $5, $6, 'independence:archived', $7)`,
+        [
+          tenantId,
+          created.rows[0].id,
+          DOCX_MIME,
+          content.length,
+          createHash("sha256").update(content).digest("hex"),
+          content,
+          userId,
+        ],
+      );
+    }
   });
   return status;
 }

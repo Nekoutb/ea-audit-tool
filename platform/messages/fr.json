@@ -246,7 +246,7 @@
       "title": "D1 — Pilote de la stratégie de mission",
       "form": "Formulaire",
       "status": "Statut",
-      "statusValues": { "not_started": "Non commencé", "in_progress": "En cours", "complete": "Complet", "signed": "Signé" }
+      "statusValues": { "not_started": "Non commencé", "in_progress": "En cours", "complete": "Complet", "signed": "Signé", "not_required": "Non requis (déclencheur D1 inactif)" }
     },
     "risks": {
       "potential": "D7.1 — Risques potentiels",
@@ -304,7 +304,14 @@
       "not-found": "Introuvable.",
       "not-rebuttable": "Ce risque présumé ne peut être réfuté ni déclassé.",
       "invalid-budget": "Saisissez un grade et un nombre d'heures positif.",
-      "title-required": "Un intitulé est requis."
+      "title-required": "Un intitulé est requis.",
+      "wrong-phase": "La mission n'est pas dans la phase requise pour cette action.",
+      "stale-version": "Seule la dernière version du seuil de signification peut être approuvée.",
+      "invalid-materiality": "Vérifiez les montants : montant > 0, pourcentage 0–100, seuil de planification 60–85 %, négligeable 0,5–10 %.",
+      "no-tb": "Aucune balance générale n'a encore été importée pour cette mission.",
+      "no-mapped-rows": "Aucun compte de la balance n'est affecté à cette section — vérifiez les regroupements.",
+      "unsupported-file": "Seuls les fichiers .csv et .xlsx sont acceptés.",
+      "empty-file": "Le fichier ne contient aucune ligne de données."
     }
   }
 }

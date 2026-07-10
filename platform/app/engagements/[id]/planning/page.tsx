@@ -31,6 +31,16 @@ const PLANNING_CODES = [
   "D5.1", "D5.2", "D5.4", "D5.5", "D5.6", "D5.7", "D6.1", "D7.1", "D7.2",
 ];
 
+// Conditional D-forms only activate when their D1 trigger question is answered
+// "yes" (spec §5.2). [Adversarial-review fix]
+const CONDITIONAL_TRIGGERS: Record<string, string> = {
+  "D4.5": "assess_control_env",
+  "D4.6": "assess_it_env",
+  "D4.7": "uses_expert",
+  "D4.8": "uses_service_org",
+  "D4.9": "has_internal_audit",
+};
+
 async function driverStatuses(engagementId: string): Promise<Map<string, string>> {
   const { tenantId } = await requireTenant();
   return withTenant(tenantId, async (tx) => {
@@ -54,8 +64,14 @@ async function driverStatuses(engagementId: string): Promise<Map<string, string>
     );
     const signedCodes = new Set(signed.rows.map((r) => r.code));
 
+    const d1 = byCode.get("D1") ?? {};
     const statuses = new Map<string, string>();
     for (const code of PLANNING_CODES) {
+      const trigger = CONDITIONAL_TRIGGERS[code];
+      if (trigger && d1[trigger] !== true) {
+        statuses.set(code, "not_required");
+        continue;
+      }
       const definition = FORM_DEFINITIONS[code];
       const values = byCode.get(code);
       if (signedCodes.has(code)) statuses.set(code, "signed");
@@ -157,7 +173,7 @@ export default async function PlanningPage(props: {
                       </span>
                     </td>
                     <td className="px-4 py-2 text-right">
-                      {FORM_DEFINITIONS[code] ? (
+                      {FORM_DEFINITIONS[code] && status !== "not_required" ? (
                         <Link
                           href={`/engagements/${id}/forms/${encodeURIComponent(code)}`}
                           className="font-medium text-emerald-700 hover:underline dark:text-emerald-400"

@@ -17,9 +17,10 @@ import { createEngagement, listFileItems } from "@/lib/engagements";
 import { carryForwardFromPriorYear, loadForm, saveForm } from "@/lib/forms";
 import { acceptanceGates, advanceToPlanning, closePlanning, GateError, planningCloseGates, setSectionMaterial } from "@/lib/gates";
 import { disposeException, launchCampaign, listConfirmations, submitConfirmation } from "@/lib/independence";
+import { generateLetter } from "@/lib/letters";
 import { approveMateriality, computeMateriality, createMaterialityVersion } from "@/lib/materiality";
 import { addCustomStep, generateProgram, listProgramSteps, sectionCoverage } from "@/lib/programs";
-import { inherentRating, listRisks, rebutRevenueFraudRisk, updateRisk } from "@/lib/risks";
+import { inherentRating, listPotentialRisks, listRisks, promotePotentialRisk, raisePotentialRisk, rebutRevenueFraudRisk, updateRisk } from "@/lib/risks";
 import { assignTeamMember } from "@/lib/team";
 
 const admin = new pg.Pool({ connectionString: process.env.DATABASE_URL });
@@ -111,6 +112,14 @@ describe("presumed risks (spec §3)", () => {
     await expect(updateRisk(override.id, { significant: false })).rejects.toThrow("not-rebuttable");
     await expect(rebutRevenueFraudRisk(override.id, "try")).rejects.toThrow("not-rebuttable");
   });
+
+  it("blocks de-flagging the revenue-fraud presumption through a plain update (review fix)", async () => {
+    const risks = await listRisks(engagementId);
+    const revenue = risks.find((r) => r.presumedType === "revenue_fraud")!;
+    await expect(updateRisk(revenue.id, { significant: false })).rejects.toThrow("not-rebuttable");
+    // Rating updates that do NOT touch significance stay allowed.
+    await updateRisk(revenue.id, { likelihood: "high", magnitude: "high" });
+  });
 });
 
 describe("form framework", () => {
@@ -129,14 +138,21 @@ describe("form framework", () => {
 });
 
 describe("acceptance gates → planning (2.2, 2.3, 2.4)", () => {
-  it("starts blocked", async () => {
+  it("starts blocked — including the independence gate with NO campaign (review fix)", async () => {
     const gates = await acceptanceGates(engagementId);
     expect(gates.find((g) => g.key === "d31_form_complete")?.ok).toBe(false);
+    // Vacuous pass is not allowed: zero campaigns means NOT complete.
+    expect(gates.find((g) => g.key === "independence_complete")?.ok).toBe(false);
     await expect(advanceToPlanning(engagementId)).rejects.toThrow(GateError);
   });
 
   it("independence exception blocks acceptance until a partner disposes it", async () => {
     await launchCampaign(engagementId, [USER]);
+    // Re-launch reuses the campaign — no duplicate outstanding confirmations
+    // that would block the gate forever (review fix).
+    await launchCampaign(engagementId, [USER]);
+    expect(await listConfirmations(engagementId)).toHaveLength(1);
+
     let gates = await acceptanceGates(engagementId);
     expect(gates.find((g) => g.key === "independence_complete")?.ok).toBe(false);
 
@@ -144,6 +160,14 @@ describe("acceptance gates → planning (2.2, 2.3, 2.4)", () => {
     const mine = confirmations.find((c) => c.userId === USER)!;
     const status = await submitConfirmation(mine.token, { financial_interest: true }, "Planner");
     expect(status).toBe("exception");
+
+    // The signed confirmation is archived into D3.1 as an artifact (spec §4.2).
+    const archived = await admin.query<{ kind: string }>(
+      "SELECT kind FROM document WHERE engagement_id = $1 AND title LIKE 'Independence confirmation%'",
+      [engagementId],
+    );
+    expect(archived.rows).toHaveLength(1);
+    expect(archived.rows[0].kind).toBe("letter");
 
     gates = await acceptanceGates(engagementId);
     expect(gates.find((g) => g.key === "independence_complete")?.ok).toBe(true);
@@ -171,6 +195,8 @@ describe("acceptance gates → planning (2.2, 2.3, 2.4)", () => {
     await advanceToPlanning(engagementId);
     const phase = await admin.query<{ phase: string }>("SELECT phase FROM engagement WHERE id = $1", [engagementId]);
     expect(phase.rows[0].phase).toBe("planning");
+    // Double-submit protection: the transition is atomic and phase-guarded.
+    await expect(advanceToPlanning(engagementId)).rejects.toThrow("wrong-phase");
   });
 });
 
@@ -239,6 +265,75 @@ describe("planning-close gates (2.9, 2.10, 2.13)", () => {
     );
     expect(snapshot.rows).toHaveLength(1);
     expect(Array.isArray(snapshot.rows[0].data.risks)).toBe(true);
+    // Double-submit cannot produce a second snapshot (review fix).
+    await expect(closePlanning(engagementId)).rejects.toThrow("wrong-phase");
+    const again = await admin.query("SELECT 1 FROM planning_snapshot WHERE engagement_id = $1", [engagementId]);
+    expect(again.rowCount).toBe(1);
+  });
+
+  it("only the latest materiality version is approvable (review fix)", async () => {
+    const v2 = await createMaterialityVersion(engagementId, {
+      benchmark: "revenue",
+      benchmarkAmount: 2_100_000_000,
+      percentage: 1,
+      justification: "Revised after fieldwork start.",
+      performancePct: 75,
+      trivialPct: 5,
+    });
+    await expect(approveMateriality(engagementId, v2 - 1)).rejects.toThrow("stale-version");
+    await approveMateriality(engagementId, v2);
+    const approved = await admin.query(
+      "SELECT version_no FROM materiality WHERE engagement_id = $1 AND status = 'approved'",
+      [engagementId],
+    );
+    expect(approved.rowCount).toBe(1);
+  });
+
+  it("rejects out-of-range materiality input with a friendly code (review fix)", async () => {
+    await expect(
+      createMaterialityVersion(engagementId, {
+        benchmark: "revenue",
+        benchmarkAmount: 1_000_000,
+        percentage: 1,
+        justification: "x",
+        performancePct: 0, // cleared optional input must not reach the DB CHECK
+        trivialPct: 5,
+      }),
+    ).rejects.toThrow("invalid-materiality");
+  });
+});
+
+describe("D7.1 promote race (review fix)", () => {
+  it("a potential risk can only be promoted once", async () => {
+    await raisePotentialRisk(engagementId, "Cut-off risk near year end", "D4.3");
+    const open = (await listPotentialRisks(engagementId)).find((p) => p.status === "open")!;
+    await promotePotentialRisk(open.id);
+    await expect(promotePotentialRisk(open.id)).rejects.toThrow("not-found");
+  });
+});
+
+describe("letter/working-paper collision (review fix)", () => {
+  it("letters under D3.1 neither hijack the working paper nor satisfy the partner gate", async () => {
+    const fresh = await createEngagement({ clientId, fiscalYear: 2027, periodEnd: "2027-12-31" });
+    const letterId = await generateLetter(fresh, "engagement", "en");
+
+    // The working paper is a NEW document, not the letter.
+    const freshItems = await listFileItems(fresh);
+    const d31 = freshItems.find((i) => i.code === "D3.1")!;
+    const workpaperId = await generateDocument(d31.id, "en");
+    expect(workpaperId).not.toBe(letterId);
+
+    // Partner-signing the LETTER does not satisfy the D3.1 gate...
+    await signDocument(letterId, "preparer");
+    await signDocument(letterId, "partner");
+    let gates = await acceptanceGates(fresh);
+    expect(gates.find((g) => g.key === "d31_partner_signed")?.ok).toBe(false);
+
+    // ...only signing the working paper does.
+    await signDocument(workpaperId, "preparer");
+    await signDocument(workpaperId, "partner");
+    gates = await acceptanceGates(fresh);
+    expect(gates.find((g) => g.key === "d31_partner_signed")?.ok).toBe(true);
   });
 });
 

@@ -44,8 +44,13 @@ export async function saveFormAction(
   const values: FormValues = {};
   for (const field of definition.fields) {
     const raw = formData.get(field.key);
-    if (field.type === "boolean") values[field.key] = raw === "on" || raw === "true";
-    else if (field.type === "number") {
+    if (field.type === "boolean") {
+      // Booleans are yes/no selects: an unanswered field is NOT saved, so a
+      // blank first save cannot mark required checks as answered.
+      // [Adversarial-review fix]
+      if (raw === "yes") values[field.key] = true;
+      else if (raw === "no") values[field.key] = false;
+    } else if (field.type === "number") {
       if (raw !== null && String(raw).trim() !== "") values[field.key] = Number(raw);
     } else if (raw !== null) values[field.key] = String(raw);
   }
@@ -219,15 +224,21 @@ export async function setPbcStatusAction(
 
 export async function createMaterialityAction(engagementId: string, formData: FormData): Promise<void> {
   const path = `/engagements/${engagementId}/planning`;
+  // Cleared optional inputs fall back to their defaults instead of becoming 0
+  // (which would trip DB CHECK constraints). [Adversarial-review fix]
+  const numberOr = (key: string, fallback: number): number => {
+    const raw = String(formData.get(key) ?? "").trim();
+    return raw === "" ? fallback : Number(raw);
+  };
   await guarded(path, async () => {
     await createMaterialityVersion(engagementId, {
       benchmark: String(formData.get("benchmark") ?? "revenue") as Benchmark,
-      benchmarkAmount: Number(formData.get("benchmarkAmount")),
-      percentage: Number(formData.get("percentage")),
+      benchmarkAmount: numberOr("benchmarkAmount", NaN),
+      percentage: numberOr("percentage", NaN),
       justification: String(formData.get("justification") ?? ""),
-      performancePct: Number(formData.get("performancePct") ?? 75),
+      performancePct: numberOr("performancePct", 75),
       performanceJustification: String(formData.get("performanceJustification") ?? "") || undefined,
-      trivialPct: Number(formData.get("trivialPct") ?? 5),
+      trivialPct: numberOr("trivialPct", 5),
     });
   });
 }
@@ -268,12 +279,17 @@ export async function promotePotentialAction(engagementId: string, id: string): 
 
 export async function updateRiskAction(engagementId: string, riskId: string, formData: FormData): Promise<void> {
   const path = `/engagements/${engagementId}/risks`;
+  // Checkbox fields only update when their marker field was submitted with the
+  // form — an absent checkbox never silently overwrites to false.
+  // [Adversarial-review fix]
+  const checkbox = (key: string): boolean | undefined =>
+    formData.has(`${key}_present`) ? formData.get(key) === "on" : undefined;
   await guarded(path, () =>
     updateRisk(riskId, {
       likelihood: String(formData.get("likelihood") ?? "medium") as RiskRating,
       magnitude: String(formData.get("magnitude") ?? "medium") as RiskRating,
-      significant: formData.get("significant") === "on",
-      controlsReliance: formData.get("controlsReliance") === "on",
+      significant: checkbox("significant"),
+      controlsReliance: checkbox("controlsReliance"),
       status: (formData.get("status") ? String(formData.get("status")) : undefined) as RiskStatus | undefined,
     }),
   );

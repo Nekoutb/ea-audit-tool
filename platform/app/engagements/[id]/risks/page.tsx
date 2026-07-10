@@ -143,9 +143,17 @@ export default async function RisksPage(props: {
                         <option value="high">high</option>
                       </select>
                     </label>
+                    {risk.presumedType === null ? (
+                      <label className="flex items-center gap-1 text-xs text-slate-500">
+                        <input type="hidden" name="significant_present" value="1" />
+                        <input type="checkbox" name="significant" defaultChecked={risk.significant} />
+                        {tr.significant}
+                      </label>
+                    ) : null}
                     <label className="flex items-center gap-1 text-xs text-slate-500">
-                      <input type="checkbox" name="significant" defaultChecked={risk.significant} />
-                      {tr.significant}
+                      <input type="hidden" name="controlsReliance_present" value="1" />
+                      <input type="checkbox" name="controlsReliance" defaultChecked={risk.controlsReliance} />
+                      {tr.controlsReliance}
                     </label>
                     <button type="submit" className={btn}>
                       {tr.update}

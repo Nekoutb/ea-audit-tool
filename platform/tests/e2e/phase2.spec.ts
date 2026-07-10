@@ -50,7 +50,7 @@ test("full Phase 2 acceptance → planning → gates → close", async ({ page }
   await page.waitForURL("**/forms/D3.1");
   await page.getByTestId("field-engagement_type").selectOption("new");
   for (const key of ["integrity_ok", "competence_ok", "conflicts_ok", "aml_ok", "independence_ok"]) {
-    await page.getByTestId(`field-${key}`).check();
+    await page.getByTestId(`field-${key}`).selectOption("yes");
   }
   await page.getByTestId("field-risk_rating").selectOption("moderate");
   await page.getByTestId("field-conclusion").selectOption("accept");

@@ -246,7 +246,7 @@
       "title": "D1 — Engagement strategy driver",
       "form": "Form",
       "status": "Status",
-      "statusValues": { "not_started": "Not started", "in_progress": "In progress", "complete": "Complete", "signed": "Signed" }
+      "statusValues": { "not_started": "Not started", "in_progress": "In progress", "complete": "Complete", "signed": "Signed", "not_required": "Not required (D1 trigger off)" }
     },
     "risks": {
       "potential": "D7.1 — Potential risks",
@@ -304,7 +304,14 @@
       "not-found": "Not found.",
       "not-rebuttable": "This presumed risk cannot be rebutted or downgraded.",
       "invalid-budget": "Enter a grade and a non-negative number of hours.",
-      "title-required": "A title is required."
+      "title-required": "A title is required.",
+      "wrong-phase": "The engagement is not in the right phase for this action.",
+      "stale-version": "Only the latest materiality version can be approved.",
+      "invalid-materiality": "Check the materiality figures: amount > 0, percentage 0–100, performance 60–85 %, trivial 0.5–10 %.",
+      "no-tb": "No trial balance has been imported for this engagement yet.",
+      "no-mapped-rows": "No trial-balance accounts map to this section — check the groupings.",
+      "unsupported-file": "Only .csv and .xlsx files are accepted.",
+      "empty-file": "The file has no data rows."
     }
   }
 }

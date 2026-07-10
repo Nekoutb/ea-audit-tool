@@ -151,7 +151,7 @@ export async function listFileItems(engagementId: string): Promise<FileItem[]> {
          LEFT JOIN LATERAL (
            SELECT id, status, current_version
              FROM document
-            WHERE file_item_id = fi.id
+            WHERE file_item_id = fi.id AND kind = 'workpaper'
             ORDER BY created_at
             LIMIT 1
          ) d ON true
