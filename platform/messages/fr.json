@@ -813,6 +813,7 @@
       "archived": "Ce dossier est archivé et immuable.",
       "invalid-year": "Le nouvel exercice doit être postérieur à l'exercice courant.",
       "invalid-engagement": "Vérifiez les champs de la mission : client, exercice et date de clôture sont requis.",
+      "duplicate-engagement": "Une mission existe déjà pour ce client et cet exercice. Ouvrez-la depuis la liste des missions, ou choisissez un autre exercice.",
       "invalid-sample-size": "La taille de l'échantillon doit être d'au moins 1.",
       "seed-required": "Une graine documentée est requise (reproductibilité).",
       "threshold-required": "Un seuil d'éléments clés est requis pour cette méthode.",

@@ -62,14 +62,23 @@ export async function createEngagementAction(formData: FormData): Promise<void> 
   // classification from the raw answers — never trusts a client-side result.
   const answers = answersFromForm((name) => formData.get(name));
   const { level } = classifyComplexity(answers);
-  const id = await createEngagement({
-    clientId,
-    fiscalYear,
-    periodEnd,
-    name: String(formData.get("name") ?? ""),
-    complexity: level,
-    complexityAnswers: answers,
-  });
+  let id: string;
+  try {
+    id = await createEngagement({
+      clientId,
+      fiscalYear,
+      periodEnd,
+      name: String(formData.get("name") ?? ""),
+      complexity: level,
+      complexityAnswers: answers,
+    });
+  } catch (error) {
+    // One statutory audit per client per fiscal year (unique constraint).
+    if (typeof error === "object" && error !== null && (error as { code?: string }).code === "23505") {
+      redirect(`/new-engagement?client=${clientId}&error=duplicate-engagement`);
+    }
+    throw error;
+  }
   revalidatePath("/engagements");
   redirect(`/engagements/${id}`);
 }

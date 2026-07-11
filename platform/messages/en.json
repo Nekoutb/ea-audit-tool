@@ -813,6 +813,7 @@
       "archived": "This file is archived and immutable.",
       "invalid-year": "The new fiscal year must be after the current one.",
       "invalid-engagement": "Check the engagement fields: client, fiscal year and period end are required.",
+      "duplicate-engagement": "An engagement already exists for this client and fiscal year. Open it from the Engagements list, or choose a different fiscal year.",
       "invalid-sample-size": "Sample size must be at least 1.",
       "seed-required": "A documented seed is required (reproducibility).",
       "threshold-required": "A key-item threshold is required for this method.",
