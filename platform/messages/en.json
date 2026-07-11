@@ -47,6 +47,20 @@
   },
   "dashboard": {
     "title": "Dashboard",
+    "phaseNames": {
+      "acceptance": "Pre-Planning",
+      "planning": "Planning",
+      "execution": "Execution",
+      "conclusion": "Conclusion"
+    },
+    "taskList": "Task list",
+    "backToDashboard": "Back to dashboard",
+    "taskStatus": {
+      "complete": "Complete",
+      "in_progress": "In progress",
+      "not_started": "Not started"
+    },
+    "openTask": "Open",
     "recentEngagements": "Recent engagements",
     "selectEngagement": "Select engagement",
     "overallCompletion": "Overall completion",

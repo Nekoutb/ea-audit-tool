@@ -9,17 +9,43 @@ import {
 } from "@/lib/engagements";
 import { requireTenant } from "@/lib/tenant";
 
+/** The four dashboard phases (all engagement phases except terminal `archived`). */
+export type DashboardPhase = Exclude<EngagementPhase, "archived">;
+
 /** The four audit phases shown on the dashboard, in order. `archived` is terminal. */
-export const PHASE_ORDER: EngagementPhase[] = ["acceptance", "planning", "execution", "conclusion"];
+export const PHASE_ORDER: DashboardPhase[] = ["acceptance", "planning", "execution", "conclusion"];
+
+/** URL slugs for the phase drill-down screens (acceptance is branded Pre-Planning). */
+export const PHASE_SLUGS: Record<string, DashboardPhase> = {
+  "pre-planning": "acceptance",
+  planning: "planning",
+  execution: "execution",
+  conclusion: "conclusion",
+};
+
+export const PHASE_SLUG_OF: Record<DashboardPhase, string> = {
+  acceptance: "pre-planning",
+  planning: "planning",
+  execution: "execution",
+  conclusion: "conclusion",
+};
 
 export type PhaseStatus = "complete" | "current" | "upcoming";
 
 export interface PhaseProgress {
-  phase: EngagementPhase;
+  phase: DashboardPhase;
   total: number;
   done: number;
   status: PhaseStatus;
 }
+
+/** SQL bucket mapping file-index items to the four dashboard phases. */
+const BUCKET_CASE = `CASE
+  WHEN fi.section = 'E' THEN 'execution'
+  WHEN fi.section IN ('A', 'B', 'C', 'F') THEN 'conclusion'
+  WHEN fi.code IN ('D3.1', 'D1', 'D4.1', 'D6.1', 'D7.1') THEN 'acceptance'
+  ELSE 'planning'
+END`;
 
 /**
  * Per-phase task progress. Tasks are the engagement's (active) file-index items,
@@ -41,12 +67,7 @@ export async function engagementPhaseProgress(
               count(*) FILTER (WHERE signed)::text AS done_signed
          FROM (
            SELECT fi.id,
-                  CASE
-                    WHEN fi.section = 'E' THEN 'execution'
-                    WHEN fi.section IN ('A', 'B', 'C', 'F') THEN 'conclusion'
-                    WHEN fi.code IN ('D3.1', 'D1', 'D4.1', 'D6.1', 'D7.1') THEN 'acceptance'
-                    ELSE 'planning'
-                  END AS bucket,
+                  ${BUCKET_CASE} AS bucket,
                   EXISTS (
                     SELECT 1 FROM document d
                      WHERE d.file_item_id = fi.id AND d.status = 'signed'
@@ -71,6 +92,66 @@ export async function engagementPhaseProgress(
     const status: PhaseStatus = i < currentIdx ? "complete" : i === currentIdx ? "current" : "upcoming";
     const done = status === "complete" ? bucket.total : status === "current" ? bucket.signed : 0;
     return { phase: p, total: bucket.total, done, status };
+  });
+}
+
+export type PhaseTaskStatus = "complete" | "in_progress" | "not_started";
+
+export interface PhaseTask {
+  id: string;
+  code: string;
+  section: string;
+  titleEn: string;
+  titleFr: string;
+  documentId: string | null;
+  status: PhaseTaskStatus;
+}
+
+/**
+ * The exhaustive, sequentially-ordered task list for one dashboard phase: the
+ * engagement's active file-index items bucketed to that phase (same mapping as
+ * the gauges), each with its working-paper state — signed = complete, draft =
+ * in progress, none = not started.
+ */
+export async function phaseTasks(engagementId: string, phase: DashboardPhase): Promise<PhaseTask[]> {
+  const { tenantId } = await requireTenant();
+  return withTenant(tenantId, async (tx) => {
+    const result = await tx.query<{
+      id: string;
+      code: string;
+      section: string;
+      title_en: string;
+      title_fr: string;
+      document_id: string | null;
+      document_status: "draft" | "signed" | null;
+    }>(
+      `SELECT fi.id, fi.code, fi.section, fi.title_en, fi.title_fr,
+              d.id AS document_id, d.status AS document_status
+         FROM file_item fi
+         LEFT JOIN LATERAL (
+           SELECT id, status FROM document
+            WHERE file_item_id = fi.id AND kind = 'workpaper'
+            ORDER BY created_at LIMIT 1
+         ) d ON true
+        WHERE fi.engagement_id = $1 AND fi.conditional = false
+          AND ${BUCKET_CASE} = $2
+        ORDER BY fi.sort_order`,
+      [engagementId, phase],
+    );
+    return result.rows.map((row) => ({
+      id: row.id,
+      code: row.code,
+      section: row.section,
+      titleEn: row.title_en,
+      titleFr: row.title_fr,
+      documentId: row.document_id,
+      status:
+        row.document_status === "signed"
+          ? ("complete" as const)
+          : row.document_status === "draft"
+            ? ("in_progress" as const)
+            : ("not_started" as const),
+    }));
   });
 }
 

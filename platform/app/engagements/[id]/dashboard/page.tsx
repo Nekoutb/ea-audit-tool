@@ -2,7 +2,7 @@ import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
 import { auth } from "@/auth";
 import { AppNav } from "@/components/AppNav";
-import { EngagementTabs } from "@/components/EngagementTabs";
+import { PhaseLink } from "@/components/PhaseLink";
 import {
   Chip,
   Panel,
@@ -13,6 +13,7 @@ import {
 } from "@/components/ui/atlas";
 import { engagementDashboard } from "@/lib/dashboards";
 import {
+  PHASE_SLUG_OF,
   engagementAttention,
   engagementPhaseProgress,
   type AttentionTone,
@@ -51,9 +52,11 @@ export default async function EngagementDashboardPage(props: {
   const doneTasks = phases.reduce((sum, p) => sum + p.done, 0);
   const overall = totalTasks > 0 ? Math.round((doneTasks / totalTasks) * 100) : 0;
   const nextDeadline = dash.nextDeadlines[0] ?? null;
+  const phaseLabel =
+    engagement.phase === "archived" ? t.engagements.phases.archived : td.phaseNames[engagement.phase];
 
   return (
-    <main className="mx-auto flex h-[100dvh] max-w-6xl flex-col gap-3 overflow-hidden px-5 py-4">
+    <main className="flex h-[100dvh] w-full flex-col gap-3 overflow-hidden px-6 py-4">
       <AppNav locale={locale} current={{ id, label: engagement.clientName }} />
 
       <div className="flex flex-wrap items-end justify-between gap-4">
@@ -66,7 +69,7 @@ export default async function EngagementDashboardPage(props: {
             {engagement.clientName}
           </h1>
           <p className="mt-1 text-[13px] text-ink-soft">
-            {t.engagements.phases[engagement.phase]}
+            {phaseLabel}
             <span className="px-2 text-line-strong">·</span>
             {t.engagements.fiscalYear} {engagement.fiscalYear}
             <span className="px-2 text-line-strong">·</span>
@@ -104,18 +107,21 @@ export default async function EngagementDashboardPage(props: {
         </div>
       </div>
 
-      <EngagementTabs engagementId={id} locale={locale} active="dashboard" />
-
       <section className="grid grid-cols-2 gap-3 lg:grid-cols-4" data-testid="phase-gauges">
         {phases.map((p, i) => (
-          <PhaseGauge
+          <PhaseLink
             key={p.phase}
-            index={`0${i + 1}`}
-            name={t.engagements.phases[p.phase]}
-            done={p.done}
-            total={p.total}
-            status={p.status}
-          />
+            href={`/engagements/${id}/phases/${PHASE_SLUG_OF[p.phase]}`}
+            testId={`phase-link-${PHASE_SLUG_OF[p.phase]}`}
+          >
+            <PhaseGauge
+              index={`0${i + 1}`}
+              name={td.phaseNames[p.phase]}
+              done={p.done}
+              total={p.total}
+              status={p.status}
+            />
+          </PhaseLink>
         ))}
       </section>
 
@@ -161,7 +167,7 @@ export default async function EngagementDashboardPage(props: {
           <div className="flex flex-col gap-3.5 p-5">
             <StatCell
               label={td.currentPhase}
-              value={t.engagements.phases[engagement.phase]}
+              value={phaseLabel}
               right={<Chip tone="warn">Active</Chip>}
             />
             <StatCell

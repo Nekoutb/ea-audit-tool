@@ -134,6 +134,38 @@ body {
   transition: width 0.18s ease, opacity 0.3s ease 0.1s;
 }
 
+/* Full-screen transition overlay with a fast spinner (phase drill-downs). */
+#atlas-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 99;
+  display: none;
+  place-items: center;
+  background: color-mix(in srgb, var(--canvas) 55%, transparent);
+}
+#atlas-overlay.show {
+  display: grid;
+  animation: atlas-fade 0.12s ease-out;
+}
+.atlas-spinner {
+  width: 38px;
+  height: 38px;
+  border-radius: 50%;
+  border: 3px solid var(--line-strong);
+  border-top-color: var(--color-emerald-600);
+  animation: atlas-spin 0.7s linear infinite;
+}
+@keyframes atlas-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+@keyframes atlas-fade {
+  from {
+    opacity: 0;
+  }
+}
+
 @media (prefers-reduced-motion: reduce) {
   #atlas-loader.run {
     transition: none;

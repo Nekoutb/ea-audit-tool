@@ -47,6 +47,20 @@
   },
   "dashboard": {
     "title": "Tableau de bord",
+    "phaseNames": {
+      "acceptance": "Pré-planification",
+      "planning": "Planification",
+      "execution": "Exécution",
+      "conclusion": "Conclusion"
+    },
+    "taskList": "Liste des tâches",
+    "backToDashboard": "Retour au tableau de bord",
+    "taskStatus": {
+      "complete": "Terminée",
+      "in_progress": "En cours",
+      "not_started": "Non commencée"
+    },
+    "openTask": "Ouvrir",
     "recentEngagements": "Missions récentes",
     "selectEngagement": "Choisir une mission",
     "overallCompletion": "Avancement global",
