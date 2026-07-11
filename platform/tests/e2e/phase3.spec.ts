@@ -20,8 +20,11 @@ async function login(page: Page): Promise<void> {
 
 async function createEngagementViaUi(page: Page, clientUrl: string, year: string): Promise<string> {
   await page.goto(clientUrl);
+  await page.getByTestId("new-engagement").click();
+  await page.waitForURL("**/new-engagement**");
   await page.getByTestId("engagement-year").fill(year);
   await page.getByTestId("engagement-period-end").fill(`${year}-12-31`);
+  await page.getByTestId("cq-listed").check();
   await page.getByTestId("create-engagement").click();
   await page.waitForURL("**/engagements/**");
   return page.url().split("/engagements/")[1].split(/[/?#]/)[0];

@@ -57,7 +57,7 @@ export default async function EngagementDashboardPage(props: {
 
   return (
     <main className="flex h-[100dvh] w-full flex-col gap-3 overflow-hidden px-6 py-4">
-      <AppNav locale={locale} current={{ id, label: engagement.clientName }} />
+      <AppNav locale={locale} current={{ id, label: engagement.name ?? engagement.clientName }} />
 
       <div className="flex flex-wrap items-end justify-between gap-4">
         <div>
@@ -66,9 +66,15 @@ export default async function EngagementDashboardPage(props: {
             {td.resumed}
           </p>
           <h1 className="mt-1 text-2xl font-bold tracking-[-0.02em] text-ink">
-            {engagement.clientName}
+            {engagement.name ?? engagement.clientName}
           </h1>
           <p className="mt-1 text-[13px] text-ink-soft">
+            {engagement.name ? (
+              <>
+                {engagement.clientName}
+                <span className="px-2 text-line-strong">·</span>
+              </>
+            ) : null}
             {phaseLabel}
             <span className="px-2 text-line-strong">·</span>
             {t.engagements.fiscalYear} {engagement.fiscalYear}

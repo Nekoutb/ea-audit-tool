@@ -35,8 +35,11 @@ test("Phase 9: portal PBC round-trip + dashboards + export", async ({ page }) =>
   await page.getByTestId("create-client").click();
   await page.waitForURL("**/clients/**");
   const clientUrl = page.url();
+  await page.getByTestId("new-engagement").click();
+  await page.waitForURL("**/new-engagement**");
   await page.getByTestId("engagement-year").fill("2025");
   await page.getByTestId("engagement-period-end").fill("2025-12-31");
+  await page.getByTestId("cq-listed").check();
   await page.getByTestId("create-engagement").click();
   await page.waitForURL("**/engagements/**");
   const engagementUrl = page.url();

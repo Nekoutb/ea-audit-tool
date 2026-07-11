@@ -260,6 +260,8 @@ interface RecentRow {
   fiscal_year: number;
   period_end: string;
   phase: EngagementPhase;
+  name: string | null;
+  complexity: EngagementSummary["complexity"];
 }
 
 function toSummary(row: RecentRow): EngagementSummary {
@@ -270,6 +272,8 @@ function toSummary(row: RecentRow): EngagementSummary {
     fiscalYear: row.fiscal_year,
     periodEnd: row.period_end,
     phase: row.phase,
+    name: row.name,
+    complexity: row.complexity,
   };
 }
 
@@ -284,7 +288,7 @@ export async function recentEngagements(limit = 6): Promise<EngagementSummary[]>
   return withTenant(tenantId, async (tx) => {
     const result = await tx.query<RecentRow>(
       `SELECT e.id, e.client_id, c.name AS client_name, e.fiscal_year,
-              to_char(e.period_end, 'YYYY-MM-DD') AS period_end, e.phase
+              to_char(e.period_end, 'YYYY-MM-DD') AS period_end, e.phase, e.name, e.complexity
          FROM engagement e
          JOIN client c ON c.id = e.client_id
         WHERE e.phase <> 'archived'

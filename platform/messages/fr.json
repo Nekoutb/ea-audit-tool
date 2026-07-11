@@ -22,6 +22,10 @@
   },
   "settings": {
     "title": "Paramètres du cabinet",
+    "language": "Langue",
+    "languageHint": "Langue de l'interface pour votre session.",
+    "naming": "Convention de nommage des missions",
+    "namingHint": "Utilisée pour pré-remplir le nom des nouvelles missions. Variables : {CLIENT} et {YEAR}.",
     "brandingTitle": "Identité visuelle et en-tête",
     "brandingHint": "S'applique à tous les écrans de votre cabinet et à l'en-tête de chaque lettre et rapport générés.",
     "displayName": "Nom d'affichage du cabinet",
@@ -151,6 +155,38 @@
     "phase": "Phase",
     "newEngagement": "Nouvelle mission",
     "createEngagement": "Créer la mission",
+    "newEngagementTitle": "Nouvelle mission d'audit",
+    "newEngagementHint": "Identifiez la mission, puis répondez aux questions de profil. La classification détermine la nature, le calendrier et l'étendue des travaux : documentation plus lourde pour les entités complexes, allégée pour les entités très simples.",
+    "name": "Nom de la mission",
+    "nameHint": "Pré-rempli selon la convention de nommage du cabinet (Paramètres).",
+    "assessment": {
+      "title": "Profil de la mission",
+      "hint": "15 questions · détermine la classification de complexité",
+      "result": "Classification",
+      "levels": {
+        "complex": "Entité complexe",
+        "non_complex": "Entité non complexe",
+        "very_simple": "Entité très simple"
+      },
+      "formsNote": "{count} feuilles de travail seront instanciées",
+      "questions": {
+        "listed": "L'entité est-elle cotée ou fait-elle appel public à l'épargne (APE) ?",
+        "publicInterest": "Est-ce une entité d'intérêt public ou réglementée (banque, microfinance, assurance, retraite) ?",
+        "group": "Établit-elle des comptes consolidés ou est-elle un composant significatif d'un groupe ?",
+        "jointAudit": "S'agit-il d'un co-commissariat aux comptes (audit conjoint) ?",
+        "foreignOps": "Existe-t-il des activités à l'étranger ou des transactions significatives en devises ?",
+        "complexFinancing": "Le financement est-il complexe (dérivés, couvertures, dette structurée, covenants) ?",
+        "complexRevenue": "La reconnaissance du revenu est-elle complexe (contrats long terme, flux multiples, contrepartie variable) ?",
+        "estimates": "Existe-t-il des estimations ou justes valeurs significatives (dépréciations, provisions, impôts différés) ?",
+        "controlsReliance": "L'audit s'appuiera-t-il sur les contrôles internes ou l'environnement de contrôle est-il complexe ?",
+        "complexIt": "L'environnement informatique est-il complexe ou fortement automatisé (ERP intégré, e-commerce) ?",
+        "multiLocation": "L'entité opère-t-elle sur plusieurs sites, agences ou entrepôts ?",
+        "largeSize": "Dépasse-t-elle les seuils de grande entité (chiffre d'affaires supérieur à 1 milliard FCFA ou plus de 100 salariés) ?",
+        "firstAudit": "S'agit-il d'un premier audit, ou l'entité existe-t-elle depuis moins de deux ans ?",
+        "goingConcern": "Existe-t-il un risque de continuité d'exploitation, des litiges significatifs ou une opinion antérieure modifiée ?",
+        "relatedParties": "Existe-t-il des transactions importantes avec des parties liées ou intragroupe ?"
+      }
+    },
     "open": "Ouvrir",
     "phases": {
       "acceptance": "Acceptation",
@@ -776,6 +812,7 @@
       "already-archived": "Le dossier est déjà archivé.",
       "archived": "Ce dossier est archivé et immuable.",
       "invalid-year": "Le nouvel exercice doit être postérieur à l'exercice courant.",
+      "invalid-engagement": "Vérifiez les champs de la mission : client, exercice et date de clôture sont requis.",
       "invalid-sample-size": "La taille de l'échantillon doit être d'au moins 1.",
       "seed-required": "Une graine documentée est requise (reproductibilité).",
       "threshold-required": "Un seuil d'éléments clés est requis pour cette méthode.",

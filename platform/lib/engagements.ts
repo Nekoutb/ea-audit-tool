@@ -1,6 +1,7 @@
 import type { PoolClient } from "pg";
+import { type ComplexityAnswers, type EngagementComplexity } from "@/lib/complexity";
 import { withTenant } from "@/lib/db";
-import { DEFAULT_FILE_INDEX, type Section } from "@/lib/file-index";
+import { itemsForComplexity, type Section } from "@/lib/file-index";
 import { seedPresumedRisks } from "@/lib/risks";
 import { requireTenant } from "@/lib/tenant";
 
@@ -13,6 +14,9 @@ export interface EngagementSummary {
   fiscalYear: number;
   periodEnd: string;
   phase: EngagementPhase;
+  /** User-defined engagement name (naming convention); null on legacy rows. */
+  name: string | null;
+  complexity: EngagementComplexity;
 }
 
 export interface FileItem {
@@ -36,6 +40,8 @@ interface EngagementRow {
   fiscal_year: number;
   period_end: string;
   phase: EngagementPhase;
+  name: string | null;
+  complexity: EngagementComplexity;
 }
 
 function toSummary(row: EngagementRow): EngagementSummary {
@@ -46,6 +52,8 @@ function toSummary(row: EngagementRow): EngagementSummary {
     fiscalYear: row.fiscal_year,
     periodEnd: row.period_end,
     phase: row.phase,
+    name: row.name,
+    complexity: row.complexity,
   };
 }
 
@@ -54,7 +62,7 @@ export async function listEngagements(clientId?: string): Promise<EngagementSumm
   return withTenant(tenantId, async (tx) => {
     const result = await tx.query<EngagementRow>(
       `SELECT e.id, e.client_id, c.name AS client_name, e.fiscal_year,
-              to_char(e.period_end, 'YYYY-MM-DD') AS period_end, e.phase
+              to_char(e.period_end, 'YYYY-MM-DD') AS period_end, e.phase, e.name, e.complexity
          FROM engagement e
          JOIN client c ON c.id = e.client_id
         WHERE ($1::uuid IS NULL OR e.client_id = $1)
@@ -70,7 +78,7 @@ export async function getEngagement(id: string): Promise<EngagementSummary | nul
   return withTenant(tenantId, async (tx) => {
     const result = await tx.query<EngagementRow>(
       `SELECT e.id, e.client_id, c.name AS client_name, e.fiscal_year,
-              to_char(e.period_end, 'YYYY-MM-DD') AS period_end, e.phase
+              to_char(e.period_end, 'YYYY-MM-DD') AS period_end, e.phase, e.name, e.complexity
          FROM engagement e
          JOIN client c ON c.id = e.client_id
         WHERE e.id = $1`,
@@ -84,9 +92,10 @@ async function instantiateFileIndex(
   tx: PoolClient,
   tenantId: string,
   engagementId: string,
+  complexity: EngagementComplexity,
 ): Promise<void> {
   let sortOrder = 0;
-  for (const entry of DEFAULT_FILE_INDEX) {
+  for (const entry of itemsForComplexity(complexity)) {
     sortOrder += 10;
     await tx.query(
       `INSERT INTO file_item
@@ -107,24 +116,40 @@ async function instantiateFileIndex(
 }
 
 /**
- * Create an engagement and instantiate the full default A–F file index for it
- * in the same transaction (master spec §3): either both exist or neither does.
+ * Create an engagement and instantiate its A–F file index in the same
+ * transaction (master spec §3): either both exist or neither does. The
+ * complexity classification (from the creation assessment) scales how much of
+ * the index is instantiated; the legacy quick path defaults to the full
+ * (complex) documentation set — the conservative choice.
  */
 export async function createEngagement(input: {
   clientId: string;
   fiscalYear: number;
   periodEnd: string;
+  name?: string | null;
+  complexity?: EngagementComplexity;
+  complexityAnswers?: ComplexityAnswers | null;
 }): Promise<string> {
   const { tenantId } = await requireTenant();
+  const complexity = input.complexity ?? "complex";
+  const name = input.name?.trim().slice(0, 120) || null;
   return withTenant(tenantId, async (tx) => {
     const result = await tx.query<{ id: string }>(
-      `INSERT INTO engagement (tenant_id, client_id, fiscal_year, period_end)
-       VALUES ($1, $2, $3, $4)
+      `INSERT INTO engagement (tenant_id, client_id, fiscal_year, period_end, name, complexity, complexity_answers)
+       VALUES ($1, $2, $3, $4, $5, $6, $7)
        RETURNING id`,
-      [tenantId, input.clientId, input.fiscalYear, input.periodEnd],
+      [
+        tenantId,
+        input.clientId,
+        input.fiscalYear,
+        input.periodEnd,
+        name,
+        complexity,
+        input.complexityAnswers ? JSON.stringify(input.complexityAnswers) : null,
+      ],
     );
     const engagementId = result.rows[0].id;
-    await instantiateFileIndex(tx, tenantId, engagementId);
+    await instantiateFileIndex(tx, tenantId, engagementId, complexity);
     // Spec §3: two presumed ISA 240 risks are auto-seeded on every engagement.
     await seedPresumedRisks(tx, tenantId, engagementId);
     return engagementId;

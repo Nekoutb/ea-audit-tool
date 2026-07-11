@@ -37,8 +37,11 @@ test("full Phase 2 acceptance → planning → gates → close", async ({ page }
   await page.getByTestId("client-name").fill(clientName);
   await page.getByTestId("create-client").click();
   await page.waitForURL("**/clients/**");
+  await page.getByTestId("new-engagement").click();
+  await page.waitForURL("**/new-engagement**");
   await page.getByTestId("engagement-year").fill("2025");
   await page.getByTestId("engagement-period-end").fill("2025-12-31");
+  await page.getByTestId("cq-listed").check();
   await page.getByTestId("create-engagement").click();
   await page.waitForURL("**/engagements/**");
   const engagementUrl = page.url();

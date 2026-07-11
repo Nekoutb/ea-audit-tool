@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { createClient, isLegalForm } from "@/lib/clients";
+import { answersFromForm, classifyComplexity } from "@/lib/complexity";
 import {
   addReviewNote,
   cancelCheckout,
@@ -55,9 +56,20 @@ export async function createEngagementAction(formData: FormData): Promise<void> 
   const fiscalYear = Number(formData.get("fiscalYear"));
   const periodEnd = String(formData.get("periodEnd") ?? "");
   if (!clientId || !Number.isInteger(fiscalYear) || !periodEnd) {
-    redirect(`/clients/${clientId}?error=invalid-engagement`);
+    redirect(`/new-engagement?error=invalid-engagement`);
   }
-  const id = await createEngagement({ clientId, fiscalYear, periodEnd });
+  // Complexity assessment (lib/complexity.ts): the server recomputes the
+  // classification from the raw answers — never trusts a client-side result.
+  const answers = answersFromForm((name) => formData.get(name));
+  const { level } = classifyComplexity(answers);
+  const id = await createEngagement({
+    clientId,
+    fiscalYear,
+    periodEnd,
+    name: String(formData.get("name") ?? ""),
+    complexity: level,
+    complexityAnswers: answers,
+  });
   revalidatePath("/engagements");
   redirect(`/engagements/${id}`);
 }

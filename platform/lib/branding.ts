@@ -29,6 +29,8 @@ export interface Branding {
   letterhead1: string;
   letterhead2: string;
   footer: string;
+  /** Engagement naming convention; {CLIENT} and {YEAR} are substituted. */
+  engagementNaming: string;
 }
 
 const HEX_RE = /^#[0-9a-fA-F]{6}$/;
@@ -49,6 +51,9 @@ interface BrandingRow {
   branding: Partial<Branding> | null;
 }
 
+/** Default engagement naming convention (see lib/complexity.ts). */
+const DEFAULT_NAMING = "{CLIENT} AUDIT {YEAR}";
+
 function merge(row: BrandingRow): Branding {
   const stored = row.branding ?? {};
   return {
@@ -58,6 +63,10 @@ function merge(row: BrandingRow): Branding {
     letterhead1: typeof stored.letterhead1 === "string" ? stored.letterhead1 : "",
     letterhead2: typeof stored.letterhead2 === "string" ? stored.letterhead2 : "",
     footer: typeof stored.footer === "string" ? stored.footer : "",
+    engagementNaming:
+      typeof stored.engagementNaming === "string" && stored.engagementNaming.trim()
+        ? stored.engagementNaming
+        : DEFAULT_NAMING,
   };
 }
 
@@ -84,6 +93,7 @@ export async function updateBranding(patch: {
   letterhead1?: string;
   letterhead2?: string;
   footer?: string;
+  engagementNaming?: string;
 }): Promise<void> {
   const { tenantId, role } = await requireTenant();
   if (!canManageFirm(role)) throw new BrandingError("forbidden");
@@ -95,7 +105,7 @@ export async function updateBranding(patch: {
     if (!LOGO_RE.test(patch.logo)) throw new BrandingError("invalid-logo-type");
     if (patch.logo.length > MAX_LOGO_CHARS) throw new BrandingError("logo-too-large");
   }
-  for (const key of ["displayName", "letterhead1", "letterhead2", "footer"] as const) {
+  for (const key of ["displayName", "letterhead1", "letterhead2", "footer", "engagementNaming"] as const) {
     const value = patch[key];
     if (typeof value === "string" && value.length > MAX_TEXT) throw new BrandingError("text-too-long");
   }
@@ -110,6 +120,10 @@ export async function updateBranding(patch: {
   if (patch.letterhead1 !== undefined) stored.letterhead1 = patch.letterhead1.trim();
   if (patch.letterhead2 !== undefined) stored.letterhead2 = patch.letterhead2.trim();
   if (patch.footer !== undefined) stored.footer = patch.footer.trim();
+  if (patch.engagementNaming !== undefined) {
+    const naming = patch.engagementNaming.trim();
+    stored.engagementNaming = naming === "" || naming === DEFAULT_NAMING ? null : naming;
+  }
 
   await withTenant(tenantId, async (tx) => {
     await tx.query(

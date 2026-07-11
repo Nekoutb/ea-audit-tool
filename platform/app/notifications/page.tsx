@@ -17,7 +17,7 @@ export default async function NotificationsPage() {
   const notifications = await listMyNotifications();
 
   return (
-    <main className="mx-auto min-h-screen max-w-4xl px-6 py-10">
+    <main className="min-h-screen w-full px-6 py-10">
       <AppNav locale={locale} />
 
       <h1 className="mt-8 text-2xl font-semibold tracking-[-0.01em] text-ink">

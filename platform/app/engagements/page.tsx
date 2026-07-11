@@ -2,7 +2,7 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import { auth } from "@/auth";
 import { AppNav } from "@/components/AppNav";
-import { Panel, PanelHeader } from "@/components/ui/atlas";
+import { Panel, PanelHeader, btnPrimary } from "@/components/ui/atlas";
 import { listEngagements } from "@/lib/engagements";
 import { getMessages } from "@/lib/i18n";
 import { getLocale } from "@/lib/locale";
@@ -16,11 +16,16 @@ export default async function EngagementsPage() {
   const engagements = await listEngagements();
 
   return (
-    <main className="mx-auto min-h-screen max-w-4xl px-6 py-10">
+    <main className="min-h-screen w-full px-6 py-10">
       <AppNav locale={locale} />
-      <h1 className="mt-8 text-2xl font-semibold tracking-[-0.02em] text-ink">
-        {t.engagements.title}
-      </h1>
+      <div className="mt-8 flex flex-wrap items-center justify-between gap-4">
+        <h1 className="text-2xl font-semibold tracking-[-0.02em] text-ink">
+          {t.engagements.title}
+        </h1>
+        <Link href="/new-engagement" className={btnPrimary} data-testid="new-engagement">
+          {t.engagements.newEngagement}
+        </Link>
+      </div>
 
       {engagements.length === 0 ? (
         <Panel className="mt-6">
@@ -52,7 +57,10 @@ export default async function EngagementsPage() {
                     className="border-t border-line transition-colors hover:bg-surface-2"
                   >
                     <td className="px-5 py-3 font-medium text-ink">
-                      {engagement.clientName}
+                      {engagement.name ?? engagement.clientName}
+                      {engagement.name ? (
+                        <span className="block text-xs font-normal text-muted">{engagement.clientName}</span>
+                      ) : null}
                     </td>
                     <td className="px-5 py-3 text-ink-soft tnum">
                       {engagement.fiscalYear}

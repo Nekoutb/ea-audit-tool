@@ -30,7 +30,7 @@ export default async function DashboardPage() {
   const [firm] = await Promise.all([firmDashboard()]);
 
   return (
-    <main className="mx-auto min-h-screen max-w-6xl px-6 py-6">
+    <main className="min-h-screen w-full px-6 py-6">
       <AppNav locale={locale} />
 
       <section className="mt-6">

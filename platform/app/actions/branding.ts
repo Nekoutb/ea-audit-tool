@@ -27,6 +27,7 @@ export async function updateBrandingAction(formData: FormData): Promise<void> {
       letterhead1: String(formData.get("letterhead1") ?? ""),
       letterhead2: String(formData.get("letterhead2") ?? ""),
       footer: String(formData.get("footer") ?? ""),
+      engagementNaming: String(formData.get("engagementNaming") ?? ""),
     });
   } catch (error) {
     if (error instanceof Error && /^[a-z0-9-]+$/.test(error.message)) {

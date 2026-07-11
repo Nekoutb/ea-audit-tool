@@ -3,6 +3,7 @@ import { auth } from "@/auth";
 import { updateBrandingAction } from "@/app/actions/branding";
 import { AppNav } from "@/components/AppNav";
 import { ErrorBanner } from "@/components/GatesPanel";
+import { LanguageSwitcher } from "@/components/LanguageSwitcher";
 import { Panel, PanelHeader, btnPrimary } from "@/components/ui/atlas";
 import { DEFAULT_ACCENT, getBranding } from "@/lib/branding";
 import { getMessages } from "@/lib/i18n";
@@ -27,7 +28,7 @@ export default async function SettingsPage(props: {
   const label = "flex flex-col gap-1 text-sm text-ink-soft";
 
   return (
-    <main className="mx-auto min-h-screen max-w-4xl px-6 py-10">
+    <main className="min-h-screen w-full px-6 py-10">
       <AppNav locale={locale} />
       <h1 className="mt-8 text-2xl font-semibold tracking-[-0.01em] text-ink">{ts.title}</h1>
       <ErrorBanner error={error} locale={locale} />
@@ -39,6 +40,13 @@ export default async function SettingsPage(props: {
           {ts.saved}
         </p>
       ) : null}
+
+      <Panel className="mt-6 p-6">
+        <PanelHeader title={ts.language} hint={ts.languageHint} />
+        <div className="mt-4">
+          <LanguageSwitcher current={locale} />
+        </div>
+      </Panel>
 
       <Panel className="mt-6 p-6">
         <PanelHeader title={ts.brandingTitle} hint={ts.brandingHint} />
@@ -99,6 +107,17 @@ export default async function SettingsPage(props: {
             <label className={label}>
               {ts.footer}
               <input name="footer" maxLength={160} defaultValue={branding.footer} className={input} data-testid="branding-footer" />
+            </label>
+            <label className={label}>
+              {ts.naming}
+              <input
+                name="engagementNaming"
+                maxLength={160}
+                defaultValue={branding.engagementNaming}
+                className={input}
+                data-testid="branding-naming"
+              />
+              <span className="text-xs text-muted">{ts.namingHint}</span>
             </label>
             <button
               type="submit"

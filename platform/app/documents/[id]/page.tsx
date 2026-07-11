@@ -57,7 +57,7 @@ export default async function DocumentPage(props: {
     "rounded-[var(--radius-atlas-sm)] border border-line-strong bg-surface px-3 py-1.5 text-sm text-ink outline-none focus:border-emerald-600 focus:ring-2 focus:ring-emerald-600/20";
 
   return (
-    <main className="mx-auto min-h-screen max-w-5xl px-6 py-10">
+    <main className="min-h-screen w-full px-6 py-10">
       <AppNav locale={locale} />
 
       <div className="mt-8">

@@ -60,8 +60,8 @@ export default async function PhaseTasksPage(props: {
     );
 
   return (
-    <main className="mx-auto flex min-h-screen w-full max-w-5xl flex-col gap-4 px-6 py-4">
-      <AppNav locale={locale} current={{ id, label: engagement.clientName }} />
+    <main className="flex min-h-screen w-full flex-col gap-4 px-6 py-4">
+      <AppNav locale={locale} current={{ id, label: engagement.name ?? engagement.clientName }} />
 
       <div className="flex flex-wrap items-end justify-between gap-4">
         <div>

@@ -70,7 +70,7 @@ export default async function FormPage(props: {
     "rounded-[var(--radius-atlas-sm)] border border-line-strong bg-surface px-3 py-2 text-sm text-ink outline-none focus:border-emerald-600 focus:ring-2 focus:ring-emerald-600/20";
 
   return (
-    <main className="mx-auto min-h-screen max-w-4xl px-6 py-10">
+    <main className="min-h-screen w-full px-6 py-10">
       <AppNav locale={locale} />
       <h1 className="mt-8 text-2xl font-semibold tracking-[-0.02em] text-ink">
         {code} · {engagement.clientName} — {engagement.fiscalYear}

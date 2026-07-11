@@ -27,8 +27,11 @@ test("full Phase 1 acceptance flow on D3.1", async ({ page }) => {
   await page.waitForURL("**/clients/**");
 
   // Create the engagement; landing on the audit file page.
+  await page.getByTestId("new-engagement").click();
+  await page.waitForURL("**/new-engagement**");
   await page.getByTestId("engagement-year").fill("2025");
   await page.getByTestId("engagement-period-end").fill("2025-12-31");
+  await page.getByTestId("cq-listed").check();
   await page.getByTestId("create-engagement").click();
   await page.waitForURL("**/engagements/**");
 

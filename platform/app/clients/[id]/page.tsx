@@ -1,7 +1,6 @@
 import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
 import { auth } from "@/auth";
-import { createEngagementAction } from "@/app/actions/audit-file";
 import { addPortalContactAction } from "@/app/actions/pbc";
 import { AppNav } from "@/components/AppNav";
 import { ErrorBanner } from "@/components/GatesPanel";
@@ -28,12 +27,11 @@ export default async function ClientDetailPage(props: {
   if (!client) notFound();
   const [engagements, contacts] = await Promise.all([listEngagements(id), listPortalContacts(id)]);
 
-  const currentYear = new Date().getFullYear();
   const inputClass =
     "rounded-[var(--radius-atlas-sm)] border border-line-strong bg-surface px-3 py-2 text-sm text-ink outline-none focus:border-emerald-600 focus:ring-2 focus:ring-emerald-600/20";
 
   return (
-    <main className="mx-auto min-h-screen max-w-4xl px-6 py-10">
+    <main className="min-h-screen w-full px-6 py-10">
       <AppNav locale={locale} />
       <div className="mt-8 flex items-baseline justify-between">
         <h1 className="text-2xl font-semibold tracking-[-0.02em] text-ink">{client.name}</h1>
@@ -72,41 +70,16 @@ export default async function ClientDetailPage(props: {
       </section>
 
       <Panel className="mt-10 p-6">
-        <PanelHeader title={t.engagements.newEngagement} />
-        <form action={createEngagementAction} className="mt-4 flex flex-wrap items-end gap-4">
-          <input type="hidden" name="clientId" value={client.id} />
-          <label className="flex flex-col gap-1 text-sm">
-            <span className="text-ink-soft">{t.engagements.fiscalYear}</span>
-            <input
-              name="fiscalYear"
-              type="number"
-              min="2000"
-              max="2100"
-              defaultValue={currentYear}
-              required
-              className={inputClass}
-              data-testid="engagement-year"
-            />
-          </label>
-          <label className="flex flex-col gap-1 text-sm">
-            <span className="text-ink-soft">{t.engagements.periodEnd}</span>
-            <input
-              name="periodEnd"
-              type="date"
-              defaultValue={`${currentYear}-12-31`}
-              required
-              className={inputClass}
-              data-testid="engagement-period-end"
-            />
-          </label>
-          <button
-            type="submit"
-            data-testid="create-engagement"
+        <div className="flex flex-wrap items-center justify-between gap-4">
+          <PanelHeader title={t.engagements.newEngagement} hint={t.engagements.newEngagementHint} />
+          <Link
+            href={`/new-engagement?client=${client.id}`}
             className={btnPrimary}
+            data-testid="new-engagement"
           >
-            {t.engagements.createEngagement}
-          </button>
-        </form>
+            {t.engagements.newEngagement}
+          </Link>
+        </div>
       </Panel>
 
       <Panel className="mt-10 p-6">

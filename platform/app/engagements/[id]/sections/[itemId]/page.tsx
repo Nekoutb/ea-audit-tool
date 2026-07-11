@@ -82,7 +82,7 @@ export default async function SectionPage(props: {
     "rounded-[var(--radius-atlas-sm)] border border-line-strong bg-surface px-3 py-1.5 text-sm font-medium text-ink-soft hover:bg-surface-2";
 
   return (
-    <main className="mx-auto min-h-screen max-w-5xl px-6 py-10">
+    <main className="min-h-screen w-full px-6 py-10">
       <AppNav locale={locale} />
       <div className="mt-8 flex flex-wrap items-center justify-between gap-2">
         <h1 className="text-2xl font-semibold text-ink">

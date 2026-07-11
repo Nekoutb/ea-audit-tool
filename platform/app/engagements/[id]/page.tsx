@@ -25,7 +25,7 @@ export default async function EngagementFilePage(props: { params: Promise<{ id: 
   const td = t.engagementDashboard;
 
   return (
-    <main className="mx-auto min-h-screen max-w-5xl px-6 py-10">
+    <main className="min-h-screen w-full px-6 py-10">
       <AppNav locale={locale} />
       <div className="mt-8 flex items-baseline justify-between">
         <h1 className="text-2xl font-semibold tracking-[-0.02em] text-ink">

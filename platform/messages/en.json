@@ -22,6 +22,10 @@
   },
   "settings": {
     "title": "Firm settings",
+    "language": "Language",
+    "languageHint": "Interface language for your session.",
+    "naming": "Engagement naming convention",
+    "namingHint": "Used to pre-fill new engagement names. Placeholders: {CLIENT} and {YEAR}.",
     "brandingTitle": "Branding & letterhead",
     "brandingHint": "Applies to every screen for your firm and to the header of every generated letter and report.",
     "displayName": "Firm display name",
@@ -151,6 +155,38 @@
     "phase": "Phase",
     "newEngagement": "New engagement",
     "createEngagement": "Create engagement",
+    "newEngagementTitle": "New audit engagement",
+    "newEngagementHint": "Identify the engagement, then answer the profile questions. The classification drives the nature, timing and extent of the work: heavier documentation for complex entities, lighter for very simple ones.",
+    "name": "Engagement name",
+    "nameHint": "Pre-filled from your firm's naming convention (Settings).",
+    "assessment": {
+      "title": "Engagement profile",
+      "hint": "15 questions · determines the complexity classification",
+      "result": "Classification",
+      "levels": {
+        "complex": "Complex entity",
+        "non_complex": "Non-complex entity",
+        "very_simple": "Very simple entity"
+      },
+      "formsNote": "{count} working papers will be instantiated",
+      "questions": {
+        "listed": "Is the entity listed or does it make a public call for savings (APE)?",
+        "publicInterest": "Is it a public-interest or regulated entity (bank, microfinance, insurance, pension)?",
+        "group": "Does it prepare consolidated financial statements or is it a significant group component?",
+        "jointAudit": "Is this a joint audit (co-commissaire aux comptes)?",
+        "foreignOps": "Are there foreign operations or significant foreign-currency transactions?",
+        "complexFinancing": "Is the financing complex (derivatives, hedging, structured debt, covenants)?",
+        "complexRevenue": "Is revenue recognition complex (long-term contracts, multiple streams, variable consideration)?",
+        "estimates": "Are there significant estimates or fair values (impairment, provisions, deferred tax)?",
+        "controlsReliance": "Will the audit rely on internal controls or is the control environment complex?",
+        "complexIt": "Is the IT environment complex or highly automated (integrated ERP, e-commerce)?",
+        "multiLocation": "Does the entity operate from multiple locations, branches or warehouses?",
+        "largeSize": "Does it exceed large-entity thresholds (revenue above 1 billion FCFA or over 100 staff)?",
+        "firstAudit": "Is this a first-year audit, or has the entity existed for less than two years?",
+        "goingConcern": "Is there going-concern pressure, significant litigation or a prior modified opinion?",
+        "relatedParties": "Are there extensive related-party or intra-group transactions?"
+      }
+    },
     "open": "Open",
     "phases": {
       "acceptance": "Acceptance",
@@ -776,6 +812,7 @@
       "already-archived": "The file is already archived.",
       "archived": "This file is archived and immutable.",
       "invalid-year": "The new fiscal year must be after the current one.",
+      "invalid-engagement": "Check the engagement fields: client, fiscal year and period end are required.",
       "invalid-sample-size": "Sample size must be at least 1.",
       "seed-required": "A documented seed is required (reproducibility).",
       "threshold-required": "A key-item threshold is required for this method.",

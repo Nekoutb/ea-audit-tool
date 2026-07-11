@@ -4,6 +4,15 @@
 
 export type Section = "A" | "B" | "C" | "D" | "E" | "F";
 
+/**
+ * Documentation tier (nature/timing/extent scaling by engagement complexity):
+ * "core" items instantiate on EVERY engagement including very simple ones;
+ * "standard" items add on non-complex and complex engagements; "extended"
+ * items only instantiate on complex engagements. Entries without a tier are
+ * standard.
+ */
+export type FileIndexTier = "core" | "standard" | "extended";
+
 export interface FileIndexEntry {
   code: string;
   section: Section;
@@ -11,6 +20,7 @@ export interface FileIndexEntry {
   titleFr: string;
   /** Instantiated but only activated when a trigger question answers "yes". */
   conditional?: boolean;
+  tier?: FileIndexTier;
 }
 
 export const DEFAULT_FILE_INDEX: readonly FileIndexEntry[] = [
@@ -101,6 +111,45 @@ export const DEFAULT_FILE_INDEX: readonly FileIndexEntry[] = [
   { code: "F7", section: "F", titleEn: "Equity vs Half-of-Share-Capital Monitoring", titleFr: "Suivi capitaux propres / moitié du capital social" },
   { code: "F8", section: "F", titleEn: "Co-CAC Coordination File", titleFr: "Dossier de coordination co-commissariat" },
 ] as const;
+
+// ---- documentation scaling by engagement complexity ----
+
+/** Instantiated on every engagement, including very simple entities. */
+const CORE_CODES = new Set([
+  "A1",
+  "B1", "B4", "B5", "B6", "B7", "B8", "B10",
+  "C1",
+  "D1", "D3.1", "D4.1", "D4.2", "D4.3", "D5.1", "D5.4", "D5.5", "D7.1", "D7.2",
+  "E100", "E110", "E120", "E170", "E180", "E330", "E360", "E370", "E380",
+  "F1",
+]);
+
+/** Only instantiated on complex engagements. */
+const EXTENDED_CODES = new Set(["B2", "E150", "E160", "E210", "E220", "F4", "F8"]);
+
+export function tierOf(entry: FileIndexEntry): FileIndexTier {
+  if (entry.tier) return entry.tier;
+  if (CORE_CODES.has(entry.code)) return "core";
+  if (EXTENDED_CODES.has(entry.code)) return "extended";
+  return "standard";
+}
+
+/**
+ * The file-index entries to instantiate for a given complexity level — the
+ * concrete "extent of documentation" effect of the classification:
+ * very_simple = core only (no conditional forms), non_complex = core + standard,
+ * complex = the full index.
+ */
+export function itemsForComplexity(
+  complexity: "complex" | "non_complex" | "very_simple",
+): FileIndexEntry[] {
+  return DEFAULT_FILE_INDEX.filter((entry) => {
+    const tier = tierOf(entry);
+    if (complexity === "very_simple") return tier === "core" && !entry.conditional;
+    if (complexity === "non_complex") return tier !== "extended";
+    return true;
+  });
+}
 
 export const SECTIONS: readonly { section: Section; titleEn: string; titleFr: string }[] = [
   { section: "A", titleEn: "Financial statements", titleFr: "États financiers" },
