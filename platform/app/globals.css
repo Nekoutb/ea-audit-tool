@@ -1,26 +1,147 @@
 @import "tailwindcss";
 
-:root {
-  --background: #ffffff;
-  --foreground: #171717;
-}
+/*
+ * Atlas design system.
+ * The accent stays on Tailwind v4's emerald scale (var(--color-emerald-*)) so the
+ * per-firm white-label override in BrandStyle.tsx keeps re-branding the whole UI
+ * from one colour. Everything else — canvas, surface, ink, lines, radius, shadow —
+ * is Atlas: a soft cool-neutral ground, white surfaces with layered depth, graphite
+ * ink, one radius scale, an evergreen accent. Tokens are declared as CSS variables
+ * so they adapt to dark mode, then exposed to Tailwind via `@theme inline`.
+ */
 
-@theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
+:root {
+  --canvas: #eef1f6;
+  --surface: #ffffff;
+  --surface-2: #f6f8fb;
+  --ink: #111827;
+  --ink-soft: #3a4658;
+  --muted: #67728a;
+  --line: #e3e8f0;
+  --line-strong: #d3dbe7;
+  --warn: #a86f12;
+  --warn-soft: #f7edd8;
+  --rose: #b23c4f;
+  --rose-soft: #f7e7ea;
+  --good: #12795a;
+  --good-soft: #e4f2ec;
+
+  --radius-atlas: 14px;
+  --radius-atlas-sm: 10px;
+  --radius-atlas-xs: 7px;
+
+  --shadow-atlas-sm: 0 1px 2px rgba(17, 24, 39, 0.05);
+  --shadow-atlas: 0 1px 2px rgba(17, 24, 39, 0.05), 0 10px 28px rgba(20, 45, 90, 0.08);
+  --shadow-atlas-lg: 0 2px 6px rgba(17, 24, 39, 0.07), 0 20px 46px rgba(20, 45, 90, 0.14);
+
+  --ease-atlas: cubic-bezier(0.22, 1, 0.36, 1);
+
+  /* legacy tokens kept so nothing referencing them breaks */
+  --background: var(--canvas);
+  --foreground: var(--ink);
 }
 
 @media (prefers-color-scheme: dark) {
   :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
+    --canvas: #0c1017;
+    --surface: #141b26;
+    --surface-2: #101722;
+    --ink: #eaeff7;
+    --ink-soft: #b9c3d3;
+    --muted: #8492a6;
+    --line: #232d3c;
+    --line-strong: #2f3b4d;
+    --warn: #e0b054;
+    --warn-soft: #2a2113;
+    --rose: #ef7a8b;
+    --rose-soft: #2b171b;
+    --good: #3fbf8a;
+    --good-soft: #12241d;
+
+    --shadow-atlas-sm: 0 1px 2px rgba(0, 0, 0, 0.4);
+    --shadow-atlas: 0 1px 2px rgba(0, 0, 0, 0.4), 0 14px 34px rgba(0, 0, 0, 0.45);
+    --shadow-atlas-lg: 0 2px 6px rgba(0, 0, 0, 0.5), 0 24px 52px rgba(0, 0, 0, 0.55);
   }
 }
 
+@theme inline {
+  --color-background: var(--canvas);
+  --color-foreground: var(--ink);
+  --color-canvas: var(--canvas);
+  --color-surface: var(--surface);
+  --color-surface-2: var(--surface-2);
+  --color-ink: var(--ink);
+  --color-ink-soft: var(--ink-soft);
+  --color-muted: var(--muted);
+  --color-line: var(--line);
+  --color-line-strong: var(--line-strong);
+  --color-warn: var(--warn);
+  --color-warn-soft: var(--warn-soft);
+  --color-rose: var(--rose);
+  --color-rose-soft: var(--rose-soft);
+  --color-good: var(--good);
+  --color-good-soft: var(--good-soft);
+
+  --radius-atlas: var(--radius-atlas);
+  --radius-atlas-sm: var(--radius-atlas-sm);
+  --radius-atlas-xs: var(--radius-atlas-xs);
+
+  --shadow-atlas-sm: var(--shadow-atlas-sm);
+  --shadow-atlas: var(--shadow-atlas);
+  --shadow-atlas-lg: var(--shadow-atlas-lg);
+
+  --font-sans: var(--font-geist-sans);
+  --font-mono: var(--font-geist-mono);
+}
+
+* {
+  border-color: var(--line);
+}
+
 body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  background: var(--canvas);
+  color: var(--ink);
+  font-family: var(--font-geist-sans), "Segoe UI", system-ui, -apple-system, Roboto, Arial, sans-serif;
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+  font-variant-numeric: tabular-nums;
+}
+
+.tnum {
+  font-variant-numeric: tabular-nums;
+}
+
+/* App-wide page-transition loader (see components/PageLoader.tsx). */
+#atlas-loader {
+  position: fixed;
+  top: 0;
+  left: 0;
+  height: 2px;
+  width: 0;
+  background: linear-gradient(90deg, var(--color-emerald-600), var(--color-emerald-400));
+  z-index: 100;
+  opacity: 0;
+  pointer-events: none;
+}
+#atlas-loader.run {
+  opacity: 1;
+  width: 92%;
+  transition: width 0.9s cubic-bezier(0.1, 0.7, 0.1, 1);
+}
+#atlas-loader.done {
+  opacity: 0;
+  width: 100%;
+  transition: width 0.18s ease, opacity 0.3s ease 0.1s;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  #atlas-loader.run {
+    transition: none;
+  }
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    transition-duration: 0.01ms !important;
+  }
 }

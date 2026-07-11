@@ -16,6 +16,7 @@ import {
 import { AppNav } from "@/components/AppNav";
 import { EngagementTabs } from "@/components/EngagementTabs";
 import { ErrorBanner } from "@/components/GatesPanel";
+import { Panel } from "@/components/ui/atlas";
 import { CONFIRMATION_TYPES, confirmationSummary, listConfirmationsFor } from "@/lib/confirmations";
 import { getEngagement, listFileItems } from "@/lib/engagements";
 import { formatFCFA, getMessages } from "@/lib/i18n";
@@ -46,24 +47,23 @@ export default async function ConfirmationsPage(props: {
   const eSections = items.filter((item) => item.section === "E");
 
   const btn =
-    "rounded-md border border-slate-300 px-2.5 py-1 text-xs font-medium text-slate-700 hover:bg-slate-100 dark:border-slate-700 dark:text-slate-300 dark:hover:bg-slate-800";
+    "rounded-[var(--radius-atlas-sm)] border border-line-strong bg-surface px-2.5 py-1 text-xs font-medium text-ink-soft transition hover:bg-surface-2";
   const input =
-    "rounded-md border border-slate-300 bg-white px-2 py-1 text-xs text-slate-900 outline-none focus:border-emerald-600 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-100";
-  const card = "mt-6 rounded-xl border border-slate-200 p-5 dark:border-slate-800";
+    "rounded-[var(--radius-atlas-sm)] border border-line-strong bg-surface px-2 py-1 text-xs text-ink outline-none focus:border-emerald-600 focus:ring-2 focus:ring-emerald-600/20";
 
   return (
     <main className="mx-auto min-h-screen max-w-6xl px-6 py-10">
       <AppNav locale={locale} />
-      <h1 className="mt-8 text-2xl font-semibold text-slate-900 dark:text-slate-100">
+      <h1 className="mt-8 text-2xl font-semibold text-ink">
         {engagement.clientName} — {engagement.fiscalYear} · {tc.title}
       </h1>
       <EngagementTabs engagementId={id} locale={locale} active="confirmations" />
       <ErrorBanner error={error} locale={locale} />
 
-      <section className={card}>
+      <Panel className="mt-6">
         <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
-          <form action={selectConfirmationsAction.bind(null, id)} className="rounded-lg border border-slate-200 p-3 dark:border-slate-800">
-            <p className="text-sm font-semibold text-slate-900 dark:text-slate-100">{tc.select}</p>
+          <form action={selectConfirmationsAction.bind(null, id)} className="rounded-[var(--radius-atlas)] border border-line bg-surface-2 p-3">
+            <p className="text-sm font-semibold text-ink">{tc.select}</p>
             <div className="mt-2 flex flex-wrap items-end gap-2">
               <select name="datasetId" required className={input} data-testid="conf-dataset">
                 {datasets.map((dataset) => (
@@ -82,7 +82,7 @@ export default async function ConfirmationsPage(props: {
               </select>
               <input name="threshold" type="number" placeholder={tc.threshold} className={input} data-testid="conf-threshold" />
               <input name="topN" type="number" placeholder={tc.topN} className={input} />
-              <label className="flex items-center gap-1 text-xs text-slate-500">
+              <label className="flex items-center gap-1 text-xs text-muted">
                 <input type="checkbox" name="includeNil" /> {tc.includeNil}
               </label>
               <button type="submit" className={btn} data-testid="conf-select">
@@ -91,8 +91,8 @@ export default async function ConfirmationsPage(props: {
             </div>
           </form>
 
-          <form action={addManualAction.bind(null, id)} className="rounded-lg border border-slate-200 p-3 dark:border-slate-800">
-            <p className="text-sm font-semibold text-slate-900 dark:text-slate-100">{tc.manual}</p>
+          <form action={addManualAction.bind(null, id)} className="rounded-[var(--radius-atlas)] border border-line bg-surface-2 p-3">
+            <p className="text-sm font-semibold text-ink">{tc.manual}</p>
             <div className="mt-2 flex flex-wrap items-end gap-2">
               <select name="ctype" className={input} data-testid="manual-type">
                 {CONFIRMATION_TYPES.map((ctype) => (
@@ -117,7 +117,7 @@ export default async function ConfirmationsPage(props: {
         {summary.length > 0 ? (
           <div className="mt-4 flex flex-wrap gap-3 text-sm" data-testid="conf-summary">
             {summary.map((row) => (
-              <span key={row.ctype} className="rounded bg-slate-100 px-2 py-1 dark:bg-slate-800">
+              <span key={row.ctype} className="rounded-[var(--radius-atlas-xs)] bg-surface-2 px-2 py-1 text-ink-soft tnum">
                 {tc.types[row.ctype]}: {row.replied}/{row.total} {tc.coverage}
                 {row.outstanding > 0 ? ` · ${row.outstanding} ${tc.outstanding}` : ""}
               </span>
@@ -130,15 +130,15 @@ export default async function ConfirmationsPage(props: {
             </form>
           </div>
         ) : null}
-      </section>
+      </Panel>
 
-      <section className={card}>
+      <Panel className="mt-6" flush>
         {confirmations.length === 0 ? (
-          <p className="text-sm text-slate-500 dark:text-slate-400">{tc.empty}</p>
+          <p className="p-5 text-sm text-muted">{tc.empty}</p>
         ) : (
-          <div className="overflow-x-auto rounded-lg border border-slate-200 dark:border-slate-800">
+          <div className="overflow-x-auto rounded-[var(--radius-atlas)]">
             <table className="w-full text-sm" data-testid="confirmations-table">
-              <thead className="bg-slate-50 text-left text-xs uppercase tracking-wide text-slate-500 dark:bg-slate-900 dark:text-slate-400">
+              <thead className="bg-surface-2 text-left text-xs uppercase tracking-wide text-muted">
                 <tr>
                   <th className="px-3 py-2">{tc.type}</th>
                   <th className="px-3 py-2">{tc.party}</th>
@@ -150,15 +150,15 @@ export default async function ConfirmationsPage(props: {
               </thead>
               <tbody>
                 {confirmations.map((confirmation) => (
-                  <tr key={confirmation.id} className="border-t border-slate-200 dark:border-slate-800" data-testid={`conf-row-${confirmation.partyName}`}>
-                    <td className="px-3 py-2 text-xs">{tc.types[confirmation.ctype]}</td>
-                    <td className="px-3 py-2 font-medium text-slate-900 dark:text-slate-100">
+                  <tr key={confirmation.id} className="border-t border-line hover:bg-surface-2" data-testid={`conf-row-${confirmation.partyName}`}>
+                    <td className="px-3 py-2 text-xs text-ink-soft">{tc.types[confirmation.ctype]}</td>
+                    <td className="px-3 py-2 font-medium text-ink">
                       {confirmation.partyName}
                       {confirmation.reminderCount > 0 ? (
-                        <span className="ml-1 text-xs text-slate-500">({confirmation.reminderCount}↻)</span>
+                        <span className="ml-1 text-xs text-muted">({confirmation.reminderCount}↻)</span>
                       ) : null}
                     </td>
-                    <td className="px-3 py-2 text-right">
+                    <td className="px-3 py-2 text-right tnum">
                       {confirmation.bookAmount !== null ? formatFCFA(confirmation.bookAmount) : "—"}
                     </td>
                     <td className="px-3 py-2">
@@ -166,19 +166,19 @@ export default async function ConfirmationsPage(props: {
                         data-testid={`conf-status-${confirmation.partyName}`}
                         className={
                           confirmation.status === "exception"
-                            ? "rounded bg-red-100 px-1.5 py-0.5 text-xs font-semibold text-red-700 dark:bg-red-950 dark:text-red-300"
+                            ? "rounded-[var(--radius-atlas-xs)] bg-[var(--color-rose-soft)] px-1.5 py-0.5 text-xs font-semibold text-rose"
                             : confirmation.status === "reconciled" || confirmation.status === "closed"
-                              ? "rounded bg-emerald-100 px-1.5 py-0.5 text-xs text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300"
-                              : "rounded bg-slate-100 px-1.5 py-0.5 text-xs text-slate-600 dark:bg-slate-800 dark:text-slate-400"
+                              ? "rounded-[var(--radius-atlas-xs)] bg-emerald-100 px-1.5 py-0.5 text-xs text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300"
+                              : "rounded-[var(--radius-atlas-xs)] bg-surface-2 px-1.5 py-0.5 text-xs text-ink-soft"
                         }
                       >
                         {tc.statuses[confirmation.status]}
                       </span>
                       {confirmation.altProcedure ? (
-                        <span className="ml-1 text-xs text-slate-500">· {confirmation.altProcedure}</span>
+                        <span className="ml-1 text-xs text-muted">· {confirmation.altProcedure}</span>
                       ) : null}
                     </td>
-                    <td className="px-3 py-2 text-right">
+                    <td className="px-3 py-2 text-right tnum">
                       {confirmation.difference !== null ? formatFCFA(confirmation.difference) : ""}
                     </td>
                     <td className="px-3 py-2">
@@ -249,7 +249,7 @@ export default async function ConfirmationsPage(props: {
             </table>
           </div>
         )}
-      </section>
+      </Panel>
     </main>
   );
 }

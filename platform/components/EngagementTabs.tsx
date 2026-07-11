@@ -9,6 +9,7 @@ export function EngagementTabs({
   engagementId: string;
   locale: Locale;
   active:
+    | "dashboard"
     | "file"
     | "acceptance"
     | "planning"
@@ -23,6 +24,7 @@ export function EngagementTabs({
 }) {
   const t = getMessages(locale);
   const tabs = [
+    { key: "dashboard", href: `/engagements/${engagementId}/dashboard`, label: t.nav.dashboard },
     { key: "file", href: `/engagements/${engagementId}`, label: t.fileIndex.title },
     { key: "acceptance", href: `/engagements/${engagementId}/acceptance`, label: t.planning.acceptanceTitle },
     { key: "planning", href: `/engagements/${engagementId}/planning`, label: t.planning.planningTitle },
@@ -36,16 +38,17 @@ export function EngagementTabs({
     { key: "conclusion", href: `/engagements/${engagementId}/conclusion`, label: t.planning.conclusion.title },
   ] as const;
   return (
-    <div className="mt-4 flex flex-wrap gap-2 border-b border-slate-200 pb-2 dark:border-slate-800">
+    <div className="mt-4 flex flex-nowrap gap-1.5 overflow-x-auto border-b border-line pb-2 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
       {tabs.map((tab) => (
         <Link
           key={tab.key}
           href={tab.href}
           data-testid={`tab-${tab.key}`}
+          aria-current={tab.key === active ? "page" : undefined}
           className={
             tab.key === active
-              ? "rounded-md bg-emerald-700 px-3 py-1.5 text-sm font-medium text-white"
-              : "rounded-md px-3 py-1.5 text-sm font-medium text-slate-600 hover:bg-slate-100 dark:text-slate-400 dark:hover:bg-slate-800"
+              ? "flex-shrink-0 rounded-[var(--radius-atlas-xs)] bg-emerald-700 px-3 py-1.5 text-sm font-medium text-white"
+              : "flex-shrink-0 rounded-[var(--radius-atlas-xs)] px-3 py-1.5 text-sm font-medium text-ink-soft transition hover:bg-surface-2"
           }
         >
           {tab.label}

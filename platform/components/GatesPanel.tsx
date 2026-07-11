@@ -11,12 +11,12 @@ export function GatesPanel({ gates, locale }: { gates: GateResult[]; locale: Loc
             className={
               gate.ok
                 ? "inline-flex h-5 min-w-5 items-center justify-center rounded-full bg-emerald-100 px-1 text-xs font-bold text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300"
-                : "inline-flex h-5 min-w-5 items-center justify-center rounded-full bg-red-100 px-1 text-xs font-bold text-red-700 dark:bg-red-950 dark:text-red-300"
+                : "inline-flex h-5 min-w-5 items-center justify-center rounded-full bg-[var(--color-rose-soft)] px-1 text-xs font-bold text-rose"
             }
           >
             {gate.ok ? "✓" : "✗"}
           </span>
-          <span className={gate.ok ? "text-slate-600 dark:text-slate-400" : "font-medium text-slate-900 dark:text-slate-100"}>
+          <span className={gate.ok ? "text-ink-soft" : "font-medium text-ink"}>
             {t.gateNames[gate.key as keyof typeof t.gateNames] ?? gate.key}
           </span>
         </li>
@@ -42,7 +42,7 @@ export function ErrorBanner({
     <div
       role="alert"
       data-testid="planning-error"
-      className="mt-4 rounded-md border border-red-300 bg-red-50 px-4 py-3 text-sm text-red-800 dark:border-red-900 dark:bg-red-950/40 dark:text-red-300"
+      className="mt-4 rounded-[var(--radius-atlas-sm)] border border-line-strong bg-[var(--color-rose-soft)] px-4 py-3 text-sm text-rose"
     >
       <p>{message}</p>
       {failedKeys.length > 0 ? (

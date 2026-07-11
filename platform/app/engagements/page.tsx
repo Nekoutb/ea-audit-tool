@@ -2,6 +2,7 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import { auth } from "@/auth";
 import { AppNav } from "@/components/AppNav";
+import { Panel, PanelHeader } from "@/components/ui/atlas";
 import { listEngagements } from "@/lib/engagements";
 import { getMessages } from "@/lib/i18n";
 import { getLocale } from "@/lib/locale";
@@ -17,55 +18,65 @@ export default async function EngagementsPage() {
   return (
     <main className="mx-auto min-h-screen max-w-4xl px-6 py-10">
       <AppNav locale={locale} />
-      <h1 className="mt-8 text-2xl font-semibold text-slate-900 dark:text-slate-100">
+      <h1 className="mt-8 text-2xl font-semibold tracking-[-0.02em] text-ink">
         {t.engagements.title}
       </h1>
 
       {engagements.length === 0 ? (
-        <p className="mt-6 text-sm text-slate-500 dark:text-slate-400">{t.engagements.empty}</p>
+        <Panel className="mt-6">
+          <p className="text-sm text-muted">{t.engagements.empty}</p>
+        </Panel>
       ) : (
-        <div className="mt-6 overflow-x-auto rounded-lg border border-slate-200 dark:border-slate-800">
-          <table className="w-full text-sm" data-testid="engagements-table">
-            <thead className="bg-slate-50 text-left text-xs uppercase tracking-wide text-slate-500 dark:bg-slate-900 dark:text-slate-400">
-              <tr>
-                <th className="px-4 py-3">{t.engagements.client}</th>
-                <th className="px-4 py-3">{t.engagements.fiscalYear}</th>
-                <th className="px-4 py-3">{t.engagements.periodEnd}</th>
-                <th className="px-4 py-3">{t.engagements.phase}</th>
-                <th className="px-4 py-3" />
-              </tr>
-            </thead>
-            <tbody>
-              {engagements.map((engagement) => (
-                <tr
-                  key={engagement.id}
-                  className="border-t border-slate-200 dark:border-slate-800"
-                >
-                  <td className="px-4 py-3 font-medium text-slate-900 dark:text-slate-100">
-                    {engagement.clientName}
-                  </td>
-                  <td className="px-4 py-3 text-slate-600 dark:text-slate-400">
-                    {engagement.fiscalYear}
-                  </td>
-                  <td className="px-4 py-3 text-slate-600 dark:text-slate-400">
-                    {engagement.periodEnd}
-                  </td>
-                  <td className="px-4 py-3 text-slate-600 dark:text-slate-400">
-                    {t.engagements.phases[engagement.phase]}
-                  </td>
-                  <td className="px-4 py-3 text-right">
-                    <Link
-                      href={`/engagements/${engagement.id}`}
-                      className="font-medium text-emerald-700 hover:underline dark:text-emerald-400"
-                    >
-                      {t.engagements.open}
-                    </Link>
-                  </td>
+        <Panel className="mt-6" flush>
+          <div className="border-b border-line px-5 py-4">
+            <PanelHeader
+              title={t.engagements.title}
+              hint={String(engagements.length)}
+            />
+          </div>
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm" data-testid="engagements-table">
+              <thead className="text-left text-xs uppercase tracking-wide text-muted">
+                <tr>
+                  <th className="px-5 py-3 font-semibold">{t.engagements.client}</th>
+                  <th className="px-5 py-3 font-semibold">{t.engagements.fiscalYear}</th>
+                  <th className="px-5 py-3 font-semibold">{t.engagements.periodEnd}</th>
+                  <th className="px-5 py-3 font-semibold">{t.engagements.phase}</th>
+                  <th className="px-5 py-3" />
                 </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
+              </thead>
+              <tbody>
+                {engagements.map((engagement) => (
+                  <tr
+                    key={engagement.id}
+                    className="border-t border-line transition-colors hover:bg-surface-2"
+                  >
+                    <td className="px-5 py-3 font-medium text-ink">
+                      {engagement.clientName}
+                    </td>
+                    <td className="px-5 py-3 text-ink-soft tnum">
+                      {engagement.fiscalYear}
+                    </td>
+                    <td className="px-5 py-3 text-ink-soft tnum">
+                      {engagement.periodEnd}
+                    </td>
+                    <td className="px-5 py-3 text-ink-soft">
+                      {t.engagements.phases[engagement.phase]}
+                    </td>
+                    <td className="px-5 py-3 text-right">
+                      <Link
+                        href={`/engagements/${engagement.id}`}
+                        className="font-medium text-emerald-700 hover:underline dark:text-emerald-400"
+                      >
+                        {t.engagements.open}
+                      </Link>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </Panel>
       )}
     </main>
   );

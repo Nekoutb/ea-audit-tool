@@ -27,36 +27,37 @@ export function LoginForm({ messages }: { messages: Messages["login"] }) {
       setError(messages.error);
       return;
     }
-    router.push("/dashboard");
+    // "/" resolves to the most-recently-worked engagement's dashboard.
+    router.push("/");
     router.refresh();
   }
 
   return (
     <form onSubmit={onSubmit} className="flex flex-col gap-4">
       <label className="flex flex-col gap-1 text-sm">
-        <span className="font-medium text-slate-700 dark:text-slate-300">{messages.email}</span>
+        <span className="font-medium text-ink-soft">{messages.email}</span>
         <input
           name="email"
           type="email"
           autoComplete="username"
           required
-          className="rounded-md border border-slate-300 bg-white px-3 py-2 text-slate-900 outline-none focus:border-emerald-600 focus:ring-2 focus:ring-emerald-600/20 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-100"
+          className="rounded-[var(--radius-atlas-sm)] border border-line-strong bg-surface px-3 py-2 text-ink outline-none focus:border-emerald-600 focus:ring-2 focus:ring-emerald-600/20"
         />
       </label>
 
       <label className="flex flex-col gap-1 text-sm">
-        <span className="font-medium text-slate-700 dark:text-slate-300">{messages.password}</span>
+        <span className="font-medium text-ink-soft">{messages.password}</span>
         <input
           name="password"
           type="password"
           autoComplete="current-password"
           required
-          className="rounded-md border border-slate-300 bg-white px-3 py-2 text-slate-900 outline-none focus:border-emerald-600 focus:ring-2 focus:ring-emerald-600/20 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-100"
+          className="rounded-[var(--radius-atlas-sm)] border border-line-strong bg-surface px-3 py-2 text-ink outline-none focus:border-emerald-600 focus:ring-2 focus:ring-emerald-600/20"
         />
       </label>
 
       {error ? (
-        <p role="alert" className="text-sm text-red-600 dark:text-red-400">
+        <p role="alert" className="text-sm text-rose">
           {error}
         </p>
       ) : null}
@@ -65,7 +66,7 @@ export function LoginForm({ messages }: { messages: Messages["login"] }) {
         type="submit"
         data-testid="login-submit"
         disabled={pending}
-        className="mt-2 rounded-md bg-emerald-700 px-4 py-2 font-medium text-white transition hover:bg-emerald-800 focus:outline-none focus:ring-2 focus:ring-emerald-600/40 disabled:opacity-60"
+        className="mt-2 rounded-[var(--radius-atlas-sm)] bg-emerald-700 px-4 py-2 font-medium text-white transition hover:bg-emerald-800 focus:outline-none focus:ring-2 focus:ring-emerald-600/40 disabled:opacity-60"
       >
         {pending ? messages.submitting : messages.submit}
       </button>

@@ -13,6 +13,7 @@ import { EngagementTabs } from "@/components/EngagementTabs";
 import { ErrorBanner } from "@/components/GatesPanel";
 import { UploadDataset } from "@/components/UploadDataset";
 import { UploadTb } from "@/components/UploadTb";
+import { Panel, Chip } from "@/components/ui/atlas";
 import { withTenant } from "@/lib/db";
 import { getEngagement, listFileItems } from "@/lib/engagements";
 import { formatFCFA, getMessages } from "@/lib/i18n";
@@ -68,49 +69,48 @@ export default async function DataPage(props: {
   const unmapped = [...balances.values()][0]?.unmappedAccounts ?? [];
 
   const btn =
-    "rounded-md border border-slate-300 px-2.5 py-1 text-xs font-medium text-slate-700 hover:bg-slate-100 dark:border-slate-700 dark:text-slate-300 dark:hover:bg-slate-800";
+    "rounded-[var(--radius-atlas-sm)] border border-line-strong bg-surface px-2.5 py-1 text-xs font-medium text-ink-soft hover:bg-surface-2";
   const input =
-    "rounded-md border border-slate-300 bg-white px-2 py-1 text-xs text-slate-900 outline-none focus:border-emerald-600 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-100";
-  const card = "mt-6 rounded-xl border border-slate-200 p-5 dark:border-slate-800";
+    "rounded-[var(--radius-atlas-sm)] border border-line-strong bg-surface px-2 py-1 text-xs text-ink outline-none focus:border-emerald-600 focus:ring-2 focus:ring-emerald-600/20";
 
   return (
     <main className="mx-auto min-h-screen max-w-5xl px-6 py-10">
       <AppNav locale={locale} />
-      <h1 className="mt-8 text-2xl font-semibold text-slate-900 dark:text-slate-100">
+      <h1 className="mt-8 text-2xl font-semibold text-ink">
         {engagement.clientName} — {engagement.fiscalYear} · {t.planning.dataTitle}
       </h1>
       <EngagementTabs engagementId={id} locale={locale} active="data" />
       <ErrorBanner error={error} locale={locale} />
 
-      <section className={card}>
-        <h2 className="text-lg font-semibold text-slate-900 dark:text-slate-100">
+      <Panel className="mt-6">
+        <h2 className="text-lg font-semibold text-ink">
           {t.planning.tbPage.title}
         </h2>
         <div className="mt-3">
           <UploadTb engagementId={id} messages={t.planning} />
         </div>
         {tbVersions.length > 0 ? (
-          <div className="mt-4 overflow-x-auto rounded-lg border border-slate-200 dark:border-slate-800">
+          <div className="mt-4 overflow-x-auto rounded-[var(--radius-atlas)] border border-line">
             <table className="w-full text-sm" data-testid="tb-versions">
               <tbody>
                 {tbVersions.map((version) => (
-                  <tr key={version.id} className="border-t border-slate-200 first:border-t-0 dark:border-slate-800">
+                  <tr key={version.id} className="border-t border-line first:border-t-0 hover:bg-surface-2">
                     <td className="px-4 py-2 font-mono text-xs font-semibold">
                       v{version.versionNo}
                       {version.isCurrent ? (
-                        <span className="ml-1 rounded bg-emerald-100 px-1 text-xs text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300">
-                          {t.planning.tbPage.current}
+                        <span className="ml-1.5 inline-flex">
+                          <Chip tone="accent">{t.planning.tbPage.current}</Chip>
                         </span>
                       ) : null}
                     </td>
-                    <td className="px-4 py-2">{t.planning.tbPage.kind[version.kind]}</td>
-                    <td className="px-4 py-2" data-testid={`tb-status-${version.versionNo}`}>
+                    <td className="px-4 py-2 text-ink-soft">{t.planning.tbPage.kind[version.kind]}</td>
+                    <td className="px-4 py-2 text-ink-soft" data-testid={`tb-status-${version.versionNo}`}>
                       {t.planning.tbPage.statusLabel[version.status]}
                     </td>
-                    <td className="px-4 py-2 text-slate-500">
+                    <td className="px-4 py-2 text-muted tnum">
                       {version.rowCount} · D {formatFCFA(version.totalDebit)} / C {formatFCFA(version.totalCredit)}
                     </td>
-                    <td className="px-4 py-2 text-xs text-slate-500">{version.createdAt}</td>
+                    <td className="px-4 py-2 text-xs text-muted tnum">{version.createdAt}</td>
                   </tr>
                 ))}
               </tbody>
@@ -128,21 +128,21 @@ export default async function DataPage(props: {
               ] as const
             ).map(([key, ok]) => (
               <li key={key} className="flex items-center gap-2">
-                <span className={ok ? "text-emerald-600" : "text-red-600"}>{ok ? "✓" : "✗"}</span>
-                <span className="text-slate-600 dark:text-slate-400">
+                <span className={ok ? "text-good" : "text-rose"}>{ok ? "✓" : "✗"}</span>
+                <span className="text-ink-soft">
                   {t.planning.tbPage.checks[key]}
                 </span>
               </li>
             ))}
             {latestSummary.checks.unknownAccounts.length > 0 ? (
-              <li className="text-amber-700 dark:text-amber-400">
+              <li className="text-warn">
                 ⚠ {t.planning.tbPage.checks.unknownAccounts}:{" "}
                 {latestSummary.checks.unknownAccounts.slice(0, 10).join(", ")}
               </li>
             ) : null}
             {latestSummary.checks.openingTiesToPrior.checked &&
             latestSummary.checks.openingTiesToPrior.exceptions.length > 0 ? (
-              <li className="text-amber-700 dark:text-amber-400" data-testid="opening-tie-exceptions">
+              <li className="text-warn" data-testid="opening-tie-exceptions">
                 ⚠ {t.planning.tbPage.checks.openingTiesToPrior}:{" "}
                 {latestSummary.checks.openingTiesToPrior.exceptions
                   .slice(0, 5)
@@ -153,12 +153,12 @@ export default async function DataPage(props: {
           </ul>
         ) : null}
 
-        <h3 className="mt-6 text-sm font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400">
+        <h3 className="mt-6 text-sm font-semibold uppercase tracking-wide text-muted">
           {t.planning.tbPage.journals}
         </h3>
         <ul className="mt-2 flex flex-col gap-1.5 text-sm" data-testid="journals-list">
           {journals.map((journal) => (
-            <li key={journal.id} className="flex flex-wrap items-center justify-between gap-2 rounded border border-slate-200 px-3 py-1.5 dark:border-slate-800">
+            <li key={journal.id} className="flex flex-wrap items-center justify-between gap-2 rounded-[var(--radius-atlas-sm)] border border-line bg-surface px-3 py-1.5">
               <span>
                 #{journal.journalNo} — {journal.description} · {formatFCFA(journal.total)} ·{" "}
                 {journal.status === "posted" ? t.planning.tbPage.postedAs : journal.status}
@@ -200,19 +200,19 @@ export default async function DataPage(props: {
           </div>
         </form>
 
-        <h3 className="mt-6 text-sm font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400">
+        <h3 className="mt-6 text-sm font-semibold uppercase tracking-wide text-muted">
           {t.planning.tbPage.overrides}
         </h3>
         <ul className="mt-2 flex flex-col gap-1 text-sm" data-testid="overrides-list">
           {overrides
             .filter((o) => o.active)
             .map((override) => (
-              <li key={override.id} className="flex items-center justify-between rounded border border-slate-200 px-3 py-1.5 dark:border-slate-800">
+              <li key={override.id} className="flex items-center justify-between rounded-[var(--radius-atlas-sm)] border border-line bg-surface px-3 py-1.5">
                 <span>
                   {override.accountPrefix} ({override.matchType}) → {override.sectionCode} — {override.rationale}
                 </span>
                 <form action={deactivateOverrideAction.bind(null, id, override.id)}>
-                  <button type="submit" className="text-xs text-red-600 hover:underline">
+                  <button type="submit" className="text-xs text-rose hover:underline">
                     {t.planning.tbPage.deactivate}
                   </button>
                 </form>
@@ -234,50 +234,50 @@ export default async function DataPage(props: {
             {t.planning.tbPage.addOverride}
           </button>
         </form>
-      </section>
+      </Panel>
 
-      <section className={card}>
-        <h2 className="text-lg font-semibold text-slate-900 dark:text-slate-100">{td.subledgers}</h2>
+      <Panel className="mt-6">
+        <h2 className="text-lg font-semibold text-ink">{td.subledgers}</h2>
         <div className="mt-3">
           <UploadDataset engagementId={id} messages={t.planning} />
         </div>
         {datasets.length > 0 ? (
-          <div className="mt-4 overflow-x-auto rounded-lg border border-slate-200 dark:border-slate-800">
+          <div className="mt-4 overflow-x-auto rounded-[var(--radius-atlas)] border border-line">
             <table className="w-full text-sm" data-testid="datasets-table">
               <tbody>
                 {datasets.map((dataset) => (
-                  <tr key={dataset.id} className="border-t border-slate-200 first:border-t-0 dark:border-slate-800">
-                    <td className="px-4 py-2 font-medium text-slate-900 dark:text-slate-100">
+                  <tr key={dataset.id} className="border-t border-line first:border-t-0 hover:bg-surface-2">
+                    <td className="px-4 py-2 font-medium text-ink">
                       {td.kinds[dataset.kind]}
                     </td>
-                    <td className="px-4 py-2 text-slate-600 dark:text-slate-400">{dataset.sourceFilename}</td>
-                    <td className="px-4 py-2 text-slate-600 dark:text-slate-400">
+                    <td className="px-4 py-2 text-ink-soft">{dataset.sourceFilename}</td>
+                    <td className="px-4 py-2 text-ink-soft tnum">
                       {dataset.rowCount} {td.rows}
                     </td>
-                    <td className="px-4 py-2 text-slate-600 dark:text-slate-400">
+                    <td className="px-4 py-2 text-ink-soft tnum">
                       {dataset.totalAmount !== null
                         ? `${td.total}: ${formatFCFA(dataset.totalAmount)} (${dataset.amountColumn})`
                         : "—"}
                     </td>
-                    <td className="px-4 py-2 text-xs text-slate-500">{dataset.createdAt}</td>
+                    <td className="px-4 py-2 text-xs text-muted tnum">{dataset.createdAt}</td>
                   </tr>
                 ))}
               </tbody>
             </table>
           </div>
         ) : null}
-      </section>
+      </Panel>
 
-      <section className={card}>
-        <h2 className="text-lg font-semibold text-slate-900 dark:text-slate-100">{td.leadSchedules}</h2>
+      <Panel className="mt-6">
+        <h2 className="text-lg font-semibold text-ink">{td.leadSchedules}</h2>
         {withBalances.length === 0 ? (
-          <p className="mt-2 text-sm text-slate-500 dark:text-slate-400" data-testid="no-tb-note">
+          <p className="mt-2 text-sm text-muted" data-testid="no-tb-note">
             {td.noTb}
           </p>
         ) : (
-          <div className="mt-3 overflow-x-auto rounded-lg border border-slate-200 dark:border-slate-800">
+          <div className="mt-3 overflow-x-auto rounded-[var(--radius-atlas)] border border-line">
             <table className="w-full text-sm" data-testid="leadsheets-table">
-              <thead className="bg-slate-50 text-left text-xs uppercase tracking-wide text-slate-500 dark:bg-slate-900 dark:text-slate-400">
+              <thead className="bg-surface-2 text-left text-xs uppercase tracking-wide text-muted">
                 <tr>
                   <th className="px-4 py-2">§</th>
                   <th className="px-4 py-2">{td.closing}</th>
@@ -291,14 +291,14 @@ export default async function DataPage(props: {
                   const balance = balances.get(section.code)!;
                   const doc = docs.get(section.id);
                   return (
-                    <tr key={section.id} className="border-t border-slate-200 dark:border-slate-800">
-                      <td className="px-4 py-2 font-mono text-xs font-semibold text-slate-900 dark:text-slate-100">
+                    <tr key={section.id} className="border-t border-line hover:bg-surface-2">
+                      <td className="px-4 py-2 font-mono text-xs font-semibold text-ink">
                         <Link href={`/engagements/${id}/sections/${section.id}`} className="hover:underline">
                           {section.code}
                         </Link>
                       </td>
-                      <td className="px-4 py-2">{formatFCFA(balance.total)}</td>
-                      <td className="px-4 py-2 text-slate-500">{formatFCFA(balance.priorTotal)}</td>
+                      <td className="px-4 py-2 tnum">{formatFCFA(balance.total)}</td>
+                      <td className="px-4 py-2 text-muted tnum">{formatFCFA(balance.priorTotal)}</td>
                       <td className="px-4 py-2">
                         <form
                           action={assignSectionAction.bind(null, id, section.id)}
@@ -320,11 +320,8 @@ export default async function DataPage(props: {
                             {td.assign}
                           </button>
                           {section.ownerName ? (
-                            <span
-                              className="rounded bg-emerald-100 px-1.5 py-0.5 text-xs text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300"
-                              data-testid={`owner-badge-${section.code}`}
-                            >
-                              {section.ownerName}
+                            <span data-testid={`owner-badge-${section.code}`}>
+                              <Chip tone="accent">{section.ownerName}</Chip>
                             </span>
                           ) : null}
                         </form>
@@ -353,12 +350,12 @@ export default async function DataPage(props: {
           </div>
         )}
         {unmapped.length > 0 ? (
-          <p className="mt-3 text-sm text-amber-700 dark:text-amber-400" data-testid="unmapped-note">
+          <p className="mt-3 text-sm text-warn" data-testid="unmapped-note">
             {td.unmapped}: {unmapped.slice(0, 20).join(", ")}
             {unmapped.length > 20 ? "…" : ""}
           </p>
         ) : null}
-      </section>
+      </Panel>
     </main>
   );
 }

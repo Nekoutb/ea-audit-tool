@@ -5,6 +5,7 @@ import { createEngagementAction } from "@/app/actions/audit-file";
 import { addPortalContactAction } from "@/app/actions/pbc";
 import { AppNav } from "@/components/AppNav";
 import { ErrorBanner } from "@/components/GatesPanel";
+import { Panel, PanelHeader, btnPrimary } from "@/components/ui/atlas";
 import { getClient } from "@/lib/clients";
 import { listEngagements } from "@/lib/engagements";
 import { getMessages } from "@/lib/i18n";
@@ -29,14 +30,14 @@ export default async function ClientDetailPage(props: {
 
   const currentYear = new Date().getFullYear();
   const inputClass =
-    "rounded-md border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 outline-none focus:border-emerald-600 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-100";
+    "rounded-[var(--radius-atlas-sm)] border border-line-strong bg-surface px-3 py-2 text-sm text-ink outline-none focus:border-emerald-600 focus:ring-2 focus:ring-emerald-600/20";
 
   return (
     <main className="mx-auto min-h-screen max-w-4xl px-6 py-10">
       <AppNav locale={locale} />
       <div className="mt-8 flex items-baseline justify-between">
-        <h1 className="text-2xl font-semibold text-slate-900 dark:text-slate-100">{client.name}</h1>
-        <span className="text-sm text-slate-500 dark:text-slate-400">
+        <h1 className="text-2xl font-semibold tracking-[-0.02em] text-ink">{client.name}</h1>
+        <span className="text-sm text-muted">
           {t.clients.legalForm}: {client.legalForm}
           {client.listed ? ` · ${t.clients.listed}` : ""}
           {client.coCac ? ` · ${t.clients.coCac}` : ""}
@@ -44,20 +45,18 @@ export default async function ClientDetailPage(props: {
       </div>
 
       <section className="mt-8">
-        <h2 className="text-lg font-semibold text-slate-900 dark:text-slate-100">
-          {t.engagements.title}
-        </h2>
+        <PanelHeader title={t.engagements.title} />
         {engagements.length === 0 ? (
-          <p className="mt-3 text-sm text-slate-500 dark:text-slate-400">{t.engagements.empty}</p>
+          <p className="mt-3 text-sm text-muted">{t.engagements.empty}</p>
         ) : (
           <ul className="mt-3 flex flex-col gap-2" data-testid="client-engagements">
             {engagements.map((engagement) => (
               <li
                 key={engagement.id}
-                className="flex items-center justify-between rounded-lg border border-slate-200 px-4 py-3 dark:border-slate-800"
+                className="flex items-center justify-between rounded-[var(--radius-atlas)] border border-line bg-surface px-4 py-3 shadow-[var(--shadow-atlas)]"
               >
-                <span className="text-sm text-slate-800 dark:text-slate-200">
-                  {t.engagements.fiscalYear} {engagement.fiscalYear} —{" "}
+                <span className="text-sm text-ink-soft">
+                  {t.engagements.fiscalYear} <span className="tnum">{engagement.fiscalYear}</span> —{" "}
                   {t.engagements.phases[engagement.phase]}
                 </span>
                 <Link
@@ -72,14 +71,12 @@ export default async function ClientDetailPage(props: {
         )}
       </section>
 
-      <section className="mt-10 rounded-xl border border-slate-200 p-6 dark:border-slate-800">
-        <h2 className="text-lg font-semibold text-slate-900 dark:text-slate-100">
-          {t.engagements.newEngagement}
-        </h2>
+      <Panel className="mt-10 p-6">
+        <PanelHeader title={t.engagements.newEngagement} />
         <form action={createEngagementAction} className="mt-4 flex flex-wrap items-end gap-4">
           <input type="hidden" name="clientId" value={client.id} />
           <label className="flex flex-col gap-1 text-sm">
-            <span className="text-slate-600 dark:text-slate-400">{t.engagements.fiscalYear}</span>
+            <span className="text-ink-soft">{t.engagements.fiscalYear}</span>
             <input
               name="fiscalYear"
               type="number"
@@ -92,7 +89,7 @@ export default async function ClientDetailPage(props: {
             />
           </label>
           <label className="flex flex-col gap-1 text-sm">
-            <span className="text-slate-600 dark:text-slate-400">{t.engagements.periodEnd}</span>
+            <span className="text-ink-soft">{t.engagements.periodEnd}</span>
             <input
               name="periodEnd"
               type="date"
@@ -105,18 +102,18 @@ export default async function ClientDetailPage(props: {
           <button
             type="submit"
             data-testid="create-engagement"
-            className="rounded-md bg-emerald-700 px-4 py-2 text-sm font-medium text-white hover:bg-emerald-800"
+            className={btnPrimary}
           >
             {t.engagements.createEngagement}
           </button>
         </form>
-      </section>
+      </Panel>
 
-      <section className="mt-10 rounded-xl border border-slate-200 p-6 dark:border-slate-800">
-        <h2 className="text-lg font-semibold text-slate-900 dark:text-slate-100">{t.pbc.contacts}</h2>
+      <Panel className="mt-10 p-6">
+        <PanelHeader title={t.pbc.contacts} />
         <ErrorBanner error={error} locale={locale} />
         {contacts.length > 0 ? (
-          <ul className="mt-3 flex flex-col gap-1 text-sm text-slate-700 dark:text-slate-300" data-testid="portal-contacts">
+          <ul className="mt-3 flex flex-col gap-1 text-sm text-ink-soft" data-testid="portal-contacts">
             {contacts.map((contact) => (
               <li key={contact.id}>
                 {contact.name ?? contact.email} — <span className="font-mono text-xs">{contact.email}</span>
@@ -126,26 +123,26 @@ export default async function ClientDetailPage(props: {
         ) : null}
         <form action={addPortalContactAction.bind(null, client.id)} className="mt-4 flex flex-wrap items-end gap-4">
           <label className="flex flex-col gap-1 text-sm">
-            <span className="text-slate-600 dark:text-slate-400">{t.pbc.contactName}</span>
+            <span className="text-ink-soft">{t.pbc.contactName}</span>
             <input name="name" required className={inputClass} data-testid="contact-name" />
           </label>
           <label className="flex flex-col gap-1 text-sm">
-            <span className="text-slate-600 dark:text-slate-400">{t.pbc.contactEmail}</span>
+            <span className="text-ink-soft">{t.pbc.contactEmail}</span>
             <input name="email" type="email" required className={inputClass} data-testid="contact-email" />
           </label>
           <label className="flex flex-col gap-1 text-sm">
-            <span className="text-slate-600 dark:text-slate-400">{t.pbc.contactPassword}</span>
+            <span className="text-ink-soft">{t.pbc.contactPassword}</span>
             <input name="password" type="password" required minLength={8} className={inputClass} data-testid="contact-password" />
           </label>
           <button
             type="submit"
             data-testid="add-contact"
-            className="rounded-md bg-emerald-700 px-4 py-2 text-sm font-medium text-white hover:bg-emerald-800"
+            className={btnPrimary}
           >
             {t.pbc.addContact}
           </button>
         </form>
-      </section>
+      </Panel>
     </main>
   );
 }

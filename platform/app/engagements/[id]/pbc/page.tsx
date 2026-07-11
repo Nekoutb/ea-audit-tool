@@ -4,6 +4,7 @@ import { acceptPbcAction, addPbcItemAction } from "@/app/actions/pbc";
 import { AppNav } from "@/components/AppNav";
 import { EngagementTabs } from "@/components/EngagementTabs";
 import { ErrorBanner } from "@/components/GatesPanel";
+import { Panel } from "@/components/ui/atlas";
 import { getEngagement, listFileItems } from "@/lib/engagements";
 import { getMessages } from "@/lib/i18n";
 import { getLocale } from "@/lib/locale";
@@ -28,26 +29,26 @@ export default async function PbcPage(props: {
   const eSections = fileItems.filter((item) => item.section === "E");
 
   const btn =
-    "rounded-md border border-slate-300 px-2.5 py-1 text-xs font-medium text-slate-700 hover:bg-slate-100 dark:border-slate-700 dark:text-slate-300 dark:hover:bg-slate-800";
+    "rounded-[var(--radius-atlas-sm)] border border-line-strong bg-surface px-2.5 py-1 text-xs font-medium text-ink-soft hover:bg-surface-2";
   const input =
-    "rounded-md border border-slate-300 bg-white px-2 py-1 text-xs text-slate-900 outline-none focus:border-emerald-600 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-100";
+    "rounded-[var(--radius-atlas-sm)] border border-line-strong bg-surface px-2 py-1 text-xs text-ink outline-none focus:border-emerald-600 focus:ring-2 focus:ring-emerald-600/20";
 
   return (
     <main className="mx-auto min-h-screen max-w-6xl px-6 py-10">
       <AppNav locale={locale} />
-      <h1 className="mt-8 text-2xl font-semibold text-slate-900 dark:text-slate-100">
+      <h1 className="mt-8 text-2xl font-semibold tracking-[-0.01em] text-ink">
         {engagement.clientName} — {engagement.fiscalYear} · {tp.title}
       </h1>
       <EngagementTabs engagementId={id} locale={locale} active="pbc" />
       <ErrorBanner error={error} locale={locale} />
 
-      <section className="mt-6 rounded-xl border border-slate-200 p-5 dark:border-slate-800">
+      <Panel className="mt-6">
         <form action={addPbcItemAction.bind(null, id)} className="flex flex-wrap items-end gap-2">
-          <label className="flex flex-col text-xs text-slate-500">
+          <label className="flex flex-col text-xs text-muted">
             {tp.itemTitle}
             <input name="title" required className={`${input} mt-1 w-72`} data-testid="pbc-title" />
           </label>
-          <label className="flex flex-col text-xs text-slate-500">
+          <label className="flex flex-col text-xs text-muted">
             {tp.note}
             <input name="note" className={`${input} mt-1 w-96`} data-testid="pbc-note" />
           </label>
@@ -57,16 +58,16 @@ export default async function PbcPage(props: {
         </form>
 
         {items.length > 0 ? (
-          <div className="mt-4 overflow-x-auto rounded-lg border border-slate-200 dark:border-slate-800">
+          <div className="mt-4 overflow-x-auto rounded-[var(--radius-atlas)] border border-line">
             <table className="w-full text-sm" data-testid="pbc-table">
               <tbody>
                 {items.map((item) => (
-                  <tr key={item.id} className="border-t border-slate-200 first:border-t-0 dark:border-slate-800">
-                    <td className="px-3 py-2 text-slate-800 dark:text-slate-200">{item.title}</td>
-                    <td className="w-28 px-3 py-2 text-xs" data-testid={`pbc-status-${item.title}`}>
+                  <tr key={item.id} className="border-t border-line first:border-t-0 hover:bg-surface-2">
+                    <td className="px-3 py-2 text-ink">{item.title}</td>
+                    <td className="w-28 px-3 py-2 text-xs text-ink-soft" data-testid={`pbc-status-${item.title}`}>
                       {t.portal.statuses[item.status]}
                     </td>
-                    <td className="px-3 py-2 text-xs text-slate-500">{item.filename ?? ""}</td>
+                    <td className="px-3 py-2 text-xs text-muted">{item.filename ?? ""}</td>
                     <td className="px-3 py-2 text-right">
                       {item.status === "uploaded" ? (
                         <form
@@ -101,7 +102,7 @@ export default async function PbcPage(props: {
             </table>
           </div>
         ) : null}
-      </section>
+      </Panel>
     </main>
   );
 }

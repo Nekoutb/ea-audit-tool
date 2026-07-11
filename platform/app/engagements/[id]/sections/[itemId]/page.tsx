@@ -18,6 +18,7 @@ import { addStepAction, generateProgramAction, linkRiskStepAction } from "@/app/
 import { AppNav } from "@/components/AppNav";
 import { EngagementTabs } from "@/components/EngagementTabs";
 import { ErrorBanner } from "@/components/GatesPanel";
+import { Panel, PanelHeader, Chip } from "@/components/ui/atlas";
 import { withTenant } from "@/lib/db";
 import { getEngagement } from "@/lib/engagements";
 import { listRuns } from "@/lib/engines";
@@ -76,32 +77,27 @@ export default async function SectionPage(props: {
   const tg = t.planning.engines;
 
   const input =
-    "rounded-md border border-slate-300 bg-white px-2 py-1 text-sm text-slate-900 outline-none focus:border-emerald-600 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-100";
+    "rounded-[var(--radius-atlas-sm)] border border-line-strong bg-surface px-2 py-1 text-sm text-ink outline-none focus:border-emerald-600 focus:ring-2 focus:ring-emerald-600/20";
   const btn =
-    "rounded-md border border-slate-300 px-3 py-1.5 text-sm font-medium text-slate-700 hover:bg-slate-100 dark:border-slate-700 dark:text-slate-300 dark:hover:bg-slate-800";
-  const card = "mt-6 rounded-xl border border-slate-200 p-5 dark:border-slate-800";
+    "rounded-[var(--radius-atlas-sm)] border border-line-strong bg-surface px-3 py-1.5 text-sm font-medium text-ink-soft hover:bg-surface-2";
 
   return (
     <main className="mx-auto min-h-screen max-w-5xl px-6 py-10">
       <AppNav locale={locale} />
       <div className="mt-8 flex flex-wrap items-center justify-between gap-2">
-        <h1 className="text-2xl font-semibold text-slate-900 dark:text-slate-100">
+        <h1 className="text-2xl font-semibold text-ink">
           {section.code} — {locale === "fr" ? section.title_fr : section.title_en}
         </h1>
-        {section.material ? (
-          <span className="rounded bg-amber-100 px-2 py-1 text-xs font-semibold text-amber-800 dark:bg-amber-950 dark:text-amber-300">
-            {ts.material}
-          </span>
-        ) : null}
+        {section.material ? <Chip tone="warn">{ts.material}</Chip> : null}
       </div>
       <EngagementTabs engagementId={id} locale={locale} active="planning" />
       <ErrorBanner error={error} locale={locale} />
 
       {/* Linked risks pinned at the top of the section (spec §8.1) */}
-      <section className={`${card} border-l-4 border-l-red-400 dark:border-l-red-700`}>
-        <h2 className="text-lg font-semibold text-slate-900 dark:text-slate-100">{ts.linkedRisks}</h2>
+      <Panel className="mt-6 border-l-4 border-l-[color:var(--color-rose)]">
+        <PanelHeader title={ts.linkedRisks} />
         {risks.length === 0 ? (
-          <p className="mt-2 text-sm text-slate-500 dark:text-slate-400">{ts.noRisks}</p>
+          <p className="mt-2 text-sm text-muted">{ts.noRisks}</p>
         ) : (
           <ul className="mt-3 flex flex-col gap-2" data-testid="section-risks">
             {risks.map((risk) => (
@@ -109,51 +105,53 @@ export default async function SectionPage(props: {
                 <span
                   className={
                     risk.significant
-                      ? "rounded bg-red-100 px-1.5 py-0.5 text-xs font-semibold text-red-700 dark:bg-red-950 dark:text-red-300"
-                      : "rounded bg-slate-100 px-1.5 py-0.5 text-xs text-slate-600 dark:bg-slate-800 dark:text-slate-400"
+                      ? "rounded-[var(--radius-atlas-xs)] bg-[var(--color-rose-soft)] px-1.5 py-0.5 text-xs font-semibold text-rose"
+                      : "rounded-[var(--radius-atlas-xs)] bg-surface-2 px-1.5 py-0.5 text-xs text-ink-soft"
                   }
                 >
                   {risk.rating.toUpperCase()}
                   {risk.significant ? ` · ${t.planning.risks.significant}` : ""}
                 </span>
-                <span className="text-slate-900 dark:text-slate-100">{risk.description}</span>
-                <span className="font-mono text-xs text-slate-500">[{risk.assertions.join("")}]</span>
+                <span className="text-ink">{risk.description}</span>
+                <span className="font-mono text-xs text-muted">[{risk.assertions.join("")}]</span>
               </li>
             ))}
           </ul>
         )}
-      </section>
+      </Panel>
 
-      <section className={card}>
-        <div className="flex flex-wrap items-center justify-between gap-3">
-          <h2 className="text-lg font-semibold text-slate-900 dark:text-slate-100">{ts.program}</h2>
-          {steps.length === 0 ? (
-            <form action={generateProgramAction.bind(null, id, itemId)}>
-              <button type="submit" className={btn} data-testid="generate-program">
-                {ts.generateProgram}
-              </button>
-            </form>
-          ) : null}
-        </div>
+      <Panel className="mt-6">
+        <PanelHeader
+          title={ts.program}
+          right={
+            steps.length === 0 ? (
+              <form action={generateProgramAction.bind(null, id, itemId)}>
+                <button type="submit" className={btn} data-testid="generate-program">
+                  {ts.generateProgram}
+                </button>
+              </form>
+            ) : null
+          }
+        />
         {steps.length > 0 ? (
-          <div className="mt-3 overflow-x-auto rounded-lg border border-slate-200 dark:border-slate-800">
+          <div className="mt-3 overflow-x-auto rounded-[var(--radius-atlas)] border border-line">
             <table className="w-full text-sm" data-testid="program-table">
               <tbody>
                 {steps.map((step) => (
-                  <tr key={step.id} className="border-t border-slate-200 first:border-t-0 dark:border-slate-800">
-                    <td className="w-14 px-3 py-2 font-mono text-xs text-slate-500">{step.seq}</td>
-                    <td className="px-3 py-2 text-slate-800 dark:text-slate-200">
+                  <tr key={step.id} className="border-t border-line first:border-t-0">
+                    <td className="w-14 px-3 py-2 font-mono text-xs text-muted">{step.seq}</td>
+                    <td className="px-3 py-2 text-ink-soft">
                       {step.description}
                       {step.source === "risk_extension" ? (
-                        <span className="ml-2 rounded bg-red-100 px-1.5 py-0.5 text-xs font-semibold text-red-700 dark:bg-red-950 dark:text-red-300">
+                        <span className="ml-2 rounded-[var(--radius-atlas-xs)] bg-[var(--color-rose-soft)] px-1.5 py-0.5 text-xs font-semibold text-rose">
                           {ts.sourceLabels.risk_extension}
                         </span>
                       ) : null}
                     </td>
-                    <td className="w-20 px-3 py-2 font-mono text-xs text-slate-500">
+                    <td className="w-20 px-3 py-2 font-mono text-xs text-muted">
                       [{step.assertions.join("")}]
                     </td>
-                    <td className="w-24 px-3 py-2 text-xs text-slate-500">
+                    <td className="w-24 px-3 py-2 text-xs text-muted">
                       {step.linkedRiskIds.length > 0 ? `⚑ ${step.linkedRiskIds.length}` : ""}
                     </td>
                     <td className="px-3 py-2">
@@ -177,8 +175,8 @@ export default async function SectionPage(props: {
                         <span
                           className={
                             step.status === "complete"
-                              ? "rounded bg-emerald-100 px-1.5 py-0.5 text-xs font-semibold text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300"
-                              : "rounded bg-slate-100 px-1.5 py-0.5 text-xs text-slate-500 dark:bg-slate-800"
+                              ? "rounded-[var(--radius-atlas-xs)] bg-[var(--color-good-soft)] px-1.5 py-0.5 text-xs font-semibold text-good"
+                              : "rounded-[var(--radius-atlas-xs)] bg-surface-2 px-1.5 py-0.5 text-xs text-muted"
                           }
                           data-testid={`step-status-${step.seq}`}
                         >
@@ -201,7 +199,7 @@ export default async function SectionPage(props: {
             className={`${input} w-96 max-w-full`}
             data-testid="custom-step-description"
           />
-          <span className="flex items-center gap-1 text-xs text-slate-500">
+          <span className="flex items-center gap-1 text-xs text-muted">
             {ASSERTIONS.map((assertion) => (
               <label key={assertion} className="flex items-center gap-0.5">
                 <input type="checkbox" name="assertions" value={assertion} />
@@ -216,7 +214,7 @@ export default async function SectionPage(props: {
 
         {risks.length > 0 && steps.length > 0 ? (
           <form action={linkRiskStepAction.bind(null, id, itemId)} className="mt-4 flex flex-wrap items-end gap-2">
-            <label className="flex flex-col text-xs text-slate-500">
+            <label className="flex flex-col text-xs text-muted">
               {ts.risk}
               <select name="riskId" className={input} data-testid="link-risk">
                 {risks.map((risk) => (
@@ -226,7 +224,7 @@ export default async function SectionPage(props: {
                 ))}
               </select>
             </label>
-            <label className="flex flex-col text-xs text-slate-500">
+            <label className="flex flex-col text-xs text-muted">
               {ts.program}
               <select name="stepId" className={input} data-testid="link-step">
                 {steps.map((step) => (
@@ -241,13 +239,13 @@ export default async function SectionPage(props: {
             </button>
           </form>
         ) : null}
-      </section>
+      </Panel>
 
-      <section className={card}>
-        <h2 className="text-lg font-semibold text-slate-900 dark:text-slate-100">{ts.coverage}</h2>
-        <div className="mt-3 overflow-x-auto rounded-lg border border-slate-200 dark:border-slate-800">
+      <Panel className="mt-6">
+        <PanelHeader title={ts.coverage} />
+        <div className="mt-3 overflow-x-auto rounded-[var(--radius-atlas)] border border-line">
           <table className="w-full text-sm" data-testid="coverage-table">
-            <thead className="bg-slate-50 text-left text-xs uppercase tracking-wide text-slate-500 dark:bg-slate-900 dark:text-slate-400">
+            <thead className="bg-surface-2 text-left text-xs uppercase tracking-wide text-muted">
               <tr>
                 <th className="px-4 py-2">{ts.risk}</th>
                 <th className="px-4 py-2">{t.planning.risks.assertions}</th>
@@ -257,11 +255,11 @@ export default async function SectionPage(props: {
             </thead>
             <tbody>
               {coverage.map((row) => (
-                <tr key={row.riskId} className="border-t border-slate-200 dark:border-slate-800">
-                  <td className="px-4 py-2 text-slate-800 dark:text-slate-200">
+                <tr key={row.riskId} className="border-t border-line">
+                  <td className="px-4 py-2 text-ink-soft">
                     {row.riskDescription}
                     {row.significant && row.linkedSteps === 0 ? (
-                      <span className="ml-2 rounded bg-red-100 px-1.5 py-0.5 text-xs font-semibold text-red-700 dark:bg-red-950 dark:text-red-300" data-testid="unlinked-significant">
+                      <span className="ml-2 rounded-[var(--radius-atlas-xs)] bg-[var(--color-rose-soft)] px-1.5 py-0.5 text-xs font-semibold text-rose" data-testid="unlinked-significant">
                         ✗
                       </span>
                     ) : null}
@@ -274,18 +272,16 @@ export default async function SectionPage(props: {
             </tbody>
           </table>
         </div>
-      </section>
+      </Panel>
 
       {/* 4.4 matter arising: route to exactly one destination */}
-      <section className={card}>
-        <h2 className="text-lg font-semibold text-slate-900 dark:text-slate-100">
-          {te.matterArising}
-        </h2>
+      <Panel className="mt-6">
+        <PanelHeader title={te.matterArising} />
         <form
           action={routeFindingAction.bind(null, id, itemId)}
           className="mt-3 flex flex-wrap items-end gap-2"
         >
-          <label className="flex flex-col text-xs text-slate-500">
+          <label className="flex flex-col text-xs text-muted">
             {te.routeTo}
             <select name="route" className={input} data-testid="finding-route">
               <option value="b4">{te.routes.b4}</option>
@@ -298,7 +294,7 @@ export default async function SectionPage(props: {
           <input name="detail" placeholder={te.detailField} className={input} />
           <input name="amount" type="number" placeholder={te.amount} className={input} data-testid="finding-amount" />
           <input name="accounts" placeholder={te.accountsField} className={input} />
-          <label className="flex flex-col text-xs text-slate-500">
+          <label className="flex flex-col text-xs text-muted">
             {te.mtype}
             <select name="mtype" className={input}>
               {(["factual", "judgmental", "projected", "classification", "disclosure"] as const).map((mtype) => (
@@ -308,29 +304,29 @@ export default async function SectionPage(props: {
               ))}
             </select>
           </label>
-          <label className="flex items-center gap-1 text-xs text-slate-500">
+          <label className="flex items-center gap-1 text-xs text-muted">
             <input type="checkbox" name="trivialConfirmed" data-testid="trivial-confirm" /> {te.trivialConfirm}
           </label>
-          <label className="flex items-center gap-1 text-xs text-slate-500">
+          <label className="flex items-center gap-1 text-xs text-muted">
             <input type="checkbox" name="significant" /> {te.significantFlag}
           </label>
           <button type="submit" className={btn} data-testid="route-finding">
             {te.raise}
           </button>
         </form>
-      </section>
+      </Panel>
 
       {/* 4.7 control tests */}
-      <section className={card}>
-        <h2 className="text-lg font-semibold text-slate-900 dark:text-slate-100">{te.controls}</h2>
+      <Panel className="mt-6">
+        <PanelHeader title={te.controls} />
         <ul className="mt-2 flex flex-col gap-1 text-sm" data-testid="control-tests">
           {controlTests.map((test) => (
-            <li key={test.id} className="rounded border border-slate-200 px-3 py-1.5 dark:border-slate-800">
+            <li key={test.id} className="rounded-[var(--radius-atlas-sm)] border border-line px-3 py-1.5">
               {test.description} —{" "}
               {test.result === "effective" ? (
                 <span className="text-emerald-700 dark:text-emerald-400">{te.results.effective}</span>
               ) : (
-                <span className="text-red-600 dark:text-red-400">
+                <span className="text-rose">
                   {te.results.deviation} → {te.decisions[test.deviationDecision as keyof typeof te.decisions]}
                 </span>
               )}
@@ -342,14 +338,14 @@ export default async function SectionPage(props: {
           className="mt-3 flex flex-wrap items-end gap-2"
         >
           <input name="description" required placeholder={te.controlDescription} className={`${input} w-72`} data-testid="control-description" />
-          <label className="flex flex-col text-xs text-slate-500">
+          <label className="flex flex-col text-xs text-muted">
             {te.result}
             <select name="result" className={input} data-testid="control-result">
               <option value="effective">{te.results.effective}</option>
               <option value="deviation">{te.results.deviation}</option>
             </select>
           </label>
-          <label className="flex flex-col text-xs text-slate-500">
+          <label className="flex flex-col text-xs text-muted">
             {te.deviationDecision}
             <select name="deviationDecision" className={input} data-testid="control-decision">
               <option value="" />
@@ -362,18 +358,18 @@ export default async function SectionPage(props: {
             {te.record}
           </button>
         </form>
-      </section>
+      </Panel>
 
       {/* 5.x automation engines */}
-      <section className={card}>
-        <h2 className="text-lg font-semibold text-slate-900 dark:text-slate-100">{tg.title}</h2>
+      <Panel className="mt-6">
+        <PanelHeader title={tg.title} />
 
         {runs.length > 0 ? (
           <ul className="mt-2 flex flex-col gap-1 text-sm" data-testid="engine-runs">
             {runs.map((run) => (
-              <li key={run.id} className="flex flex-wrap items-center justify-between gap-2 rounded border border-slate-200 px-3 py-1.5 dark:border-slate-800">
+              <li key={run.id} className="flex flex-wrap items-center justify-between gap-2 rounded-[var(--radius-atlas-sm)] border border-line px-3 py-1.5">
                 <span className="font-mono text-xs">{run.engine}</span>
-                <span className="text-xs text-slate-500">{JSON.stringify(run.summary).slice(0, 120)}</span>
+                <span className="text-xs text-muted">{JSON.stringify(run.summary).slice(0, 120)}</span>
                 <span className="flex items-center gap-2">
                   {run.engine === "sampling" && !("projected" in run.summary) ? (
                     <form action={evaluateSamplingAction.bind(null, id, itemId, run.id)} className="flex items-center gap-1">
@@ -395,8 +391,8 @@ export default async function SectionPage(props: {
         ) : null}
 
         <div className="mt-4 grid grid-cols-1 gap-4 lg:grid-cols-2">
-          <form action={runSamplingAction.bind(null, id, itemId)} className="rounded-lg border border-slate-200 p-3 dark:border-slate-800">
-            <p className="text-sm font-semibold text-slate-900 dark:text-slate-100">{tg.sampling}</p>
+          <form action={runSamplingAction.bind(null, id, itemId)} className="rounded-[var(--radius-atlas)] border border-line bg-surface-2 p-3">
+            <p className="text-sm font-semibold text-ink">{tg.sampling}</p>
             <div className="mt-2 flex flex-wrap items-end gap-2">
               <select name="datasetId" required className={input} data-testid="sampling-dataset">
                 {datasets.map((dataset) => (
@@ -421,8 +417,8 @@ export default async function SectionPage(props: {
             </div>
           </form>
 
-          <form action={runReconAction.bind(null, id, itemId)} className="rounded-lg border border-slate-200 p-3 dark:border-slate-800">
-            <p className="text-sm font-semibold text-slate-900 dark:text-slate-100">{tg.recon}</p>
+          <form action={runReconAction.bind(null, id, itemId)} className="rounded-[var(--radius-atlas)] border border-line bg-surface-2 p-3">
+            <p className="text-sm font-semibold text-ink">{tg.recon}</p>
             <div className="mt-2 flex flex-wrap items-end gap-2">
               <select name="datasetId" required className={input} data-testid="recon-dataset">
                 {datasets.map((dataset) => (
@@ -439,8 +435,8 @@ export default async function SectionPage(props: {
             </div>
           </form>
 
-          <form action={runJeTestingAction.bind(null, id, itemId)} className="rounded-lg border border-slate-200 p-3 dark:border-slate-800">
-            <p className="text-sm font-semibold text-slate-900 dark:text-slate-100">{tg.je}</p>
+          <form action={runJeTestingAction.bind(null, id, itemId)} className="rounded-[var(--radius-atlas)] border border-line bg-surface-2 p-3">
+            <p className="text-sm font-semibold text-ink">{tg.je}</p>
             <div className="mt-2 flex flex-wrap items-end gap-2">
               <select name="datasetId" required className={input} data-testid="je-dataset">
                 {datasets.map((dataset) => (
@@ -457,8 +453,8 @@ export default async function SectionPage(props: {
             </div>
           </form>
 
-          <form action={runAnalyticAction.bind(null, id, itemId)} className="rounded-lg border border-slate-200 p-3 dark:border-slate-800">
-            <p className="text-sm font-semibold text-slate-900 dark:text-slate-100">{tg.analytics}</p>
+          <form action={runAnalyticAction.bind(null, id, itemId)} className="rounded-[var(--radius-atlas)] border border-line bg-surface-2 p-3">
+            <p className="text-sm font-semibold text-ink">{tg.analytics}</p>
             <div className="mt-2 flex flex-wrap items-end gap-2">
               <input name="expectation" type="number" placeholder={tg.expectation} required className={input} data-testid="analytic-expectation" />
               <input name="tolerance" type="number" placeholder={tg.tolerance} required className={input} data-testid="analytic-tolerance" />
@@ -469,22 +465,20 @@ export default async function SectionPage(props: {
             </div>
           </form>
         </div>
-      </section>
+      </Panel>
 
       {/* 4.11 section conclusion + review chain */}
-      <section className={card}>
-        <h2 className="text-lg font-semibold text-slate-900 dark:text-slate-100">
-          {te.conclusionTitle}
-        </h2>
+      <Panel className="mt-6">
+        <PanelHeader title={te.conclusionTitle} />
         {conclusion?.partnerRequired ? (
-          <p className="mt-1 text-sm font-medium text-amber-700 dark:text-amber-400" data-testid="partner-required">
+          <p className="mt-1 text-sm font-medium text-warn" data-testid="partner-required">
             {te.partnerRequired}
           </p>
         ) : null}
         {conclusion?.conclusion ? (
-          <div className="mt-2 text-sm text-slate-700 dark:text-slate-300" data-testid="conclusion-state">
+          <div className="mt-2 text-sm text-ink-soft" data-testid="conclusion-state">
             <p>{conclusion.conclusion}</p>
-            <p className="mt-1 text-xs text-slate-500">
+            <p className="mt-1 text-xs text-muted">
               {te.preparedBy}: {conclusion.preparedByName ?? "—"} · {te.reviewedBy}:{" "}
               {conclusion.reviewedByName ?? "—"}
               {conclusion.partnerRequired ? ` · ${te.partnerBy}: ${conclusion.partnerReviewedByName ?? "—"}` : ""}
@@ -503,7 +497,7 @@ export default async function SectionPage(props: {
             className={`${input} w-96 max-w-full`}
             data-testid="section-conclusion"
           />
-          <label className="flex items-center gap-1 text-xs text-slate-500">
+          <label className="flex items-center gap-1 text-xs text-muted">
             <input type="checkbox" name="objectivesAchieved" defaultChecked={conclusion?.objectivesAchieved ?? true} />
             {te.objectivesAchieved}
           </label>
@@ -529,7 +523,7 @@ export default async function SectionPage(props: {
             ) : null}
           </div>
         ) : null}
-      </section>
+      </Panel>
     </main>
   );
 }

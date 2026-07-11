@@ -54,12 +54,13 @@ export default async function LegalPage(props: {
   ]);
 
   const btn =
-    "rounded-md border border-slate-300 px-2.5 py-1 text-xs font-medium text-slate-700 hover:bg-slate-100 dark:border-slate-700 dark:text-slate-300 dark:hover:bg-slate-800";
+    "rounded-[var(--radius-atlas-sm)] border border-line-strong bg-surface px-2.5 py-1 text-xs font-medium text-ink-soft hover:bg-surface-2";
   const input =
-    "rounded-md border border-slate-300 bg-white px-2 py-1 text-xs text-slate-900 outline-none focus:border-emerald-600 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-100";
-  const card = "mt-6 rounded-xl border border-slate-200 p-5 dark:border-slate-800";
-  const heading = "text-sm font-semibold text-slate-900 dark:text-slate-100";
-  const label = "flex flex-col text-xs text-slate-500 dark:text-slate-400";
+    "rounded-[var(--radius-atlas-sm)] border border-line-strong bg-surface px-2 py-1 text-xs text-ink outline-none focus:border-emerald-600 focus:ring-2 focus:ring-emerald-600/20";
+  const card =
+    "mt-6 rounded-[var(--radius-atlas)] border border-line bg-surface p-5 shadow-[var(--shadow-atlas)]";
+  const heading = "text-sm font-semibold text-ink";
+  const label = "flex flex-col text-xs text-muted";
 
   const deadlineName = (key: string): string =>
     tl.deadlineNames[key as keyof typeof tl.deadlineNames] ?? key;
@@ -68,7 +69,7 @@ export default async function LegalPage(props: {
   return (
     <main className="mx-auto min-h-screen max-w-6xl px-6 py-10">
       <AppNav locale={locale} />
-      <h1 className="mt-8 text-2xl font-semibold text-slate-900 dark:text-slate-100">
+      <h1 className="mt-8 text-2xl font-semibold text-ink">
         {engagement.clientName} — {engagement.fiscalYear} · {tl.title}
       </h1>
       <EngagementTabs engagementId={id} locale={locale} active="legal" />
@@ -85,25 +86,25 @@ export default async function LegalPage(props: {
           </form>
         </div>
         {deadlines.length > 0 ? (
-          <div className="mt-3 overflow-x-auto rounded-lg border border-slate-200 dark:border-slate-800">
+          <div className="mt-3 overflow-x-auto rounded-[var(--radius-atlas)] border border-line">
             <table className="w-full text-sm" data-testid="deadlines-table">
               <tbody>
                 {deadlines.map((deadline) => (
-                  <tr key={deadline.key} className="border-t border-slate-200 first:border-t-0 dark:border-slate-800">
-                    <td className="px-3 py-2 text-slate-800 dark:text-slate-200">{deadlineName(deadline.key)}</td>
-                    <td className="w-28 px-3 py-2 font-mono text-xs">{deadline.dueDate}</td>
+                  <tr key={deadline.key} className="border-t border-line first:border-t-0 hover:bg-surface-2">
+                    <td className="px-3 py-2 text-ink">{deadlineName(deadline.key)}</td>
+                    <td className="w-28 px-3 py-2 font-mono text-xs tnum">{deadline.dueDate}</td>
                     <td className="w-28 px-3 py-2 text-xs">
                       {deadline.done ? (
                         "✓"
                       ) : deadline.daysLeft < 0 ? (
-                        <span className="font-semibold text-red-600 dark:text-red-400" data-testid={`overdue-${deadline.key}`}>
+                        <span className="font-semibold text-rose" data-testid={`overdue-${deadline.key}`}>
                           {tl.overdue}
                         </span>
                       ) : (
                         `${deadline.daysLeft} ${tl.daysLeft}`
                       )}
                     </td>
-                    <td className="px-3 py-2 text-xs text-slate-500">{deadline.basis}</td>
+                    <td className="px-3 py-2 text-xs text-muted">{deadline.basis}</td>
                     <td className="w-20 px-3 py-2 text-right">
                       {!deadline.done ? (
                         <form action={markDeadlineDoneAction.bind(null, id, deadline.key)}>
@@ -162,7 +163,7 @@ export default async function LegalPage(props: {
             {tl.amounts}
             <input name="amountsPeriod" type="number" className={`${input} mt-1`} />
           </label>
-          <label className="flex items-center gap-1 text-xs text-slate-500">
+          <label className="flex items-center gap-1 text-xs text-muted">
             <input type="checkbox" name="continuing" /> {tl.continuing}
           </label>
           <label className={label}>
@@ -180,9 +181,9 @@ export default async function LegalPage(props: {
         {register.conventions.length > 0 ? (
           <ul className="mt-3 flex flex-col gap-1.5 text-sm" data-testid="conventions-list">
             {register.conventions.map((convention) => (
-              <li key={convention.id} className="rounded-md border border-slate-200 px-3 py-2 dark:border-slate-800">
-                <span className="font-medium text-slate-900 dark:text-slate-100">{convention.nature}</span>{" "}
-                <span className="text-slate-500">
+              <li key={convention.id} className="rounded-[var(--radius-atlas-sm)] border border-line bg-surface-2 px-3 py-2">
+                <span className="font-medium text-ink">{convention.nature}</span>{" "}
+                <span className="text-muted">
                   — {convention.parties} · {convention.interested} ({tl.capacities[convention.capacity]})
                   {convention.continuing && convention.amountsPeriod !== null
                     ? ` · ${formatFCFA(convention.amountsPeriod)}`
@@ -190,7 +191,7 @@ export default async function LegalPage(props: {
                 </span>
                 {convention.unauthorized ? (
                   <span
-                    className="ml-2 rounded bg-red-100 px-1.5 py-0.5 text-xs font-semibold text-red-700 dark:bg-red-950 dark:text-red-300"
+                    className="ml-2 rounded-[var(--radius-atlas-xs)] bg-[var(--color-rose-soft)] px-1.5 py-0.5 text-xs font-semibold text-rose"
                     data-testid={`conv-unauthorized-${convention.id}`}
                   >
                     {tl.unauthorized}
@@ -232,13 +233,13 @@ export default async function LegalPage(props: {
             </button>
           </form>
         ) : (
-          <div className="mt-3 text-sm text-slate-700 dark:text-slate-300">
+          <div className="mt-3 text-sm text-ink-soft">
             <p data-testid="alerte-stage">
               {tl.stage}: <strong>{stageName(alerte.stage)}</strong>
               {alerte.stageDeadline ? ` · ${tl.stageDeadline}: ${alerte.stageDeadline}` : ""}
               {alerte.discontinued ? ` · ${tl.discontinued} ${alerte.resumableUntil}` : ""}
             </p>
-            <ul className="mt-2 flex flex-col gap-1 text-xs text-slate-500">
+            <ul className="mt-2 flex flex-col gap-1 text-xs text-muted">
               {alerte.events.map((event, index) => (
                 <li key={`${event.stage}-${index}`}>
                   {event.createdAt} — {stageName(event.stage)}
@@ -264,7 +265,7 @@ export default async function LegalPage(props: {
                   <input name="note" className={`${input} mt-1 w-72`} data-testid="alerte-advance-note" />
                 </label>
                 {alerte.nextStages[0] === "reply_recorded" ? (
-                  <label className="flex items-center gap-1 text-xs text-slate-500">
+                  <label className="flex items-center gap-1 text-xs text-muted">
                     <input type="checkbox" name="satisfactory" data-testid="alerte-satisfactory" /> {tl.satisfactory}
                   </label>
                 ) : null}
@@ -310,7 +311,7 @@ export default async function LegalPage(props: {
             </form>
           </div>
           {faits.length > 0 ? (
-            <ul className="mt-3 flex flex-col gap-1 text-xs text-slate-500" data-testid="faits-list">
+            <ul className="mt-3 flex flex-col gap-1 text-xs text-muted" data-testid="faits-list">
               {faits.map((fait) => (
                 <li key={fait.id}>
                   {fait.revealedAt} — {fait.description}
@@ -341,7 +342,7 @@ export default async function LegalPage(props: {
           </form>
         </div>
         {deadlines.some((deadline) => deadline.key === "egm_equity") ? (
-          <p className="mt-3 rounded-md bg-red-50 px-3 py-2 text-sm font-medium text-red-700 dark:bg-red-950/40 dark:text-red-300" data-testid="equity-breach">
+          <p className="mt-3 rounded-[var(--radius-atlas-sm)] bg-[var(--color-rose-soft)] px-3 py-2 text-sm font-medium text-rose" data-testid="equity-breach">
             {tl.equityBreach}
           </p>
         ) : null}
@@ -361,9 +362,9 @@ export default async function LegalPage(props: {
             <form
               key={panel.key}
               action={cocacAction.bind(null, id)}
-              className="flex flex-col gap-2 rounded-lg border border-slate-200 p-3 dark:border-slate-800"
+              className="flex flex-col gap-2 rounded-[var(--radius-atlas)] border border-line bg-surface-2 p-3"
             >
-              <p className="text-xs font-semibold text-slate-900 dark:text-slate-100">{panel.title}</p>
+              <p className="text-xs font-semibold text-ink">{panel.title}</p>
               <input type="hidden" name="key" value={panel.key} />
               <textarea
                 name="text"
@@ -372,7 +373,7 @@ export default async function LegalPage(props: {
                 className={`${input} w-full`}
                 data-testid={`cocac-${panel.key}`}
               />
-              <label className="flex items-center gap-1 text-xs text-slate-500">
+              <label className="flex items-center gap-1 text-xs text-muted">
                 <input type="checkbox" name="confirmed" defaultChecked={panel.record?.confirmed === true} />{" "}
                 {tl.confirmed}
               </label>

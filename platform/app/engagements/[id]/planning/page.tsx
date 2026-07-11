@@ -16,6 +16,7 @@ import {
 import { AppNav } from "@/components/AppNav";
 import { EngagementTabs } from "@/components/EngagementTabs";
 import { ErrorBanner, GatesPanel } from "@/components/GatesPanel";
+import { Chip, Panel, PanelHeader, btnPrimary } from "@/components/ui/atlas";
 import { withTenant } from "@/lib/db";
 import { getEngagement, listFileItems } from "@/lib/engagements";
 import { FORM_DEFINITIONS, isFormComplete, type FormValues } from "@/lib/forms";
@@ -122,41 +123,38 @@ export default async function PlanningPage(props: {
   })();
 
   const btn =
-    "rounded-md border border-slate-300 px-3 py-1.5 text-sm font-medium text-slate-700 hover:bg-slate-100 dark:border-slate-700 dark:text-slate-300 dark:hover:bg-slate-800";
-  const btnPrimary =
-    "rounded-md bg-emerald-700 px-4 py-2 text-sm font-medium text-white hover:bg-emerald-800";
+    "inline-flex items-center rounded-[var(--radius-atlas-sm)] border border-line-strong bg-surface px-3 py-1.5 text-sm font-medium text-ink-soft transition hover:bg-surface-2";
   const input =
-    "rounded-md border border-slate-300 bg-white px-3 py-1.5 text-sm text-slate-900 outline-none focus:border-emerald-600 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-100";
-  const card = "mt-6 rounded-xl border border-slate-200 p-5 dark:border-slate-800";
+    "rounded-[var(--radius-atlas-sm)] border border-line-strong bg-surface px-3 py-2 text-sm text-ink outline-none focus:border-emerald-600 focus:ring-2 focus:ring-emerald-600/20";
 
   return (
     <main className="mx-auto min-h-screen max-w-5xl px-6 py-10">
       <AppNav locale={locale} />
-      <h1 className="mt-8 text-2xl font-semibold text-slate-900 dark:text-slate-100">
+      <h1 className="mt-8 text-2xl font-semibold tracking-[-0.02em] text-ink">
         {engagement.clientName} — {engagement.fiscalYear} · {tp.planningTitle}
       </h1>
       <EngagementTabs engagementId={id} locale={locale} active="planning" />
       <ErrorBanner error={error} failed={failed} locale={locale} />
 
-      <section className={card}>
-        <div className="flex items-center justify-between">
-          <h2 className="text-lg font-semibold text-slate-900 dark:text-slate-100">
-            {tp.driver.title}
-          </h2>
-          <form action={carryForwardAction.bind(null, id)}>
-            <button type="submit" className={btn} data-testid="carry-forward">
-              {tp.carryForward}
-            </button>
-          </form>
-        </div>
-        <div className="mt-3 overflow-x-auto rounded-lg border border-slate-200 dark:border-slate-800">
+      <Panel className="mt-6">
+        <PanelHeader
+          title={tp.driver.title}
+          right={
+            <form action={carryForwardAction.bind(null, id)}>
+              <button type="submit" className={btn} data-testid="carry-forward">
+                {tp.carryForward}
+              </button>
+            </form>
+          }
+        />
+        <div className="mt-3 overflow-x-auto rounded-[var(--radius-atlas-sm)] border border-line">
           <table className="w-full text-sm" data-testid="driver-table">
             <tbody>
               {PLANNING_CODES.map((code) => {
                 const status = statuses.get(code) ?? "not_started";
                 return (
-                  <tr key={code} className="border-t border-slate-200 first:border-t-0 dark:border-slate-800">
-                    <td className="w-20 px-4 py-2 font-mono text-xs font-semibold text-slate-900 dark:text-slate-100">
+                  <tr key={code} className="border-t border-line first:border-t-0 hover:bg-surface-2">
+                    <td className="w-20 px-4 py-2 font-mono text-xs font-semibold text-ink tnum">
                       {code}
                     </td>
                     <td className="px-4 py-2">
@@ -165,8 +163,8 @@ export default async function PlanningPage(props: {
                           status === "signed"
                             ? "text-emerald-700 dark:text-emerald-400"
                             : status === "complete"
-                              ? "text-slate-900 dark:text-slate-100"
-                              : "text-slate-500 dark:text-slate-400"
+                              ? "text-ink"
+                              : "text-muted"
                         }
                       >
                         {tp.driver.statusValues[status as keyof typeof tp.driver.statusValues]}
@@ -188,23 +186,21 @@ export default async function PlanningPage(props: {
             </tbody>
           </table>
         </div>
-      </section>
+      </Panel>
 
-      <section className={card}>
-        <h2 className="text-lg font-semibold text-slate-900 dark:text-slate-100">
-          {tp.materiality.title} (D5.1)
-        </h2>
+      <Panel className="mt-6">
+        <PanelHeader title={`${tp.materiality.title} (D5.1)`} />
         {versions.length > 0 ? (
-          <div className="mt-3 overflow-x-auto rounded-lg border border-slate-200 dark:border-slate-800">
+          <div className="mt-3 overflow-x-auto rounded-[var(--radius-atlas-sm)] border border-line">
             <table className="w-full text-sm" data-testid="materiality-table">
               <tbody>
                 {versions.map((version) => (
-                  <tr key={version.id} className="border-t border-slate-200 first:border-t-0 dark:border-slate-800">
-                    <td className="px-4 py-2 font-mono text-xs font-semibold">v{version.versionNo}</td>
+                  <tr key={version.id} className="border-t border-line first:border-t-0 hover:bg-surface-2">
+                    <td className="px-4 py-2 font-mono text-xs font-semibold tnum">v{version.versionNo}</td>
                     <td className="px-4 py-2">{tp.materiality.benchmarks[version.benchmark]}</td>
-                    <td className="px-4 py-2">{formatFCFA(version.overall)}</td>
-                    <td className="px-4 py-2 text-slate-500">{formatFCFA(version.performance)} PM</td>
-                    <td className="px-4 py-2 text-slate-500">{formatFCFA(version.trivial)} CT</td>
+                    <td className="px-4 py-2 tnum">{formatFCFA(version.overall)}</td>
+                    <td className="px-4 py-2 text-muted tnum">{formatFCFA(version.performance)} PM</td>
+                    <td className="px-4 py-2 text-muted tnum">{formatFCFA(version.trivial)} CT</td>
                     <td className="px-4 py-2" data-testid={`materiality-status-${version.versionNo}`}>
                       {tp.materiality.statusLabel[version.status]}
                       {version.approvedByName ? ` — ${version.approvedByName}` : ""}
@@ -226,7 +222,7 @@ export default async function PlanningPage(props: {
         ) : null}
         <form action={createMaterialityAction.bind(null, id)} className="mt-4 grid grid-cols-2 gap-3 md:grid-cols-4">
           <label className="flex flex-col gap-1 text-sm">
-            <span className="text-slate-600 dark:text-slate-400">{tp.materiality.benchmark}</span>
+            <span className="text-ink-soft">{tp.materiality.benchmark}</span>
             <select name="benchmark" className={input} data-testid="materiality-benchmark">
               {BENCHMARKS.map((benchmark) => (
                 <option key={benchmark} value={benchmark}>
@@ -237,23 +233,23 @@ export default async function PlanningPage(props: {
             </select>
           </label>
           <label className="flex flex-col gap-1 text-sm">
-            <span className="text-slate-600 dark:text-slate-400">{tp.materiality.amount}</span>
+            <span className="text-ink-soft">{tp.materiality.amount}</span>
             <input name="benchmarkAmount" type="number" min="1" required className={input} data-testid="materiality-amount" />
           </label>
           <label className="flex flex-col gap-1 text-sm">
-            <span className="text-slate-600 dark:text-slate-400">{tp.materiality.percentage}</span>
+            <span className="text-ink-soft">{tp.materiality.percentage}</span>
             <input name="percentage" type="number" step="0.1" min="0.1" max="100" required className={input} data-testid="materiality-pct" />
           </label>
           <label className="flex flex-col gap-1 text-sm">
-            <span className="text-slate-600 dark:text-slate-400">{tp.materiality.performancePct}</span>
+            <span className="text-ink-soft">{tp.materiality.performancePct}</span>
             <input name="performancePct" type="number" min="60" max="85" defaultValue="75" className={input} />
           </label>
           <label className="flex flex-col gap-1 text-sm">
-            <span className="text-slate-600 dark:text-slate-400">{tp.materiality.trivialPct}</span>
+            <span className="text-ink-soft">{tp.materiality.trivialPct}</span>
             <input name="trivialPct" type="number" step="0.5" min="0.5" max="10" defaultValue="5" className={input} />
           </label>
           <label className="col-span-2 flex flex-col gap-1 text-sm">
-            <span className="text-slate-600 dark:text-slate-400">{tp.materiality.justification}</span>
+            <span className="text-ink-soft">{tp.materiality.justification}</span>
             <input name="justification" required className={input} data-testid="materiality-justification" />
           </label>
           <div className="flex items-end">
@@ -262,20 +258,18 @@ export default async function PlanningPage(props: {
             </button>
           </div>
         </form>
-      </section>
+      </Panel>
 
-      <section className={card}>
-        <h2 className="text-lg font-semibold text-slate-900 dark:text-slate-100">
-          {tp.team.title} (D6.1)
-        </h2>
+      <Panel className="mt-6">
+        <PanelHeader title={`${tp.team.title} (D6.1)`} />
         <ul className="mt-3 flex flex-col gap-1 text-sm" data-testid="team-list">
           {team.map((member) => (
-            <li key={member.id} className="flex items-center justify-between rounded border border-slate-200 px-3 py-1.5 dark:border-slate-800">
+            <li key={member.id} className="flex items-center justify-between rounded-[var(--radius-atlas-sm)] border border-line bg-surface px-3 py-1.5">
               <span>
                 {member.userName} — {tp.team.roles[member.teamRole]}
               </span>
               <form action={removeTeamAction.bind(null, id, member.userId)}>
-                <button type="submit" className="text-xs text-red-600 hover:underline">
+                <button type="submit" className="text-xs text-rose hover:underline">
                   {tp.team.remove}
                 </button>
               </form>
@@ -284,7 +278,7 @@ export default async function PlanningPage(props: {
         </ul>
         <form action={assignTeamAction.bind(null, id)} className="mt-3 flex flex-wrap items-end gap-3">
           <label className="flex flex-col gap-1 text-sm">
-            <span className="text-slate-600 dark:text-slate-400">{tp.team.user}</span>
+            <span className="text-ink-soft">{tp.team.user}</span>
             <select name="userId" className={input} data-testid="team-user">
               {users.map((user) => (
                 <option key={user.id} value={user.id}>
@@ -294,7 +288,7 @@ export default async function PlanningPage(props: {
             </select>
           </label>
           <label className="flex flex-col gap-1 text-sm">
-            <span className="text-slate-600 dark:text-slate-400">{tp.team.role}</span>
+            <span className="text-ink-soft">{tp.team.role}</span>
             <select name="teamRole" className={input} data-testid="team-role">
               {TEAM_ROLES.map((role) => (
                 <option key={role} value={role}>
@@ -308,12 +302,12 @@ export default async function PlanningPage(props: {
           </button>
         </form>
 
-        <h3 className="mt-6 text-sm font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400">
+        <h3 className="mt-6 text-sm font-semibold uppercase tracking-wide text-muted">
           {tp.budget.title}
         </h3>
         <ul className="mt-2 flex flex-wrap gap-2 text-sm">
           {budget.map((line) => (
-            <li key={line.grade} className="rounded bg-slate-100 px-2 py-1 dark:bg-slate-800">
+            <li key={line.grade} className="rounded-[var(--radius-atlas-xs)] bg-surface-2 px-2 py-1 text-ink-soft tnum">
               {line.grade}: {line.hours} h
             </li>
           ))}
@@ -326,15 +320,15 @@ export default async function PlanningPage(props: {
           </button>
         </form>
 
-        <h3 className="mt-6 text-sm font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400">
+        <h3 className="mt-6 text-sm font-semibold uppercase tracking-wide text-muted">
           {tp.pbc.title}
         </h3>
         <ul className="mt-2 flex flex-col gap-1 text-sm">
           {pbc.map((item) => (
-            <li key={item.id} className="flex items-center justify-between rounded border border-slate-200 px-3 py-1.5 dark:border-slate-800">
+            <li key={item.id} className="flex items-center justify-between rounded-[var(--radius-atlas-sm)] border border-line bg-surface px-3 py-1.5">
               <span>{item.title}</span>
               <span className="flex items-center gap-2">
-                <span className="text-xs text-slate-500">{tp.pbc.status[item.status]}</span>
+                <span className="text-xs text-muted">{tp.pbc.status[item.status]}</span>
                 {item.status !== "accepted" ? (
                   <form
                     action={setPbcStatusAction.bind(
@@ -344,7 +338,7 @@ export default async function PlanningPage(props: {
                       item.status === "requested" ? "uploaded" : "accepted",
                     )}
                   >
-                    <button type="submit" className="text-xs text-emerald-700 hover:underline">
+                    <button type="submit" className="text-xs text-emerald-700 hover:underline dark:text-emerald-400">
                       → {tp.pbc.status[item.status === "requested" ? "uploaded" : "accepted"]}
                     </button>
                   </form>
@@ -359,17 +353,15 @@ export default async function PlanningPage(props: {
             {tp.pbc.add}
           </button>
         </form>
-      </section>
+      </Panel>
 
-      <section className={card}>
-        <h2 className="text-lg font-semibold text-slate-900 dark:text-slate-100">
-          {tp.sections.material} — E
-        </h2>
+      <Panel className="mt-6">
+        <PanelHeader title={`${tp.sections.material} — E`} />
         <ul className="mt-3 grid grid-cols-1 gap-1.5 text-sm md:grid-cols-2">
           {eSections.map((section) => {
             const material = materialFlags.get(section.id) ?? false;
             return (
-              <li key={section.id} className="flex items-center justify-between rounded border border-slate-200 px-3 py-1.5 dark:border-slate-800">
+              <li key={section.id} className="flex items-center justify-between rounded-[var(--radius-atlas-sm)] border border-line bg-surface px-3 py-1.5">
                 <Link
                   href={`/engagements/${id}/sections/${section.id}`}
                   className="font-mono text-xs font-semibold text-emerald-700 hover:underline dark:text-emerald-400"
@@ -377,13 +369,9 @@ export default async function PlanningPage(props: {
                   {section.code}
                 </Link>
                 <span className="flex items-center gap-2">
-                  {material ? (
-                    <span className="rounded bg-amber-100 px-1.5 py-0.5 text-xs font-semibold text-amber-800 dark:bg-amber-950 dark:text-amber-300">
-                      {tp.sections.material}
-                    </span>
-                  ) : null}
+                  {material ? <Chip tone="warn">{tp.sections.material}</Chip> : null}
                   <form action={setMaterialAction.bind(null, id, section.id, !material)}>
-                    <button type="submit" className="text-xs text-slate-500 hover:underline" data-testid={`toggle-material-${section.code}`}>
+                    <button type="submit" className="text-xs text-muted hover:underline" data-testid={`toggle-material-${section.code}`}>
                       {material ? tp.sections.unmarkMaterial : tp.sections.markMaterial}
                     </button>
                   </form>
@@ -392,11 +380,13 @@ export default async function PlanningPage(props: {
             );
           })}
         </ul>
-      </section>
+      </Panel>
 
-      <section className={card}>
-        <h2 className="text-lg font-semibold text-slate-900 dark:text-slate-100">{tp.gates}</h2>
-        <GatesPanel gates={gates} locale={locale} />
+      <Panel className="mt-6">
+        <PanelHeader title={tp.gates} />
+        <div className="mt-3">
+          <GatesPanel gates={gates} locale={locale} />
+        </div>
         {engagement.phase === "planning" ? (
           <form action={closePlanningAction.bind(null, id)} className="mt-4">
             <button type="submit" className={btnPrimary} data-testid="close-planning">
@@ -404,7 +394,7 @@ export default async function PlanningPage(props: {
             </button>
           </form>
         ) : null}
-      </section>
+      </Panel>
     </main>
   );
 }

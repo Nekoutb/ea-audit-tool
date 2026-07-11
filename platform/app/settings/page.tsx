@@ -3,6 +3,7 @@ import { auth } from "@/auth";
 import { updateBrandingAction } from "@/app/actions/branding";
 import { AppNav } from "@/components/AppNav";
 import { ErrorBanner } from "@/components/GatesPanel";
+import { Panel, PanelHeader, btnPrimary } from "@/components/ui/atlas";
 import { DEFAULT_ACCENT, getBranding } from "@/lib/branding";
 import { getMessages } from "@/lib/i18n";
 import { getLocale } from "@/lib/locale";
@@ -22,29 +23,28 @@ export default async function SettingsPage(props: {
   const branding = await getBranding();
 
   const input =
-    "rounded-md border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 outline-none focus:border-emerald-600 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-100";
-  const label = "flex flex-col gap-1 text-sm text-slate-600 dark:text-slate-400";
+    "rounded-[var(--radius-atlas-sm)] border border-line-strong bg-surface px-3 py-2 text-sm text-ink outline-none focus:border-emerald-600 focus:ring-2 focus:ring-emerald-600/20";
+  const label = "flex flex-col gap-1 text-sm text-ink-soft";
 
   return (
     <main className="mx-auto min-h-screen max-w-4xl px-6 py-10">
       <AppNav locale={locale} />
-      <h1 className="mt-8 text-2xl font-semibold text-slate-900 dark:text-slate-100">{ts.title}</h1>
+      <h1 className="mt-8 text-2xl font-semibold tracking-[-0.01em] text-ink">{ts.title}</h1>
       <ErrorBanner error={error} locale={locale} />
       {saved ? (
         <p
           data-testid="branding-saved"
-          className="mt-4 rounded-md border border-emerald-300 bg-emerald-50 px-4 py-3 text-sm text-emerald-800 dark:border-emerald-900 dark:bg-emerald-950/40 dark:text-emerald-300"
+          className="mt-4 rounded-[var(--radius-atlas-sm)] border border-emerald-300 bg-emerald-50 px-4 py-3 text-sm text-emerald-800 dark:border-emerald-900 dark:bg-emerald-950/40 dark:text-emerald-300"
         >
           {ts.saved}
         </p>
       ) : null}
 
-      <section className="mt-6 rounded-xl border border-slate-200 p-6 dark:border-slate-800">
-        <h2 className="text-lg font-semibold text-slate-900 dark:text-slate-100">{ts.brandingTitle}</h2>
-        <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">{ts.brandingHint}</p>
+      <Panel className="mt-6 p-6">
+        <PanelHeader title={ts.brandingTitle} hint={ts.brandingHint} />
 
         {!isAdmin ? (
-          <p className="mt-4 text-sm text-slate-500 dark:text-slate-400" data-testid="branding-readonly">
+          <p className="mt-4 text-sm text-muted" data-testid="branding-readonly">
             {ts.adminOnly}
           </p>
         ) : (
@@ -67,11 +67,11 @@ export default async function SettingsPage(props: {
                   name="accent"
                   type="color"
                   defaultValue={branding.accent ?? DEFAULT_ACCENT}
-                  className="h-10 w-20 cursor-pointer rounded-md border border-slate-300 bg-white p-1 dark:border-slate-700 dark:bg-slate-900"
+                  className="h-10 w-20 cursor-pointer rounded-[var(--radius-atlas-sm)] border border-line-strong bg-surface p-1"
                   data-testid="branding-accent"
                 />
               </label>
-              <label className="flex items-center gap-2 pb-2 text-sm text-slate-600 dark:text-slate-400">
+              <label className="flex items-center gap-2 pb-2 text-sm text-ink-soft">
                 <input type="checkbox" name="resetAccent" data-testid="branding-reset-accent" />
                 {ts.resetAccent}
               </label>
@@ -82,7 +82,7 @@ export default async function SettingsPage(props: {
                 <input name="logo" type="file" accept="image/png,image/jpeg" className="text-sm" data-testid="branding-logo" />
               </label>
               {branding.logo ? (
-                <label className="flex items-center gap-2 pb-1 text-sm text-slate-600 dark:text-slate-400">
+                <label className="flex items-center gap-2 pb-1 text-sm text-ink-soft">
                   <input type="checkbox" name="removeLogo" data-testid="branding-remove-logo" />
                   {ts.removeLogo}
                 </label>
@@ -102,14 +102,14 @@ export default async function SettingsPage(props: {
             </label>
             <button
               type="submit"
-              className="self-start rounded-md bg-emerald-700 px-4 py-2 text-sm font-medium text-white hover:bg-emerald-800"
+              className={`self-start ${btnPrimary}`}
               data-testid="branding-save"
             >
               {ts.save}
             </button>
           </form>
         )}
-      </section>
+      </Panel>
     </main>
   );
 }

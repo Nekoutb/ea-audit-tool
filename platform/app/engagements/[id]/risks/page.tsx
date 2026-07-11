@@ -12,6 +12,7 @@ import {
 import { AppNav } from "@/components/AppNav";
 import { EngagementTabs } from "@/components/EngagementTabs";
 import { ErrorBanner } from "@/components/GatesPanel";
+import { Panel, PanelHeader } from "@/components/ui/atlas";
 import { getEngagement, listFileItems } from "@/lib/engagements";
 import { getMessages } from "@/lib/i18n";
 import { getLocale } from "@/lib/locale";
@@ -40,30 +41,33 @@ export default async function RisksPage(props: {
   const eSections = items.filter((item) => item.section === "E");
 
   const input =
-    "rounded-md border border-slate-300 bg-white px-2 py-1 text-sm text-slate-900 outline-none focus:border-emerald-600 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-100";
+    "rounded-[var(--radius-atlas-sm)] border border-line-strong bg-surface px-2 py-1 text-sm text-ink outline-none focus:border-emerald-600 focus:ring-2 focus:ring-emerald-600/20";
   const btn =
-    "rounded-md border border-slate-300 px-2.5 py-1 text-xs font-medium text-slate-700 hover:bg-slate-100 dark:border-slate-700 dark:text-slate-300 dark:hover:bg-slate-800";
+    "rounded-[var(--radius-atlas-sm)] border border-line-strong bg-surface px-2.5 py-1 text-xs font-medium text-ink-soft hover:bg-surface-2";
 
   return (
     <main className="mx-auto min-h-screen max-w-5xl px-6 py-10">
       <AppNav locale={locale} />
-      <h1 className="mt-8 text-2xl font-semibold text-slate-900 dark:text-slate-100">
+      <h1 className="mt-8 text-2xl font-semibold text-ink">
         {engagement.clientName} — {engagement.fiscalYear} · {t.planning.risksTitle}
       </h1>
       <EngagementTabs engagementId={id} locale={locale} active="risks" />
       <ErrorBanner error={error} locale={locale} />
 
-      <section className="mt-6 rounded-xl border border-slate-200 p-5 dark:border-slate-800">
-        <h2 className="text-lg font-semibold text-slate-900 dark:text-slate-100">{tr.potential}</h2>
+      <Panel className="mt-6">
+        <PanelHeader title={tr.potential} />
         {potential.length === 0 ? (
-          <p className="mt-2 text-sm text-slate-500 dark:text-slate-400">{tr.empty}</p>
+          <p className="mt-2 text-sm text-muted">{tr.empty}</p>
         ) : (
           <ul className="mt-3 flex flex-col gap-2" data-testid="potential-risks">
             {potential.map((risk) => (
-              <li key={risk.id} className="rounded-lg border border-slate-200 p-3 text-sm dark:border-slate-800">
-                <p className="text-slate-900 dark:text-slate-100">
+              <li
+                key={risk.id}
+                className="rounded-[var(--radius-atlas)] border border-line bg-surface-2 p-3 text-sm"
+              >
+                <p className="text-ink">
                   {risk.description}
-                  <span className="ml-2 text-xs text-slate-500">
+                  <span className="ml-2 text-xs text-muted">
                     {tr.source}: {risk.sourceCode} · {risk.raisedByName} · {risk.status}
                   </span>
                 </p>
@@ -82,39 +86,46 @@ export default async function RisksPage(props: {
                     </form>
                   </div>
                 ) : risk.dismissalRationale ? (
-                  <p className="mt-1 text-xs text-slate-500">{risk.dismissalRationale}</p>
+                  <p className="mt-1 text-xs text-muted">{risk.dismissalRationale}</p>
                 ) : null}
               </li>
             ))}
           </ul>
         )}
-      </section>
+      </Panel>
 
-      <section className="mt-6 rounded-xl border border-slate-200 p-5 dark:border-slate-800">
-        <h2 className="text-lg font-semibold text-slate-900 dark:text-slate-100">{tr.register}</h2>
+      <Panel className="mt-6">
+        <PanelHeader title={tr.register} />
         <ul className="mt-3 flex flex-col gap-3" data-testid="risk-register">
           {risks.map((risk) => (
-            <li key={risk.id} className="rounded-lg border border-slate-200 p-4 dark:border-slate-800" data-testid={`risk-${risk.presumedType ?? risk.id}`}>
+            <li
+              key={risk.id}
+              className="rounded-[var(--radius-atlas)] border border-line bg-surface-2 p-4"
+              data-testid={`risk-${risk.presumedType ?? risk.id}`}
+            >
               <div className="flex flex-wrap items-center justify-between gap-2">
-                <p className="font-medium text-slate-900 dark:text-slate-100">
+                <p className="font-medium text-ink">
                   {risk.description}
                   {risk.presumedType ? (
-                    <span className="ml-2 rounded bg-slate-100 px-1.5 py-0.5 text-xs text-slate-600 dark:bg-slate-800 dark:text-slate-400">
+                    <span className="ml-2 inline-flex items-center rounded-[var(--radius-atlas-xs)] bg-surface px-1.5 py-0.5 text-xs text-ink-soft">
                       {tr.presumed}
                     </span>
                   ) : null}
                   {risk.significant && !risk.rebutted ? (
-                    <span className="ml-2 rounded bg-red-100 px-1.5 py-0.5 text-xs font-semibold text-red-700 dark:bg-red-950 dark:text-red-300">
+                    <span className="ml-2 inline-flex items-center rounded-[var(--radius-atlas-xs)] bg-[var(--color-rose-soft)] px-1.5 py-0.5 text-xs font-semibold text-rose">
                       {tr.significant}
                     </span>
                   ) : null}
                   {risk.rebutted ? (
-                    <span className="ml-2 rounded bg-slate-100 px-1.5 py-0.5 text-xs text-slate-500 dark:bg-slate-800">
+                    <span className="ml-2 inline-flex items-center rounded-[var(--radius-atlas-xs)] bg-surface px-1.5 py-0.5 text-xs text-muted">
                       {tr.rebutted}
                     </span>
                   ) : null}
                   {risk.addedAfterPlanning && !risk.additionApproved ? (
-                    <span className="ml-2 rounded bg-amber-100 px-1.5 py-0.5 text-xs font-semibold text-amber-800 dark:bg-amber-950 dark:text-amber-300" data-testid={`pending-approval-${risk.id}`}>
+                    <span
+                      className="ml-2 inline-flex items-center rounded-[var(--radius-atlas-xs)] bg-[var(--color-warn-soft)] px-1.5 py-0.5 text-xs font-semibold text-warn"
+                      data-testid={`pending-approval-${risk.id}`}
+                    >
                       {t.planning.execution.pendingApproval}
                     </span>
                   ) : null}
@@ -126,13 +137,13 @@ export default async function RisksPage(props: {
                     </button>
                   </form>
                 ) : null}
-                <span className="text-xs text-slate-500">
-                  {tr.rating}: <b className="uppercase">{risk.rating}</b> · {tr.statuses[risk.status]} ·{" "}
+                <span className="text-xs text-muted">
+                  {tr.rating}: <b className="uppercase text-ink-soft">{risk.rating}</b> · {tr.statuses[risk.status]} ·{" "}
                   {risk.linkedStepCount} {tr.linkedSteps}
                 </span>
               </div>
               {risk.sections.length > 0 ? (
-                <p className="mt-1 text-xs text-slate-500">
+                <p className="mt-1 text-xs text-muted">
                   {risk.sections.map((section) => `${section.code} [${section.assertions.join("")}]`).join(" · ")}
                 </p>
               ) : null}
@@ -140,7 +151,7 @@ export default async function RisksPage(props: {
               {!risk.rebutted ? (
                 <div className="mt-3 flex flex-wrap items-end gap-4">
                   <form action={updateRiskAction.bind(null, id, risk.id)} className="flex flex-wrap items-end gap-2">
-                    <label className="flex flex-col text-xs text-slate-500">
+                    <label className="flex flex-col text-xs text-muted">
                       {tr.likelihood}
                       <select name="likelihood" defaultValue={risk.likelihood} className={input}>
                         <option value="low">low</option>
@@ -148,7 +159,7 @@ export default async function RisksPage(props: {
                         <option value="high">high</option>
                       </select>
                     </label>
-                    <label className="flex flex-col text-xs text-slate-500">
+                    <label className="flex flex-col text-xs text-muted">
                       {tr.magnitude}
                       <select name="magnitude" defaultValue={risk.magnitude} className={input}>
                         <option value="low">low</option>
@@ -157,18 +168,18 @@ export default async function RisksPage(props: {
                       </select>
                     </label>
                     {risk.presumedType === null ? (
-                      <label className="flex items-center gap-1 text-xs text-slate-500">
+                      <label className="flex items-center gap-1 text-xs text-muted">
                         <input type="hidden" name="significant_present" value="1" />
                         <input type="checkbox" name="significant" defaultChecked={risk.significant} />
                         {tr.significant}
                       </label>
                     ) : null}
-                    <label className="flex items-center gap-1 text-xs text-slate-500">
+                    <label className="flex items-center gap-1 text-xs text-muted">
                       <input type="hidden" name="controlsReliance_present" value="1" />
                       <input type="checkbox" name="controlsReliance" defaultChecked={risk.controlsReliance} />
                       {tr.controlsReliance}
                     </label>
-                    <label className="flex flex-col text-xs text-slate-500">
+                    <label className="flex flex-col text-xs text-muted">
                       {tr.statusLabel}
                       <select
                         name="status"
@@ -189,7 +200,7 @@ export default async function RisksPage(props: {
                   </form>
 
                   <form action={mapRiskAction.bind(null, id, risk.id)} className="flex flex-wrap items-end gap-2">
-                    <label className="flex flex-col text-xs text-slate-500">
+                    <label className="flex flex-col text-xs text-muted">
                       {tr.mapSection}
                       <select name="fileItemId" className={input} data-testid={`map-section-${risk.id}`}>
                         {eSections.map((section) => (
@@ -199,7 +210,7 @@ export default async function RisksPage(props: {
                         ))}
                       </select>
                     </label>
-                    <span className="flex items-center gap-1 text-xs text-slate-500">
+                    <span className="flex items-center gap-1 text-xs text-muted">
                       {ASSERTIONS.map((assertion) => (
                         <label key={assertion} className="flex items-center gap-0.5">
                           <input type="checkbox" name="assertions" value={assertion} />
@@ -225,9 +236,9 @@ export default async function RisksPage(props: {
             </li>
           ))}
         </ul>
-      </section>
+      </Panel>
 
-      <p className="mt-6 text-sm text-slate-500 dark:text-slate-400">
+      <p className="mt-6 text-sm text-muted">
         <Link href={`/engagements/${id}/forms/D7.1`} className="text-emerald-700 hover:underline dark:text-emerald-400">
           D7.1
         </Link>

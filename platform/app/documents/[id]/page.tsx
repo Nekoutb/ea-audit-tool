@@ -13,6 +13,7 @@ import {
 import { AppNav } from "@/components/AppNav";
 import { DocxPreview } from "@/components/DocxPreview";
 import { UploadVersion } from "@/components/UploadVersion";
+import { Chip } from "@/components/ui/atlas";
 import {
   getDocument,
   listReviewNotes,
@@ -49,11 +50,11 @@ export default async function DocumentPage(props: {
   const errorText = error ? (td.errors[error as keyof typeof td.errors] ?? error) : null;
 
   const btn =
-    "rounded-md border border-slate-300 px-3 py-1.5 text-sm font-medium text-slate-700 hover:bg-slate-100 disabled:opacity-50 dark:border-slate-700 dark:text-slate-300 dark:hover:bg-slate-800";
+    "rounded-[var(--radius-atlas-sm)] border border-line-strong bg-surface px-3 py-1.5 text-sm font-medium text-ink-soft hover:bg-surface-2 disabled:opacity-50";
   const btnPrimary =
-    "rounded-md bg-emerald-700 px-3 py-1.5 text-sm font-medium text-white hover:bg-emerald-800 disabled:opacity-50";
+    "rounded-[var(--radius-atlas-sm)] bg-emerald-700 px-3 py-1.5 text-sm font-medium text-white hover:bg-emerald-800 disabled:opacity-50";
   const inputClass =
-    "rounded-md border border-slate-300 bg-white px-3 py-1.5 text-sm text-slate-900 outline-none focus:border-emerald-600 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-100";
+    "rounded-[var(--radius-atlas-sm)] border border-line-strong bg-surface px-3 py-1.5 text-sm text-ink outline-none focus:border-emerald-600 focus:ring-2 focus:ring-emerald-600/20";
 
   return (
     <main className="mx-auto min-h-screen max-w-5xl px-6 py-10">
@@ -67,22 +68,17 @@ export default async function DocumentPage(props: {
           ← {td.backToFile}
         </Link>
         <div className="mt-2 flex flex-wrap items-center justify-between gap-3">
-          <h1 className="text-2xl font-semibold text-slate-900 dark:text-slate-100">
+          <h1 className="text-2xl font-semibold text-ink">
             {document.fileItemCode} — {document.title}
           </h1>
-          <span
-            data-testid="doc-status"
-            className={
-              isSigned
-                ? "rounded-full bg-emerald-100 px-3 py-1 text-xs font-semibold text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300"
-                : "rounded-full bg-amber-100 px-3 py-1 text-xs font-semibold text-amber-800 dark:bg-amber-950 dark:text-amber-300"
-            }
-          >
-            {isSigned ? td.statusSigned : td.statusDraft}
+          <span data-testid="doc-status">
+            <Chip tone={isSigned ? "good" : "warn"}>
+              {isSigned ? td.statusSigned : td.statusDraft}
+            </Chip>
           </span>
         </div>
         {document.checkedOutBy ? (
-          <p className="mt-1 text-sm text-amber-700 dark:text-amber-400" data-testid="checkout-info">
+          <p className="mt-1 text-sm text-warn" data-testid="checkout-info">
             {td.checkedOutBy}: {document.checkedOutByName}
           </p>
         ) : null}
@@ -92,7 +88,7 @@ export default async function DocumentPage(props: {
         <p
           role="alert"
           data-testid="doc-error"
-          className="mt-4 rounded-md border border-red-300 bg-red-50 px-4 py-2 text-sm text-red-800 dark:border-red-900 dark:bg-red-950/40 dark:text-red-300"
+          className="mt-4 rounded-[var(--radius-atlas-sm)] border border-line bg-[var(--color-rose-soft)] px-4 py-2 text-sm text-rose"
         >
           {errorText}
         </p>
@@ -135,14 +131,14 @@ export default async function DocumentPage(props: {
       </section>
 
       {checkedOutByMe ? (
-        <section className="mt-4 rounded-xl border border-emerald-200 bg-emerald-50/40 p-4 dark:border-emerald-900 dark:bg-emerald-950/20">
-          <p className="mb-3 text-sm text-slate-600 dark:text-slate-400">{td.uploadHint}</p>
+        <section className="mt-4 rounded-[var(--radius-atlas)] border border-emerald-200 bg-emerald-50/40 p-4 dark:border-emerald-900 dark:bg-emerald-950/20">
+          <p className="mb-3 text-sm text-ink-soft">{td.uploadHint}</p>
           <UploadVersion documentId={id} messages={td} />
         </section>
       ) : null}
 
       <section className="mt-8">
-        <h2 className="text-lg font-semibold text-slate-900 dark:text-slate-100">{td.signoffs}</h2>
+        <h2 className="text-lg font-semibold text-ink">{td.signoffs}</h2>
         <div className="mt-3 flex flex-wrap items-center gap-3">
           {(["preparer", "reviewer", "partner"] as const).map((role) => {
             const active = signoffs.find((s) => s.role === role && !s.voidedAt);
@@ -151,7 +147,7 @@ export default async function DocumentPage(props: {
                 <span
                   key={role}
                   data-testid={`signed-${role}`}
-                  className="rounded-md bg-emerald-100 px-3 py-1.5 text-sm text-emerald-900 dark:bg-emerald-950 dark:text-emerald-300"
+                  className="rounded-[var(--radius-atlas-sm)] bg-emerald-100 px-3 py-1.5 text-sm text-emerald-900 dark:bg-emerald-950 dark:text-emerald-300"
                 >
                   {role === "preparer"
                     ? td.signPreparer
@@ -205,7 +201,7 @@ export default async function DocumentPage(props: {
         ) : null}
 
         {signoffs.some((s) => s.voidedAt) ? (
-          <ul className="mt-3 text-xs text-slate-500 dark:text-slate-400">
+          <ul className="mt-3 text-xs text-muted">
             {signoffs
               .filter((s) => s.voidedAt)
               .map((s) => (
@@ -218,26 +214,26 @@ export default async function DocumentPage(props: {
       </section>
 
       <section className="mt-8">
-        <h2 className="text-lg font-semibold text-slate-900 dark:text-slate-100">
+        <h2 className="text-lg font-semibold text-ink">
           {td.reviewNotes} {openNotes.length > 0 ? `(${openNotes.length})` : ""}
         </h2>
         <ul className="mt-3 flex flex-col gap-2" data-testid="review-notes">
           {notes.map((note) => (
             <li
               key={note.id}
-              className={`rounded-lg border p-3 text-sm ${
+              className={`rounded-[var(--radius-atlas)] border p-3 text-sm ${
                 note.status === "open"
-                  ? "border-amber-300 bg-amber-50/50 dark:border-amber-900 dark:bg-amber-950/20"
-                  : "border-slate-200 dark:border-slate-800"
+                  ? "border-line bg-[var(--color-warn-soft)]"
+                  : "border-line"
               }`}
             >
-              <p className="text-slate-800 dark:text-slate-200">
+              <p className="text-ink">
                 <span className="font-medium">{note.authorName}</span> · {note.createdAt} ·{" "}
                 {note.status === "open" ? td.noteOpen : td.noteCleared}
               </p>
-              <p className="mt-1 text-slate-700 dark:text-slate-300">{note.body}</p>
+              <p className="mt-1 text-ink-soft">{note.body}</p>
               {note.response ? (
-                <p className="mt-1 text-slate-500 dark:text-slate-400">
+                <p className="mt-1 text-muted">
                   {td.noteResponse}: {note.response}
                 </p>
               ) : null}
@@ -285,10 +281,10 @@ export default async function DocumentPage(props: {
       </section>
 
       <section className="mt-8">
-        <h2 className="text-lg font-semibold text-slate-900 dark:text-slate-100">{td.versions}</h2>
-        <div className="mt-3 overflow-x-auto rounded-lg border border-slate-200 dark:border-slate-800">
+        <h2 className="text-lg font-semibold text-ink">{td.versions}</h2>
+        <div className="mt-3 overflow-x-auto rounded-[var(--radius-atlas)] border border-line bg-surface shadow-[var(--shadow-atlas)]">
           <table className="w-full text-sm" data-testid="versions-table">
-            <thead className="bg-slate-50 text-left text-xs uppercase tracking-wide text-slate-500 dark:bg-slate-900 dark:text-slate-400">
+            <thead className="bg-surface-2 text-left text-xs uppercase tracking-wide text-muted">
               <tr>
                 <th className="px-4 py-2.5">{td.versionCol}</th>
                 <th className="px-4 py-2.5">{td.sizeCol}</th>
@@ -302,21 +298,21 @@ export default async function DocumentPage(props: {
               {versions.map((version) => (
                 <tr
                   key={version.versionNo}
-                  className="border-t border-slate-200 dark:border-slate-800"
+                  className="border-t border-line hover:bg-surface-2"
                 >
-                  <td className="px-4 py-2.5 font-mono text-xs font-semibold text-slate-900 dark:text-slate-100">
+                  <td className="px-4 py-2.5 font-mono text-xs font-semibold text-ink tnum">
                     v{version.versionNo}
                   </td>
-                  <td className="px-4 py-2.5 text-slate-600 dark:text-slate-400">
+                  <td className="px-4 py-2.5 text-ink-soft tnum">
                     {(version.byteSize / 1024).toFixed(1)} KB
                   </td>
-                  <td className="px-4 py-2.5 text-slate-600 dark:text-slate-400">
+                  <td className="px-4 py-2.5 text-ink-soft">
                     {version.createdByName}
                   </td>
-                  <td className="px-4 py-2.5 text-slate-600 dark:text-slate-400">
+                  <td className="px-4 py-2.5 text-ink-soft tnum">
                     {version.createdAt}
                   </td>
-                  <td className="px-4 py-2.5 text-slate-500 dark:text-slate-400">
+                  <td className="px-4 py-2.5 text-muted">
                     {version.note}
                   </td>
                   <td className="px-4 py-2.5 text-right">
@@ -338,7 +334,7 @@ export default async function DocumentPage(props: {
                       >
                         <button
                           type="submit"
-                          className="font-medium text-slate-600 hover:underline dark:text-slate-400"
+                          className="font-medium text-ink-soft hover:underline"
                           data-testid={`restore-${version.versionNo}`}
                         >
                           {td.restore}
@@ -355,7 +351,7 @@ export default async function DocumentPage(props: {
 
       {document.currentVersion > 0 ? (
         <section className="mt-8">
-          <h2 className="text-lg font-semibold text-slate-900 dark:text-slate-100">
+          <h2 className="text-lg font-semibold text-ink">
             {td.previewTitle}
           </h2>
           <div className="mt-3">

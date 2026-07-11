@@ -20,7 +20,11 @@ async function login(page: Page, email: string): Promise<void> {
   // Target the login button specifically — the language switcher also renders
   // submit buttons on this page.
   await page.getByTestId("login-submit").click();
+  // Login lands on the most-recently-worked engagement's dashboard (or the firm
+  // dashboard when the tenant has none) — both end in /dashboard.
   await page.waitForURL("**/dashboard");
+  // These tests assert on the FIRM dashboard, so navigate there explicitly.
+  await page.goto("/dashboard");
 }
 
 test("Firm A sees only its own data on the dashboard", async ({ page }) => {

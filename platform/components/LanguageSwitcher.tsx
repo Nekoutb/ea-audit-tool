@@ -20,8 +20,8 @@ export function LanguageSwitcher({ current }: { current: Locale }) {
             aria-current={locale === current}
             className={
               locale === current
-                ? "rounded px-2 py-1 text-xs font-semibold text-emerald-700 dark:text-emerald-400"
-                : "rounded px-2 py-1 text-xs text-slate-500 hover:text-slate-800 dark:text-slate-400 dark:hover:text-slate-200"
+                ? "rounded-[var(--radius-atlas-xs)] px-2 py-1 text-xs font-semibold text-emerald-700 dark:text-emerald-400"
+                : "rounded-[var(--radius-atlas-xs)] px-2 py-1 text-xs text-muted hover:text-ink"
             }
           >
             {label[locale]}

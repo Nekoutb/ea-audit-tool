@@ -47,12 +47,12 @@ export function DocxPreview({
   return (
     <div>
       {state === "loading" ? (
-        <p className="text-sm text-slate-500 dark:text-slate-400">{loadingLabel}</p>
+        <p className="text-sm text-muted">{loadingLabel}</p>
       ) : null}
       <div
         ref={container}
         data-testid="docx-preview"
-        className="max-h-[540px] overflow-auto rounded-lg border border-slate-200 bg-white p-2 dark:border-slate-800 [&_.docx-wrapper]:bg-white [&_.docx-wrapper]:p-4"
+        className="max-h-[540px] overflow-auto rounded-[var(--radius-atlas)] border border-line bg-surface p-2 [&_.docx-wrapper]:bg-surface [&_.docx-wrapper]:p-4"
       />
     </div>
   );

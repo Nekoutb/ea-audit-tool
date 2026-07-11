@@ -18,7 +18,10 @@ async function login(page: Page, email: string, password: string): Promise<void>
 test("Phase 9: portal PBC round-trip + dashboards + export", async ({ page }) => {
   test.setTimeout(300_000);
   await login(page, EMAIL, PASSWORD);
+  // Login lands on the most-recently-worked engagement's dashboard; this test
+  // asserts on the FIRM dashboard, so navigate there explicitly.
   await page.waitForURL("**/dashboard");
+  await page.goto("/dashboard");
 
   // Firm dashboard panels render (9.4/9.5).
   await expect(page.getByTestId("firm-by-phase")).toBeVisible();

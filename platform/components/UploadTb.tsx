@@ -49,23 +49,23 @@ export function UploadTb({
         accept=".csv,.xlsx,.txt"
         required
         data-testid="tb-file"
-        className="text-sm text-slate-600 file:mr-3 file:rounded-md file:border file:border-slate-300 file:bg-white file:px-3 file:py-1.5 file:text-sm file:font-medium file:text-slate-700 dark:text-slate-400 dark:file:border-slate-700 dark:file:bg-slate-900 dark:file:text-slate-300"
+        className="text-sm text-ink-soft file:mr-3 file:rounded-[var(--radius-atlas-sm)] file:border file:border-line-strong file:bg-surface file:px-3 file:py-1.5 file:text-sm file:font-medium file:text-ink-soft"
       />
       <button
         type="submit"
         disabled={pending}
         data-testid="tb-upload"
-        className="rounded-md bg-emerald-700 px-3 py-1.5 text-sm font-medium text-white hover:bg-emerald-800 disabled:opacity-60"
+        className="rounded-[var(--radius-atlas-sm)] bg-emerald-700 px-3 py-1.5 text-sm font-medium text-white hover:bg-emerald-800 disabled:opacity-60"
       >
         {messages.tbPage.import}
       </button>
       {status ? (
-        <span className="text-sm text-emerald-700 dark:text-emerald-400" data-testid="tb-import-status">
+        <span className="text-sm text-emerald-700 tnum" data-testid="tb-import-status">
           {status}
         </span>
       ) : null}
       {error ? (
-        <p role="alert" className="text-sm text-red-600 dark:text-red-400">
+        <p role="alert" className="text-sm text-rose">
           {error}
         </p>
       ) : null}

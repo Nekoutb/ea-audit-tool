@@ -9,7 +9,11 @@ async function login(page: Page, email: string): Promise<void> {
   await page.fill("input[name=email]", email);
   await page.fill("input[name=password]", PASSWORD);
   await page.getByTestId("login-submit").click();
+  // Login lands on the most-recently-worked engagement's dashboard (or the firm
+  // dashboard when the tenant has none) — both end in /dashboard.
   await page.waitForURL("**/dashboard");
+  // These tests use the FIRM dashboard (send-test-notification), so go there.
+  await page.goto("/dashboard");
 }
 
 test("a notification reaches only the user it was created for", async ({ browser }) => {
