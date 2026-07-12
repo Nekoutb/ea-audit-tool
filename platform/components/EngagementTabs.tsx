@@ -23,9 +23,10 @@ export function EngagementTabs({
     | "conclusion";
 }) {
   const t = getMessages(locale);
+  // The audit-file index screen is intentionally NOT a tab: every working paper
+  // is reached through the dashboard's phase drill-downs (hub-and-spoke).
   const tabs = [
     { key: "dashboard", href: `/engagements/${engagementId}/dashboard`, label: t.nav.dashboard },
-    { key: "file", href: `/engagements/${engagementId}`, label: t.fileIndex.title },
     { key: "acceptance", href: `/engagements/${engagementId}/acceptance`, label: t.planning.acceptanceTitle },
     { key: "planning", href: `/engagements/${engagementId}/planning`, label: t.planning.planningTitle },
     { key: "risks", href: `/engagements/${engagementId}/risks`, label: t.planning.risksTitle },

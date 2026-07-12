@@ -1,4 +1,3 @@
-import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
 import { auth } from "@/auth";
 import { AppNav } from "@/components/AppNav";
@@ -9,7 +8,6 @@ import {
   PanelHeader,
   PhaseGauge,
   StatCell,
-  btnPrimary,
 } from "@/components/ui/atlas";
 import { engagementDashboard } from "@/lib/dashboards";
 import {
@@ -104,12 +102,6 @@ export default async function EngagementDashboardPage(props: {
               })}
             </div>
           </div>
-          <Link href={`/engagements/${id}`} className={btnPrimary} data-testid="open-working-file">
-            {td.openWorkingFile}
-            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2">
-              <path d="M5 12h14M13 6l6 6-6 6" />
-            </svg>
-          </Link>
         </div>
       </div>
 
@@ -214,6 +206,13 @@ export default async function EngagementDashboardPage(props: {
               value={`${dash.pbcOpen}`}
               sub={`${dash.documentsUnsigned} ${t.engagementDashboard.unsigned.toLowerCase()}`}
             />
+            <a
+              href={`/api/engagements/${id}/export`}
+              data-testid="dashboard-export-index"
+              className="mt-auto text-[12.5px] font-semibold text-emerald-700 hover:underline dark:text-emerald-400"
+            >
+              {t.engagementDashboard.export}
+            </a>
           </div>
         </Panel>
       </section>

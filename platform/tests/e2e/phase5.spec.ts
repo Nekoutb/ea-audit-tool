@@ -31,7 +31,8 @@ test("Phase 5: engines run on demo data; projected misstatement lands in B5", as
   await page.getByTestId("cq-listed").check();
   await page.getByTestId("create-engagement").click();
   await page.waitForURL("**/engagements/**");
-  const engagementUrl = page.url();
+  const engagementUrl = page.url().replace(/\/dashboard$/, "");
+  await page.goto(engagementUrl);
   const engagementId = engagementUrl.split("/engagements/")[1].split(/[/?#]/)[0];
 
   // TB via the real import engine.

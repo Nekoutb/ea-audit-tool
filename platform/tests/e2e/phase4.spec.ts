@@ -31,7 +31,8 @@ test("Phase 4: step execution → findings routing → B5 vs materiality → rev
   await page.getByTestId("cq-listed").check();
   await page.getByTestId("create-engagement").click();
   await page.waitForURL("**/engagements/**");
-  const engagementUrl = page.url();
+  const engagementUrl = page.url().replace(/\/dashboard$/, "");
+  await page.goto(engagementUrl);
 
   // Materiality (overall 1.5M / trivial 75k) so B5 verdicts are live.
   await page.getByTestId("tab-planning").click();

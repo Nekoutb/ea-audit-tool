@@ -35,7 +35,8 @@ test("Phase 8: deadlines → conventions/rapport spécial → alerte → equity 
   await page.getByTestId("cq-listed").check();
   await page.getByTestId("create-engagement").click();
   await page.waitForURL("**/engagements/**");
-  const engagementUrl = page.url();
+  const engagementUrl = page.url().replace(/\/dashboard$/, "");
+  await page.goto(engagementUrl);
 
   // Loss-making balanced TB for the F7 equity monitor (equity 2M vs capital 10M).
   await page.goto(`${engagementUrl}/data`);

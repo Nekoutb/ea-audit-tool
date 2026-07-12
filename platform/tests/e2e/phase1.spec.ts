@@ -34,6 +34,7 @@ test("full Phase 1 acceptance flow on D3.1", async ({ page }) => {
   await page.getByTestId("cq-listed").check();
   await page.getByTestId("create-engagement").click();
   await page.waitForURL("**/engagements/**");
+  await page.goto(page.url().replace(/\/dashboard$/, ""));
 
   // The A–F index is instantiated with the methodology's gaps preserved.
   await expect(page.getByTestId("file-item-D3.1")).toBeVisible();

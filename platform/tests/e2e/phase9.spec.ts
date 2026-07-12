@@ -42,7 +42,8 @@ test("Phase 9: portal PBC round-trip + dashboards + export", async ({ page }) =>
   await page.getByTestId("cq-listed").check();
   await page.getByTestId("create-engagement").click();
   await page.waitForURL("**/engagements/**");
-  const engagementUrl = page.url();
+  const engagementUrl = page.url().replace(/\/dashboard$/, "");
+  await page.goto(engagementUrl);
 
   // Engagement dashboard strip (9.3) + export link (9.6).
   await expect(page.getByTestId("engagement-dashboard")).toBeVisible();

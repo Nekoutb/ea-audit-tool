@@ -44,7 +44,8 @@ test("full Phase 2 acceptance → planning → gates → close", async ({ page }
   await page.getByTestId("cq-listed").check();
   await page.getByTestId("create-engagement").click();
   await page.waitForURL("**/engagements/**");
-  const engagementUrl = page.url();
+  const engagementUrl = page.url().replace(/\/dashboard$/, "");
+  await page.goto(engagementUrl);
 
   // --- Acceptance: D3.1 structured form ---
   await page.getByTestId("tab-acceptance").click();

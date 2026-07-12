@@ -80,7 +80,7 @@ export async function createEngagementAction(formData: FormData): Promise<void> 
     throw error;
   }
   revalidatePath("/engagements");
-  redirect(`/engagements/${id}`);
+  redirect(`/engagements/${id}/dashboard`);
 }
 
 export async function generateDocumentAction(fileItemId: string): Promise<void> {

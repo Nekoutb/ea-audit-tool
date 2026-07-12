@@ -45,7 +45,8 @@ test("Phase 7: gates block → complete file → issue report → archive → ro
   await page.getByTestId("cq-listed").check();
   await page.getByTestId("create-engagement").click();
   await page.waitForURL("**/engagements/**");
-  const engagementUrl = page.url();
+  const engagementUrl = page.url().replace(/\/dashboard$/, "");
+  await page.goto(engagementUrl);
   const engagementId = engagementUrl.split("/engagements/")[1].split(/[/?#]/)[0];
 
   // Balanced TB (débits = crédits = 150M) so the FS tie-out passes.

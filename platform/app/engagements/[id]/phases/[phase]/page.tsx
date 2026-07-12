@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
 import { auth } from "@/auth";
+import { generateDocumentAction } from "@/app/actions/audit-file";
 import { AppNav } from "@/components/AppNav";
 import { NavLink } from "@/components/NavLink";
 import { Chip, Panel, PanelHeader } from "@/components/ui/atlas";
@@ -9,9 +10,11 @@ import {
   PHASE_SLUGS,
   engagementPhaseProgress,
   phaseTasks,
+  type DashboardPhase,
   type PhaseTaskStatus,
 } from "@/lib/engagement-dashboard";
 import { getEngagement } from "@/lib/engagements";
+import { FORM_DEFINITIONS } from "@/lib/forms";
 import { getMessages } from "@/lib/i18n";
 import { getLocale } from "@/lib/locale";
 
@@ -48,6 +51,26 @@ export default async function PhaseTasksPage(props: {
   ]);
   const summary = progress.find((p) => p.phase === phase);
   const index = `0${PHASE_ORDER.indexOf(phase) + 1}`;
+  // Specialized workspaces behind this phase's element (hub-and-spoke).
+  const WORKSPACE_MAP: Record<DashboardPhase, { href: string; label: string }[]> = {
+    acceptance: [{ href: `/engagements/${id}/acceptance`, label: t.planning.acceptanceTitle }],
+    planning: [
+      { href: `/engagements/${id}/planning`, label: t.planning.planningTitle },
+      { href: `/engagements/${id}/risks`, label: t.planning.risksTitle },
+    ],
+    execution: [
+      { href: `/engagements/${id}/data`, label: t.planning.dataTitle },
+      { href: `/engagements/${id}/analytics`, label: t.planning.analyticsTitle },
+      { href: `/engagements/${id}/confirmations`, label: t.planning.confirmations.title },
+      { href: `/engagements/${id}/pbc`, label: t.pbc.title },
+    ],
+    conclusion: [
+      { href: `/engagements/${id}/legal`, label: t.planning.legal.title },
+      { href: `/engagements/${id}/conclusion`, label: t.planning.conclusion.title },
+      { href: `/engagements/${id}/findings`, label: t.planning.findings.title },
+    ],
+  };
+  const workspaces = WORKSPACE_MAP[phase];
   const phaseChip =
     summary?.status === "complete" ? (
       <Chip tone="good">{td.taskStatus.complete}</Chip>
@@ -101,6 +124,23 @@ export default async function PhaseTasksPage(props: {
         ) : null}
       </div>
 
+      {workspaces.length > 0 ? (
+        <div className="flex flex-wrap items-center gap-2" data-testid="phase-workspaces">
+          {workspaces.map((ws) => (
+            <NavLink
+              key={ws.href}
+              href={ws.href}
+              className="inline-flex items-center gap-1.5 rounded-full border border-line-strong bg-surface px-3.5 py-1.5 text-[12.5px] font-semibold text-ink-soft transition hover:bg-surface-2"
+            >
+              {ws.label}
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4">
+                <path d="M5 12h14M13 6l6 6-6 6" />
+              </svg>
+            </NavLink>
+          ))}
+        </div>
+      ) : null}
+
       <Panel flush className="flex flex-col">
         <div className="border-b border-line px-5 py-3.5">
           <PanelHeader
@@ -113,11 +153,23 @@ export default async function PhaseTasksPage(props: {
             <p className="px-4 py-8 text-center text-sm text-muted">{t.planning.findings.empty}</p>
           ) : (
             tasks.map((task, i) => {
+              // Every step's real action lives here, behind the dashboard:
+              // signed/draft papers open, E items open their section workspace,
+              // structured forms open the form, statutory F items open the
+              // legal module, and everything else generates its working paper.
               const href = task.documentId
                 ? `/documents/${task.documentId}`
                 : task.section === "E"
                   ? `/engagements/${id}/sections/${task.id}`
-                  : `/engagements/${id}`;
+                  : FORM_DEFINITIONS[task.code]
+                    ? `/engagements/${id}/forms/${task.code}`
+                    : task.code === "D5.1"
+                      ? `/engagements/${id}/planning`
+                      : task.code === "D7.2"
+                        ? `/engagements/${id}/risks`
+                        : task.section === "F"
+                          ? `/engagements/${id}/legal`
+                          : null;
               // Mirror the gauge semantics: a closed phase reads complete, a
               // future phase not started; only the current phase shows live
               // working-paper status.
@@ -143,13 +195,25 @@ export default async function PhaseTasksPage(props: {
                     {locale === "fr" ? task.titleFr : task.titleEn}
                   </span>
                   <Chip tone={STATUS_TONE[status]}>{td.taskStatus[status]}</Chip>
-                  <Link
-                    href={href}
-                    data-testid={`open-phase-task-${task.code}`}
-                    className="flex-shrink-0 rounded-[var(--radius-atlas-xs)] border border-line-strong px-2.5 py-1 text-[12px] font-semibold text-ink-soft transition hover:bg-surface-2"
-                  >
-                    {td.openTask}
-                  </Link>
+                  {href ? (
+                    <Link
+                      href={href}
+                      data-testid={`open-phase-task-${task.code}`}
+                      className="flex-shrink-0 rounded-[var(--radius-atlas-xs)] border border-line-strong px-2.5 py-1 text-[12px] font-semibold text-ink-soft transition hover:bg-surface-2"
+                    >
+                      {td.openTask}
+                    </Link>
+                  ) : (
+                    <form action={generateDocumentAction.bind(null, task.id)} className="flex-shrink-0">
+                      <button
+                        type="submit"
+                        data-testid={`phase-generate-${task.code}`}
+                        className="rounded-[var(--radius-atlas-xs)] border border-line-strong px-2.5 py-1 text-[12px] font-semibold text-ink-soft transition hover:bg-surface-2"
+                      >
+                        {t.fileIndex.generate}
+                      </button>
+                    </form>
+                  )}
                 </div>
               );
             })

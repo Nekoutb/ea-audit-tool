@@ -31,7 +31,8 @@ test("Phase 6: AR + bank confirmation cycle with exception → B5 and a non-repl
   await page.getByTestId("cq-listed").check();
   await page.getByTestId("create-engagement").click();
   await page.waitForURL("**/engagements/**");
-  const engagementUrl = page.url();
+  const engagementUrl = page.url().replace(/\/dashboard$/, "");
+  await page.goto(engagementUrl);
 
   // Materiality so client-error differences can land in B5 cleanly.
   await page.getByTestId("tab-planning").click();

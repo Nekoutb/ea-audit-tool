@@ -58,7 +58,7 @@ export default async function ClientDetailPage(props: {
                   {t.engagements.phases[engagement.phase]}
                 </span>
                 <Link
-                  href={`/engagements/${engagement.id}`}
+                  href={`/engagements/${engagement.id}/dashboard`}
                   className="text-sm font-medium text-emerald-700 hover:underline dark:text-emerald-400"
                 >
                   {t.engagements.open}
