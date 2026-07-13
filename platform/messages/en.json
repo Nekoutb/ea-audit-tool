@@ -64,6 +64,37 @@
       "in_progress": "In progress",
       "not_started": "Not started"
     },
+    "taskCols": {
+      "task": "Task",
+      "preparer": "Preparer",
+      "reviewer": "Reviewer",
+      "deadline": "Deadline",
+      "status": "Status"
+    },
+    "signAsPreparer": "Sign off as preparer",
+    "signAsReviewer": "Sign off as reviewer",
+    "signoff": {
+      "prepDone": "Signed off & handed off",
+      "revDone": "Reviewed & handed off",
+      "awaitingReview": "Awaiting review",
+      "awaitingPreparer": "Awaiting preparer",
+      "awaitingHandoff": "Awaiting hand-off",
+      "noPreparer": "Preparer not assigned",
+      "noReviewer": "Reviewer not assigned"
+    },
+    "deadlineTag": {
+      "onTrack": "On track",
+      "overdue": "Overdue",
+      "completed": "Completed",
+      "days": "days",
+      "day": "day"
+    },
+    "rowStatus": {
+      "reviewed": "Reviewed",
+      "in_review": "In review",
+      "in_progress": "In progress",
+      "not_started": "Not started"
+    },
     "openTask": "Open",
     "recentEngagements": "Recent engagements",
     "selectEngagement": "Select engagement",
@@ -814,6 +845,13 @@
       "invalid-year": "The new fiscal year must be after the current one.",
       "invalid-engagement": "Check the engagement fields: client, fiscal year and period end are required.",
       "duplicate-engagement": "An engagement already exists for this client and fiscal year. Open it from the Engagements list, or choose a different fiscal year.",
+      "preparer-first": "The preparer must sign off and hand off before the reviewer can sign.",
+      "open-notes": "Clear the open review notes on this working paper before reviewer sign-off.",
+      "already-signed": "You have already signed this working paper in that role.",
+      "checked-out": "This working paper is checked out for editing. Check it in before signing.",
+      "signed-locked": "This working paper is already fully signed and locked.",
+      "no-version": "Generate the working paper before signing it off.",
+      "forbidden": "You do not have permission to sign off in that role.",
       "invalid-sample-size": "Sample size must be at least 1.",
       "seed-required": "A documented seed is required (reproducibility).",
       "threshold-required": "A key-item threshold is required for this method.",

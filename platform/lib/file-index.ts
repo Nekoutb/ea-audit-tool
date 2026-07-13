@@ -112,6 +112,87 @@ export const DEFAULT_FILE_INDEX: readonly FileIndexEntry[] = [
   { code: "F8", section: "F", titleEn: "Co-CAC Coordination File", titleFr: "Dossier de coordination co-commissariat" },
 ] as const;
 
+// Concise task labels for the dashboard/phase task lists, keyed by the stable
+// item code so they apply to existing and new engagements without a data
+// migration. Kept short (<= ~36 chars) so no task name is cut off in the task
+// column. The full titles above still drive documents, exports and workpapers.
+const SHORT_TITLES: Record<string, { en: string; fr: string }> = {
+  A1: { en: "Financial Statements Program", fr: "Programme des états financiers" },
+  B1: { en: "Completion Checklist", fr: "Liste de contrôle d'achèvement" },
+  B2: { en: "Engagement Quality Review", fr: "Revue qualité de la mission" },
+  B3: { en: "Consultation Record", fr: "Registre des consultations" },
+  B4: { en: "Significant Matters", fr: "Questions significatives" },
+  B5: { en: "Summary of Misstatements", fr: "Récapitulatif des anomalies" },
+  B6: { en: "Points Outstanding", fr: "Points en suspens" },
+  B7: { en: "Subsequent Events (ISA 560)", fr: "Événements postérieurs (ISA 560)" },
+  B8: { en: "Management Rep. Letters (ISA 580)", fr: "Lettres d'affirmation (ISA 580)" },
+  B9: { en: "External Confirmation Letter", fr: "Lettre de confirmation externe" },
+  B10: { en: "Points Forward (next year)", fr: "Points à reporter (N+1)" },
+  C1: { en: "Governance Communications (ISA 260)", fr: "Communications gouvernance (ISA 260)" },
+  D1: { en: "Engagement Strategy Driver", fr: "Pilote de stratégie de mission" },
+  "D3.1": { en: "Acceptance / Continuance", fr: "Acceptation / maintien" },
+  "D4.1": { en: "Partner Direction", fr: "Directives de l'associé" },
+  "D4.2": { en: "Understanding the Entity (ISA 315)", fr: "Connaissance de l'entité (ISA 315)" },
+  "D4.3": { en: "Analytical Risk Procedures", fr: "Procédures analytiques de risque" },
+  "D4.4": { en: "Internal Control Components", fr: "Composantes du contrôle interne" },
+  "D4.5": { en: "Control Environment", fr: "Environnement de contrôle" },
+  "D4.6": { en: "IT Environment", fr: "Environnement informatique" },
+  "D4.7": { en: "Reliance on Experts (ISA 620)", fr: "Recours à un expert (ISA 620)" },
+  "D4.8": { en: "Service Organisations (ISA 402)", fr: "Sociétés de services (ISA 402)" },
+  "D4.9": { en: "Internal Audit (ISA 610)", fr: "Audit interne (ISA 610)" },
+  "D5.1": { en: "Materiality (ISA 320)", fr: "Seuil de signification (ISA 320)" },
+  "D5.2": { en: "Commitments & Contingencies", fr: "Engagements et passifs éventuels" },
+  "D5.4": { en: "Fraud Risk (ISA 240)", fr: "Risque de fraude (ISA 240)" },
+  "D5.5": { en: "Going Concern — Prelim (ISA 570)", fr: "Continuité — préliminaire (ISA 570)" },
+  "D5.6": { en: "Related Parties (ISA 550)", fr: "Parties liées (ISA 550)" },
+  "D5.7": { en: "Estimates — Planning (ISA 540)", fr: "Estimations — planification (ISA 540)" },
+  "D6.1": { en: "Job Arrangements", fr: "Organisation de la mission" },
+  "D7.1": { en: "Team Discussion", fr: "Discussion d'équipe" },
+  "D7.2": { en: "Risk Register", fr: "Registre des risques" },
+  E100: { en: "Revenue & Receivables", fr: "Ventes et créances clients" },
+  E110: { en: "Purchases & Payables", fr: "Achats et dettes fournisseurs" },
+  E120: { en: "Payroll & Personnel", fr: "Paie et charges de personnel" },
+  E130: { en: "Inventories (ISA 501)", fr: "Stocks (ISA 501)" },
+  E140: { en: "Property, Plant & Equipment", fr: "Immobilisations corporelles" },
+  E150: { en: "Intangibles & Goodwill", fr: "Incorporelles et goodwill" },
+  E160: { en: "Investments & Financial Assets", fr: "Titres et actifs financiers" },
+  E170: { en: "Cash, Loans & Borrowings", fr: "Trésorerie et emprunts" },
+  E180: { en: "Taxation (current & deferred)", fr: "Impôts (exigibles / différés)" },
+  E190: { en: "VAT / Sales Taxes", fr: "TVA / taxes sur ventes" },
+  E200: { en: "Provisions & Benefits", fr: "Provisions et avantages" },
+  E210: { en: "Leases", fr: "Contrats de location" },
+  E220: { en: "HAO Items (classes 8 / 48)", fr: "Éléments HAO (classes 8 / 48)" },
+  E230: { en: "Cash Flow (TFT) Tie-out", fr: "Concordance du TFT" },
+  E270: { en: "Commitments & Contingencies", fr: "Engagements et passifs éventuels" },
+  E280: { en: "Equity & Reserves", fr: "Capitaux propres et réserves" },
+  E310: { en: "Laws & NOCLAR (ISA 250)", fr: "Textes légaux / NOCLAR (ISA 250)" },
+  E320: { en: "Related Parties (ISA 550)", fr: "Parties liées (ISA 550)" },
+  E330: { en: "Going Concern (ISA 570)", fr: "Continuité d'exploitation (ISA 570)" },
+  E350: { en: "Fraud & Override (ISA 240)", fr: "Fraude et contournement (ISA 240)" },
+  E360: { en: "Minutes & Statutory Records", fr: "Procès-verbaux et registres légaux" },
+  E370: { en: "Opening Balances (ISA 510/710)", fr: "Soldes d'ouverture (ISA 510/710)" },
+  E380: { en: "Subsequent Events (ISA 560)", fr: "Événements postérieurs (ISA 560)" },
+  E390: { en: "Accounting Estimates (ISA 540)", fr: "Estimations comptables (ISA 540)" },
+  F1: { en: "Statutory Deadlines Calendar", fr: "Calendrier des échéances légales" },
+  F2: { en: "Conventions Réglementées", fr: "Conventions réglementées" },
+  F3: { en: "Article 715 Board Report", fr: "Rapport article 715" },
+  F4: { en: "Procédure d'Alerte", fr: "Procédure d'alerte" },
+  F5: { en: "Révélation des Faits Délictueux", fr: "Révélation des faits délictueux" },
+  F6: { en: "Titres Nominatifs Attestation", fr: "Attestation titres nominatifs" },
+  F7: { en: "Equity vs Half-Capital", fr: "Capitaux propres / demi-capital" },
+  F8: { en: "Co-CAC Coordination", fr: "Coordination co-commissariat" },
+};
+
+/** Concise task label for lists; falls back to the provided full title. */
+export function shortTitle(
+  code: string,
+  locale: "en" | "fr",
+  fallback: string,
+): string {
+  const s = SHORT_TITLES[code];
+  return s ? s[locale] : fallback;
+}
+
 // ---- documentation scaling by engagement complexity ----
 
 /** Instantiated on every engagement, including very simple entities. */

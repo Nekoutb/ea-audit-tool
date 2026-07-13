@@ -95,7 +95,8 @@ export async function engagementPhaseProgress(
   });
 }
 
-export type PhaseTaskStatus = "complete" | "in_progress" | "not_started";
+/** Row status across the preparer → reviewer lifecycle. */
+export type PhaseTaskStatus = "reviewed" | "in_review" | "in_progress" | "not_started";
 
 export interface PhaseTask {
   id: string;
@@ -104,14 +105,29 @@ export interface PhaseTask {
   titleEn: string;
   titleFr: string;
   documentId: string | null;
+  /** Assigned preparer (file_item.owner_id), name or null. */
+  ownerName: string | null;
+  /** Preparer sign-off, if signed. */
+  preparerName: string | null;
+  preparerAt: string | null;
+  /** Reviewer / partner sign-off, if signed. */
+  reviewerName: string | null;
+  reviewerAt: string | null;
   status: PhaseTaskStatus;
 }
 
+/** Three-letter initials, e.g. "Nekout Boma" → NBO, "Josiane" → JOS. */
+export function initials(name: string): string {
+  const words = name.trim().split(/\s+/).filter(Boolean);
+  if (words.length === 0) return "";
+  if (words.length === 1) return words[0].slice(0, 3).toUpperCase();
+  return (words[0][0] + words[words.length - 1].slice(0, 2)).toUpperCase();
+}
+
 /**
- * The exhaustive, sequentially-ordered task list for one dashboard phase: the
- * engagement's active file-index items bucketed to that phase (same mapping as
- * the gauges), each with its working-paper state — signed = complete, draft =
- * in progress, none = not started.
+ * The exhaustive, sequentially-ordered task list for one dashboard phase, with
+ * the real preparer (owner + preparer sign-off) and reviewer (partner sign-off)
+ * state for the sign-off columns. Same bucket mapping as the gauges.
  */
 export async function phaseTasks(engagementId: string, phase: DashboardPhase): Promise<PhaseTask[]> {
   const { tenantId } = await requireTenant();
@@ -123,36 +139,96 @@ export async function phaseTasks(engagementId: string, phase: DashboardPhase): P
       title_en: string;
       title_fr: string;
       document_id: string | null;
-      document_status: "draft" | "signed" | null;
+      owner_name: string | null;
+      preparer_name: string | null;
+      preparer_at: string | null;
+      reviewer_name: string | null;
+      reviewer_at: string | null;
     }>(
       `SELECT fi.id, fi.code, fi.section, fi.title_en, fi.title_fr,
-              d.id AS document_id, d.status AS document_status
+              d.id AS document_id,
+              (SELECT coalesce(name, email) FROM app_user WHERE id = fi.owner_id) AS owner_name,
+              ps.signer AS preparer_name, to_char(ps.signed_at, 'DD Mon YYYY') AS preparer_at,
+              rs.signer AS reviewer_name, to_char(rs.signed_at, 'DD Mon YYYY') AS reviewer_at
          FROM file_item fi
          LEFT JOIN LATERAL (
-           SELECT id, status FROM document
+           SELECT id FROM document
             WHERE file_item_id = fi.id AND kind = 'workpaper'
             ORDER BY created_at LIMIT 1
          ) d ON true
+         LEFT JOIN LATERAL (
+           SELECT coalesce(u.name, u.email) AS signer, s.signed_at
+             FROM signoff s JOIN app_user u ON u.id = s.user_id
+            WHERE s.document_id = d.id AND s.role = 'preparer' AND s.voided_at IS NULL
+            ORDER BY s.signed_at LIMIT 1
+         ) ps ON true
+         LEFT JOIN LATERAL (
+           SELECT coalesce(u.name, u.email) AS signer, s.signed_at
+             FROM signoff s JOIN app_user u ON u.id = s.user_id
+            WHERE s.document_id = d.id AND s.role IN ('reviewer', 'partner') AND s.voided_at IS NULL
+            ORDER BY s.signed_at LIMIT 1
+         ) rs ON true
         WHERE fi.engagement_id = $1 AND fi.conditional = false
           AND ${BUCKET_CASE} = $2
         ORDER BY fi.sort_order`,
       [engagementId, phase],
     );
-    return result.rows.map((row) => ({
-      id: row.id,
-      code: row.code,
-      section: row.section,
-      titleEn: row.title_en,
-      titleFr: row.title_fr,
-      documentId: row.document_id,
-      status:
-        row.document_status === "signed"
-          ? ("complete" as const)
-          : row.document_status === "draft"
-            ? ("in_progress" as const)
-            : ("not_started" as const),
-    }));
+    return result.rows.map((row) => {
+      const status: PhaseTaskStatus = row.reviewer_name
+        ? "reviewed"
+        : row.preparer_name
+          ? "in_review"
+          : row.document_id
+            ? "in_progress"
+            : "not_started";
+      return {
+        id: row.id,
+        code: row.code,
+        section: row.section,
+        titleEn: row.title_en,
+        titleFr: row.title_fr,
+        documentId: row.document_id,
+        ownerName: row.owner_name,
+        preparerName: row.preparer_name,
+        preparerAt: row.preparer_at,
+        reviewerName: row.reviewer_name,
+        reviewerAt: row.reviewer_at,
+        status,
+      };
+    });
   });
+}
+
+/** The engagement's default reviewer = its partner team member, if any. */
+export async function engagementReviewer(engagementId: string): Promise<string | null> {
+  const { tenantId } = await requireTenant();
+  return withTenant(tenantId, async (tx) => {
+    const r = await tx.query<{ name: string }>(
+      `SELECT coalesce(u.name, u.email) AS name
+         FROM team_member tm JOIN app_user u ON u.id = tm.user_id
+        WHERE tm.engagement_id = $1 AND tm.team_role = 'partner'
+        ORDER BY tm.created_at LIMIT 1`,
+      [engagementId],
+    );
+    return r.rows[0]?.name ?? null;
+  });
+}
+
+/**
+ * Target completion date for a phase, derived from the engagement period end
+ * (no per-task deadline field yet): pre-planning and planning fall before
+ * year-end, execution and conclusion after it. Returns YYYY-MM-DD.
+ */
+export function phaseDeadline(periodEnd: string, phase: DashboardPhase): string {
+  const offsets: Record<DashboardPhase, number> = {
+    acceptance: -90,
+    planning: -45,
+    execution: 90,
+    conclusion: 150,
+  };
+  const base = new Date(periodEnd + "T00:00:00Z");
+  base.setUTCDate(base.getUTCDate() + offsets[phase]);
+  return base.toISOString().slice(0, 10);
 }
 
 export type AttentionTone = "rose" | "warn" | "accent";

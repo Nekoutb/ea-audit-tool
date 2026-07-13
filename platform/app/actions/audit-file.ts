@@ -89,6 +89,43 @@ export async function generateDocumentAction(fileItemId: string): Promise<void> 
   redirect(docPath(documentId));
 }
 
+/**
+ * P / R sign-off buttons on the phase task list. The preparer button generates
+ * the working paper if needed then signs it as preparer (hand-off); the reviewer
+ * button signs it off as partner, which locks the paper. Domain-rule violations
+ * (preparer must sign first, open review notes, checked out …) come back as a
+ * localized banner on the phase screen rather than a 500.
+ */
+async function signOffFromList(
+  formData: FormData,
+  role: "preparer" | "partner",
+): Promise<never> {
+  const fileItemId = String(formData.get("fileItemId") ?? "");
+  const engagementId = String(formData.get("engagementId") ?? "");
+  const phaseSlug = String(formData.get("phase") ?? "");
+  const back = `/engagements/${engagementId}/phases/${phaseSlug}`;
+  const locale = await getLocale();
+  try {
+    const documentId = await generateDocument(fileItemId, locale); // get-or-create
+    await signDocument(documentId, role);
+  } catch (error) {
+    if (error instanceof DocumentRuleError) {
+      redirect(`${back}?error=${encodeURIComponent(error.code)}`);
+    }
+    throw error;
+  }
+  revalidatePath(back);
+  redirect(back);
+}
+
+export async function signOffPreparerAction(formData: FormData): Promise<void> {
+  await signOffFromList(formData, "preparer");
+}
+
+export async function signOffReviewerAction(formData: FormData): Promise<void> {
+  await signOffFromList(formData, "partner");
+}
+
 export async function checkoutAction(documentId: string): Promise<void> {
   await run(documentId, () => checkoutDocument(documentId));
 }

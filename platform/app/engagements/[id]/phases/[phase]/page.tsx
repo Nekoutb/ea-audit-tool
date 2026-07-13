@@ -1,40 +1,49 @@
-import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
 import { auth } from "@/auth";
-import { generateDocumentAction } from "@/app/actions/audit-file";
 import { AppNav } from "@/components/AppNav";
+import { ErrorBanner } from "@/components/GatesPanel";
 import { NavLink } from "@/components/NavLink";
+import { PhaseTaskRow, type PhaseRowData } from "@/components/PhaseTaskRow";
 import { Chip, Panel, PanelHeader } from "@/components/ui/atlas";
 import {
   PHASE_ORDER,
   PHASE_SLUGS,
   engagementPhaseProgress,
+  engagementReviewer,
+  initials,
+  phaseDeadline,
   phaseTasks,
   type DashboardPhase,
-  type PhaseTaskStatus,
 } from "@/lib/engagement-dashboard";
 import { getEngagement } from "@/lib/engagements";
+import { shortTitle } from "@/lib/file-index";
 import { FORM_DEFINITIONS } from "@/lib/forms";
 import { getMessages } from "@/lib/i18n";
 import { getLocale } from "@/lib/locale";
 
-const STATUS_TONE: Record<PhaseTaskStatus, "good" | "warn" | "muted"> = {
-  complete: "good",
-  in_progress: "warn",
-  not_started: "muted",
+const MONTHS: Record<"en" | "fr", string[]> = {
+  en: ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"],
+  fr: ["janv.", "févr.", "mars", "avr.", "mai", "juin", "juil.", "août", "sept.", "oct.", "nov.", "déc."],
 };
+function fmtDate(iso: string, locale: "en" | "fr"): string {
+  const [y, m, d] = iso.split("-").map(Number);
+  return `${d} ${MONTHS[locale][m - 1]} ${y}`;
+}
 
 /**
- * Phase drill-down: the exhaustive, sequentially-ordered task list behind one
- * dashboard gauge. Reached by clicking the gauge (with the transition spinner).
+ * Phase drill-down: the sign-off task table behind one dashboard gauge. Every
+ * row is clickable (opens the task); the P / R squares sign off as preparer /
+ * reviewer in place.
  */
 export default async function PhaseTasksPage(props: {
   params: Promise<{ id: string; phase: string }>;
+  searchParams: Promise<{ error?: string }>;
 }) {
   const session = await auth();
   if (!session?.user) redirect("/login");
 
   const { id, phase: slug } = await props.params;
+  const { error } = await props.searchParams;
   const phase = PHASE_SLUGS[slug];
   if (!phase) notFound();
 
@@ -45,13 +54,83 @@ export default async function PhaseTasksPage(props: {
   const engagement = await getEngagement(id);
   if (!engagement) notFound();
 
-  const [tasks, progress] = await Promise.all([
+  const [tasks, progress, reviewerName] = await Promise.all([
     phaseTasks(id, phase),
     engagementPhaseProgress(id, engagement.phase),
+    engagementReviewer(id),
   ]);
   const summary = progress.find((p) => p.phase === phase);
   const index = `0${PHASE_ORDER.indexOf(phase) + 1}`;
-  // Specialized workspaces behind this phase's element (hub-and-spoke).
+  // Header count reflects the real reviewed sign-offs so it always matches the
+  // rows on this screen (the dashboard gauge is a separate, position-based read).
+  const reviewedCount = tasks.filter((t) => t.status === "reviewed").length;
+
+  // Phase target date + on-track / overdue read (computed against today).
+  const deadlineIso = phaseDeadline(engagement.periodEnd, phase);
+  const deadlineDate = fmtDate(deadlineIso, locale);
+  const now = new Date();
+  const todayUtc = Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate());
+  const overdueDays = Math.round((todayUtc - new Date(deadlineIso + "T00:00:00Z").getTime()) / 86_400_000);
+
+  const sg = td.signoff;
+  const reviewerIni = reviewerName ? initials(reviewerName) : "";
+
+  const rows: PhaseRowData[] = tasks.map((task) => {
+    const href = task.documentId
+      ? `/documents/${task.documentId}`
+      : FORM_DEFINITIONS[task.code]
+        ? `/engagements/${id}/forms/${task.code}`
+        : task.code === "D5.1"
+          ? `/engagements/${id}/planning`
+          : task.code === "D7.2"
+            ? `/engagements/${id}/risks`
+            : task.section === "F"
+              ? `/engagements/${id}/legal`
+              : `/engagements/${id}/sections/${task.id}`;
+
+    const preparerSigned = Boolean(task.preparerName);
+    const reviewerSigned = Boolean(task.reviewerName);
+
+    const preparer = preparerSigned
+      ? { ini: initials(task.preparerName!), line: sg.prepDone, lineTone: "done" as const }
+      : task.ownerName
+        ? { ini: initials(task.ownerName), line: sg.awaitingHandoff, lineTone: "wait" as const }
+        : { ini: "", line: sg.noPreparer, lineTone: "none" as const };
+
+    const reviewer = reviewerSigned
+      ? { ini: initials(task.reviewerName!), line: sg.revDone, lineTone: "done" as const }
+      : reviewerName
+        ? preparerSigned
+          ? { ini: reviewerIni, line: sg.awaitingReview, lineTone: "wait" as const }
+          : { ini: reviewerIni, line: sg.awaitingPreparer, lineTone: "idle" as const }
+        : { ini: "", line: sg.noReviewer, lineTone: "none" as const };
+
+    const deadline = reviewerSigned
+      ? { date: deadlineDate, tag: td.deadlineTag.completed, tagTone: "done" as const }
+      : overdueDays > 0
+        ? {
+            date: deadlineDate,
+            tag: `${td.deadlineTag.overdue} · ${overdueDays} ${overdueDays === 1 ? td.deadlineTag.day : td.deadlineTag.days}`,
+            tagTone: "over" as const,
+          }
+        : { date: deadlineDate, tag: td.deadlineTag.onTrack, tagTone: "ok" as const };
+
+    const statusToneMap = { reviewed: "done", in_review: "rev", in_progress: "prog", not_started: "wait" } as const;
+
+    return {
+      id: task.id,
+      code: task.code,
+      title: shortTitle(task.code, locale, locale === "fr" ? task.titleFr : task.titleEn),
+      href,
+      status: { label: td.rowStatus[task.status], tone: statusToneMap[task.status] },
+      deadline,
+      preparer,
+      reviewer,
+      preparerSigned,
+      reviewerSigned,
+    };
+  });
+
   const WORKSPACE_MAP: Record<DashboardPhase, { href: string; label: string }[]> = {
     acceptance: [{ href: `/engagements/${id}/acceptance`, label: t.planning.acceptanceTitle }],
     planning: [
@@ -82,6 +161,8 @@ export default async function PhaseTasksPage(props: {
       <Chip tone="muted">{td.taskStatus.not_started}</Chip>
     );
 
+  const th = "border-b border-line bg-surface-2 px-5 py-3 text-left text-[10px] font-extrabold uppercase tracking-[0.07em] text-muted";
+
   return (
     <main className="flex min-h-screen w-full flex-col gap-4 px-6 py-4">
       <AppNav locale={locale} current={{ id, label: engagement.name ?? engagement.clientName }} />
@@ -99,9 +180,7 @@ export default async function PhaseTasksPage(props: {
             {td.backToDashboard}
           </NavLink>
           <h1 className="mt-2 flex items-baseline gap-2.5 text-2xl font-bold tracking-[-0.02em] text-ink">
-            <span className="text-base font-extrabold text-emerald-700/55 tnum dark:text-emerald-400/55">
-              {index}
-            </span>
+            <span className="text-base font-extrabold text-emerald-700/55 tnum dark:text-emerald-400/55">{index}</span>
             {td.phaseNames[phase]}
             <span className="ml-1">{phaseChip}</span>
           </h1>
@@ -111,17 +190,13 @@ export default async function PhaseTasksPage(props: {
             {t.engagements.fiscalYear} {engagement.fiscalYear}
           </p>
         </div>
-        {summary ? (
-          <div className="text-right">
-            <div className="text-[10.5px] font-bold uppercase tracking-[0.08em] text-muted">
-              {td.overallCompletion}
-            </div>
-            <div className="text-[28px] font-extrabold leading-tight tracking-[-0.03em] text-emerald-800 tnum dark:text-emerald-300">
-              {summary.done}
-              <span className="text-muted">/{summary.total}</span>
-            </div>
+        <div className="text-right">
+          <div className="text-[10.5px] font-bold uppercase tracking-[0.08em] text-muted">{td.overallCompletion}</div>
+          <div className="text-[28px] font-extrabold leading-tight tracking-[-0.03em] text-emerald-800 tnum dark:text-emerald-300">
+            {reviewedCount}
+            <span className="text-muted">/{tasks.length}</span>
           </div>
-        ) : null}
+        </div>
       </div>
 
       {workspaces.length > 0 ? (
@@ -141,82 +216,46 @@ export default async function PhaseTasksPage(props: {
         </div>
       ) : null}
 
+      <ErrorBanner error={error} locale={locale} />
+
       <Panel flush className="flex flex-col">
         <div className="border-b border-line px-5 py-3.5">
-          <PanelHeader
-            title={td.taskList}
-            right={<span className="text-xs font-semibold text-muted tnum">{tasks.length}</span>}
-          />
+          <PanelHeader title={td.taskList} right={<span className="text-xs font-semibold text-muted tnum">{tasks.length}</span>} />
         </div>
-        <div className="p-1.5" data-testid="phase-task-list">
+        <div className="overflow-x-auto" data-testid="phase-task-list">
           {tasks.length === 0 ? (
             <p className="px-4 py-8 text-center text-sm text-muted">{t.planning.findings.empty}</p>
           ) : (
-            tasks.map((task, i) => {
-              // Every step's real action lives here, behind the dashboard:
-              // signed/draft papers open, E items open their section workspace,
-              // structured forms open the form, statutory F items open the
-              // legal module, and everything else generates its working paper.
-              const href = task.documentId
-                ? `/documents/${task.documentId}`
-                : task.section === "E"
-                  ? `/engagements/${id}/sections/${task.id}`
-                  : FORM_DEFINITIONS[task.code]
-                    ? `/engagements/${id}/forms/${task.code}`
-                    : task.code === "D5.1"
-                      ? `/engagements/${id}/planning`
-                      : task.code === "D7.2"
-                        ? `/engagements/${id}/risks`
-                        : task.section === "F"
-                          ? `/engagements/${id}/legal`
-                          : null;
-              // Mirror the gauge semantics: a closed phase reads complete, a
-              // future phase not started; only the current phase shows live
-              // working-paper status.
-              const status: PhaseTaskStatus =
-                summary?.status === "complete"
-                  ? "complete"
-                  : summary?.status === "upcoming"
-                    ? "not_started"
-                    : task.status;
-              return (
-                <div
-                  key={task.id}
-                  data-testid={`phase-task-${task.code}`}
-                  className="flex items-center gap-3.5 rounded-[var(--radius-atlas-xs)] px-3.5 py-2.5 transition hover:bg-surface-2"
-                >
-                  <span className="w-7 flex-shrink-0 text-right text-[11px] font-extrabold text-emerald-700/45 tnum dark:text-emerald-400/45">
-                    {String(i + 1).padStart(2, "0")}
-                  </span>
-                  <span className="w-12 flex-shrink-0 font-mono text-[11px] font-bold text-ink-soft">
-                    {task.code}
-                  </span>
-                  <span className="min-w-0 flex-1 truncate text-[13.5px] font-medium text-ink">
-                    {locale === "fr" ? task.titleFr : task.titleEn}
-                  </span>
-                  <Chip tone={STATUS_TONE[status]}>{td.taskStatus[status]}</Chip>
-                  {href ? (
-                    <Link
-                      href={href}
-                      data-testid={`open-phase-task-${task.code}`}
-                      className="flex-shrink-0 rounded-[var(--radius-atlas-xs)] border border-line-strong px-2.5 py-1 text-[12px] font-semibold text-ink-soft transition hover:bg-surface-2"
-                    >
-                      {td.openTask}
-                    </Link>
-                  ) : (
-                    <form action={generateDocumentAction.bind(null, task.id)} className="flex-shrink-0">
-                      <button
-                        type="submit"
-                        data-testid={`phase-generate-${task.code}`}
-                        className="rounded-[var(--radius-atlas-xs)] border border-line-strong px-2.5 py-1 text-[12px] font-semibold text-ink-soft transition hover:bg-surface-2"
-                      >
-                        {t.fileIndex.generate}
-                      </button>
-                    </form>
-                  )}
-                </div>
-              );
-            })
+            <table className="w-full table-fixed">
+              <colgroup>
+                <col style={{ width: "31%" }} />
+                <col style={{ width: "20%" }} />
+                <col style={{ width: "20%" }} />
+                <col style={{ width: "16%" }} />
+                <col style={{ width: "13%" }} />
+              </colgroup>
+              <thead>
+                <tr>
+                  <th className={th}>{td.taskCols.task}</th>
+                  <th className={th}>{td.taskCols.preparer}</th>
+                  <th className={th}>{td.taskCols.reviewer}</th>
+                  <th className={th}>{td.taskCols.deadline}</th>
+                  <th className={`${th} text-right`}>{td.taskCols.status}</th>
+                </tr>
+              </thead>
+              <tbody>
+                {rows.map((row) => (
+                  <PhaseTaskRow
+                    key={row.id}
+                    row={row}
+                    engagementId={id}
+                    phaseSlug={slug}
+                    signPreparerLabel={td.signAsPreparer}
+                    signReviewerLabel={td.signAsReviewer}
+                  />
+                ))}
+              </tbody>
+            </table>
           )}
         </div>
       </Panel>

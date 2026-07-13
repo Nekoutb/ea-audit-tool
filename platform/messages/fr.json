@@ -64,6 +64,37 @@
       "in_progress": "En cours",
       "not_started": "Non commencée"
     },
+    "taskCols": {
+      "task": "Tâche",
+      "preparer": "Préparateur",
+      "reviewer": "Réviseur",
+      "deadline": "Échéance",
+      "status": "Statut"
+    },
+    "signAsPreparer": "Signer en tant que préparateur",
+    "signAsReviewer": "Signer en tant que réviseur",
+    "signoff": {
+      "prepDone": "Signé et transmis",
+      "revDone": "Révisé et transmis",
+      "awaitingReview": "En attente de révision",
+      "awaitingPreparer": "En attente du préparateur",
+      "awaitingHandoff": "En attente de transmission",
+      "noPreparer": "Préparateur non assigné",
+      "noReviewer": "Réviseur non assigné"
+    },
+    "deadlineTag": {
+      "onTrack": "Dans les délais",
+      "overdue": "En retard",
+      "completed": "Terminée",
+      "days": "jours",
+      "day": "jour"
+    },
+    "rowStatus": {
+      "reviewed": "Révisée",
+      "in_review": "En révision",
+      "in_progress": "En cours",
+      "not_started": "Non commencée"
+    },
     "openTask": "Ouvrir",
     "recentEngagements": "Missions récentes",
     "selectEngagement": "Choisir une mission",
@@ -814,6 +845,13 @@
       "invalid-year": "Le nouvel exercice doit être postérieur à l'exercice courant.",
       "invalid-engagement": "Vérifiez les champs de la mission : client, exercice et date de clôture sont requis.",
       "duplicate-engagement": "Une mission existe déjà pour ce client et cet exercice. Ouvrez-la depuis la liste des missions, ou choisissez un autre exercice.",
+      "preparer-first": "Le préparateur doit signer et transmettre avant que le réviseur puisse signer.",
+      "open-notes": "Traitez les notes de revue ouvertes sur cette feuille de travail avant la signature du réviseur.",
+      "already-signed": "Vous avez déjà signé cette feuille de travail dans ce rôle.",
+      "checked-out": "Cette feuille de travail est verrouillée pour édition. Enregistrez-la avant de signer.",
+      "signed-locked": "Cette feuille de travail est déjà entièrement signée et verrouillée.",
+      "no-version": "Générez la feuille de travail avant de la signer.",
+      "forbidden": "Vous n'avez pas les droits pour signer dans ce rôle.",
       "invalid-sample-size": "La taille de l'échantillon doit être d'au moins 1.",
       "seed-required": "Une graine documentée est requise (reproductibilité).",
       "threshold-required": "Un seuil d'éléments clés est requis pour cette méthode.",

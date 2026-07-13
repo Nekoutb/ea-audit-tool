@@ -134,6 +134,37 @@ body {
   transition: width 0.18s ease, opacity 0.3s ease 0.1s;
 }
 
+/* P / R sign-off boxes on the phase task list. A button variant (clickable
+   sign-off) highlights on hover and dips on press; a static variant just shows
+   state. Emerald = preparer, indigo = reviewer, grey = idle/unassigned. */
+.sobox {
+  display: inline-grid;
+  place-items: center;
+  width: 24px;
+  height: 24px;
+  border-radius: var(--radius-atlas-xs, 6px);
+  font-size: 12px;
+  font-weight: 800;
+  flex-shrink: 0;
+  border: 1px solid transparent;
+  font-family: inherit;
+}
+.sobox.p { background: var(--color-emerald-50); color: var(--color-emerald-800); }
+.sobox.r { background: #e9ecf9; color: #34467f; }
+.sobox.off { background: var(--surface-2); color: var(--muted); }
+button.sobox {
+  cursor: pointer;
+  transition: box-shadow 0.12s ease-out, filter 0.12s ease-out, transform 0.1s ease-out;
+}
+button.sobox.p:hover { box-shadow: 0 0 0 3px color-mix(in srgb, var(--color-emerald-600) 28%, transparent); filter: brightness(0.97); }
+button.sobox.r:hover { box-shadow: 0 0 0 3px rgba(59, 77, 143, 0.28); filter: brightness(0.97); }
+button.sobox:active { transform: scale(0.93); }
+button.sobox:focus-visible { outline: 2px solid var(--color-emerald-600); outline-offset: 1px; }
+@media (prefers-reduced-motion: reduce) { button.sobox { transition: none; } button.sobox:active { transform: none; } }
+@media (prefers-color-scheme: dark) {
+  .sobox.r { background: #1c2340; color: #9fb0ec; }
+}
+
 /* Full-screen transition overlay with a fast spinner (phase drill-downs). */
 #atlas-overlay {
   position: fixed;
