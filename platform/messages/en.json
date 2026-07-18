@@ -176,6 +176,43 @@
     "markRead": "Mark as read",
     "unreadBadge": "unread"
   },
+  "users": {
+    "title": "Users",
+    "subtitle": "Invite and manage the people in your firm.",
+    "firmUsers": "Firm users",
+    "invite": "Invite a user",
+    "inviteHint": "They can sign in immediately with the password you set.",
+    "inviteButton": "Invite user",
+    "name": "Name",
+    "email": "Email",
+    "role": "Role",
+    "password": "Initial password (min. 8)",
+    "saveRole": "Save",
+    "remove": "Remove",
+    "you": "you",
+    "saved": "Users updated.",
+    "manageLink": "Manage users",
+    "roles": {
+      "firm_admin": "Firm administrator",
+      "partner": "Partner",
+      "manager": "Manager",
+      "senior": "Senior",
+      "staff": "Staff",
+      "eqr_reviewer": "EQR reviewer",
+      "read_only": "Read only"
+    },
+    "errors": {
+      "forbidden": "Only a firm administrator can manage users.",
+      "invalid-email": "Enter a valid email address.",
+      "name-required": "Name is required.",
+      "invalid-role": "Choose a valid role.",
+      "password-too-short": "Password must be at least 8 characters.",
+      "email-taken": "A user with that email already exists.",
+      "cannot-change-self": "You cannot change your own role.",
+      "cannot-remove-self": "You cannot remove yourself.",
+      "not-found": "User not found."
+    }
+  },
   "clients": {
     "title": "Clients",
     "empty": "No clients yet — create the first one below.",

@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { redirect } from "next/navigation";
 import { auth } from "@/auth";
 import { updateBrandingAction } from "@/app/actions/branding";
@@ -39,6 +40,17 @@ export default async function SettingsPage(props: {
         >
           {ts.saved}
         </p>
+      ) : null}
+
+      {isAdmin ? (
+        <Panel className="mt-6 p-6">
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <PanelHeader title={t.users.title} hint={t.users.subtitle} />
+            <Link href="/users" data-testid="manage-users-link" className={btnPrimary}>
+              {t.users.manageLink}
+            </Link>
+          </div>
+        </Panel>
       ) : null}
 
       <Panel className="mt-6 p-6">

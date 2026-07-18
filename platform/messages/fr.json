@@ -176,6 +176,43 @@
     "markRead": "Marquer comme lue",
     "unreadBadge": "non lues"
   },
+  "users": {
+    "title": "Utilisateurs",
+    "subtitle": "Invitez et gérez les membres de votre cabinet.",
+    "firmUsers": "Utilisateurs du cabinet",
+    "invite": "Inviter un utilisateur",
+    "inviteHint": "Il pourra se connecter immédiatement avec le mot de passe défini.",
+    "inviteButton": "Inviter",
+    "name": "Nom",
+    "email": "E-mail",
+    "role": "Rôle",
+    "password": "Mot de passe initial (min. 8)",
+    "saveRole": "Enregistrer",
+    "remove": "Retirer",
+    "you": "vous",
+    "saved": "Utilisateurs mis à jour.",
+    "manageLink": "Gérer les utilisateurs",
+    "roles": {
+      "firm_admin": "Administrateur du cabinet",
+      "partner": "Associé",
+      "manager": "Manager",
+      "senior": "Senior",
+      "staff": "Collaborateur",
+      "eqr_reviewer": "Réviseur EQR",
+      "read_only": "Lecture seule"
+    },
+    "errors": {
+      "forbidden": "Seul un administrateur du cabinet peut gérer les utilisateurs.",
+      "invalid-email": "Saisissez une adresse e-mail valide.",
+      "name-required": "Le nom est requis.",
+      "invalid-role": "Choisissez un rôle valide.",
+      "password-too-short": "Le mot de passe doit comporter au moins 8 caractères.",
+      "email-taken": "Un utilisateur avec cet e-mail existe déjà.",
+      "cannot-change-self": "Vous ne pouvez pas changer votre propre rôle.",
+      "cannot-remove-self": "Vous ne pouvez pas vous retirer vous-même.",
+      "not-found": "Utilisateur introuvable."
+    }
+  },
   "clients": {
     "title": "Clients",
     "empty": "Aucun client — créez le premier ci-dessous.",
