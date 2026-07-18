@@ -54,6 +54,15 @@ export default async function SettingsPage(props: {
       ) : null}
 
       <Panel className="mt-6 p-6">
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <PanelHeader title={t.resources.title} hint={t.resources.subtitle} />
+          <Link href="/resources" data-testid="team-workload-link" className={btnPrimary}>
+            {t.resources.link}
+          </Link>
+        </div>
+      </Panel>
+
+      <Panel className="mt-6 p-6">
         <PanelHeader title={ts.language} hint={ts.languageHint} />
         <div className="mt-4">
           <LanguageSwitcher current={locale} />

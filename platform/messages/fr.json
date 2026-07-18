@@ -213,6 +213,17 @@
       "not-found": "Utilisateur introuvable."
     }
   },
+  "resources": {
+    "title": "Charge de l'équipe",
+    "subtitle": "Travaux ouverts, heures et missions par membre.",
+    "member": "Membre",
+    "role": "Rôle",
+    "openTasks": "Tâches ouvertes",
+    "hours": "Heures",
+    "engagements": "Missions",
+    "empty": "Aucun membre pour le moment.",
+    "link": "Charge de l'équipe"
+  },
   "time": {
     "title": "Temps",
     "subtitle": "Enregistrez vos heures sur cette mission et suivez le budget vs réel.",

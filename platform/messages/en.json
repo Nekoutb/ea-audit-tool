@@ -213,6 +213,17 @@
       "not-found": "User not found."
     }
   },
+  "resources": {
+    "title": "Team workload",
+    "subtitle": "Open work, hours and engagements per team member.",
+    "member": "Member",
+    "role": "Role",
+    "openTasks": "Open tasks",
+    "hours": "Hours",
+    "engagements": "Engagements",
+    "empty": "No team members yet.",
+    "link": "Team workload"
+  },
   "time": {
     "title": "Time",
     "subtitle": "Log your hours on this engagement and track budget vs actual.",
