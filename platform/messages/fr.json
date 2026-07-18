@@ -213,6 +213,32 @@
       "not-found": "Utilisateur introuvable."
     }
   },
+  "time": {
+    "title": "Temps",
+    "subtitle": "Enregistrez vos heures sur cette mission et suivez le budget vs réel.",
+    "myTime": "Mon temps",
+    "logButton": "Enregistrer",
+    "date": "Date",
+    "hours": "Heures",
+    "note": "Note",
+    "task": "Tâche",
+    "remove": "Retirer",
+    "empty": "Aucun temps enregistré.",
+    "budgetVsActual": "Budget vs réel",
+    "grade": "Grade",
+    "budget": "Budget",
+    "actual": "Réel",
+    "variance": "Écart",
+    "total": "Total",
+    "unassigned": "Non assigné",
+    "noBudget": "Aucun budget ou temps enregistré.",
+    "link": "Temps",
+    "errors": {
+      "invalid": "Saisie invalide.",
+      "invalid-date": "Saisissez une date valide.",
+      "invalid-hours": "Les heures doivent être comprises entre 0 et 24."
+    }
+  },
   "clients": {
     "title": "Clients",
     "empty": "Aucun client — créez le premier ci-dessous.",

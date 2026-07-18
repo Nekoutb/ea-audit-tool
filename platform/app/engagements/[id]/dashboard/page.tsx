@@ -222,6 +222,13 @@ export default async function EngagementDashboardPage(props: {
               >
                 {td.activity.link}
               </Link>
+              <Link
+                href={`/engagements/${id}/time`}
+                data-testid="dashboard-time-link"
+                className="text-[12.5px] font-semibold text-emerald-700 hover:underline dark:text-emerald-400"
+              >
+                {t.time.link}
+              </Link>
             </div>
           </div>
         </Panel>

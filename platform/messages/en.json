@@ -213,6 +213,32 @@
       "not-found": "User not found."
     }
   },
+  "time": {
+    "title": "Time",
+    "subtitle": "Log your hours on this engagement and track budget vs actual.",
+    "myTime": "My time",
+    "logButton": "Log",
+    "date": "Date",
+    "hours": "Hours",
+    "note": "Note",
+    "task": "Task",
+    "remove": "Remove",
+    "empty": "No time logged yet.",
+    "budgetVsActual": "Budget vs actual",
+    "grade": "Grade",
+    "budget": "Budget",
+    "actual": "Actual",
+    "variance": "Variance",
+    "total": "Total",
+    "unassigned": "Unassigned",
+    "noBudget": "No budget or time recorded yet.",
+    "link": "Time",
+    "errors": {
+      "invalid": "Invalid entry.",
+      "invalid-date": "Enter a valid date.",
+      "invalid-hours": "Hours must be between 0 and 24."
+    }
+  },
   "clients": {
     "title": "Clients",
     "empty": "No clients yet — create the first one below.",
