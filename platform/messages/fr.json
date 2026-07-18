@@ -96,6 +96,17 @@
       "not_started": "Non commencée"
     },
     "openTask": "Ouvrir",
+    "activity": {
+      "title": "Activité",
+      "subtitle": "Piste d'audit complète de cette mission.",
+      "empty": "Aucune activité enregistrée.",
+      "link": "Activité",
+      "entityLabels": {
+        "engagement": "Mission",
+        "file_item": "Feuille de travail",
+        "document": "Document"
+      }
+    },
     "recentEngagements": "Missions récentes",
     "selectEngagement": "Choisir une mission",
     "overallCompletion": "Avancement global",

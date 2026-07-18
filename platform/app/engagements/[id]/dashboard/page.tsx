@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
 import { auth } from "@/auth";
 import { AppNav } from "@/components/AppNav";
@@ -206,13 +207,22 @@ export default async function EngagementDashboardPage(props: {
               value={`${dash.pbcOpen}`}
               sub={`${dash.documentsUnsigned} ${t.engagementDashboard.unsigned.toLowerCase()}`}
             />
-            <a
-              href={`/api/engagements/${id}/export`}
-              data-testid="dashboard-export-index"
-              className="mt-auto text-[12.5px] font-semibold text-emerald-700 hover:underline dark:text-emerald-400"
-            >
-              {t.engagementDashboard.export}
-            </a>
+            <div className="mt-auto flex items-center gap-4 pt-1">
+              <a
+                href={`/api/engagements/${id}/export`}
+                data-testid="dashboard-export-index"
+                className="text-[12.5px] font-semibold text-emerald-700 hover:underline dark:text-emerald-400"
+              >
+                {t.engagementDashboard.export}
+              </a>
+              <Link
+                href={`/engagements/${id}/activity`}
+                data-testid="dashboard-activity-link"
+                className="text-[12.5px] font-semibold text-emerald-700 hover:underline dark:text-emerald-400"
+              >
+                {td.activity.link}
+              </Link>
+            </div>
           </div>
         </Panel>
       </section>

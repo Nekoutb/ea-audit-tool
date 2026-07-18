@@ -96,6 +96,17 @@
       "not_started": "Not started"
     },
     "openTask": "Open",
+    "activity": {
+      "title": "Activity",
+      "subtitle": "Complete audit trail for this engagement.",
+      "empty": "No activity recorded yet.",
+      "link": "Activity",
+      "entityLabels": {
+        "engagement": "Engagement",
+        "file_item": "Working paper",
+        "document": "Document"
+      }
+    },
     "recentEngagements": "Recent engagements",
     "selectEngagement": "Select engagement",
     "overallCompletion": "Overall completion",

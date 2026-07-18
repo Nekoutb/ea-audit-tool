@@ -2,6 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
+import { recordActivity } from "@/lib/activity";
 import { createClient, isLegalForm } from "@/lib/clients";
 import { answersFromForm, classifyComplexity } from "@/lib/complexity";
 import {
@@ -79,6 +80,13 @@ export async function createEngagementAction(formData: FormData): Promise<void> 
     }
     throw error;
   }
+  await recordActivity({
+    engagementId: id,
+    entityType: "engagement",
+    entityId: id,
+    action: "created",
+    summary: `Engagement created (${level.replace("_", " ")})`,
+  });
   revalidatePath("/engagements");
   redirect(`/engagements/${id}/dashboard`);
 }
@@ -114,6 +122,13 @@ async function signOffFromList(
     }
     throw error;
   }
+  await recordActivity({
+    engagementId,
+    entityType: "file_item",
+    entityId: fileItemId,
+    action: role === "preparer" ? "preparer_signoff" : "reviewer_signoff",
+    summary: role === "preparer" ? "Signed off as preparer" : "Signed off as reviewer",
+  });
   revalidatePath(back);
   redirect(back);
 }
