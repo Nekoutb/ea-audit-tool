@@ -226,7 +226,7 @@ export default async function PhaseTasksPage(props: {
           {tasks.length === 0 ? (
             <p className="px-4 py-8 text-center text-sm text-muted">{t.planning.findings.empty}</p>
           ) : (
-            <table className="w-full table-fixed">
+            <table className="w-full min-w-[860px] table-fixed">
               <colgroup>
                 <col style={{ width: "31%" }} />
                 <col style={{ width: "20%" }} />

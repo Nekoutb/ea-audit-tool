@@ -55,7 +55,7 @@ export default async function EngagementDashboardPage(props: {
     engagement.phase === "archived" ? t.engagements.phases.archived : td.phaseNames[engagement.phase];
 
   return (
-    <main className="flex h-[100dvh] w-full flex-col gap-3 overflow-hidden px-6 py-4">
+    <main className="flex min-h-screen w-full flex-col gap-3 px-4 py-4 sm:px-6 lg:h-[100dvh] lg:min-h-0 lg:overflow-hidden">
       <AppNav locale={locale} current={{ id, label: engagement.name ?? engagement.clientName }} />
 
       <div className="flex flex-wrap items-end justify-between gap-4">

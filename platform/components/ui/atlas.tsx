@@ -185,14 +185,14 @@ export function PhaseGauge({
       {status === "current" ? (
         <span className="absolute inset-x-0 top-0 h-[3px] rounded-t-[var(--radius-atlas)] bg-gradient-to-r from-emerald-600 to-emerald-400" />
       ) : null}
-      <div className="flex items-start justify-between gap-2">
-        <div className="flex items-baseline gap-1.5">
+      <div className="flex flex-wrap items-start justify-between gap-x-2 gap-y-1">
+        <div className="flex min-w-0 items-baseline gap-1.5">
           <span className="text-[11px] font-extrabold text-emerald-700/55 tnum dark:text-emerald-400/55">
             {index}
           </span>
-          <span className="text-[13.5px] font-semibold tracking-[-0.015em] text-ink">{name}</span>
+          <span className="truncate text-[13.5px] font-semibold tracking-[-0.015em] text-ink">{name}</span>
         </div>
-        {chip}
+        <span className="flex-shrink-0">{chip}</span>
       </div>
 
       <div className="grid place-items-center py-1">

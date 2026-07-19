@@ -59,7 +59,7 @@ export default async function TimePage(props: {
       ) : null}
 
       <div className="grid grid-cols-1 gap-4 lg:grid-cols-[1.4fr_1fr]">
-        <Panel flush className="flex flex-col">
+        <Panel flush className="flex min-w-0 flex-col">
           <div className="border-b border-line px-5 py-3.5">
             <PanelHeader title={tt.myTime} right={<span className="text-xs font-semibold text-muted tnum">{myTotal.toFixed(1)}h</span>} />
           </div>
@@ -73,7 +73,8 @@ export default async function TimePage(props: {
             </form>
 
             {entries.length > 0 ? (
-              <table className="mt-5 w-full text-sm" data-testid="time-entries">
+              <div className="mt-5 overflow-x-auto">
+              <table className="w-full min-w-[520px] text-sm" data-testid="time-entries">
                 <thead className="text-left text-xs uppercase tracking-wide text-muted">
                   <tr><th className="py-2 font-semibold">{tt.date}</th><th className="py-2 font-semibold">{tt.task}</th><th className="py-2 font-semibold">{tt.note}</th><th className="py-2 text-right font-semibold">{tt.hours}</th><th /></tr>
                 </thead>
@@ -95,13 +96,14 @@ export default async function TimePage(props: {
                   ))}
                 </tbody>
               </table>
+              </div>
             ) : (
               <p className="mt-5 text-sm text-muted">{tt.empty}</p>
             )}
           </div>
         </Panel>
 
-        <Panel flush className="flex flex-col">
+        <Panel flush className="flex min-w-0 flex-col">
           <div className="border-b border-line px-5 py-3.5">
             <PanelHeader title={tt.budgetVsActual} />
           </div>

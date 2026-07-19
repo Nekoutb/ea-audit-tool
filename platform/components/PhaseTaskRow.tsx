@@ -102,9 +102,6 @@ export function PhaseTaskRow({
     >
       <td className="border-t border-line px-5 py-4">
         <div className="flex min-w-0 items-center gap-2.5">
-          <span className="w-6 flex-shrink-0 text-right text-[11px] font-extrabold text-emerald-700/45 tnum dark:text-emerald-400/45">
-            {row.code.length <= 2 ? row.code : ""}
-          </span>
           <span className="w-11 flex-shrink-0 font-mono text-[11px] font-bold text-ink-soft">{row.code}</span>
           <span className="truncate text-[13.5px] font-semibold text-ink">{row.title}</span>
         </div>
