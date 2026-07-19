@@ -18,7 +18,7 @@ import {
   initials,
   phaseDeadline,
   phaseOfTask,
-  phaseTasks,
+  taskForItem,
 } from "@/lib/engagement-dashboard";
 import { getEngagement } from "@/lib/engagements";
 import { shortTitle } from "@/lib/file-index";
@@ -27,6 +27,7 @@ import { listReviewNotes, type ReviewNoteInfo } from "@/lib/documents";
 import { getMessages } from "@/lib/i18n";
 import { getLocale } from "@/lib/locale";
 import { appliedTemplate } from "@/lib/template-overrides";
+import { displayCode, groupOfTask, groupTitle } from "@/lib/task-groups";
 import { requireTenant } from "@/lib/tenant";
 
 export async function generateMetadata(props: { params: Promise<{ code: string }> }) {
@@ -84,13 +85,17 @@ export default async function FormPage(props: {
   const phase = phaseOfTask("D", code);
   const phaseSlug = PHASE_SLUG_OF[phase];
   const tk = t.taskPage;
-  const [{ values, carried }, registers, tasks, template] = await Promise.all([
+  const [{ values, carried }, registers, task, template] = await Promise.all([
     loadForm(id, code),
     subRegisters(id, code),
-    phaseTasks(id, phase),
+    taskForItem(id, code),
     appliedTemplate(code),
   ]);
-  const task = tasks.find((row) => row.code === code) ?? null;
+  const group = groupOfTask(code);
+  const backHref = group ? `/engagements/${id}/groups/${group.id}` : `/engagements/${id}/phases/${phaseSlug}`;
+  const backLabel = group
+    ? tk.backTo.replace("{phase}", `${group.code} · ${groupTitle(group, locale)}`)
+    : tk.backTo.replace("{phase}", t.dashboard.phaseNames[phase]);
   const notes: ReviewNoteInfo[] = task?.documentId ? await listReviewNotes(task.documentId) : [];
 
   const deadlineIso = task?.dueDate ?? phaseDeadline(engagement.periodEnd, phase);
@@ -116,6 +121,7 @@ export default async function FormPage(props: {
       <input type="hidden" name="fileItemId" value={task.id} />
       <input type="hidden" name="engagementId" value={id} />
       <input type="hidden" name="phase" value={phaseSlug} />
+      {group ? <input type="hidden" name="returnTo" value={backHref} /> : null}
     </>
   ) : null;
 
@@ -126,20 +132,23 @@ export default async function FormPage(props: {
       {/* NAV: back to the phase task list (canvas block 1) */}
       <div>
         <NavLink
-          href={`/engagements/${id}/phases/${phaseSlug}`}
+          href={backHref}
           className="inline-flex min-h-[24px] items-center gap-1.5 text-[13px] font-semibold text-emerald-700 hover:underline dark:text-emerald-400"
           testId="back-to-phase"
         >
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2">
             <path d="M19 12H5M11 18l-6-6 6-6" />
           </svg>
-          {tk.backTo.replace("{phase}", t.dashboard.phaseNames[phase])}
+          {backLabel}
         </NavLink>
 
         {/* HEADER: code badge + task name + status + meta (canvas block 2) */}
         <h1 className="mt-2 flex flex-wrap items-center gap-2.5 text-2xl font-bold tracking-[-0.02em] text-ink">
-          <span className="rounded-[var(--radius-atlas-xs)] border border-line-strong bg-surface-2 px-2 py-0.5 font-mono text-[14px] font-extrabold text-ink-soft">
-            {code}
+          <span
+            title={code}
+            className="rounded-[var(--radius-atlas-xs)] border border-line-strong bg-surface-2 px-2 py-0.5 font-mono text-[14px] font-extrabold text-ink-soft"
+          >
+            {displayCode(code)}
           </span>
           <span>{shortTitle(code, locale, code)}</span>
           <span className="ml-1">{statusChip}</span>

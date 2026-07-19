@@ -394,3 +394,229 @@ export async function mostRecentEngagement(): Promise<EngagementSummary | null> 
   const [first] = await recentEngagements(1);
   return first ?? null;
 }
+
+/**
+ * Every active task of the engagement in one query — the ST/E/C dashboard and
+ * the group pages roll these up client-side via lib/task-groups (the grouping
+ * is a presentation concern; internal codes stay the storage keys).
+ */
+export async function engagementTasks(engagementId: string): Promise<PhaseTask[]> {
+  const { tenantId } = await requireTenant();
+  return withTenant(tenantId, async (tx) => {
+    const result = await tx.query<{
+      id: string;
+      code: string;
+      section: string;
+      title_en: string;
+      title_fr: string;
+      document_id: string | null;
+      due_date: string | null;
+      owner_name: string | null;
+      preparer_name: string | null;
+      preparer_at: string | null;
+      reviewer_name: string | null;
+      reviewer_at: string | null;
+    }>(
+      `SELECT fi.id, fi.code, fi.section, fi.title_en, fi.title_fr,
+              d.id AS document_id,
+              to_char(fi.due_date, 'YYYY-MM-DD') AS due_date,
+              (SELECT coalesce(name, email) FROM app_user WHERE id = fi.owner_id) AS owner_name,
+              ps.signer AS preparer_name, to_char(ps.signed_at, 'DD Mon YYYY') AS preparer_at,
+              rs.signer AS reviewer_name, to_char(rs.signed_at, 'DD Mon YYYY') AS reviewer_at
+         FROM file_item fi
+         LEFT JOIN LATERAL (
+           SELECT id FROM document
+            WHERE file_item_id = fi.id AND kind = 'workpaper'
+            ORDER BY created_at LIMIT 1
+         ) d ON true
+         LEFT JOIN LATERAL (
+           SELECT coalesce(u.name, u.email) AS signer, s.signed_at
+             FROM signoff s JOIN app_user u ON u.id = s.user_id
+            WHERE s.document_id = d.id AND s.role = 'preparer' AND s.voided_at IS NULL
+            ORDER BY s.signed_at LIMIT 1
+         ) ps ON true
+         LEFT JOIN LATERAL (
+           SELECT coalesce(u.name, u.email) AS signer, s.signed_at
+             FROM signoff s JOIN app_user u ON u.id = s.user_id
+            WHERE s.document_id = d.id AND s.role IN ('reviewer', 'partner') AND s.voided_at IS NULL
+            ORDER BY s.signed_at LIMIT 1
+         ) rs ON true
+        WHERE fi.engagement_id = $1 AND fi.conditional = false
+        ORDER BY fi.sort_order`,
+      [engagementId],
+    );
+    return result.rows.map((row) => {
+      const status: PhaseTaskStatus = row.reviewer_name
+        ? "reviewed"
+        : row.preparer_name
+          ? "in_review"
+          : row.document_id
+            ? "in_progress"
+            : "not_started";
+      return {
+        id: row.id,
+        code: row.code,
+        section: row.section,
+        titleEn: row.title_en,
+        titleFr: row.title_fr,
+        documentId: row.document_id,
+        dueDate: row.due_date,
+        ownerName: row.owner_name,
+        preparerName: row.preparer_name,
+        preparerAt: row.preparer_at,
+        reviewerName: row.reviewer_name,
+        reviewerAt: row.reviewer_at,
+        status,
+      };
+    });
+  });
+}
+
+/** Summary-tile counts for the dashboard, per engagement or across the firm. */
+export interface DashboardStats {
+  myTasks: number;
+  forMyReview: number;
+  toDo: number;
+  notesForMe: number;
+  notesByMe: number;
+}
+
+async function statsScoped(engagementId: string | null): Promise<DashboardStats> {
+  const { tenantId, userId } = await requireTenant();
+  return withTenant(tenantId, async (tx) => {
+    const r = await tx.query<{
+      my_tasks: string;
+      for_my_review: string;
+      to_do: string;
+      notes_for_me: string;
+      notes_by_me: string;
+    }>(
+      `SELECT
+         (SELECT count(*) FROM file_item fi
+           WHERE ($1::uuid IS NULL OR fi.engagement_id = $1) AND fi.conditional = false
+             AND fi.owner_id = $2
+             AND NOT EXISTS (
+               SELECT 1 FROM document d JOIN signoff s ON s.document_id = d.id
+                WHERE d.file_item_id = fi.id AND s.role IN ('reviewer','partner') AND s.voided_at IS NULL
+             ))::text AS my_tasks,
+         (SELECT count(*) FROM file_item fi
+           WHERE ($1::uuid IS NULL OR fi.engagement_id = $1) AND fi.conditional = false
+             AND EXISTS (
+               SELECT 1 FROM document d JOIN signoff s ON s.document_id = d.id
+                WHERE d.file_item_id = fi.id AND s.role = 'preparer' AND s.voided_at IS NULL
+             )
+             AND NOT EXISTS (
+               SELECT 1 FROM document d JOIN signoff s ON s.document_id = d.id
+                WHERE d.file_item_id = fi.id AND s.role IN ('reviewer','partner') AND s.voided_at IS NULL
+             ))::text AS for_my_review,
+         (SELECT count(*) FROM file_item fi
+           WHERE ($1::uuid IS NULL OR fi.engagement_id = $1) AND fi.conditional = false
+             AND fi.owner_id = $2
+             AND NOT EXISTS (SELECT 1 FROM document d WHERE d.file_item_id = fi.id))::text AS to_do,
+         (SELECT count(*) FROM review_note n
+           JOIN document d ON d.id = n.document_id
+           JOIN file_item fi ON fi.id = d.file_item_id
+          WHERE ($1::uuid IS NULL OR fi.engagement_id = $1)
+            AND n.status = 'open' AND fi.owner_id = $2)::text AS notes_for_me,
+         (SELECT count(*) FROM review_note n
+           JOIN document d ON d.id = n.document_id
+           JOIN file_item fi ON fi.id = d.file_item_id
+          WHERE ($1::uuid IS NULL OR fi.engagement_id = $1)
+            AND n.status = 'open' AND n.author_id = $2)::text AS notes_by_me`,
+      [engagementId, userId],
+    );
+    const row = r.rows[0];
+    return {
+      myTasks: Number(row.my_tasks),
+      forMyReview: Number(row.for_my_review),
+      toDo: Number(row.to_do),
+      notesForMe: Number(row.notes_for_me),
+      notesByMe: Number(row.notes_by_me),
+    };
+  });
+}
+
+/** Tile counts for the "My engagement / All engagements" summary toggle. */
+export async function dashboardStats(
+  engagementId: string,
+): Promise<{ my: DashboardStats; all: DashboardStats }> {
+  const [my, all] = await Promise.all([statsScoped(engagementId), statsScoped(null)]);
+  return { my, all };
+}
+
+/**
+ * One task by engagement + internal code — regardless of the conditional flag
+ * (conditional items D4.7–D4.9 still have task pages and sign-offs even though
+ * they are excluded from roll-ups until instantiated as applicable).
+ */
+export async function taskForItem(engagementId: string, code: string): Promise<PhaseTask | null> {
+  const { tenantId } = await requireTenant();
+  return withTenant(tenantId, async (tx) => {
+    const result = await tx.query<{
+      id: string;
+      code: string;
+      section: string;
+      title_en: string;
+      title_fr: string;
+      document_id: string | null;
+      due_date: string | null;
+      owner_name: string | null;
+      preparer_name: string | null;
+      preparer_at: string | null;
+      reviewer_name: string | null;
+      reviewer_at: string | null;
+    }>(
+      `SELECT fi.id, fi.code, fi.section, fi.title_en, fi.title_fr,
+              d.id AS document_id,
+              to_char(fi.due_date, 'YYYY-MM-DD') AS due_date,
+              (SELECT coalesce(name, email) FROM app_user WHERE id = fi.owner_id) AS owner_name,
+              ps.signer AS preparer_name, to_char(ps.signed_at, 'DD Mon YYYY') AS preparer_at,
+              rs.signer AS reviewer_name, to_char(rs.signed_at, 'DD Mon YYYY') AS reviewer_at
+         FROM file_item fi
+         LEFT JOIN LATERAL (
+           SELECT id FROM document
+            WHERE file_item_id = fi.id AND kind = 'workpaper'
+            ORDER BY created_at LIMIT 1
+         ) d ON true
+         LEFT JOIN LATERAL (
+           SELECT coalesce(u.name, u.email) AS signer, s.signed_at
+             FROM signoff s JOIN app_user u ON u.id = s.user_id
+            WHERE s.document_id = d.id AND s.role = 'preparer' AND s.voided_at IS NULL
+            ORDER BY s.signed_at LIMIT 1
+         ) ps ON true
+         LEFT JOIN LATERAL (
+           SELECT coalesce(u.name, u.email) AS signer, s.signed_at
+             FROM signoff s JOIN app_user u ON u.id = s.user_id
+            WHERE s.document_id = d.id AND s.role IN ('reviewer', 'partner') AND s.voided_at IS NULL
+            ORDER BY s.signed_at LIMIT 1
+         ) rs ON true
+        WHERE fi.engagement_id = $1 AND fi.code = $2
+        LIMIT 1`,
+      [engagementId, code],
+    );
+    const row = result.rows[0];
+    if (!row) return null;
+    const status: PhaseTaskStatus = row.reviewer_name
+      ? "reviewed"
+      : row.preparer_name
+        ? "in_review"
+        : row.document_id
+          ? "in_progress"
+          : "not_started";
+    return {
+      id: row.id,
+      code: row.code,
+      section: row.section,
+      titleEn: row.title_en,
+      titleFr: row.title_fr,
+      documentId: row.document_id,
+      dueDate: row.due_date,
+      ownerName: row.owner_name,
+      preparerName: row.preparer_name,
+      preparerAt: row.preparer_at,
+      reviewerName: row.reviewer_name,
+      reviewerAt: row.reviewer_at,
+      status,
+    };
+  });
+}

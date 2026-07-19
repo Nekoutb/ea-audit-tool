@@ -60,12 +60,15 @@ export function PhaseTaskRow({
   row,
   engagementId,
   phaseSlug,
+  returnTo,
   signPreparerLabel,
   signReviewerLabel,
 }: {
   row: PhaseRowData;
   engagementId: string;
   phaseSlug: string;
+  /** Sign-off redirect target when not the phase list (e.g. a group page). */
+  returnTo?: string;
   signPreparerLabel: string;
   signReviewerLabel: string;
 }) {
@@ -88,6 +91,7 @@ export function PhaseTaskRow({
       <input type="hidden" name="fileItemId" value={row.id} />
       <input type="hidden" name="engagementId" value={engagementId} />
       <input type="hidden" name="phase" value={phaseSlug} />
+      {returnTo ? <input type="hidden" name="returnTo" value={returnTo} /> : null}
     </>
   );
 

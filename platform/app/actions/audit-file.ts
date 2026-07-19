@@ -112,7 +112,10 @@ async function signOffFromList(
   const fileItemId = String(formData.get("fileItemId") ?? "");
   const engagementId = String(formData.get("engagementId") ?? "");
   const phaseSlug = String(formData.get("phase") ?? "");
-  const back = `/engagements/${engagementId}/phases/${phaseSlug}`;
+  const returnTo = String(formData.get("returnTo") ?? "");
+  const back = returnTo.startsWith(`/engagements/${engagementId}/`)
+    ? returnTo
+    : `/engagements/${engagementId}/phases/${phaseSlug}`;
   const locale = await getLocale();
   try {
     const documentId = await generateDocument(fileItemId, locale); // get-or-create

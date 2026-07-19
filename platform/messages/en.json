@@ -135,7 +135,27 @@
     "b5Exposure": "Portfolio — uncorrected B5 exposure",
     "exceeds": "EXCEEDS",
     "within": "Within",
-    "noMateriality": "no approved materiality"
+    "noMateriality": "no approved materiality",
+    "stage": {
+      "reviewed": "reviewed",
+      "groups": "task groups",
+      "groupsHint": "Detail tasks open on the group page — click a group.",
+      "refDocs": "Reference documents",
+      "due": "due"
+    },
+    "tiles": {
+      "mySummary": "My engagement summary",
+      "allSummary": "All engagements summary",
+      "myTasks": "My tasks",
+      "myTasksHint": "assigned to me",
+      "forMyReview": "For my review",
+      "forMyReviewHint": "awaiting sign-off",
+      "toDo": "To do",
+      "toDoHint": "not started yet",
+      "reviewNotes": "My review notes",
+      "forMe": "for me",
+      "byMe": "by me"
+    }
   },
   "engagementDashboard": {
     "phase": "Phase",

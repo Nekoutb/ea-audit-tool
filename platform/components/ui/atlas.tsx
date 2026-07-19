@@ -21,7 +21,7 @@ export function Panel({
   return (
     <div
       className={cx(
-        "rounded-[var(--radius-atlas)] border border-line bg-surface shadow-[var(--shadow-atlas)]",
+        "rounded-[var(--radius-atlas)] border border-line bg-surface shadow-[var(--shadow-atlas)] backdrop-blur-xl",
         !flush && "p-5",
         className,
       )}
@@ -176,7 +176,7 @@ export function PhaseGauge({
   return (
     <div
       className={cx(
-        "relative flex flex-col rounded-[var(--radius-atlas)] border bg-surface p-4 shadow-[var(--shadow-atlas)] transition-transform duration-200",
+        "relative flex flex-col rounded-[var(--radius-atlas)] border bg-surface p-4 shadow-[var(--shadow-atlas)] backdrop-blur-xl transition-transform duration-200",
         status === "current"
           ? "border-emerald-600/45 shadow-[var(--shadow-atlas-lg)]"
           : "border-line",

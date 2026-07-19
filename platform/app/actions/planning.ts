@@ -61,14 +61,18 @@ export async function saveFormAction(
   }
 
   // "Save & hand off": save the fields, then generate the working paper (if
-  // needed) and sign it off as preparer, landing back on the phase task list.
+  // needed) and sign it off as preparer, landing back on the group task list.
   if (formData.get("handoff") === "1") {
     const { generateDocument, signDocument, DocumentRuleError } = await import("@/lib/documents");
     const { PHASE_SLUG_OF, phaseOfTask } = await import("@/lib/engagement-dashboard");
+    const { groupOfTask } = await import("@/lib/task-groups");
     const { recordActivity } = await import("@/lib/activity");
     const { requireTenant } = await import("@/lib/tenant");
+    const group = groupOfTask(code);
     const slug = PHASE_SLUG_OF[phaseOfTask("D", code)];
-    const listPath = `/engagements/${engagementId}/phases/${slug}`;
+    const listPath = group
+      ? `/engagements/${engagementId}/groups/${group.id}`
+      : `/engagements/${engagementId}/phases/${slug}`;
     try {
       await saveForm(engagementId, code, values);
       const { tenantId } = await requireTenant();

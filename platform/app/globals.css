@@ -11,14 +11,20 @@
  */
 
 :root {
-  --canvas: #eef1f6;
-  --surface: #ffffff;
-  --surface-2: #f6f8fb;
-  --ink: #111827;
-  --ink-soft: #3a4658;
-  --muted: #67728a;
-  --line: #e3e8f0;
-  --line-strong: #d3dbe7;
+  /* Liquid Glass grey ground (three stops blended in the body gradient). */
+  --ground-a: #e9ebee;
+  --ground-b: #d7dade;
+  --ground-c: #c9cdd3;
+  --canvas: #e4e7ea;
+  /* Surfaces are translucent glass — panels add backdrop-blur on top. */
+  --surface: rgba(255, 255, 255, 0.62);
+  --surface-2: rgba(228, 232, 236, 0.75);
+  --glass-inner: rgba(255, 255, 255, 0.85);
+  --ink: #1b1e23;
+  --ink-soft: #353c46;
+  --muted: #5f6672;
+  --line: rgba(27, 30, 35, 0.09);
+  --line-strong: rgba(27, 30, 35, 0.17);
   --warn: #9c660e;
   --warn-soft: #f7edd8;
   --rose: #b23c4f;
@@ -26,13 +32,13 @@
   --good: #12795a;
   --good-soft: #e4f2ec;
 
-  --radius-atlas: 14px;
-  --radius-atlas-sm: 10px;
-  --radius-atlas-xs: 7px;
+  --radius-atlas: 18px;
+  --radius-atlas-sm: 12px;
+  --radius-atlas-xs: 8px;
 
-  --shadow-atlas-sm: 0 1px 2px rgba(17, 24, 39, 0.05);
-  --shadow-atlas: 0 1px 2px rgba(17, 24, 39, 0.05), 0 10px 28px rgba(20, 45, 90, 0.08);
-  --shadow-atlas-lg: 0 2px 6px rgba(17, 24, 39, 0.07), 0 20px 46px rgba(20, 45, 90, 0.14);
+  --shadow-atlas-sm: 0 1px 2px rgba(20, 24, 30, 0.07), inset 0 1px 0 var(--glass-inner);
+  --shadow-atlas: 0 1px 2px rgba(20, 24, 30, 0.06), 0 14px 36px rgba(20, 24, 30, 0.11), inset 0 1px 0 var(--glass-inner);
+  --shadow-atlas-lg: 0 2px 6px rgba(20, 24, 30, 0.08), 0 22px 48px rgba(20, 24, 30, 0.16), inset 0 1px 0 var(--glass-inner);
 
   --ease-atlas: cubic-bezier(0.22, 1, 0.36, 1);
 
@@ -43,14 +49,18 @@
 
 @media (prefers-color-scheme: dark) {
   :root {
-    --canvas: #0c1017;
-    --surface: #141b26;
-    --surface-2: #101722;
-    --ink: #eaeff7;
+    --ground-a: #131518;
+    --ground-b: #1a1d21;
+    --ground-c: #101214;
+    --canvas: #121418;
+    --surface: rgba(40, 44, 51, 0.55);
+    --surface-2: rgba(255, 255, 255, 0.055);
+    --glass-inner: rgba(255, 255, 255, 0.07);
+    --ink: #eef1f5;
     --ink-soft: #c8d1de;
     --muted: #aab7ca;
-    --line: #232d3c;
-    --line-strong: #2f3b4d;
+    --line: rgba(255, 255, 255, 0.08);
+    --line-strong: rgba(255, 255, 255, 0.16);
     --warn: #e0b054;
     --warn-soft: #2a2113;
     --rose: #f9a3b0;
@@ -58,9 +68,9 @@
     --good: #5cd8a3;
     --good-soft: #12241d;
 
-    --shadow-atlas-sm: 0 1px 2px rgba(0, 0, 0, 0.4);
-    --shadow-atlas: 0 1px 2px rgba(0, 0, 0, 0.4), 0 14px 34px rgba(0, 0, 0, 0.45);
-    --shadow-atlas-lg: 0 2px 6px rgba(0, 0, 0, 0.5), 0 24px 52px rgba(0, 0, 0, 0.55);
+    --shadow-atlas-sm: 0 1px 2px rgba(0, 0, 0, 0.42), inset 0 1px 0 var(--glass-inner);
+    --shadow-atlas: 0 1px 2px rgba(0, 0, 0, 0.4), 0 16px 38px rgba(0, 0, 0, 0.48), inset 0 1px 0 var(--glass-inner);
+    --shadow-atlas-lg: 0 2px 6px rgba(0, 0, 0, 0.5), 0 24px 52px rgba(0, 0, 0, 0.55), inset 0 1px 0 var(--glass-inner);
   }
 }
 
@@ -99,7 +109,11 @@
 }
 
 body {
-  background: var(--canvas);
+  background:
+    radial-gradient(1100px 520px at 12% -8%, var(--ground-a), transparent 60%),
+    radial-gradient(900px 600px at 108% 12%, var(--ground-c), transparent 55%),
+    linear-gradient(160deg, var(--ground-a), var(--ground-b) 55%, var(--ground-c)) fixed;
+  background-color: var(--canvas);
   color: var(--ink);
   font-family: var(--font-geist-sans), "Segoe UI", system-ui, -apple-system, Roboto, Arial, sans-serif;
   -webkit-font-smoothing: antialiased;
@@ -202,6 +216,18 @@ button.sobox:focus-visible { outline: 2px solid var(--color-emerald-600); outlin
 @keyframes atlas-fade {
   from {
     opacity: 0;
+  }
+}
+
+/* Dashboard group roll-out (SectionStage): rows slide in from the section rail. */
+@keyframes rollout {
+  from {
+    opacity: 0;
+    transform: translateX(-14px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
   }
 }
 

@@ -135,7 +135,27 @@
     "b5Exposure": "Portefeuille — exposition B5 non corrigée",
     "exceeds": "DÉPASSE",
     "within": "Sous le seuil",
-    "noMateriality": "pas de seuil approuvé"
+    "noMateriality": "pas de seuil approuvé",
+    "stage": {
+      "reviewed": "revues",
+      "groups": "groupes de tâches",
+      "groupsHint": "Les tâches détaillées s’ouvrent sur la page du groupe — cliquez sur un groupe.",
+      "refDocs": "Documents de référence",
+      "due": "échéance"
+    },
+    "tiles": {
+      "mySummary": "Ma synthèse mission",
+      "allSummary": "Synthèse toutes missions",
+      "myTasks": "Mes tâches",
+      "myTasksHint": "qui me sont affectées",
+      "forMyReview": "À revoir par moi",
+      "forMyReviewHint": "en attente de visa",
+      "toDo": "À faire",
+      "toDoHint": "pas encore commencées",
+      "reviewNotes": "Mes notes de revue",
+      "forMe": "pour moi",
+      "byMe": "par moi"
+    }
   },
   "engagementDashboard": {
     "phase": "Phase",
