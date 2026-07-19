@@ -126,7 +126,7 @@ export default async function FormPage(props: {
       <div>
         <NavLink
           href={`/engagements/${id}/phases/${phaseSlug}`}
-          className="inline-flex items-center gap-1.5 text-[13px] font-semibold text-emerald-700 hover:underline dark:text-emerald-400"
+          className="inline-flex min-h-[24px] items-center gap-1.5 text-[13px] font-semibold text-emerald-700 hover:underline dark:text-emerald-400"
           testId="back-to-phase"
         >
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2">

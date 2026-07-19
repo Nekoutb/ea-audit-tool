@@ -213,28 +213,28 @@ export default async function EngagementDashboardPage(props: {
               <a
                 href={`/api/engagements/${id}/export`}
                 data-testid="dashboard-export-index"
-                className="text-[12.5px] font-semibold text-emerald-700 hover:underline dark:text-emerald-400"
+                className="inline-flex min-h-[24px] items-center text-[12.5px] font-semibold text-emerald-700 hover:underline dark:text-emerald-400"
               >
                 {t.engagementDashboard.export}
               </a>
               <Link
                 href={`/engagements/${id}/activity`}
                 data-testid="dashboard-activity-link"
-                className="text-[12.5px] font-semibold text-emerald-700 hover:underline dark:text-emerald-400"
+                className="inline-flex min-h-[24px] items-center text-[12.5px] font-semibold text-emerald-700 hover:underline dark:text-emerald-400"
               >
                 {td.activity.link}
               </Link>
               <Link
                 href={`/engagements/${id}/time`}
                 data-testid="dashboard-time-link"
-                className="text-[12.5px] font-semibold text-emerald-700 hover:underline dark:text-emerald-400"
+                className="inline-flex min-h-[24px] items-center text-[12.5px] font-semibold text-emerald-700 hover:underline dark:text-emerald-400"
               >
                 {t.time.link}
               </Link>
               <Link
                 href={`/engagements/${id}/discussion`}
                 data-testid="dashboard-discussion-link"
-                className="text-[12.5px] font-semibold text-emerald-700 hover:underline dark:text-emerald-400"
+                className="inline-flex min-h-[24px] items-center text-[12.5px] font-semibold text-emerald-700 hover:underline dark:text-emerald-400"
               >
                 {t.discussion.link}
               </Link>

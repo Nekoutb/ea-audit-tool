@@ -53,7 +53,7 @@ export default async function ClientsPage() {
                   <td className="px-4 py-3 text-right">
                     <Link
                       href={`/clients/${client.id}`}
-                      className="font-medium text-emerald-700 hover:underline dark:text-emerald-400"
+                      className="inline-flex min-h-[24px] items-center font-medium text-emerald-700 hover:underline dark:text-emerald-400"
                     >
                       {t.clients.view}
                     </Link>

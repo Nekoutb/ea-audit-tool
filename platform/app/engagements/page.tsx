@@ -76,7 +76,7 @@ export default async function EngagementsPage() {
                     <td className="px-5 py-3 text-right">
                       <Link
                         href={`/engagements/${engagement.id}/dashboard`}
-                        className="font-medium text-emerald-700 hover:underline dark:text-emerald-400"
+                        className="inline-flex min-h-[24px] items-center font-medium text-emerald-700 hover:underline dark:text-emerald-400"
                       >
                         {t.engagements.open}
                       </Link>

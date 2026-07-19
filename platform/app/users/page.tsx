@@ -70,7 +70,7 @@ export default async function UsersPage(props: {
                     ) : (
                       <form action={changeRoleAction} className="flex items-center gap-2">
                         <input type="hidden" name="userId" value={u.id} />
-                        <select name="role" defaultValue={u.role} className={input} data-testid={`role-${u.email}`}>
+                        <select name="role" defaultValue={u.role} aria-label={tu.role} className={input} data-testid={`role-${u.email}`}>
                           {ASSIGNABLE_ROLES.map((r) => (
                             <option key={r} value={r}>{roleName(r)}</option>
                           ))}

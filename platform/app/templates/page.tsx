@@ -75,7 +75,7 @@ export default async function TemplatesPage(props: {
                       <Link
                         href={`/templates/${encodeURIComponent(entry.code)}`}
                         data-testid={`edit-template-${entry.code}`}
-                        className="text-[12.5px] font-semibold text-emerald-700 hover:underline dark:text-emerald-400"
+                        className="inline-flex min-h-[28px] min-w-[32px] items-center justify-end text-[12.5px] font-semibold text-emerald-700 hover:underline dark:text-emerald-400"
                       >
                         {tp.edit}
                       </Link>

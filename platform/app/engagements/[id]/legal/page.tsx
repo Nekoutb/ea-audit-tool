@@ -226,9 +226,9 @@ export default async function LegalPage(props: {
         <h2 className={heading}>{tl.alerte}</h2>
         {alerte === null ? (
           <form action={startAlerteAction.bind(null, id)} className="mt-3 flex flex-wrap items-end gap-2">
-            <label className={label}>
+            <label className={`${label} w-full max-w-96`}>
               {tl.note}
-              <input name="note" required className={`${input} mt-1 w-96`} data-testid="alerte-note" />
+              <input name="note" required className={`${input} mt-1 w-full`} data-testid="alerte-note" />
             </label>
             <button type="submit" className={btn} data-testid="start-alerte">
               {tl.startAlerte}
