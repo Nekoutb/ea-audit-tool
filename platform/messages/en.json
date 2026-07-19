@@ -213,6 +213,22 @@
       "not-found": "User not found."
     }
   },
+  "integrations": {
+    "title": "Data integration",
+    "subtitle": "How data flows in and out of the platform.",
+    "importsTitle": "Imports",
+    "imports": [
+      "Trial balance: CSV (SYSCOHADA account;label;debit;credit) via the Data workspace, with validation and versioning",
+      "Sub-ledgers (AR, AP, fixed assets, inventory…): CSV/Excel via the Data workspace",
+      "Client documents: PBC requests through the client portal"
+    ],
+    "exportsTitle": "Exports",
+    "exports": [
+      "File index with statuses: .xlsx per engagement (regulator export)",
+      "Engagement status API: GET /api/engagements/{id}/status (JSON: phases, tasks, sign-offs; session-authenticated)",
+      "Working papers: versioned .docx per task"
+    ]
+  },
   "templates": {
     "title": "Templates",
     "subtitle": "Your firm's working-paper templates. Customisations apply to newly generated papers; existing documents are never changed.",

@@ -213,6 +213,22 @@
       "not-found": "Utilisateur introuvable."
     }
   },
+  "integrations": {
+    "title": "Intégration des données",
+    "subtitle": "Comment les données entrent et sortent de la plateforme.",
+    "importsTitle": "Imports",
+    "imports": [
+      "Balance générale : CSV (SYSCOHADA compte;libellé;débit;crédit) via l'espace Données, avec validation et versionnage",
+      "Grands livres auxiliaires (clients, fournisseurs, immobilisations, stocks…) : CSV/Excel via l'espace Données",
+      "Documents clients : demandes PBC via le portail client"
+    ],
+    "exportsTitle": "Exports",
+    "exports": [
+      "Index du dossier avec statuts : .xlsx par mission (export régulateur)",
+      "API statut de mission : GET /api/engagements/{id}/status (JSON : phases, tâches, signatures ; authentification par session)",
+      "Feuilles de travail : .docx versionnés par tâche"
+    ]
+  },
   "templates": {
     "title": "Modèles",
     "subtitle": "Les modèles de feuilles de travail de votre cabinet. Les personnalisations s'appliquent aux nouveaux documents ; les documents existants ne sont jamais modifiés.",

@@ -74,6 +74,24 @@ export default async function SettingsPage(props: {
       </Panel>
 
       <Panel className="mt-6 p-6">
+        <PanelHeader title={t.integrations.title} hint={t.integrations.subtitle} />
+        <div className="mt-4 grid grid-cols-1 gap-6 lg:grid-cols-2" data-testid="integrations-panel">
+          <div>
+            <h3 className="text-[11px] font-extrabold uppercase tracking-[0.07em] text-muted">{t.integrations.importsTitle}</h3>
+            <ul className="mt-2 list-disc space-y-1.5 pl-5 text-[13px] text-ink-soft">
+              {t.integrations.imports.map((line) => (<li key={line}>{line}</li>))}
+            </ul>
+          </div>
+          <div>
+            <h3 className="text-[11px] font-extrabold uppercase tracking-[0.07em] text-muted">{t.integrations.exportsTitle}</h3>
+            <ul className="mt-2 list-disc space-y-1.5 pl-5 text-[13px] text-ink-soft">
+              {t.integrations.exports.map((line) => (<li key={line}>{line}</li>))}
+            </ul>
+          </div>
+        </div>
+      </Panel>
+
+      <Panel className="mt-6 p-6">
         <PanelHeader title={ts.language} hint={ts.languageHint} />
         <div className="mt-4">
           <LanguageSwitcher current={locale} />
