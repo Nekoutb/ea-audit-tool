@@ -82,7 +82,6 @@ export default async function PhaseTasksPage(props: {
   const deadlineDate = fmtDate(deadlineIso, locale);
   const now = new Date();
   const todayUtc = Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate());
-  const overdueDays = Math.round((todayUtc - new Date(deadlineIso + "T00:00:00Z").getTime()) / 86_400_000);
 
   const sg = td.signoff;
   const reviewerIni = reviewerName ? initials(reviewerName) : "";
@@ -117,15 +116,19 @@ export default async function PhaseTasksPage(props: {
           : { ini: reviewerIni, line: sg.awaitingPreparer, lineTone: "idle" as const }
         : { ini: "", line: sg.noReviewer, lineTone: "none" as const };
 
+    // Per-task due date wins over the phase-derived deadline.
+    const taskIso = task.dueDate ?? deadlineIso;
+    const taskDate = task.dueDate ? fmtDate(task.dueDate, locale) : deadlineDate;
+    const taskOverdue = Math.round((todayUtc - new Date(taskIso + "T00:00:00Z").getTime()) / 86_400_000);
     const deadline = reviewerSigned
-      ? { date: deadlineDate, tag: td.deadlineTag.completed, tagTone: "done" as const }
-      : overdueDays > 0
+      ? { date: taskDate, tag: td.deadlineTag.completed, tagTone: "done" as const }
+      : taskOverdue > 0
         ? {
-            date: deadlineDate,
-            tag: `${td.deadlineTag.overdue} · ${overdueDays} ${overdueDays === 1 ? td.deadlineTag.day : td.deadlineTag.days}`,
+            date: taskDate,
+            tag: `${td.deadlineTag.overdue} · ${taskOverdue} ${taskOverdue === 1 ? td.deadlineTag.day : td.deadlineTag.days}`,
             tagTone: "over" as const,
           }
-        : { date: deadlineDate, tag: td.deadlineTag.onTrack, tagTone: "ok" as const };
+        : { date: taskDate, tag: td.deadlineTag.onTrack, tagTone: "ok" as const };
 
     const statusToneMap = { reviewed: "done", in_review: "rev", in_progress: "prog", not_started: "wait" } as const;
 
@@ -236,7 +239,7 @@ export default async function PhaseTasksPage(props: {
         </div>
         <div className="overflow-x-auto" data-testid="phase-task-list">
           {tasks.length === 0 ? (
-            <p className="px-4 py-8 text-center text-sm text-muted">{t.planning.findings.empty}</p>
+            <p className="px-4 py-8 text-center text-sm text-muted">{td.emptyTasks}</p>
           ) : (
             <table className="w-full min-w-[860px] table-fixed">
               <colgroup>

@@ -3,6 +3,7 @@ import { auth } from "@/auth";
 import { changeRoleAction, inviteUserAction, removeUserAction } from "@/app/actions/users";
 import { AppNav } from "@/components/AppNav";
 import { Panel, PanelHeader, btnPrimary } from "@/components/ui/atlas";
+import { SubmitButton } from "@/components/SubmitButton";
 import { canManageFirm, type Role } from "@/lib/rbac";
 import { ASSIGNABLE_ROLES, listFirmUsers } from "@/lib/users";
 import { getMessages } from "@/lib/i18n";
@@ -109,7 +110,7 @@ export default async function UsersPage(props: {
             </select>
           </label>
           <label className={label}>{tu.password}<input name="password" type="password" required minLength={8} className={input} data-testid="invite-password" /></label>
-          <button type="submit" className={`self-end ${btnPrimary}`} data-testid="invite-submit">{tu.inviteButton}</button>
+          <SubmitButton className={`self-end ${btnPrimary}`} testId="invite-submit">{tu.inviteButton}</SubmitButton>
         </form>
       </Panel>
     </main>

@@ -71,6 +71,8 @@
       "deadline": "Deadline",
       "status": "Status"
     },
+    "setDeadline": "Task due date",
+    "emptyTasks": "No tasks in this phase yet — they appear once the audit file is instantiated.",
     "signAsPreparer": "Sign off as preparer",
     "signAsReviewer": "Sign off as reviewer",
     "signoff": {
@@ -99,7 +101,7 @@
     "activity": {
       "title": "Activity",
       "subtitle": "Complete audit trail for this engagement.",
-      "empty": "No activity recorded yet.",
+      "empty": "No activity yet — it appears here as the team works. Open a phase from the dashboard to get started.",
       "link": "Activity",
       "entityLabels": {
         "engagement": "Engagement",
@@ -150,7 +152,11 @@
     "welcome": "Documents requested by your auditor",
     "empty": "No requests at the moment.",
     "status": "Status",
-    "statuses": { "requested": "Requested", "uploaded": "Uploaded", "accepted": "Accepted" },
+    "statuses": {
+      "requested": "Requested",
+      "uploaded": "Uploaded",
+      "accepted": "Accepted"
+    },
     "upload": "Upload",
     "uploaded": "Uploaded file",
     "signOut": "Sign out"
@@ -172,7 +178,7 @@
   "notifications": {
     "title": "Notifications",
     "link": "Notifications",
-    "empty": "You have no notifications.",
+    "empty": "Nothing yet — you will be notified about @mentions, hand-offs and review notes.",
     "markRead": "Mark as read",
     "unreadBadge": "unread"
   },
@@ -286,7 +292,7 @@
     "replyPlaceholder": "Reply…",
     "post": "Post",
     "reply": "Reply",
-    "empty": "No discussion yet.",
+    "empty": "No discussion yet — start the first thread above. Use @name to notify a teammate.",
     "link": "Discussion",
     "errors": {
       "body-required": "Write a message first.",
@@ -302,7 +308,7 @@
     "openTasks": "Open tasks",
     "hours": "Hours",
     "engagements": "Engagements",
-    "empty": "No team members yet.",
+    "empty": "No team members yet — invite colleagues from Settings → Users, then assign them to engagements.",
     "link": "Team workload"
   },
   "time": {
@@ -315,7 +321,7 @@
     "note": "Note",
     "task": "Task",
     "remove": "Remove",
-    "empty": "No time logged yet.",
+    "empty": "No time logged yet — record your first hours with the form above.",
     "budgetVsActual": "Budget vs actual",
     "grade": "Grade",
     "budget": "Budget",
@@ -345,13 +351,15 @@
   },
   "engagements": {
     "title": "Engagements",
-    "empty": "No engagements yet.",
+    "empty": "No engagements yet — create the first one to open its audit file.",
     "client": "Client",
     "fiscalYear": "Fiscal year",
     "periodEnd": "Period end",
     "phase": "Phase",
     "newEngagement": "New engagement",
     "createEngagement": "Create engagement",
+    "partnerLabel": "Engagement partner (reviewer)",
+    "partnerNone": "Assign later",
     "newEngagementTitle": "New audit engagement",
     "newEngagementHint": "Identify the engagement, then answer the profile questions. The classification drives the nature, timing and extent of the work: heavier documentation for complex entities, lighter for very simple ones.",
     "name": "Engagement name",
@@ -470,8 +478,16 @@
       "title": "Trial balance",
       "import": "Import trial balance",
       "versions": "Versions",
-      "kind": { "initial": "Initial", "adjusted": "Adjusted", "final": "Final" },
-      "statusLabel": { "pending": "Pending", "valid": "Valid", "invalid": "Invalid" },
+      "kind": {
+        "initial": "Initial",
+        "adjusted": "Adjusted",
+        "final": "Final"
+      },
+      "statusLabel": {
+        "pending": "Pending",
+        "valid": "Valid",
+        "invalid": "Invalid"
+      },
       "current": "current",
       "checks": {
         "balanced": "Debits = credits (movements)",
@@ -571,7 +587,12 @@
       "title": "Independence confirmations",
       "launch": "Launch campaign",
       "selectRecipients": "Recipients",
-      "status": { "sent": "Sent", "opened": "Opened", "completed": "Completed", "exception": "Exception" },
+      "status": {
+        "sent": "Sent",
+        "opened": "Opened",
+        "completed": "Completed",
+        "exception": "Exception"
+      },
       "remind": "Remind",
       "reminders": "reminders",
       "dispose": "Disposition",
@@ -607,7 +628,13 @@
       "user": "User",
       "role": "Role",
       "remove": "Remove",
-      "roles": { "partner": "Partner", "manager": "Manager", "senior": "Senior", "staff": "Staff", "eqr_reviewer": "EQR reviewer" }
+      "roles": {
+        "partner": "Partner",
+        "manager": "Manager",
+        "senior": "Senior",
+        "staff": "Staff",
+        "eqr_reviewer": "EQR reviewer"
+      }
     },
     "budget": {
       "title": "Time budget (hours by grade)",
@@ -619,12 +646,22 @@
       "title": "PBC request list",
       "add": "Add item",
       "itemTitle": "Requested item",
-      "status": { "requested": "Requested", "uploaded": "Uploaded", "accepted": "Accepted" }
+      "status": {
+        "requested": "Requested",
+        "uploaded": "Uploaded",
+        "accepted": "Accepted"
+      }
     },
     "materiality": {
       "title": "Materiality (ISA 320)",
       "benchmark": "Benchmark",
-      "benchmarks": { "pbt": "Profit before tax", "revenue": "Revenue", "total_assets": "Total assets", "equity": "Equity", "expenses": "Expenses" },
+      "benchmarks": {
+        "pbt": "Profit before tax",
+        "revenue": "Revenue",
+        "total_assets": "Total assets",
+        "equity": "Equity",
+        "expenses": "Expenses"
+      },
       "amount": "Benchmark amount (FCFA)",
       "percentage": "Percentage (%)",
       "range": "Firm guidance",
@@ -637,13 +674,23 @@
       "trivial": "Clearly trivial",
       "version": "Version",
       "approve": "Approve (partner)",
-      "statusLabel": { "draft": "Draft", "approved": "Approved", "superseded": "Superseded" }
+      "statusLabel": {
+        "draft": "Draft",
+        "approved": "Approved",
+        "superseded": "Superseded"
+      }
     },
     "driver": {
       "title": "D1 — Engagement strategy driver",
       "form": "Form",
       "status": "Status",
-      "statusValues": { "not_started": "Not started", "in_progress": "In progress", "complete": "Complete", "signed": "Signed", "not_required": "Not required (D1 trigger off)" }
+      "statusValues": {
+        "not_started": "Not started",
+        "in_progress": "In progress",
+        "complete": "Complete",
+        "signed": "Signed",
+        "not_required": "Not required (D1 trigger off)"
+      }
     },
     "risks": {
       "potential": "D7.1 — Potential risks",
@@ -658,7 +705,12 @@
       "significant": "Significant risk",
       "controlsReliance": "Controls reliance planned",
       "statusLabel": "Status",
-      "statuses": { "identified": "Identified", "response_planned": "Response planned", "response_executed": "Response executed", "concluded": "Concluded" },
+      "statuses": {
+        "identified": "Identified",
+        "response_planned": "Response planned",
+        "response_executed": "Response executed",
+        "concluded": "Concluded"
+      },
       "presumed": "Presumed (ISA 240)",
       "rebutted": "Rebutted",
       "rebut": "Rebut (partner + justification)",
@@ -684,7 +736,11 @@
       "material": "Material section",
       "markMaterial": "Mark material",
       "unmarkMaterial": "Unmark material",
-      "sourceLabels": { "library": "Library", "custom": "Custom", "risk_extension": "Risk extension" }
+      "sourceLabels": {
+        "library": "Library",
+        "custom": "Custom",
+        "risk_extension": "Risk extension"
+      }
     },
     "legal": {
       "title": "OHADA legal",
@@ -865,7 +921,11 @@
       "confirmedAmount": "Confirmed amount",
       "reply": "Record reply",
       "difference": "Difference",
-      "dispositions": { "timing": "Timing", "client_error": "Client error (→ B5)", "confirmee_error": "Confirmee error" },
+      "dispositions": {
+        "timing": "Timing",
+        "client_error": "Client error (→ B5)",
+        "confirmee_error": "Confirmee error"
+      },
       "dispose": "Disposition",
       "altProcedure": "Alternative procedure (e.g. subsequent cash receipts)",
       "alternative": "Non-reply → alternative",
@@ -882,7 +942,12 @@
       "output": "Output",
       "sampling": "Sampling (ISA 530)",
       "method": "Method",
-      "methods": { "random": "Random", "systematic": "Systematic", "mus": "Monetary unit (MUS)", "criteria": "Key items + sample" },
+      "methods": {
+        "random": "Random",
+        "systematic": "Systematic",
+        "mus": "Monetary unit (MUS)",
+        "criteria": "Key items + sample"
+      },
       "sampleSize": "Sample size",
       "seed": "Seed (documented)",
       "threshold": "Key-item threshold",
@@ -910,22 +975,40 @@
       "attachEvidence": "Attach evidence",
       "matterArising": "Matter arising",
       "routeTo": "Route to",
-      "routes": { "b4": "B4 — significant matter", "c1": "C1 — management letter", "b5": "B5 — misstatement", "revise": "Revise approach (new risk)" },
+      "routes": {
+        "b4": "B4 — significant matter",
+        "c1": "C1 — management letter",
+        "b5": "B5 — misstatement",
+        "revise": "Revise approach (new risk)"
+      },
       "titleField": "Title / description",
       "detailField": "Detail",
       "amount": "Amount (FCFA)",
       "accountsField": "Account(s)",
       "mtype": "Type",
-      "mtypes": { "factual": "Factual", "judgmental": "Judgmental", "projected": "Projected", "classification": "Classification", "disclosure": "Disclosure" },
+      "mtypes": {
+        "factual": "Factual",
+        "judgmental": "Judgmental",
+        "projected": "Projected",
+        "classification": "Classification",
+        "disclosure": "Disclosure"
+      },
       "trivialConfirm": "Below trivial — confirm not indicative of a pervasive issue",
       "significantFlag": "Significant risk",
       "raise": "Raise",
       "controls": "Control tests",
       "controlDescription": "Control tested",
       "result": "Result",
-      "results": { "effective": "Effective", "deviation": "Deviation" },
+      "results": {
+        "effective": "Effective",
+        "deviation": "Deviation"
+      },
       "deviationDecision": "Deviation decision",
-      "decisions": { "extend": "Extend testing", "abandon": "Abandon reliance", "deficiency": "Record deficiency (C1)" },
+      "decisions": {
+        "extend": "Extend testing",
+        "abandon": "Abandon reliance",
+        "deficiency": "Record deficiency (C1)"
+      },
       "record": "Record",
       "conclusionTitle": "Section conclusion",
       "objectivesAchieved": "Objectives achieved",
@@ -965,7 +1048,7 @@
       "gates": "Blocked — the following gates are not satisfied:",
       "di-both-required": "Documenting D&I controls requires BOTH inquiry and inspection.",
       "eqr-on-team": "The EQR reviewer must be independent of the engagement team.",
-      "forbidden": "Your role does not allow this action.",
+      "forbidden": "You do not have permission to sign off in that role.",
       "justification-required": "A justification is required.",
       "rationale-required": "A rationale is required.",
       "description-required": "A description is required.",
@@ -983,7 +1066,7 @@
       "no-tb": "No trial balance has been imported for this engagement yet.",
       "no-mapped-rows": "No trial-balance accounts map to this section — check the groupings.",
       "unsupported-file": "Only .csv and .xlsx files are accepted.",
-      "empty-file": "The file has no data rows.",
+      "empty-file": "The file is empty.",
       "missing-account-column": "No account-number column was recognised in the file.",
       "missing-amount-columns": "The file needs movement (debit/credit) or closing-balance columns.",
       "journal-unbalanced": "The journal does not balance (total debits ≠ total credits).",
@@ -1017,7 +1100,6 @@
       "checked-out": "This working paper is checked out for editing. Check it in before signing.",
       "signed-locked": "This working paper is already fully signed and locked.",
       "no-version": "Generate the working paper before signing it off.",
-      "forbidden": "You do not have permission to sign off in that role.",
       "invalid-sample-size": "Sample size must be at least 1.",
       "seed-required": "A documented seed is required (reproducibility).",
       "threshold-required": "A key-item threshold is required for this method.",
@@ -1034,7 +1116,6 @@
       "invalid-amount": "A positive amount is required.",
       "invalid-key": "Unknown co-CAC record key.",
       "file-required": "Choose a file to upload.",
-      "empty-file": "The file is empty.",
       "file-too-large": "The file exceeds the 25 MB limit.",
       "password-too-short": "The password must be at least 8 characters.",
       "email-taken": "A user with this email already exists.",

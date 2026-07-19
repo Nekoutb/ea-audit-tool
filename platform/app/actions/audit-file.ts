@@ -72,6 +72,7 @@ export async function createEngagementAction(formData: FormData): Promise<void> 
       name: String(formData.get("name") ?? ""),
       complexity: level,
       complexityAnswers: answers,
+      partnerId: String(formData.get("partnerId") ?? "") || null,
     });
   } catch (error) {
     // One statutory audit per client per fiscal year (unique constraint).
@@ -128,6 +129,31 @@ async function signOffFromList(
     entityId: fileItemId,
     action: role === "preparer" ? "preparer_signoff" : "reviewer_signoff",
     summary: role === "preparer" ? "Signed off as preparer" : "Signed off as reviewer",
+  });
+  revalidatePath(back);
+  redirect(back);
+}
+
+/** Set / clear a task's due date (per-task deadlines). */
+export async function setDueDateAction(formData: FormData): Promise<void> {
+  const fileItemId = String(formData.get("fileItemId") ?? "");
+  const engagementId = String(formData.get("engagementId") ?? "");
+  const returnTo = String(formData.get("returnTo") ?? "");
+  const date = String(formData.get("dueDate") ?? "");
+  const back = returnTo.startsWith("/engagements/") ? returnTo : "/engagements";
+  if (!fileItemId || (date && !/^\d{4}-\d{2}-\d{2}$/.test(date))) redirect(back);
+  const { requireTenant } = await import("@/lib/tenant");
+  const { withTenant } = await import("@/lib/db");
+  const { tenantId } = await requireTenant();
+  await withTenant(tenantId, async (tx) => {
+    await tx.query("UPDATE file_item SET due_date = $2 WHERE id = $1", [fileItemId, date || null]);
+  });
+  await recordActivity({
+    engagementId,
+    entityType: "file_item",
+    entityId: fileItemId,
+    action: "due_date_set",
+    summary: date ? `Due date set to ${date}` : "Due date cleared",
   });
   revalidatePath(back);
   redirect(back);

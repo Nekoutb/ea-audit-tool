@@ -3,6 +3,7 @@
 import { useMemo, useState } from "react";
 import { createEngagementAction } from "@/app/actions/audit-file";
 import { Chip, Panel, PanelHeader, btnPrimary } from "@/components/ui/atlas";
+import { SubmitButton } from "@/components/SubmitButton";
 import {
   COMPLEXITY_QUESTIONS,
   applyNamingConvention,
@@ -27,6 +28,8 @@ export interface WizardLabels {
   submit: string;
   yes: string;
   no: string;
+  partnerLabel: string;
+  partnerNone: string;
 }
 
 const LEVEL_TONE: Record<EngagementComplexity, "rose" | "warn" | "good"> = {
@@ -43,11 +46,14 @@ const LEVEL_TONE: Record<EngagementComplexity, "rose" | "warn" | "good"> = {
  */
 export function EngagementWizard({
   clients,
+  partners,
   defaultClientId,
   namingPattern,
   labels,
 }: {
   clients: { id: string; name: string }[];
+  /** Firm users offered as engagement partner (default reviewer). */
+  partners: { id: string; name: string }[];
   defaultClientId?: string;
   namingPattern: string;
   labels: WizardLabels;
@@ -129,6 +135,17 @@ export function EngagementWizard({
             />
             <span className="text-xs text-muted">{labels.nameHint}</span>
           </label>
+          <label className={label}>
+            {labels.partnerLabel}
+            <select name="partnerId" defaultValue="" className={input} data-testid="engagement-partner">
+              <option value="">{labels.partnerNone}</option>
+              {partners.map((p) => (
+                <option key={p.id} value={p.id}>
+                  {p.name}
+                </option>
+              ))}
+            </select>
+          </label>
         </div>
       </Panel>
 
@@ -169,9 +186,9 @@ export function EngagementWizard({
               {labels.formsNote.replace("{count}", String(formCount))}
             </span>
           </div>
-          <button type="submit" className={btnPrimary} data-testid="create-engagement">
+          <SubmitButton className={btnPrimary} testId="create-engagement">
             {labels.submit}
-          </button>
+          </SubmitButton>
         </div>
       </Panel>
     </form>

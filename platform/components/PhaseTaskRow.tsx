@@ -98,7 +98,7 @@ export function PhaseTaskRow({
       onClick={open}
       onKeyDown={onKey}
       data-testid={`phase-task-${row.code}`}
-      className="cursor-pointer transition-colors hover:bg-surface-2 focus-visible:bg-surface-2 focus:outline-none"
+      className="cursor-pointer outline-none transition-colors hover:bg-surface-2 focus-visible:bg-surface-2 focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-solid focus-visible:outline-emerald-600"
     >
       <td className="border-t border-line px-5 py-4">
         <div className="flex min-w-0 items-center gap-2.5">

@@ -2,6 +2,7 @@ import { notFound, redirect } from "next/navigation";
 import { auth } from "@/auth";
 import { deleteTimeAction, logTimeAction } from "@/app/actions/time";
 import { AppNav } from "@/components/AppNav";
+import { SubmitButton } from "@/components/SubmitButton";
 import { NavLink } from "@/components/NavLink";
 import { Panel, PanelHeader, btnPrimary } from "@/components/ui/atlas";
 import { getEngagement } from "@/lib/engagements";
@@ -71,7 +72,7 @@ export default async function TimePage(props: {
               <label className={label}>{tt.date}<input name="date" type="date" required defaultValue={engagement.periodEnd} className={input} data-testid="time-date" /></label>
               <label className={label}>{tt.hours}<input name="hours" type="number" min="0.25" max="24" step="0.25" required className={input} data-testid="time-hours" /></label>
               <label className={`${label} col-span-2 sm:col-span-1`}>{tt.note}<input name="note" className={input} data-testid="time-note" /></label>
-              <button type="submit" className={`self-end ${btnPrimary}`} data-testid="time-submit">{tt.logButton}</button>
+              <SubmitButton className={`self-end ${btnPrimary}`} testId="time-submit">{tt.logButton}</SubmitButton>
             </form>
 
             {entries.length > 0 ? (

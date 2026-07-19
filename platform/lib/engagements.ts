@@ -129,6 +129,8 @@ export async function createEngagement(input: {
   name?: string | null;
   complexity?: EngagementComplexity;
   complexityAnswers?: ComplexityAnswers | null;
+  /** Optional engagement partner — becomes the default reviewer immediately. */
+  partnerId?: string | null;
 }): Promise<string> {
   const { tenantId } = await requireTenant();
   const complexity = input.complexity ?? "complex";
@@ -152,6 +154,15 @@ export async function createEngagement(input: {
     await instantiateFileIndex(tx, tenantId, engagementId, complexity);
     // Spec §3: two presumed ISA 240 risks are auto-seeded on every engagement.
     await seedPresumedRisks(tx, tenantId, engagementId);
+    // Assign the engagement partner (default reviewer) when chosen at creation.
+    if (input.partnerId) {
+      await tx.query(
+        `INSERT INTO team_member (tenant_id, engagement_id, user_id, team_role)
+         VALUES ($1, $2, $3, 'partner')
+         ON CONFLICT (engagement_id, user_id) DO NOTHING`,
+        [tenantId, engagementId, input.partnerId],
+      );
+    }
     return engagementId;
   });
 }

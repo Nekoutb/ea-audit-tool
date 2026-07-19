@@ -5,6 +5,7 @@ import { EngagementWizard } from "@/components/EngagementWizard";
 import { ErrorBanner } from "@/components/GatesPanel";
 import { getBranding } from "@/lib/branding";
 import { listClients } from "@/lib/clients";
+import { listFirmUsers } from "@/lib/team";
 import { getMessages } from "@/lib/i18n";
 import { getLocale } from "@/lib/locale";
 
@@ -22,7 +23,7 @@ export default async function NewEngagementPage(props: {
   const t = getMessages(locale);
   const te = t.engagements;
 
-  const [clients, branding] = await Promise.all([listClients(), getBranding()]);
+  const [clients, branding, partners] = await Promise.all([listClients(), getBranding(), listFirmUsers()]);
   if (clients.length === 0) redirect("/clients");
 
   return (
@@ -35,6 +36,7 @@ export default async function NewEngagementPage(props: {
       <ErrorBanner error={error} locale={locale} />
       <EngagementWizard
         clients={clients.map((c) => ({ id: c.id, name: c.name }))}
+        partners={partners}
         defaultClientId={client}
         namingPattern={branding.engagementNaming}
         labels={{
@@ -52,6 +54,8 @@ export default async function NewEngagementPage(props: {
           submit: te.createEngagement,
           yes: t.common.yes,
           no: t.common.no,
+          partnerLabel: te.partnerLabel,
+          partnerNone: te.partnerNone,
         }}
       />
     </main>

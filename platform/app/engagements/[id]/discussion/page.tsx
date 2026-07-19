@@ -4,6 +4,7 @@ import { addCommentAction } from "@/app/actions/comments";
 import { AppNav } from "@/components/AppNav";
 import { NavLink } from "@/components/NavLink";
 import { Panel, PanelHeader, btnPrimary } from "@/components/ui/atlas";
+import { SubmitButton } from "@/components/SubmitButton";
 import { listComments, type CommentRow } from "@/lib/comments";
 import { initials } from "@/lib/engagement-dashboard";
 import { getEngagement } from "@/lib/engagements";
@@ -37,9 +38,7 @@ function Thread({
         <input type="hidden" name="engagementId" value={engagementId} />
         <input type="hidden" name="parentId" value={root.id} />
         <input name="body" required placeholder={labels.replyPlaceholder} aria-label={labels.replyPlaceholder} className={`flex-1 ${input}`} data-testid={`reply-input-${root.id}`} />
-        <button type="submit" className="rounded-[var(--radius-atlas-sm)] border border-line-strong px-3 py-2 text-xs font-semibold text-ink-soft hover:bg-surface-2" data-testid={`reply-submit-${root.id}`}>
-          {labels.reply}
-        </button>
+        <SubmitButton className="rounded-[var(--radius-atlas-sm)] border border-line-strong px-3 py-2 text-xs font-semibold text-ink-soft hover:bg-surface-2" testId={`reply-submit-${root.id}`}>{labels.reply}</SubmitButton>
       </form>
     </div>
   );
@@ -110,7 +109,7 @@ export default async function DiscussionPage(props: {
         <form action={addCommentAction} className="flex flex-col gap-3">
           <input type="hidden" name="engagementId" value={id} />
           <textarea name="body" required rows={3} placeholder={tc.placeholder} aria-label={tc.placeholder} className={input} data-testid="comment-input" />
-          <button type="submit" className={`self-end ${btnPrimary}`} data-testid="comment-submit">{tc.post}</button>
+          <SubmitButton className={`self-end ${btnPrimary}`} testId="comment-submit">{tc.post}</SubmitButton>
         </form>
       </Panel>
 

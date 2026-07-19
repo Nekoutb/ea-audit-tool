@@ -4,6 +4,7 @@ import { saveFormAction } from "@/app/actions/planning";
 import { AppNav } from "@/components/AppNav";
 import { ErrorBanner } from "@/components/GatesPanel";
 import { NavLink } from "@/components/NavLink";
+import { SubmitButton } from "@/components/SubmitButton";
 import { Chip, Panel, btnPrimary } from "@/components/ui/atlas";
 import { withTenant } from "@/lib/db";
 import { getEngagement } from "@/lib/engagements";
@@ -121,9 +122,7 @@ export default async function ConsiderationsPage(props: {
                   </label>
                 ))}
                 <div>
-                  <button type="submit" className={btnPrimary} data-testid={`cons-save-${code}`}>
-                    {t.planning.save}
-                  </button>
+                  <SubmitButton className={btnPrimary} testId={`cons-save-${code}`}>{t.planning.save}</SubmitButton>
                 </div>
               </form>
             ) : (

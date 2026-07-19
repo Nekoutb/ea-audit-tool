@@ -113,6 +113,8 @@ export interface PhaseTask {
   titleEn: string;
   titleFr: string;
   documentId: string | null;
+  /** Editable per-task due date (YYYY-MM-DD) or null → phase-derived. */
+  dueDate: string | null;
   /** Assigned preparer (file_item.owner_id), name or null. */
   ownerName: string | null;
   /** Preparer sign-off, if signed. */
@@ -147,6 +149,7 @@ export async function phaseTasks(engagementId: string, phase: DashboardPhase): P
       title_en: string;
       title_fr: string;
       document_id: string | null;
+      due_date: string | null;
       owner_name: string | null;
       preparer_name: string | null;
       preparer_at: string | null;
@@ -155,6 +158,7 @@ export async function phaseTasks(engagementId: string, phase: DashboardPhase): P
     }>(
       `SELECT fi.id, fi.code, fi.section, fi.title_en, fi.title_fr,
               d.id AS document_id,
+              to_char(fi.due_date, 'YYYY-MM-DD') AS due_date,
               (SELECT coalesce(name, email) FROM app_user WHERE id = fi.owner_id) AS owner_name,
               ps.signer AS preparer_name, to_char(ps.signed_at, 'DD Mon YYYY') AS preparer_at,
               rs.signer AS reviewer_name, to_char(rs.signed_at, 'DD Mon YYYY') AS reviewer_at
@@ -196,6 +200,7 @@ export async function phaseTasks(engagementId: string, phase: DashboardPhase): P
         titleEn: row.title_en,
         titleFr: row.title_fr,
         documentId: row.document_id,
+        dueDate: row.due_date,
         ownerName: row.owner_name,
         preparerName: row.preparer_name,
         preparerAt: row.preparer_at,

@@ -71,6 +71,8 @@
       "deadline": "Échéance",
       "status": "Statut"
     },
+    "setDeadline": "Échéance de la tâche",
+    "emptyTasks": "Aucune tâche dans cette phase — elles apparaissent dès que le dossier d’audit est instancié.",
     "signAsPreparer": "Signer en tant que préparateur",
     "signAsReviewer": "Signer en tant que réviseur",
     "signoff": {
@@ -99,7 +101,7 @@
     "activity": {
       "title": "Activité",
       "subtitle": "Piste d'audit complète de cette mission.",
-      "empty": "Aucune activité enregistrée.",
+      "empty": "Aucune activité pour le moment — elle apparaît ici au fil des travaux. Ouvrez une phase depuis le tableau de bord pour commencer.",
       "link": "Activité",
       "entityLabels": {
         "engagement": "Mission",
@@ -150,7 +152,11 @@
     "welcome": "Documents demandés par votre auditeur",
     "empty": "Aucune demande pour le moment.",
     "status": "Statut",
-    "statuses": { "requested": "Demandé", "uploaded": "Transmis", "accepted": "Accepté" },
+    "statuses": {
+      "requested": "Demandé",
+      "uploaded": "Transmis",
+      "accepted": "Accepté"
+    },
     "upload": "Transmettre",
     "uploaded": "Fichier transmis",
     "signOut": "Se déconnecter"
@@ -172,7 +178,7 @@
   "notifications": {
     "title": "Notifications",
     "link": "Notifications",
-    "empty": "Vous n'avez aucune notification.",
+    "empty": "Rien pour le moment — vous serez notifié des @mentions, transmissions et notes de revue.",
     "markRead": "Marquer comme lue",
     "unreadBadge": "non lues"
   },
@@ -286,7 +292,7 @@
     "replyPlaceholder": "Répondre…",
     "post": "Publier",
     "reply": "Répondre",
-    "empty": "Aucune discussion pour le moment.",
+    "empty": "Aucune discussion — lancez le premier fil ci-dessus. Utilisez @nom pour notifier un collègue.",
     "link": "Discussion",
     "errors": {
       "body-required": "Écrivez d'abord un message.",
@@ -302,7 +308,7 @@
     "openTasks": "Tâches ouvertes",
     "hours": "Heures",
     "engagements": "Missions",
-    "empty": "Aucun membre pour le moment.",
+    "empty": "Aucun membre d’équipe — invitez des collègues via Paramètres → Utilisateurs, puis affectez-les aux missions.",
     "link": "Charge de l'équipe"
   },
   "time": {
@@ -315,7 +321,7 @@
     "note": "Note",
     "task": "Tâche",
     "remove": "Retirer",
-    "empty": "Aucun temps enregistré.",
+    "empty": "Aucun temps saisi — enregistrez vos premières heures avec le formulaire ci-dessus.",
     "budgetVsActual": "Budget vs réel",
     "grade": "Grade",
     "budget": "Budget",
@@ -345,13 +351,15 @@
   },
   "engagements": {
     "title": "Missions",
-    "empty": "Aucune mission pour le moment.",
+    "empty": "Aucune mission — créez la première pour ouvrir son dossier d’audit.",
     "client": "Client",
     "fiscalYear": "Exercice",
     "periodEnd": "Date de clôture",
     "phase": "Phase",
     "newEngagement": "Nouvelle mission",
     "createEngagement": "Créer la mission",
+    "partnerLabel": "Associé de mission (réviseur)",
+    "partnerNone": "Affecter plus tard",
     "newEngagementTitle": "Nouvelle mission d'audit",
     "newEngagementHint": "Identifiez la mission, puis répondez aux questions de profil. La classification détermine la nature, le calendrier et l'étendue des travaux : documentation plus lourde pour les entités complexes, allégée pour les entités très simples.",
     "name": "Nom de la mission",
@@ -470,8 +478,16 @@
       "title": "Balance générale",
       "import": "Importer la balance",
       "versions": "Versions",
-      "kind": { "initial": "Initiale", "adjusted": "Ajustée", "final": "Finale" },
-      "statusLabel": { "pending": "En attente", "valid": "Valide", "invalid": "Invalide" },
+      "kind": {
+        "initial": "Initiale",
+        "adjusted": "Ajustée",
+        "final": "Finale"
+      },
+      "statusLabel": {
+        "pending": "En attente",
+        "valid": "Valide",
+        "invalid": "Invalide"
+      },
       "current": "courante",
       "checks": {
         "balanced": "Débits = crédits (mouvements)",
@@ -571,7 +587,12 @@
       "title": "Confirmations d'indépendance",
       "launch": "Lancer la campagne",
       "selectRecipients": "Destinataires",
-      "status": { "sent": "Envoyée", "opened": "Ouverte", "completed": "Complétée", "exception": "Exception" },
+      "status": {
+        "sent": "Envoyée",
+        "opened": "Ouverte",
+        "completed": "Complétée",
+        "exception": "Exception"
+      },
       "remind": "Relancer",
       "reminders": "relances",
       "dispose": "Traiter",
@@ -607,7 +628,13 @@
       "user": "Utilisateur",
       "role": "Rôle",
       "remove": "Retirer",
-      "roles": { "partner": "Associé", "manager": "Manager", "senior": "Senior", "staff": "Assistant", "eqr_reviewer": "Réviseur qualité (EQR)" }
+      "roles": {
+        "partner": "Associé",
+        "manager": "Manager",
+        "senior": "Senior",
+        "staff": "Assistant",
+        "eqr_reviewer": "Réviseur qualité (EQR)"
+      }
     },
     "budget": {
       "title": "Budget temps (heures par grade)",
@@ -619,12 +646,22 @@
       "title": "Liste des documents à fournir (PBC)",
       "add": "Ajouter",
       "itemTitle": "Élément demandé",
-      "status": { "requested": "Demandé", "uploaded": "Déposé", "accepted": "Accepté" }
+      "status": {
+        "requested": "Demandé",
+        "uploaded": "Déposé",
+        "accepted": "Accepté"
+      }
     },
     "materiality": {
       "title": "Seuil de signification (ISA 320)",
       "benchmark": "Critère de référence",
-      "benchmarks": { "pbt": "Résultat avant impôt", "revenue": "Chiffre d'affaires", "total_assets": "Total actif", "equity": "Capitaux propres", "expenses": "Charges" },
+      "benchmarks": {
+        "pbt": "Résultat avant impôt",
+        "revenue": "Chiffre d'affaires",
+        "total_assets": "Total actif",
+        "equity": "Capitaux propres",
+        "expenses": "Charges"
+      },
       "amount": "Montant de référence (FCFA)",
       "percentage": "Pourcentage (%)",
       "range": "Fourchette cabinet",
@@ -637,13 +674,23 @@
       "trivial": "Manifestement négligeable",
       "version": "Version",
       "approve": "Approuver (associé)",
-      "statusLabel": { "draft": "Brouillon", "approved": "Approuvé", "superseded": "Remplacé" }
+      "statusLabel": {
+        "draft": "Brouillon",
+        "approved": "Approuvé",
+        "superseded": "Remplacé"
+      }
     },
     "driver": {
       "title": "D1 — Pilote de la stratégie de mission",
       "form": "Formulaire",
       "status": "Statut",
-      "statusValues": { "not_started": "Non commencé", "in_progress": "En cours", "complete": "Complet", "signed": "Signé", "not_required": "Non requis (déclencheur D1 inactif)" }
+      "statusValues": {
+        "not_started": "Non commencé",
+        "in_progress": "En cours",
+        "complete": "Complet",
+        "signed": "Signé",
+        "not_required": "Non requis (déclencheur D1 inactif)"
+      }
     },
     "risks": {
       "potential": "D7.1 — Risques potentiels",
@@ -658,7 +705,12 @@
       "significant": "Risque important",
       "controlsReliance": "Appui sur les contrôles prévu",
       "statusLabel": "Statut",
-      "statuses": { "identified": "Identifié", "response_planned": "Réponse planifiée", "response_executed": "Réponse exécutée", "concluded": "Conclu" },
+      "statuses": {
+        "identified": "Identifié",
+        "response_planned": "Réponse planifiée",
+        "response_executed": "Réponse exécutée",
+        "concluded": "Conclu"
+      },
       "presumed": "Présumé (ISA 240)",
       "rebutted": "Réfuté",
       "rebut": "Réfuter (associé + justification)",
@@ -684,7 +736,11 @@
       "material": "Section significative",
       "markMaterial": "Marquer significative",
       "unmarkMaterial": "Retirer le marquage",
-      "sourceLabels": { "library": "Bibliothèque", "custom": "Personnalisée", "risk_extension": "Extension risque" }
+      "sourceLabels": {
+        "library": "Bibliothèque",
+        "custom": "Personnalisée",
+        "risk_extension": "Extension risque"
+      }
     },
     "legal": {
       "title": "Juridique OHADA",
@@ -865,7 +921,11 @@
       "confirmedAmount": "Montant confirmé",
       "reply": "Saisir la réponse",
       "difference": "Écart",
-      "dispositions": { "timing": "Décalage", "client_error": "Erreur client (→ B5)", "confirmee_error": "Erreur du tiers" },
+      "dispositions": {
+        "timing": "Décalage",
+        "client_error": "Erreur client (→ B5)",
+        "confirmee_error": "Erreur du tiers"
+      },
       "dispose": "Traiter",
       "altProcedure": "Procédure alternative (ex. encaissements postérieurs)",
       "alternative": "Sans réponse → alternative",
@@ -882,7 +942,12 @@
       "output": "Sortie",
       "sampling": "Sondage (ISA 530)",
       "method": "Méthode",
-      "methods": { "random": "Aléatoire", "systematic": "Systématique", "mus": "Unité monétaire (MUS)", "criteria": "Éléments clés + échantillon" },
+      "methods": {
+        "random": "Aléatoire",
+        "systematic": "Systématique",
+        "mus": "Unité monétaire (MUS)",
+        "criteria": "Éléments clés + échantillon"
+      },
       "sampleSize": "Taille de l'échantillon",
       "seed": "Graine (documentée)",
       "threshold": "Seuil éléments clés",
@@ -910,22 +975,40 @@
       "attachEvidence": "Joindre un élément probant",
       "matterArising": "Point relevé",
       "routeTo": "Router vers",
-      "routes": { "b4": "B4 — question significative", "c1": "C1 — lettre de recommandations", "b5": "B5 — anomalie", "revise": "Réviser l'approche (nouveau risque)" },
+      "routes": {
+        "b4": "B4 — question significative",
+        "c1": "C1 — lettre de recommandations",
+        "b5": "B5 — anomalie",
+        "revise": "Réviser l'approche (nouveau risque)"
+      },
       "titleField": "Intitulé / description",
       "detailField": "Détail",
       "amount": "Montant (FCFA)",
       "accountsField": "Compte(s)",
       "mtype": "Type",
-      "mtypes": { "factual": "Avérée", "judgmental": "De jugement", "projected": "Extrapolée", "classification": "Classement", "disclosure": "Information" },
+      "mtypes": {
+        "factual": "Avérée",
+        "judgmental": "De jugement",
+        "projected": "Extrapolée",
+        "classification": "Classement",
+        "disclosure": "Information"
+      },
       "trivialConfirm": "Sous le seuil négligeable — confirmer l'absence de caractère révélateur",
       "significantFlag": "Risque important",
       "raise": "Signaler",
       "controls": "Tests de contrôles",
       "controlDescription": "Contrôle testé",
       "result": "Résultat",
-      "results": { "effective": "Efficace", "deviation": "Déviation" },
+      "results": {
+        "effective": "Efficace",
+        "deviation": "Déviation"
+      },
       "deviationDecision": "Décision suite à déviation",
-      "decisions": { "extend": "Étendre les tests", "abandon": "Abandonner l'appui", "deficiency": "Consigner une déficience (C1)" },
+      "decisions": {
+        "extend": "Étendre les tests",
+        "abandon": "Abandonner l'appui",
+        "deficiency": "Consigner une déficience (C1)"
+      },
       "record": "Enregistrer",
       "conclusionTitle": "Conclusion de section",
       "objectivesAchieved": "Objectifs atteints",
@@ -965,7 +1048,7 @@
       "gates": "Bloqué — les contrôles suivants ne sont pas satisfaits :",
       "di-both-required": "La documentation des contrôles C/MŒ exige l'entretien ET l'inspection.",
       "eqr-on-team": "Le réviseur qualité (EQR) doit être indépendant de l'équipe de mission.",
-      "forbidden": "Votre rôle ne permet pas cette action.",
+      "forbidden": "Vous n'avez pas les droits pour signer dans ce rôle.",
       "justification-required": "Une justification est requise.",
       "rationale-required": "Un motif est requis.",
       "description-required": "Une description est requise.",
@@ -983,7 +1066,7 @@
       "no-tb": "Aucune balance générale n'a encore été importée pour cette mission.",
       "no-mapped-rows": "Aucun compte de la balance n'est affecté à cette section — vérifiez les regroupements.",
       "unsupported-file": "Seuls les fichiers .csv et .xlsx sont acceptés.",
-      "empty-file": "Le fichier ne contient aucune ligne de données.",
+      "empty-file": "Le fichier est vide.",
       "missing-account-column": "Aucune colonne de numéro de compte n'a été reconnue.",
       "missing-amount-columns": "Le fichier doit contenir des colonnes de mouvements (débit/crédit) ou de soldes.",
       "journal-unbalanced": "L'écriture n'est pas équilibrée (débits ≠ crédits).",
@@ -1017,7 +1100,6 @@
       "checked-out": "Cette feuille de travail est verrouillée pour édition. Enregistrez-la avant de signer.",
       "signed-locked": "Cette feuille de travail est déjà entièrement signée et verrouillée.",
       "no-version": "Générez la feuille de travail avant de la signer.",
-      "forbidden": "Vous n'avez pas les droits pour signer dans ce rôle.",
       "invalid-sample-size": "La taille de l'échantillon doit être d'au moins 1.",
       "seed-required": "Une graine documentée est requise (reproductibilité).",
       "threshold-required": "Un seuil d'éléments clés est requis pour cette méthode.",
@@ -1034,7 +1116,6 @@
       "invalid-amount": "Un montant positif est requis.",
       "invalid-key": "Clé d'enregistrement co-CAC inconnue.",
       "file-required": "Choisissez un fichier à transmettre.",
-      "empty-file": "Le fichier est vide.",
       "file-too-large": "Le fichier dépasse la limite de 25 Mo.",
       "password-too-short": "Le mot de passe doit comporter au moins 8 caractères.",
       "email-taken": "Un utilisateur avec cet email existe déjà.",

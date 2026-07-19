@@ -1,6 +1,6 @@
 import { notFound, redirect } from "next/navigation";
 import { auth } from "@/auth";
-import { signOffReviewerAction } from "@/app/actions/audit-file";
+import { setDueDateAction, signOffReviewerAction } from "@/app/actions/audit-file";
 import {
   addEstimateAction,
   addRelatedPartyAction,
@@ -10,6 +10,7 @@ import {
 import { AppNav } from "@/components/AppNav";
 import { ErrorBanner } from "@/components/GatesPanel";
 import { NavLink } from "@/components/NavLink";
+import { SubmitButton, SubmitOnceButton } from "@/components/SubmitButton";
 import { Panel, PanelHeader, Chip, btnPrimary, btnGhost } from "@/components/ui/atlas";
 import { withTenant } from "@/lib/db";
 import {
@@ -92,7 +93,7 @@ export default async function FormPage(props: {
   const task = tasks.find((row) => row.code === code) ?? null;
   const notes: ReviewNoteInfo[] = task?.documentId ? await listReviewNotes(task.documentId) : [];
 
-  const deadlineIso = phaseDeadline(engagement.periodEnd, phase);
+  const deadlineIso = task?.dueDate ?? phaseDeadline(engagement.periodEnd, phase);
   const now = new Date();
   const todayUtc = Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate());
   const overdueDays = Math.round((todayUtc - new Date(deadlineIso + "T00:00:00Z").getTime()) / 86_400_000);
@@ -159,6 +160,29 @@ export default async function FormPage(props: {
             <span className="font-semibold text-emerald-700 dark:text-emerald-400">{t.dashboard.deadlineTag.onTrack}</span>
           )}
         </p>
+        {task ? (
+          <form action={setDueDateAction} className="mt-2 flex flex-wrap items-center gap-2">
+            <input type="hidden" name="fileItemId" value={task.id} />
+            <input type="hidden" name="engagementId" value={id} />
+            <input type="hidden" name="returnTo" value={`/engagements/${id}/forms/${encodeURIComponent(code)}`} />
+            <label className="flex items-center gap-2 text-[12px] text-muted">
+              {t.dashboard.setDeadline}
+              <input
+                type="date"
+                name="dueDate"
+                defaultValue={task.dueDate ?? ""}
+                className="rounded-[var(--radius-atlas-xs)] border border-line-strong bg-surface px-2 py-1 text-[12px] text-ink outline-none tnum focus:border-emerald-600 focus:ring-2 focus:ring-emerald-600/20"
+                data-testid="due-date-input"
+              />
+            </label>
+            <SubmitButton
+              className="min-h-[24px] rounded-[var(--radius-atlas-xs)] border border-line-strong px-2.5 py-1 text-[11.5px] font-semibold text-ink-soft hover:bg-surface-2"
+              testId="due-date-save"
+            >
+              {tp.save}
+            </SubmitButton>
+          </form>
+        ) : null}
       </div>
 
       <ErrorBanner error={error} locale={locale} />
@@ -287,20 +311,19 @@ export default async function FormPage(props: {
           </span>
         </div>
         <div className="flex items-center gap-2.5">
-          <button type="submit" form="task-form" className={btnGhost} data-testid="save-form">
+          <SubmitOnceButton formId="task-form" className={btnGhost} testId="save-form">
             {tp.save}
-          </button>
+          </SubmitOnceButton>
           {task && !task.preparerName ? (
-            <button
-              type="submit"
-              form="task-form"
+            <SubmitOnceButton
+              formId="task-form"
               name="handoff"
               value="1"
               className={btnPrimary}
-              data-testid="save-handoff"
+              testId="save-handoff"
             >
               {tk.saveHandoff}
-            </button>
+            </SubmitOnceButton>
           ) : null}
         </div>
       </Panel>
