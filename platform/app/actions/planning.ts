@@ -54,6 +54,47 @@ export async function saveFormAction(
       if (raw !== null && String(raw).trim() !== "") values[field.key] = Number(raw);
     } else if (raw !== null) values[field.key] = String(raw);
   }
+
+  // "Save & hand off": save the fields, then generate the working paper (if
+  // needed) and sign it off as preparer, landing back on the phase task list.
+  if (formData.get("handoff") === "1") {
+    const { generateDocument, signDocument, DocumentRuleError } = await import("@/lib/documents");
+    const { PHASE_SLUG_OF, phaseOfTask } = await import("@/lib/engagement-dashboard");
+    const { recordActivity } = await import("@/lib/activity");
+    const { requireTenant } = await import("@/lib/tenant");
+    const slug = PHASE_SLUG_OF[phaseOfTask("D", code)];
+    const listPath = `/engagements/${engagementId}/phases/${slug}`;
+    try {
+      await saveForm(engagementId, code, values);
+      const { tenantId } = await requireTenant();
+      const item = await withTenant(tenantId, async (tx) => {
+        const r = await tx.query<{ id: string }>(
+          "SELECT id FROM file_item WHERE engagement_id = $1 AND code = $2",
+          [engagementId, code],
+        );
+        return r.rows[0] ?? null;
+      });
+      if (!item) throw new Error("not-found");
+      const locale = await getLocale();
+      const documentId = await generateDocument(item.id, locale);
+      await signDocument(documentId, "preparer");
+      await recordActivity({
+        engagementId,
+        entityType: "file_item",
+        entityId: item.id,
+        action: "preparer_signoff",
+        summary: `${code} saved & handed off`,
+      });
+    } catch (error) {
+      if (error instanceof DocumentRuleError || (error instanceof Error && /^[a-z0-9-]+$/.test(error.message))) {
+        redirect(`${path}?error=${encodeURIComponent((error as Error).message)}`);
+      }
+      throw error;
+    }
+    revalidatePath(listPath);
+    redirect(listPath);
+  }
+
   await guarded(path, () => saveForm(engagementId, code, values));
 }
 

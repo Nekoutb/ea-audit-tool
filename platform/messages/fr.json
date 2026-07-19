@@ -213,6 +213,14 @@
       "not-found": "Utilisateur introuvable."
     }
   },
+  "taskPage": {
+    "saveHandoff": "Enregistrer et transmettre",
+    "backTo": "Retour aux tâches {phase}",
+    "objective": "Objet de cette feuille de travail",
+    "reviewNotes": "Notes de revue",
+    "reviewNotesEmpty": "Aucune note de revue — elles apparaissent une fois la feuille de travail générée et revue.",
+    "deadline": "Échéance"
+  },
   "integrations": {
     "title": "Intégration des données",
     "subtitle": "Comment les données entrent et sortent de la plateforme.",

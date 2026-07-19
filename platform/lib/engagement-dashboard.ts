@@ -39,6 +39,14 @@ export interface PhaseProgress {
   status: PhaseStatus;
 }
 
+/** TS mirror of BUCKET_CASE for a single item (keep the two in sync). */
+export function phaseOfTask(section: string, code: string): DashboardPhase {
+  if (section === "E") return "execution";
+  if (section === "A" || section === "B" || section === "C" || section === "F") return "conclusion";
+  if (["D3.1", "D1", "D4.1", "D6.1", "D7.1"].includes(code)) return "acceptance";
+  return "planning";
+}
+
 /** SQL bucket mapping file-index items to the four dashboard phases. */
 const BUCKET_CASE = `CASE
   WHEN fi.section = 'E' THEN 'execution'

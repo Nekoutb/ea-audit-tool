@@ -6,7 +6,7 @@ import type { PoolClient } from "pg";
 import { recordActivity } from "@/lib/activity";
 import { withTenant } from "@/lib/db";
 import { canManageFirm, type Role } from "@/lib/rbac";
-import type { WorkpaperTemplate } from "@/lib/templates";
+import { templateFor, type WorkpaperTemplate } from "@/lib/templates";
 import { requireTenant } from "@/lib/tenant";
 
 export class TemplateError extends Error {
@@ -54,6 +54,12 @@ export async function applyOverride(
       fr: o.items_fr && o.items_fr.length > 0 ? o.items_fr : template.items.fr,
     },
   };
+}
+
+/** The template for a code with this tenant's customisation applied. */
+export async function appliedTemplate(code: string): Promise<WorkpaperTemplate> {
+  const { tenantId } = await requireTenant();
+  return withTenant(tenantId, (tx) => applyOverride(tx, code, templateFor(code)));
 }
 
 export async function listOverrides(): Promise<OverrideRow[]> {

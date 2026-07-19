@@ -213,6 +213,14 @@
       "not-found": "User not found."
     }
   },
+  "taskPage": {
+    "saveHandoff": "Save & hand off",
+    "backTo": "Back to {phase} task list",
+    "objective": "Objective of this working paper",
+    "reviewNotes": "Review notes",
+    "reviewNotesEmpty": "No review notes yet — they appear once the working paper is generated and reviewed.",
+    "deadline": "Deadline"
+  },
   "integrations": {
     "title": "Data integration",
     "subtitle": "How data flows in and out of the platform.",
