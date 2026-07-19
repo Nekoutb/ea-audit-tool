@@ -148,9 +148,15 @@ export async function setDueDateAction(formData: FormData): Promise<void> {
   const { requireTenant } = await import("@/lib/tenant");
   const { withTenant } = await import("@/lib/db");
   const { tenantId } = await requireTenant();
-  await withTenant(tenantId, async (tx) => {
-    await tx.query("UPDATE file_item SET due_date = $2 WHERE id = $1", [fileItemId, date || null]);
-  });
+  try {
+    await withTenant(tenantId, async (tx) => {
+      await tx.query("UPDATE file_item SET due_date = $2 WHERE id = $1", [fileItemId, date || null]);
+    });
+  } catch (error) {
+    // 42703 = column doesn't exist yet (migration pending) — no-op until it runs.
+    if ((error as { code?: string }).code === "42703") redirect(back);
+    throw error;
+  }
   await recordActivity({
     engagementId,
     entityType: "file_item",

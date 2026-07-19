@@ -2,12 +2,29 @@
 // attention" queue, and the most-recently-worked engagement (login landing).
 // All reads are tenant-scoped through withTenant — RLS guarantees isolation.
 
+import type { PoolClient } from "pg";
 import { withTenant } from "@/lib/db";
 import {
   type EngagementPhase,
   type EngagementSummary,
 } from "@/lib/engagements";
 import { requireTenant } from "@/lib/tenant";
+
+/**
+ * Schema-tolerant due-date read (expand/contract deploy): the app ships before
+ * the file_item.due_date migration runs; until the column exists every task
+ * simply reports no custom due date. Checked once per process.
+ */
+let dueDateColumnKnown: boolean | null = null;
+async function dueDateExpr(tx: PoolClient): Promise<string> {
+  if (dueDateColumnKnown === null) {
+    const r = await tx.query(
+      "SELECT 1 FROM information_schema.columns WHERE table_name = 'file_item' AND column_name = 'due_date'",
+    );
+    dueDateColumnKnown = (r.rowCount ?? 0) > 0;
+  }
+  return dueDateColumnKnown ? "to_char(fi.due_date, 'YYYY-MM-DD')" : "NULL::text";
+}
 
 /** The four dashboard phases (all engagement phases except terminal `archived`). */
 export type DashboardPhase = Exclude<EngagementPhase, "archived">;
@@ -142,6 +159,7 @@ export function initials(name: string): string {
 export async function phaseTasks(engagementId: string, phase: DashboardPhase): Promise<PhaseTask[]> {
   const { tenantId } = await requireTenant();
   return withTenant(tenantId, async (tx) => {
+    const dueDate = await dueDateExpr(tx);
     const result = await tx.query<{
       id: string;
       code: string;
@@ -158,7 +176,7 @@ export async function phaseTasks(engagementId: string, phase: DashboardPhase): P
     }>(
       `SELECT fi.id, fi.code, fi.section, fi.title_en, fi.title_fr,
               d.id AS document_id,
-              to_char(fi.due_date, 'YYYY-MM-DD') AS due_date,
+              ${dueDate} AS due_date,
               (SELECT coalesce(name, email) FROM app_user WHERE id = fi.owner_id) AS owner_name,
               ps.signer AS preparer_name, to_char(ps.signed_at, 'DD Mon YYYY') AS preparer_at,
               rs.signer AS reviewer_name, to_char(rs.signed_at, 'DD Mon YYYY') AS reviewer_at
@@ -403,6 +421,7 @@ export async function mostRecentEngagement(): Promise<EngagementSummary | null> 
 export async function engagementTasks(engagementId: string): Promise<PhaseTask[]> {
   const { tenantId } = await requireTenant();
   return withTenant(tenantId, async (tx) => {
+    const dueDate = await dueDateExpr(tx);
     const result = await tx.query<{
       id: string;
       code: string;
@@ -419,7 +438,7 @@ export async function engagementTasks(engagementId: string): Promise<PhaseTask[]
     }>(
       `SELECT fi.id, fi.code, fi.section, fi.title_en, fi.title_fr,
               d.id AS document_id,
-              to_char(fi.due_date, 'YYYY-MM-DD') AS due_date,
+              ${dueDate} AS due_date,
               (SELECT coalesce(name, email) FROM app_user WHERE id = fi.owner_id) AS owner_name,
               ps.signer AS preparer_name, to_char(ps.signed_at, 'DD Mon YYYY') AS preparer_at,
               rs.signer AS reviewer_name, to_char(rs.signed_at, 'DD Mon YYYY') AS reviewer_at
@@ -552,6 +571,7 @@ export async function dashboardStats(
 export async function taskForItem(engagementId: string, code: string): Promise<PhaseTask | null> {
   const { tenantId } = await requireTenant();
   return withTenant(tenantId, async (tx) => {
+    const dueDate = await dueDateExpr(tx);
     const result = await tx.query<{
       id: string;
       code: string;
@@ -568,7 +588,7 @@ export async function taskForItem(engagementId: string, code: string): Promise<P
     }>(
       `SELECT fi.id, fi.code, fi.section, fi.title_en, fi.title_fr,
               d.id AS document_id,
-              to_char(fi.due_date, 'YYYY-MM-DD') AS due_date,
+              ${dueDate} AS due_date,
               (SELECT coalesce(name, email) FROM app_user WHERE id = fi.owner_id) AS owner_name,
               ps.signer AS preparer_name, to_char(ps.signed_at, 'DD Mon YYYY') AS preparer_at,
               rs.signer AS reviewer_name, to_char(rs.signed_at, 'DD Mon YYYY') AS reviewer_at
