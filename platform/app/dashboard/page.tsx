@@ -9,6 +9,8 @@ import { withTenant } from "@/lib/db";
 import { formatFCFA, getMessages } from "@/lib/i18n";
 import { getLocale } from "@/lib/locale";
 
+export const metadata = { title: "Firm dashboard · AuditISA" };
+
 export default async function DashboardPage() {
   const session = await auth();
   if (!session?.user) {

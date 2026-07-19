@@ -175,8 +175,16 @@ button.sobox:focus-visible { outline: 2px solid var(--color-emerald-600); outlin
   background: color-mix(in srgb, var(--canvas) 55%, transparent);
 }
 #atlas-overlay.show {
+  /* 200ms show-delay: fast navigations complete before the spinner ever
+     appears, so it never flashes (Vercel guideline). */
   display: grid;
-  animation: atlas-fade 0.12s ease-out;
+  opacity: 0;
+  animation: atlas-appear 0.15s ease-out 0.2s forwards;
+}
+@keyframes atlas-appear {
+  to {
+    opacity: 1;
+  }
 }
 .atlas-spinner {
   width: 38px;

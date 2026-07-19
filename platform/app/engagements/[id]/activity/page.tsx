@@ -9,6 +9,8 @@ import { getEngagement } from "@/lib/engagements";
 import { getMessages } from "@/lib/i18n";
 import { getLocale } from "@/lib/locale";
 
+export const metadata = { title: "Activity · AuditISA" };
+
 /** Engagement activity timeline — the unified audit trail of user actions. */
 export default async function ActivityPage(props: { params: Promise<{ id: string }> }) {
   const session = await auth();

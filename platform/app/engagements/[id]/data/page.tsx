@@ -24,6 +24,8 @@ import { listJournals, listOverrides, listTbVersions } from "@/lib/tb";
 import { listFirmUsers } from "@/lib/team";
 import { requireTenant } from "@/lib/tenant";
 
+export const metadata = { title: "Data · AuditISA" };
+
 async function leadsheetDocs(engagementId: string): Promise<Map<string, { id: string; version: number }>> {
   const { tenantId } = await requireTenant();
   return withTenant(tenantId, async (tx) => {

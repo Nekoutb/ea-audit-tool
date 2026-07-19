@@ -11,6 +11,8 @@ import { SECTIONS } from "@/lib/file-index";
 import { formatFCFA, getMessages } from "@/lib/i18n";
 import { getLocale } from "@/lib/locale";
 
+export const metadata = { title: "Audit file · AuditISA" };
+
 export default async function EngagementFilePage(props: { params: Promise<{ id: string }> }) {
   const session = await auth();
   if (!session?.user) redirect("/login");

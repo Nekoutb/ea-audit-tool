@@ -8,6 +8,8 @@ import { listClients } from "@/lib/clients";
 import { getMessages } from "@/lib/i18n";
 import { getLocale } from "@/lib/locale";
 
+export const metadata = { title: "New engagement · AuditISA" };
+
 /** Dedicated engagement-creation screen (identity + complexity assessment). */
 export default async function NewEngagementPage(props: {
   searchParams: Promise<{ client?: string; error?: string }>;

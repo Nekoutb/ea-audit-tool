@@ -23,6 +23,8 @@ import {
 import { getMessages } from "@/lib/i18n";
 import { getLocale } from "@/lib/locale";
 
+export const metadata = { title: "Working paper · AuditISA" };
+
 export default async function DocumentPage(props: {
   params: Promise<{ id: string }>;
   searchParams: Promise<{ error?: string }>;

@@ -7,6 +7,8 @@ import { listEngagements } from "@/lib/engagements";
 import { getMessages } from "@/lib/i18n";
 import { getLocale } from "@/lib/locale";
 
+export const metadata = { title: "Engagements · AuditISA" };
+
 export default async function EngagementsPage() {
   const session = await auth();
   if (!session?.user) redirect("/login");

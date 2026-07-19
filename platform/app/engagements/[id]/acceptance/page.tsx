@@ -23,6 +23,8 @@ import { listFirmUsers } from "@/lib/team";
 import { withTenant } from "@/lib/db";
 import { requireTenant } from "@/lib/tenant";
 
+export const metadata = { title: "Acceptance & continuance · AuditISA" };
+
 async function clientMandate(clientId: string): Promise<{
   mandateType: "statutes" | "ago" | null;
   mandateStartYear: number | null;

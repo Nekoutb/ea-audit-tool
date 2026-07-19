@@ -21,6 +21,18 @@ import { FORM_DEFINITIONS } from "@/lib/forms";
 import { getMessages } from "@/lib/i18n";
 import { getLocale } from "@/lib/locale";
 
+const PHASE_TITLES: Record<string, string> = {
+  "pre-planning": "Pre-Planning",
+  planning: "Planning",
+  execution: "Execution",
+  conclusion: "Conclusion",
+};
+
+export async function generateMetadata(props: { params: Promise<{ phase: string }> }) {
+  const { phase } = await props.params;
+  return { title: `${PHASE_TITLES[phase] ?? "Phase"} tasks · AuditISA` };
+}
+
 const MONTHS: Record<"en" | "fr", string[]> = {
   en: ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"],
   fr: ["janv.", "févr.", "mars", "avr.", "mai", "juin", "juil.", "août", "sept.", "oct.", "nov.", "déc."],

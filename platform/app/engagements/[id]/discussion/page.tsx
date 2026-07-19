@@ -10,6 +10,8 @@ import { getEngagement } from "@/lib/engagements";
 import { getMessages } from "@/lib/i18n";
 import { getLocale } from "@/lib/locale";
 
+export const metadata = { title: "Discussion · AuditISA" };
+
 function Thread({
   root,
   replies,
@@ -34,7 +36,7 @@ function Thread({
       <form action={addCommentAction} className="mt-3 ml-8 flex items-center gap-2">
         <input type="hidden" name="engagementId" value={engagementId} />
         <input type="hidden" name="parentId" value={root.id} />
-        <input name="body" required placeholder={labels.replyPlaceholder} className={`flex-1 ${input}`} data-testid={`reply-input-${root.id}`} />
+        <input name="body" required placeholder={labels.replyPlaceholder} aria-label={labels.replyPlaceholder} className={`flex-1 ${input}`} data-testid={`reply-input-${root.id}`} />
         <button type="submit" className="rounded-[var(--radius-atlas-sm)] border border-line-strong px-3 py-2 text-xs font-semibold text-ink-soft hover:bg-surface-2" data-testid={`reply-submit-${root.id}`}>
           {labels.reply}
         </button>
@@ -107,7 +109,7 @@ export default async function DiscussionPage(props: {
       <Panel className="p-5">
         <form action={addCommentAction} className="flex flex-col gap-3">
           <input type="hidden" name="engagementId" value={id} />
-          <textarea name="body" required rows={3} placeholder={tc.placeholder} className={input} data-testid="comment-input" />
+          <textarea name="body" required rows={3} placeholder={tc.placeholder} aria-label={tc.placeholder} className={input} data-testid="comment-input" />
           <button type="submit" className={`self-end ${btnPrimary}`} data-testid="comment-submit">{tc.post}</button>
         </form>
       </Panel>

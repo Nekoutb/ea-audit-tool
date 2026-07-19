@@ -18,6 +18,8 @@ import { getMessages } from "@/lib/i18n";
 import { getLocale } from "@/lib/locale";
 import { ASSERTIONS, listPotentialRisks, listRisks } from "@/lib/risks";
 
+export const metadata = { title: "Risk register · AuditISA" };
+
 export default async function RisksPage(props: {
   params: Promise<{ id: string }>;
   searchParams: Promise<{ error?: string }>;

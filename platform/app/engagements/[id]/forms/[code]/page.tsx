@@ -28,6 +28,12 @@ import { getLocale } from "@/lib/locale";
 import { appliedTemplate } from "@/lib/template-overrides";
 import { requireTenant } from "@/lib/tenant";
 
+export async function generateMetadata(props: { params: Promise<{ code: string }> }) {
+  const { code: raw } = await props.params;
+  const code = decodeURIComponent(raw);
+  return { title: `${code} ${shortTitle(code, "en", "")} · AuditISA`.replace(/\s{2,}/g, " ") };
+}
+
 async function subRegisters(engagementId: string, code: string) {
   if (code !== "D5.6" && code !== "D5.7") return { parties: [], estimates: [] };
   const { tenantId } = await requireTenant();
@@ -338,9 +344,9 @@ export default async function FormPage(props: {
             ))}
           </ul>
           <form action={addRelatedPartyAction.bind(null, id)} className="mt-4 flex flex-wrap items-end gap-3">
-            <input name="name" placeholder="Nom / Name" required className={input} data-testid="rp-name" />
-            <input name="relationship" placeholder="Relation" required className={input} data-testid="rp-relationship" />
-            <input name="notes" placeholder="Notes" className={input} />
+            <input name="name" placeholder="Nom / Name" aria-label="Nom / Name" required className={input} data-testid="rp-name" />
+            <input name="relationship" placeholder="Relation" aria-label="Relation" required className={input} data-testid="rp-relationship" />
+            <input name="notes" placeholder="Notes" aria-label="Notes" className={input} />
             <button type="submit" className={btnGhost} data-testid="rp-add">
               +
             </button>
@@ -363,9 +369,9 @@ export default async function FormPage(props: {
             ))}
           </ul>
           <form action={addEstimateAction.bind(null, id)} className="mt-4 flex flex-wrap items-end gap-3">
-            <input name="nature" placeholder="Nature" required className={input} />
-            <input name="method" placeholder="Méthode / Method" className={input} />
-            <input name="uncertainty" placeholder="Incertitude / Uncertainty" className={input} />
+            <input name="nature" placeholder="Nature" aria-label="Nature" required className={input} />
+            <input name="method" placeholder="Méthode / Method" aria-label="Méthode / Method" className={input} />
+            <input name="uncertainty" placeholder="Incertitude / Uncertainty" aria-label="Incertitude / Uncertainty" className={input} />
             <button type="submit" className={btnGhost}>
               +
             </button>
@@ -378,7 +384,7 @@ export default async function FormPage(props: {
         <form action={raiseRiskAction.bind(null, id, code)} className="mt-3 flex flex-wrap items-end gap-3">
           <input
             name="description"
-            placeholder={tp.riskDescription}
+            placeholder={tp.riskDescription} aria-label={tp.riskDescription}
             required
             className={`${input} w-96 max-w-full`}
             data-testid="raise-risk-description"

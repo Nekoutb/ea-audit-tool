@@ -213,6 +213,19 @@
       "not-found": "Utilisateur introuvable."
     }
   },
+  "considerations": {
+    "title": "Considérations de planification",
+    "subtitle": "Les domaines conditionnels de planification (environnement de contrôle, informatique, experts, sociétés de services, audit interne) réunis en un seul écran. Chacun ne s'applique que si son déclencheur D1 est répondu Oui.",
+    "back": "Retour à l'espace Planification",
+    "applicable": "Applicable",
+    "notRequired": "Non requis",
+    "notRequiredHint": "Non requis pour cette mission — « {trigger} » est répondu Non (ou sans réponse) dans le pilote de stratégie D1."
+  },
+  "tabGroups": {
+    "phases": "Travaux par phase",
+    "data": "Données",
+    "registers": "Registres et légal"
+  },
   "taskPage": {
     "saveHandoff": "Enregistrer et transmettre",
     "backTo": "Retour aux tâches {phase}",

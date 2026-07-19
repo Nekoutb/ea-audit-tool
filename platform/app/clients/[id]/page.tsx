@@ -11,6 +11,8 @@ import { getMessages } from "@/lib/i18n";
 import { getLocale } from "@/lib/locale";
 import { listPortalContacts } from "@/lib/pbc";
 
+export const metadata = { title: "Client · AuditISA" };
+
 export default async function ClientDetailPage(props: {
   params: Promise<{ id: string }>;
   searchParams: Promise<{ error?: string }>;

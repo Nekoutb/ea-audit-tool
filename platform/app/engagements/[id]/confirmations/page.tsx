@@ -23,6 +23,8 @@ import { formatFCFA, getMessages } from "@/lib/i18n";
 import { getLocale } from "@/lib/locale";
 import { listDatasets } from "@/lib/subledgers";
 
+export const metadata = { title: "Confirmations · AuditISA" };
+
 export default async function ConfirmationsPage(props: {
   params: Promise<{ id: string }>;
   searchParams: Promise<{ error?: string }>;

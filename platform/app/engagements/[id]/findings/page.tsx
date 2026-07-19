@@ -10,6 +10,8 @@ import { evaluateB5, listFindings } from "@/lib/execution";
 import { formatFCFA, getMessages } from "@/lib/i18n";
 import { getLocale } from "@/lib/locale";
 
+export const metadata = { title: "Findings · AuditISA" };
+
 export default async function FindingsPage(props: {
   params: Promise<{ id: string }>;
   searchParams: Promise<{ error?: string }>;

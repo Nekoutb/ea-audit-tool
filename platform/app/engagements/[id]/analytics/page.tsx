@@ -10,6 +10,8 @@ import { getEngagement } from "@/lib/engagements";
 import { formatFCFA, getMessages } from "@/lib/i18n";
 import { getLocale } from "@/lib/locale";
 
+export const metadata = { title: "Analytics · AuditISA" };
+
 export default async function AnalyticsPage(props: {
   params: Promise<{ id: string }>;
   searchParams: Promise<{ error?: string }>;

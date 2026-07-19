@@ -213,6 +213,19 @@
       "not-found": "User not found."
     }
   },
+  "considerations": {
+    "title": "Planning considerations",
+    "subtitle": "The conditional planning areas (control environment, IT, experts, service organisations, internal audit) in one place. Each applies only when its D1 trigger is answered Yes.",
+    "back": "Back to Planning workspace",
+    "applicable": "Applicable",
+    "notRequired": "Not required",
+    "notRequiredHint": "Not required for this engagement — \"{trigger}\" is answered No (or unanswered) in the D1 strategy driver."
+  },
+  "tabGroups": {
+    "phases": "Phase work",
+    "data": "Data",
+    "registers": "Registers & statutory"
+  },
   "taskPage": {
     "saveHandoff": "Save & hand off",
     "backTo": "Back to {phase} task list",

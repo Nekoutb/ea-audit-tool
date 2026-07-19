@@ -21,6 +21,8 @@ import { getEngagement } from "@/lib/engagements";
 import { formatFCFA, getMessages } from "@/lib/i18n";
 import { getLocale } from "@/lib/locale";
 
+export const metadata = { title: "Engagement dashboard · AuditISA" };
+
 const ROUTE_TONE: Record<AttentionTone, string> = {
   rose: "text-rose bg-[var(--color-rose-soft)]",
   warn: "text-warn bg-[var(--color-warn-soft)]",

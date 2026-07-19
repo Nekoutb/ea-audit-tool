@@ -6,6 +6,8 @@ import { getMessages } from "@/lib/i18n";
 import { getLocale } from "@/lib/locale";
 import { listMyNotifications } from "@/lib/notifications";
 
+export const metadata = { title: "Notifications · AuditISA" };
+
 export default async function NotificationsPage() {
   const session = await auth();
   if (!session?.user) {

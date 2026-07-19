@@ -10,6 +10,8 @@ import { getMessages } from "@/lib/i18n";
 import { getLocale } from "@/lib/locale";
 import { listPbcItems } from "@/lib/pbc";
 
+export const metadata = { title: "PBC requests · AuditISA" };
+
 export default async function PbcPage(props: {
   params: Promise<{ id: string }>;
   searchParams: Promise<{ error?: string }>;

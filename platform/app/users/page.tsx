@@ -8,6 +8,8 @@ import { ASSIGNABLE_ROLES, listFirmUsers } from "@/lib/users";
 import { getMessages } from "@/lib/i18n";
 import { getLocale } from "@/lib/locale";
 
+export const metadata = { title: "Users · AuditISA" };
+
 export default async function UsersPage(props: {
   searchParams: Promise<{ error?: string; saved?: string }>;
 }) {

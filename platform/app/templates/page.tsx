@@ -10,6 +10,8 @@ import { templateFor } from "@/lib/templates";
 import { getMessages } from "@/lib/i18n";
 import { getLocale } from "@/lib/locale";
 
+export const metadata = { title: "Templates · AuditISA" };
+
 export default async function TemplatesPage(props: {
   searchParams: Promise<{ saved?: string; error?: string }>;
 }) {

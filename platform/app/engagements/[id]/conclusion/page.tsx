@@ -26,6 +26,8 @@ import { getEngagement } from "@/lib/engagements";
 import { getMessages } from "@/lib/i18n";
 import { getLocale } from "@/lib/locale";
 
+export const metadata = { title: "Conclusion · AuditISA" };
+
 export default async function ConclusionPage(props: {
   params: Promise<{ id: string }>;
   searchParams: Promise<{ error?: string; failed?: string }>;

@@ -27,6 +27,8 @@ import { BENCHMARK_RANGES, BENCHMARKS, listMaterialityVersions } from "@/lib/mat
 import { listBudget, listFirmUsers, listPbc, listTeam, TEAM_ROLES } from "@/lib/team";
 import { requireTenant } from "@/lib/tenant";
 
+export const metadata = { title: "Planning · AuditISA" };
+
 const PLANNING_CODES = [
   "D1", "D3.1", "D4.1", "D4.2", "D4.3", "D4.4", "D4.5", "D4.6", "D4.7", "D4.8", "D4.9",
   "D5.1", "D5.2", "D5.4", "D5.5", "D5.6", "D5.7", "D6.1", "D7.1", "D7.2",
@@ -173,8 +175,12 @@ export default async function PlanningPage(props: {
                     <td className="px-4 py-2 text-right">
                       {FORM_DEFINITIONS[code] && status !== "not_required" ? (
                         <Link
-                          href={`/engagements/${id}/forms/${encodeURIComponent(code)}`}
-                          className="font-medium text-emerald-700 hover:underline dark:text-emerald-400"
+                          href={
+                            CONDITIONAL_TRIGGERS[code]
+                              ? `/engagements/${id}/considerations#${encodeURIComponent(code)}`
+                              : `/engagements/${id}/forms/${encodeURIComponent(code)}`
+                          }
+                          className="inline-flex min-h-[32px] items-center font-medium text-emerald-700 hover:underline dark:text-emerald-400"
                         >
                           {tp.openForm}
                         </Link>
@@ -313,8 +319,8 @@ export default async function PlanningPage(props: {
           ))}
         </ul>
         <form action={setBudgetAction.bind(null, id)} className="mt-2 flex flex-wrap items-end gap-3">
-          <input name="grade" placeholder={tp.budget.grade} required className={input} />
-          <input name="hours" type="number" step="0.5" min="0" placeholder={tp.budget.hours} required className={input} />
+          <input name="grade" placeholder={tp.budget.grade} aria-label={tp.budget.grade} required className={input} />
+          <input name="hours" type="number" step="0.5" min="0" placeholder={tp.budget.hours} aria-label={tp.budget.hours} required className={input} />
           <button type="submit" className={btn}>
             {tp.budget.set}
           </button>
@@ -338,7 +344,7 @@ export default async function PlanningPage(props: {
                       item.status === "requested" ? "uploaded" : "accepted",
                     )}
                   >
-                    <button type="submit" className="text-xs text-emerald-700 hover:underline dark:text-emerald-400">
+                    <button type="submit" className="inline-flex min-h-[24px] items-center text-xs text-emerald-700 hover:underline dark:text-emerald-400">
                       → {tp.pbc.status[item.status === "requested" ? "uploaded" : "accepted"]}
                     </button>
                   </form>
@@ -348,7 +354,7 @@ export default async function PlanningPage(props: {
           ))}
         </ul>
         <form action={addPbcAction.bind(null, id)} className="mt-2 flex flex-wrap items-end gap-3">
-          <input name="title" placeholder={tp.pbc.itemTitle} required className={input} />
+          <input name="title" placeholder={tp.pbc.itemTitle} aria-label={tp.pbc.itemTitle} required className={input} />
           <button type="submit" className={btn}>
             {tp.pbc.add}
           </button>
@@ -364,14 +370,14 @@ export default async function PlanningPage(props: {
               <li key={section.id} className="flex items-center justify-between rounded-[var(--radius-atlas-sm)] border border-line bg-surface px-3 py-1.5">
                 <Link
                   href={`/engagements/${id}/sections/${section.id}`}
-                  className="font-mono text-xs font-semibold text-emerald-700 hover:underline dark:text-emerald-400"
+                  className="inline-flex min-h-[24px] items-center font-mono text-xs font-semibold text-emerald-700 hover:underline dark:text-emerald-400"
                 >
                   {section.code}
                 </Link>
                 <span className="flex items-center gap-2">
                   {material ? <Chip tone="warn">{tp.sections.material}</Chip> : null}
                   <form action={setMaterialAction.bind(null, id, section.id, !material)}>
-                    <button type="submit" className="text-xs text-muted hover:underline" data-testid={`toggle-material-${section.code}`}>
+                    <button type="submit" className="inline-flex min-h-[24px] items-center text-xs text-muted hover:underline" data-testid={`toggle-material-${section.code}`}>
                       {material ? tp.sections.unmarkMaterial : tp.sections.markMaterial}
                     </button>
                   </form>

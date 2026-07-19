@@ -9,6 +9,8 @@ import { getMessages } from "@/lib/i18n";
 import { getLocale } from "@/lib/locale";
 import { budgetVsActual, listMyTime } from "@/lib/time";
 
+export const metadata = { title: "Time · AuditISA" };
+
 export default async function TimePage(props: {
   params: Promise<{ id: string }>;
   searchParams: Promise<{ error?: string }>;

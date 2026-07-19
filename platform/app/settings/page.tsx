@@ -11,6 +11,8 @@ import { getMessages } from "@/lib/i18n";
 import { getLocale } from "@/lib/locale";
 import { canManageFirm, type Role } from "@/lib/rbac";
 
+export const metadata = { title: "Settings · AuditISA" };
+
 export default async function SettingsPage(props: {
   searchParams: Promise<{ error?: string; saved?: string }>;
 }) {

@@ -39,7 +39,12 @@ export async function saveFormAction(
   formData: FormData,
 ): Promise<void> {
   const definition = FORM_DEFINITIONS[code];
-  const path = `/engagements/${engagementId}/forms/${encodeURIComponent(code)}`;
+  // A caller (e.g. the merged Planning considerations screen) may ask to land
+  // back on itself; only same-engagement paths are honoured.
+  const returnTo = String(formData.get("returnTo") ?? "");
+  const path = returnTo.startsWith(`/engagements/${engagementId}/`)
+    ? returnTo
+    : `/engagements/${engagementId}/forms/${encodeURIComponent(code)}`;
   if (!definition) redirect(`/engagements/${engagementId}`);
   const values: FormValues = {};
   for (const field of definition.fields) {

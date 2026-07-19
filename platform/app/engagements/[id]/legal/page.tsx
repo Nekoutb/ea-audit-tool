@@ -27,6 +27,8 @@ import { canPartnerSignoff, type Role } from "@/lib/rbac";
 import { CONVENTION_CAPACITIES, listConventions, listDeadlines, listFaits } from "@/lib/legal";
 import { getLocale } from "@/lib/locale";
 
+export const metadata = { title: "OHADA legal · AuditISA" };
+
 export default async function LegalPage(props: {
   params: Promise<{ id: string }>;
   searchParams: Promise<{ error?: string }>;
@@ -288,7 +290,7 @@ export default async function LegalPage(props: {
                 name="description"
                 rows={2}
                 required
-                placeholder={tl.faitDescription}
+                placeholder={tl.faitDescription} aria-label={tl.faitDescription}
                 className={`${input} w-full`}
                 data-testid="fait-description"
               />
@@ -304,7 +306,7 @@ export default async function LegalPage(props: {
                   <option value="board">{tl.toBoard}</option>
                 </select>
               </label>
-              <textarea name="points" rows={2} required placeholder={tl.points} className={`${input} w-full`} />
+              <textarea name="points" rows={2} required placeholder={tl.points} aria-label={tl.points} className={`${input} w-full`} />
               <button type="submit" className={`${btn} self-start`} data-testid="irregularities-letter">
                 {tl.irregularities} · {tl.generateLetter}
               </button>
@@ -369,6 +371,7 @@ export default async function LegalPage(props: {
               <textarea
                 name="text"
                 rows={3}
+                aria-label={panel.title}
                 defaultValue={String(panel.record?.text ?? "")}
                 className={`${input} w-full`}
                 data-testid={`cocac-${panel.key}`}
