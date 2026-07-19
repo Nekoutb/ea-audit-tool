@@ -35,7 +35,8 @@ BEGIN
     'signoff',
     'review_note',
     'activity_log',
-    'time_entry'
+    'time_entry',
+    'comment'
   ]
   LOOP
     EXECUTE format('ALTER TABLE %I ENABLE ROW LEVEL SECURITY;', t);

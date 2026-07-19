@@ -213,6 +213,22 @@
       "not-found": "Utilisateur introuvable."
     }
   },
+  "discussion": {
+    "title": "Discussion",
+    "subtitle": "Discussion d'équipe pour cette mission. Mentionnez un collègue avec @nom pour le notifier.",
+    "threads": "Fils",
+    "placeholder": "Lancez une discussion… utilisez @nom pour mentionner un collègue",
+    "replyPlaceholder": "Répondre…",
+    "post": "Publier",
+    "reply": "Répondre",
+    "empty": "Aucune discussion pour le moment.",
+    "link": "Discussion",
+    "errors": {
+      "body-required": "Écrivez d'abord un message.",
+      "too-long": "Commentaire trop long (max 4000 caractères).",
+      "not-found": "Ce fil n'existe plus."
+    }
+  },
   "resources": {
     "title": "Charge de l'équipe",
     "subtitle": "Travaux ouverts, heures et missions par membre.",

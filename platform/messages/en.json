@@ -213,6 +213,22 @@
       "not-found": "User not found."
     }
   },
+  "discussion": {
+    "title": "Discussion",
+    "subtitle": "Team discussion for this engagement. Mention a colleague with @name to notify them.",
+    "threads": "Threads",
+    "placeholder": "Start a discussion… use @name to mention a colleague",
+    "replyPlaceholder": "Reply…",
+    "post": "Post",
+    "reply": "Reply",
+    "empty": "No discussion yet.",
+    "link": "Discussion",
+    "errors": {
+      "body-required": "Write a message first.",
+      "too-long": "Comment is too long (max 4000 characters).",
+      "not-found": "That thread no longer exists."
+    }
+  },
   "resources": {
     "title": "Team workload",
     "subtitle": "Open work, hours and engagements per team member.",
