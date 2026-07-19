@@ -213,6 +213,34 @@
       "not-found": "User not found."
     }
   },
+  "templates": {
+    "title": "Templates",
+    "subtitle": "Your firm's working-paper templates. Customisations apply to newly generated papers; existing documents are never changed.",
+    "list": "Working-paper templates",
+    "code": "Index",
+    "name": "Working paper",
+    "base": "Base template",
+    "status": "Status",
+    "customized": "Customised",
+    "standard": "Standard",
+    "edit": "Edit",
+    "backToList": "All templates",
+    "editorTitle": "Firm customisation",
+    "editHint": "Leave a field blank to keep the standard text (shown as the placeholder). Checklist items: one per line.",
+    "purposeEn": "Purpose (English)",
+    "purposeFr": "Purpose (French)",
+    "itemsEn": "Checklist items (English, one per line)",
+    "itemsFr": "Checklist items (French, one per line)",
+    "blankHint": "Saving with every field blank removes the customisation.",
+    "save": "Save customisation",
+    "reset": "Reset to standard template",
+    "saved": "Template {code} saved.",
+    "link": "Manage templates",
+    "errors": {
+      "forbidden": "Only a firm administrator can manage templates.",
+      "invalid-code": "Unknown template."
+    }
+  },
   "discussion": {
     "title": "Discussion",
     "subtitle": "Team discussion for this engagement. Mention a colleague with @name to notify them.",

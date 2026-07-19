@@ -36,7 +36,8 @@ BEGIN
     'review_note',
     'activity_log',
     'time_entry',
-    'comment'
+    'comment',
+    'template_override'
   ]
   LOOP
     EXECUTE format('ALTER TABLE %I ENABLE ROW LEVEL SECURITY;', t);

@@ -5,6 +5,7 @@ import { generateWorkpaperDocx } from "@/lib/docx";
 import type { Locale } from "@/lib/i18n";
 import { createNotification } from "@/lib/notifications";
 import { canPartnerSignoff, canReview } from "@/lib/rbac";
+import { applyOverride } from "@/lib/template-overrides";
 import { templateFor } from "@/lib/templates";
 import { requireTenant } from "@/lib/tenant";
 
@@ -133,7 +134,9 @@ export async function generateDocument(fileItemId: string, locale: Locale): Prom
     if (existing.rows[0]) return existing.rows[0].id;
 
     const title = locale === "fr" ? row.title_fr : row.title_en;
-    const template = templateFor(row.code);
+    // Firm-level template customization (Template management) applies to NEW
+    // documents only; existing bytes stay frozen in document_version.
+    const template = await applyOverride(tx, row.code, templateFor(row.code));
     const content = await generateWorkpaperDocx(
       template,
       {

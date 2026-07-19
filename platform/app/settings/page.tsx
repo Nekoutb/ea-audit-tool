@@ -53,6 +53,17 @@ export default async function SettingsPage(props: {
         </Panel>
       ) : null}
 
+      {isAdmin ? (
+        <Panel className="mt-6 p-6">
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <PanelHeader title={t.templates.title} hint={t.templates.subtitle} />
+            <Link href="/templates" data-testid="manage-templates-link" className={btnPrimary}>
+              {t.templates.link}
+            </Link>
+          </div>
+        </Panel>
+      ) : null}
+
       <Panel className="mt-6 p-6">
         <div className="flex flex-wrap items-center justify-between gap-3">
           <PanelHeader title={t.resources.title} hint={t.resources.subtitle} />

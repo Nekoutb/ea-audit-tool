@@ -213,6 +213,34 @@
       "not-found": "Utilisateur introuvable."
     }
   },
+  "templates": {
+    "title": "Modèles",
+    "subtitle": "Les modèles de feuilles de travail de votre cabinet. Les personnalisations s'appliquent aux nouveaux documents ; les documents existants ne sont jamais modifiés.",
+    "list": "Modèles de feuilles de travail",
+    "code": "Index",
+    "name": "Feuille de travail",
+    "base": "Modèle de base",
+    "status": "Statut",
+    "customized": "Personnalisé",
+    "standard": "Standard",
+    "edit": "Modifier",
+    "backToList": "Tous les modèles",
+    "editorTitle": "Personnalisation du cabinet",
+    "editHint": "Laissez un champ vide pour conserver le texte standard (affiché en filigrane). Points de contrôle : un par ligne.",
+    "purposeEn": "Objet (anglais)",
+    "purposeFr": "Objet (français)",
+    "itemsEn": "Points de contrôle (anglais, un par ligne)",
+    "itemsFr": "Points de contrôle (français, un par ligne)",
+    "blankHint": "Enregistrer avec tous les champs vides supprime la personnalisation.",
+    "save": "Enregistrer la personnalisation",
+    "reset": "Rétablir le modèle standard",
+    "saved": "Modèle {code} enregistré.",
+    "link": "Gérer les modèles",
+    "errors": {
+      "forbidden": "Seul un administrateur du cabinet peut gérer les modèles.",
+      "invalid-code": "Modèle inconnu."
+    }
+  },
   "discussion": {
     "title": "Discussion",
     "subtitle": "Discussion d'équipe pour cette mission. Mentionnez un collègue avec @nom pour le notifier.",
