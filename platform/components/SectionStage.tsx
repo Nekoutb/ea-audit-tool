@@ -61,7 +61,7 @@ export function SectionStage({
               className={`flex w-full items-center gap-3 rounded-[var(--radius-atlas)] border bg-surface px-4 py-3.5 text-left shadow-atlas-sm backdrop-blur-xl transition duration-200 hover:translate-x-[3px] active:scale-[.98] ${
                 on
                   ? "border-emerald-600/45 ring-[3px] ring-emerald-600/12"
-                  : "border-line hover:bg-surface-2"
+                  : "border-glass-border hover:bg-surface-2"
               }`}
             >
               <span
@@ -89,7 +89,7 @@ export function SectionStage({
 
       <section
         key={sec.key}
-        className="min-h-[236px] rounded-[var(--radius-atlas)] border border-line bg-surface px-5 py-4 shadow-atlas backdrop-blur-xl"
+        className="min-h-[236px] rounded-[var(--radius-atlas)] border border-glass-border bg-surface px-5 py-4 shadow-atlas backdrop-blur-xl"
         aria-live="polite"
         data-testid="group-rollout"
       >

@@ -58,7 +58,7 @@ export async function AppNav({
   ];
 
   return (
-    <header className="flex flex-wrap items-center justify-between gap-3 rounded-[var(--radius-atlas)] border border-line bg-surface px-4 py-2.5 shadow-[var(--shadow-atlas-sm)] backdrop-blur-xl">
+    <header className="flex flex-wrap items-center justify-between gap-3 rounded-[var(--radius-atlas)] border border-glass-border bg-surface px-4 py-2.5 shadow-[var(--shadow-atlas-sm)] backdrop-blur-xl">
       <div className="flex items-center gap-5">
         <span className="flex items-center gap-2 text-sm font-bold tracking-[-0.01em] text-emerald-700 dark:text-emerald-400">
           {branding?.logo ? (

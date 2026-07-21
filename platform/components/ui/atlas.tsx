@@ -21,7 +21,7 @@ export function Panel({
   return (
     <div
       className={cx(
-        "rounded-[var(--radius-atlas)] border border-line bg-surface shadow-[var(--shadow-atlas)] backdrop-blur-xl",
+        "rounded-[var(--radius-atlas)] border border-glass-border bg-surface shadow-[var(--shadow-atlas)] backdrop-blur-xl",
         !flush && "p-5",
         className,
       )}

@@ -12,17 +12,18 @@
 
 :root {
   /* Liquid Glass grey ground (three stops blended in the body gradient). */
-  --ground-a: #e9ebee;
-  --ground-b: #d7dade;
-  --ground-c: #c9cdd3;
-  --canvas: #e4e7ea;
+  --ground-a: #e4e7eb;
+  --ground-b: #ced3d9;
+  --ground-c: #bdc3cb;
+  --canvas: #dde1e5;
   /* Surfaces are translucent glass — panels add backdrop-blur on top. */
-  --surface: rgba(255, 255, 255, 0.62);
+  --surface: rgba(255, 255, 255, 0.55);
+  --glass-border: rgba(255, 255, 255, 0.7);
   --surface-2: rgba(228, 232, 236, 0.75);
   --glass-inner: rgba(255, 255, 255, 0.85);
   --ink: #1b1e23;
-  --ink-soft: #353c46;
-  --muted: #5f6672;
+  --ink-soft: #2b323b;
+  --muted: #515863;
   --line: rgba(27, 30, 35, 0.09);
   --line-strong: rgba(27, 30, 35, 0.17);
   --warn: #9c660e;
@@ -53,7 +54,8 @@
     --ground-b: #1a1d21;
     --ground-c: #101214;
     --canvas: #121418;
-    --surface: rgba(40, 44, 51, 0.55);
+    --surface: rgba(40, 44, 51, 0.52);
+    --glass-border: rgba(255, 255, 255, 0.1);
     --surface-2: rgba(255, 255, 255, 0.055);
     --glass-inner: rgba(255, 255, 255, 0.07);
     --ink: #eef1f5;
@@ -85,6 +87,7 @@
   --color-muted: var(--muted);
   --color-line: var(--line);
   --color-line-strong: var(--line-strong);
+  --color-glass-border: var(--glass-border);
   --color-warn: var(--warn);
   --color-warn-soft: var(--warn-soft);
   --color-rose: var(--rose);

@@ -29,7 +29,7 @@ export function TilesToggle({
   const s = scope === "my" ? my : all;
 
   const tile =
-    "flex flex-col gap-0.5 rounded-[var(--radius-atlas-sm)] border border-line bg-surface px-4 py-3 shadow-atlas-sm backdrop-blur-xl";
+    "flex flex-col gap-0.5 rounded-[var(--radius-atlas-sm)] border border-glass-border bg-surface px-4 py-3 shadow-atlas-sm backdrop-blur-xl";
   const lab = "text-[11px] font-bold uppercase tracking-[0.06em] text-muted";
   const num = "text-[28px] font-extrabold leading-tight tracking-[-0.03em] text-ink tnum";
   const hint = "text-[11.5px] text-muted";
@@ -37,7 +37,7 @@ export function TilesToggle({
   return (
     <div className="flex flex-col gap-3">
       <div
-        className="inline-flex self-start rounded-full border border-line bg-surface p-1 shadow-atlas-sm backdrop-blur-xl"
+        className="inline-flex self-start rounded-full border border-glass-border bg-surface p-1 shadow-atlas-sm backdrop-blur-xl"
         role="tablist"
         aria-label={labels.mySummary}
       >
