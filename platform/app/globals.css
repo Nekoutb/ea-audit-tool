@@ -111,6 +111,14 @@
   border-color: var(--line);
 }
 
+/* Comfortable content width on large monitors — the approved Liquid Glass mock
+   caps its wrap at ~1240px; unbounded pages read as trailing emptiness. */
+main {
+  width: 100%;
+  max-width: 1300px;
+  margin-inline: auto;
+}
+
 body {
   background:
     radial-gradient(1100px 520px at 12% -8%, var(--ground-a), transparent 60%),
