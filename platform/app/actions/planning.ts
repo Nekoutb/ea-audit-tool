@@ -249,6 +249,23 @@ export async function removeTeamAction(engagementId: string, userId: string): Pr
   await guarded(path, () => removeTeamMember(engagementId, userId));
 }
 
+/** Team-page variants of the two actions above (land back on /team). */
+export async function assignTeamFromTeamPageAction(engagementId: string, formData: FormData): Promise<void> {
+  const path = `/engagements/${engagementId}/team`;
+  await guarded(path, () =>
+    assignTeamMember(
+      engagementId,
+      String(formData.get("userId") ?? ""),
+      String(formData.get("teamRole") ?? "staff") as TeamRole,
+    ),
+  );
+}
+
+export async function removeTeamFromTeamPageAction(engagementId: string, userId: string): Promise<void> {
+  const path = `/engagements/${engagementId}/team`;
+  await guarded(path, () => removeTeamMember(engagementId, userId));
+}
+
 export async function setBudgetAction(engagementId: string, formData: FormData): Promise<void> {
   const path = `/engagements/${engagementId}/planning`;
   await guarded(path, () =>

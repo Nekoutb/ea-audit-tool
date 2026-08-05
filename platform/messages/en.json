@@ -146,7 +146,8 @@
       "groupsHint": "Detail tasks open on the group page — click a group.",
       "refDocs": "Reference documents",
       "due": "due",
-      "addMissing": "Add the missing tasks ({n})"
+      "addMissing": "Add the missing tasks ({n})",
+      "taskStatus": "Task status"
     },
     "tiles": {
       "mySummary": "My engagement summary",
@@ -178,7 +179,13 @@
       "title": "My engagements",
       "continueLabel": "Continue",
       "empty": "You are not assigned to any engagement yet."
-    }
+    },
+    "findingsBand": {
+      "title": "Findings",
+      "misstatements": "Misstatements",
+      "deficiencies": "Deficiencies"
+    },
+    "feedTitle": "Engagement feed"
   },
   "engagementDashboard": {
     "phase": "Phase",
@@ -445,7 +452,7 @@
     },
     "stages": {
       "acceptance": "Acceptance",
-      "planning": "Planning & Strategy",
+      "planning": "Scope & Strategy",
       "execution": "Execution",
       "conclusion": "Conclusion",
       "archived": "Archived"
@@ -1197,6 +1204,25 @@
       "invalid-logo-type": "The logo must be a PNG or JPEG image.",
       "logo-too-large": "The logo exceeds the 150 KB limit.",
       "text-too-long": "One of the text fields exceeds 160 characters."
+    }
+  },
+  "team": {
+    "manage": "Manage team",
+    "title": "Manage Team",
+    "active": "Active members",
+    "member": "Member",
+    "initials": "Initials",
+    "role": "Role",
+    "email": "Email",
+    "add": "Add member",
+    "remove": "Remove",
+    "empty": "No team members yet — add the first one below.",
+    "roles": {
+      "partner": "Partner in charge",
+      "manager": "Manager",
+      "senior": "Senior",
+      "staff": "Staff",
+      "eqr_reviewer": "Engagement Quality Reviewer"
     }
   }
 }

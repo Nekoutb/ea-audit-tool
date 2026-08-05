@@ -9,7 +9,7 @@ export type SectionKey = "strategy" | "execution" | "conclusion";
 export const SECTION_ORDER: SectionKey[] = ["strategy", "execution", "conclusion"];
 
 export const SECTION_LABELS: Record<SectionKey, { en: string; fr: string }> = {
-  strategy: { en: "Planning & Strategy", fr: "Planification & Stratégie" },
+  strategy: { en: "Scope & Strategy", fr: "Cadrage & Stratégie" },
   execution: { en: "Execution", fr: "Exécution" },
   conclusion: { en: "Conclusion", fr: "Conclusion" },
 };

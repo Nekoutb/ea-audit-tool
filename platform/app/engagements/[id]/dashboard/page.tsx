@@ -5,6 +5,7 @@ import { AppNav } from "@/components/AppNav";
 import { SectionStage, type StageSection } from "@/components/SectionStage";
 import { TilesToggle } from "@/components/TilesToggle";
 import { Chip, Panel, PanelHeader, StatCell } from "@/components/ui/atlas";
+import { listActivity } from "@/lib/activity";
 import { engagementDashboard } from "@/lib/dashboards";
 import {
   dashboardStats,
@@ -92,11 +93,12 @@ export default async function EngagementDashboardPage(props: {
   const engagement = await getEngagement(id);
   if (!engagement) notFound();
 
-  const [tasks, attention, dash, stats] = await Promise.all([
+  const [tasks, attention, dash, stats, feed] = await Promise.all([
     engagementTasks(id),
     engagementAttention(id, locale),
     engagementDashboard(id),
     dashboardStats(id),
+    listActivity(id, 8),
   ]);
 
   const sections = buildSections(tasks, id, engagement.periodEnd, locale, td.stage.due);
@@ -165,6 +167,29 @@ export default async function EngagementDashboardPage(props: {
         hint={td.stage.groupsHint}
         reviewedLabel={td.stage.reviewed}
         groupsLabel={td.stage.groups}
+        taskStatusLabel={td.stage.taskStatus}
+        refDocs={
+          <>
+            <div className="text-[10.5px] font-extrabold uppercase tracking-[0.08em] text-muted">{td.stage.refDocs}</div>
+            <div className="mt-2 flex flex-wrap gap-1.5">
+              {[
+                { href: `/engagements/${id}/data`, label: t.planning.dataTitle },
+                { href: `/engagements/${id}/pbc`, label: t.pbc.title },
+                { href: `/engagements/${id}/legal`, label: t.planning.legal.title },
+                { href: `/engagements/${id}/team`, label: t.team.manage },
+                { href: `/api/engagements/${id}/export`, label: t.engagementDashboard.export },
+              ].map((r) => (
+                <Link
+                  key={r.href}
+                  href={r.href}
+                  className="inline-flex min-h-[26px] items-center rounded-full bg-line/60 px-3 py-0.5 text-[11.5px] font-semibold text-ink-soft transition hover:bg-surface-2"
+                >
+                  {r.label}
+                </Link>
+              ))}
+            </div>
+          </>
+        }
       />
 
       <section className="grid grid-cols-1 items-start gap-3 lg:grid-cols-[1.6fr_1fr]">
@@ -205,28 +230,57 @@ export default async function EngagementDashboardPage(props: {
             </div>
           </Panel>
 
-          <Panel className="px-5 py-4">
-            <PanelHeader title={td.stage.refDocs} />
-            <div className="mt-2 flex flex-wrap gap-1.5">
-              {[
-                { href: `/engagements/${id}/data`, label: t.planning.dataTitle },
-                { href: `/engagements/${id}/pbc`, label: t.pbc.title },
-                { href: `/engagements/${id}/legal`, label: t.planning.legal.title },
-                { href: `/api/engagements/${id}/export`, label: t.engagementDashboard.export },
-              ].map((r) => (
-                <Link
-                  key={r.href}
-                  href={r.href}
-                  className="inline-flex min-h-[28px] items-center rounded-full bg-line/60 px-3.5 py-1 text-[12px] font-semibold text-ink-soft transition hover:bg-surface-2"
-                >
-                  {r.label}
-                </Link>
-              ))}
+          <Panel className="px-5 py-4" data-testid="findings-band">
+            <PanelHeader title={td.findingsBand.title} />
+            <div className="mt-3 grid grid-cols-2 gap-3">
+              <Link href={`/engagements/${id}/findings`} className="rounded-[var(--radius-atlas-sm)] bg-surface-2 px-4 py-3 transition hover:bg-line/60">
+                <span className="block text-[10.5px] font-extrabold uppercase tracking-[0.07em] text-muted">{td.findingsBand.misstatements}</span>
+                <span className="block text-[30px] font-extrabold leading-tight tracking-[-0.03em] text-ink tnum">{dash.misstatementCount}</span>
+              </Link>
+              <Link href={`/engagements/${id}/findings`} className="rounded-[var(--radius-atlas-sm)] bg-surface-2 px-4 py-3 transition hover:bg-line/60">
+                <span className="block text-[10.5px] font-extrabold uppercase tracking-[0.07em] text-muted">{td.findingsBand.deficiencies}</span>
+                <span className="block text-[30px] font-extrabold leading-tight tracking-[-0.03em] text-ink tnum">{dash.deficiencyCount}</span>
+              </Link>
             </div>
           </Panel>
         </div>
 
         <div className="flex min-w-0 flex-col gap-3">
+          <Panel flush className="flex flex-col">
+            <div className="border-b border-line px-5 py-3.5">
+              <PanelHeader
+                title={td.feedTitle}
+                right={
+                  <Link
+                    href={`/engagements/${id}/activity`}
+                    className="text-xs font-semibold text-emerald-700 hover:underline dark:text-emerald-400"
+                  >
+                    {td.activity.link}
+                  </Link>
+                }
+              />
+            </div>
+            <div className="flex flex-col p-1.5" data-testid="engagement-feed">
+              {feed.length === 0 ? (
+                <p className="px-4 py-5 text-center text-sm text-muted">{td.activity.empty}</p>
+              ) : (
+                feed.map((row) => (
+                  <div key={row.id} className="flex gap-2.5 rounded-[var(--radius-atlas-xs)] px-3 py-2">
+                    <span className="mt-0.5 grid h-6 w-6 flex-shrink-0 place-items-center rounded-full bg-line text-[9px] font-extrabold text-ink-soft">
+                      {(row.userName ?? "•").slice(0, 2).toUpperCase()}
+                    </span>
+                    <span className="min-w-0">
+                      <span className="block truncate text-[12.5px] text-ink">
+                        {row.userName ? <b>{row.userName}</b> : null} {row.summary ?? row.action}
+                      </span>
+                      <span className="block text-[10.5px] text-muted tnum">{row.at}</span>
+                    </span>
+                  </div>
+                ))
+              )}
+            </div>
+          </Panel>
+
           <Panel flush className="flex flex-col">
             <div className="border-b border-line px-5 py-3.5">
               <PanelHeader title={td.activity.title} />

@@ -11,6 +11,8 @@ export interface EngagementDashboard {
   b5: { uncorrected: number; materiality: number | null };
   documentsUnsigned: number;
   pbcOpen: number;
+  misstatementCount: number;
+  deficiencyCount: number;
   nextDeadlines: { key: string; dueDate: string; daysLeft: number }[];
 }
 
@@ -25,6 +27,8 @@ export async function engagementDashboard(engagementId: string): Promise<Engagem
       materiality: string | null;
       docs_unsigned: string;
       pbc_open: string;
+      missta_count: string;
+      defic_count: string;
     }>(
       `SELECT e.phase,
               (SELECT count(*)::text FROM program_step WHERE engagement_id = e.id) AS steps_total,
@@ -36,7 +40,9 @@ export async function engagementDashboard(engagementId: string): Promise<Engagem
               (SELECT sum(amount)::text FROM misstatement WHERE engagement_id = e.id AND trivial = false AND corrected = false) AS b5_uncorrected,
               (SELECT overall::text FROM materiality WHERE engagement_id = e.id AND status = 'approved' ORDER BY version_no DESC LIMIT 1) AS materiality,
               (SELECT count(*)::text FROM document WHERE engagement_id = e.id AND status = 'draft') AS docs_unsigned,
-              (SELECT count(*)::text FROM pbc_item WHERE engagement_id = e.id AND status <> 'accepted') AS pbc_open
+              (SELECT count(*)::text FROM pbc_item WHERE engagement_id = e.id AND status <> 'accepted') AS pbc_open,
+              (SELECT count(*)::text FROM misstatement WHERE engagement_id = e.id AND trivial = false) AS missta_count,
+              (SELECT count(*)::text FROM finding WHERE engagement_id = e.id AND status = 'open') AS defic_count
          FROM engagement e WHERE e.id = $1`,
       [engagementId],
     );
@@ -62,6 +68,8 @@ export async function engagementDashboard(engagementId: string): Promise<Engagem
       },
       documentsUnsigned: Number(row.docs_unsigned),
       pbcOpen: Number(row.pbc_open),
+      misstatementCount: Number(row.missta_count),
+      deficiencyCount: Number(row.defic_count),
       nextDeadlines: deadlines.rows.map((deadline) => ({
         key: deadline.key, dueDate: deadline.due_date, daysLeft: deadline.days_left,
       })),

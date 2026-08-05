@@ -146,7 +146,8 @@
       "groupsHint": "Les tâches détaillées s’ouvrent sur la page du groupe — cliquez sur un groupe.",
       "refDocs": "Documents de référence",
       "due": "échéance",
-      "addMissing": "Ajouter les tâches manquantes ({n})"
+      "addMissing": "Ajouter les tâches manquantes ({n})",
+      "taskStatus": "Statut des tâches"
     },
     "tiles": {
       "mySummary": "Ma synthèse mission",
@@ -178,7 +179,13 @@
       "title": "Mes missions",
       "continueLabel": "Continuer",
       "empty": "Vous n’êtes affecté à aucune mission pour le moment."
-    }
+    },
+    "findingsBand": {
+      "title": "Constats",
+      "misstatements": "Anomalies",
+      "deficiencies": "Déficiences"
+    },
+    "feedTitle": "Fil de la mission"
   },
   "engagementDashboard": {
     "phase": "Phase",
@@ -445,7 +452,7 @@
     },
     "stages": {
       "acceptance": "Acceptation",
-      "planning": "Planification & Stratégie",
+      "planning": "Cadrage & Stratégie",
       "execution": "Exécution",
       "conclusion": "Conclusion",
       "archived": "Archivée"
@@ -1197,6 +1204,25 @@
       "invalid-logo-type": "Le logo doit être une image PNG ou JPEG.",
       "logo-too-large": "Le logo dépasse la limite de 150 Ko.",
       "text-too-long": "Un des champs texte dépasse 160 caractères."
+    }
+  },
+  "team": {
+    "manage": "Gérer l’équipe",
+    "title": "Gestion de l’équipe",
+    "active": "Membres actifs",
+    "member": "Membre",
+    "initials": "Initiales",
+    "role": "Rôle",
+    "email": "Email",
+    "add": "Ajouter un membre",
+    "remove": "Retirer",
+    "empty": "Aucun membre — ajoutez le premier ci-dessous.",
+    "roles": {
+      "partner": "Associé responsable",
+      "manager": "Manager",
+      "senior": "Senior",
+      "staff": "Collaborateur",
+      "eqr_reviewer": "Réviseur qualité (EQR)"
     }
   }
 }
