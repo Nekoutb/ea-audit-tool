@@ -34,7 +34,7 @@ export default async function EngagementFilePage(props: { params: Promise<{ id: 
           {engagement.clientName} — {engagement.fiscalYear}
         </h1>
         <span className="text-sm text-muted tnum">
-          {t.engagements.phase}: {t.engagements.phases[engagement.phase]} ·{" "}
+          {t.engagements.phase}: {t.engagements.stages[engagement.phase]} ·{" "}
           {t.engagements.periodEnd}: {engagement.periodEnd}
         </span>
       </div>

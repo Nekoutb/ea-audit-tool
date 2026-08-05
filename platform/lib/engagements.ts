@@ -57,19 +57,56 @@ function toSummary(row: EngagementRow): EngagementSummary {
   };
 }
 
-export async function listEngagements(clientId?: string): Promise<EngagementSummary[]> {
+/** Register row: the summary plus the columns the engagements register scans. */
+export interface EngagementRegisterRow extends EngagementSummary {
+  partnerName: string | null;
+  tasksDone: number;
+  tasksTotal: number;
+  lastActivity: string | null;
+  reportDate: string | null;
+}
+
+export async function listEngagements(clientId?: string): Promise<EngagementRegisterRow[]> {
   const { tenantId } = await requireTenant();
   return withTenant(tenantId, async (tx) => {
-    const result = await tx.query<EngagementRow>(
+    const result = await tx.query<
+      EngagementRow & {
+        partner_name: string | null;
+        tasks_done: string;
+        tasks_total: string;
+        last_activity: string | null;
+        report_date: string | null;
+      }
+    >(
       `SELECT e.id, e.client_id, c.name AS client_name, e.fiscal_year,
-              to_char(e.period_end, 'YYYY-MM-DD') AS period_end, e.phase, e.name, e.complexity
+              to_char(e.period_end, 'YYYY-MM-DD') AS period_end, e.phase, e.name, e.complexity,
+              (SELECT coalesce(u.name, u.email) FROM team_member tm
+                 JOIN app_user u ON u.id = tm.user_id
+                WHERE tm.engagement_id = e.id AND tm.team_role = 'partner'
+                ORDER BY tm.created_at LIMIT 1) AS partner_name,
+              (SELECT count(*) FROM file_item fi
+                WHERE fi.engagement_id = e.id AND fi.conditional = false
+                  AND EXISTS (SELECT 1 FROM document d
+                               WHERE d.file_item_id = fi.id AND d.status = 'signed'))::text AS tasks_done,
+              (SELECT count(*) FROM file_item fi
+                WHERE fi.engagement_id = e.id AND fi.conditional = false)::text AS tasks_total,
+              to_char((SELECT max(al.created_at) FROM activity_log al
+                        WHERE al.engagement_id = e.id), 'YYYY-MM-DD') AS last_activity,
+              to_char(e.report_date, 'YYYY-MM-DD') AS report_date
          FROM engagement e
          JOIN client c ON c.id = e.client_id
         WHERE ($1::uuid IS NULL OR e.client_id = $1)
         ORDER BY e.fiscal_year DESC, c.name`,
       [clientId ?? null],
     );
-    return result.rows.map(toSummary);
+    return result.rows.map((row) => ({
+      ...toSummary(row),
+      partnerName: row.partner_name,
+      tasksDone: Number(row.tasks_done),
+      tasksTotal: Number(row.tasks_total),
+      lastActivity: row.last_activity,
+      reportDate: row.report_date,
+    }));
   });
 }
 

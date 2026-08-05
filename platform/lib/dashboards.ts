@@ -76,7 +76,7 @@ export interface FirmDashboard {
     key: string; dueDate: string; daysLeft: number;
   }[];
   workload: { userName: string; openSteps: number }[];
-  mandateExpiries: { clientName: string; expiryYear: number }[];
+  mandateExpiries: { clientId: string; clientName: string; expiryYear: number }[];
   /** 9.5 portfolio risk view. */
   significantRisks: {
     engagementId: string; clientName: string; fiscalYear: number; description: string; status: string;
@@ -113,8 +113,8 @@ export async function firmDashboard(): Promise<FirmDashboard> {
          JOIN app_user u ON u.id = fi.owner_id
         GROUP BY u.id ORDER BY count(ps.id) DESC LIMIT 10`,
     );
-    const mandates = await tx.query<{ client_name: string; expiry_year: number }>(
-      `SELECT name AS client_name,
+    const mandates = await tx.query<{ client_id: string; client_name: string; expiry_year: number }>(
+      `SELECT id AS client_id, name AS client_name,
               mandate_start_year + CASE mandate_type WHEN 'statutes' THEN 2 ELSE 6 END - 1 AS expiry_year
          FROM client
         WHERE mandate_type IS NOT NULL AND mandate_start_year IS NOT NULL
@@ -151,7 +151,7 @@ export async function firmDashboard(): Promise<FirmDashboard> {
         key: row.key, dueDate: row.due_date, daysLeft: row.days_left,
       })),
       workload: workload.rows.map((row) => ({ userName: row.user_name, openSteps: Number(row.open_steps) })),
-      mandateExpiries: mandates.rows.map((row) => ({ clientName: row.client_name, expiryYear: row.expiry_year })),
+      mandateExpiries: mandates.rows.map((row) => ({ clientId: row.client_id, clientName: row.client_name, expiryYear: row.expiry_year })),
       significantRisks: significantRisks.rows.map((row) => ({
         engagementId: row.engagement_id, clientName: row.client_name, fiscalYear: row.fiscal_year,
         description: row.description, status: row.status,

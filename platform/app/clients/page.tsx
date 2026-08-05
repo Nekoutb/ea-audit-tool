@@ -8,7 +8,7 @@ import { LEGAL_FORMS, listClients } from "@/lib/clients";
 import { getMessages } from "@/lib/i18n";
 import { getLocale } from "@/lib/locale";
 
-export const metadata = { title: "Clients · AuditISA" };
+export const metadata = { title: "Entity records · AuditISA" };
 
 export default async function ClientsPage() {
   const session = await auth();

@@ -57,7 +57,7 @@ export default async function ClientDetailPage(props: {
               >
                 <span className="text-sm text-ink-soft">
                   {t.engagements.fiscalYear} <span className="tnum">{engagement.fiscalYear}</span> —{" "}
-                  {t.engagements.phases[engagement.phase]}
+                  {t.engagements.stages[engagement.phase]}
                 </span>
                 <Link
                   href={`/engagements/${engagement.id}/dashboard`}

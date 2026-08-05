@@ -143,3 +143,16 @@ export async function rollforwardAction(engagementId: string, formData: FormData
     return `/engagements/${newId}`;
   });
 }
+
+/**
+ * Register variant: same roll-forward, but the engagement id travels in the
+ * form (client rows can't bind server-action arguments) and lands on the new
+ * engagement's dashboard.
+ */
+export async function rollforwardFromRegisterAction(formData: FormData): Promise<void> {
+  const engagementId = String(formData.get("engagementId") ?? "");
+  await guarded("/engagements", async () => {
+    const newId = await rollforward(engagementId, Number(formData.get("newYear")));
+    return `/engagements/${newId}/dashboard`;
+  });
+}

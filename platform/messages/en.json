@@ -18,7 +18,8 @@
     "clients": "Clients",
     "engagements": "Engagements",
     "notifications": "Notifications",
-    "settings": "Settings"
+    "settings": "Settings",
+    "entities": "Entity records"
   },
   "settings": {
     "title": "Firm settings",
@@ -38,7 +39,10 @@
     "footer": "Document footer (e.g. professional registration)",
     "save": "Save branding",
     "saved": "Branding saved.",
-    "adminOnly": "Only a firm administrator can change branding."
+    "adminOnly": "Only a firm administrator can change branding.",
+    "entities": "Entity records",
+    "entitiesHint": "Master data of audited entities and their engagement history",
+    "entitiesLink": "Manage entities"
   },
   "login": {
     "title": "Sign in",
@@ -155,7 +159,12 @@
       "reviewNotes": "My review notes",
       "forMe": "for me",
       "byMe": "by me"
-    }
+    },
+    "portfolioTitle": "My Audit Portfolio",
+    "portfolioHint": "What needs your attention, your engagements, and firm-wide exceptions.",
+    "activeLabel": "Active",
+    "aboutEntity": "About {name}",
+    "byStage": "Engagements by stage"
   },
   "engagementDashboard": {
     "phase": "Phase",
@@ -358,7 +367,7 @@
     }
   },
   "clients": {
-    "title": "Clients",
+    "title": "Entity records",
     "empty": "No clients yet — create the first one below.",
     "name": "Name",
     "legalForm": "Legal form",
@@ -419,7 +428,30 @@
       "execution": "Execution",
       "conclusion": "Conclusion",
       "archived": "Archived"
-    }
+    },
+    "stages": {
+      "acceptance": "Acceptance",
+      "planning": "Planning & Strategy",
+      "execution": "Execution",
+      "conclusion": "Conclusion",
+      "archived": "Archived"
+    },
+    "status": {
+      "onTrack": "On track",
+      "behind": "Behind",
+      "reportIssued": "Report issued",
+      "archived": "Archived"
+    },
+    "partner": "Partner",
+    "progress": "Progress",
+    "stage": "Stage",
+    "statusCol": "Status",
+    "lastActivity": "Last activity",
+    "showArchived": "Show archived",
+    "hideArchived": "Hide archived",
+    "rollForward": "Roll forward to FY {year}",
+    "deadlineCol": "Deadline",
+    "never": "—"
   },
   "fileIndex": {
     "title": "Audit file",

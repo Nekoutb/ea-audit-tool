@@ -18,7 +18,8 @@
     "clients": "Clients",
     "engagements": "Missions",
     "notifications": "Notifications",
-    "settings": "Paramètres"
+    "settings": "Paramètres",
+    "entities": "Dossiers entités"
   },
   "settings": {
     "title": "Paramètres du cabinet",
@@ -38,7 +39,10 @@
     "footer": "Pied de page des documents (ex. inscription au tableau de l'Ordre)",
     "save": "Enregistrer l'identité",
     "saved": "Identité enregistrée.",
-    "adminOnly": "Seul un administrateur du cabinet peut modifier l'identité visuelle."
+    "adminOnly": "Seul un administrateur du cabinet peut modifier l'identité visuelle.",
+    "entities": "Dossiers entités",
+    "entitiesHint": "Données permanentes des entités auditées et historique des missions",
+    "entitiesLink": "Gérer les entités"
   },
   "login": {
     "title": "Connexion",
@@ -155,7 +159,12 @@
       "reviewNotes": "Mes notes de revue",
       "forMe": "pour moi",
       "byMe": "par moi"
-    }
+    },
+    "portfolioTitle": "Mon portefeuille d’audit",
+    "portfolioHint": "Ce qui requiert votre attention, vos missions et les exceptions du cabinet.",
+    "activeLabel": "En cours",
+    "aboutEntity": "À propos de {name}",
+    "byStage": "Missions par étape"
   },
   "engagementDashboard": {
     "phase": "Phase",
@@ -358,7 +367,7 @@
     }
   },
   "clients": {
-    "title": "Clients",
+    "title": "Dossiers entités",
     "empty": "Aucun client — créez le premier ci-dessous.",
     "name": "Dénomination",
     "legalForm": "Forme juridique",
@@ -419,7 +428,30 @@
       "execution": "Exécution",
       "conclusion": "Conclusion",
       "archived": "Archivée"
-    }
+    },
+    "stages": {
+      "acceptance": "Acceptation",
+      "planning": "Planification & Stratégie",
+      "execution": "Exécution",
+      "conclusion": "Conclusion",
+      "archived": "Archivée"
+    },
+    "status": {
+      "onTrack": "Dans les délais",
+      "behind": "En retard",
+      "reportIssued": "Rapport émis",
+      "archived": "Archivée"
+    },
+    "partner": "Associé",
+    "progress": "Avancement",
+    "stage": "Étape",
+    "statusCol": "Statut",
+    "lastActivity": "Dernière activité",
+    "showArchived": "Afficher les archivées",
+    "hideArchived": "Masquer les archivées",
+    "rollForward": "Reconduire vers FY {year}",
+    "deadlineCol": "Échéance",
+    "never": "—"
   },
   "fileIndex": {
     "title": "Dossier d'audit",

@@ -2,86 +2,153 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import { auth } from "@/auth";
 import { AppNav } from "@/components/AppNav";
+import { RegisterRow, type RegisterRowData } from "@/components/RegisterRow";
 import { Panel, PanelHeader, btnPrimary } from "@/components/ui/atlas";
-import { listEngagements } from "@/lib/engagements";
+import { phaseDeadline, type DashboardPhase } from "@/lib/engagement-dashboard";
+import { listEngagements, type EngagementRegisterRow } from "@/lib/engagements";
 import { getMessages } from "@/lib/i18n";
 import { getLocale } from "@/lib/locale";
 
 export const metadata = { title: "Engagements · AuditISA" };
 
-export default async function EngagementsPage() {
+type StageTone = "acc" | "warn" | "prog" | "done" | "muted";
+const STAGE_TONE: Record<string, StageTone> = {
+  acceptance: "acc",
+  planning: "warn",
+  execution: "prog",
+  conclusion: "done",
+  archived: "muted",
+};
+
+/**
+ * The engagements register — the definitive list of audit assignments and the
+ * primary route into each audit file (IA audit, Part 5B). Archived engagements
+ * are hidden behind their filter; concluded/archived rows offer FY+1
+ * roll-forward directly.
+ */
+export default async function EngagementsPage(props: {
+  searchParams: Promise<{ stage?: string; archived?: string }>;
+}) {
   const session = await auth();
   if (!session?.user) redirect("/login");
 
+  const { stage, archived } = await props.searchParams;
   const locale = await getLocale();
   const t = getMessages(locale);
-  const engagements = await listEngagements();
+  const te = t.engagements;
+  const showArchived = archived === "1" || stage === "archived";
+
+  const all = await listEngagements();
+  const engagements = all.filter((e) => {
+    if (stage && e.phase !== stage) return false;
+    if (!showArchived && e.phase === "archived") return false;
+    return true;
+  });
+  const archivedCount = all.filter((e) => e.phase === "archived").length;
+
+  const now = new Date();
+  const todayIso = now.toISOString().slice(0, 10);
+
+  const rows: RegisterRowData[] = engagements.map((e: EngagementRegisterRow) => {
+    const isArchived = e.phase === "archived";
+    const deadlineIso = isArchived
+      ? (e.reportDate ?? e.periodEnd)
+      : phaseDeadline(e.periodEnd, e.phase as DashboardPhase);
+    const status = isArchived
+      ? { label: te.status.archived, tone: "muted" as const }
+      : e.reportDate
+        ? { label: te.status.reportIssued, tone: "done" as const }
+        : deadlineIso < todayIso
+          ? { label: te.status.behind, tone: "over" as const }
+          : { label: te.status.onTrack, tone: "ok" as const };
+    return {
+      id: e.id,
+      title: e.name ?? e.clientName,
+      clientName: e.name ? e.clientName : null,
+      fiscalYear: e.fiscalYear,
+      partnerName: e.partnerName,
+      stage: { label: te.stages[e.phase], tone: STAGE_TONE[e.phase] ?? "muted" },
+      status,
+      pct: e.tasksTotal > 0 ? Math.round((e.tasksDone / e.tasksTotal) * 100) : 0,
+      deadline: deadlineIso,
+      lastActivity: e.lastActivity ?? te.never,
+      rollForward:
+        e.phase === "conclusion" || e.phase === "archived"
+          ? { newYear: e.fiscalYear + 1, label: te.rollForward.replace("{year}", String(e.fiscalYear + 1)) }
+          : null,
+      openLabel: te.open,
+    };
+  });
+
+  const th =
+    "border-b border-line bg-surface-2 px-4 py-3 text-left text-[10px] font-extrabold uppercase tracking-[0.07em] text-muted first:px-5";
 
   return (
-    <main className="min-h-screen w-full px-6 py-10">
+    <main className="flex min-h-screen w-full flex-col gap-4 px-6 py-4">
       <AppNav locale={locale} />
-      <div className="mt-8 flex flex-wrap items-center justify-between gap-4">
-        <h1 className="text-2xl font-semibold tracking-[-0.02em] text-ink">
-          {t.engagements.title}
-        </h1>
+
+      <div className="flex flex-wrap items-end justify-between gap-4">
+        <div>
+          <h1 className="text-2xl font-bold tracking-[-0.02em] text-ink">{te.title}</h1>
+          {stage ? (
+            <p className="mt-1 text-[13px] text-ink-soft">
+              {te.stage}: {te.stages[stage as keyof typeof te.stages] ?? stage}{" "}
+              <Link href="/engagements" className="font-semibold text-emerald-700 hover:underline dark:text-emerald-400">
+                ×
+              </Link>
+            </p>
+          ) : null}
+        </div>
         <Link href="/new-engagement" className={btnPrimary} data-testid="new-engagement">
-          {t.engagements.newEngagement}
+          {te.newEngagement}
         </Link>
       </div>
 
       {engagements.length === 0 ? (
-        <Panel className="mt-6">
-          <p className="text-sm text-muted">{t.engagements.empty}</p>
+        <Panel className="p-6">
+          <p className="text-sm text-muted">{te.empty}</p>
         </Panel>
       ) : (
-        <Panel className="mt-6" flush>
-          <div className="border-b border-line px-5 py-4">
-            <PanelHeader
-              title={t.engagements.title}
-              hint={String(engagements.length)}
-            />
+        <Panel flush>
+          <div className="flex flex-wrap items-center justify-between gap-3 border-b border-line px-5 py-3.5">
+            <PanelHeader title={te.title} hint={String(engagements.length)} />
+            {archivedCount > 0 ? (
+              <Link
+                href={showArchived ? "/engagements" : "/engagements?archived=1"}
+                data-testid="toggle-archived"
+                className="inline-flex min-h-[24px] items-center text-[12.5px] font-semibold text-ink-soft hover:underline"
+              >
+                {showArchived ? te.hideArchived : `${te.showArchived} (${archivedCount})`}
+              </Link>
+            ) : null}
           </div>
           <div className="overflow-x-auto">
-            <table className="w-full text-sm" data-testid="engagements-table">
-              <thead className="text-left text-xs uppercase tracking-wide text-muted">
+            <table className="w-full min-w-[980px] table-fixed" data-testid="engagements-table">
+              <colgroup>
+                <col style={{ width: "24%" }} />
+                <col style={{ width: "6%" }} />
+                <col style={{ width: "13%" }} />
+                <col style={{ width: "13%" }} />
+                <col style={{ width: "13%" }} />
+                <col style={{ width: "13%" }} />
+                <col style={{ width: "9%" }} />
+                <col style={{ width: "9%" }} />
+              </colgroup>
+              <thead>
                 <tr>
-                  <th className="px-5 py-3 font-semibold">{t.engagements.client}</th>
-                  <th className="px-5 py-3 font-semibold">{t.engagements.fiscalYear}</th>
-                  <th className="px-5 py-3 font-semibold">{t.engagements.periodEnd}</th>
-                  <th className="px-5 py-3 font-semibold">{t.engagements.phase}</th>
-                  <th className="px-5 py-3" />
+                  <th className={th}>{te.title}</th>
+                  <th className={th}>{te.fiscalYear}</th>
+                  <th className={th}>{te.partner}</th>
+                  <th className={th}>{te.stage}</th>
+                  <th className={th}>{te.progress}</th>
+                  <th className={th}>{te.deadlineCol}</th>
+                  <th className={th}>{te.lastActivity}</th>
+                  <th className={`${th} text-right`} />
                 </tr>
               </thead>
               <tbody>
-                {engagements.map((engagement) => (
-                  <tr
-                    key={engagement.id}
-                    className="border-t border-line transition-colors hover:bg-surface-2"
-                  >
-                    <td className="px-5 py-3 font-medium text-ink">
-                      {engagement.name ?? engagement.clientName}
-                      {engagement.name ? (
-                        <span className="block text-xs font-normal text-muted">{engagement.clientName}</span>
-                      ) : null}
-                    </td>
-                    <td className="px-5 py-3 text-ink-soft tnum">
-                      {engagement.fiscalYear}
-                    </td>
-                    <td className="px-5 py-3 text-ink-soft tnum">
-                      {engagement.periodEnd}
-                    </td>
-                    <td className="px-5 py-3 text-ink-soft">
-                      {t.engagements.phases[engagement.phase]}
-                    </td>
-                    <td className="px-5 py-3 text-right">
-                      <Link
-                        href={`/engagements/${engagement.id}/dashboard`}
-                        className="inline-flex min-h-[24px] items-center font-medium text-emerald-700 hover:underline dark:text-emerald-400"
-                      >
-                        {t.engagements.open}
-                      </Link>
-                    </td>
-                  </tr>
+                {rows.map((row) => (
+                  <RegisterRow key={row.id} row={row} />
                 ))}
               </tbody>
             </table>

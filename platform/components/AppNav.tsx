@@ -51,9 +51,10 @@ export async function AppNav({
   const roleLabel = user?.role ? String(user.role).replaceAll("_", " ") : "";
   const currentLabel = current?.label ?? recent[0]?.title ?? null;
 
+  // Clients left the primary nav (IA audit, Part 4): the entity directory now
+  // lives under Settings; entity records are reached from each engagement hub.
   const links = [
     { href: "/dashboard", label: t.nav.dashboard },
-    { href: "/clients", label: t.nav.clients },
     { href: "/engagements", label: t.nav.engagements },
   ];
 

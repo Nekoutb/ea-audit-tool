@@ -104,8 +104,8 @@ export default async function EngagementDashboardPage(props: {
   const totalTasks = sections.reduce((sum, s) => sum + s.total, 0);
   const overall = totalTasks > 0 ? Math.round((doneTasks / totalTasks) * 100) : 0;
   const nextDeadline = dash.nextDeadlines[0] ?? null;
-  const phaseLabel =
-    engagement.phase === "archived" ? t.engagements.phases.archived : td.phaseNames[engagement.phase];
+  // One stage vocabulary everywhere (register, hub, entity history).
+  const phaseLabel = t.engagements.stages[engagement.phase];
 
   return (
     <main className="flex min-h-screen w-full flex-col gap-3 px-4 py-4 sm:px-6">
@@ -132,6 +132,14 @@ export default async function EngagementDashboardPage(props: {
             {t.engagements.fiscalYear} {engagement.fiscalYear}
             <span className="px-2 text-line-strong">·</span>
             {t.engagements.periodEnd}: {engagement.periodEnd}
+            <span className="px-2 text-line-strong">·</span>
+            <Link
+              href={`/clients/${engagement.clientId}`}
+              data-testid="entity-link"
+              className="font-semibold text-emerald-700 hover:underline dark:text-emerald-400"
+            >
+              {td.aboutEntity.replace("{name}", engagement.clientName)} →
+            </Link>
           </p>
         </div>
         <div className="text-right">
@@ -224,7 +232,7 @@ export default async function EngagementDashboardPage(props: {
               <PanelHeader title={td.activity.title} />
             </div>
             <div className="flex flex-col gap-3.5 p-5">
-              <StatCell label={td.currentPhase} value={phaseLabel} right={<Chip tone="warn">Active</Chip>} />
+              <StatCell label={td.currentPhase} value={phaseLabel} right={<Chip tone="warn">{td.activeLabel}</Chip>} />
               <StatCell
                 label={td.nextDeadline}
                 value={nextDeadline ? nextDeadline.dueDate : "—"}
