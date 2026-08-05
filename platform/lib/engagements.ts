@@ -64,10 +64,12 @@ export interface EngagementRegisterRow extends EngagementSummary {
   tasksTotal: number;
   lastActivity: string | null;
   reportDate: string | null;
+  /** The signed-in user is on this engagement's team or owns tasks in it. */
+  isMine: boolean;
 }
 
 export async function listEngagements(clientId?: string): Promise<EngagementRegisterRow[]> {
-  const { tenantId } = await requireTenant();
+  const { tenantId, userId } = await requireTenant();
   return withTenant(tenantId, async (tx) => {
     const result = await tx.query<
       EngagementRow & {
@@ -76,6 +78,7 @@ export async function listEngagements(clientId?: string): Promise<EngagementRegi
         tasks_total: string;
         last_activity: string | null;
         report_date: string | null;
+        is_mine: boolean;
       }
     >(
       `SELECT e.id, e.client_id, c.name AS client_name, e.fiscal_year,
@@ -92,12 +95,14 @@ export async function listEngagements(clientId?: string): Promise<EngagementRegi
                 WHERE fi.engagement_id = e.id AND fi.conditional = false)::text AS tasks_total,
               to_char((SELECT max(al.created_at) FROM activity_log al
                         WHERE al.engagement_id = e.id), 'YYYY-MM-DD') AS last_activity,
-              to_char(e.report_date, 'YYYY-MM-DD') AS report_date
+              to_char(e.report_date, 'YYYY-MM-DD') AS report_date,
+              (EXISTS (SELECT 1 FROM team_member tm WHERE tm.engagement_id = e.id AND tm.user_id = $2)
+               OR EXISTS (SELECT 1 FROM file_item fi WHERE fi.engagement_id = e.id AND fi.owner_id = $2)) AS is_mine
          FROM engagement e
          JOIN client c ON c.id = e.client_id
         WHERE ($1::uuid IS NULL OR e.client_id = $1)
         ORDER BY e.fiscal_year DESC, c.name`,
-      [clientId ?? null],
+      [clientId ?? null, userId],
     );
     return result.rows.map((row) => ({
       ...toSummary(row),
@@ -106,6 +111,7 @@ export async function listEngagements(clientId?: string): Promise<EngagementRegi
       tasksTotal: Number(row.tasks_total),
       lastActivity: row.last_activity,
       reportDate: row.report_date,
+      isMine: row.is_mine,
     }));
   });
 }

@@ -170,3 +170,97 @@ export async function firmDashboard(): Promise<FirmDashboard> {
     };
   });
 }
+
+/** One actionable row on My Audit Portfolio — always deep-links somewhere. */
+export interface PortfolioAction {
+  kind: "review" | "notes" | "independence" | "acceptance";
+  engagementId: string;
+  label: string;
+  count: number;
+  href: string;
+}
+
+/**
+ * The personalised priority-action queue (IA audit, Part 5A §①): workpapers
+ * awaiting review, open review notes on the user's own tasks, the user's
+ * pending independence confirmation, and acceptances awaiting partner
+ * sign-off. Reviewer-facing rows are for the caller to gate by role.
+ */
+export async function portfolioActions(): Promise<PortfolioAction[]> {
+  const { tenantId, userId } = await requireTenant();
+  return withTenant(tenantId, async (tx) => {
+    const [review, notes, independence, acceptance] = await Promise.all([
+      tx.query<{ id: string; label: string; n: string }>(
+        `SELECT e.id, coalesce(e.name, c.name) AS label, count(*)::text AS n
+           FROM file_item fi
+           JOIN engagement e ON e.id = fi.engagement_id
+           JOIN client c ON c.id = e.client_id
+          WHERE e.phase <> 'archived' AND fi.conditional = false
+            AND EXISTS (SELECT 1 FROM document d
+                          JOIN signoff s ON s.document_id = d.id
+                           AND s.role = 'preparer' AND s.voided_at IS NULL
+                         WHERE d.file_item_id = fi.id)
+            AND NOT EXISTS (SELECT 1 FROM document d
+                          JOIN signoff s ON s.document_id = d.id
+                           AND s.role IN ('reviewer', 'partner') AND s.voided_at IS NULL
+                         WHERE d.file_item_id = fi.id)
+          GROUP BY e.id, label
+          ORDER BY count(*) DESC
+          LIMIT 6`,
+      ),
+      tx.query<{ id: string; label: string; n: string }>(
+        `SELECT e.id, coalesce(e.name, c.name) AS label, count(*)::text AS n
+           FROM review_note rn
+           JOIN document d ON d.id = rn.document_id
+           JOIN file_item fi ON fi.id = d.file_item_id
+           JOIN engagement e ON e.id = fi.engagement_id
+           JOIN client c ON c.id = e.client_id
+          WHERE rn.status = 'open' AND fi.owner_id = $1 AND e.phase <> 'archived'
+          GROUP BY e.id, label
+          LIMIT 6`,
+        [userId],
+      ),
+      tx.query<{ id: string; label: string; token: string }>(
+        `SELECT e.id, coalesce(e.name, c.name) AS label, ic.token
+           FROM independence_confirmation ic
+           JOIN independence_campaign cam ON cam.id = ic.campaign_id
+           JOIN engagement e ON e.id = cam.engagement_id
+           JOIN client c ON c.id = e.client_id
+          WHERE ic.user_id = $1 AND ic.status IN ('sent', 'opened')
+          LIMIT 6`,
+        [userId],
+      ),
+      tx.query<{ id: string; label: string }>(
+        `SELECT e.id, coalesce(e.name, c.name) AS label
+           FROM engagement e
+           JOIN client c ON c.id = e.client_id
+          WHERE e.phase = 'acceptance'
+            AND EXISTS (SELECT 1 FROM file_item fi
+                          JOIN document d ON d.file_item_id = fi.id AND d.kind = 'workpaper'
+                          JOIN signoff s ON s.document_id = d.id
+                           AND s.role = 'preparer' AND s.voided_at IS NULL
+                         WHERE fi.engagement_id = e.id AND fi.code = 'D3.1')
+            AND NOT EXISTS (SELECT 1 FROM file_item fi
+                          JOIN document d ON d.file_item_id = fi.id AND d.kind = 'workpaper'
+                          JOIN signoff s ON s.document_id = d.id
+                           AND s.role = 'partner' AND s.voided_at IS NULL
+                         WHERE fi.engagement_id = e.id AND fi.code = 'D3.1')
+          LIMIT 6`,
+      ),
+    ]);
+    const actions: PortfolioAction[] = [];
+    for (const row of independence.rows) {
+      actions.push({ kind: "independence", engagementId: row.id, label: row.label, count: 1, href: `/independence/${row.token}` });
+    }
+    for (const row of notes.rows) {
+      actions.push({ kind: "notes", engagementId: row.id, label: row.label, count: Number(row.n), href: `/engagements/${row.id}/dashboard` });
+    }
+    for (const row of review.rows) {
+      actions.push({ kind: "review", engagementId: row.id, label: row.label, count: Number(row.n), href: `/engagements/${row.id}/dashboard` });
+    }
+    for (const row of acceptance.rows) {
+      actions.push({ kind: "acceptance", engagementId: row.id, label: row.label, count: 1, href: `/engagements/${row.id}/acceptance` });
+    }
+    return actions;
+  });
+}

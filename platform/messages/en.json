@@ -164,7 +164,20 @@
     "portfolioHint": "What needs your attention, your engagements, and firm-wide exceptions.",
     "activeLabel": "Active",
     "aboutEntity": "About {name}",
-    "byStage": "Engagements by stage"
+    "byStage": "Engagements by stage",
+    "priority": {
+      "title": "Priority actions",
+      "empty": "Nothing waiting on you — open the register to pick up work.",
+      "review": "{n} workpaper(s) awaiting review",
+      "notes": "{n} open review note(s) on your tasks",
+      "independence": "Your independence confirmation is pending",
+      "acceptance": "Acceptance awaits partner sign-off"
+    },
+    "myEngagements": {
+      "title": "My engagements",
+      "continueLabel": "Continue",
+      "empty": "You are not assigned to any engagement yet."
+    }
   },
   "engagementDashboard": {
     "phase": "Phase",
@@ -453,7 +466,13 @@
     "deadlineCol": "Deadline",
     "never": "—",
     "newEntity": "+ New entity…",
-    "newEntityHint": "Creates the entity record together with its first engagement."
+    "newEntityHint": "Creates the entity record together with its first engagement.",
+    "searchPlaceholder": "Search engagement or client…",
+    "filterYear": "Year",
+    "filterPartner": "Partner",
+    "filterMine": "My engagements",
+    "allOption": "All",
+    "clearFilters": "Clear"
   },
   "fileIndex": {
     "title": "Audit file",

@@ -164,7 +164,20 @@
     "portfolioHint": "Ce qui requiert votre attention, vos missions et les exceptions du cabinet.",
     "activeLabel": "En cours",
     "aboutEntity": "À propos de {name}",
-    "byStage": "Missions par étape"
+    "byStage": "Missions par étape",
+    "priority": {
+      "title": "Actions prioritaires",
+      "empty": "Rien en attente — ouvrez le registre pour reprendre le travail.",
+      "review": "{n} papier(s) de travail en attente de revue",
+      "notes": "{n} note(s) de revue ouverte(s) sur vos tâches",
+      "independence": "Votre confirmation d’indépendance est en attente",
+      "acceptance": "Acceptation en attente du visa associé"
+    },
+    "myEngagements": {
+      "title": "Mes missions",
+      "continueLabel": "Continuer",
+      "empty": "Vous n’êtes affecté à aucune mission pour le moment."
+    }
   },
   "engagementDashboard": {
     "phase": "Phase",
@@ -453,7 +466,13 @@
     "deadlineCol": "Échéance",
     "never": "—",
     "newEntity": "+ Nouvelle entité…",
-    "newEntityHint": "Crée le dossier entité en même temps que sa première mission."
+    "newEntityHint": "Crée le dossier entité en même temps que sa première mission.",
+    "searchPlaceholder": "Rechercher une mission ou une entité…",
+    "filterYear": "Année",
+    "filterPartner": "Associé",
+    "filterMine": "Mes missions",
+    "allOption": "Toutes",
+    "clearFilters": "Effacer"
   },
   "fileIndex": {
     "title": "Dossier d'audit",
