@@ -67,8 +67,66 @@ const D31: WorkpaperTemplate = {
   },
 };
 
+const E500_ITGC: WorkpaperTemplate = {
+  id: "E500-itgc",
+  version: 1,
+  purpose: {
+    en: "Test the design and operating effectiveness of general IT controls (ITGCs) over the systems relevant to financial reporting, to support reliance on automated controls and system-generated reports (ISA 315 (Revised 2019) Appendices 5–6, ISA 330).",
+    fr: "Tester la conception et l'efficacité opérationnelle des contrôles généraux informatiques (CGI) sur les systèmes pertinents pour l'information financière, afin d'appuyer la confiance accordée aux contrôles automatisés et aux états générés par les systèmes (ISA 315 (révisée 2019) annexes 5–6, ISA 330).",
+  },
+  items: {
+    en: [
+      "Confirm the scope from ST4.1 (Understanding the IT Environment): applications, databases, operating systems and interfaces relevant to financial reporting.",
+      "Access to programs and data: test user provisioning and de-provisioning, privileged access, password parameters and the periodic access review.",
+      "Program changes: test that changes are authorised, tested, approved and segregated (developer ≠ migrator) before moving to production.",
+      "Program development / acquisition: assess controls over new systems or major upgrades implemented in the period, including data migration.",
+      "Computer operations: test job scheduling and monitoring, backup and restore, and IT incident management.",
+      "Evaluate exceptions: assess the effect of ITGC deficiencies on planned reliance on automated controls and key reports; design compensating procedures where reliance is not supported.",
+      "Conclude on ITGC reliance and document the effect on the control-testing strategy for the transaction cycles (E1) and accounts (E3).",
+    ],
+    fr: [
+      "Confirmer le périmètre issu de ST4.1 (connaissance de l'environnement informatique) : applications, bases de données, systèmes d'exploitation et interfaces pertinents pour l'information financière.",
+      "Accès aux programmes et aux données : tester la création et la désactivation des comptes, les accès privilégiés, les paramètres de mots de passe et la revue périodique des accès.",
+      "Modifications des programmes : tester que les changements sont autorisés, testés, approuvés et que les fonctions sont séparées (développeur ≠ responsable de mise en production).",
+      "Développement / acquisition : évaluer les contrôles sur les nouveaux systèmes ou évolutions majeures de la période, y compris la migration des données.",
+      "Exploitation informatique : tester l'ordonnancement et la supervision des traitements, les sauvegardes et restaurations, et la gestion des incidents.",
+      "Évaluer les exceptions : apprécier l'incidence des faiblesses de CGI sur la confiance prévue dans les contrôles automatisés et les états clés ; concevoir des procédures compensatoires si nécessaire.",
+      "Conclure sur la confiance accordée aux CGI et documenter l'incidence sur la stratégie de tests de contrôles des cycles (E1) et des comptes (E3).",
+    ],
+  },
+};
+
+const E510_APP_CONTROLS: WorkpaperTemplate = {
+  id: "E510-application-controls",
+  version: 1,
+  purpose: {
+    en: "Test the key automated application controls, interface controls and IT-dependent manual controls (including system-generated reports) on which the audit strategy places reliance (ISA 330).",
+    fr: "Tester les contrôles applicatifs automatisés clés, les contrôles d'interfaces et les contrôles manuels dépendants de l'informatique (y compris les états générés par les systèmes) sur lesquels la stratégie d'audit s'appuie (ISA 330).",
+  },
+  items: {
+    en: [
+      "Identify the automated controls and key system-generated reports relied upon, per significant transaction class (E1) and account section (E3).",
+      "For each automated control, test the configuration/parameters and one instance of operation (benchmarking is permitted only where ITGCs (E500) are effective).",
+      "Test the completeness and accuracy of key system-generated reports used as audit evidence or within management's controls.",
+      "Test interface controls over data transfers between in-scope systems (completeness, accuracy, error handling).",
+      "Evaluate exceptions: reassess control risk and extend substantive procedures where reliance is not supported.",
+      "Conclude on application-control reliance and update the risk–response mapping (ST6.1) where the strategy changes.",
+    ],
+    fr: [
+      "Identifier les contrôles automatisés et les états clés générés par les systèmes sur lesquels l'audit s'appuie, par flux significatif (E1) et par section de comptes (E3).",
+      "Pour chaque contrôle automatisé, tester le paramétrage et une occurrence de fonctionnement (l'approche « benchmark » n'est admise que si les CGI (E500) sont efficaces).",
+      "Tester l'exhaustivité et l'exactitude des états clés générés par les systèmes utilisés comme éléments probants ou dans les contrôles de la direction.",
+      "Tester les contrôles d'interfaces sur les transferts de données entre systèmes du périmètre (exhaustivité, exactitude, traitement des rejets).",
+      "Évaluer les exceptions : réapprécier le risque lié aux contrôles et étendre les procédures de corroboration si la confiance n'est pas justifiée.",
+      "Conclure sur la confiance accordée aux contrôles applicatifs et mettre à jour le lien risques–réponses (ST6.1) si la stratégie évolue.",
+    ],
+  },
+};
+
 const TEMPLATES: Record<string, WorkpaperTemplate> = {
   "D3.1": D31,
+  E500: E500_ITGC,
+  E510: E510_APP_CONTROLS,
 };
 
 /** Resolve the template for a file-index code (falls back to the generic form). */

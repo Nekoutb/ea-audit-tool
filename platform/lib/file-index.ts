@@ -100,6 +100,9 @@ export const DEFAULT_FILE_INDEX: readonly FileIndexEntry[] = [
   { code: "E370", section: "E", titleEn: "Opening Balances & Comparatives (ISA 510/710)", titleFr: "Soldes d'ouverture et chiffres comparatifs (ISA 510/710)" },
   { code: "E380", section: "E", titleEn: "Subsequent Events (ISA 560)", titleFr: "Événements postérieurs à la clôture (ISA 560)" },
   { code: "E390", section: "E", titleEn: "Accounting Estimates (ISA 540)", titleFr: "Estimations comptables (ISA 540)" },
+  // E2 (IT) group of the ST/E/C hierarchy — general and application IT controls.
+  { code: "E500", section: "E", titleEn: "ITGC Testing", titleFr: "Tests des contrôles généraux informatiques" },
+  { code: "E510", section: "E", titleEn: "Application & IT-Dependent Controls", titleFr: "Contrôles applicatifs et dépendants de l'informatique" },
 
   // F — OHADA statutory section
   { code: "F1", section: "F", titleEn: "Statutory Deadlines Calendar", titleFr: "Calendrier des échéances légales" },
@@ -173,6 +176,8 @@ const SHORT_TITLES: Record<string, { en: string; fr: string }> = {
   E370: { en: "Opening Balances (ISA 510/710)", fr: "Soldes d'ouverture (ISA 510/710)" },
   E380: { en: "Subsequent Events (ISA 560)", fr: "Événements postérieurs (ISA 560)" },
   E390: { en: "Accounting Estimates (ISA 540)", fr: "Estimations comptables (ISA 540)" },
+  E500: { en: "ITGC Testing", fr: "Contrôles généraux informatiques" },
+  E510: { en: "Application Controls", fr: "Contrôles applicatifs" },
   F1: { en: "Statutory Deadlines Calendar", fr: "Calendrier des échéances légales" },
   F2: { en: "Conventions Réglementées", fr: "Conventions réglementées" },
   F3: { en: "Article 715 Board Report", fr: "Rapport article 715" },

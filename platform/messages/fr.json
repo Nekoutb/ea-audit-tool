@@ -145,7 +145,8 @@
       "groups": "groupes de tâches",
       "groupsHint": "Les tâches détaillées s’ouvrent sur la page du groupe — cliquez sur un groupe.",
       "refDocs": "Documents de référence",
-      "due": "échéance"
+      "due": "échéance",
+      "addMissing": "Ajouter les tâches manquantes ({n})"
     },
     "tiles": {
       "mySummary": "Ma synthèse mission",

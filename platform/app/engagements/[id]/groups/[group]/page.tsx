@@ -1,9 +1,11 @@
 import { notFound, redirect } from "next/navigation";
 import { auth } from "@/auth";
+import { instantiateGroupTasksAction } from "@/app/actions/audit-file";
 import { AppNav } from "@/components/AppNav";
 import { ErrorBanner } from "@/components/GatesPanel";
 import { NavLink } from "@/components/NavLink";
 import { PhaseTaskRow, type PhaseRowData } from "@/components/PhaseTaskRow";
+import { SubmitButton } from "@/components/SubmitButton";
 import { Panel, PanelHeader } from "@/components/ui/atlas";
 import {
   PHASE_SLUG_OF,
@@ -19,6 +21,7 @@ import { shortTitle } from "@/lib/file-index";
 import { FORM_DEFINITIONS } from "@/lib/forms";
 import { getMessages } from "@/lib/i18n";
 import { getLocale } from "@/lib/locale";
+import { canReview } from "@/lib/rbac";
 import { GROUP_BY_ID, displayCode, groupTitle, sectionLabel } from "@/lib/task-groups";
 
 export async function generateMetadata(props: { params: Promise<{ group: string }> }) {
@@ -178,8 +181,20 @@ export default async function GroupTasksPage(props: {
       <ErrorBanner error={error} locale={locale} />
 
       <Panel flush className="flex flex-col">
-        <div className="border-b border-line px-5 py-3.5">
+        <div className="flex flex-wrap items-center justify-between gap-3 border-b border-line px-5 py-3.5">
           <PanelHeader title={td.taskList} right={<span className="text-xs font-semibold text-muted tnum">{tasks.length}</span>} />
+          {tasks.length < g.members.length && canReview(session.user.role) ? (
+            <form action={instantiateGroupTasksAction}>
+              <input type="hidden" name="engagementId" value={id} />
+              <input type="hidden" name="group" value={group} />
+              <SubmitButton
+                className="rounded-full border border-line-strong px-3.5 py-1.5 text-[12px] font-semibold text-ink-soft hover:bg-surface-2"
+                testId="add-group-tasks"
+              >
+                {td.stage.addMissing.replace("{n}", String(g.members.length - tasks.length))}
+              </SubmitButton>
+            </form>
+          ) : null}
         </div>
         <div className="overflow-x-auto" data-testid="group-task-list">
           {tasks.length === 0 ? (

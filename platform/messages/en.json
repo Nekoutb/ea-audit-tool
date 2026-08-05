@@ -145,7 +145,8 @@
       "groups": "task groups",
       "groupsHint": "Detail tasks open on the group page — click a group.",
       "refDocs": "Reference documents",
-      "due": "due"
+      "due": "due",
+      "addMissing": "Add the missing tasks ({n})"
     },
     "tiles": {
       "mySummary": "My engagement summary",

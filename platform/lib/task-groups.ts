@@ -36,7 +36,7 @@ export const TASK_GROUPS: TaskGroupDef[] = [
   { id: "st6", code: "ST6", section: "strategy", titleEn: "Risk Register & Response Plan", titleFr: "Registre des risques & Réponses", members: ["D7.2"] },
   // ---- Execution (E) ----
   { id: "e1", code: "E1", section: "execution", titleEn: "Significant Transaction Classes", titleFr: "Flux de transactions significatifs", members: ["E100", "E110", "E120"] },
-  { id: "e2", code: "E2", section: "execution", titleEn: "IT", titleFr: "Informatique", members: [] },
+  { id: "e2", code: "E2", section: "execution", titleEn: "IT", titleFr: "Informatique", members: ["E500", "E510"] },
   { id: "e3", code: "E3", section: "execution", titleEn: "Accounts", titleFr: "Comptes", members: ["E130", "E140", "E150", "E160", "E170", "E180", "E190", "E200", "E210", "E220", "E230", "E270", "E280"] },
   { id: "e4", code: "E4", section: "execution", titleEn: "General", titleFr: "Général", members: ["E310", "E320", "E330", "E360", "E370", "E380", "E390"] },
   { id: "e5", code: "E5", section: "execution", titleEn: "Response Tasks", titleFr: "Tâches de réponse", members: ["E350"] },

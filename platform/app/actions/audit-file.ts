@@ -181,6 +181,53 @@ export async function setDueDateAction(formData: FormData): Promise<void> {
   redirect(back);
 }
 
+/**
+ * Add a group's not-yet-instantiated tasks to an existing engagement — e.g.
+ * the E2 (IT) tasks shipped after the engagement was created. Idempotent
+ * (UNIQUE(engagement_id, code)); senior+ only.
+ */
+export async function instantiateGroupTasksAction(formData: FormData): Promise<void> {
+  const engagementId = String(formData.get("engagementId") ?? "");
+  const groupId = String(formData.get("group") ?? "");
+  const back = `/engagements/${engagementId}/groups/${groupId}`;
+  const { GROUP_BY_ID } = await import("@/lib/task-groups");
+  const { DEFAULT_FILE_INDEX } = await import("@/lib/file-index");
+  const { requireTenant } = await import("@/lib/tenant");
+  const { withTenant } = await import("@/lib/db");
+  const { canReview } = await import("@/lib/rbac");
+  const group = GROUP_BY_ID[groupId];
+  if (!engagementId || !group) redirect("/engagements");
+  const { tenantId, role } = await requireTenant();
+  if (!canReview(role)) redirect(back);
+  await withTenant(tenantId, async (tx) => {
+    const max = await tx.query<{ m: string | null }>(
+      "SELECT max(sort_order)::text AS m FROM file_item WHERE engagement_id = $1",
+      [engagementId],
+    );
+    let sort = Number(max.rows[0]?.m ?? 0);
+    for (const code of group.members) {
+      const entry = DEFAULT_FILE_INDEX.find((e) => e.code === code);
+      if (!entry) continue;
+      sort += 10;
+      await tx.query(
+        `INSERT INTO file_item (tenant_id, engagement_id, code, section, title_en, title_fr, sort_order, conditional)
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+         ON CONFLICT (engagement_id, code) DO NOTHING`,
+        [tenantId, engagementId, entry.code, entry.section, entry.titleEn, entry.titleFr, sort, entry.conditional ?? false],
+      );
+    }
+  });
+  await recordActivity({
+    engagementId,
+    entityType: "engagement",
+    entityId: engagementId,
+    action: "tasks_added",
+    summary: `${group.code} tasks instantiated`,
+  });
+  revalidatePath(back);
+  redirect(back);
+}
+
 export async function signOffPreparerAction(formData: FormData): Promise<void> {
   await signOffFromList(formData, "preparer");
 }
