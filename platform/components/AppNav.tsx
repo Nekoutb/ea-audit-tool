@@ -37,9 +37,7 @@ export async function AppNav({
     recent = r.map((e) => ({
       id: e.id,
       title: e.name ?? e.clientName,
-      meta: `FY${e.fiscalYear} · ${
-        e.phase === "archived" ? t.engagements.phases.archived : t.dashboard.phaseNames[e.phase]
-      }`,
+      meta: `FY${e.fiscalYear} · ${t.engagements.stages[e.phase]}`,
       active: current ? e.id === current.id : false,
     }));
   } catch {

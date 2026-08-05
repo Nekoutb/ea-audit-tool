@@ -173,6 +173,8 @@ export default async function EngagementDashboardPage(props: {
             <div className="text-[10.5px] font-extrabold uppercase tracking-[0.08em] text-muted">{td.stage.refDocs}</div>
             <div className="mt-2 flex flex-wrap gap-1.5">
               {[
+                { href: `/engagements/${id}/tasks`, label: locale === "fr" ? "Mes tâches" : "My Tasks" },
+                { href: `/engagements/${id}/cra`, label: "CRA" },
                 { href: `/engagements/${id}/data`, label: t.planning.dataTitle },
                 { href: `/engagements/${id}/pbc`, label: t.pbc.title },
                 { href: `/engagements/${id}/legal`, label: t.planning.legal.title },

@@ -23,7 +23,7 @@ import {
 import { getEngagement } from "@/lib/engagements";
 import { shortTitle } from "@/lib/file-index";
 import { fieldLabel, FORM_DEFINITIONS, loadForm } from "@/lib/forms";
-import { listReviewNotes, type ReviewNoteInfo } from "@/lib/documents";
+import { listReviewNotes, listVersions, type ReviewNoteInfo, type VersionInfo } from "@/lib/documents";
 import { getMessages } from "@/lib/i18n";
 import { getLocale } from "@/lib/locale";
 import { appliedTemplate } from "@/lib/template-overrides";
@@ -96,7 +96,9 @@ export default async function FormPage(props: {
   const backLabel = group
     ? tk.backTo.replace("{phase}", `${group.code} · ${groupTitle(group, locale)}`)
     : tk.backTo.replace("{phase}", t.dashboard.phaseNames[phase]);
-  const notes: ReviewNoteInfo[] = task?.documentId ? await listReviewNotes(task.documentId) : [];
+  const [notes, versions]: [ReviewNoteInfo[], VersionInfo[]] = task?.documentId
+    ? await Promise.all([listReviewNotes(task.documentId), listVersions(task.documentId)])
+    : [[], []];
 
   const deadlineIso = task?.dueDate ?? phaseDeadline(engagement.periodEnd, phase);
   const now = new Date();
@@ -169,6 +171,30 @@ export default async function FormPage(props: {
             <span className="font-semibold text-emerald-700 dark:text-emerald-400">{t.dashboard.deadlineTag.onTrack}</span>
           )}
         </p>
+
+        {/* META STRIP (Canvas-style): assignee · sign-off state · workpaper versions */}
+        <div
+          data-testid="task-meta-strip"
+          className="mt-2 flex flex-wrap items-center gap-x-5 gap-y-1.5 text-[12px] text-muted"
+        >
+          <span className="inline-flex items-center gap-1.5">
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden>
+              <circle cx="12" cy="8" r="4" />
+              <path d="M4 21c0-4 3.6-6.5 8-6.5s8 2.5 8 6.5" />
+            </svg>
+            <span className="font-semibold text-ink-soft">{task?.ownerName ?? "—"}</span>
+          </span>
+          <span className="inline-flex items-center gap-1.5">
+            <span className={`sobox ${task?.preparerName ? "p" : "off"}`} aria-hidden>P</span>
+            <span className={`sobox ${task?.reviewerName ? "r" : "off"}`} aria-hidden>R</span>
+          </span>
+          {task?.documentId ? (
+            <span className="tnum">
+              {versions.length} version{versions.length === 1 ? "" : "s"}
+            </span>
+          ) : null}
+        </div>
+
         {task ? (
           <form action={setDueDateAction} className="mt-2 flex flex-wrap items-center gap-2">
             <input type="hidden" name="fileItemId" value={task.id} />
@@ -279,6 +305,63 @@ export default async function FormPage(props: {
             );
           })}
         </form>
+      </Panel>
+
+      {/* EVIDENCE: workpaper version trail + open link (canvas block 4b) */}
+      <Panel data-testid="task-evidence">
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <div className="text-[11px] font-extrabold uppercase tracking-[0.06em] text-muted">
+            {locale === "fr" ? "Éléments probants" : "Evidence"}
+          </div>
+          {task?.documentId ? (
+            <NavLink
+              href={`/documents/${task.documentId}`}
+              className="text-[13px] font-semibold text-emerald-700 hover:underline dark:text-emerald-400"
+              testId="open-workpaper"
+            >
+              {locale === "fr" ? "Ouvrir la feuille de travail →" : "Open working paper →"}
+            </NavLink>
+          ) : null}
+        </div>
+        {task?.documentId ? (
+          <div className="mt-2">
+            {versions.slice(0, 8).map((version) => (
+              <div
+                key={version.versionNo}
+                className="flex items-center gap-2.5 border-t border-line py-2 text-[13px] first:border-t-0"
+              >
+                <svg
+                  width="14"
+                  height="14"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="2"
+                  className="flex-shrink-0 text-muted"
+                  aria-hidden
+                >
+                  <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+                  <path d="M14 2v6h6" />
+                </svg>
+                <span className="font-mono text-xs font-semibold text-ink tnum">v{version.versionNo}</span>
+                <span className="min-w-0 flex-1 truncate text-ink-soft">{version.note ?? ""}</span>
+                <span className="flex-shrink-0 text-[12px] text-muted tnum">{version.createdAt}</span>
+                <a
+                  href={`/api/documents/${task.documentId}/versions/${version.versionNo}`}
+                  className="flex-shrink-0 font-medium text-emerald-700 hover:underline dark:text-emerald-400"
+                >
+                  {t.document.download}
+                </a>
+              </div>
+            ))}
+          </div>
+        ) : (
+          <p className="mt-2 text-[13px] text-muted">
+            {locale === "fr"
+              ? "Pas encore de feuille de travail — « Enregistrer et transmettre » la crée."
+              : "No working paper yet — Save & hand off creates it."}
+          </p>
+        )}
       </Panel>
 
       {/* SIGN-OFF footer bar (canvas block 5) */}
