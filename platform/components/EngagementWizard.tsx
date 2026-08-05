@@ -30,6 +30,12 @@ export interface WizardLabels {
   no: string;
   partnerLabel: string;
   partnerNone: string;
+  newEntity: string;
+  newEntityHint: string;
+  entityName: string;
+  legalForm: string;
+  listed: string;
+  coCac: string;
 }
 
 const LEVEL_TONE: Record<EngagementComplexity, "rose" | "warn" | "good"> = {
@@ -44,9 +50,13 @@ const LEVEL_TONE: Record<EngagementComplexity, "rose" | "warn" | "good"> = {
  * a live classification preview. The server action recomputes the classification
  * from the raw answers — the preview is informational.
  */
+/** Sentinel select value: create the entity together with the engagement. */
+const NEW_ENTITY = "__new";
+
 export function EngagementWizard({
   clients,
   partners,
+  legalForms,
   defaultClientId,
   namingPattern,
   labels,
@@ -54,19 +64,22 @@ export function EngagementWizard({
   clients: { id: string; name: string }[];
   /** Firm users offered as engagement partner (default reviewer). */
   partners: { id: string; name: string }[];
+  legalForms: readonly string[];
   defaultClientId?: string;
   namingPattern: string;
   labels: WizardLabels;
 }) {
   const currentYear = new Date().getFullYear();
-  const [clientId, setClientId] = useState(defaultClientId ?? clients[0]?.id ?? "");
+  const [clientId, setClientId] = useState(defaultClientId ?? clients[0]?.id ?? NEW_ENTITY);
+  const [newEntityName, setNewEntityName] = useState("");
   const [year, setYear] = useState(String(currentYear));
   const [name, setName] = useState<string | null>(null); // null = follow convention
   const [answers, setAnswers] = useState<ComplexityAnswers>(
     Object.fromEntries(COMPLEXITY_QUESTIONS.map((q) => [q.key, false])),
   );
 
-  const clientName = clients.find((c) => c.id === clientId)?.name ?? "";
+  const isNewEntity = clientId === NEW_ENTITY;
+  const clientName = isNewEntity ? newEntityName : (clients.find((c) => c.id === clientId)?.name ?? "");
   const conventionName = applyNamingConvention(namingPattern, clientName, year || currentYear);
   const effectiveName = name ?? conventionName;
   const { level } = useMemo(() => classifyComplexity(answers), [answers]);
@@ -95,6 +108,7 @@ export function EngagementWizard({
                   {c.name}
                 </option>
               ))}
+              <option value={NEW_ENTITY}>{labels.newEntity}</option>
             </select>
           </label>
           <label className={label}>
@@ -147,6 +161,40 @@ export function EngagementWizard({
             </select>
           </label>
         </div>
+        {isNewEntity ? (
+          <div className="mt-4 rounded-[var(--radius-atlas-sm)] border border-line bg-surface-2 p-4">
+            <p className="mb-3 text-xs font-semibold text-ink-soft">{labels.newEntityHint}</p>
+            <div className="flex flex-wrap items-end gap-4">
+              <label className={label}>
+                {labels.entityName}
+                <input
+                  name="newEntityName"
+                  required
+                  value={newEntityName}
+                  onChange={(e) => setNewEntityName(e.target.value)}
+                  className={input}
+                  data-testid="new-entity-name"
+                />
+              </label>
+              <label className={label}>
+                {labels.legalForm}
+                <select name="newEntityLegalForm" defaultValue="SA" className={input} data-testid="new-entity-legal-form">
+                  {legalForms.map((form) => (
+                    <option key={form} value={form}>
+                      {form}
+                    </option>
+                  ))}
+                </select>
+              </label>
+              <label className="flex items-center gap-2 pb-2 text-sm text-ink-soft">
+                <input type="checkbox" name="newEntityListed" /> {labels.listed}
+              </label>
+              <label className="flex items-center gap-2 pb-2 text-sm text-ink-soft">
+                <input type="checkbox" name="newEntityCoCac" /> {labels.coCac}
+              </label>
+            </div>
+          </div>
+        ) : null}
       </Panel>
 
       <Panel flush>

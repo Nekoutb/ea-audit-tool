@@ -53,11 +53,24 @@ export async function createClientAction(formData: FormData): Promise<void> {
 }
 
 export async function createEngagementAction(formData: FormData): Promise<void> {
-  const clientId = String(formData.get("clientId") ?? "");
+  let clientId = String(formData.get("clientId") ?? "");
   const fiscalYear = Number(formData.get("fiscalYear"));
   const periodEnd = String(formData.get("periodEnd") ?? "");
   if (!clientId || !Number.isInteger(fiscalYear) || !periodEnd) {
     redirect(`/new-engagement?error=invalid-engagement`);
+  }
+  // "+ New entity…": create the reusable entity record together with its first
+  // engagement (IA audit flow F3) — one guided step, two distinct records.
+  if (clientId === "__new") {
+    const entityName = String(formData.get("newEntityName") ?? "").trim();
+    if (!entityName) redirect(`/new-engagement?error=invalid-engagement`);
+    const legalFormRaw = String(formData.get("newEntityLegalForm") ?? "SA");
+    clientId = await createClient({
+      name: entityName,
+      legalForm: isLegalForm(legalFormRaw) ? legalFormRaw : "OTHER",
+      listed: formData.get("newEntityListed") === "on",
+      coCac: formData.get("newEntityCoCac") === "on",
+    });
   }
   // Complexity assessment (lib/complexity.ts): the server recomputes the
   // classification from the raw answers — never trusts a client-side result.

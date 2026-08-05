@@ -451,7 +451,9 @@
     "hideArchived": "Hide archived",
     "rollForward": "Roll forward to FY {year}",
     "deadlineCol": "Deadline",
-    "never": "—"
+    "never": "—",
+    "newEntity": "+ New entity…",
+    "newEntityHint": "Creates the entity record together with its first engagement."
   },
   "fileIndex": {
     "title": "Audit file",

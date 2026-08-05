@@ -4,7 +4,7 @@ import { AppNav } from "@/components/AppNav";
 import { EngagementWizard } from "@/components/EngagementWizard";
 import { ErrorBanner } from "@/components/GatesPanel";
 import { getBranding } from "@/lib/branding";
-import { listClients } from "@/lib/clients";
+import { LEGAL_FORMS, listClients } from "@/lib/clients";
 import { listFirmUsers } from "@/lib/team";
 import { getMessages } from "@/lib/i18n";
 import { getLocale } from "@/lib/locale";
@@ -23,8 +23,9 @@ export default async function NewEngagementPage(props: {
   const t = getMessages(locale);
   const te = t.engagements;
 
+  // Zero clients no longer bounces to /clients — the wizard's inline
+  // "+ New entity…" step creates the first entity in place (IA audit flow F3).
   const [clients, branding, partners] = await Promise.all([listClients(), getBranding(), listFirmUsers()]);
-  if (clients.length === 0) redirect("/clients");
 
   return (
     <main className="flex min-h-screen w-full flex-col gap-4 px-6 py-4">
@@ -37,6 +38,7 @@ export default async function NewEngagementPage(props: {
       <EngagementWizard
         clients={clients.map((c) => ({ id: c.id, name: c.name }))}
         partners={partners}
+        legalForms={LEGAL_FORMS}
         defaultClientId={client}
         namingPattern={branding.engagementNaming}
         labels={{
@@ -56,6 +58,12 @@ export default async function NewEngagementPage(props: {
           no: t.common.no,
           partnerLabel: te.partnerLabel,
           partnerNone: te.partnerNone,
+          newEntity: te.newEntity,
+          newEntityHint: te.newEntityHint,
+          entityName: t.clients.name,
+          legalForm: t.clients.legalForm,
+          listed: t.clients.listed,
+          coCac: t.clients.coCac,
         }}
       />
     </main>

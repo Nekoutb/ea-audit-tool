@@ -451,7 +451,9 @@
     "hideArchived": "Masquer les archivées",
     "rollForward": "Reconduire vers FY {year}",
     "deadlineCol": "Échéance",
-    "never": "—"
+    "never": "—",
+    "newEntity": "+ Nouvelle entité…",
+    "newEntityHint": "Crée le dossier entité en même temps que sa première mission."
   },
   "fileIndex": {
     "title": "Dossier d'audit",
