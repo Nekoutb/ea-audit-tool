@@ -1,0 +1,304 @@
+<title>ISA Audit Documentation Engine — Build Prompt v1.0</title>
+<style>
+  :root{--ink:#0B0B0C;--paper:#fff;--wash:#F4F4F1;--rule:#DCDCD8;--grey:#6E6E73;--red:#E2231A;--amber:#A8641B;--green:#0c7a58;
+    --sans:Arial,"Helvetica Neue",sans-serif;--mono:ui-monospace,"SF Mono",Menlo,Consolas,monospace;}
+  @media(prefers-color-scheme:dark){:root{--ink:#ECECEA;--paper:#131416;--wash:#1C1D20;--rule:#33342F;--grey:#9C9CA2;--red:#FF5A4E;--amber:#D79B4A;--green:#4fc39a;}}
+  :root[data-theme="dark"]{--ink:#ECECEA;--paper:#131416;--wash:#1C1D20;--rule:#33342F;--grey:#9C9CA2;--red:#FF5A4E;--amber:#D79B4A;--green:#4fc39a;}
+  :root[data-theme="light"]{--ink:#0B0B0C;--paper:#fff;--wash:#F4F4F1;--rule:#DCDCD8;--grey:#6E6E73;--red:#E2231A;--amber:#A8641B;--green:#0c7a58;}
+  *{box-sizing:border-box}body{margin:0;background:var(--paper);color:var(--ink);font:15px/1.55 var(--sans);}
+  .wrap{max-width:980px;margin:0 auto;padding:40px 22px 90px;}
+  .eyebrow{font:11px var(--mono);letter-spacing:.14em;text-transform:uppercase;color:var(--red);}
+  h1{font-family:"Arial Black",Arial;font-size:clamp(30px,5vw,52px);line-height:.98;letter-spacing:-.02em;margin:10px 0 14px;text-transform:uppercase;}
+  h1 em{color:var(--red);font-style:normal;}
+  .deck{font-size:17px;color:var(--grey);max-width:64ch;margin:0 0 8px;}
+  .meta{display:flex;flex-wrap:wrap;gap:14px;border-top:3px solid var(--ink);border-bottom:1px solid var(--rule);padding:10px 0;margin:22px 0 34px;font:12px var(--mono);color:var(--grey);}
+  .meta b{color:var(--ink)}
+  h2{font-family:"Arial Black",Arial;text-transform:uppercase;font-size:21px;letter-spacing:.01em;border-top:3px solid var(--ink);padding-top:12px;margin:44px 0 6px;}
+  h2 .n{color:var(--red);font-family:var(--mono);font-size:14px;margin-right:10px;}
+  h3{font-size:15px;text-transform:uppercase;letter-spacing:.05em;margin:24px 0 6px;}
+  p{max-width:74ch}
+  .lede{font-size:15.5px;color:var(--grey);}
+  table{border-collapse:collapse;width:100%;font-size:13px;margin:12px 0;}
+  th{font:11px var(--mono);text-transform:uppercase;letter-spacing:.08em;text-align:left;color:var(--grey);border-bottom:2px solid var(--ink);padding:7px 9px;}
+  td{border-bottom:1px solid var(--rule);padding:7px 9px;vertical-align:top;}
+  .tblwrap{overflow-x:auto}
+  code,.isa{font:12.5px var(--mono);}
+  .isa{color:var(--red);white-space:nowrap;}
+  .tag{display:inline-block;font:10.5px var(--mono);border:1px solid var(--rule);padding:1px 7px;border-radius:99px;margin-right:5px;color:var(--grey);}
+  .hard{color:#fff;background:var(--ink);border-color:var(--ink);}
+  .callout{background:var(--wash);border-left:4px solid var(--red);padding:12px 16px;margin:16px 0;font-size:14px;max-width:none;}
+  .ok{border-left-color:var(--green);}
+  pre{background:var(--wash);border:1px solid var(--rule);padding:14px;overflow-x:auto;font:12.5px/1.5 var(--mono);}
+  ul.tight,ol.tight{margin:8px 0;padding-left:22px}ul.tight li,ol.tight li{margin:3px 0;max-width:78ch}
+  .assert{font:11px var(--mono);color:var(--green);white-space:nowrap;}
+</style>
+
+<div class="wrap">
+<div class="eyebrow">Elite Advisors · Build prompt — supersedes Workflow Specification v0.9</div>
+<h1>ISA Audit<br>Documentation <em>Engine</em><br>v1.0</h1>
+<p class="deck">The complete engagement lifecycle as a directed graph of procedures, judgements and gates — now with the procedure library, the sampling arithmetic, the circularisation, trial-balance and reporting modules, and every dependency wired. This document is implementable as written.</p>
+<div class="meta">
+  <span>Version <b>1.0 — build prompt</b></span>
+  <span>Target <b>AuditISA platform (existing multi-tenant stack)</b></span>
+  <span>Framework <b>ISA (2025 Handbook) · ISQM 1&amp;2 · IESBA</b></span>
+  <span>Reporting <b>IFRS / OHADA-SYSCOHADA, switchable</b></span>
+</div>
+
+<div class="callout">Provenance &amp; IP. Methodology text in this prompt is anchored to the IAASB 2025 Handbook and the IFAC <i>Guide to Using ISAs</i> (4th ed., updated to current standards per §09). Proprietary firm training materials reviewed during drafting were used as <b>structural reference only</b> — coverage shape, not wording, not codes. All procedure wording herein is original.</div>
+
+<!-- ================================================================ -->
+<h2><span class="n">01</span> Relationship to v0.9 and to AuditISA</h2>
+<p>Everything in v0.9 stands unless amended here: the five phases (00 Acceptance · 10 Planning &amp; risk · 20 Risk response · 30 Conclusion · 40 Report &amp; archive), the dependency-engine rules R01–R34 with their severities (6 hard · 12 escalate · 16 propagate), the 12-entity data model, the STALE-propagation and event-log mechanics. This v1.0 adds what v0.9 marked open and specifies the five automation modules (§05). The build target is the <b>existing AuditISA platform</b>: Next.js/PostgreSQL multi-tenant with RLS, the ST/E/C task hierarchy, an operating sign-off engine, and working first versions of confirmations, sampling, TB ingestion and report generation. Where a module below overlaps an existing AuditISA feature, the spec is an <b>upgrade specification</b> — the "AuditISA delta" row states exactly what exists and what changes.</p>
+
+<h3>v0.9's six open questions — answered</h3>
+<div class="tblwrap"><table>
+<tr><th>#</th><th>Question</th><th>Decision</th></tr>
+<tr><td>1</td><td>Substantive procedure library</td><td>Delivered — Annexes A–F (§07), assertion-mapped, neutral codes.</td></tr>
+<tr><td>2</td><td>Framework scope</td><td>Both IFRS and SYSCOHADA, switchable per engagement; report and disclosure templates are locked to the framework selected at acceptance (v0.9 §07 stands).</td></tr>
+<tr><td>3</td><td>Hard vs advisory rules</td><td>v0.9 severities stand. Add a per-firm <code>rule_config</code> table (rule_id, severity_override, requires_partner_rationale). Overrides permitted only hard→escalate for R03; the six hard rules R07 · R22 · R29 · R30 · R31 · R34 are not overridable.</td></tr>
+<tr><td>4</td><td>Sampling method</td><td>MUS for tests of details + attribute plans for tests of controls, with the parameter tables in §04. Non-statistical selection exists only as documented exception (R17 override path).</td></tr>
+<tr><td>5</td><td>Build target</td><td>AuditISA, multi-tenant SaaS. No parallel single-firm build.</td></tr>
+<tr><td>6</td><td>Scale / groups</td><td>Group audits (<span class="isa">ISA 600 (Revised)</span>) deferred to v2; R04 ships dormant behind a feature flag. Concurrency target: 25 concurrent engagements, 10 users each.</td></tr>
+</table></div>
+
+<!-- ================================================================ -->
+<h2><span class="n">02</span> Canonical assertions</h2>
+<p class="lede">Replaces v0.9 §10.3's assertion list, which mixed vocabularies (its list omitted <i>occurrence</i> while its library used it). The engine's assertion enum follows <span class="isa">ISA 315 (Revised 2019), A190</span>: <b>two</b> categories, six assertions each. There is no separate presentation-and-disclosure category — Presentation is the sixth assertion of both categories, and disclosures ride with each.</p>
+<div class="tblwrap"><table>
+<tr><th>Category</th><th>Assertion</th><th>Code</th><th>Meaning (one line)</th></tr>
+<tr><td rowspan="6"><b>(a) Classes of transactions &amp; events, and related disclosures</b> — period under audit</td>
+<td>Occurrence</td><td class="assert">O</td><td>Recorded/disclosed transactions happened and pertain to the entity.</td></tr>
+<tr><td>Completeness</td><td class="assert">C</td><td>Everything that should be recorded/disclosed is.</td></tr>
+<tr><td>Accuracy</td><td class="assert">A</td><td>Amounts and data recorded appropriately; disclosures measured and described appropriately.</td></tr>
+<tr><td>Cutoff</td><td class="assert">CO</td><td>Recorded in the correct period.</td></tr>
+<tr><td>Classification</td><td class="assert">CL</td><td>Recorded in the proper accounts.</td></tr>
+<tr><td>Presentation</td><td class="assert">P</td><td>Appropriately aggregated/disaggregated, clearly described, relevant and understandable.</td></tr>
+<tr><td rowspan="6"><b>(b) Account balances, and related disclosures</b> — at period end</td>
+<td>Existence</td><td class="assert">E</td><td>Assets, liabilities, equity interests exist.</td></tr>
+<tr><td>Rights and obligations</td><td class="assert">RO</td><td>Entity holds rights to assets; liabilities are its obligations.</td></tr>
+<tr><td>Completeness</td><td class="assert">C</td><td>Everything that should be recorded/disclosed is.</td></tr>
+<tr><td>Accuracy, valuation and allocation</td><td class="assert">AVA</td><td>Included at appropriate amounts; adjustments appropriately recorded.</td></tr>
+<tr><td>Classification</td><td class="assert">CL</td><td>Recorded in the proper accounts.</td></tr>
+<tr><td>Presentation</td><td class="assert">P</td><td>As above.</td></tr>
+</table></div>
+<ul class="tight">
+<li>A risk record keys on a <b>relevant assertion</b> (assertion with an identified RMM — A188 term). The <code>assertion</code> entity gains a <code>category</code> column (<code>transaction|balance</code>).</li>
+<li>Combined view: for less complex engagements the UI may <i>display</i> IFAC's combined set (C · AV · E · P, where E subsumes rights &amp; obligations) as a roll-up — storage always uses the full twelve. This is display-layer only, mirroring AuditISA's display-code pattern.</li>
+<li>Coverage rule R33 evaluates per relevant assertion, using this enum.</li>
+</ul>
+
+<!-- ================================================================ -->
+<h2><span class="n">03</span> Unified gate register</h2>
+<p class="lede">v0.9's Fig. 1 ("GATE 1–4" + an unnumbered controls decision) collided with §13's G1–G5. One canonical register, used by diagrams, UI and the rules table alike:</p>
+<div class="tblwrap"><table>
+<tr><th>Gate</th><th>Name</th><th>Blocks</th><th>Cleared by</th></tr>
+<tr><td><b>G1</b></td><td>Acceptance</td><td>All planning modules</td><td>Independence resolved · preconditions met · engagement letter signed (R29)</td></tr>
+<tr><td><b>G2</b></td><td>Planning complete</td><td>Fieldwork sign-off</td><td>Materiality set · all accounts scoped · every significant account has assessed risk + planned response · strategy per account documented · partner approval</td></tr>
+<tr><td><b>G3</b></td><td>Controls effective? <span class="tag">decision</span></td><td>— (branch, not a lock)</td><td>ToC results: pass → reduced substantive extent; fail → R11 cascade</td></tr>
+<tr><td><b>G4</b></td><td>Evidence sufficiency</td><td>Opinion formation</td><td>No stale/incomplete mandatory procedures · exceptions resolved · misstatement schedule complete</td></tr>
+<tr><td><b>G5</b></td><td>Release</td><td>Report dating &amp; issue</td><td>EQR concluded (R31) · representations received · TCWG communication drafted · no open review notes · R30 checklist clear</td></tr>
+<tr><td><b>G6</b></td><td>Assembly</td><td>Any deletion or silent edit</td><td>File locked at 60 days (R34); amendments additive with reason + reviewer</td></tr>
+</table></div>
+
+<!-- ================================================================ -->
+<h2><span class="n">04</span> The arithmetic spine — populated</h2>
+<p class="lede">v0.9 specified the structure of extent computation but no numbers. These parameters are the engine defaults (per-firm overridable in <code>sampling_config</code>, every override logged):</p>
+
+<h3>4.1 MUS — tests of details</h3>
+<pre>Sampling interval = Tolerable misstatement ÷ Confidence factor
+Sample size       = Population to be tested ÷ Sampling interval
+Population to be tested EXCLUDES high-value and key items (examined 100%, evaluated separately).
+Random start in [1, interval]; cumulative monetary stepping; selection is value-proportional.</pre>
+<div class="tblwrap"><table>
+<tr><th>Required confidence</th><th>Factor</th><th>Risk-reduction band</th></tr>
+<tr><td>99% · 98% · 95%</td><td>4.6 · 3.7 · <b>3.0</b></td><td><b>High = 95%</b> (significant/elevated risk, no controls reliance)</td></tr>
+<tr><td>90% · 85% · 80%</td><td>2.3 · 1.9 · 1.6</td><td><b>Moderate = 80–90%</b> (some reliance from controls or analytics)</td></tr>
+<tr><td>75% · 70% · 65%</td><td>1.4 · 1.2 · 1.1</td><td><b>Low = 65–75%</b> (substantial assurance from other sources)</td></tr>
+<tr><td>60% · 55% · 50%</td><td>0.9 · 0.8 · 0.7</td><td>Minimal — corroborative only</td></tr>
+</table></div>
+<ul class="tight">
+<li><b>Stratification</b> supported by monetary band or characteristic (e.g. ageing bucket for AVA testing).</li>
+<li><b>Projection</b>: per-item misstatement percentage → averaged across all sampled items → applied to the represented population = most likely error (MLE). MLE + known misstatements compared to tolerable (R18).</li>
+<li><b>Anomaly</b> (<span class="isa">ISA 530.13</span>): claiming a misstatement is non-representative requires additional procedures establishing a high degree of certainty, and approval — never a default.</li>
+</ul>
+
+<h3>4.2 Attribute plans — tests of controls</h3>
+<div class="tblwrap"><table>
+<tr><th>Plan (95%)</th><th>Deviations found → conclusion</th></tr>
+<tr><td>10 items</td><td>0 → moderate reliance · any deviation → none</td></tr>
+<tr><td>30 items</td><td>0 → high · 1 → moderate · &gt;1 → none</td></tr>
+<tr><td>60 items</td><td>≤1 → high · 2 → moderate · &gt;2 → none</td></tr>
+</table></div>
+<div class="tblwrap"><table>
+<tr><th>Control frequency</th><th>Minimum sample</th></tr>
+<tr><td>Many times daily</td><td>Per plans above (10/30/60)</td></tr>
+<tr><td>Weekly</td><td>10</td></tr>
+<tr><td>Monthly</td><td>2–4</td></tr>
+<tr><td>Quarterly</td><td>2</td></tr>
+<tr><td>Annually</td><td>1</td></tr>
+<tr><td>Automated control</td><td>1 (if GITC effective — else R10)</td></tr>
+</table></div>
+<p>Evaluation: upper deviation limit = adjusted confidence factor ÷ sample size, compared to the tolerable deviation rate. Any deviation in a 10-item plan removes reliance and fires R11. Sample size does not scale with population size.</p>
+
+<!-- ================================================================ -->
+<h2><span class="n">05</span> The five automation modules</h2>
+
+<h3>A1 · Automated circularisation <span class="tag">upgrade</span></h3>
+<div class="tblwrap"><table>
+<tr><td><b>Purpose</b></td><td>Run the whole external-confirmation lifecycle — select, generate, dispatch, chase, record, evaluate — under auditor control per <span class="isa">ISA 505</span>.</td></tr>
+<tr><td><b>AuditISA delta</b></td><td>Exists: confirmation register with letter generation, send/remind/reply/dispose states, disposition workflow. Add: subject-type coverage (bank · receivables · payables · third-party inventory · legal · lenders), positive/negative designation with the 505.15 gate, sample-selection handoff from A2, response-vs-book difference capture feeding misstatements, and the escalation ladder below.</td></tr>
+<tr><td><b>Flow</b></td><td>Select population (from A3 lead schedule) → A2 computes/selects sample + key items → generate letters from framework templates (client letterhead data merged) → partner approves batch → dispatch (mail/portal) with response-direct-to-auditor address → reminder cadence (14d, 28d) → record response: agreed / difference / undeliverable / no response.</td></tr>
+<tr><td><b>Rules</b></td><td><b>Negative confirmations</b> allowed as sole substantive evidence only when all four 505.15 conditions hold (low RMM + controls evidence · large homogeneous small-value population · very low expected exception rate · no reason for disregard) — the UI enforces this as a checklist. <b>No response to a required positive</b> → auto-create alternative-procedure task (subsequent receipts / shipping docs for receivables; supplier statements for payables) — hooks <b>R19</b>; where no alternative yields equivalent evidence → scope-limitation flag to the reporting module. <b>Difference</b> → exception record → investigate → misstatement where applicable → projection via A2 (<b>R18</b>) → control-deficiency consideration (<b>R23</b>). <b>Management refusal</b> → validity assessment, RMM/fraud reassessment, alternative procedures; unreasonable refusal → TCWG communication + <span class="isa">ISA 705</span> flag (<b>R19</b> escalation).</td></tr>
+</table></div>
+
+<h3>A2 · Sampling tool <span class="tag">upgrade</span></h3>
+<div class="tblwrap"><table>
+<tr><td><b>Purpose</b></td><td>Every sample in the file is computed, selected, documented and evaluated by one engine — "sample size is computed, not typed" (R17).</td></tr>
+<tr><td><b>AuditISA delta</b></td><td>Exists: sampling engine with run/evaluate actions and output documents. Add: MUS with §04 parameters, attribute plans for ToC, stratification, key-item strip-out, seeded random selection (reproducible), projection/MLE evaluation, and override-with-rationale flagged to reviewer.</td></tr>
+<tr><td><b>Flow</b></td><td>Procedure marked sampling → inputs auto-filled (population from A3; tolerable from materiality set; confidence factor from assessed risk minus credit for controls/analytics assurance) → method chosen (MUS default for details; attribute for controls) → selection list generated with seed recorded → results entered per item → projection + conclusion computed → exceptions feed misstatement schedule.</td></tr>
+<tr><td><b>Rules</b></td><td>Inputs are live references: materiality edits (<b>R01</b>), risk changes (<b>R05</b>), controls failures (<b>R11</b>), GITC failures (<b>R10</b>) and analytics-precision failures (<b>R20</b>) each recompute affected samples and mark completed work STALE. Manual size override requires rationale and is surfaced in review (<b>R17</b>). Every exception projects (<b>R18</b>).</td></tr>
+</table></div>
+
+<h3>A3 · Trial-balance ingester → lead schedules <span class="tag">upgrade</span></h3>
+<div class="tblwrap"><table>
+<tr><td><b>Purpose</b></td><td>One import produces the account universe: mapped TB → cycle taxonomy → lead schedules → the population every module samples from and every misstatement adjusts.</td></tr>
+<tr><td><b>AuditISA delta</b></td><td>Exists: TB import with SYSCOHADA mapping, groupings, journals, lead-schedule generation, subledger recs. Add: lead-schedule presentation layer (per-cycle sheet: PY comparative · movements · CY · variance · WP refs), movement-schedule pattern for fixed assets and depreciation (opening / additions / disposals / transfers / closing, with tickmark legend), adjustment posting flow (misstatement → proposed journal → client accept → TB version bump), version-triggered recompute, and FS tie-out check.</td></tr>
+<tr><td><b>Cycle taxonomy</b></td><td>Neutral lead letters mapped to the ST/E/C hierarchy: <b>R</b> Revenue &amp; receivables · <b>B</b> Cash &amp; borrowings · <b>P</b> Purchases &amp; payables · <b>I</b> Inventory · <b>F</b> Fixed assets &amp; intangibles · <b>X</b> Tax · <b>Q</b> Equity &amp; provisions · <b>Z</b> Payroll. WP referencing: <code>&lt;letter&gt;.&lt;sequence&gt;</code> (R.110, R.120 …) — the lead schedule is <code>&lt;letter&gt;.100</code>.</td></tr>
+<tr><td><b>Rules</b></td><td>TB re-import creates a version and fires <b>R01</b>-style recompute: significance test re-run, sample populations refreshed, affected procedures STALE with a diff shown. Unmapped accounts block G2. Adjustments post additively — no silent balance edits (<b>R32</b> discipline extends to the TB).</td></tr>
+</table></div>
+
+<h3>A4 · Report library <span class="tag">upgrade</span></h3>
+<div class="tblwrap"><table>
+<tr><td><b>Purpose</b></td><td>Assemble the auditor's report from framework-locked templates driven by the opinion decision tree (v0.9 Fig. 3), with placeholders for the firm's house templates.</td></tr>
+<tr><td><b>AuditISA delta</b></td><td>Exists: opinion decision + report generation at conclusion. Add: template library keyed (framework × opinion × entity-listing status), the required-components checklist below, modification wording per <span class="isa">ISA 705 (Revised)</span>, EOM/OM inserts (<span class="isa">ISA 706</span>), material-uncertainty section (<span class="isa">ISA 570</span> / R25), and template slots the firm fills — the platform validates structure, the firm supplies wording.</td></tr>
+<tr><td><b>Required components</b></td><td>Title (Independent Auditor's Report) · Addressee · Opinion (entity, statements enumerated, notes ref, date/period, framework + jurisdiction) · Basis for Opinion (ISAs, cross-ref, independence + ethics jurisdiction statement) · [Material uncertainty — going concern] · [KAM — listed or voluntary] · [EOM / OM] · [Other information] · Responsibilities (management · auditor) · [Other legal &amp; regulatory] · Partner name (listed) · Signature · Address · Date. Basis-for-modification placed immediately after Opinion; quantify effects (or state impracticable); all modification matters described, never just the worst.</td></tr>
+<tr><td><b>Template set (slots)</b></td><td>Unmodified ×(IFRS, SYSCOHADA) ×(listed, non-listed) · Qualified-misstatement · Qualified-scope · Adverse · Disclaimer (single + multiple elements) · Material-uncertainty insert · EOM insert · OM insert. Illustrative bases: the four <span class="isa">ISA 700</span> and five <span class="isa">ISA 705</span> appendix illustrations. <b>User-supplied house templates drop into these slots; the engine refuses a template missing a required component.</b></td></tr>
+<tr><td><b>Rules</b></td><td>Template selection is derived from Fig. 3 outcomes + R25/R12/R19/R26 flags; release blocked by G5/R30/R31; issued report locks wording (G6).</td></tr>
+</table></div>
+
+<h3>A5 · Dependency wiring — module events → engine rules</h3>
+<div class="tblwrap"><table>
+<tr><th>Event</th><th>Fires</th><th>Effect</th></tr>
+<tr><td>TB re-imported / adjustment posted (A3)</td><td>R01</td><td>Significance re-test, sample recompute, misstatement re-evaluation, STALE marks + version entry</td></tr>
+<tr><td>Materiality edited</td><td>R01</td><td>As v0.9 — now including A2 sample sizes and A1 population thresholds</td></tr>
+<tr><td>Confirmation non-response (A1)</td><td>R19</td><td>Alternative-procedure task auto-created; unresolved → scope-limitation flag to A4</td></tr>
+<tr><td>Confirmation difference confirmed as misstatement (A1)</td><td>R18 → R23</td><td>Projection via A2; control-deficiency raised where controls should have prevented it</td></tr>
+<tr><td>Management refuses confirmation (A1)</td><td>R19 esc.</td><td>TCWG communication draft + ISA 705 candidate in A4</td></tr>
+<tr><td>Sample exception (A2)</td><td>R18</td><td>Project; tolerable breach → extend / full-population analysis / adjust</td></tr>
+<tr><td>Sample-size manual override (A2)</td><td>R17</td><td>Rationale required; flagged in review pane</td></tr>
+<tr><td>ToC deviations above tolerable (A2)</td><td>R11 → R23, R12</td><td>Control risk to max; substantive recompute; deficiency; possible scope limitation</td></tr>
+<tr><td>GITC ineffective (IT annex)</td><td>R10 → R21</td><td>Reliance disabled; IPE from that application unreliable; A2 recomputes</td></tr>
+<tr><td>Unmapped TB account (A3)</td><td>G2 block</td><td>Planning cannot complete</td></tr>
+<tr><td>Opinion path changes (A4 inputs)</td><td>R25/R26/R28</td><td>Template re-selection; release re-gated</td></tr>
+</table></div>
+
+<!-- ================================================================ -->
+<h2><span class="n">06</span> The derivation algorithm</h2>
+<p class="lede">v0.9's thesis — "programmes are derived, not stored" — now specified. The programme for an account is a function of its relevant assertions, their risk tier, and the library:</p>
+<pre>for account in significant_accounts:
+  for assertion in relevant_assertions(account):            # ISA 315 A188
+    tier = risk_tier(account, assertion)                    # baseline | heightened | significant
+    steps = library.query(cycle=account.cycle,
+                          assertions CONTAINS assertion,
+                          risk_level_applicability &lt;= tier)  # tiers are cumulative
+    if assertion.significant_risk:
+        assert steps.any(nature == 'test_of_details')       # R06 — else block G2
+    if strategy(account) == 'controls_reliance':
+        steps += control_tests(account, assertion)          # attribute plan from §4.2
+    programme[account] += dedupe(steps)
+programme is REGENERATED (not edited) whenever tier, strategy or library changes;
+completed steps that survive regeneration keep their state; removed steps archive;
+new steps enter as not-started. Manual additions persist as 'firm-added', flagged to review.</pre>
+<p>The WCGW-style planning chain feeding this: significant account → relevant assertions → transaction flows on the critical path (initiate · record · process · report) → what-can-go-wrong per assertion → addressed by a control (test it) or a substantive step (derive it). The <code>risk</code> entity gains <code>flow_ref</code> and <code>wcgw_text</code> columns to hold this chain.</p>
+
+<!-- ================================================================ -->
+<h2><span class="n">07</span> Annexes A–F — the substantive procedure library</h2>
+<p class="lede">Original wording, assertion-tagged with §02 codes, cycle-coded per A3's taxonomy. <code>tier</code>: B = baseline, H = heightened, S = significant-risk. Each row becomes one <code>library</code> record; nature/timing/sampling flags per v0.9 §12 schema.</p>
+
+<h3>Annex A · Revenue &amp; receivables (R)</h3>
+<div class="tblwrap"><table>
+<tr><th>Code</th><th>Procedure</th><th>Assertions</th><th>Tier</th></tr>
+<tr><td>R.110</td><td>Agree the receivables subledger to the general ledger and to the aged listing; test the ageing's arithmetic and bucket allocation on a sample.</td><td class="assert">E C AVA</td><td>B</td></tr>
+<tr><td>R.120</td><td>Circularise customer balances (A1): positive requests on the A2 sample plus all key items; investigate differences; alternatives for non-response = subsequent cash receipts matched to invoices, else despatch/proof-of-delivery to invoice.</td><td class="assert">E RO AVA C</td><td>B</td></tr>
+<tr><td>R.130</td><td>Sales cut-off: test last despatches/first returns around period end to invoice period; scan credit notes issued after period end for reversal of pre-year-end sales.</td><td class="assert">CO C O</td><td>B</td></tr>
+<tr><td>R.140</td><td>Impairment of receivables: test the loss-allowance model inputs (ageing reliability from R.110, historic loss rates, forward adjustments); test subsequent receipts on overdue strata; conclude allowance adequacy.</td><td class="assert">AVA P</td><td>B</td></tr>
+<tr><td>R.150</td><td>Deferred/accrued revenue and rebate accruals: recompute period allocation from contract terms; test post-period credit memos against accrual.</td><td class="assert">AVA CO P</td><td>H</td></tr>
+<tr><td>R.160</td><td>Credit balances in receivables and unusual entries in the sales ledger (journal source, round sums, period-end postings): corroborate to source.</td><td class="assert">E C CL</td><td>H</td></tr>
+<tr><td>R.170</td><td>Revenue fraud response (presumed risk, R08): disaggregated analytics vs expectation; targeted testing of manual revenue journals; side-agreement inquiry + confirmation of terms on selected contracts.</td><td class="assert">O CO A</td><td>S</td></tr>
+</table></div>
+
+<h3>Annex B · Cash &amp; borrowings (B)</h3>
+<div class="tblwrap"><table>
+<tr><th>Code</th><th>Procedure</th><th>Assertions</th><th>Tier</th></tr>
+<tr><td>B.110</td><td>Bank confirmations (A1) for all accounts and facilities: balances, restrictions, guarantees, signatories, undisclosed accounts.</td><td class="assert">E C RO AVA P</td><td>B</td></tr>
+<tr><td>B.120</td><td>Test period-end bank reconciliations: trace book-side reconciling items to the post-closing bank statement and bank-side items to subsequent books entries; review every bank-side unrecorded item regardless of amount; agree to the cent.</td><td class="assert">E C AVA</td><td>B</td></tr>
+<tr><td>B.130</td><td>Cash cut-off: last receipts/payments of the period and first of the new period traced to correct-period recording.</td><td class="assert">CO C E</td><td>B</td></tr>
+<tr><td>B.140</td><td>Borrowings: confirm balances and terms with lenders; recompute interest and amortisation; test covenant compliance and the current/non-current split.</td><td class="assert">C AVA CL P RO</td><td>B</td></tr>
+<tr><td>B.150</td><td>Foreign-currency balances: recompute closing translation at the closing rate; test realised/unrealised difference postings.</td><td class="assert">AVA A</td><td>H</td></tr>
+</table></div>
+
+<h3>Annex C · Purchases &amp; payables (P)</h3>
+<div class="tblwrap"><table>
+<tr><th>Code</th><th>Procedure</th><th>Assertions</th><th>Tier</th></tr>
+<tr><td>P.110</td><td>Agree the payables subledger to the general ledger and aged listing; investigate debit balances and stale items.</td><td class="assert">E C AVA</td><td>B</td></tr>
+<tr><td>P.120</td><td>Search for unrecorded liabilities: from subsequent payments and unprocessed post-closing invoices, trace to goods/service receipt date; test the period of attachment; verify accrual or exclusion accordingly.</td><td class="assert">C AVA CO</td><td>B</td></tr>
+<tr><td>P.130</td><td>Purchases cut-off: goods-received records around period end matched to invoice recording period; accruals raised for received-not-invoiced.</td><td class="assert">CO C RO</td><td>B</td></tr>
+<tr><td>P.140</td><td>Supplier statement reconciliation on the A2 sample plus key suppliers; unreconciled differences investigated to source documents. Supplier circularisation where statements unavailable or reliability doubted.</td><td class="assert">E C AVA RO</td><td>H</td></tr>
+<tr><td>P.150</td><td>Expense classification and unusual-vendor review: analytics by nature; scan for new/one-time vendors, round sums, splits under approval limits.</td><td class="assert">CL O C</td><td>H</td></tr>
+</table></div>
+
+<h3>Annex D · Inventory (I)</h3>
+<div class="tblwrap"><table>
+<tr><th>Code</th><th>Procedure</th><th>Assertions</th><th>Tier</th></tr>
+<tr><td>I.110</td><td>Attend the physical count (<span class="isa">ISA 501</span>) — two-part programme below.</td><td class="assert">E C AVA RO</td><td>B</td></tr>
+<tr><td>I.120</td><td>Confirm inventories held by third parties (A1); where significant, attend their count or inspect.</td><td class="assert">E C RO</td><td>B</td></tr>
+<tr><td>I.130</td><td>Reconcile the final compilation to count records and to the general ledger; test quantity roll-ups and unit-of-measure conversions.</td><td class="assert">E C AVA</td><td>B</td></tr>
+<tr><td>I.140</td><td>Roll-forward from count date to period end: test movements in the gap; recompute the bridge.</td><td class="assert">E C AVA CO</td><td>B</td></tr>
+<tr><td>I.150</td><td>Cost testing: components of cost (materials, labour, absorbed overheads) to source; absorption basis reasonableness against normal capacity.</td><td class="assert">AVA A</td><td>B</td></tr>
+<tr><td>I.160</td><td>Net realisable value: post-period selling prices vs carrying cost on the sample; slow-moving/obsolete analysis and write-down adequacy.</td><td class="assert">AVA P</td><td>B</td></tr>
+</table></div>
+<p><b>I.110 count-attendance programme (two parts):</b> <b>Part 1 — before the count</b>: evaluate the entity's instructions against a ten-factor grid (locations incl. third-party · movement control &amp; WIP cut-off · counter independence from custody · tag/sheet control · obsolete-damaged identification · counting &amp; recording method · compilation method · supervision &amp; approval), conclude adequacy, remediate deficiencies before the date. <b>Part 2 — on site, completed before leaving</b>: environmental conditions checklist · observation of the entity's procedures (blind counts, second counts by different counters, tag control, authorised adjustments) · the auditor's own test counts <b>in both directions</b> (records-to-floor for existence, floor-to-records for completeness) recorded on a grid (ref · item · UoM · quantity · condition) · cut-off data capture (last inbound/outbound document numbers) · movements-during-count log · tag/sheet issuance control · differences reconciled to zero with the client before departure; perpetual records corrected for agreed differences.</p>
+
+<h3>Annex E · Fixed assets &amp; intangibles (F)</h3>
+<div class="tblwrap"><table>
+<tr><th>Code</th><th>Procedure</th><th>Assertions</th><th>Tier</th></tr>
+<tr><td>F.110</td><td>Movement schedule (gross values): opening agreed to prior-year closing · additions and disposals to supporting listings · transfers to WIP support · closing to GL. Depreciation schedule mirrored (opening · charge · releases · closing). Tickmark every column to its source.</td><td class="assert">E C AVA P</td><td>B</td></tr>
+<tr><td>F.120</td><td>Test additions to invoices/contracts (capitalisable nature, ownership, date in service); disposals to proceeds and gain/loss recomputation.</td><td class="assert">E RO AVA O CL</td><td>B</td></tr>
+<tr><td>F.130</td><td>Recompute depreciation on a sample; assess useful lives and residual values against use and policy; components identified where material.</td><td class="assert">AVA A P</td><td>B</td></tr>
+<tr><td>F.140</td><td>Impairment indicators review; where present, test the recoverable-amount estimate under the estimates module (<span class="isa">ISA 540 (Revised)</span>, R09).</td><td class="assert">AVA P</td><td>H</td></tr>
+<tr><td>F.150</td><td>Repairs &amp; maintenance scan for items that should be capitalised; capital-commitments and pledged-asset disclosure completeness.</td><td class="assert">C CL P</td><td>H</td></tr>
+</table></div>
+
+<h3>Annex F · IT overlay</h3>
+<ul class="tight">
+<li><b>Six risks of using IT</b> (the risk taxonomy for the IT section of planning): reliance on inaccurate systems or data · unauthorised data access · IT-personnel privileges breaking segregation · unauthorised master-file changes · unauthorised program/system changes · failure to make necessary changes.</li>
+<li><b>Three ITGC processes</b>, each with objectives and tests: <b>manage change</b> (authorised, tested, approved, segregated migration) · <b>manage access</b> (provisioning/deprovisioning, privileged access, direct data changes, periodic review) · <b>manage operations</b> (job scheduling, backup/restore, incidents, interfaces).</li>
+<li>Aggregate IT evaluation per application = supports reliance / does not. <b>Does not</b> → R10 fires: automated-control and system-report reliance disabled, IPE flagged, A2 recomputes dependent extents (R21 escalation to direct verification).</li>
+<li>Maps to AuditISA tasks E2.1 (ITGC testing) and E2.2 (application &amp; IT-dependent controls) — their templates already carry this structure.</li>
+</ul>
+
+<!-- ================================================================ -->
+<h2><span class="n">08</span> Standards vintage — corrections applied throughout</h2>
+<div class="tblwrap"><table>
+<tr><th>Where source material said</th><th>This prompt uses</th></tr>
+<tr><td>ISQC 1</td><td><span class="isa">ISQM 1</span> (firm) / <span class="isa">ISA 220 (Revised)</span> (engagement)</td></tr>
+<tr><td>ISA 540 "…Including Fair Value…"</td><td><span class="isa">ISA 540 (Revised)</span>, Auditing Accounting Estimates and Related Disclosures</td></tr>
+<tr><td>ISA 315 (Revised) [2013] assertion refs</td><td><span class="isa">ISA 315 (Revised 2019)</span> A188–A192 (two categories; "relevant assertion")</td></tr>
+<tr><td>Three-category assertions (txn / balance / P&amp;D)</td><td>Two categories; Presentation is the sixth assertion of each</td></tr>
+<tr><td>ISA 600 / ISA 250 / ISA 720 (old)</td><td><span class="isa">600 (Revised)</span> · <span class="isa">250 (Revised)</span> · <span class="isa">720 (Revised)</span>; note ISA 240 (Revised) and 570 (Revised 2024) issued, not yet effective — engine ships current versions with a standards-version flag per engagement period.</td></tr>
+</table></div>
+
+<!-- ================================================================ -->
+<h2><span class="n">09</span> Build order and acceptance</h2>
+<ol class="tight">
+<li><b>Wave 1 — A3</b> (everything samples from it): taxonomy, lead schedules, versioned re-import, adjustment flow. <i>Accept:</i> re-import fires R01-recompute visibly; unmapped account blocks G2; adjustment round-trips to the TB.</li>
+<li><b>Wave 2 — A2</b>: MUS + attribute with §04 tables. <i>Accept:</i> worked example reproduces interval and size from inputs shown on screen; exception projects to MLE; override demands rationale.</li>
+<li><b>Wave 3 — A1</b> on top of A2/A3. <i>Accept:</i> non-response auto-creates the alternative task; refusal path produces the TCWG draft and 705 flag.</li>
+<li><b>Wave 4 — library + derivation (§06, §07)</b>: annexes seeded; programmes regenerate on tier change. <i>Accept:</i> raising an assertion to significant-risk injects tier-S steps and enforces a test of details (R06).</li>
+<li><b>Wave 5 — A4</b>: template slots + component validation; house templates supplied by the firm drop in. <i>Accept:</i> Fig. 3 outcome selects the right template; a template missing a required component is refused.</li>
+<li><b>Throughout</b>: every A5 wiring row demonstrated by an automated test that triggers the event and asserts the rule's effect (STALE marks, task creation, gate block). These tests are the definition of done.</li>
+</ol>
+<div class="callout ok">Dependency guarantee: no wave depends on a later wave. A3 → A2 → A1 is a strict chain; the library (wave 4) needs only A2; A4 needs the misstatement schedule which exists from wave 2 onward. Existing AuditISA modules keep working at every wave — each upgrade is expand-only, mirroring the platform's schema-tolerant deploy pattern.</div>
+
+<p style="margin-top:40px;font:12px var(--mono);color:var(--grey);border-top:3px solid var(--ink);padding-top:12px">Elite Advisors · ISA Audit Documentation Engine · Build prompt v1.0 — supersedes v0.9. Companion: the clickable workflow (isa-engine-workflow).</p>
+</div>

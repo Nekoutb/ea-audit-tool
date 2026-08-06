@@ -1,0 +1,313 @@
+<title>ISA Audit Engine — Clickable Workflow v1.0</title>
+<style>
+  :root{--ground-a:#e6e9ed;--ground-b:#d3d8de;--ground-c:#c2c8d0;--canvas:#dce0e5;--panel:rgba(255,255,255,0.68);--panel-solid:#f4f6f8;
+    --glass:rgba(255,255,255,0.7);--ink:#191c21;--ink-soft:#2c333c;--muted:#565d68;--line:rgba(24,28,33,0.1);--line-strong:rgba(24,28,33,0.18);
+    --accent:#0c7a58;--accent-ink:#075c42;--accent-soft:rgba(12,122,88,0.1);--warn:#9a6a10;--warn-soft:rgba(154,106,16,0.12);
+    --rose:#a63d50;--rose-soft:rgba(166,61,80,0.11);--info:#35507e;--info-soft:rgba(53,80,126,0.1);
+    --shadow:0 1px 2px rgba(20,24,30,0.06),0 14px 36px rgba(20,24,30,0.1);--shadow-sm:0 1px 2px rgba(20,24,30,0.07);
+    --r:18px;--r-sm:11px;--r-xs:7px;--mono:ui-monospace,"SF Mono",Menlo,Consolas,monospace;--sans:-apple-system,system-ui,"Segoe UI",Roboto,sans-serif;}
+  @media(prefers-color-scheme:dark){:root{--ground-a:#14171b;--ground-b:#1b1e23;--ground-c:#0f1114;--canvas:#131519;--panel:rgba(40,44,51,0.55);
+    --panel-solid:#f4f6f8;--glass:rgba(255,255,255,0.09);--ink:#eef1f5;--ink-soft:#c8d1de;--muted:#9aa4b2;--line:rgba(255,255,255,0.08);
+    --line-strong:rgba(255,255,255,0.16);--accent:#4fc39a;--accent-ink:#7ad4b4;--accent-soft:rgba(79,195,154,0.13);--warn:#dcae57;
+    --warn-soft:rgba(220,174,87,0.14);--rose:#e88a9b;--rose-soft:rgba(232,138,155,0.13);--info:#8fa9df;--info-soft:rgba(143,169,223,0.14);
+    --shadow:0 1px 2px rgba(0,0,0,0.4),0 16px 40px rgba(0,0,0,0.5);--shadow-sm:0 1px 2px rgba(0,0,0,0.45);}}
+  :root[data-theme="dark"]{--ground-a:#14171b;--ground-b:#1b1e23;--ground-c:#0f1114;--canvas:#131519;--panel:rgba(40,44,51,0.55);--panel-solid:#f4f6f8;
+    --glass:rgba(255,255,255,0.09);--ink:#eef1f5;--ink-soft:#c8d1de;--muted:#9aa4b2;--line:rgba(255,255,255,0.08);--line-strong:rgba(255,255,255,0.16);
+    --accent:#4fc39a;--accent-ink:#7ad4b4;--accent-soft:rgba(79,195,154,0.13);--warn:#dcae57;--warn-soft:rgba(220,174,87,0.14);--rose:#e88a9b;
+    --rose-soft:rgba(232,138,155,0.13);--info:#8fa9df;--info-soft:rgba(143,169,223,0.14);
+    --shadow:0 1px 2px rgba(0,0,0,0.4),0 16px 40px rgba(0,0,0,0.5);--shadow-sm:0 1px 2px rgba(0,0,0,0.45);}
+  :root[data-theme="light"]{--ground-a:#e6e9ed;--ground-b:#d3d8de;--ground-c:#c2c8d0;--canvas:#dce0e5;--panel:rgba(255,255,255,0.68);--panel-solid:#f4f6f8;
+    --glass:rgba(255,255,255,0.7);--ink:#191c21;--ink-soft:#2c333c;--muted:#565d68;--line:rgba(24,28,33,0.1);--line-strong:rgba(24,28,33,0.18);
+    --accent:#0c7a58;--accent-ink:#075c42;--accent-soft:rgba(12,122,88,0.1);--warn:#9a6a10;--warn-soft:rgba(154,106,16,0.12);--rose:#a63d50;
+    --rose-soft:rgba(166,61,80,0.11);--info:#35507e;--info-soft:rgba(53,80,126,0.1);
+    --shadow:0 1px 2px rgba(20,24,30,0.06),0 14px 36px rgba(20,24,30,0.1);--shadow-sm:0 1px 2px rgba(20,24,30,0.07);}
+  *{box-sizing:border-box}html{scroll-behavior:smooth;scroll-padding-top:18px}
+  body{margin:0;color:var(--ink);font:14.5px/1.55 var(--sans);-webkit-font-smoothing:antialiased;background:
+    radial-gradient(1100px 520px at 10% -8%,var(--ground-a),transparent 60%),
+    radial-gradient(900px 600px at 110% 10%,var(--ground-c),transparent 55%),
+    linear-gradient(160deg,var(--ground-a),var(--ground-b) 55%,var(--ground-c)) fixed;background-color:var(--canvas);}
+  .shell{max-width:1220px;margin:0 auto;padding:28px 20px 80px;display:grid;grid-template-columns:210px 1fr;gap:30px;}
+  @media(max-width:880px){.shell{grid-template-columns:1fr}nav.toc{position:static!important}}
+  nav.toc{position:sticky;top:18px;align-self:start;font-size:13px;padding:14px;border-radius:var(--r);background:var(--panel);
+    backdrop-filter:blur(20px) saturate(1.4);-webkit-backdrop-filter:blur(20px) saturate(1.4);border:1px solid var(--glass);box-shadow:var(--shadow-sm);}
+  nav.toc a{display:block;color:var(--ink-soft);text-decoration:none;padding:5px 9px;border-radius:var(--r-xs);font-weight:550;}
+  nav.toc a:hover{background:var(--accent-soft);color:var(--accent-ink)}
+  nav.toc .n{color:var(--muted);font-variant-numeric:tabular-nums;font-weight:700;margin-right:6px;font-size:11px}
+  .eyebrow{font-size:11px;font-weight:800;letter-spacing:.12em;text-transform:uppercase;color:var(--accent-ink)}
+  h1{font-size:clamp(26px,4vw,38px);line-height:1.06;letter-spacing:-.03em;margin:8px 0 8px;text-wrap:balance}
+  .lede{font-size:15px;color:var(--ink-soft);max-width:64ch}
+  section.block{margin-bottom:30px;scroll-margin-top:16px}
+  h2{font-size:20px;letter-spacing:-.02em;margin:0 0 10px;display:flex;align-items:baseline;gap:10px}
+  h2 .n{font-size:13px;font-weight:800;color:var(--accent-ink);font-variant-numeric:tabular-nums}
+  .card{background:var(--panel);backdrop-filter:blur(20px) saturate(1.4);-webkit-backdrop-filter:blur(20px) saturate(1.4);
+    border:1px solid var(--glass);border-radius:var(--r);box-shadow:var(--shadow);padding:18px;margin-bottom:14px;}
+  .diagram{background:var(--panel-solid);border:1px solid var(--line);border-radius:var(--r-sm);padding:12px;overflow-x:auto}
+  .diagram pre.mermaid{margin:0;text-align:center}
+  /* phase tiles */
+  .phases{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:10px}
+  .ph{border:1px solid var(--glass);border-radius:var(--r-sm);background:var(--panel);box-shadow:var(--shadow-sm);padding:13px 14px;cursor:pointer;
+    text-align:left;font:inherit;color:var(--ink);transition:transform .15s;}
+  .ph:hover{transform:translateY(-2px)}
+  .ph.on{border-color:var(--accent);box-shadow:0 0 0 3px var(--accent-soft),var(--shadow-sm)}
+  .ph .num{font:11px var(--mono);color:var(--accent-ink);font-weight:700}
+  .ph b{display:block;font-size:13.5px;margin:2px 0}
+  .ph span{font-size:11.5px;color:var(--muted)}
+  .steps{margin-top:12px}
+  .steps li{margin:4px 0;font-size:13.5px;color:var(--ink-soft);max-width:80ch}
+  .gatechip{display:inline-block;font-size:10px;font-weight:800;background:var(--ink);color:var(--canvas);border-radius:99px;padding:2px 9px;margin-left:6px;letter-spacing:.04em}
+  /* rules */
+  .rgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:8px}
+  .rc{border:1px solid var(--line-strong);border-radius:var(--r-xs);background:var(--panel);padding:8px 10px;cursor:pointer;font:inherit;text-align:left;color:var(--ink)}
+  .rc:hover{background:var(--accent-soft)}
+  .rc.on{border-color:var(--accent);box-shadow:0 0 0 2px var(--accent-soft)}
+  .rc .rid{font:11px var(--mono);font-weight:700}
+  .rc small{display:block;font-size:10.5px;color:var(--muted);line-height:1.3;margin-top:2px}
+  .sev{float:right;width:9px;height:9px;border-radius:2px;margin-top:3px}
+  .sev.hard{background:var(--ink)}.sev.esc{background:var(--warn)}.sev.prop{background:var(--rose)}
+  .rdetail{margin-top:12px;border-left:3px solid var(--accent);background:var(--accent-soft);border-radius:0 var(--r-sm) var(--r-sm) 0;padding:12px 15px;font-size:13.5px;color:var(--ink-soft)}
+  .rdetail b{color:var(--ink)}
+  .legend{display:flex;gap:16px;font-size:11.5px;color:var(--muted);margin:8px 0}
+  .legend i{display:inline-block;width:10px;height:10px;border-radius:2px;margin-right:5px;vertical-align:-1px}
+  /* modules */
+  details.mod{border:1px solid var(--glass);border-radius:var(--r-sm);background:var(--panel);box-shadow:var(--shadow-sm);margin-bottom:9px;overflow:hidden}
+  details.mod summary{cursor:pointer;padding:12px 15px;font-weight:700;font-size:14px;list-style:none;display:flex;align-items:center;gap:10px}
+  details.mod summary::-webkit-details-marker{display:none}
+  details.mod summary .mcode{font:11px var(--mono);color:var(--accent-ink);font-weight:700}
+  details.mod[open] summary{border-bottom:1px solid var(--line)}
+  details.mod .body{padding:12px 16px;font-size:13.5px;color:var(--ink-soft)}
+  details.mod .body b{color:var(--ink)}
+  details.mod .hook{font:11px var(--mono);color:var(--rose);white-space:nowrap}
+  /* matrix */
+  table{border-collapse:collapse;width:100%;font-size:12.5px}
+  th{text-align:left;font-size:10px;text-transform:uppercase;letter-spacing:.07em;color:var(--muted);border-bottom:1px solid var(--line-strong);padding:7px 8px;font-weight:800}
+  td{border-bottom:1px solid var(--line);padding:6px 8px;color:var(--ink-soft)}
+  td.y{color:var(--accent-ink);font-weight:800;text-align:center}
+  td.n{color:var(--line-strong);text-align:center}
+  .tw{overflow-x:auto}
+  .cap{font-size:12px;color:var(--muted);margin:8px 2px 0}
+</style>
+
+<div class="shell">
+<nav class="toc">
+  <a href="#phases"><span class="n">01</span>Phases &amp; steps</a>
+  <a href="#life"><span class="n">02</span>Master lifecycle</a>
+  <a href="#rules"><span class="n">03</span>34-rule engine</a>
+  <a href="#mods"><span class="n">04</span>Automation modules</a>
+  <a href="#assert"><span class="n">05</span>Assertion matrix</a>
+  <a href="#opinion"><span class="n">06</span>Opinion tree</a>
+</nav>
+
+<main>
+<header style="margin-bottom:26px">
+  <div class="eyebrow">Companion to build prompt v1.0 · click everything</div>
+  <h1>The audit engine, end to end</h1>
+  <p class="lede">Five phases, six gates, thirty-four dependency rules, five automation modules. Click a phase for its steps, a rule for its trigger and effect, a module for its wiring.</p>
+</header>
+
+<section class="block" id="phases">
+  <h2><span class="n">01</span> Phases — click to expand</h2>
+  <div class="card">
+    <div class="phases" id="phTiles"></div>
+    <ol class="steps" id="phSteps"></ol>
+  </div>
+</section>
+
+<section class="block" id="life">
+  <h2><span class="n">02</span> Master lifecycle — unified gates G1–G6</h2>
+  <div class="card"><div class="diagram">
+<pre class="mermaid">
+%%{init: {'theme':'base','themeVariables':{'fontFamily':'system-ui','primaryColor':'#eef2f4','primaryTextColor':'#191c21','primaryBorderColor':'#0c7a58','lineColor':'#565d68','fontSize':'13px'}}}%%
+flowchart TD
+  A[Phase 00 · Acceptance<br>integrity · independence · preconditions · letter · EQR flag] --> G1{G1 Acceptance}
+  G1 -->|declined| Z1[Decline / withdraw]
+  G1 -->|accepted| B[Phase 10 · Planning &amp; risk<br>materiality · TB scoping · assertion risks · controls &amp; ITGC]
+  B --> G2{G2 Planning complete}
+  G2 --> S{Strategy per account}
+  S -->|controls reliance| C1[Test operating effectiveness<br>attribute plan §4.2]
+  S -->|fully substantive| C4[Substantive programme<br>derived §06]
+  C1 --> G3{G3 Controls effective?}
+  G3 -->|yes| C2[Reduced substantive extent]
+  G3 -->|no| C3[R11: control risk to max<br>recompute · STALE · deficiency]
+  C3 -.reassess.-> B
+  C2 --> D[Phase 20 · Fieldwork<br>A1 circularisation · A2 sampling · evidence · misstatements]
+  C4 --> D
+  C3 --> D
+  D --> F{Fraud indicator?}
+  F -->|yes| R22[R22: reopen assessment file-wide]
+  R22 -.-> B
+  F -->|no| E[Phase 30 · Conclusion<br>final analytics · subsequent events · going concern · ISA 450 evaluation · representations]
+  E --> G4{G4 Evidence sufficient?}
+  G4 -->|no| C4
+  G4 -->|yes| R[Phase 40 · Reporting<br>A4 opinion &amp; templates · KAM · TCWG]
+  R --> G5{G5 Release}
+  G5 -->|blocked| Z2[Cannot release — R30 list]
+  G5 -->|clear| I[Sign · issue · communicate]
+  I --> G6{G6 Assembly · 60 days}
+  G6 --> L[File locked — additive amendments only]
+  classDef gate fill:#191c21,color:#ffffff,stroke:#191c21;
+  class G1,G2,G3,G4,G5,G6,S,F gate;
+</pre>
+  </div><p class="cap">Dashed edges are the feedback loops that reopen earlier phases — the engine marks affected work STALE rather than trusting memory.</p></div>
+</section>
+
+<section class="block" id="rules">
+  <h2><span class="n">03</span> The dependency engine — 34 rules</h2>
+  <div class="card">
+    <div class="legend"><span><i style="background:var(--ink)"></i>hard block</span><span><i style="background:var(--warn)"></i>escalate</span><span><i style="background:var(--rose)"></i>propagate</span></div>
+    <div class="rgrid" id="rGrid"></div>
+    <div class="rdetail" id="rDetail" hidden></div>
+  </div>
+</section>
+
+<section class="block" id="mods">
+  <h2><span class="n">04</span> Automation modules — click to open</h2>
+  <div id="modList"></div>
+</section>
+
+<section class="block" id="assert">
+  <h2><span class="n">05</span> Assertions × cycle coverage (library annexes)</h2>
+  <div class="card"><div class="tw">
+    <table>
+      <thead><tr><th>Cycle / lead</th><th>O</th><th>C</th><th>A</th><th>CO</th><th>CL</th><th>E</th><th>RO</th><th>AVA</th><th>P</th></tr></thead>
+      <tbody>
+        <tr><td>R · Revenue &amp; receivables</td><td class="y">●</td><td class="y">●</td><td class="y">●</td><td class="y">●</td><td class="y">●</td><td class="y">●</td><td class="y">●</td><td class="y">●</td><td class="y">●</td></tr>
+        <tr><td>B · Cash &amp; borrowings</td><td class="n">·</td><td class="y">●</td><td class="y">●</td><td class="y">●</td><td class="y">●</td><td class="y">●</td><td class="y">●</td><td class="y">●</td><td class="y">●</td></tr>
+        <tr><td>P · Purchases &amp; payables</td><td class="y">●</td><td class="y">●</td><td class="n">·</td><td class="y">●</td><td class="y">●</td><td class="y">●</td><td class="y">●</td><td class="y">●</td><td class="n">·</td></tr>
+        <tr><td>I · Inventory</td><td class="n">·</td><td class="y">●</td><td class="y">●</td><td class="y">●</td><td class="n">·</td><td class="y">●</td><td class="y">●</td><td class="y">●</td><td class="y">●</td></tr>
+        <tr><td>F · Fixed assets</td><td class="y">●</td><td class="y">●</td><td class="y">●</td><td class="n">·</td><td class="y">●</td><td class="y">●</td><td class="y">●</td><td class="y">●</td><td class="y">●</td></tr>
+      </tbody>
+    </table>
+  </div><p class="cap">Twelve assertions of ISA 315 (Revised 2019) A190 — six per category, storage always full-set; the C·AV·E·P roll-up is display-only. R33 audits this matrix continuously: a relevant assertion with no covering procedure is an orphan.</p></div>
+</section>
+
+<section class="block" id="opinion">
+  <h2><span class="n">06</span> Opinion decision tree → report template (A4)</h2>
+  <div class="card"><div class="diagram">
+<pre class="mermaid">
+%%{init: {'theme':'base','themeVariables':{'fontFamily':'system-ui','primaryColor':'#eef2f4','primaryTextColor':'#191c21','primaryBorderColor':'#0c7a58','lineColor':'#565d68','fontSize':'13px'}}}%%
+flowchart TD
+  A{Aggregate uncorrected<br>above overall materiality?} -->|yes| MM[Material misstatement]
+  A -->|no| Q{Qualitatively material?<br>covenants · trend · law}
+  Q -->|yes| MM
+  Q -->|no| EV{Unable to obtain sufficient<br>appropriate evidence?}
+  MM --> PV{Pervasive?}
+  PV -->|yes| ADV[Adverse opinion]
+  PV -->|no| QUAL[Qualified — except for]
+  EV -->|yes, pervasive| DISC[Disclaimer of opinion]
+  EV -->|yes, not pervasive| QUAL
+  EV -->|no| UNM[Unmodified opinion]
+  UNM --> T1[Template: unmodified ×framework ×listing<br>+ material-uncertainty / EOM / OM inserts]
+  QUAL --> T2[Template: qualified — misstatement or scope<br>basis section quantified]
+  ADV --> T3[Template: adverse]
+  DISC --> T4[Template: disclaimer — single / multiple]
+  classDef stop fill:#a63d50,color:#ffffff,stroke:#a63d50;
+  class ADV,DISC,QUAL stop;
+</pre>
+  </div><p class="cap">A4 selects the template from this tree plus the R25 (going concern), R12/R19 (scope limitation) and R26 (opening balances) flags. A template missing a required ISA 700 component is refused at upload.</p></div>
+</section>
+
+<p style="font-size:12px;color:var(--muted);border-top:1px solid var(--line);padding-top:14px">Companion to ISA Audit Documentation Engine build prompt v1.0 · Elite Advisors. Rules and phases per v0.9 as amended; sampling parameters per IFAC Guide Ch 17; assertions per ISA 315 (Revised 2019).</p>
+</main>
+</div>
+
+<script>
+(function(){
+"use strict";
+var PHASES=[
+ {n:"00",t:"Acceptance",s:"Integrity · independence · preconditions",steps:[
+  "Client background, integrity and reputation → client risk rating (feeds EQR trigger, fraud baseline)",
+  "Competence, capability, time and resources → staffing plan",
+  "Independence: firm, network, team, fees, non-assurance services → threats &amp; safeguards log <span class='gatechip'>G1</span>",
+  "Preconditions: acceptable framework; management acknowledges responsibilities (ISA 210)",
+  "Predecessor communication; opening balances strategy (ISA 510)",
+  "Engagement letter signed <span class='gatechip'>G1</span>",
+  "EQR determination (ISQM 2) → release-gate flag"]},
+ {n:"10",t:"Planning & risk",s:"Materiality · scoping · assertion risk · controls",steps:[
+  "Understand entity, environment, framework, IT environment (ISA 315 R2019)",
+  "Materiality: OM · PM · clearly trivial — global variables, everything references them live (R01)",
+  "A3: trial balance imported, mapped, lead schedules generated — the account universe",
+  "Significance test per account: quantitative or qualitative → significant (R02: cannot be left unaddressed)",
+  "Risks recorded per relevant assertion; management-override + revenue-fraud auto-registered (R07, R08)",
+  "Controls: design &amp; implementation; ITGC per application (Annex F; failure → R10)",
+  "Strategy per account: controls reliance or fully substantive <span class='gatechip'>G2</span>"]},
+ {n:"20",t:"Risk response",s:"Derived programmes · A1 · A2 · evidence",steps:[
+  "Programmes derived from risk × assertion × library tier (§06 of the prompt) — never copied",
+  "Controls testing per attribute plan; failure fires the R11 cascade <span class='gatechip'>G3</span>",
+  "A2 computes every sample; A1 runs circularisations with ISA 505 discipline",
+  "Substantive procedures per Annexes A–F; significant risks require tests of details (R06)",
+  "Misstatements accumulate: factual · judgemental · projected (R18); fraud indicators reopen the file (R22)"]},
+ {n:"30",t:"Conclusion",s:"Analytics · events · going concern · ISA 450",steps:[
+  "Final analytical procedures at statement level",
+  "Subsequent events to report date (ISA 560)",
+  "Going concern assessment; material uncertainty path (ISA 570 R / R25)",
+  "Uncorrected misstatements evaluated individually and in aggregate vs materiality",
+  "Written representations (ISA 580); absence of an expected representation is a finding",
+  "Sufficiency conclusion — negative re-enters phase 20 <span class='gatechip'>G4</span>"]},
+ {n:"40",t:"Report & archive",s:"Opinion · KAM · TCWG · lock",steps:[
+  "A4 assembles the report: opinion tree → framework-locked template",
+  "KAM proposed from the significant-risk register; reasons for inclusion and exclusion",
+  "TCWG communication: scope, findings, independence, uncorrected misstatements; deficiencies in writing",
+  "EQR concluded before the report is dated (R31) <span class='gatechip'>G5</span>",
+  "Assembly within 60 days; file locked; amendments additive only (R34) <span class='gatechip'>G6</span>"]}];
+var RULES=[
+["R01","materiality is global","prop","Materiality edited","Re-run significance test; recompute every sample; re-evaluate misstatements; STALE affected work; version entry."],
+["R02","scoping","prop","Account passes significance test","Force ≥1 assertion risk + ≥1 linked procedure; block G2 while uncovered."],
+["R03","scoping","prop","Account is material","Substantive programme cannot be emptied regardless of controls results."],
+["R04","group (v2)","esc","Component materiality entered","Bounded below group materiality; drives component scope type. Dormant until v2."],
+["R05","propagation","prop","Assessed risk changed after design","Linked procedures STALE; sign-offs suspended; reviewer sees a diff."],
+["R06","significant risk","prop","Risk classified significant","Must include a test of details; current-period controls testing only."],
+["R07","fraud","hard","Engagement created","JE testing, estimate retrospective, unusual-transaction rationale — locked in, undeletable."],
+["R08","fraud","prop","Revenue fraud presumption rebutted","Written rationale + partner approval; logged as exception visible to EQR."],
+["R09","estimates","esc","Estimate rated high uncertainty","Auto-significant (R06); auditor range required; outside-range difference raised as misstatement."],
+["R10","gitc","esc","GITC ineffective for an application","Reliance disabled; IPE unreliable; dependent extents recomputed (A2)."],
+["R11","controls failure","esc","ToC deviations above tolerable","Control risk to max; programmes reopen and resize; timing/nature shift; deficiency logged."],
+["R12","scope","esc","R11 where substantive-alone insufficient","Potential scope limitation → partner → A4 qualified/disclaimer candidate."],
+["R13","interim","prop","Procedure dated before period end","Auto roll-forward sized by gap and risk; parent blocked until done."],
+["R14","service org","prop","Significant process outsourced","Type 2 required for reliance; CUECs tested; gap procedures; else substantive path."],
+["R15","internal audit","prop","Planned use of IA","Objectivity/competence evaluation + reperformance; blocked for significant risks."],
+["R16","expert","prop","Expert used","Competence + scope + evaluation of findings before citing as evidence."],
+["R17","sampling","prop","Procedure designated sampling","Size computed from inputs (A2); override requires rationale, flagged to review."],
+["R18","sampling","esc","Exception in a sample","Project automatically; breach of tolerable → extend / full analysis / adjust."],
+["R19","confirmations","prop","Non-response / unreliable / refusal (A1)","Auto alternative task; no equivalent → scope-limitation flag; refusal → TCWG."],
+["R20","analytics","prop","Substantive analytical used","Expectation, precision, threshold documented before results; imprecise → not principal assurance."],
+["R21","ipe","esc","Client-produced report used","C&amp;A testing required; poisoned source (R10) → direct verification."],
+["R22","fraud","hard","Misstatement may indicate fraud","Reopen assessment file-wide; re-evaluate evidence and representations; communicate."],
+["R23","controls","esc","Misstatement controls should have caught","Deficiency auto-raised; significant → written TCWG; reliance → invoke R11."],
+["R24","noclar","esc","Identified/suspected non-compliance","Evaluate effect; communicate; legal advice; feeds going concern."],
+["R25","going concern","esc","Material uncertainty concluded","Disclosure adequacy → report section or qualified/adverse; representations added."],
+["R26","opening balances","esc","Opening balances unverifiable","Potential modification; document predecessor evidence obtained."],
+["R27","related parties","prop","Undisclosed related party found","Team informed; risk reassessed; new procedures; intentional → R22."],
+["R28","subsequent events","esc","Fact known after report date","Post-issuance workflow: amend, dual-date, or prevent reliance."],
+["R29","independence","hard","Significant threat unsafeguarded","Blocks acceptance; later → blocks release; ethics escalation."],
+["R30","release","hard","Attempt to date/issue report","Blocked by any open item — each listed with a link (G5)."],
+["R31","eqr","hard","EQR flag set","Report date field disabled until EQR conclusion recorded."],
+["R32","review discipline","prop","Edit to a signed-off paper","Sign-offs stripped; reviewers notified; before/after in event log."],
+["R33","completeness","prop","Continuous","Orphans reported: procedures without risks, risks without procedures, uncovered assertions."],
+["R34","archive","hard","60 days from report date","File frozen; additive amendments only, with reason and reviewer."]];
+var MODS=[
+["A1","Automated circularisation","bank · receivables · payables · 3rd-party inventory · legal · lenders",
+ "<b>Flow:</b> population from A3 → A2 sample + key items → framework-templated letters → partner-approved batch → dispatch with responses direct to auditor → reminders (14d, 28d) → record agreed / difference / no response.<br><b>Discipline:</b> negative confirmations only when all four ISA 505.15 conditions hold (enforced checklist). Non-response → auto alternative task <span class='hook'>R19</span>; difference → exception → misstatement → projection <span class='hook'>R18→R23</span>; refusal → TCWG + 705 flag."],
+["A2","Sampling tool","MUS · attribute · stratification · key items",
+ "<b>MUS:</b> interval = tolerable ÷ confidence factor (95%→3.0 … 50%→0.7); size = population ÷ interval; high-value items stripped and examined 100%; seeded random start.<br><b>Controls:</b> 10/30/60-item plans; weekly 10 · monthly 2–4 · quarterly 2 · yearly 1 · automated 1.<br><b>Discipline:</b> computed-not-typed <span class='hook'>R17</span>; every exception projects to MLE <span class='hook'>R18</span>; inputs are live — materiality, risk, controls and GITC changes recompute <span class='hook'>R01·R05·R11·R10</span>."],
+["A3","TB ingester → lead schedules","import · map · leads · adjustments · tie-out",
+ "<b>Flow:</b> import → SYSCOHADA/IFRS mapping → cycle taxonomy (R·B·P·I·F·X·Q·Z) → lead schedules (PY · movements · CY · variance · WP refs) → movement schedules for fixed assets → misstatement → proposed journal → TB version.<br><b>Discipline:</b> re-import versions and fires recompute <span class='hook'>R01</span>; unmapped account blocks <span class='hook'>G2</span>; no silent balance edits <span class='hook'>R32</span>. WP referencing: letter + sequence; lead = .100."],
+["A4","Report library","templates × framework × opinion × listing",
+ "<b>Selection:</b> opinion tree (§06) + R25/R12/R19/R26 flags choose the template; required-component checklist per ISA 700(R) validates every uploaded house template.<br><b>Set:</b> unmodified ×(IFRS/SYSCOHADA)×(listed/non-listed) · qualified (misstatement/scope) · adverse · disclaimer (single/multiple) · material-uncertainty, EOM, OM inserts.<br><b>Discipline:</b> release gated <span class='hook'>G5·R30·R31</span>; issued wording locks at <span class='hook'>G6</span>."],
+["A5","Dependency wiring","module events → engine rules",
+ "TB re-import → <span class='hook'>R01</span> · confirmation non-response → <span class='hook'>R19</span> · confirmed difference → <span class='hook'>R18→R23</span> · refusal → <span class='hook'>R19 esc</span> · sample exception → <span class='hook'>R18</span> · size override → <span class='hook'>R17</span> · ToC failure → <span class='hook'>R11→R23/R12</span> · GITC fail → <span class='hook'>R10→R21</span> · unmapped account → <span class='hook'>G2</span> · opinion-path change → <span class='hook'>R25/R26/R28</span>. Every row ships with an automated test that triggers the event and asserts the effect."]];
+var tiles=document.getElementById("phTiles"),stepsEl=document.getElementById("phSteps");var cur=0;
+function drawPhases(){tiles.innerHTML=PHASES.map(function(p,i){return '<button class="ph'+(i===cur?' on':'')+'" data-i="'+i+'"><span class="num">PHASE '+p.n+'</span><b>'+p.t+'</b><span>'+p.s+'</span></button>';}).join("");
+ stepsEl.innerHTML=PHASES[cur].steps.map(function(s){return "<li>"+s+"</li>";}).join("");
+ tiles.querySelectorAll(".ph").forEach(function(b){b.addEventListener("click",function(){cur=+b.dataset.i;drawPhases();});});}
+drawPhases();
+var grid=document.getElementById("rGrid"),det=document.getElementById("rDetail");var curR=-1;
+grid.innerHTML=RULES.map(function(r,i){return '<button class="rc" data-i="'+i+'"><span class="sev '+r[2]+'"></span><span class="rid">'+r[0]+'</span><small>'+r[1]+'</small></button>';}).join("");
+grid.querySelectorAll(".rc").forEach(function(b){b.addEventListener("click",function(){var i=+b.dataset.i;
+ grid.querySelectorAll(".rc").forEach(function(x){x.classList.remove("on");});
+ if(curR===i){det.hidden=true;curR=-1;return;}
+ curR=i;b.classList.add("on");var r=RULES[i];
+ det.innerHTML="<b>"+r[0]+" · "+r[1]+"</b> — <i>"+({hard:"hard block",esc:"escalate",prop:"propagate"})[r[2]]+"</i><br><b>Trigger:</b> "+r[3]+"<br><b>Action:</b> "+r[4];
+ det.hidden=false;});});
+document.getElementById("modList").innerHTML=MODS.map(function(m){return '<details class="mod"'+(m[0]==="A1"?" open":"")+'><summary><span class="mcode">'+m[0]+'</span>'+m[1]+'<span style="margin-left:auto;font-size:11px;color:var(--muted);font-weight:500">'+m[2]+'</span></summary><div class="body">'+m[3]+'</div></details>';}).join("");
+})();
+</script>
