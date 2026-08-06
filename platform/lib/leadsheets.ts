@@ -11,6 +11,7 @@ import ExcelJS from "exceljs";
 import type { PoolClient } from "pg";
 import { withTenant } from "@/lib/db";
 import type { Locale } from "@/lib/i18n";
+import { leadRef } from "@/lib/lead-taxonomy";
 import { createNotification } from "@/lib/notifications";
 import { sendEmail } from "@/lib/email";
 import { requireTenant } from "@/lib/tenant";
@@ -310,7 +311,7 @@ export async function generateLeadSchedule(
 
     sheet.addRow([L.client, info.client_name]);
     sheet.addRow([L.period, `${info.period_end} (${info.fiscal_year})`]);
-    sheet.addRow([L.index, `${info.code}.1`]);
+    sheet.addRow([L.index, `${leadRef(info.code)} · ${info.code}`]);
     sheet.addRow([L.overall, materiality.rows[0] ? Number(materiality.rows[0].overall) : "—"]);
     sheet.addRow([L.pm, performance ?? "—"]);
     sheet.addRow([L.trivial, materiality.rows[0] ? Number(materiality.rows[0].trivial) : "—"]);

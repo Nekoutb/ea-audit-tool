@@ -591,7 +591,9 @@
       "section": "Section",
       "rationale": "Justification",
       "addOverride": "Ajouter",
-      "deactivate": "Désactiver"
+      "deactivate": "Désactiver",
+      "staleLead": "BG v{n} plus récente — régénérer",
+      "diffTitle": "Écarts vs version précédente"
     },
     "dataPage": {
       "subledgers": "Balances auxiliaires et fichiers",
@@ -662,7 +664,8 @@
       "d72_partner_signed": "Signature de l'associé sur D7.2",
       "significant_risks_linked": "Chaque risque important lié à au moins une diligence du programme",
       "rebuttals_approved": "Réfutations approuvées par un associé",
-      "material_sections_covered": "Chaque section significative dispose d'une couverture planifiée (stand-back)"
+      "material_sections_covered": "Chaque section significative dispose d'une couverture planifiée (stand-back)",
+      "tb_mapped": "Balance générale entièrement rattachée (aucun compte inconnu)"
     },
     "independence": {
       "title": "Confirmations d'indépendance",
@@ -1123,7 +1126,8 @@
       "markUncorrected": "Marquer non corrigée",
       "section": "Section",
       "amountCol": "Montant",
-      "typeCol": "Type"
+      "typeCol": "Type",
+      "proposeAdjustment": "Proposer un ajustement →"
     },
     "errors": {
       "gates": "Bloqué — les contrôles suivants ne sont pas satisfaits :",

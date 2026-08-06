@@ -136,12 +136,37 @@ async function planningCloseGatesTx(tx: PoolClient, engagementId: string): Promi
     [engagementId],
   );
 
+  // ISA-engine Wave 1 (A3): a significant account cannot hide in an unmapped
+  // TB line — planning cannot close while the CURRENT TB version has accounts
+  // matching no active grouping rule or client override. Engagements with no
+  // TB yet pass (TB-driven scoping arrives with the full engine).
+  const unmapped = await tx.query<{ n: string }>(
+    `SELECT count(*)::text AS n
+       FROM trial_balance tb
+       JOIN trial_balance_version v
+         ON v.trial_balance_id = tb.id AND v.version_no = tb.current_version_no
+       JOIN trial_balance_row r ON r.version_id = v.id
+      WHERE tb.engagement_id = $1
+        AND NOT EXISTS (
+          SELECT 1 FROM syscohada_grouping_rule g
+           WHERE g.active AND r.account_code LIKE g.account_prefix || '%'
+        )
+        AND NOT EXISTS (
+          SELECT 1 FROM client_grouping_override o
+           WHERE o.active AND o.client_id = tb.client_id
+             AND ((o.match_type = 'exact' AND r.account_code = o.account_prefix)
+               OR (o.match_type = 'prefix' AND r.account_code LIKE o.account_prefix || '%'))
+        )`,
+    [engagementId],
+  );
+
   return [
     { key: "materiality_approved", ok: Number(materiality.rows[0].n) > 0 },
     ...gateDocs,
     { key: "significant_risks_linked", ok: Number(unlinked.rows[0].n) === 0 },
     { key: "rebuttals_approved", ok: Number(badRebuttal.rows[0].n) === 0 },
     { key: "material_sections_covered", ok: Number(uncovered.rows[0].n) === 0 },
+    { key: "tb_mapped", ok: Number(unmapped.rows[0].n) === 0 },
   ];
 }
 

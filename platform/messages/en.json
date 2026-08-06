@@ -591,7 +591,9 @@
       "section": "Section",
       "rationale": "Rationale",
       "addOverride": "Add override",
-      "deactivate": "Deactivate"
+      "deactivate": "Deactivate",
+      "staleLead": "TB v{n} is newer — regenerate",
+      "diffTitle": "Changes vs previous version"
     },
     "dataPage": {
       "subledgers": "Sub-ledger datasets",
@@ -662,7 +664,8 @@
       "d72_partner_signed": "Partner sign-off on D7.2",
       "significant_risks_linked": "Every significant risk linked to at least one program step",
       "rebuttals_approved": "Rebuttals carry partner approval",
-      "material_sections_covered": "Every material section has planned coverage (stand-back)"
+      "material_sections_covered": "Every material section has planned coverage (stand-back)",
+      "tb_mapped": "Trial balance fully mapped (no unknown accounts)"
     },
     "independence": {
       "title": "Independence confirmations",
@@ -1123,7 +1126,8 @@
       "markUncorrected": "Mark uncorrected",
       "section": "Section",
       "amountCol": "Amount",
-      "typeCol": "Type"
+      "typeCol": "Type",
+      "proposeAdjustment": "Propose adjustment →"
     },
     "errors": {
       "gates": "Blocked — the following gates are not satisfied:",

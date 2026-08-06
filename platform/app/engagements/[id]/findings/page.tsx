@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
 import { auth } from "@/auth";
 import { clearFindingAction, setCorrectedAction } from "@/app/actions/execution";
@@ -143,11 +144,22 @@ export default async function FindingsPage(props: {
                     <td className="px-4 py-2 text-xs">{t.planning.execution.mtypes[item.mtype as keyof typeof t.planning.execution.mtypes]}</td>
                     <td className="px-4 py-2 text-right">
                       {!item.trivial ? (
-                        <form action={setCorrectedAction.bind(null, id, item.id, !item.corrected)}>
-                          <button type="submit" className={btn} data-testid={`toggle-corrected-${item.id}`}>
-                            {item.corrected ? tf.markUncorrected : tf.markCorrected}
-                          </button>
-                        </form>
+                        <span className="inline-flex items-center gap-2">
+                          {!item.corrected ? (
+                            <Link
+                              href={`/engagements/${id}/data?jdesc=${encodeURIComponent(`[B5] ${item.description}`.slice(0, 120))}&jamount=${Math.abs(item.amount)}#journal`}
+                              className="text-xs font-medium text-emerald-700 hover:underline dark:text-emerald-400"
+                              data-testid={`propose-adjustment-${item.id}`}
+                            >
+                              {t.planning.findings.proposeAdjustment}
+                            </Link>
+                          ) : null}
+                          <form action={setCorrectedAction.bind(null, id, item.id, !item.corrected)}>
+                            <button type="submit" className={btn} data-testid={`toggle-corrected-${item.id}`}>
+                              {item.corrected ? tf.markUncorrected : tf.markCorrected}
+                            </button>
+                          </form>
+                        </span>
                       ) : null}
                     </td>
                   </tr>
