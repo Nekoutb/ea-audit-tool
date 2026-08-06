@@ -9,6 +9,10 @@ export function isLegalForm(value: unknown): value is LegalForm {
   return typeof value === "string" && (LEGAL_FORMS as readonly string[]).includes(value);
 }
 
+/** Accounting frameworks selectable on the entity record (free-text column). */
+export const FRAMEWORKS = ["SYSCOHADA", "IFRS", "Other"] as const;
+export type Framework = (typeof FRAMEWORKS)[number];
+
 export interface Client {
   id: string;
   name: string;
@@ -16,6 +20,13 @@ export interface Client {
   listed: boolean;
   coCac: boolean;
   engagementCount: number;
+  /** Entity master data (IA audit 5D) — selected by getClient only. */
+  registrationNumber?: string | null;
+  niu?: string | null;
+  address?: string | null;
+  yearEnd?: string | null;
+  framework?: string | null;
+  pie?: boolean;
 }
 
 interface ClientRow {
@@ -25,6 +36,12 @@ interface ClientRow {
   listed: boolean;
   co_cac: boolean;
   engagement_count: string;
+  registration_number?: string | null;
+  niu?: string | null;
+  address?: string | null;
+  year_end?: string | null;
+  framework?: string | null;
+  pie?: boolean;
 }
 
 export async function listClients(): Promise<Client[]> {
@@ -54,6 +71,7 @@ export async function getClient(id: string): Promise<Client | null> {
   return withTenant(tenantId, async (tx) => {
     const result = await tx.query<ClientRow>(
       `SELECT c.id, c.name, c.legal_form, c.listed, c.co_cac,
+              c.registration_number, c.niu, c.address, c.year_end, c.framework, c.pie,
               count(e.id)::text AS engagement_count
          FROM client c
          LEFT JOIN engagement e ON e.client_id = c.id
@@ -70,6 +88,12 @@ export async function getClient(id: string): Promise<Client | null> {
       listed: row.listed,
       coCac: row.co_cac,
       engagementCount: Number(row.engagement_count),
+      registrationNumber: row.registration_number ?? null,
+      niu: row.niu ?? null,
+      address: row.address ?? null,
+      yearEnd: row.year_end ?? null,
+      framework: row.framework ?? null,
+      pie: row.pie ?? false,
     };
   });
 }
