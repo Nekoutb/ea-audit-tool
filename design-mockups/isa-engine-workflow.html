@@ -101,6 +101,7 @@
   .fmPage .fl{background:#f6f6f6;font-weight:700;width:27%}
   .fmPage .fyn{text-align:center;white-space:nowrap;width:56px;font-size:15px}
   .fmPage .fnum{text-align:right;color:#666;width:30px}
+  .fmPage .fsrc{font-size:12.5px;color:#4a4a4a}
   .fx{display:block;background:#FFF7DC;border:1px dashed #C9A227;border-radius:3px;color:#8a6d1a;font-style:italic;padding:7px 10px;margin:2px 0;font-size:13px}
   .fxs{padding:4px 6px;font-size:12px;text-align:center}
   .fstd{background:#f2f2f2;border-left:4px solid #141414;padding:8px 12px}
@@ -341,24 +342,35 @@ var SIGNOFF="Preparation, review and approval of this form are evidenced in the 
 var ACC_FORMS=[
 {code:"ACC-1",title:"Client background, integrity &amp; risk rating",
  std:"ISQM 1 &para;30 &middot; ISA 220 (Revised) &para;22&ndash;24 &middot; feeds the EQR determination (ACC-7) and the R07 fraud baseline",
- use:["Complete this form before accepting a new engagement or continuing a recurring one. It documents the information obtained on the client&rsquo;s background and the integrity of its owners, management and those charged with governance, and records the client risk rating that drives staffing, the fraud baseline and the EQR criteria.",
- "Answer all questions. Explain every &ldquo;No&rdquo; in the space provided or in an attachment referenced to the related question."],
+ use:["Complete this form before accepting a new engagement or continuing a recurring one, and before any commitment is given to the client. <b>Part A sets out the procedures to perform and the sources from which each piece of information is expected to come.</b> Part B evaluates what Part A produced. Part C converts that evaluation into the client risk rating that drives staffing, the fraud baseline and the EQR criteria (ACC-7).",
+ "The information in this form is obtained by <b>inquiry</b> (of management, the predecessor auditor and third parties), <b>inspection</b> (of registers, licences, financial statements and correspondence) and <b>external search</b> (trade registry, sanctions and PEP databases, press and internet). Corroborate every significant management representation with at least one source independent of management before relying on it.",
+ "Complete Part A before the engagement letter (ACC-6) is issued, so that any matter arising can be resolved, safeguarded or escalated before commitment. Answer all questions. Explain every &ldquo;No&rdquo; in the space provided or in an attachment referenced to the related question."],
  concl:["Based on the procedures documented in this form, nothing has come to our attention to indicate that the client lacks integrity, and acceptance (or continuance) of this engagement is appropriate.",
  "The client risk rating recorded in Part C is consistent with the evidence documented in this form."],
  sign:SIGNOFF,
  parts:[
- {t:"Part A &mdash; Entity profile and sources consulted",kind:"capture",rows:["Legal form, registration and registered office","Ownership structure and ultimate beneficial owners","Principal activities and operating locations","Sector, regulators and licences held","Sources consulted (registry extract &middot; sanctions &amp; PEP screening &middot; press and media search &middot; predecessor auditor &middot; banker or legal references &middot; other)"]},
- {t:"Part A (continued) &mdash; Key management and those charged with governance",kind:"grid",cols:["Name","Role / position","Notes from background procedures"],n:4},
- {t:"Part B &mdash; Integrity factors",kind:"yn",intro:"When considering acceptance, determine whether the following statements hold. Any &ldquo;No&rdquo; is explained below and weighed in the conclusion.",items:[
- "The identity and business reputation of the principal owners, key management and those charged with governance raise no concern.",
- "The nature of the entity&rsquo;s operations and its business practices raise no concern.",
- "There is no indication of an inappropriately aggressive attitude to the application of accounting standards or to internal control.",
- "There is no inappropriate concern with minimising our fees or limiting the scope of our work.",
- "There is no indication that the entity or its principals are involved in money laundering or other criminal activity.",
- "The reasons given for the change of auditor are consistent with our understanding (cross-reference ACC-5).",
- "No limitation of scope has been suggested by management.",
- "The reputation of related entities and business associates raises no concern."]},
- {t:"Part C &mdash; Client risk rating",kind:"opts",opts:["Low","Moderate","High"],after:"Rationale for the rating and its effect on the engagement (EQR criteria in ACC-7, fraud baseline, staffing and supervision):"}]},
+ {t:"Part A &mdash; Procedures to perform and expected sources",kind:"proc",intro:"Perform each procedure and record the result in the shaded cell, including what was obtained, from whom or from which source, and the file reference of the evidence retained. Where an expected source is unavailable, record the alternative used and why it is sufficient.",rows:[
+ {p:"<b>Obtain and inspect</b> the entity&rsquo;s constitutive and registration documents; record the legal form, registered office and registration identifiers.",s:"Articles / statutes &middot; RCCM (trade-registry) extract &middot; tax registration certificate"},
+ {p:"<b>Obtain or construct</b> the ownership structure down to the ultimate beneficial owners; <b>corroborate</b> it against the share register and shareholder minutes.",s:"Share register &middot; statutes &middot; shareholder minutes &middot; management inquiry"},
+ {p:"<b>Inquire</b> of management about principal activities, operating locations and key customers and suppliers; <b>corroborate</b> the responses against independent material.",s:"Management interview &middot; prior financial statements &middot; entity website &middot; site visit where practicable"},
+ {p:"<b>Identify</b> the sector&rsquo;s regulators and required licences; <b>inspect</b> the licences held and the most recent regulator correspondence.",s:"Licence documents &middot; regulator correspondence &middot; firm sector knowledge"},
+ {p:"<b>Screen</b> the entity, its principal owners, directors and key management against sanctions and politically-exposed-person lists and adverse media; record each search run (database, date, terms) and the disposition of every hit.",s:"Sanctions / PEP screening service &middot; adverse-media databases"},
+ {p:"<b>Search</b> press and internet coverage of the entity and its principals for indications of fraud, litigation, insolvency or regulatory action; record the terms and dates of the searches.",s:"Press archives &middot; internet search engines"},
+ {p:"<b>Communicate</b> with the predecessor auditor on matters bearing on integrity (professional clearance &mdash; performed and filed in ACC-5); carry any integrity-relevant response into Part B.",s:"Predecessor auditor&rsquo;s written response (ACC-5)"},
+ {p:"Where the circumstances warrant it, <b>obtain references</b> on the entity and its principals from their bankers or legal advisers.",s:"Banker reference &middot; legal adviser reference"},
+ {p:"<b>Inspect</b> the prior period&rsquo;s financial statements and auditor&rsquo;s reports for modifications, going-concern language, restatements or late filings.",s:"Prior financial statements &middot; prior auditor&rsquo;s reports &middot; filing records"},
+ {p:"<b>Inquire</b> of management why the auditor is being changed and what expectations exist about scope, timing and fees; <b>compare</b> the account given with the predecessor&rsquo;s (procedure 7).",s:"Management inquiry &middot; ACC-5 response"}]},
+ {t:"Part A (continued) &mdash; Key management and those charged with governance",kind:"grid",intro:"From the procedures above, list the principal owners, key management and those charged with governance, and the result of the background procedures (5&ndash;8) for each.",cols:["Name","Role / position","Result of background procedures and evidence reference"],n:4},
+ {t:"Part B &mdash; Evaluation of integrity factors",kind:"yn",intro:"Having performed the Part A procedures, determine whether the following statements hold. Each factor cites the Part A procedures expected to inform it. Any &ldquo;No&rdquo; is explained below and weighed in the conclusion and the Part C rating.",items:[
+ "The identity and business reputation of the principal owners, key management and those charged with governance raise no concern <i>(procedures 2, 5&ndash;8)</i>.",
+ "The nature of the entity&rsquo;s operations and its business practices raise no concern <i>(procedures 3, 4, 6)</i>.",
+ "There is no indication of an inappropriately aggressive attitude to the application of accounting standards or to internal control <i>(procedures 7, 9, 10)</i>.",
+ "There is no inappropriate concern with minimising our fees or limiting the scope of our work <i>(procedure 10)</i>.",
+ "There is no indication that the entity or its principals are involved in money laundering or other criminal activity <i>(procedures 5, 6, 8)</i>.",
+ "The reasons given for the change of auditor are consistent with the predecessor&rsquo;s account <i>(procedures 7, 10)</i>.",
+ "No limitation of scope has been suggested by management <i>(procedure 10)</i>.",
+ "The reputation of related entities and business associates raises no concern <i>(procedures 2, 6)</i>."]},
+ {t:"Part C &mdash; Client risk rating",kind:"opts",intro:"Weigh the Part B evaluation. Any &ldquo;No&rdquo;, any unresolved screening hit and any unanswered predecessor inquiry precludes a Low rating. A High rating is escalated to the engagement partner before any commitment is given.",opts:["Low","Moderate","High"],after:"Rationale for the rating &mdash; the specific Part A evidence that drives it &mdash; and its effect on the engagement (EQR criteria in ACC-7, fraud baseline, staffing and supervision):"}]},
 {code:"ACC-2",title:"Competence, capability &amp; resources",
  std:"ISA 220 (Revised) &para;25&ndash;28 &middot; ISQM 1 &para;32",
  use:["Complete this form to document that the engagement team, together with any auditor&rsquo;s experts, collectively has the competence, capability and time to perform the engagement, and that the resources it needs are available when needed.",
@@ -469,6 +481,8 @@ function accRender(f){
  f.parts.forEach(function(pt){
   h+='<h2>'+pt.t+'</h2>';if(pt.intro)h+='<p>'+pt.intro+'</p>';
   if(pt.kind==='capture')h+='<table class="ft">'+pt.rows.map(function(r){return '<tr><td class="fl" style="width:38%">'+r+'</td><td>'+fx()+'</td></tr>';}).join('')+'</table>';
+  if(pt.kind==='proc')h+='<table class="ft"><tr><th style="width:26px"></th><th style="width:42%">Procedure to perform</th><th style="width:25%">Expected sources</th><th>Record of results and evidence reference</th></tr>'
+   +pt.rows.map(function(r,i){return '<tr><td class="fnum">'+(i+1)+'.</td><td>'+r.p+'</td><td class="fsrc">'+r.s+'</td><td><span class="fx fxs">&#9001; record result + W/P ref &#9002;</span></td></tr>';}).join('')+'</table>';
   if(pt.kind==='yn'){h+='<table class="ft"><tr><th style="width:30px"></th><th></th><th class="fyn">Yes</th><th class="fyn">No</th>'+(pt.na?'<th class="fyn">N/A</th>':'')+'</tr>'
    +pt.items.map(function(it,i){return '<tr><td class="fnum">'+(i+1)+'.</td><td>'+it+'</td><td class="fyn">&#9744;</td><td class="fyn">&#9744;</td>'+(pt.na?'<td class="fyn">&#9744;</td>':'')+'</tr>';}).join('')+'</table>';
    h+='<p class="fexpl">Explanation of &ldquo;No&rdquo; answers (procedures performed and/or other comments):</p>'+fx();}
