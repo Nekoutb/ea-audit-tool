@@ -11,6 +11,7 @@ import {
   runSupplierRecon,
   type SamplingMethod,
 } from "@/lib/engines";
+import type { ConfidenceLevel } from "@/lib/sampling-params";
 
 async function guarded(path: string, fn: () => Promise<string | void>): Promise<never> {
   let target = path;
@@ -44,6 +45,14 @@ export async function runSamplingAction(
       sampleSize: Number(formData.get("sampleSize") ?? 0),
       seed: String(formData.get("seed") ?? ""),
       threshold: formData.get("threshold") ? Number(formData.get("threshold")) : undefined,
+      confidence: formData.get("confidence")
+        ? (Number(formData.get("confidence")) as ConfidenceLevel)
+        : undefined,
+      expectedMisstatement: formData.get("expectedMisstatement")
+        ? Number(formData.get("expectedMisstatement"))
+        : undefined,
+      overrideSize: formData.get("overrideSize") ? Number(formData.get("overrideSize")) : undefined,
+      overrideRationale: String(formData.get("overrideRationale") ?? "").trim() || undefined,
     });
   });
 }

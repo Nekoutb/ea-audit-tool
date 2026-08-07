@@ -75,6 +75,31 @@ export default async function SectionPage(props: {
   ]);
   const te = t.planning.execution;
   const tg = t.planning.engines;
+  const fr = locale === "fr";
+
+  // A2: default confidence from the assessed risk band (§04) — high/significant
+  // risk → 95%, medium → 85%, purely low → 70%.
+  const defaultConfidence = risks.some((risk) => risk.significant || risk.rating === "high")
+    ? "95"
+    : risks.length > 0 && risks.every((risk) => risk.rating === "low")
+      ? "70"
+      : "85";
+
+  // Last sampling run — surfaces the computed interval/size/factor line so the
+  // extent is visibly "computed, not typed" (R17).
+  const lastSampling = runs.find((run) => run.engine === "sampling");
+  const lastComputed =
+    lastSampling && typeof lastSampling.summary.computed === "object" && lastSampling.summary.computed !== null
+      ? (lastSampling.summary.computed as {
+          populationValue: number;
+          tolerable: number;
+          confidence: number;
+          factor: number;
+          interval: number;
+          sampleSize: number;
+        })
+      : null;
+  const lastOverridden = lastSampling?.summary.override === true;
 
   const input =
     "rounded-[var(--radius-atlas-sm)] border border-line-strong bg-surface px-2 py-1 text-sm text-ink outline-none focus:border-emerald-600 focus:ring-2 focus:ring-emerald-600/20";
@@ -369,7 +394,12 @@ export default async function SectionPage(props: {
             {runs.map((run) => (
               <li key={run.id} className="flex flex-wrap items-center justify-between gap-2 rounded-[var(--radius-atlas-sm)] border border-line px-3 py-1.5">
                 <span className="font-mono text-xs">{run.engine}</span>
-                <span className="text-xs text-muted">{JSON.stringify(run.summary).slice(0, 120)}</span>
+                <span className="text-xs text-muted">
+                  {/* the verbose A2 `computed` block has its own line below */}
+                  {JSON.stringify(
+                    Object.fromEntries(Object.entries(run.summary).filter(([key]) => key !== "computed")),
+                  ).slice(0, 120)}
+                </span>
                 <span className="flex items-center gap-2">
                   {run.engine === "sampling" && !("projected" in run.summary) ? (
                     <form action={evaluateSamplingAction.bind(null, id, itemId, run.id)} className="flex items-center gap-1">
@@ -408,13 +438,60 @@ export default async function SectionPage(props: {
                   </option>
                 ))}
               </select>
+              <select name="confidence" defaultValue={defaultConfidence} className={input} data-testid="sampling-confidence">
+                <option value="95">{fr ? "Élevé 95 %" : "High 95%"}</option>
+                <option value="85">{fr ? "Modéré 85 %" : "Moderate 85%"}</option>
+                <option value="70">{fr ? "Faible 70 %" : "Low 70%"}</option>
+              </select>
+              <input
+                name="expectedMisstatement"
+                type="number"
+                min="0"
+                placeholder={fr ? "Anomalie attendue" : "Expected misstatement"}
+                className={input}
+                data-testid="sampling-expected"
+              />
               <input name="sampleSize" type="number" min="1" defaultValue="5" className={input} data-testid="sampling-size" />
               <input name="seed" placeholder={tg.seed} required className={input} data-testid="sampling-seed" />
               <input name="threshold" type="number" placeholder={tg.threshold} className={input} />
+              <input
+                name="overrideSize"
+                type="number"
+                min="1"
+                placeholder={fr ? "Taille dérogée" : "Override size"}
+                className={input}
+                data-testid="sampling-override"
+              />
+              <input
+                name="overrideRationale"
+                placeholder={fr ? "Justification de la dérogation" : "Override rationale"}
+                className={input}
+                data-testid="sampling-rationale"
+              />
               <button type="submit" className={btn} data-testid="run-sampling">
                 {tg.run}
               </button>
             </div>
+            {lastComputed ? (
+              <p className="mt-2 text-xs text-muted" data-testid="sampling-computed">
+                {fr ? "Calculé, non saisi — " : "Computed, not typed — "}
+                {fr ? "intervalle" : "interval"} {Math.round(lastComputed.interval).toLocaleString(locale)} ·{" "}
+                {fr ? "taille" : "size"} {lastComputed.sampleSize} · {fr ? "facteur" : "factor"}{" "}
+                {lastComputed.factor} ({lastComputed.confidence}% · {fr ? "tolérable" : "tolerable"}{" "}
+                {Math.round(lastComputed.tolerable).toLocaleString(locale)})
+                {lastOverridden ? (
+                  <span className="ml-1 font-semibold text-warn">
+                    {fr ? "· DÉROGATION — signalée en revue" : "· OVERRIDE — flagged for review"}
+                  </span>
+                ) : null}
+              </p>
+            ) : lastOverridden ? (
+              <p className="mt-2 text-xs font-semibold text-warn" data-testid="sampling-computed">
+                {fr
+                  ? "Taille dérogée manuellement — justification signalée en revue"
+                  : "Sample size manually overridden — rationale flagged for review"}
+              </p>
+            ) : null}
           </form>
 
           <form action={runReconAction.bind(null, id, itemId)} className="rounded-[var(--radius-atlas)] border border-line bg-surface-2 p-3">

@@ -38,6 +38,37 @@ export const CONFIRMATION_TYPES: readonly ConfirmationType[] = [
   "ar_positive", "ar_negative", "ap", "bank", "legal", "related_party", "inventory_third_party",
 ];
 
+/** A1: subject-type coverage (ISA engine §05, module A1). */
+export type ConfirmationSubject =
+  | "bank" | "receivable" | "payable" | "inventory_third_party" | "legal" | "lender";
+
+export const CONFIRMATION_SUBJECTS: readonly ConfirmationSubject[] = [
+  "bank", "receivable", "payable", "inventory_third_party", "legal", "lender",
+];
+
+/** A1: positive/negative designation (ISA 505.15 gate on negative). */
+export type ConfirmationMethod = "positive" | "negative";
+
+const SUBJECT_FOR_CTYPE: Record<ConfirmationType, ConfirmationSubject> = {
+  ar_positive: "receivable",
+  ar_negative: "receivable",
+  ap: "payable",
+  bank: "bank",
+  legal: "legal",
+  related_party: "receivable",
+  inventory_third_party: "inventory_third_party",
+};
+
+/** The four ISA 505.15 conditions — all must hold to designate negative. */
+export const NEGATIVE_CONDITION_KEYS = [
+  "low_rmm_with_controls",
+  "homogeneous_small_value",
+  "low_expected_exception",
+  "no_reason_to_disregard",
+] as const;
+
+export type NegativeConditionKey = (typeof NEGATIVE_CONDITION_KEYS)[number];
+
 export type ConfirmationStatus =
   | "prepared" | "approved" | "sent" | "replied"
   | "reconciled" | "exception" | "alternative" | "closed";
@@ -45,16 +76,23 @@ export type ConfirmationStatus =
 export interface ConfirmationInfo {
   id: string;
   ctype: ConfirmationType;
+  subject: ConfirmationSubject;
+  method: ConfirmationMethod;
+  fileItemId: string | null;
   partyName: string;
   partyEmail: string | null;
   bookAmount: number | null;
   status: ConfirmationStatus;
   reminderCount: number;
+  daysSinceSent: number | null;
   confirmedAmount: number | null;
   difference: number | null;
   disposition: string | null;
   altProcedure: string | null;
   letterDocumentId: string | null;
+  /** A1: positive request closed with neither a reply nor an alternative
+   * procedure — possible scope limitation (ISA 505.12 → ISA 705). */
+  scopeLimitation: boolean;
 }
 
 function findColumn(keys: string[], hints: RegExp): string | undefined {
@@ -122,14 +160,14 @@ export async function selectFromDataset(input: {
       const token = randomBytes(18).toString("hex");
       const inserted = await tx.query(
         `INSERT INTO confirmation
-           (tenant_id, engagement_id, file_item_id, ctype, party_name, party_email,
+           (tenant_id, engagement_id, file_item_id, ctype, subject, method, party_name, party_email,
             book_amount, reply_token, source_row, created_by)
-         SELECT $1,$2,$3,$4,$5,$6,$7,$8,$9,$10
+         SELECT $1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12
           WHERE NOT EXISTS (
             SELECT 1 FROM confirmation
-             WHERE engagement_id = $2 AND ctype = $4 AND party_name = $5
+             WHERE engagement_id = $2 AND ctype = $4 AND party_name = $7
           )`,
-        [tenantId, input.engagementId, input.fileItemId, input.ctype, party, entry.email, Math.round(entry.total), token, JSON.stringify({ ...entry.row, __reason: entry.reason }), userId],
+        [tenantId, input.engagementId, input.fileItemId, input.ctype, SUBJECT_FOR_CTYPE[input.ctype], input.ctype === "ar_negative" ? "negative" : "positive", party, entry.email, Math.round(entry.total), token, JSON.stringify({ ...entry.row, __reason: entry.reason }), userId],
       );
       created += inserted.rowCount ?? 0;
     }
@@ -142,18 +180,28 @@ export async function addManualConfirmation(input: {
   engagementId: string;
   fileItemId: string;
   ctype: ConfirmationType;
+  subject?: ConfirmationSubject;
+  method?: ConfirmationMethod;
+  /** ISA 505.15 checklist — required (all four true) when method is negative. */
+  methodRationale?: Partial<Record<NegativeConditionKey, boolean>> | null;
   partyName: string;
   partyEmail?: string;
   bookAmount?: number;
 }): Promise<void> {
   const { tenantId, userId } = await requireTenant();
   if (!input.partyName.trim()) throw new ConfirmationError("party-required");
+  const method: ConfirmationMethod = input.method ?? "positive";
+  if (method === "negative" && !NEGATIVE_CONDITION_KEYS.every((key) => input.methodRationale?.[key] === true)) {
+    throw new ConfirmationError("negative-conditions");
+  }
+  const rationale = method === "negative" ? { standard: "ISA 505.15", ...input.methodRationale } : null;
   await withTenant(tenantId, async (tx) => {
     await tx.query(
       `INSERT INTO confirmation
-         (tenant_id, engagement_id, file_item_id, ctype, party_name, party_email, book_amount, reply_token, created_by)
-       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9)`,
-      [tenantId, input.engagementId, input.fileItemId, input.ctype, input.partyName.trim(), input.partyEmail ?? null, input.bookAmount ?? null, randomBytes(18).toString("hex"), userId],
+         (tenant_id, engagement_id, file_item_id, ctype, subject, method, method_rationale,
+          party_name, party_email, book_amount, reply_token, created_by)
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12)`,
+      [tenantId, input.engagementId, input.fileItemId, input.ctype, input.subject ?? SUBJECT_FOR_CTYPE[input.ctype], method, rationale === null ? null : JSON.stringify(rationale), input.partyName.trim(), input.partyEmail ?? null, input.bookAmount ?? null, randomBytes(18).toString("hex"), userId],
     );
   });
 }
@@ -361,6 +409,16 @@ export async function disposeReply(
   }
 }
 
+/**
+ * A1 non-response escalation: close a positive request that got no reply and
+ * for which no alternative procedure is recorded. The resulting state (closed,
+ * no replied_at, no alt_procedure) is surfaced as a possible scope limitation
+ * — ISA 505.12 / ISA 705 (module A1, R19).
+ */
+export async function closeNoResponse(id: string): Promise<void> {
+  await transition(id, ["sent"], "closed");
+}
+
 /** 6.7 Non-reply → alternative procedures. */
 export async function recordAlternative(id: string, procedure: string): Promise<void> {
   const { tenantId } = await requireTenant();
@@ -381,18 +439,25 @@ export async function listConfirmationsFor(engagementId: string): Promise<Confir
     const result = await tx.query<{
       id: string;
       ctype: ConfirmationType;
+      subject: ConfirmationSubject;
+      method: ConfirmationMethod;
+      file_item_id: string | null;
       party_name: string;
       party_email: string | null;
       book_amount: string | null;
       status: ConfirmationStatus;
       reminder_count: number;
+      days_since_sent: number | null;
       confirmed_amount: string | null;
       difference: string | null;
       disposition: string | null;
       alt_procedure: string | null;
       letter_document_id: string | null;
     }>(
-      `SELECT id, ctype, party_name, party_email, book_amount::text, status, reminder_count,
+      `SELECT id, ctype, subject, method, file_item_id, party_name, party_email,
+              book_amount::text, status, reminder_count,
+              CASE WHEN sent_at IS NULL THEN NULL
+                   ELSE floor(extract(epoch FROM now() - sent_at) / 86400)::int END AS days_since_sent,
               confirmed_amount::text, difference::text, disposition, alt_procedure, letter_document_id
          FROM confirmation WHERE engagement_id = $1 ORDER BY ctype, party_name`,
       [engagementId],
@@ -400,16 +465,23 @@ export async function listConfirmationsFor(engagementId: string): Promise<Confir
     return result.rows.map((row) => ({
       id: row.id,
       ctype: row.ctype,
+      subject: row.subject,
+      method: row.method,
+      fileItemId: row.file_item_id,
       partyName: row.party_name,
       partyEmail: row.party_email,
       bookAmount: row.book_amount === null ? null : Number(row.book_amount),
       status: row.status,
       reminderCount: row.reminder_count,
+      daysSinceSent: row.days_since_sent,
       confirmedAmount: row.confirmed_amount === null ? null : Number(row.confirmed_amount),
       difference: row.difference === null ? null : Number(row.difference),
       disposition: row.disposition,
       altProcedure: row.alt_procedure,
       letterDocumentId: row.letter_document_id,
+      scopeLimitation:
+        row.method === "positive" && row.status === "closed" &&
+        row.confirmed_amount === null && row.alt_procedure === null,
     }));
   });
 }

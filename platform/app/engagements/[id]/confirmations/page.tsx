@@ -7,6 +7,7 @@ import {
   approveAction,
   disposeAction,
   generateLetterForAction,
+  noResponseAction,
   remindAction,
   replyAction,
   selectConfirmationsAction,
@@ -17,7 +18,14 @@ import { AppNav } from "@/components/AppNav";
 import { EngagementTabs } from "@/components/EngagementTabs";
 import { ErrorBanner } from "@/components/GatesPanel";
 import { Panel } from "@/components/ui/atlas";
-import { CONFIRMATION_TYPES, confirmationSummary, listConfirmationsFor } from "@/lib/confirmations";
+import {
+  CONFIRMATION_SUBJECTS,
+  CONFIRMATION_TYPES,
+  confirmationSummary,
+  listConfirmationsFor,
+  NEGATIVE_CONDITION_KEYS,
+  type ConfirmationSubject,
+} from "@/lib/confirmations";
 import { getEngagement, listFileItems } from "@/lib/engagements";
 import { formatFCFA, getMessages } from "@/lib/i18n";
 import { getLocale } from "@/lib/locale";
@@ -40,6 +48,26 @@ export default async function ConfirmationsPage(props: {
 
   const engagement = await getEngagement(id);
   if (!engagement) notFound();
+
+  // A1 additions are localized inline (EN/FR) — no messages/*.json edits.
+  const fr = locale === "fr";
+  const subjectLabels: Record<ConfirmationSubject, string> = fr
+    ? { bank: "Banque", receivable: "Créances", payable: "Fournisseurs", inventory_third_party: "Stocks chez tiers", legal: "Juridique", lender: "Prêteurs" }
+    : { bank: "Bank", receivable: "Receivables", payable: "Payables", inventory_third_party: "3rd-party inventory", legal: "Legal", lender: "Lenders" };
+  // ISA 505.15 — the four conditions for a negative confirmation, in key order.
+  const negConditionLabels: Record<(typeof NEGATIVE_CONDITION_KEYS)[number], string> = fr
+    ? {
+        low_rmm_with_controls: "RMM faible avec contrôles testés",
+        homogeneous_small_value: "Population homogène de petits soldes",
+        low_expected_exception: "Très faible taux d'exceptions attendu",
+        no_reason_to_disregard: "Aucune raison d'ignorer la demande",
+      }
+    : {
+        low_rmm_with_controls: "Low RMM with controls evidence",
+        homogeneous_small_value: "Large homogeneous small-value population",
+        low_expected_exception: "Very low expected exception rate",
+        no_reason_to_disregard: "No reason to disregard the request",
+      };
   const [confirmations, summary, datasets, items] = await Promise.all([
     listConfirmationsFor(id),
     confirmationSummary(id),
@@ -101,6 +129,11 @@ export default async function ConfirmationsPage(props: {
                   <option key={ctype} value={ctype}>{tc.types[ctype]}</option>
                 ))}
               </select>
+              <select name="subject" defaultValue="receivable" className={input} data-testid="manual-subject">
+                {CONFIRMATION_SUBJECTS.map((subject) => (
+                  <option key={subject} value={subject}>{subjectLabels[subject]}</option>
+                ))}
+              </select>
               <select name="fileItemId" className={input}>
                 {eSections.map((section) => (
                   <option key={section.id} value={section.id}>{section.code}</option>
@@ -109,9 +142,36 @@ export default async function ConfirmationsPage(props: {
               <input name="partyName" required placeholder={tc.party} className={input} data-testid="manual-party" />
               <input name="partyEmail" type="email" placeholder={tc.email} className={input} />
               <input name="bookAmount" type="number" placeholder={tc.book} className={input} />
+              <label className="flex items-center gap-1 text-xs text-muted">
+                <input type="radio" name="method" value="positive" defaultChecked data-testid="manual-method-positive" />
+                {fr ? "Positive" : "Positive"}
+              </label>
+              {/* Named peer: checking "negative" reveals the ISA 505.15 checklist below. */}
+              <input type="radio" name="method" value="negative" id="manual-method-negative" className="peer/negative" data-testid="manual-method-negative" />
+              <label htmlFor="manual-method-negative" className="text-xs text-muted">
+                {fr ? "Négative" : "Negative"}
+              </label>
               <button type="submit" className={btn} data-testid="manual-add">
                 +
               </button>
+              <div
+                className="hidden w-full rounded-[var(--radius-atlas-sm)] border border-line bg-surface p-2 peer-checked/negative:block"
+                data-testid="negative-conditions"
+              >
+                <p className="text-xs font-semibold text-ink">
+                  {fr
+                    ? "Conditions ISA 505.15 — les quatre sont requises pour une confirmation négative"
+                    : "ISA 505.15 conditions — all four are required for a negative confirmation"}
+                </p>
+                <div className="mt-1 flex flex-wrap gap-x-4 gap-y-1">
+                  {NEGATIVE_CONDITION_KEYS.map((key) => (
+                    <label key={key} className="flex items-center gap-1 text-xs text-muted">
+                      <input type="checkbox" name={key} data-testid={`neg-${key}`} />
+                      {negConditionLabels[key]}
+                    </label>
+                  ))}
+                </div>
+              </div>
             </div>
           </form>
         </div>
@@ -153,11 +213,37 @@ export default async function ConfirmationsPage(props: {
               <tbody>
                 {confirmations.map((confirmation) => (
                   <tr key={confirmation.id} className="border-t border-line hover:bg-surface-2" data-testid={`conf-row-${confirmation.partyName}`}>
-                    <td className="px-3 py-2 text-xs text-ink-soft">{tc.types[confirmation.ctype]}</td>
+                    <td className="px-3 py-2 text-xs text-ink-soft">
+                      {tc.types[confirmation.ctype]}
+                      <span
+                        className="ml-1 rounded-[var(--radius-atlas-xs)] bg-surface-2 px-1.5 py-0.5 text-[10px] text-muted"
+                        data-testid={`subject-${confirmation.partyName}`}
+                      >
+                        {subjectLabels[confirmation.subject]}
+                      </span>
+                      {confirmation.method === "negative" ? (
+                        <span
+                          className="ml-1 rounded-[var(--radius-atlas-xs)] bg-[var(--color-warn-soft)] px-1.5 py-0.5 text-[10px] font-semibold text-warn"
+                          data-testid={`method-${confirmation.partyName}`}
+                        >
+                          {fr ? "négative" : "negative"}
+                        </span>
+                      ) : null}
+                    </td>
                     <td className="px-3 py-2 font-medium text-ink">
                       {confirmation.partyName}
                       {confirmation.reminderCount > 0 ? (
                         <span className="ml-1 text-xs text-muted">({confirmation.reminderCount}↻)</span>
+                      ) : null}
+                      {confirmation.status === "sent" && confirmation.daysSinceSent !== null ? (
+                        <span
+                          className={`ml-1 text-xs tnum ${confirmation.daysSinceSent >= 14 ? "text-warn" : "text-muted"}`}
+                          data-testid={`cadence-${confirmation.partyName}`}
+                        >
+                          {fr
+                            ? `${confirmation.daysSinceSent} j depuis l'envoi`
+                            : `${confirmation.daysSinceSent}d since sent`}
+                        </span>
                       ) : null}
                     </td>
                     <td className="px-3 py-2 text-right tnum">
@@ -179,9 +265,28 @@ export default async function ConfirmationsPage(props: {
                       {confirmation.altProcedure ? (
                         <span className="ml-1 text-xs text-muted">· {confirmation.altProcedure}</span>
                       ) : null}
+                      {confirmation.scopeLimitation ? (
+                        <span
+                          className="ml-1 whitespace-nowrap rounded-[var(--radius-atlas-xs)] bg-[var(--color-warn-soft)] px-1.5 py-0.5 text-xs font-semibold text-warn"
+                          data-testid={`scope-flag-${confirmation.partyName}`}
+                        >
+                          {fr
+                            ? "limitation d'étendue possible — ISA 705"
+                            : "possible scope limitation — ISA 705"}
+                        </span>
+                      ) : null}
                     </td>
                     <td className="px-3 py-2 text-right tnum">
                       {confirmation.difference !== null ? formatFCFA(confirmation.difference) : ""}
+                      {confirmation.difference !== null && confirmation.difference !== 0 && confirmation.fileItemId ? (
+                        <Link
+                          href={`/engagements/${id}/sections/${confirmation.fileItemId}`}
+                          className="ml-1 whitespace-nowrap text-xs font-medium text-emerald-700 hover:underline dark:text-emerald-400"
+                          data-testid={`raise-${confirmation.partyName}`}
+                        >
+                          {fr ? "Signaler une anomalie →" : "Raise misstatement →"}
+                        </Link>
+                      ) : null}
                     </td>
                     <td className="px-3 py-2">
                       <div className="flex flex-wrap items-center justify-end gap-1.5">
@@ -227,6 +332,11 @@ export default async function ConfirmationsPage(props: {
                               <input name="procedure" placeholder={tc.altProcedure} className={input} data-testid={`alt-input-${confirmation.partyName}`} />
                               <button type="submit" className={btn} data-testid={`alt-${confirmation.partyName}`}>
                                 {tc.alternative}
+                              </button>
+                            </form>
+                            <form action={noResponseAction.bind(null, id, confirmation.id)}>
+                              <button type="submit" className={btn} data-testid={`noreply-${confirmation.partyName}`}>
+                                {fr ? "Sans réponse" : "No reply"}
                               </button>
                             </form>
                           </>

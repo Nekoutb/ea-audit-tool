@@ -8,6 +8,7 @@ import ExcelJS from "exceljs";
 import type { PoolClient } from "pg";
 import { withTenant } from "@/lib/db";
 import { routeFinding } from "@/lib/execution";
+import { CONFIDENCE_FACTORS, musPlan, type ConfidenceLevel } from "@/lib/sampling-params";
 import { requireTenant } from "@/lib/tenant";
 
 const XLSX_MIME = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet";
@@ -162,6 +163,17 @@ export interface SamplingResult {
   keyItems: number;
 }
 
+/** A2 (§04): what the MUS extent computation recorded on the run. */
+interface MusComputation {
+  populationValue: number;
+  tolerable: number;
+  expectedMisstatement: number;
+  confidence: ConfidenceLevel;
+  factor: number;
+  interval: number;
+  sampleSize: number;
+}
+
 export async function runSampling(input: {
   fileItemId: string;
   datasetId: string;
@@ -170,6 +182,13 @@ export async function runSampling(input: {
   seed: string;
   /** criteria method: everything above this is a key item, remainder sampled. */
   threshold?: number;
+  /** A2 upgrade: with a confidence level and an approved tolerable
+   *  (performance materiality), the MUS size is computed, not typed (R17). */
+  confidence?: ConfidenceLevel;
+  expectedMisstatement?: number;
+  /** Manual size override — rationale mandatory, flagged in the summary (R17). */
+  overrideSize?: number;
+  overrideRationale?: string;
 }): Promise<SamplingResult> {
   const { tenantId, userId } = await requireTenant();
   if (input.sampleSize < 1) throw new EngineError("invalid-sample-size");
@@ -180,6 +199,44 @@ export async function runSampling(input: {
     const rows = dataset.rows;
     const selected = new Map<number, { row: DatasetRow; reason: string }>();
 
+    // §04 arithmetic spine: interval = tolerable ÷ factor; size = population ÷
+    // interval. Falls back to the typed size when no confidence was supplied
+    // or materiality is not yet approved (legacy runs keep working).
+    let effectiveSize = input.sampleSize;
+    let sizeSource: "typed" | "computed" | "override" = "typed";
+    let computed: MusComputation | null = null;
+    if (input.method === "mus" && input.confidence !== undefined) {
+      if (!CONFIDENCE_FACTORS[input.confidence]) throw new EngineError("invalid-confidence");
+      const thresholds = await materialityThresholds(tx, dataset.engagementId);
+      if (thresholds.performance !== null && thresholds.performance > 0) {
+        const populationValue = rows.reduce((sum, row) => sum + Math.abs(row.amount ?? 0), 0);
+        if (populationValue <= 0) throw new EngineError("empty-population");
+        const plan = musPlan({
+          populationValue,
+          tolerable: thresholds.performance,
+          expected: input.expectedMisstatement ?? 0,
+          confidence: input.confidence,
+        });
+        computed = {
+          populationValue,
+          tolerable: thresholds.performance,
+          expectedMisstatement: input.expectedMisstatement ?? 0,
+          confidence: input.confidence,
+          factor: plan.factor,
+          interval: Math.round(plan.interval),
+          sampleSize: plan.sampleSize,
+        };
+        effectiveSize = plan.sampleSize;
+        sizeSource = "computed";
+      }
+    }
+    if (input.overrideSize !== undefined) {
+      if (input.overrideSize < 1) throw new EngineError("invalid-sample-size");
+      if (!input.overrideRationale?.trim()) throw new EngineError("override-rationale-required");
+      effectiveSize = input.overrideSize;
+      sizeSource = "override";
+    }
+
     if (input.method === "criteria") {
       const threshold = input.threshold ?? 0;
       if (threshold <= 0) throw new EngineError("threshold-required");
@@ -188,33 +245,33 @@ export async function runSampling(input: {
       }
     }
     const remainder = rows.filter((row) => !selected.has(row.rowNo));
-    const remainderNeeded = Math.max(0, input.sampleSize - (input.method === "criteria" ? 0 : 0));
+    const remainderNeeded = Math.max(0, effectiveSize - (input.method === "criteria" ? 0 : 0));
 
     if (input.method === "random" || input.method === "criteria") {
       const pool = [...remainder];
       let index = 0;
-      while (selected.size < (input.method === "criteria" ? selected.size + Math.min(remainderNeeded || input.sampleSize, pool.length) : Math.min(input.sampleSize, rows.length)) && pool.length > 0) {
+      while (selected.size < (input.method === "criteria" ? selected.size + Math.min(remainderNeeded || effectiveSize, pool.length) : Math.min(effectiveSize, rows.length)) && pool.length > 0) {
         const pick = Math.floor(seededRandom(input.seed, index) * pool.length);
         const [row] = pool.splice(pick, 1);
         if (!selected.has(row.rowNo)) selected.set(row.rowNo, { row, reason: "random" });
         index += 1;
-        if (input.method === "criteria" && index >= input.sampleSize) break;
+        if (input.method === "criteria" && index >= effectiveSize) break;
       }
     } else if (input.method === "systematic") {
-      const interval = Math.max(1, Math.floor(rows.length / input.sampleSize));
+      const interval = Math.max(1, Math.floor(rows.length / effectiveSize));
       const start = Math.floor(seededRandom(input.seed, 0) * interval);
-      for (let i = start; i < rows.length && selected.size < input.sampleSize; i += interval) {
+      for (let i = start; i < rows.length && selected.size < effectiveSize; i += interval) {
         selected.set(rows[i].rowNo, { row: rows[i], reason: "systematic" });
       }
     } else if (input.method === "mus") {
       const total = rows.reduce((sum, row) => sum + Math.abs(row.amount ?? 0), 0);
       if (total <= 0) throw new EngineError("empty-population");
-      const interval = total / input.sampleSize;
+      const interval = total / effectiveSize;
       let target = seededRandom(input.seed, 0) * interval;
       let cumulative = 0;
       for (const row of rows) {
         cumulative += Math.abs(row.amount ?? 0);
-        while (cumulative > target && selected.size < input.sampleSize) {
+        while (cumulative > target && selected.size < effectiveSize) {
           selected.set(row.rowNo, { row, reason: "mus" });
           target += interval;
         }
@@ -230,13 +287,30 @@ export async function runSampling(input: {
       selected: picks.length,
       sampledValue,
       keyItems: picks.filter((pick) => pick.reason === "key-item").length,
+      // A2: how the extent was set — "computed" means the §04 spine produced
+      // it; "override" is surfaced to the reviewer with its rationale (R17).
+      sampleSize: effectiveSize,
+      sizeSource,
+      ...(computed ? { computed } : {}),
+      ...(sizeSource === "override"
+        ? { override: true, overrideRationale: input.overrideRationale?.trim() }
+        : {}),
     };
     const headers = Object.keys(rows[0]?.data ?? {});
     const { runId, documentId } = await storeRun(tx, tenantId, userId, {
       engagementId: dataset.engagementId,
       fileItemId: input.fileItemId,
       engine: "sampling",
-      params: { method: input.method, sampleSize: input.sampleSize, seed: input.seed, threshold: input.threshold ?? null },
+      params: {
+        method: input.method,
+        sampleSize: input.sampleSize,
+        seed: input.seed,
+        threshold: input.threshold ?? null,
+        confidence: input.confidence ?? null,
+        expectedMisstatement: input.expectedMisstatement ?? null,
+        overrideSize: input.overrideSize ?? null,
+        overrideRationale: input.overrideRationale ?? null,
+      },
       datasetId: input.datasetId,
       summary,
       sheetTitle: "Sampling worksheet",

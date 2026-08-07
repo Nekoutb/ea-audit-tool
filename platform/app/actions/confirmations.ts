@@ -5,15 +5,20 @@ import { redirect } from "next/navigation";
 import {
   addManualConfirmation,
   approveConfirmation,
+  closeNoResponse,
   disposeReply,
   generateConfirmationLetter,
   generateSummaryWorkpaper,
+  NEGATIVE_CONDITION_KEYS,
   recordAlternative,
   recordReply,
   remindConfirmation,
   selectFromDataset,
   sendConfirmation,
+  type ConfirmationMethod,
+  type ConfirmationSubject,
   type ConfirmationType,
+  type NegativeConditionKey,
 } from "@/lib/confirmations";
 import { getLocale } from "@/lib/locale";
 
@@ -52,16 +57,27 @@ export async function selectConfirmationsAction(
 }
 
 export async function addManualAction(engagementId: string, formData: FormData): Promise<void> {
-  await guarded(pagePath(engagementId), () =>
-    addManualConfirmation({
+  await guarded(pagePath(engagementId), async () => {
+    // A1 positive/negative designation with the ISA 505.15 gate: designating a
+    // negative confirmation requires all four conditions to be affirmed.
+    const method = (formData.get("method") === "negative" ? "negative" : "positive") as ConfirmationMethod;
+    const rationale: Partial<Record<NegativeConditionKey, boolean>> = {};
+    for (const key of NEGATIVE_CONDITION_KEYS) rationale[key] = formData.get(key) === "on";
+    if (method === "negative" && !NEGATIVE_CONDITION_KEYS.every((key) => rationale[key])) {
+      throw new Error("negative-conditions");
+    }
+    await addManualConfirmation({
       engagementId,
       fileItemId: String(formData.get("fileItemId") ?? ""),
       ctype: String(formData.get("ctype") ?? "bank") as ConfirmationType,
+      subject: String(formData.get("subject") ?? "receivable") as ConfirmationSubject,
+      method,
+      methodRationale: method === "negative" ? rationale : null,
       partyName: String(formData.get("partyName") ?? ""),
       partyEmail: String(formData.get("partyEmail") ?? "") || undefined,
       bookAmount: formData.get("bookAmount") ? Number(formData.get("bookAmount")) : undefined,
-    }),
-  );
+    });
+  });
 }
 
 export async function generateLetterForAction(engagementId: string, id: string): Promise<void> {
@@ -94,6 +110,12 @@ export async function disposeAction(engagementId: string, id: string, formData: 
   await guarded(pagePath(engagementId), () =>
     disposeReply(id, String(formData.get("disposition") ?? "timing") as "timing" | "client_error" | "confirmee_error"),
   );
+}
+
+/** A1 non-response escalation: close without reply or alternative — the page
+ * derives the "possible scope limitation — ISA 705" chip from this state. */
+export async function noResponseAction(engagementId: string, id: string): Promise<void> {
+  await guarded(pagePath(engagementId), () => closeNoResponse(id));
 }
 
 export async function alternativeAction(engagementId: string, id: string, formData: FormData): Promise<void> {

@@ -2,6 +2,11 @@
 // tailored by the section's risks (significant risk → extended procedures).
 
 import { withTenant } from "@/lib/db";
+import {
+  libraryForSection,
+  toLegacyAssertions,
+  type ProcedureTier,
+} from "@/lib/procedure-library";
 import { PROGRAM_LIBRARY, SIGNIFICANT_RISK_EXTENSIONS } from "@/lib/program-library";
 import type { Assertion } from "@/lib/risks";
 import { requireTenant } from "@/lib/tenant";
@@ -71,12 +76,43 @@ export async function generateProgram(fileItemId: string, locale: "en" | "fr"): 
 
     const library = PROGRAM_LIBRARY[row.code] ?? [];
     let seq = 0;
+    const seen = new Set<string>();
     for (const step of library) {
+      seq += 10;
+      const description = locale === "fr" ? step.descFr : step.descEn;
+      seen.add(description);
+      await tx.query(
+        `INSERT INTO program_step (tenant_id, engagement_id, file_item_id, seq, description, assertions, source)
+         VALUES ($1, $2, $3, $4, $5, $6, 'library')`,
+        [tenantId, row.engagement_id, fileItemId, seq, description, step.assertions],
+      );
+    }
+
+    // Wave 4 (ISA engine §06/§07): annex procedures at the section's risk
+    // tier — a linked non-rebutted significant risk selects the significant
+    // tier, any other linked non-rebutted risk the heightened tier, else
+    // baseline. Tiers are cumulative, so higher tiers add steps, never swap.
+    const linkedRisks = await tx.query<{ significant: boolean }>(
+      `SELECT r.significant
+         FROM risk_section rs JOIN risk r ON r.id = rs.risk_id
+        WHERE rs.file_item_id = $1 AND r.rebutted = false`,
+      [fileItemId],
+    );
+    const tier: ProcedureTier = linkedRisks.rows.some((r) => r.significant)
+      ? "significant"
+      : linkedRisks.rows.length > 0
+        ? "heightened"
+        : "baseline";
+    for (const entry of libraryForSection(row.code, tier)) {
+      const title = locale === "fr" ? entry.titleFr : entry.titleEn;
+      const description = `${title} [${entry.code}] (${entry.assertions.join(", ")})`;
+      if (seen.has(description)) continue;
+      seen.add(description);
       seq += 10;
       await tx.query(
         `INSERT INTO program_step (tenant_id, engagement_id, file_item_id, seq, description, assertions, source)
          VALUES ($1, $2, $3, $4, $5, $6, 'library')`,
-        [tenantId, row.engagement_id, fileItemId, seq, locale === "fr" ? step.descFr : step.descEn, step.assertions],
+        [tenantId, row.engagement_id, fileItemId, seq, description, toLegacyAssertions(entry.assertions)],
       );
     }
 

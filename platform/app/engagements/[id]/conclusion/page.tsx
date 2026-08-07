@@ -16,6 +16,7 @@ import { AppNav } from "@/components/AppNav";
 import { EngagementTabs } from "@/components/EngagementTabs";
 import { ErrorBanner, GatesPanel } from "@/components/GatesPanel";
 import { Panel } from "@/components/ui/atlas";
+import { getClient } from "@/lib/clients";
 import {
   assemblyDeadline,
   completionGates,
@@ -23,6 +24,7 @@ import {
   getConclusionState,
 } from "@/lib/completion";
 import { getEngagement } from "@/lib/engagements";
+import { REPORT_COMPONENTS } from "@/lib/report-components";
 import { getMessages } from "@/lib/i18n";
 import { getLocale } from "@/lib/locale";
 
@@ -43,14 +45,32 @@ export default async function ConclusionPage(props: {
 
   const engagement = await getEngagement(id);
   if (!engagement) notFound();
-  const [gates, state, disclosure, subsequent, points, partner] = await Promise.all([
+  const [gates, state, disclosure, subsequent, points, partner, client] = await Promise.all([
     completionGates(id),
     getConclusionState(id),
     getCompletionRecord(id, "disclosure_checklist"),
     getCompletionRecord(id, "subsequent_events"),
     getCompletionRecord(id, "points_forward"),
     getCompletionRecord(id, "partner_conclusion"),
+    getClient(engagement.clientId),
   ]);
+
+  // A4 (Wave 5): the ISA 700 required-components checklist, read-only.
+  // No draft report text exists pre-issue (the report is assembled as DOCX at
+  // issuance), so states render as "—"; structural validation runs at issue.
+  const listed = client?.listed ?? false;
+  const rc =
+    locale === "fr"
+      ? {
+          title: "Composantes du rapport (ISA 700 révisée)",
+          hint: "Aucun texte de rapport à valider avant l'émission — la validation structurelle s'exécute à l'émission du rapport.",
+          conditional: "conditionnel",
+        }
+      : {
+          title: "Report components (ISA 700 Revised)",
+          hint: "No report text to validate before issuance — structural validation runs when the report is issued.",
+          conditional: "conditional",
+        };
 
   const btn =
     "rounded-[var(--radius-atlas-sm)] border border-line-strong bg-surface px-2.5 py-1 text-xs font-medium text-ink-soft hover:bg-surface-2";
@@ -284,6 +304,29 @@ export default async function ConclusionPage(props: {
             </div>
           </form>
         )}
+      </Panel>
+
+      <Panel className="mt-6" data-testid="report-components">
+        <h2 className="text-sm font-semibold text-ink">{rc.title}</h2>
+        <p className="mt-1 text-xs text-muted">{rc.hint}</p>
+        <ul className="mt-3 grid grid-cols-1 gap-x-8 gap-y-1 lg:grid-cols-2">
+          {REPORT_COMPONENTS.map((component) => {
+            const required =
+              component.when === "always" || (component.when === "listed" && listed);
+            return (
+              <li
+                key={component.key}
+                className="flex items-center justify-between gap-3 border-b border-line/60 py-1 text-xs last:border-b-0 lg:[&:nth-last-child(2)]:border-b-0"
+                data-testid={`report-component-${component.key}`}
+              >
+                <span className={required ? "text-ink-soft" : "text-muted"}>
+                  {locale === "fr" ? component.fr : component.en}
+                </span>
+                <span className="shrink-0 text-muted">{required ? "—" : rc.conditional}</span>
+              </li>
+            );
+          })}
+        </ul>
       </Panel>
     </main>
   );
