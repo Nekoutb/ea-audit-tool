@@ -53,7 +53,7 @@
 <h3>v0.9's six open questions — answered</h3>
 <div class="tblwrap"><table>
 <tr><th>#</th><th>Question</th><th>Decision</th></tr>
-<tr><td>1</td><td>Substantive procedure library</td><td>Delivered — Annexes A–F (§07), assertion-mapped, neutral codes.</td></tr>
+<tr><td>1</td><td>Substantive procedure library</td><td>Delivered — Annexes A–J (§07), assertion-mapped, neutral codes; §6.2 carries the planning &amp; conclusion requirement sets.</td></tr>
 <tr><td>2</td><td>Framework scope</td><td>Both IFRS and SYSCOHADA, switchable per engagement; report and disclosure templates are locked to the framework selected at acceptance (v0.9 §07 stands).</td></tr>
 <tr><td>3</td><td>Hard vs advisory rules</td><td>v0.9 severities stand. Add a per-firm <code>rule_config</code> table (rule_id, severity_override, requires_partner_rationale). Overrides permitted only hard→escalate for R03; the six hard rules R07 · R22 · R29 · R30 · R31 · R34 are not overridable.</td></tr>
 <tr><td>4</td><td>Sampling method</td><td>MUS for tests of details + attribute plans for tests of controls, with the parameter tables in §04. Non-statistical selection exists only as documented exception (R17 override path).</td></tr>
@@ -93,10 +93,10 @@
 <div class="tblwrap"><table>
 <tr><th>Gate</th><th>Name</th><th>Blocks</th><th>Cleared by</th></tr>
 <tr><td><b>G1</b></td><td>Acceptance</td><td>All planning modules</td><td>Independence resolved · preconditions met · engagement letter signed (R29)</td></tr>
-<tr><td><b>G2</b></td><td>Planning complete</td><td>Fieldwork sign-off</td><td>Materiality set · all accounts scoped · every significant account has assessed risk + planned response · SCOT understanding documented + current-period walkthrough per significant flow (§6.1) · strategy per account documented · partner approval</td></tr>
+<tr><td><b>G2</b></td><td>Planning complete</td><td>Fieldwork sign-off</td><td>Materiality set · all accounts scoped · every significant account has assessed risk + planned response · SCOT understanding documented + current-period walkthrough per significant flow (§6.1) · strategy per account documented · §6.2.1 planning set complete (team discussion · preliminary analytics · overall responses on FS-level risks · fraud inquiries · RP register · GC preliminary · L&amp;R record · strategy memo) · partner approval</td></tr>
 <tr><td><b>G3</b></td><td>Controls effective? <span class="tag">decision</span></td><td>— (branch, not a lock)</td><td>ToC results: pass → reduced substantive extent; fail → R11 cascade</td></tr>
-<tr><td><b>G4</b></td><td>Evidence sufficiency</td><td>Opinion formation</td><td>No stale/incomplete mandatory procedures · exceptions resolved · misstatement schedule complete</td></tr>
-<tr><td><b>G5</b></td><td>Release</td><td>Report dating &amp; issue</td><td>EQR concluded (R31) · representations received · TCWG communication drafted · no open review notes · R30 checklist clear</td></tr>
+<tr><td><b>G4</b></td><td>Evidence sufficiency</td><td>Opinion formation</td><td>No stale/incomplete mandatory procedures · exceptions resolved · misstatement schedule complete · framework disclosure checklist concluded (§6.2.2) · comparatives agreed and policy-consistent (ISA 710)</td></tr>
+<tr><td><b>G5</b></td><td>Release</td><td>Report dating &amp; issue</td><td>EQR concluded (R31) · representations received · TCWG communication drafted · other information read and resolved (ISA 720, §6.2.2) · no open review notes · R30 checklist clear</td></tr>
 <tr><td><b>G6</b></td><td>Assembly</td><td>Any deletion or silent edit</td><td>File locked at 60 days (R34); amendments additive with reason + reviewer</td></tr>
 </table></div>
 
@@ -222,7 +222,32 @@ new steps enter as not-started. Manual additions persist as 'firm-added', flagge
 </table></div>
 
 <!-- ================================================================ -->
-<h2><span class="n">07</span> Annexes A–F — the substantive procedure library</h2>
+<h3>6.2 Phase completions — requirements v0.9/v1.0 left implicit</h3>
+<p class="lede">Eleven requirements the standards mandate that neither v0.9 nor the sections above carried explicitly. Each becomes a first-class record with a gate condition — same treatment as §6.1.</p>
+
+<h3>6.2.1 Planning set — all gate G2</h3>
+<div class="tblwrap"><table>
+<tr><th>Requirement</th><th>Anchor</th><th>Specification</th></tr>
+<tr><td><b>Engagement-team discussion</b></td><td class="isa">ISA 315.17 · 240.15</td><td>Held before fieldwork, partner present. Agenda locked: susceptibility of the statements to material misstatement and to fraud (incl. management override), framework application, unusual or complex items. Minuted as a <code>team_discussion</code> record; members not attending are briefed and the briefing logged. Feeds the R07 fraud baseline.</td></tr>
+<tr><td><b>Preliminary analytical procedures</b></td><td class="isa">ISA 315.14(b)</td><td>Auto-generated on TB import (A3 hook): CY vs PY by lead schedule plus a ratio set (gross margin · DSO · DIO · DPO · current ratio · gearing). Unusual or unexpected relationships are flagged and either dismissed with rationale or promoted to risk candidates. Reviewed sign-off required.</td></tr>
+<tr><td><b>FS-level risks &amp; overall responses</b></td><td class="isa">ISA 315.28 · 330.5</td><td>Risk records gain type <code>fs_level</code> for pervasive risks (control-environment weakness, management-override exposure, going-concern doubt). Each must carry ≥1 <b>overall response</b>: emphasised skepticism, senior staffing/supervision, accounting-policy scrutiny, and a documented <b>unpredictability element</b> (at least one procedure per engagement varied in nature, timing or extent from the derived default).</td></tr>
+<tr><td><b>Fraud risk inquiries</b></td><td class="isa">ISA 240.17–21</td><td>Structured inquiry set recorded per respondent class: management (assessment, process, communications), TCWG (oversight, knowledge of actual/suspected fraud), internal audit, and others incl. outside finance. Contradictory or implausible responses escalate to the fraud evaluation (R22 candidate).</td></tr>
+<tr><td><b>Related-party register</b></td><td class="isa">ISA 550.11–17</td><td>Per-engagement RP register (name · relationship · transaction types), rolled forward year over year. Procedures: inquiry, minutes/confirmation/bank-record scan for undisclosed parties. RP transactions outside the normal course of business auto-classify as significant risks (550.18 → R06 chain). R27 remains the reactive arm when an undisclosed party surfaces.</td></tr>
+<tr><td><b>Going concern — preliminary</b></td><td class="isa">ISA 570.10–12</td><td>Events-and-conditions checklist at risk assessment; obtain management's preliminary assessment and verify it covers ≥12 months from the expected report date (shorter period → inquiry, extension request, escalation). The conclusion-phase evaluation (R25) consumes and updates this record — it no longer starts cold.</td></tr>
+<tr><td><b>Laws &amp; regulations record</b></td><td class="isa">ISA 250.13–15</td><td>Per-engagement legal/regulatory framework record: sector licences, key regulators, direct-effect laws (tax, social, corporate) vs other laws. Procedures: inquiry on compliance, inspection of regulator correspondence and licence status. Feeds the reactive NOCLAR path (R24).</td></tr>
+<tr><td><b>Engagement strategy memo</b></td><td class="isa">ISA 300</td><td>Engagement-level (not per-account): scope, timing incl. interim/final split, direction, resources and specialists, key dates, team roles. Generated from planning data, partner-approved at G2.</td></tr>
+</table></div>
+
+<h3>6.2.2 Conclusion &amp; reporting set</h3>
+<div class="tblwrap"><table>
+<tr><th>Requirement</th><th>Anchor</th><th>Specification · gate</th></tr>
+<tr><td><b>Disclosure checklist</b></td><td class="isa">ISA 700.13(e)</td><td>Framework-locked checklist (IFRS or SYSCOHADA, per the acceptance selection) instantiated at conclusion; every line answered complete / not-applicable-with-rationale. <b>G4 gains the condition</b>: checklist concluded before the sufficiency sign-off.</td></tr>
+<tr><td><b>Other information</b></td><td class="isa">ISA 720 (Revised)</td><td>Obtain the annual report / other documents containing the FS; read for material inconsistency with the statements and with auditor knowledge <i>before dating</i>. FS misstatement found → misstatement schedule; OI misstatement → request correction, escalate to TCWG, describe in the report's Other Information section (A4 drafts it from this record). <b>G5 gains the condition</b>: OI record concluded (or none-received documented).</td></tr>
+<tr><td><b>Comparatives</b></td><td class="isa">ISA 710</td><td>Corresponding-figures approach: agree comparatives to the prior-year signed statements; accounting-policy consistency checked (change → restatement/disclosure verification); prior period audited by a predecessor or unaudited → Other Matter wording in A4. Distinct from, and additional to, R26 opening balances. Evaluated at G4.</td></tr>
+</table></div>
+
+<!-- ================================================================ -->
+<h2><span class="n">07</span> Annexes A–J — the substantive procedure library</h2>
 <p class="lede">Original wording, assertion-tagged with §02 codes, cycle-coded per A3's taxonomy. <code>tier</code>: B = baseline, H = heightened, S = significant-risk. Each row becomes one <code>library</code> record; nature/timing/sampling flags per v0.9 §12 schema.</p>
 
 <h3>Annex A · Revenue &amp; receivables (R)</h3>
@@ -287,6 +312,45 @@ new steps enter as not-started. Manual additions persist as 'firm-added', flagge
 <li>Maps to AuditISA tasks E2.1 (ITGC testing) and E2.2 (application &amp; IT-dependent controls) — their templates already carry this structure.</li>
 </ul>
 
+<h3>Annex G · Tax (X)</h3>
+<div class="tblwrap"><table>
+<tr><th>Code</th><th>Procedure</th><th>Assertions</th><th>Tier</th></tr>
+<tr><td>X.110</td><td>Reconcile current and deferred tax accounts to filings, assessments and the GL; agree the period's movements (charge · payments · adjustments) and the status of open years.</td><td class="assert">E C AVA</td><td>B</td></tr>
+<tr><td>X.120</td><td>Recompute the current tax charge from accounting profit through the permanent/temporary-difference schedule; agree rates and rules to enacted law.</td><td class="assert">A AVA CL</td><td>B</td></tr>
+<tr><td>X.130</td><td>Deferred tax: recompute from the temporary-difference schedule; test recoverability of deferred tax assets against approved forecasts (estimates overlay, Annex J).</td><td class="assert">AVA C P</td><td>H</td></tr>
+<tr><td>X.140</td><td>Compliance status across tax heads (CIT · VAT · payroll withholdings): filings and payments current; inspect authority correspondence; late or contested items → provision consideration + NOCLAR path (R24).</td><td class="assert">C AVA CO</td><td>B</td></tr>
+<tr><td>X.150</td><td>Uncertain tax positions and disputes: inquiry of management and advisers (legal-subject confirmation via A1); provision vs disclosure concluded per probability and measurement (Annex J).</td><td class="assert">AVA C P</td><td>H</td></tr>
+</table></div>
+
+<h3>Annex H · Equity &amp; provisions (Q)</h3>
+<div class="tblwrap"><table>
+<tr><th>Code</th><th>Procedure</th><th>Assertions</th><th>Tier</th></tr>
+<tr><td>Q.110</td><td>Agree share capital, premiums and their movements to statutory registers, minutes and filings; verify authorisation of dividends and other distributions.</td><td class="assert">E RO C A</td><td>B</td></tr>
+<tr><td>Q.120</td><td>Roll forward each equity component — opening + result + OCI + distributions = closing — and agree to the statement of changes in equity.</td><td class="assert">C A AVA P</td><td>B</td></tr>
+<tr><td>Q.130</td><td>Provisions completeness: minutes and contract review, legal correspondence, subsequent-payment scan — obligations from past events identified and recorded in the right period.</td><td class="assert">C E CO</td><td>B</td></tr>
+<tr><td>Q.140</td><td>Provisions measurement: best estimate tested under Annex J (basis, discounting where material); recognition vs contingent-liability disclosure concluded against the criteria.</td><td class="assert">AVA P CL</td><td>H</td></tr>
+<tr><td>Q.150</td><td>Litigation and claims: legal letters via A1 (legal subject); probability and measurement of outcomes evaluated; disclosure adequacy concluded.</td><td class="assert">E C AVA P</td><td>H</td></tr>
+</table></div>
+
+<h3>Annex I · Payroll (Z)</h3>
+<div class="tblwrap"><table>
+<tr><th>Code</th><th>Procedure</th><th>Assertions</th><th>Tier</th></tr>
+<tr><td>Z.110</td><td>Reconcile payroll cost per the payroll registers to the GL and to social/tax declarations (CNPS · PAYE); agree headcount movements to HR records.</td><td class="assert">C A CL</td><td>B</td></tr>
+<tr><td>Z.120</td><td>Substantive analytics: expectation from headcount × average pay by category vs recorded cost; variances beyond threshold investigated (R20 discipline).</td><td class="assert">O C A</td><td>B</td></tr>
+<tr><td>Z.130</td><td>Sample employees to contracts and HR files: existence, pay rate, and gross-to-net recomputation including withholdings.</td><td class="assert">O A E</td><td>B</td></tr>
+<tr><td>Z.140</td><td>Payroll accruals: leave pay, bonuses, end-of-service obligations raised and measured; actuarial items route to Annex J.</td><td class="assert">C AVA CO</td><td>H</td></tr>
+<tr><td>Z.150</td><td>Starters and leavers around period end: cost cut-off and termination settlements; payments matched to active-employee bank accounts (ghost-employee check).</td><td class="assert">O CO E</td><td>H</td></tr>
+</table></div>
+
+<h3>Annex J · Estimates overlay (<span class="isa">ISA 540 (Revised)</span>)</h3>
+<ul class="tight">
+<li>Every accounting estimate is rated for <b>estimation uncertainty</b> at planning; high uncertainty → auto-significant (R09) with its R06 consequences (test of details required).</li>
+<li>The response tests one or more of: <b>how management made the estimate</b> — method, significant assumptions and data each evaluated; <b>an auditor's point estimate or range</b> — the range confined to outcomes supported by evidence; or <b>events to the report date</b> that resolve the estimate.</li>
+<li>The retrospective review of prior-year estimates (locked in by R07) informs the bias assessment; bias indicators accumulate to the fraud evaluation (R22 candidate). Management's point outside the auditor's range → judgemental misstatement, measured to the nearest range edge, onto the schedule (B5/R18 evaluation).</li>
+<li>Standback: estimation-uncertainty <b>disclosures</b> evaluated (P assertion); skepticism documented — corroborating and contradicting evidence both addressed.</li>
+<li>Data model: estimate-linked risk rows gain <code>uncertainty_rating</code> and method/assumption/data test flags. Annex procedures X.130 · X.150 · Q.140 · F.140 route here.</li>
+</ul>
+
 <!-- ================================================================ -->
 <h2><span class="n">08</span> Standards vintage — corrections applied throughout</h2>
 <div class="tblwrap"><table>
@@ -306,6 +370,7 @@ new steps enter as not-started. Manual additions persist as 'firm-added', flagge
 <li><b>Wave 3 — A1</b> on top of A2/A3. <i>Accept:</i> non-response auto-creates the alternative task; refusal path produces the TCWG draft and 705 flag.</li>
 <li><b>Wave 4 — library + derivation (§06, §07)</b>: annexes seeded; programmes regenerate on tier change. <i>Accept:</i> raising an assertion to significant-risk injects tier-S steps and enforces a test of details (R06).</li>
 <li><b>Wave 5 — A4</b>: template slots + component validation; house templates supplied by the firm drop in. <i>Accept:</i> Fig. 3 outcome selects the right template; a template missing a required component is refused.</li>
+<li><b>Wave 6 — planning &amp; conclusion completions (§6.2, Annexes G–J)</b>: team-discussion, preliminary-analytics, overall-response, fraud-inquiry, RP-register, GC-preliminary, L&amp;R and strategy-memo records with their G2 conditions; disclosure checklist at G4; other-information record at G5; comparatives procedures; annexes G–J seeded incl. the estimates overlay. <i>Accept:</i> G2 blocks until the planning set is complete; the disclosure checklist gates G4; an unconcluded OI record blocks release; tax, equity/provisions and payroll programmes derive from the library.</li>
 <li><b>Throughout</b>: every A5 wiring row demonstrated by an automated test that triggers the event and asserts the rule's effect (STALE marks, task creation, gate block). These tests are the definition of done.</li>
 </ol>
 <div class="callout ok">Dependency guarantee: no wave depends on a later wave. A3 → A2 → A1 is a strict chain; the library (wave 4) needs only A2; A4 needs the misstatement schedule which exists from wave 2 onward. Existing AuditISA modules keep working at every wave — each upgrade is expand-only, mirroring the platform's schema-tolerant deploy pattern.</div>

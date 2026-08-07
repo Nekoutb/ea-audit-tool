@@ -136,10 +136,10 @@ flowchart TD
   D --> F{Fraud indicator?}
   F -->|yes| R22[R22: reopen assessment file-wide]
   R22 -.-> B
-  F -->|no| E[Phase 30 · Conclusion<br>final analytics · subsequent events · going concern · ISA 450 evaluation · representations]
+  F -->|no| E[Phase 30 · Conclusion<br>final analytics · subsequent events · going concern · ISA 450 evaluation · disclosure checklist · representations]
   E --> G4{G4 Evidence sufficient?}
   G4 -->|no| C4
-  G4 -->|yes| R[Phase 40 · Reporting<br>A4 opinion &amp; templates · KAM · TCWG]
+  G4 -->|yes| R[Phase 40 · Reporting<br>A4 opinion &amp; templates · KAM · other information · TCWG]
   R --> G5{G5 Release}
   G5 -->|blocked| Z2[Cannot release — R30 list]
   G5 -->|clear| I[Sign · issue · communicate]
@@ -176,6 +176,9 @@ flowchart TD
         <tr><td>P · Purchases &amp; payables</td><td class="y">●</td><td class="y">●</td><td class="n">·</td><td class="y">●</td><td class="y">●</td><td class="y">●</td><td class="y">●</td><td class="y">●</td><td class="n">·</td></tr>
         <tr><td>I · Inventory</td><td class="n">·</td><td class="y">●</td><td class="y">●</td><td class="y">●</td><td class="n">·</td><td class="y">●</td><td class="y">●</td><td class="y">●</td><td class="y">●</td></tr>
         <tr><td>F · Fixed assets</td><td class="y">●</td><td class="y">●</td><td class="y">●</td><td class="n">·</td><td class="y">●</td><td class="y">●</td><td class="y">●</td><td class="y">●</td><td class="y">●</td></tr>
+        <tr><td>X · Tax</td><td class="n">·</td><td class="y">●</td><td class="y">●</td><td class="y">●</td><td class="y">●</td><td class="y">●</td><td class="n">·</td><td class="y">●</td><td class="y">●</td></tr>
+        <tr><td>Q · Equity &amp; provisions</td><td class="n">·</td><td class="y">●</td><td class="y">●</td><td class="y">●</td><td class="y">●</td><td class="y">●</td><td class="y">●</td><td class="y">●</td><td class="y">●</td></tr>
+        <tr><td>Z · Payroll</td><td class="y">●</td><td class="y">●</td><td class="y">●</td><td class="y">●</td><td class="y">●</td><td class="y">●</td><td class="n">·</td><td class="y">●</td><td class="n">·</td></tr>
       </tbody>
     </table>
   </div><p class="cap">Twelve assertions of ISA 315 (Revised 2019) A190 — six per category, storage always full-set; the C·AV·E·P roll-up is display-only. R33 audits this matrix continuously: a relevant assertion with no covering procedure is an orphan.</p></div>
@@ -226,14 +229,18 @@ var PHASES=[
   "EQR determination (ISQM 2) → release-gate flag"]},
  {n:"10",t:"Planning & risk",s:"Materiality · scoping · assertion risk · controls",steps:[
   "Understand entity, environment, framework, IT environment (ISA 315 R2019)",
+  "Engagement-team discussion, partner present — fraud susceptibility incl. management override, framework application, unusual items; minuted, absentees briefed (ISA 315.17 · 240.15)",
   "Materiality: OM · PM · clearly trivial — global variables, everything references them live (R01)",
   "A3: trial balance imported, mapped, lead schedules generated — the account universe",
+  "Preliminary analytics auto-generated on the imported TB — CY/PY by lead + ratio set; unusual relationships dismissed with rationale or promoted to risk candidates (ISA 315.14)",
   "Significance test per account: quantitative or qualitative → significant (R02: cannot be left unaddressed)",
   "SCOTs identified per significant flow — routine · non-routine · estimation; critical path documented (initiate · record · process · report) with WCGWs per assertion (§6.1)",
   "Walkthrough per SCOT confirms the understanding — one transaction end-to-end; deviation → understanding STALE, linked risks reopen <span class='gatechip'>G2</span>",
   "Risks recorded per relevant assertion; management-override + revenue-fraud auto-registered (R07, R08)",
+  "FS-level risks carry overall responses — emphasised skepticism, senior staffing &amp; supervision, an unpredictability element (ISA 330.5)",
+  "Fraud inquiries (management · TCWG · internal audit · others) · related-party register · going-concern preliminary assessment · laws-&amp;-regulations record (§6.2.1)",
   "Controls: design &amp; implementation; ITGC per application (Annex F; failure → R10)",
-  "Strategy per account: controls reliance or fully substantive <span class='gatechip'>G2</span>"]},
+  "Strategy per account: controls reliance or fully substantive; engagement strategy memo (ISA 300) partner-approved <span class='gatechip'>G2</span>"]},
  {n:"20",t:"Risk response",s:"Derived programmes · A1 · A2 · evidence",steps:[
   "Programmes derived from risk × assertion × library tier (§06 of the prompt) — never copied",
   "Controls testing per attribute plan; failure fires the R11 cascade <span class='gatechip'>G3</span>",
@@ -245,12 +252,15 @@ var PHASES=[
   "Subsequent events to report date (ISA 560)",
   "Going concern assessment; material uncertainty path (ISA 570 R / R25)",
   "Uncorrected misstatements evaluated individually and in aggregate vs materiality",
+  "Framework disclosure checklist (IFRS / SYSCOHADA) concluded — adequacy of disclosures per ISA 700.13 <span class='gatechip'>G4</span>",
+  "Comparatives agreed to prior-year signed statements; accounting-policy consistency; predecessor/unaudited → Other Matter (ISA 710)",
   "Written representations (ISA 580); absence of an expected representation is a finding",
   "Sufficiency conclusion — negative re-enters phase 20 <span class='gatechip'>G4</span>"]},
  {n:"40",t:"Report & archive",s:"Opinion · KAM · TCWG · lock",steps:[
   "A4 assembles the report: opinion tree → framework-locked template",
   "KAM proposed from the significant-risk register; reasons for inclusion and exclusion",
   "TCWG communication: scope, findings, independence, uncorrected misstatements; deficiencies in writing",
+  "Other information read before dating — material inconsistency with the statements or auditor knowledge resolved; OI section drafted (ISA 720) <span class='gatechip'>G5</span>",
   "EQR concluded before the report is dated (R31) <span class='gatechip'>G5</span>",
   "Assembly within 60 days; file locked; amendments additive only (R34) <span class='gatechip'>G6</span>"]}];
 var RULES=[
@@ -296,7 +306,7 @@ var MODS=[
 ["A3","TB ingester → lead schedules","import · map · leads · adjustments · tie-out",
  "<b>Flow:</b> import → SYSCOHADA/IFRS mapping → cycle taxonomy (R·B·P·I·F·X·Q·Z) → lead schedules (PY · movements · CY · variance · WP refs) → movement schedules for fixed assets → misstatement → proposed journal → TB version.<br><b>Discipline:</b> re-import versions and fires recompute <span class='hook'>R01</span>; unmapped account blocks <span class='hook'>G2</span>; no silent balance edits <span class='hook'>R32</span>. WP referencing: letter + sequence; lead = .100."],
 ["A4","Report library","templates × framework × opinion × listing",
- "<b>Selection:</b> opinion tree (§06) + R25/R12/R19/R26 flags choose the template; required-component checklist per ISA 700(R) validates every uploaded house template.<br><b>Set:</b> unmodified ×(IFRS/SYSCOHADA)×(listed/non-listed) · qualified (misstatement/scope) · adverse · disclaimer (single/multiple) · material-uncertainty, EOM, OM inserts.<br><b>Discipline:</b> release gated <span class='hook'>G5·R30·R31</span>; issued wording locks at <span class='hook'>G6</span>."],
+ "<b>Selection:</b> opinion tree (§06) + R25/R12/R19/R26 flags choose the template; required-component checklist per ISA 700(R) validates every uploaded house template.<br><b>Set:</b> unmodified ×(IFRS/SYSCOHADA)×(listed/non-listed) · qualified (misstatement/scope) · adverse · disclaimer (single/multiple) · material-uncertainty, EOM, OM inserts.<br><b>Discipline:</b> release gated <span class='hook'>G5·R30·R31</span>; issued wording locks at <span class='hook'>G6</span>. Other information read &amp; resolved before dating (ISA 720); comparatives per ISA 710 — predecessor/unaudited prior period → Other Matter."],
 ["A5","Dependency wiring","module events → engine rules",
  "TB re-import → <span class='hook'>R01</span> · confirmation non-response → <span class='hook'>R19</span> · confirmed difference → <span class='hook'>R18→R23</span> · refusal → <span class='hook'>R19 esc</span> · sample exception → <span class='hook'>R18</span> · size override → <span class='hook'>R17</span> · ToC failure → <span class='hook'>R11→R23/R12</span> · GITC fail → <span class='hook'>R10→R21</span> · unmapped account → <span class='hook'>G2</span> · opinion-path change → <span class='hook'>R25/R26/R28</span>. Every row ships with an automated test that triggers the event and asserts the effect."]];
 var tiles=document.getElementById("phTiles"),stepsEl=document.getElementById("phSteps");var cur=0;
