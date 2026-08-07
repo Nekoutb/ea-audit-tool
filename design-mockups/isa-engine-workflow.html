@@ -22,69 +22,69 @@
     --rose-soft:rgba(166,61,80,0.11);--info:#35507e;--info-soft:rgba(53,80,126,0.1);
     --shadow:0 1px 2px rgba(20,24,30,0.06),0 14px 36px rgba(20,24,30,0.1);--shadow-sm:0 1px 2px rgba(20,24,30,0.07);}
   *{box-sizing:border-box}html{scroll-behavior:smooth;scroll-padding-top:18px}
-  body{margin:0;color:var(--ink);font:14.5px/1.55 var(--sans);-webkit-font-smoothing:antialiased;background:
+  body{margin:0;color:var(--ink);font:16px/1.55 var(--sans);-webkit-font-smoothing:antialiased;background:
     radial-gradient(1100px 520px at 10% -8%,var(--ground-a),transparent 60%),
     radial-gradient(900px 600px at 110% 10%,var(--ground-c),transparent 55%),
     linear-gradient(160deg,var(--ground-a),var(--ground-b) 55%,var(--ground-c)) fixed;background-color:var(--canvas);}
   .shell{max-width:1220px;margin:0 auto;padding:28px 20px 80px;display:grid;grid-template-columns:210px 1fr;gap:30px;}
   @media(max-width:880px){.shell{grid-template-columns:1fr}nav.toc{position:static!important}}
-  nav.toc{position:sticky;top:18px;align-self:start;font-size:13px;padding:14px;border-radius:var(--r);background:var(--panel);
+  nav.toc{position:sticky;top:18px;align-self:start;font-size:14.5px;padding:14px;border-radius:var(--r);background:var(--panel);
     backdrop-filter:blur(20px) saturate(1.4);-webkit-backdrop-filter:blur(20px) saturate(1.4);border:1px solid var(--glass);box-shadow:var(--shadow-sm);}
   nav.toc a{display:block;color:var(--ink-soft);text-decoration:none;padding:5px 9px;border-radius:var(--r-xs);font-weight:550;}
   nav.toc a:hover{background:var(--accent-soft);color:var(--accent-ink)}
-  nav.toc .n{color:var(--muted);font-variant-numeric:tabular-nums;font-weight:700;margin-right:6px;font-size:11px}
-  .eyebrow{font-size:11px;font-weight:800;letter-spacing:.12em;text-transform:uppercase;color:var(--accent-ink)}
+  nav.toc .n{color:var(--muted);font-variant-numeric:tabular-nums;font-weight:700;margin-right:6px;font-size:12.5px}
+  .eyebrow{font-size:12.5px;font-weight:800;letter-spacing:.12em;text-transform:uppercase;color:var(--accent-ink)}
   h1{font-size:clamp(26px,4vw,38px);line-height:1.06;letter-spacing:-.03em;margin:8px 0 8px;text-wrap:balance}
-  .lede{font-size:15px;color:var(--ink-soft);max-width:64ch}
+  .lede{font-size:16.5px;color:var(--ink-soft);max-width:64ch}
   section.block{margin-bottom:30px;scroll-margin-top:16px}
   h2{font-size:20px;letter-spacing:-.02em;margin:0 0 10px;display:flex;align-items:baseline;gap:10px}
-  h2 .n{font-size:13px;font-weight:800;color:var(--accent-ink);font-variant-numeric:tabular-nums}
+  h2 .n{font-size:14.5px;font-weight:800;color:var(--accent-ink);font-variant-numeric:tabular-nums}
   .card{background:var(--panel);backdrop-filter:blur(20px) saturate(1.4);-webkit-backdrop-filter:blur(20px) saturate(1.4);
     border:1px solid var(--glass);border-radius:var(--r);box-shadow:var(--shadow);padding:18px;margin-bottom:14px;}
   .diagram{background:var(--panel-solid);border:1px solid var(--line);border-radius:var(--r-sm);padding:12px;overflow-x:auto}
-  .diagram pre.mermaid{margin:0;text-align:center}
+  .diagram{overflow-x:auto}.diagram pre.mermaid{margin:0;text-align:center}.diagram svg{max-width:none!important}
   /* phase tiles */
   .phases{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:10px}
   .ph{border:1px solid var(--glass);border-radius:var(--r-sm);background:var(--panel);box-shadow:var(--shadow-sm);padding:13px 14px;cursor:pointer;
     text-align:left;font:inherit;color:var(--ink);transition:transform .15s;}
   .ph:hover{transform:translateY(-2px)}
   .ph.on{border-color:var(--accent);box-shadow:0 0 0 3px var(--accent-soft),var(--shadow-sm)}
-  .ph .num{font:11px var(--mono);color:var(--accent-ink);font-weight:700}
-  .ph b{display:block;font-size:13.5px;margin:2px 0}
-  .ph span{font-size:11.5px;color:var(--muted)}
+  .ph .num{font:12.5px var(--mono);color:var(--accent-ink);font-weight:700}
+  .ph b{display:block;font-size:15px;margin:2px 0}
+  .ph span{font-size:13px;color:var(--muted)}
   .steps{margin-top:12px}
-  .steps li{margin:4px 0;font-size:13.5px;color:var(--ink-soft);max-width:80ch}
-  .gatechip{display:inline-block;font-size:10px;font-weight:800;background:var(--ink);color:var(--canvas);border-radius:99px;padding:2px 9px;margin-left:6px;letter-spacing:.04em}
+  .steps li{margin:4px 0;font-size:15px;color:var(--ink-soft);max-width:80ch}
+  .gatechip{display:inline-block;font-size:11.5px;font-weight:800;background:var(--ink);color:var(--canvas);border-radius:99px;padding:2px 9px;margin-left:6px;letter-spacing:.04em}
   /* rules */
   .rgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:8px}
   .rc{border:1px solid var(--line-strong);border-radius:var(--r-xs);background:var(--panel);padding:8px 10px;cursor:pointer;font:inherit;text-align:left;color:var(--ink)}
   .rc:hover{background:var(--accent-soft)}
   .rc.on{border-color:var(--accent);box-shadow:0 0 0 2px var(--accent-soft)}
-  .rc .rid{font:11px var(--mono);font-weight:700}
-  .rc small{display:block;font-size:10.5px;color:var(--muted);line-height:1.3;margin-top:2px}
+  .rc .rid{font:12.5px var(--mono);font-weight:700}
+  .rc small{display:block;font-size:12.5px;color:var(--muted);line-height:1.3;margin-top:2px}
   .sev{float:right;width:9px;height:9px;border-radius:2px;margin-top:3px}
   .sev.hard{background:var(--ink)}.sev.esc{background:var(--warn)}.sev.prop{background:var(--rose)}
-  .rdetail{margin-top:12px;border-left:3px solid var(--accent);background:var(--accent-soft);border-radius:0 var(--r-sm) var(--r-sm) 0;padding:12px 15px;font-size:13.5px;color:var(--ink-soft)}
+  .rdetail{margin-top:12px;border-left:3px solid var(--accent);background:var(--accent-soft);border-radius:0 var(--r-sm) var(--r-sm) 0;padding:12px 15px;font-size:15px;color:var(--ink-soft)}
   .rdetail b{color:var(--ink)}
-  .legend{display:flex;gap:16px;font-size:11.5px;color:var(--muted);margin:8px 0}
+  .legend{display:flex;gap:16px;font-size:13px;color:var(--muted);margin:8px 0}
   .legend i{display:inline-block;width:10px;height:10px;border-radius:2px;margin-right:5px;vertical-align:-1px}
   /* modules */
   details.mod{border:1px solid var(--glass);border-radius:var(--r-sm);background:var(--panel);box-shadow:var(--shadow-sm);margin-bottom:9px;overflow:hidden}
-  details.mod summary{cursor:pointer;padding:12px 15px;font-weight:700;font-size:14px;list-style:none;display:flex;align-items:center;gap:10px}
+  details.mod summary{cursor:pointer;padding:12px 15px;font-weight:700;font-size:15.5px;list-style:none;display:flex;align-items:center;gap:10px}
   details.mod summary::-webkit-details-marker{display:none}
-  details.mod summary .mcode{font:11px var(--mono);color:var(--accent-ink);font-weight:700}
+  details.mod summary .mcode{font:12.5px var(--mono);color:var(--accent-ink);font-weight:700}
   details.mod[open] summary{border-bottom:1px solid var(--line)}
-  details.mod .body{padding:12px 16px;font-size:13.5px;color:var(--ink-soft)}
+  details.mod .body{padding:12px 16px;font-size:15px;color:var(--ink-soft)}
   details.mod .body b{color:var(--ink)}
-  details.mod .hook{font:11px var(--mono);color:var(--rose);white-space:nowrap}
+  details.mod .hook{font:12.5px var(--mono);color:var(--rose);white-space:nowrap}
   /* matrix */
-  table{border-collapse:collapse;width:100%;font-size:12.5px}
-  th{text-align:left;font-size:10px;text-transform:uppercase;letter-spacing:.07em;color:var(--muted);border-bottom:1px solid var(--line-strong);padding:7px 8px;font-weight:800}
+  table{border-collapse:collapse;width:100%;font-size:14px}
+  th{text-align:left;font-size:11.5px;text-transform:uppercase;letter-spacing:.07em;color:var(--muted);border-bottom:1px solid var(--line-strong);padding:7px 8px;font-weight:800}
   td{border-bottom:1px solid var(--line);padding:6px 8px;color:var(--ink-soft)}
   td.y{color:var(--accent-ink);font-weight:800;text-align:center}
   td.n{color:var(--line-strong);text-align:center}
   .tw{overflow-x:auto}
-  .cap{font-size:12px;color:var(--muted);margin:8px 2px 0}
+  .cap{font-size:13.5px;color:var(--muted);margin:8px 2px 0}
 </style>
 
 <div class="shell">
@@ -115,12 +115,13 @@
 <section class="block" id="life">
   <h2><span class="n">02</span> Master lifecycle — unified gates G1–G6</h2>
   <div class="card"><div class="diagram">
-<pre class="mermaid">
-%%{init: {'theme':'base','themeVariables':{'fontFamily':'system-ui','primaryColor':'#eef2f4','primaryTextColor':'#191c21','primaryBorderColor':'#0c7a58','lineColor':'#565d68','fontSize':'13px'}}}%%
+<pre class="mermaid">%%{init:{"themeVariables":{"fontSize":"18px"}}}%%
+
+%%{init: {'theme':'base','themeVariables':{'fontFamily':'system-ui','primaryColor':'#eef2f4','primaryTextColor':'#191c21','primaryBorderColor':'#0c7a58','lineColor':'#565d68','fontSize':'17px'}}}%%
 flowchart TD
   A[Phase 00 · Acceptance<br>integrity · independence · preconditions · letter · EQR flag] --> G1{G1 Acceptance}
   G1 -->|declined| Z1[Decline / withdraw]
-  G1 -->|accepted| B[Phase 10 · Planning &amp; risk<br>materiality · TB scoping · assertion risks · controls &amp; ITGC]
+  G1 -->|accepted| B[Phase 10 · Planning &amp; risk<br>materiality · TB scoping · SCOT walkthroughs · assertion risks · controls &amp; ITGC]
   B --> G2{G2 Planning complete}
   G2 --> S{Strategy per account}
   S -->|controls reliance| C1[Test operating effectiveness<br>attribute plan §4.2]
@@ -183,8 +184,9 @@ flowchart TD
 <section class="block" id="opinion">
   <h2><span class="n">06</span> Opinion decision tree → report template (A4)</h2>
   <div class="card"><div class="diagram">
-<pre class="mermaid">
-%%{init: {'theme':'base','themeVariables':{'fontFamily':'system-ui','primaryColor':'#eef2f4','primaryTextColor':'#191c21','primaryBorderColor':'#0c7a58','lineColor':'#565d68','fontSize':'13px'}}}%%
+<pre class="mermaid">%%{init:{"themeVariables":{"fontSize":"18px"}}}%%
+
+%%{init: {'theme':'base','themeVariables':{'fontFamily':'system-ui','primaryColor':'#eef2f4','primaryTextColor':'#191c21','primaryBorderColor':'#0c7a58','lineColor':'#565d68','fontSize':'17px'}}}%%
 flowchart TD
   A{Aggregate uncorrected<br>above overall materiality?} -->|yes| MM[Material misstatement]
   A -->|no| Q{Qualitatively material?<br>covenants · trend · law}
@@ -206,7 +208,7 @@ flowchart TD
   </div><p class="cap">A4 selects the template from this tree plus the R25 (going concern), R12/R19 (scope limitation) and R26 (opening balances) flags. A template missing a required ISA 700 component is refused at upload.</p></div>
 </section>
 
-<p style="font-size:12px;color:var(--muted);border-top:1px solid var(--line);padding-top:14px">Companion to ISA Audit Documentation Engine build prompt v1.0 · Elite Advisors. Rules and phases per v0.9 as amended; sampling parameters per IFAC Guide Ch 17; assertions per ISA 315 (Revised 2019).</p>
+<p style="font-size:13.5px;color:var(--muted);border-top:1px solid var(--line);padding-top:14px">Companion to ISA Audit Documentation Engine build prompt v1.0 · Elite Advisors. Rules and phases per v0.9 as amended; sampling parameters per IFAC Guide Ch 17; assertions per ISA 315 (Revised 2019).</p>
 </main>
 </div>
 
@@ -227,6 +229,8 @@ var PHASES=[
   "Materiality: OM · PM · clearly trivial — global variables, everything references them live (R01)",
   "A3: trial balance imported, mapped, lead schedules generated — the account universe",
   "Significance test per account: quantitative or qualitative → significant (R02: cannot be left unaddressed)",
+  "SCOTs identified per significant flow — routine · non-routine · estimation; critical path documented (initiate · record · process · report) with WCGWs per assertion (§6.1)",
+  "Walkthrough per SCOT confirms the understanding — one transaction end-to-end; deviation → understanding STALE, linked risks reopen <span class='gatechip'>G2</span>",
   "Risks recorded per relevant assertion; management-override + revenue-fraud auto-registered (R07, R08)",
   "Controls: design &amp; implementation; ITGC per application (Annex F; failure → R10)",
   "Strategy per account: controls reliance or fully substantive <span class='gatechip'>G2</span>"]},
@@ -308,6 +312,6 @@ grid.querySelectorAll(".rc").forEach(function(b){b.addEventListener("click",func
  curR=i;b.classList.add("on");var r=RULES[i];
  det.innerHTML="<b>"+r[0]+" · "+r[1]+"</b> — <i>"+({hard:"hard block",esc:"escalate",prop:"propagate"})[r[2]]+"</i><br><b>Trigger:</b> "+r[3]+"<br><b>Action:</b> "+r[4];
  det.hidden=false;});});
-document.getElementById("modList").innerHTML=MODS.map(function(m){return '<details class="mod"'+(m[0]==="A1"?" open":"")+'><summary><span class="mcode">'+m[0]+'</span>'+m[1]+'<span style="margin-left:auto;font-size:11px;color:var(--muted);font-weight:500">'+m[2]+'</span></summary><div class="body">'+m[3]+'</div></details>';}).join("");
+document.getElementById("modList").innerHTML=MODS.map(function(m){return '<details class="mod"'+(m[0]==="A1"?" open":"")+'><summary><span class="mcode">'+m[0]+'</span>'+m[1]+'<span style="margin-left:auto;font-size:12.5px;color:var(--muted);font-weight:500">'+m[2]+'</span></summary><div class="body">'+m[3]+'</div></details>';}).join("");
 })();
 </script>
