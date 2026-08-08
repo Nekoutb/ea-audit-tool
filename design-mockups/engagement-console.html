@@ -1,0 +1,864 @@
+<title>Engagement Console — design proposal</title>
+<style>
+:root{
+  --canvas:#dde1e5; --surface:rgba(255,255,255,.62); --solid:#fff; --rail:rgba(255,255,255,.72);
+  --ink:#1b1e23; --ink-soft:#2b323b; --muted:#515863;
+  --line:rgba(27,30,35,.10); --line-strong:rgba(27,30,35,.18);
+  --accent:#0e7a5f; --accent-soft:rgba(14,122,95,.10); --accent-ink:#0b5f4a; --on-accent:#fff;
+  --amber:#8a5a08; --amber-soft:rgba(180,120,10,.13);
+  --rose:#a8231c; --rose-soft:rgba(168,35,28,.11);
+  --blue:#34467f; --blue-soft:rgba(52,70,127,.11);
+  --sans:ui-sans-serif,-apple-system,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+  --mono:ui-monospace,"SF Mono",Menlo,Consolas,monospace;
+  --r:14px; --r-s:9px; --r-xs:6px;
+  --shadow:0 1px 2px rgba(16,20,26,.05),0 8px 24px rgba(16,20,26,.07);
+}
+@media(prefers-color-scheme:dark){:root{
+  --canvas:#121418; --surface:rgba(40,44,51,.55); --solid:#1b1f25; --rail:rgba(30,34,40,.72);
+  --ink:#eef1f5; --ink-soft:#c8d1de; --muted:#aab7ca;
+  --line:rgba(255,255,255,.09); --line-strong:rgba(255,255,255,.17);
+  --accent:#34d399; --accent-soft:rgba(52,211,153,.13); --accent-ink:#6ee7b7; --on-accent:#08211a;
+  --amber:#e0a94a; --amber-soft:rgba(224,169,74,.14);
+  --rose:#ff8078; --rose-soft:rgba(255,128,120,.13);
+  --blue:#93a4dd; --blue-soft:rgba(147,164,221,.14);
+  --shadow:0 1px 2px rgba(0,0,0,.3),0 10px 30px rgba(0,0,0,.35);
+}}
+:root[data-theme="dark"]{--canvas:#121418;--surface:rgba(40,44,51,.55);--solid:#1b1f25;--rail:rgba(30,34,40,.72);
+  --ink:#eef1f5;--ink-soft:#c8d1de;--muted:#aab7ca;--line:rgba(255,255,255,.09);--line-strong:rgba(255,255,255,.17);
+  --accent:#34d399;--accent-soft:rgba(52,211,153,.13);--accent-ink:#6ee7b7;--on-accent:#08211a;
+  --amber:#e0a94a;--amber-soft:rgba(224,169,74,.14);--rose:#ff8078;--rose-soft:rgba(255,128,120,.13);
+  --blue:#93a4dd;--blue-soft:rgba(147,164,221,.14);--shadow:0 1px 2px rgba(0,0,0,.3),0 10px 30px rgba(0,0,0,.35);}
+:root[data-theme="light"]{--canvas:#dde1e5;--surface:rgba(255,255,255,.62);--solid:#fff;--rail:rgba(255,255,255,.72);
+  --ink:#1b1e23;--ink-soft:#2b323b;--muted:#515863;--line:rgba(27,30,35,.10);--line-strong:rgba(27,30,35,.18);
+  --accent:#0e7a5f;--accent-soft:rgba(14,122,95,.10);--accent-ink:#0b5f4a;--on-accent:#fff;
+  --amber:#8a5a08;--amber-soft:rgba(180,120,10,.13);--rose:#a8231c;--rose-soft:rgba(168,35,28,.11);
+  --blue:#34467f;--blue-soft:rgba(52,70,127,.11);--shadow:0 1px 2px rgba(16,20,26,.05),0 8px 24px rgba(16,20,26,.07);}
+*{box-sizing:border-box}
+body{margin:0;font:14.5px/1.5 var(--sans);color:var(--ink);-webkit-font-smoothing:antialiased;background:var(--canvas);
+  background-image:radial-gradient(1200px 520px at 10% -10%,rgba(255,255,255,.5),transparent 60%),
+                   radial-gradient(900px 420px at 95% 0%,var(--accent-soft),transparent 55%);}
+.tnum{font-variant-numeric:tabular-nums}.mono{font-family:var(--mono)}
+h1,h2,h3{margin:0;letter-spacing:-.01em;text-wrap:balance}
+button{font:inherit;color:inherit;cursor:pointer}
+select,input[type=text],textarea{font:13px var(--sans);color:var(--ink);background:var(--solid);border:1px solid var(--line-strong);border-radius:var(--r-xs);padding:4px 7px;max-width:100%}
+select:focus,input:focus,textarea:focus{outline:2px solid var(--accent);outline-offset:1px}
+input[type=checkbox]{width:15px;height:15px;accent-color:var(--accent);cursor:pointer}
+
+/* ============ APP FRAME ============ */
+.app{display:grid;grid-template-columns:212px 1fr;min-height:100vh}
+@media(max-width:940px){.app{grid-template-columns:1fr}.rail{position:static!important;height:auto!important;border-right:0!important}}
+.rail{position:sticky;top:0;height:100vh;overflow-y:auto;background:var(--rail);border-right:1px solid var(--line);
+  backdrop-filter:blur(18px);-webkit-backdrop-filter:blur(18px);padding:14px 10px;display:flex;flex-direction:column;gap:3px}
+.brand{display:flex;align-items:center;gap:9px;font-weight:700;padding:4px 8px 12px}
+.brand i{width:25px;height:25px;border-radius:7px;background:var(--accent);color:var(--on-accent);display:grid;place-items:center;font:700 12px var(--sans);font-style:normal}
+.railh{font:600 10px var(--sans);letter-spacing:.1em;text-transform:uppercase;color:var(--muted);padding:12px 9px 4px}
+.nav{display:flex;align-items:center;gap:9px;width:100%;text-align:left;background:transparent;border:0;border-radius:var(--r-s);padding:7px 9px;font-size:13.5px;color:var(--ink-soft)}
+.nav:hover{background:var(--accent-soft)}
+.nav[aria-current="true"]{background:var(--accent);color:var(--on-accent);font-weight:650}
+.nav .ic{width:16px;text-align:center;font-size:12px;opacity:.85}
+.nav .bdg{margin-left:auto;font:600 10.5px var(--mono);background:var(--line-strong);border-radius:99px;padding:1px 7px}
+.nav[aria-current="true"] .bdg{background:rgba(255,255,255,.28)}
+.railfoot{margin-top:auto;padding:10px 9px 4px;font-size:11.5px;color:var(--muted);border-top:1px solid var(--line)}
+
+.main{min-width:0;display:flex;flex-direction:column}
+.topbar{position:sticky;top:0;z-index:20;display:flex;align-items:center;gap:12px;flex-wrap:wrap;padding:10px 20px;
+  background:var(--surface);border-bottom:1px solid var(--line);backdrop-filter:blur(18px);-webkit-backdrop-filter:blur(18px)}
+.entpick{display:flex;align-items:center;gap:8px;border:1px solid var(--line-strong);border-radius:99px;padding:4px 12px;background:var(--solid);font-size:13px}
+.entpick b{font-weight:650}
+.ctx{display:flex;gap:14px;flex-wrap:wrap;font-size:12px;color:var(--muted)}
+.ctx b{color:var(--ink);font-weight:650}
+.propose{font:600 10px var(--sans);letter-spacing:.09em;text-transform:uppercase;color:var(--amber);background:var(--amber-soft);border:1px solid var(--amber);border-radius:99px;padding:3px 9px}
+.tb-actions{margin-left:auto;display:flex;gap:7px;align-items:center}
+.iconbtn{border:1px solid var(--line-strong);background:var(--solid);border-radius:99px;padding:5px 12px;font-size:12.5px}
+.body{padding:18px 20px 70px;max-width:1560px;width:100%}
+.view{display:none}.view.on{display:block}
+
+/* ============ shared ============ */
+.panel{background:var(--surface);border:1px solid var(--line);border-radius:var(--r);backdrop-filter:blur(16px);-webkit-backdrop-filter:blur(16px);box-shadow:var(--shadow);padding:15px 17px}
+.phead{display:flex;align-items:baseline;gap:10px;margin-bottom:10px;flex-wrap:wrap}
+.phead h2{font-size:14.5px}
+.phead .sub{font-size:12px;color:var(--muted);margin-left:auto}
+.note{font-size:12.5px;color:var(--muted);max-width:82ch;margin:0}
+.chip{display:inline-flex;align-items:center;gap:5px;font:600 11px var(--sans);border-radius:99px;padding:2px 9px;border:1px solid var(--line-strong);color:var(--muted);white-space:nowrap}
+.chip.ok{color:var(--accent-ink);background:var(--accent-soft);border-color:var(--accent)}
+.chip.warn{color:var(--amber);background:var(--amber-soft);border-color:var(--amber)}
+.chip.bad{color:var(--rose);background:var(--rose-soft);border-color:var(--rose)}
+.chip.info{color:var(--blue);background:var(--blue-soft);border-color:var(--blue)}
+.chip.mono{font-family:var(--mono);font-size:10.5px}
+.mini{border:1px solid var(--line-strong);background:var(--solid);border-radius:99px;padding:3px 11px;font-size:12px}
+.mini:active{transform:scale(.97)}
+.mini.pri{background:var(--accent);border-color:var(--accent);color:var(--on-accent)}
+.tblwrap{overflow-x:auto;border:1px solid var(--line);border-radius:var(--r-s);background:var(--solid)}
+table.grid{width:100%;border-collapse:collapse;font-size:12.8px}
+table.grid th{text-align:left;font:600 10px var(--sans);letter-spacing:.07em;text-transform:uppercase;color:var(--muted);border-bottom:1px solid var(--line-strong);padding:7px 8px;white-space:nowrap}
+table.grid td{border-bottom:1px solid var(--line);padding:6px 8px;vertical-align:middle}
+table.grid tr.sig td{background:var(--accent-soft)}
+table.grid tr.unmapped td{background:var(--rose-soft)}
+.kpis{display:flex;gap:8px;flex-wrap:wrap;margin:10px 0}
+.kpi{border:1px solid var(--line);border-radius:var(--r-s);background:var(--solid);padding:7px 12px;min-width:96px}
+.kpi b{display:block;font:700 18px var(--sans);font-variant-numeric:tabular-nums}
+.kpi span{font-size:10.5px;color:var(--muted);text-transform:uppercase;letter-spacing:.06em}
+.hint{font-size:12px;color:var(--muted);font-style:italic}
+
+/* ============ hub band ============ */
+.band{display:grid;grid-template-columns:1.15fr 1.3fr .85fr;gap:12px;margin-bottom:12px}
+@media(max-width:1180px){.band{grid-template-columns:1fr}}
+.gauges{display:flex;gap:16px;align-items:center;flex-wrap:wrap}
+.gauge{text-align:center;background:transparent;border:0;padding:2px}
+.ring{width:76px;height:76px;border-radius:50%;display:grid;place-items:center;margin:0 auto;
+  background:conic-gradient(var(--accent) calc(var(--p)*1%),var(--line-strong) 0)}
+.ring i{width:60px;height:60px;border-radius:50%;background:var(--solid);display:grid;place-items:center;font-style:normal;font:700 15px var(--sans);font-variant-numeric:tabular-nums}
+.gauge .gl{display:block;font-size:11.5px;font-weight:650;margin-top:6px}
+.gauge .gs{display:block;font-size:10.5px;color:var(--muted)}
+.gauge:hover .ring i{outline:2px solid var(--accent);outline-offset:2px}
+.statuslist{display:flex;flex-direction:column;gap:5px}
+.strow{display:flex;align-items:center;gap:9px;width:100%;text-align:left;background:transparent;border:0;border-radius:var(--r-xs);padding:5px 7px;font-size:12.5px}
+.strow:hover{background:var(--accent-soft)}
+.strow .gc{font:700 10.5px var(--mono);color:var(--accent-ink);min-width:26px}
+.bar{flex:1;height:6px;border-radius:99px;background:var(--line-strong);overflow:hidden}
+.bar i{display:block;height:100%;background:var(--accent)}
+.strow .n{font:600 11px var(--mono);color:var(--muted);min-width:34px;text-align:right}
+.reflist{display:flex;flex-direction:column;gap:5px;font-size:12.5px}
+.reflist a{color:var(--ink-soft);text-decoration:none;padding:5px 7px;border-radius:var(--r-xs);display:flex;gap:8px}
+.reflist a:hover{background:var(--accent-soft)}
+
+/* spine */
+.spine{display:flex;align-items:stretch;overflow-x:auto;padding:4px 2px 8px}
+.snode{flex:1 0 auto;min-width:124px;position:relative;padding:9px 11px;border:1px solid var(--line);border-radius:var(--r-s);background:var(--solid);text-align:left}
+.snode+.snode{margin-left:20px}
+.snode+.snode:before{content:"";position:absolute;left:-20px;top:50%;width:20px;height:1.5px;background:var(--line-strong)}
+.snode+.snode:after{content:"";position:absolute;left:-7px;top:50%;transform:translateY(-50%);border-left:5px solid var(--line-strong);border-top:4px solid transparent;border-bottom:4px solid transparent}
+.snode b{display:block;font-size:12px}.snode span{display:block;font-size:11px;color:var(--muted);margin-top:2px}
+.snode.live{border-color:var(--accent)}
+.snode.live:hover{box-shadow:0 0 0 3px var(--accent-soft)}
+
+/* ============ section unveil ============ */
+.secgrid{display:grid;grid-template-columns:repeat(auto-fit,minmax(250px,1fr));gap:11px}
+.seccard{text-align:left;background:var(--surface);border:1px solid var(--line);border-radius:var(--r);padding:14px 15px;backdrop-filter:blur(14px);box-shadow:var(--shadow);width:100%}
+.seccard[aria-expanded="true"]{border-color:var(--accent);box-shadow:0 0 0 3px var(--accent-soft),var(--shadow)}
+.seccard .code{font:700 10.5px var(--mono);letter-spacing:.08em;color:var(--muted)}
+.seccard h3{font-size:15px;margin-top:2px}
+.unveil{display:none;margin-top:10px;border-top:1px dashed var(--line-strong);padding-top:10px}
+.unveil.on{display:block}
+.grouprow{display:flex;align-items:center;gap:9px;width:100%;text-align:left;background:transparent;border:0;border-radius:var(--r-xs);padding:6px 7px}
+.grouprow:hover{background:var(--accent-soft)}
+.grouprow .gc{font:700 10.5px var(--mono);color:var(--accent-ink);min-width:28px}
+.grouprow .gt{font-size:13px}.grouprow .gn{margin-left:auto;font:600 11px var(--mono);color:var(--muted)}
+.tasklist{display:none;padding:2px 0 5px 34px}.tasklist.on{display:block}
+.taskrow{display:flex;align-items:center;gap:9px;width:100%;text-align:left;background:transparent;border:0;border-radius:var(--r-xs);padding:5px 7px;font-size:12.5px;color:var(--ink-soft)}
+.taskrow:hover{background:var(--accent-soft);color:var(--ink)}
+.dot{width:8px;height:8px;border-radius:50%;flex:0 0 auto;border:1.5px solid var(--line-strong)}
+.dot.done{background:var(--accent);border-color:var(--accent)}
+.dot.prog{background:var(--blue);border-color:var(--blue)}
+.dot.rev{background:var(--amber);border-color:var(--amber)}
+.taskrow .fc{font:600 10px var(--mono);color:var(--muted);margin-left:auto}
+
+/* ============ console ============ */
+.console{display:grid;grid-template-columns:196px 1fr 268px;gap:13px;align-items:start}
+@media(max-width:1240px){.console{grid-template-columns:1fr}}
+.steprail{display:flex;flex-direction:column;gap:3px;position:sticky;top:70px}
+.steprail button{display:flex;gap:9px;align-items:flex-start;text-align:left;background:transparent;border:1px solid transparent;border-radius:var(--r-s);padding:9px 10px;width:100%}
+.steprail button[aria-current="true"]{background:var(--surface);border-color:var(--accent);box-shadow:0 0 0 3px var(--accent-soft)}
+.steprail .n{font:700 10.5px var(--mono);width:18px;height:18px;border-radius:50%;display:grid;place-items:center;background:var(--line-strong);flex:0 0 auto;margin-top:1px}
+.steprail button[aria-current="true"] .n{background:var(--accent);color:var(--on-accent)}
+.steprail .lab{font-size:12.5px;font-weight:600;line-height:1.3}
+.steprail .sub{display:block;font-weight:400;font-size:11px;color:var(--muted);margin-top:2px}
+.step{display:none}.step.on{display:block}
+.slider{display:flex;align-items:center;gap:10px;font-size:12.5px;color:var(--muted);flex-wrap:wrap}
+input[type=range]{accent-color:var(--accent);flex:1;min-width:140px}
+.ctxrail{position:sticky;top:70px;display:flex;flex-direction:column;gap:11px}
+.ctxrail h4{margin:0 0 7px;font-size:10.5px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted)}
+.flow{display:flex;flex-direction:column;gap:5px}
+.flow div{font-size:12px;padding:6px 9px;border:1px solid var(--line);border-radius:var(--r-xs);background:var(--solid)}
+.flow div b{display:block;font-size:10px;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);font-weight:600}
+.evt{font-size:11.5px;color:var(--muted);border-top:1px solid var(--line);padding-top:6px;margin-top:6px}
+.evt span{color:var(--amber);font-weight:600}
+
+/* ============ task page ============ */
+.tmeta{display:flex;gap:10px;align-items:center;flex-wrap:wrap;padding:12px 16px;border-bottom:1px solid var(--line)}
+.ttabs{display:flex;gap:2px;padding:0 16px;border-bottom:1px solid var(--line)}
+.ttab{background:transparent;border:0;border-bottom:2px solid transparent;padding:9px 13px;font-size:13px;color:var(--muted);font-weight:600}
+.ttab[aria-selected="true"]{color:var(--ink);border-bottom-color:var(--accent)}
+.tpane{display:none;padding:16px}.tpane.on{display:block}
+.work{display:grid;grid-template-columns:1fr 300px;gap:13px;align-items:start}
+@media(max-width:1180px){.work{grid-template-columns:1fr}}
+.formpaper{background:var(--solid);border:1px solid var(--line-strong);border-radius:var(--r-s);padding:20px 22px}
+.formpaper h3{font-size:18px}
+.fcode{font:700 10.5px var(--mono);letter-spacing:.08em;color:var(--amber)}
+.fstd{background:var(--accent-soft);border:1px solid var(--accent);border-radius:var(--r-xs);padding:8px 11px;font-size:12.5px;margin:10px 0}
+.fsec{font:700 11.5px var(--sans);text-transform:uppercase;letter-spacing:.05em;border-bottom:1.5px solid var(--ink);padding-bottom:4px;margin:17px 0 8px}
+.frow{display:grid;grid-template-columns:200px 1fr;gap:10px;padding:6px 0;border-bottom:1px solid var(--line);font-size:12.8px}
+@media(max-width:700px){.frow{grid-template-columns:1fr}}
+.flab{color:var(--muted)}
+.fauto{background:var(--blue-soft);border:1px solid var(--blue);border-radius:var(--r-xs);padding:5px 9px;font-size:12.3px;color:var(--ink-soft)}
+.fin{width:100%;min-height:38px;background:#FFFBEB;border:1px dashed #C9A227;border-radius:var(--r-xs);padding:6px 9px;font:12.8px var(--sans);color:#141414;resize:vertical}
+@media(prefers-color-scheme:dark){.fin{background:rgba(224,169,74,.12);border-color:var(--amber);color:var(--ink)}}
+:root[data-theme="dark"] .fin{background:rgba(224,169,74,.12);border-color:var(--amber);color:var(--ink)}
+:root[data-theme="light"] .fin{background:#FFFBEB;border-color:#C9A227;color:#141414}
+.legend{font-size:11.5px;color:var(--muted);display:flex;gap:14px;flex-wrap:wrap;margin:0 0 10px}
+.legend i{display:inline-block;width:11px;height:11px;border-radius:3px;vertical-align:-1px;margin-right:4px}
+/* review pane */
+.rnote{border:1px solid var(--line);border-radius:var(--r-xs);background:var(--solid);padding:8px 10px;margin-bottom:7px;font-size:12.3px}
+.rnote .rh{display:flex;gap:7px;align-items:center;margin-bottom:3px}
+.rnote .who{font-weight:650;font-size:11.5px}
+.rnote .when{font-size:10.5px;color:var(--muted);margin-left:auto}
+.rnote.open{border-color:var(--amber);background:var(--amber-soft)}
+.signrow{display:flex;gap:8px;align-items:center;font-size:12.3px;padding:6px 0;border-bottom:1px solid var(--line)}
+.signrow b{font-weight:650}
+
+/* ============ CRA ============ */
+.cra td.c{text-align:center;font:700 11px var(--mono);cursor:default}
+.cra td.h{background:var(--rose-soft);color:var(--rose)}
+.cra td.m{background:var(--amber-soft);color:var(--amber)}
+.cra td.l{background:var(--accent-soft);color:var(--accent-ink)}
+.cra td.n{color:var(--line-strong)}
+/* map */
+.maplane{display:flex;gap:11px;overflow-x:auto;padding-bottom:8px}
+.lane{min-width:206px;flex:1}
+.lane h4{font-size:10.5px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);margin:0 0 8px}
+.mcard{border:1px solid var(--line);background:var(--solid);border-radius:var(--r-s);padding:8px 10px;margin-bottom:6px;font-size:12.2px;width:100%;text-align:left}
+.mcard:hover{border-color:var(--accent)}
+.mcard b{display:block;font:700 10px var(--mono);color:var(--accent-ink)}
+.mcard span{display:block;color:var(--muted);font-size:11px;margin-top:3px}
+footer{margin-top:22px;font-size:11.5px;color:var(--muted);border-top:1px solid var(--line);padding-top:11px}
+</style>
+
+<div class="app">
+<!-- ================= LEFT RAIL ================= -->
+<aside class="rail">
+  <div class="brand"><i>EA</i> AuditISA</div>
+  <button class="nav" data-v="hub" aria-current="true"><span class="ic">◎</span>Engagement hub</button>
+  <button class="nav" data-v="mytasks"><span class="ic">☰</span>My tasks<span class="bdg" id="myCount">6</span></button>
+  <div class="railh">Engagement file</div>
+  <button class="nav" data-sec="0"><span class="ic">①</span>Acceptance</button>
+  <button class="nav" data-sec="1"><span class="ic">②</span>Scope &amp; Strategy</button>
+  <button class="nav" data-sec="2"><span class="ic">③</span>Execution</button>
+  <button class="nav" data-sec="3"><span class="ic">④</span>Conclusion</button>
+  <div class="railh">Working tools</div>
+  <button class="nav" data-v="console"><span class="ic">▤</span>Working console</button>
+  <button class="nav" data-v="cra"><span class="ic">▦</span>Combined risk</button>
+  <button class="nav" data-v="map"><span class="ic">⇄</span>Linkage map</button>
+  <button class="nav" data-v="team"><span class="ic">◍</span>Team</button>
+  <div class="railfoot">Design proposal · 8 Aug 2026<br>Structure after EY Canvas; wording and visual language original.</div>
+</aside>
+
+<!-- ================= MAIN ================= -->
+<div class="main">
+<div class="topbar">
+  <div class="entpick"><b>ZOEDEN SA</b> · FY 2026 <span style="color:var(--muted)">▾</span></div>
+  <span class="propose">Design proposal</span>
+  <div class="ctx">
+    <span>SYSCOHADA</span>
+    <span>Overall materiality <b class="tnum" id="omLabel">12 500 000</b></span>
+    <span>Performance <b class="tnum" id="pmLabel">8 125 000</b></span>
+    <span>Period end <b>31 Dec 2026</b></span>
+  </div>
+  <div class="tb-actions">
+    <span class="chip" id="gateChip">G2 open</span>
+    <button class="iconbtn" id="themeBtn" type="button">Dark</button>
+  </div>
+</div>
+
+<div class="body">
+
+<!-- ============ HUB ============ -->
+<section class="view on" id="v-hub">
+  <div class="band">
+    <div class="panel">
+      <div class="phead"><h2>Completion</h2></div>
+      <div class="gauges" id="gauges"></div>
+    </div>
+    <div class="panel">
+      <div class="phead"><h2>Task status</h2><span class="sub" id="tsSub"></span></div>
+      <div class="statuslist" id="statuslist"></div>
+    </div>
+    <div class="panel">
+      <div class="phead"><h2>Reference</h2></div>
+      <div class="reflist">
+        <a href="#" data-v="console">▤ <span>Working console</span></a>
+        <a href="#" data-v="cra">▦ <span>Combined risk assessment</span></a>
+        <a href="#" data-form="PLN-5">◇ <span>Materiality (PLN-5)</span></a>
+        <a href="#" data-form="ACC-6">◇ <span>Engagement letter (ACC-6)</span></a>
+        <a href="#" data-v="map">⇄ <span>Linkage map</span></a>
+      </div>
+    </div>
+  </div>
+
+  <div class="panel" style="margin-bottom:12px">
+    <div class="phead"><h2>Evidence spine</h2><span class="sub">Each node consumes the one before it. Click a live node to open it in the console.</span></div>
+    <div class="spine" id="spine"></div>
+  </div>
+
+  <div class="phead" style="padding:0 3px"><h2>Sections</h2><span class="sub">Click to unveil groups, then a group for its working papers.</span></div>
+  <div class="secgrid" id="secgrid"></div>
+
+  <div class="panel" style="margin-top:12px">
+    <div class="phead"><h2>Needs attention</h2><span class="sub">Derived from the file, not maintained by hand</span></div>
+    <div id="attn"></div>
+  </div>
+</section>
+
+<!-- ============ MY TASKS ============ -->
+<section class="view" id="v-mytasks">
+  <div class="panel">
+    <div class="phead"><h2>My tasks</h2><span class="sub">Assigned to Adèle Nkoulou · Audit senior</span></div>
+    <div class="tblwrap"><table class="grid" id="myTable"></table></div>
+  </div>
+</section>
+
+<!-- ============ CONSOLE ============ -->
+<section class="view" id="v-console">
+  <div class="console">
+    <div class="steprail" id="steprail"></div>
+    <div>
+      <div class="step on" id="step-0"><div class="panel">
+        <div class="phead"><h2>Trial balance and general ledger</h2><span class="sub">Imported 8 Aug · version 2 · 14 accounts</span></div>
+        <p class="note">Map every account to a lead schedule. An unmapped account blocks gate G2, so the mapping is completed here before scoping begins. Prior-period balances load with the import, and the comparison feeds the preliminary analytics.</p>
+        <div class="kpis" id="k1"></div>
+        <div class="tblwrap"><table class="grid" id="tbTable"></table></div>
+        <p class="hint" style="margin-top:9px">Try it: map an unmapped account and watch the gate chip, the account universe and PLN-6 update together.</p>
+      </div></div>
+
+      <div class="step" id="step-1"><div class="panel">
+        <div class="phead"><h2>Significance and relevant assertions</h2><span class="sub">ISA 315 (Revised 2019) ¶29</span></div>
+        <p class="note">An account is significant where it has one or more relevant assertion. The quantitative test runs against performance materiality automatically. The qualitative test is yours: tick an account whose size does not make it significant but whose nature does.</p>
+        <div class="slider" style="margin:12px 0">
+          <label for="omRange">Overall materiality</label>
+          <input type="range" id="omRange" min="4000000" max="42000000" step="500000" value="12500000">
+          <span class="tnum" id="omOut">12 500 000</span>
+          <span class="chip info" id="propChip">performance materiality 8 125 000</span>
+        </div>
+        <div class="kpis" id="k2"></div>
+        <div class="tblwrap"><table class="grid" id="sigTable"></table></div>
+        <p class="hint" style="margin-top:9px">Try it: drag materiality. Accounts cross the threshold, and anything already built on an account that drops out is flagged as stale.</p>
+      </div></div>
+
+      <div class="step" id="step-2"><div class="panel">
+        <div class="phead"><h2>What can go wrong, and the controls that address it</h2><span class="sub">ISA 315 ¶25–26</span></div>
+        <p class="note">For each significant account, record what can go wrong against the assertion it would affect. Name the control that addresses it, or leave it to be answered substantively in the next step. A row with neither answer blocks gate G2.</p>
+        <div class="kpis" id="k3"></div>
+        <div id="wcgwHost"></div>
+      </div></div>
+
+      <div class="step" id="step-3"><div class="panel">
+        <div class="phead"><h2>Audit strategy per assertion</h2><span class="sub">ISA 330 ¶6–8</span></div>
+        <p class="note">Choose the strategy for each row. Controls reliance requires a named control and commits you to testing its operating effectiveness. Fully substantive holds control risk at maximum, and the sample size computed downstream rises with it.</p>
+        <div class="kpis" id="k4"></div>
+        <div class="tblwrap"><table class="grid" id="stratTable"></table></div>
+        <p class="hint" style="margin-top:9px">Try it: switch a row to controls reliance without naming a control. The row reports what is missing rather than accepting it.</p>
+      </div></div>
+    </div>
+
+    <div class="ctxrail">
+      <div class="panel"><h4>This step feeds</h4><div class="flow" id="railFlow"></div></div>
+      <div class="panel"><h4>Working papers served</h4><div id="railForms" style="display:flex;flex-direction:column;gap:5px"></div></div>
+      <div class="panel"><h4>Propagation log</h4><div id="railLog" style="font-size:12px;color:var(--muted)">No change yet.</div></div>
+    </div>
+  </div>
+</section>
+
+<!-- ============ CRA ============ -->
+<section class="view" id="v-cra">
+  <div class="panel">
+    <div class="phead"><h2>Combined risk assessment</h2><span class="sub">Significant accounts × relevant assertions</span></div>
+    <p class="note">Inherent risk comes from what can go wrong at each assertion. Control risk follows the strategy: maximum where the approach is fully substantive, below maximum where a control is named and will be tested. The combined assessment drives the extent of work the programme derives.</p>
+    <div class="kpis" id="kcra"></div>
+    <div class="tblwrap"><table class="grid cra" id="craTable"></table></div>
+    <p class="hint" style="margin-top:9px">H higher · M moderate · L lower · — no relevant assertion identified. Built from console steps 2 to 4.</p>
+  </div>
+</section>
+
+<!-- ============ TASK ============ -->
+<section class="view" id="v-task">
+  <div class="panel" style="padding:0;overflow:hidden">
+    <div class="tmeta">
+      <span class="chip mono" id="tCode">PLN-6</span>
+      <b id="tTitle" style="font-size:14.5px">Account scoping</b>
+      <span class="chip info" id="tGate">Gate G2</span>
+      <span class="chip" id="tStatus">In progress</span>
+      <span class="chip" id="tAssign">Assigned · Adèle Nkoulou</span>
+      <button class="mini pri" style="margin-left:auto" id="tSign">Sign off as preparer</button>
+    </div>
+    <div class="ttabs">
+      <button class="ttab" aria-selected="true" data-tp="paper">Working paper</button>
+      <button class="ttab" aria-selected="false" data-tp="evidence">Evidence</button>
+      <button class="ttab" aria-selected="false" data-tp="links">Linkages</button>
+    </div>
+
+    <div class="tpane on" id="tp-paper">
+      <div class="work">
+        <div>
+          <div class="legend">
+            <span><i style="background:var(--blue-soft);border:1px solid var(--blue)"></i>Written by the console — change it there</span>
+            <span><i style="background:#FFFBEB;border:1px dashed #C9A227"></i>Your judgement, recorded here</span>
+          </div>
+          <div class="formpaper" id="formPaper"></div>
+        </div>
+        <div class="ctxrail">
+          <div class="panel">
+            <h4>Sign-off</h4>
+            <div class="signrow"><span>Preparer</span><b style="margin-left:auto" id="sgPrep">—</b></div>
+            <div class="signrow"><span>Reviewer</span><b style="margin-left:auto">—</b></div>
+            <div class="signrow" style="border:0"><span>Partner</span><b style="margin-left:auto">—</b></div>
+          </div>
+          <div class="panel">
+            <h4>Review notes</h4>
+            <div id="revNotes"></div>
+            <div style="display:flex;gap:6px;margin-top:8px">
+              <input type="text" id="revIn" placeholder="Add a review note" style="flex:1">
+              <button class="mini" id="revAdd">Add</button>
+            </div>
+          </div>
+          <div class="panel">
+            <h4>Open in console</h4>
+            <div id="tConsole" style="display:flex;flex-direction:column;gap:6px"></div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="tpane" id="tp-evidence">
+      <div class="tblwrap"><table class="grid" id="evTable"></table></div>
+      <p class="hint" style="margin-top:9px">Evidence attaches to the task, and every item carries the working-paper reference used in the paper.</p>
+    </div>
+
+    <div class="tpane" id="tp-links">
+      <div class="work">
+        <div class="panel"><h4 style="margin:0 0 8px;font-size:10.5px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted)">Fed by</h4><div class="flow" id="tFedBy"></div></div>
+        <div class="panel"><h4 style="margin:0 0 8px;font-size:10.5px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted)">Feeds into</h4><div class="flow" id="tFeeds"></div></div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ============ MAP ============ -->
+<section class="view" id="v-map">
+  <div class="panel">
+    <div class="phead"><h2>Where each record comes from and where it goes</h2><span class="sub">36 working papers across five phases</span></div>
+    <p class="note" style="margin-bottom:13px">Each card names the paper, the record it owns, and the papers it hands that record on to. Click a card to open the paper.</p>
+    <div class="maplane" id="maplane"></div>
+  </div>
+</section>
+
+<!-- ============ TEAM ============ -->
+<section class="view" id="v-team">
+  <div class="panel">
+    <div class="phead"><h2>Engagement team</h2><span class="sub">Roles drive review rights and the tasks that can be assigned</span></div>
+    <div class="tblwrap"><table class="grid" id="teamTable"></table></div>
+  </div>
+</section>
+
+<footer>AuditISA · Engagement Console · design proposal. Demo data for ZOEDEN SA. Structure follows the EY Canvas layout conventions the firm already works to; all wording, visual language and methodology content are original to AuditISA.</footer>
+</div></div></div>
+
+<script>
+/* =============== data =============== */
+var FMT=function(n){return (Math.round(n)+'').replace(/\B(?=(\d{3})+(?!\d))/g,' ');};
+var ENG={om:12500000,pmPct:.65,ctPct:.05};
+function PM(){return Math.round(ENG.om*ENG.pmPct);}
+var LEADS={R:'R · Revenue & receivables',B:'B · Cash & borrowings',P:'P · Purchases & payables',I:'I · Inventory',
+  F:'F · Fixed assets',Z:'Z · Payroll',X:'X · Tax',Q:'Q · Equity & provisions'};
+var TB=[
+ {c:'411000',n:'Clients',v:45200000,py:38900000,l:'R'},{c:'701000',n:'Ventes de marchandises',v:156000000,py:141200000,l:'R'},
+ {c:'401000',n:'Fournisseurs',v:28400000,py:31100000,l:'P'},{c:'601000',n:'Achats de marchandises',v:98000000,py:92400000,l:'P'},
+ {c:'311000',n:'Marchandises en stock',v:22100000,py:19800000,l:'I'},{c:'512000',n:'Banques',v:18900000,py:24300000,l:'B'},
+ {c:'161000',n:'Emprunts bancaires',v:15000000,py:19000000,l:'B'},{c:'213000',n:'Immobilisations corporelles',v:41000000,py:39500000,l:'F'},
+ {c:'281000',n:'Amortissements cumulés',v:-12300000,py:-9800000,l:'F'},{c:'661000',n:'Charges de personnel',v:34500000,py:31900000,l:'Z'},
+ {c:'421000',n:'Personnel, rémunérations dues',v:2800000,py:2650000,l:'Z'},{c:'445000',n:'État, TVA',v:3200000,py:2900000,l:''},
+ {c:'481000',n:'Provisions pour litiges',v:1900000,py:900000,l:''},{c:'101000',n:'Capital social',v:30000000,py:30000000,l:'Q'}];
+var QUAL={'481000':true};
+var ASSERT={'411000':['E','C','AVA'],'701000':['O','C','CO'],'401000':['C','CO'],'601000':['O','C','CO'],
+ '311000':['E','AVA'],'512000':['E','C'],'161000':['C','CL'],'213000':['E','AVA'],'281000':['AVA'],
+ '661000':['O','C'],'421000':['C','CO'],'445000':['C','AVA'],'481000':['C','AVA'],'101000':['RO','CL']};
+var WCGW=[
+ {id:1,a:'411000',as:'E',t:'Revenue recorded for goods not despatched, inflating receivables at the period end',ctrl:'Despatch note matched to invoice before posting',strat:'reliance'},
+ {id:2,a:'411000',as:'AVA',t:'Allowance for doubtful debts understated where the ageing is not reviewed',ctrl:'',strat:'substantive'},
+ {id:3,a:'701000',as:'CO',t:'Sales invoices raised after the period end recorded in the current period',ctrl:'Cut-off review of the last five days by the financial controller',strat:'reliance'},
+ {id:4,a:'601000',as:'C',t:'Goods received before the period end not accrued where the invoice arrives late',ctrl:'',strat:'substantive'},
+ {id:5,a:'311000',as:'AVA',t:'Slow-moving inventory carried above net realisable value',ctrl:'',strat:'substantive'}];
+var LOG=[],ASSERT_OPTS=['O','C','A','CO','CL','E','RO','AVA','P'];
+var TEAM=[['Marc Etoundi','Audit partner','Review and approve, sign the report','—'],
+ ['Sylvie Manga','Audit senior manager','Review, EQR liaison','4 open'],
+ ['Jean-Paul Biya','Audit manager','Review, day-to-day direction','7 open'],
+ ['Adèle Nkoulou','Audit senior','Prepare, supervise staff','6 open'],
+ ['Yannick Fotso','Audit staff','Prepare','9 open']];
+var NOTES={'PLN-6':[['Jean-Paul Biya','Manager','2 Aug','State the expectation formed before the variance was investigated, not after.',1],
+  ['Adèle Nkoulou','Senior','3 Aug','Expectation added for revenue and receivables. Cleared.',0]]};
+var EVID={'PLN-6':[['A-1.1','Trial balance export, version 2','xlsx','8 Aug'],['A-1.2','Mapping to lead schedules','system record','8 Aug'],
+  ['A-1.3','Current against prior comparison, by lead','system record','8 Aug'],['A-1.4','Variance investigation — receivables','memo','8 Aug']]};
+
+var SECT=[
+ {id:'acc',code:'ST1',name:'Acceptance',gate:'G1',groups:[{c:'ST1',t:'Acceptance & Continuance',forms:['ACC-1','ACC-2','ACC-3','ACC-4','ACC-5','ACC-6','ACC-7']}]},
+ {id:'st',code:'ST',name:'Scope & Strategy',gate:'G2',groups:[
+   {c:'ST2',t:'Strategy & Direction',forms:['PLN-1','PLN-2']},{c:'ST3',t:'Understanding the Entity',forms:['PLN-3']},
+   {c:'ST4',t:'IT & Reliance',forms:['PLN-4']},{c:'ST5',t:'Materiality & Specific Risks',forms:['PLN-5','PLN-6','PLN-7','PLN-8']},
+   {c:'ST6',t:'Risk Register & Response Plan',forms:['PLN-9']}]},
+ {id:'e',code:'E',name:'Execution',gate:'G3 · G4',groups:[
+   {c:'E1',t:'Significant Transaction Classes',forms:['EXE-1','EXE-2']},
+   {c:'E3',t:'Accounts',forms:['EXE-3','EXE-4','EXE-5','EXE-6']},{c:'E5',t:'Response Tasks',forms:['EXE-7']}]},
+ {id:'c',code:'C',name:'Conclusion',gate:'G4 · G5 · G6',groups:[
+   {c:'C1',t:'Financial Statements & Completion',forms:['CON-1','CON-5','CON-7','CON-8','CON-11']},
+   {c:'C2',t:'Misstatements & Significant Matters',forms:['CON-4','CON-9']},
+   {c:'C3',t:'Subsequent Events & Going Concern',forms:['CON-2','CON-3']},
+   {c:'C4',t:'Representations',forms:['CON-6']},{c:'C5',t:'Quality & Governance',forms:['CON-10','CON-12','CON-13']}]}];
+var F={};
+function def(c,t,std,gate,fedBy,feeds,owns,st){F[c]={c:c,t:t,std:std,gate:gate,fedBy:fedBy,feeds:feeds,owns:owns,st:st};}
+def('ACC-1','Client background, integrity and risk rating','ISQM 1 ¶30 · ISA 220 (Revised) ¶22–24','G1',['Entity record'],['ACC-7','PLN-2'],'Client risk rating');
+def('ACC-2','Competence, capability and resources','ISA 220 (Revised) ¶25–28','G1',['Engagement team setup'],['PLN-1'],'Resource conclusion');
+def('ACC-3','Independence and ethics','IESBA Code Parts 1 and 4A','G1',['Independence campaign'],['CON-10','CON-12'],'Threats and safeguards');
+def('ACC-4','Preconditions for an audit','ISA 210 ¶6–8','G1',['Entity record'],['ACC-6','CON-5','CON-8'],'Framework selection');
+def('ACC-5','Predecessor auditor and opening balances','ISA 300 ¶13 · ISA 510','G1',['ACC-1'],['CON-5'],'Opening balances strategy');
+def('ACC-6','Engagement letter','ISA 210 ¶9–13','G1',['ACC-4'],['CON-13'],'Signed terms');
+def('ACC-7','Engagement quality review determination','ISQM 1 ¶34(f) · ISQM 2','G1',['ACC-1'],['CON-12'],'Review requirement');
+def('PLN-1','Overall audit strategy and audit plan','ISA 300 ¶7–12','G2',['ACC-2','PLN-5','PLN-9'],['EXE-1'],'Strategy and plan');
+def('PLN-2','Engagement team discussion','ISA 315 ¶17 · ISA 240 ¶15','G2',['ACC-1','PLN-3'],['PLN-9'],'Discussion record');
+def('PLN-3','Understanding the entity and the framework','ISA 315 (Revised 2019) ¶19','G2',['Entity record'],['PLN-6','PLN-7','PLN-9'],'Understanding of the entity');
+def('PLN-4','System of internal control and the IT environment','ISA 315 ¶21–27','G2',['PLN-7'],['PLN-9','EXE-2'],'Controls: design and implementation',2);
+def('PLN-5','Materiality','ISA 320 · ISA 450 ¶5','G2',['Trial balance'],['PLN-6','EXE-3','CON-4'],'Materiality amounts',1);
+def('PLN-6','Account scoping and preliminary analytical procedures','ISA 315 ¶14(b), ¶29','G2',['Trial balance','PLN-5'],['PLN-7','PLN-9'],'Account universe and significance',1);
+def('PLN-7','Significant classes of transactions: understanding and walkthrough','ISA 315 ¶25–26','G2',['PLN-6','PLN-3'],['PLN-4','PLN-9'],'Flows and what can go wrong',2);
+def('PLN-8','Fraud, related parties, going concern and laws','ISA 240 · 550 · 570 · 250','G2',['PLN-3'],['PLN-9','CON-3'],'Inquiries and registers');
+def('PLN-9','Risk register and planned responses','ISA 315 ¶28–34 · ISA 330 ¶5–15','G2',['PLN-6','PLN-7','PLN-4','PLN-8'],['EXE-1','CON-9'],'Assessed risks and strategy',3);
+def('EXE-1','Audit programme: derivation, amendment and completion','ISA 330 ¶6–7 · ISA 230','G4',['PLN-9'],['EXE-5','CON-7'],'Programmes');
+def('EXE-2','Tests of controls','ISA 330 ¶8–17','G3',['PLN-4','PLN-9'],['EXE-3','EXE-5'],'Controls conclusion');
+def('EXE-3','Sampling: plan, selection and evaluation','ISA 530','G4',['PLN-5','EXE-2'],['EXE-7'],'Samples and projections');
+def('EXE-4','External confirmations','ISA 505','G4',['PLN-6'],['EXE-7'],'Confirmation results');
+def('EXE-5','Substantive procedures and audit evidence','ISA 330 ¶18–23 · ISA 500','G4',['EXE-1','EXE-2'],['EXE-7','CON-7'],'Evidence per account');
+def('EXE-6','Accounting estimates','ISA 540 (Revised)','G4',['PLN-9'],['EXE-7','CON-5'],'Estimate conclusions');
+def('EXE-7','Misstatements and fraud indicators','ISA 450 · ISA 240','G4',['EXE-3','EXE-4','EXE-5','EXE-6'],['CON-4'],'Misstatement schedule');
+def('CON-1','Final analytical procedures','ISA 520 ¶6','G4',['Final statements'],['CON-7'],'Overall conclusion');
+def('CON-2','Subsequent events','ISA 560','G4',['Final statements'],['CON-6','CON-8'],'Events identified');
+def('CON-3','Going concern conclusion','ISA 570 (Revised)','G4',['PLN-8'],['CON-8','CON-9'],'Going concern conclusion');
+def('CON-4','Evaluation of uncorrected misstatements','ISA 450 ¶10–15','G4',['EXE-7','PLN-5'],['CON-6','CON-8','CON-10'],'Evaluation of misstatements');
+def('CON-5','Financial statements, disclosures and comparatives','ISA 700 ¶12–15 · ISA 710','G4',['ACC-4','ACC-5'],['CON-8'],'Disclosure checklist');
+def('CON-6','Written representations','ISA 580','G4',['CON-2','CON-4'],['CON-7','CON-8'],'Representations');
+def('CON-7','Sufficiency of audit evidence and completion','ISA 330 ¶26–28 · ISA 220','G4',['EXE-1','EXE-5','CON-1','CON-6'],['CON-8','CON-12'],'Sufficiency conclusion');
+def('CON-8','Auditor’s report and opinion','ISA 700 · 705 · 706','G5',['CON-3','CON-4','CON-5','CON-7'],['CON-13'],'Opinion');
+def('CON-9','Key audit matters','ISA 701','G5',['PLN-9','CON-3'],['CON-8'],'Key audit matters');
+def('CON-10','Communication with those charged with governance','ISA 260 (Revised) · ISA 265','G5',['CON-4','PLN-4'],['CON-13'],'Communications');
+def('CON-11','Other information','ISA 720 (Revised)','G5',['Final statements'],['CON-8'],'Other information');
+def('CON-12','Engagement quality review conclusion','ISQM 2 ¶21–30','G5',['ACC-7','CON-7'],['CON-8'],'Review completion');
+def('CON-13','File assembly and archive','ISA 230 ¶14–16','G6',['CON-8'],[],'Assembled file');
+var DONE={'ACC-1':1,'ACC-2':1,'ACC-3':1,'ACC-4':1,'ACC-5':1,'ACC-6':1,'ACC-7':1,'PLN-3':1,'PLN-5':1,'PLN-2':3,'PLN-6':2,'PLN-7':2,'PLN-4':2,'PLN-9':0,'PLN-1':0,'PLN-8':0};
+var MINE=['PLN-6','PLN-7','PLN-9','PLN-8','EXE-4','EXE-5'];
+
+/* =============== derived =============== */
+function mapped(){return TB.filter(function(r){return r.l;});}
+function unmapped(){return TB.filter(function(r){return !r.l;});}
+function isSig(r){return Math.abs(r.v)>=PM()||!!QUAL[r.c];}
+function sigAccts(){return TB.filter(isSig);}
+function sigBasis(r){var q=Math.abs(r.v)>=PM();return q&&QUAL[r.c]?'both':q?'quantitative':'by nature';}
+function orphanWcgw(){return WCGW.filter(function(w){return !sigAccts().some(function(a){return a.c===w.a;});});}
+function unanswered(){return WCGW.filter(function(w){return w.strat==='reliance'&&!w.ctrl;});}
+function noCover(){return sigAccts().filter(function(a){return !WCGW.some(function(w){return w.a===a.c;});});}
+function log(m){LOG.unshift(m);if(LOG.length>6)LOG.pop();
+  document.getElementById('railLog').innerHTML=LOG.map(function(x){return '<div class="evt">'+x+'</div>';}).join('');}
+function kpi(v,l){return '<div class="kpi"><b class="tnum">'+v+'</b><span>'+l+'</span></div>';}
+function secStats(s){var all=[],d=0;s.groups.forEach(function(g){g.forms.forEach(function(f){all.push(f);if(DONE[f]===1)d++;});});
+  return {n:all.length,done:d,pct:all.length?Math.round(d/all.length*100):0};}
+
+/* =============== hub =============== */
+function drawGauges(){
+  document.getElementById('gauges').innerHTML=SECT.map(function(s,i){var st=secStats(s);
+    return '<button class="gauge" data-sec="'+i+'"><div class="ring" style="--p:'+st.pct+'"><i>'+st.pct+'%</i></div>'+
+      '<span class="gl">'+s.name+'</span><span class="gs">'+st.done+' of '+st.n+' papers</span></button>';}).join('');
+}
+function drawStatus(){
+  var rows=[];SECT.forEach(function(s){s.groups.forEach(function(g){
+    var d=g.forms.filter(function(f){return DONE[f]===1;}).length;
+    rows.push('<button class="strow" data-grpjump="'+g.c+'"><span class="gc">'+g.c+'</span><span style="flex:0 0 auto;min-width:120px">'+g.t+'</span>'+
+      '<span class="bar"><i style="width:'+Math.round(d/g.forms.length*100)+'%"></i></span><span class="n">'+d+'/'+g.forms.length+'</span></button>');});});
+  document.getElementById('statuslist').innerHTML=rows.join('');
+  var tot=Object.keys(F).length,dn=Object.keys(DONE).filter(function(k){return DONE[k]===1;}).length;
+  document.getElementById('tsSub').textContent=dn+' of '+tot+' working papers signed off';
+}
+var SPINE=[
+ {k:'Trial balance',s:function(){return mapped().length+' of '+TB.length+' mapped';},step:0},
+ {k:'Account universe',s:function(){return sigAccts().length+' significant';},step:1},
+ {k:'What can go wrong',s:function(){return WCGW.length+' recorded';},step:2},
+ {k:'Strategy',s:function(){return WCGW.filter(function(w){return w.strat==='reliance';}).length+' reliance · '+WCGW.filter(function(w){return w.strat==='substantive';}).length+' substantive';},step:3},
+ {k:'Combined risk',s:function(){return 'assertion matrix';},step:null,v:'cra'},
+ {k:'Programme',s:function(){return 'derived, not copied';},step:null},
+ {k:'Evidence',s:function(){return 'per assertion';},step:null},
+ {k:'Opinion',s:function(){return 'framework-locked';},step:null}];
+function drawSpine(){
+  document.getElementById('spine').innerHTML=SPINE.map(function(n){
+    return '<button class="snode'+(n.step!==null||n.v?' live':'')+'" data-step="'+(n.step===null?'':n.step)+'" data-jv="'+(n.v||'')+'">'+
+      '<b>'+n.k+'</b><span>'+n.s()+'</span></button>';}).join('');
+}
+function drawSections(){
+  document.getElementById('secgrid').innerHTML=SECT.map(function(s,i){var st=secStats(s);
+    var block=s.id==='st'?(unmapped().length||noCover().length?'<span class="chip bad">G2 blocked</span>':'<span class="chip warn">G2 open</span>')
+      :s.id==='acc'?'<span class="chip ok">G1 cleared</span>':'<span class="chip">'+s.gate+' not reached</span>';
+    return '<div><button class="seccard" aria-expanded="false" data-sec="'+i+'">'+
+      '<div class="code">'+s.code+'</div><h3>'+s.name+'</h3>'+
+      '<div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:9px"><span class="chip">'+st.done+' of '+st.n+' papers</span>'+block+'</div></button>'+
+      '<div class="unveil" id="unveil-'+i+'"></div></div>';}).join('');
+}
+function drawUnveil(i){
+  document.getElementById('unveil-'+i).innerHTML=SECT[i].groups.map(function(g,j){
+    return '<button class="grouprow" data-sec="'+i+'" data-grp="'+j+'"><span class="gc">'+g.c+'</span><span class="gt">'+g.t+'</span><span class="gn">'+g.forms.length+'</span></button>'+
+      '<div class="tasklist" id="tl-'+i+'-'+j+'">'+g.forms.map(function(fc){var d=DONE[fc]||0;
+        return '<button class="taskrow" data-form="'+fc+'"><span class="dot '+(d===1?'done':d===2?'prog':d===3?'rev':'')+'"></span><span>'+F[fc].t+'</span><span class="fc">'+fc+'</span></button>';}).join('')+'</div>';}).join('');
+}
+function drawAttn(){
+  var it=[];
+  if(unmapped().length)it.push(['bad','Gate G2 blocked','<b>'+unmapped().length+' account'+(unmapped().length>1?'s':'')+'</b> not mapped to a lead schedule: '+unmapped().map(function(r){return r.c;}).join(', ')+'. Map in console step 1.']);
+  if(noCover().length)it.push(['bad','Coverage gap','<b>'+noCover().length+' significant account'+(noCover().length>1?'s have':' has')+'</b> no what-can-go-wrong recorded: '+noCover().map(function(a){return a.c;}).join(', ')+'.']);
+  if(orphanWcgw().length)it.push(['warn','Stale record','<b>'+orphanWcgw().length+' what-can-go-wrong</b> sits on an account that is no longer significant. Reconsider it in step 3.']);
+  if(unanswered().length)it.push(['warn','Incomplete strategy','<b>'+unanswered().length+' row</b> set to controls reliance with no control named.']);
+  if(!it.length)it.push(['ok','Clear','Nothing is blocking the current gate.']);
+  document.getElementById('attn').innerHTML=it.map(function(x){
+    return '<div style="display:flex;gap:10px;align-items:flex-start;padding:8px 0;border-top:1px solid var(--line)"><span class="chip '+x[0]+'">'+x[1]+'</span><span style="font-size:12.5px;color:var(--ink-soft)">'+x[2]+'</span></div>';}).join('');
+  var g=document.getElementById('gateChip');
+  var blocked=unmapped().length||noCover().length;
+  g.className='chip '+(blocked?'bad':'warn');g.textContent=blocked?'G2 blocked':'G2 open';
+}
+function drawMine(){
+  document.getElementById('myTable').innerHTML='<tr><th>Working paper</th><th>Section</th><th>Status</th><th>Gate</th><th></th></tr>'+
+   MINE.map(function(c){var f=F[c],d=DONE[c]||0;
+    var sec=SECT.filter(function(s){return s.groups.some(function(g){return g.forms.indexOf(c)>-1;});})[0];
+    return '<tr><td><span class="mono" style="color:var(--muted)">'+c+'</span> '+f.t+'</td><td>'+(sec?sec.name:'')+'</td>'+
+     '<td>'+(d===1?'<span class="chip ok">signed off</span>':d===2?'<span class="chip info">in progress</span>':d===3?'<span class="chip warn">for review</span>':'<span class="chip">not started</span>')+'</td>'+
+     '<td><span class="chip mono">'+f.gate+'</span></td><td><button class="mini" data-form="'+c+'">Open</button></td></tr>';}).join('');
+  document.getElementById('myCount').textContent=MINE.length;
+}
+
+/* =============== console =============== */
+var STEPS=[
+ {lab:'Trial balance and mapping',sub:'Import, map to lead schedules',feeds:[['Account universe','Every account mapped to its lead schedule and cycle'],['Preliminary analytics','Current against prior period, by lead']],forms:['PLN-6']},
+ {lab:'Significance',sub:'Quantitative and qualitative',feeds:[['Relevant assertions','Per significant account'],['Scope of the file','What must be answered before G2 clears']],forms:['PLN-5','PLN-6']},
+ {lab:'What can go wrong',sub:'By assertion, with controls',feeds:[['Flow understanding','The critical path and its control points'],['Control population','What PLN-4 evaluates for design and implementation']],forms:['PLN-7','PLN-4']},
+ {lab:'Audit strategy',sub:'Reliance or fully substantive',feeds:[['Combined risk assessment','Inherent and control risk per assertion'],['Programme derivation','Nature, timing and extent of every step']],forms:['PLN-9','EXE-1']}];
+var curStep=0;
+function drawRail(){
+  document.getElementById('steprail').innerHTML=STEPS.map(function(s,i){
+    return '<button data-step="'+i+'" aria-current="'+(i===curStep)+'"><span class="n">'+(i+1)+'</span><span class="lab">'+s.lab+'<span class="sub">'+s.sub+'</span></span></button>';}).join('');
+  var s=STEPS[curStep];
+  document.getElementById('railFlow').innerHTML=s.feeds.map(function(f){return '<div><b>'+f[0]+'</b>'+f[1]+'</div>';}).join('');
+  document.getElementById('railForms').innerHTML=s.forms.map(function(fc){return '<button class="mini" data-form="'+fc+'" style="text-align:left">'+fc+' · '+F[fc].t+'</button>';}).join('');
+}
+function showStep(i){curStep=i;Array.prototype.forEach.call(document.querySelectorAll('.step'),function(el,j){el.classList.toggle('on',j===i);});drawRail();}
+function drawTb(){
+  document.getElementById('tbTable').innerHTML='<tr><th>Account</th><th>Description</th><th style="text-align:right">Current</th><th style="text-align:right">Prior</th><th style="text-align:right">Movement</th><th>Lead schedule</th></tr>'+
+   TB.map(function(r,i){var mv=r.v-r.py,pc=r.py?Math.round(mv/Math.abs(r.py)*100):0;
+    return '<tr class="'+(r.l?'':'unmapped')+'"><td class="mono tnum">'+r.c+'</td><td>'+r.n+'</td>'+
+     '<td class="tnum" style="text-align:right">'+FMT(r.v)+'</td><td class="tnum" style="text-align:right;color:var(--muted)">'+FMT(r.py)+'</td>'+
+     '<td class="tnum" style="text-align:right;color:'+(Math.abs(pc)>=15?'var(--amber)':'var(--muted)')+'">'+(mv>0?'+':'')+pc+'%</td>'+
+     '<td><select data-map="'+i+'"><option value="">— not mapped —</option>'+Object.keys(LEADS).map(function(k){return '<option value="'+k+'"'+(r.l===k?' selected':'')+'>'+LEADS[k]+'</option>';}).join('')+'</select></td></tr>';}).join('');
+  document.getElementById('k1').innerHTML=kpi(TB.length,'accounts')+kpi(mapped().length,'mapped')+kpi(unmapped().length,'unmapped')+
+   kpi(new Set(mapped().map(function(r){return r.l;})).size,'lead schedules');
+}
+function drawSig(){
+  document.getElementById('sigTable').innerHTML='<tr><th>Account</th><th style="text-align:right">Balance</th><th style="text-align:right">% of PM</th><th>Quantitative</th><th>By nature</th><th>Relevant assertions</th><th>Significant</th></tr>'+
+   TB.map(function(r){var q=Math.abs(r.v)>=PM(),sig=isSig(r);
+    return '<tr class="'+(sig?'sig':'')+'"><td><span class="mono tnum">'+r.c+'</span> '+r.n+'</td>'+
+     '<td class="tnum" style="text-align:right">'+FMT(r.v)+'</td><td class="tnum" style="text-align:right;color:var(--muted)">'+Math.round(Math.abs(r.v)/PM()*100)+'%</td>'+
+     '<td>'+(q?'<span class="chip ok">above PM</span>':'<span class="chip">below PM</span>')+'</td>'+
+     '<td><input type="checkbox" data-qual="'+r.c+'"'+(QUAL[r.c]?' checked':'')+'></td>'+
+     '<td class="mono" style="font-size:11px;color:var(--accent-ink)">'+(sig?(ASSERT[r.c]||[]).join(' · '):'—')+'</td>'+
+     '<td>'+(sig?'<span class="chip ok">'+sigBasis(r)+'</span>':'<span class="chip">no</span>')+'</td></tr>';}).join('');
+  var cov=sigAccts().reduce(function(a,r){return a+Math.abs(r.v);},0),tot=TB.reduce(function(a,r){return a+Math.abs(r.v);},0);
+  document.getElementById('k2').innerHTML=kpi(sigAccts().length,'significant')+kpi(TB.length-sigAccts().length,'not significant')+
+   kpi(Math.round(cov/tot*100)+'%','coverage')+kpi(sigAccts().filter(function(r){return QUAL[r.c];}).length,'by nature');
+  ['omOut'].forEach(function(id){document.getElementById(id).textContent=FMT(ENG.om);});
+  document.getElementById('propChip').textContent='performance materiality '+FMT(PM());
+  document.getElementById('omLabel').textContent=FMT(ENG.om);
+  document.getElementById('pmLabel').textContent=FMT(PM());
+}
+function drawWcgw(){
+  var sig=sigAccts();
+  document.getElementById('wcgwHost').innerHTML=sig.map(function(a){
+    var rows=WCGW.filter(function(w){return w.a===a.c;});
+    return '<div style="margin-bottom:13px"><div style="display:flex;gap:8px;align-items:center;margin-bottom:6px;flex-wrap:wrap">'+
+      '<span class="chip mono">'+a.c+'</span><b style="font-size:13px">'+a.n+'</b>'+
+      '<span class="chip '+(rows.length?'ok':'bad')+'">'+(rows.length?rows.length+' recorded':'none recorded')+'</span>'+
+      '<button class="mini pri" data-addw="'+a.c+'" style="margin-left:auto">Add</button></div>'+
+      (rows.length?'<div class="tblwrap"><table class="grid"><tr><th style="width:58px">Assertion</th><th>What can go wrong</th><th style="width:30%">Control that addresses it</th><th style="width:32px"></th></tr>'+
+        rows.map(function(w){return '<tr><td><select data-was="'+w.id+'">'+ASSERT_OPTS.map(function(o){return '<option'+(w.as===o?' selected':'')+'>'+o+'</option>';}).join('')+'</select></td>'+
+          '<td><input type="text" data-wt="'+w.id+'" value="'+w.t.replace(/"/g,'&quot;')+'" style="width:100%"></td>'+
+          '<td><input type="text" data-wc="'+w.id+'" value="'+w.ctrl.replace(/"/g,'&quot;')+'" placeholder="none — answered substantively" style="width:100%"></td>'+
+          '<td><button class="mini" data-delw="'+w.id+'">✕</button></td></tr>';}).join('')+'</table></div>':'')+'</div>';}).join('')+
+   (orphanWcgw().length?'<div class="panel" style="background:var(--amber-soft);border-color:var(--amber)"><b style="font-size:12.5px">Stale: '+orphanWcgw().length+' record on an account that is no longer significant</b><div style="font-size:12px;color:var(--ink-soft);margin-top:5px">'+orphanWcgw().map(function(w){return '<span class="mono">'+w.a+'</span> · '+w.t.slice(0,70);}).join('<br>')+'</div></div>':'');
+  document.getElementById('k3').innerHTML=kpi(WCGW.length,'recorded')+kpi(sig.filter(function(a){return WCGW.some(function(w){return w.a===a.c;});}).length+' / '+sig.length,'accounts covered')+
+   kpi(WCGW.filter(function(w){return w.ctrl;}).length,'with a control')+kpi(orphanWcgw().length,'stale');
+}
+function drawStrat(){
+  var rows=WCGW.filter(function(w){return sigAccts().some(function(a){return a.c===w.a;});});
+  document.getElementById('stratTable').innerHTML='<tr><th>Account</th><th style="width:56px">Assertion</th><th>What can go wrong</th><th style="width:180px">Strategy</th><th>Consequence</th></tr>'+
+   (rows.length?rows.map(function(w){var bad=w.strat==='reliance'&&!w.ctrl;
+     return '<tr><td class="mono tnum">'+w.a+'</td><td class="mono">'+w.as+'</td><td style="font-size:12.2px">'+(w.t||'<span style="color:var(--muted)">not described</span>')+'</td>'+
+      '<td><select data-strat="'+w.id+'"><option value="substantive"'+(w.strat==='substantive'?' selected':'')+'>Fully substantive</option><option value="reliance"'+(w.strat==='reliance'?' selected':'')+'>Controls reliance</option></select></td>'+
+      '<td style="font-size:11.5px">'+(bad?'<span class="chip bad">no control named</span> reliance cannot be planned'
+        :w.strat==='reliance'?'<span class="chip ok">test operating effectiveness</span> control risk below maximum'
+        :'<span class="chip info">control risk at maximum</span> larger sample, tests of details')+'</td></tr>';}).join('')
+    :'<tr><td colspan="5" style="color:var(--muted);padding:14px">Nothing recorded yet. Add rows in step 3.</td></tr>');
+  document.getElementById('k4').innerHTML=kpi(rows.filter(function(w){return w.strat==='reliance';}).length,'reliance')+
+   kpi(rows.filter(function(w){return w.strat==='substantive';}).length,'substantive')+kpi(unanswered().length,'incomplete')+
+   kpi(rows.filter(function(w){return w.strat==='reliance';}).length,'controls to test');
+}
+
+/* =============== CRA =============== */
+function craLevel(acct,as){
+  var w=WCGW.filter(function(x){return x.a===acct&&x.as===as;});
+  if(!w.length)return (ASSERT[acct]||[]).indexOf(as)>-1?['l','L']:['n','—'];
+  var rel=w.some(function(x){return x.strat==='reliance'&&x.ctrl;});
+  return rel?['m','M']:['h','H'];
+}
+function drawCra(){
+  var sig=sigAccts(),cols=ASSERT_OPTS;
+  document.getElementById('craTable').innerHTML='<tr><th>Significant account</th>'+cols.map(function(c){return '<th style="text-align:center">'+c+'</th>';}).join('')+'<th>Strategy</th></tr>'+
+   (sig.length?sig.map(function(a){
+     var strats=WCGW.filter(function(w){return w.a===a.c;});
+     var rel=strats.filter(function(w){return w.strat==='reliance';}).length;
+     return '<tr><td><span class="mono tnum">'+a.c+'</span> '+a.n+'</td>'+
+      cols.map(function(c){var lv=craLevel(a.c,c);return '<td class="c '+lv[0]+'">'+lv[1]+'</td>';}).join('')+
+      '<td style="font-size:11.5px">'+(strats.length?(rel?rel+' reliance · ':'')+(strats.length-rel)+' substantive':'<span class="chip bad">no response</span>')+'</td></tr>';}).join('')
+    :'<tr><td colspan="11" style="padding:14px;color:var(--muted)">No significant accounts at the current materiality.</td></tr>');
+  var hi=0;sig.forEach(function(a){ASSERT_OPTS.forEach(function(c){if(craLevel(a.c,c)[0]==='h')hi++;});});
+  document.getElementById('kcra').innerHTML=kpi(sig.length,'accounts')+kpi(WCGW.length,'assertion risks')+kpi(hi,'higher risk cells')+
+   kpi(WCGW.filter(function(w){return w.strat==='reliance'&&w.ctrl;}).length,'controls relied on');
+}
+
+/* =============== task page =============== */
+var curForm='PLN-6';
+function flowCard(l){return l.map(function(x){var f=F[x];return '<div><b>'+(f?x:'source')+'</b>'+(f?f.t:x)+'</div>';}).join('')||'<div style="font-size:12px;color:var(--muted)">Nothing recorded</div>';}
+function fauto(l,v){return '<div class="frow"><div class="flab">'+l+'</div><div class="fauto">'+v+'</div></div>';}
+function fin(l){return '<div class="frow"><div class="flab">'+l+'</div><textarea class="fin" placeholder="⟨ Document the results of the work performed, with W/P reference ⟩"></textarea></div>';}
+function formBody(c){
+  if(c==='PLN-5')return fauto('Benchmark and figure','Total revenue <b class="tnum">156 000 000</b> · from the imported trial balance')+
+    fauto('Overall materiality','<b class="tnum">'+FMT(ENG.om)+'</b> FCFA · set in console step 2')+
+    fauto('Performance materiality','<b class="tnum">'+FMT(PM())+'</b> FCFA · 65% of overall')+
+    fauto('Clearly trivial','<b class="tnum">'+FMT(Math.round(ENG.om*ENG.ctPct))+'</b> FCFA · 5% of overall')+
+    fin('Reasons for the benchmark selected, and why an alternative was not used')+
+    fin('Reasons for the performance materiality percentage: assessed risk, prior-period misstatements, expected number and size');
+  if(c==='PLN-6'){var cov=sigAccts().reduce(function(a,r){return a+Math.abs(r.v);},0),tot=TB.reduce(function(a,r){return a+Math.abs(r.v);},0);
+    return fauto('Account universe','<b>'+TB.length+'</b> accounts imported · <b>'+mapped().length+'</b> mapped'+(unmapped().length?' · <b style="color:var(--rose)">'+unmapped().length+' unmapped, gate G2 blocked</b>':''))+
+      fauto('Assessed as significant','<b>'+sigAccts().length+'</b> · '+sigAccts().map(function(r){return r.c;}).join(', '))+
+      fauto('Basis','<b>'+sigAccts().filter(function(r){return Math.abs(r.v)>=PM();}).length+'</b> quantitative · <b>'+sigAccts().filter(function(r){return QUAL[r.c];}).length+'</b> by nature')+
+      fauto('Coverage of the universe','<b>'+Math.round(cov/tot*100)+'%</b> by absolute value')+
+      fauto('Significant accounts without a response','<b>'+noCover().length+'</b> · blocks gate G2 while any remain')+
+      fin('Expectation formed before the current against prior comparison was reviewed, and the outcome of each variance investigated')+
+      fin('Reasons for each qualitative significance conclusion');}
+  if(c==='PLN-7')return fauto('Flows in scope','From the significant accounts: '+sigAccts().slice(0,4).map(function(r){return r.n;}).join(' · '))+
+    fauto('What can go wrong','<b>'+WCGW.length+'</b> across <b>'+new Set(WCGW.map(function(w){return w.a;})).size+'</b> accounts, entered in console step 3')+
+    fauto('Answered by a control','<b>'+WCGW.filter(function(w){return w.ctrl;}).length+'</b> · the remainder answered substantively')+
+    fin('Critical path: initiation, recording, processing, reporting — actors, documents, applications and control points at each step')+
+    fin('Walkthrough: the item traced, the evidence inspected at each step, and any deviation from the documented path');
+  if(c==='PLN-9'){var rel=WCGW.filter(function(w){return w.strat==='reliance';}).length;
+    return fauto('Assertion-level risks','<b>'+WCGW.length+'</b> carried from console step 3')+
+      fauto('Strategy','<b>'+rel+'</b> controls reliance · <b>'+(WCGW.length-rel)+'</b> fully substantive, set in step 4')+
+      fauto('Controls to test','<b>'+rel+'</b> · each requires an operating-effectiveness test in EXE-2')+
+      fauto('Incomplete rows','<b>'+unanswered().length+'</b> set to reliance with no control named')+
+      fin('Financial statement level risks and the overall responses to them, including the unpredictability element')+
+      fin('Inherent risk and control risk assessed separately for each assertion-level risk, with the reasons');}
+  return fauto('Engagement data','Entity, period end, framework and team populate from the engagement record')+
+    fauto('Sign-off','Preparer and reviewer recorded when the task is signed off')+
+    fin('The procedures, evaluations and conclusions this paper records')+
+    fin('Explanation of each negative answer, opening beneath the question it belongs to');
+}
+function drawNotes(){
+  var ns=NOTES[curForm]||[];
+  document.getElementById('revNotes').innerHTML=ns.length?ns.map(function(n){
+    return '<div class="rnote'+(n[4]?' open':'')+'"><div class="rh"><span class="who">'+n[0]+'</span><span class="chip mono">'+n[1]+'</span><span class="when">'+n[2]+'</span></div>'+n[3]+'</div>';}).join('')
+    :'<p class="hint" style="margin:0">No review notes on this paper.</p>';
+}
+function openForm(c){
+  curForm=c;var f=F[c],d=DONE[c]||0;
+  document.getElementById('tCode').textContent=c;
+  document.getElementById('tTitle').textContent=f.t;
+  document.getElementById('tGate').textContent='Gate '+f.gate;
+  var st=document.getElementById('tStatus');
+  st.className='chip '+(d===1?'ok':d===2?'info':d===3?'warn':'');
+  st.textContent=d===1?'Signed off':d===2?'In progress':d===3?'For review':'Not started';
+  document.getElementById('sgPrep').textContent=d===1?'A. Nkoulou · 4 Aug':'—';
+  document.getElementById('formPaper').innerHTML='<div class="fcode">'+c+' · WORKING PAPER</div><h3>'+f.t+'</h3>'+
+    '<div class="fstd"><b>Applicable standards:</b> '+f.std+' · gate '+f.gate+'</div>'+
+    '<div class="fsec">Record owned by this paper</div><p class="hint" style="margin:0 0 6px">'+f.owns+'</p>'+
+    '<div class="fsec">The paper</div>'+formBody(c);
+  document.getElementById('tFedBy').innerHTML=flowCard(f.fedBy);
+  document.getElementById('tFeeds').innerHTML=flowCard(f.feeds);
+  document.getElementById('tConsole').innerHTML=(f.st!==undefined)?
+    '<button class="mini pri" data-console="'+f.st+'" style="text-align:left">Console step '+(f.st+1)+' · '+STEPS[f.st].lab+'</button><p class="hint" style="margin:6px 0 0">The blue fields are written by that step.</p>'
+    :'<p class="hint" style="margin:0">Documented on the paper itself. Header and sign-off still come from the engagement record.</p>';
+  var ev=EVID[c]||[['—','No evidence attached yet','',''] ];
+  document.getElementById('evTable').innerHTML='<tr><th>W/P ref</th><th>Item</th><th>Type</th><th>Added</th></tr>'+
+    ev.map(function(e){return '<tr><td class="mono">'+e[0]+'</td><td>'+e[1]+'</td><td>'+e[2]+'</td><td style="color:var(--muted)">'+e[3]+'</td></tr>';}).join('');
+  drawNotes();show('task');
+}
+
+/* =============== map / team =============== */
+function drawMap(){
+  document.getElementById('maplane').innerHTML=SECT.map(function(s){
+    var codes=[];s.groups.forEach(function(g){g.forms.forEach(function(f){codes.push(f);});});
+    return '<div class="lane"><h4>'+s.name+' · '+s.gate+'</h4>'+codes.map(function(c){var f=F[c];
+      return '<button class="mcard" data-form="'+c+'"><b>'+c+'</b>'+f.t+'<span>owns: '+f.owns+'</span>'+(f.feeds.length?'<span>→ '+f.feeds.join(', ')+'</span>':'<span>→ end of chain</span>')+'</button>';}).join('')+'</div>';}).join('');
+}
+function drawTeam(){
+  document.getElementById('teamTable').innerHTML='<tr><th>Name</th><th>Role</th><th>Rights</th><th>Assigned</th></tr>'+
+   TEAM.map(function(t){return '<tr><td><b>'+t[0]+'</b></td><td><span class="chip">'+t[1]+'</span></td><td style="color:var(--muted)">'+t[2]+'</td><td>'+t[3]+'</td></tr>';}).join('');
+}
+
+/* =============== wiring =============== */
+function show(v){
+  Array.prototype.forEach.call(document.querySelectorAll('.view'),function(s){s.classList.toggle('on',s.id==='v-'+v);});
+  Array.prototype.forEach.call(document.querySelectorAll('.nav'),function(n){n.setAttribute('aria-current',n.dataset.v===v);});
+  window.scrollTo({top:0,behavior:'smooth'});
+}
+function jumpSection(i){show('hub');
+  var card=document.querySelector('.seccard[data-sec="'+i+'"]');
+  if(card&&card.getAttribute('aria-expanded')!=='true'){card.setAttribute('aria-expanded','true');drawUnveil(i);document.getElementById('unveil-'+i).classList.add('on');}
+  setTimeout(function(){card&&card.scrollIntoView({behavior:'smooth',block:'center'});},60);
+}
+function redraw(){drawTb();drawSig();drawWcgw();drawStrat();drawCra();drawSpine();drawSections();drawAttn();drawGauges();drawStatus();}
+
+document.addEventListener('click',function(e){
+  var t=e.target,x;
+  if((x=t.closest('.nav'))){if(x.dataset.v)show(x.dataset.v);else if(x.dataset.sec!==undefined)jumpSection(+x.dataset.sec);return;}
+  if((x=t.closest('.reflist a'))){e.preventDefault();if(x.dataset.v)show(x.dataset.v);else if(x.dataset.form)openForm(x.dataset.form);return;}
+  if((x=t.closest('.snode'))){if(x.dataset.jv){show(x.dataset.jv);}else if(x.dataset.step!==''){showStep(+x.dataset.step);show('console');}return;}
+  if((x=t.closest('.gauge'))){jumpSection(+x.dataset.sec);return;}
+  if((x=t.closest('.seccard'))){var i=+x.dataset.sec,o=x.getAttribute('aria-expanded')==='true';
+    x.setAttribute('aria-expanded',!o);if(!o)drawUnveil(i);document.getElementById('unveil-'+i).classList.toggle('on',!o);return;}
+  if((x=t.closest('.grouprow'))){document.getElementById('tl-'+x.dataset.sec+'-'+x.dataset.grp).classList.toggle('on');return;}
+  if((x=t.closest('[data-grpjump]'))){var gi=-1,si=-1;SECT.forEach(function(s,a){s.groups.forEach(function(g,b){if(g.c===x.dataset.grpjump){si=a;gi=b;}});});
+    if(si>=0){jumpSection(si);setTimeout(function(){var el=document.getElementById('tl-'+si+'-'+gi);if(el)el.classList.add('on');},80);}return;}
+  if((x=t.closest('[data-form]'))){openForm(x.dataset.form);return;}
+  if((x=t.closest('[data-console]'))){showStep(+x.dataset.console);show('console');return;}
+  if((x=t.closest('.steprail button'))){showStep(+x.dataset.step);return;}
+  if((x=t.closest('.ttab'))){Array.prototype.forEach.call(document.querySelectorAll('.ttab'),function(b){b.setAttribute('aria-selected',b===x);});
+    Array.prototype.forEach.call(document.querySelectorAll('.tpane'),function(p){p.classList.toggle('on',p.id==='tp-'+x.dataset.tp);});return;}
+  if((x=t.closest('[data-addw]'))){var id=Math.max.apply(null,WCGW.map(function(w){return w.id;}).concat([0]))+1;
+    WCGW.push({id:id,a:x.dataset.addw,as:'C',t:'',ctrl:'',strat:'substantive'});
+    log('What-can-go-wrong added on <span>'+x.dataset.addw+'</span>. PLN-7, PLN-9 and the combined risk assessment updated.');redraw();return;}
+  if((x=t.closest('[data-delw]'))){WCGW=WCGW.filter(function(w){return w.id!==+x.dataset.delw;});
+    log('Row removed. The derived programme step is withdrawn from EXE-1.');redraw();return;}
+  if(t.id==='revAdd'){var v=document.getElementById('revIn').value.trim();if(!v)return;
+    (NOTES[curForm]=NOTES[curForm]||[]).unshift(['Jean-Paul Biya','Manager','today',v,1]);
+    document.getElementById('revIn').value='';drawNotes();return;}
+  if(t.id==='tSign'){DONE[curForm]=1;document.getElementById('sgPrep').textContent='A. Nkoulou · today';
+    var st=document.getElementById('tStatus');st.className='chip ok';st.textContent='Signed off';redraw();return;}
+  if(t.id==='themeBtn'){var d=document.documentElement.getAttribute('data-theme')==='dark';
+    document.documentElement.setAttribute('data-theme',d?'light':'dark');t.textContent=d?'Dark':'Light';return;}
+});
+document.addEventListener('change',function(e){
+  var t=e.target;
+  if(t.dataset.map!==undefined){TB[+t.dataset.map].l=t.value;
+    log(t.value?'<span>'+TB[+t.dataset.map].c+'</span> mapped to '+LEADS[t.value]+'. Account universe and gate G2 recomputed.':'<span>'+TB[+t.dataset.map].c+'</span> unmapped. Gate G2 blocked.');redraw();return;}
+  if(t.dataset.qual!==undefined){QUAL[t.dataset.qual]=t.checked;
+    log('Qualitative significance '+(t.checked?'set':'removed')+' on <span>'+t.dataset.qual+'</span>. PLN-6 and the scope of G2 updated.');redraw();return;}
+  if(t.dataset.was!==undefined){WCGW.filter(function(w){return w.id===+t.dataset.was;})[0].as=t.value;redraw();return;}
+  if(t.dataset.strat!==undefined){var w=WCGW.filter(function(x){return x.id===+t.dataset.strat;})[0];w.strat=t.value;
+    log('Strategy on <span>'+w.a+' · '+w.as+'</span> set to '+(t.value==='reliance'?'controls reliance. EXE-2 gains a test; the sample size in EXE-3 falls.':'fully substantive. Control risk at maximum; the sample size in EXE-3 rises.'));redraw();return;}
+});
+document.addEventListener('input',function(e){
+  var t=e.target;
+  if(t.id==='omRange'){ENG.om=+t.value;drawSig();drawCra();drawSpine();drawSections();drawAttn();drawGauges();return;}
+  if(t.dataset.wt!==undefined){WCGW.filter(function(w){return w.id===+t.dataset.wt;})[0].t=t.value;return;}
+  if(t.dataset.wc!==undefined){WCGW.filter(function(w){return w.id===+t.dataset.wc;})[0].ctrl=t.value;drawStrat();drawCra();drawAttn();return;}
+});
+document.getElementById('omRange').addEventListener('change',function(){
+  log('Overall materiality set to <span>'+FMT(ENG.om)+'</span>. Significance re-tested; sample sizes in EXE-3 and the evaluation in CON-4 recompute.');redraw();});
+
+drawRail();redraw();drawMap();drawTeam();drawMine();openForm('PLN-6');show('hub');
+</script>
