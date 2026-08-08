@@ -102,6 +102,7 @@
   .fmPage .fyn{text-align:center;white-space:nowrap;width:56px;font-size:15px}
   .fmPage .fnum{text-align:right;color:#666;width:30px}
   .fmPage .fsrc{font-size:12.5px;color:#4a4a4a}
+  .fauto{display:block;background:#EFF3F6;border:1px solid #B9C4CC;border-radius:3px;color:#3d5666;padding:7px 10px;margin:2px 0;font-size:13px}
   .fx{display:block;background:#FFF7DC;border:1px dashed #C9A227;border-radius:3px;color:#8a6d1a;font-style:italic;padding:7px 10px;margin:2px 0;font-size:13px}
   .fxs{padding:4px 6px;font-size:12px;text-align:center}
   .fstd{background:#f2f2f2;border-left:4px solid #141414;padding:8px 12px}
@@ -386,7 +387,7 @@ var ACC_FORMS=[
  "The time budget is consistent with the deadlines, the assessed risk profile and the staffing plan below.",
  "Where ACC-7 requires an engagement quality reviewer, an eligible reviewer is available.",
  "Language and jurisdiction capabilities (including OHADA filing requirements) are covered within the team."]},
- {t:"Part C &mdash; Staffing plan",kind:"grid",cols:["Name","Role on engagement","Planned hours","Key dates / availability"],n:5}]},
+ {t:"Part C &mdash; Staffing plan",kind:"grid",intro:"The team is set up directly in the engagement&rsquo;s team management, each member with a role from the audit ladder &mdash; audit staff &middot; audit senior &middot; audit manager &middot; audit senior manager &middot; audit director &middot; audit partner &mdash; and tasks are assigned to members directly in the application. Names and roles auto-populate here once the team is saved; document only the hours and availability.",cols:["Name (from team setup)","Role (audit staff &rarr; audit partner)","Planned hours","Key dates / availability"],n:5}]},
 {code:"ACC-3",title:"Independence &amp; ethics",
  std:"IESBA Code Parts 1 &amp; 4A &middot; ISA 220 (Revised) &para;16&ndash;21 &middot; ISQM 1 &para;29 &mdash; engine rule R29, gate G1",
  use:["Complete this form to document compliance with the fundamental principles and independence at firm, network and engagement-team level, and to log every threat identified with the safeguard that reduces it to an acceptable level.",
@@ -469,12 +470,13 @@ var ACC_FORMS=[
  "Another firm-policy trigger applies (describe below)."]},
  {t:"Part B &mdash; Reviewer appointment (complete when an EQR is required)",kind:"capture",rows:["Reviewer name and qualifications","Eligibility confirmed &mdash; competence, authority, objectivity, including the two-year cooling-off after serving as engagement partner (ISQM 2 &para;19)","Planned review points (planning conclusions &middot; significant judgements &middot; the report)"]}]}];
 function fx(s){return '<span class="fx'+(s?' fxs':'')+'">&#9001; '+(s?'result':'Document the results of the work performed')+' &#9002;</span>';}
+function fauto(t){return '<span class="fauto">&#9881; '+t+'</span>';}
 function accRender(f){
  var h='<button class="fmClose" type="button">&#10005; Close</button><div class="fmCode">'+f.code+' &middot; ACCEPTANCE &middot; PHASE 00</div><h1>'+f.title+'</h1>';
- h+='<table class="ft"><tr><td class="fl">Entity name</td><td>'+fx()+'</td></tr><tr><td class="fl">Date of financial statements</td><td>'+fx()+'</td></tr><tr><td class="fl">Prepared by / date</td><td>'+fx()+'</td></tr><tr><td class="fl">Reviewed by / date</td><td>'+fx()+'</td></tr></table>';
+ h+='<table class="ft"><tr><td class="fl">Entity name</td><td>'+fauto('Auto-populated from the engagement record')+'</td></tr><tr><td class="fl">Date of financial statements</td><td>'+fauto('Auto-populated from the engagement record (period end)')+'</td></tr><tr><td class="fl">Prepared by / date</td><td>'+fauto('Auto-populated by the sign-off engine &mdash; preparer signature and date')+'</td></tr><tr><td class="fl">Reviewed by / date</td><td>'+fauto('Auto-populated by the sign-off engine &mdash; reviewer signature and date')+'</td></tr></table>';
  h+='<h2>When and how to use this form</h2><p><b>Requirement for use:</b> required &mdash; this form supports the acceptance decision and gate G1.</p>'+f.use.map(function(p){return '<p>'+p+'</p>';}).join('');
  h+='<p class="fstd"><b>Applicable standards &amp; methodology:</b> '+f.std+'</p>';
- h+='<p class="flegend">Shaded fields mark where the results of the work performed are documented. Answer every question; explain every &ldquo;No&rdquo;.</p>';
+ h+='<p class="flegend">Amber fields mark where you document the results of the work performed. Grey fields are auto-populated by the platform (engagement record &middot; team setup &middot; sign-off engine) and are not typed. Answer every question; explain every &ldquo;No&rdquo;.</p>';
  h+='<h2>Conclusion</h2><table class="ft">'+f.concl.map(function(c){return '<tr><td>'+c+'</td><td class="fyn">&#9744; Yes</td><td class="fyn">&#9744; No</td></tr>';}).join('')+'</table>';
  h+='<p class="fexpl">Provide details here when we conclude &ldquo;No&rdquo;:</p>'+fx();
  h+='<p class="fsign">'+f.sign+'</p>';
