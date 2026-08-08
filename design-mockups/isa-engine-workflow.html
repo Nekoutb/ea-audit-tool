@@ -103,17 +103,12 @@
   .fmPage .fnum{text-align:right;color:#666;width:30px}
   .fmPage .fsrc{font-size:12.5px;color:#4a4a4a}
   .fauto{display:block;background:#EFF3F6;border:1px solid #B9C4CC;border-radius:3px;color:#3d5666;padding:7px 10px;margin:2px 0;font-size:13px}
-  .fmPage textarea.fx{width:100%;box-sizing:border-box;resize:vertical;font:italic 13px Arial;min-height:40px}
-  .fmPage textarea.fx::placeholder{color:#b09025}
+  .fmPage textarea.fx{width:100%;box-sizing:border-box;resize:vertical;font:13.5px/1.45 Arial;color:#141414;min-height:40px}
+  .fmPage textarea.fx::placeholder{color:#8a7530;font-style:italic}
   .fmPage textarea.fxs{min-height:26px;font-size:12px}
   .fmPage input.cb{width:16px;height:16px;accent-color:#1a7f37;cursor:pointer;vertical-align:-2px}
   .fmPage .noexpl>td{border-top:0;background:#FFFDF2}
   .fopt{margin-right:26px;cursor:pointer;white-space:nowrap}
-  .fsigned{color:#1a7f37;font-weight:700}
-  .fmSignRow{margin-top:22px;display:flex;gap:14px;align-items:center;flex-wrap:wrap}
-  .fmSign{font:700 14px Arial;background:#1a7f37;color:#fff;border:0;border-radius:4px;padding:10px 18px;cursor:pointer}
-  .fmSign:disabled{background:#8dbb9b;cursor:default}
-  .fmSignNote{font-size:12.5px;color:#555;max-width:60ch}
   .fabbr td{font-size:13px}
   .fx{display:block;background:#FFF7DC;border:1px dashed #C9A227;border-radius:3px;color:#8a6d1a;font-style:italic;padding:7px 10px;margin:2px 0;font-size:13px}
   .fxs{padding:4px 6px;font-size:12px;text-align:center}
@@ -351,7 +346,7 @@ var MODS=[
 ["A5","Dependency wiring","module events → engine rules",
  "TB re-import → <span class='hook'>R01</span> · confirmation non-response → <span class='hook'>R19</span> · confirmed difference → <span class='hook'>R18→R23</span> · refusal → <span class='hook'>R19 esc</span> · sample exception → <span class='hook'>R18</span> · size override → <span class='hook'>R17</span> · ToC failure → <span class='hook'>R11→R23/R12</span> · GITC fail → <span class='hook'>R10→R21</span> · unmapped account → <span class='hook'>G2</span> · opinion-path change → <span class='hook'>R25/R26/R28</span>. Every row ships with an automated test that triggers the event and asserts the effect."]];
 /* ===== Acceptance forms (structure replicates firm form conventions; wording original, ISA-anchored) ===== */
-var SIGNOFF="The form opens with the engagement&rsquo;s current data already entered. Complete it on screen; entries are saved as you work and reload each time the form is opened. Signing off below records the preparer&rsquo;s signature and date. Review and approval follow in the sign-off engine. Gate G1 does not clear while the conclusion above is unanswered, or answered &ldquo;No&rdquo; without a documented resolution.";
+var SIGNOFF="The form opens with the engagement&rsquo;s current data already entered. Complete it on screen; entries are saved as you work and reload each time the form is opened. Preparer and reviewer sign-off is performed on the acceptance task in the tool, not on this paper, and the signatures and dates appear in the header above. Gate G1 does not clear while the conclusion above is unanswered, or answered &ldquo;No&rdquo; without a documented resolution.";
 var ACC_FORMS=[
 {code:"ACC-1",title:"Client background, integrity and risk rating",
  std:"ISQM 1 &para;30 &middot; ISA 220 (Revised) &para;22&ndash;24. Feeds the engagement quality review determination (ACC-7) and the fraud risk baseline (R07).",
@@ -383,7 +378,10 @@ var ACC_FORMS=[
  "The reasons given for the change of auditor are consistent with the predecessor&rsquo;s account <i>(procedures 7, 10)</i>.",
  "Management has suggested no limitation on the scope of our work <i>(procedure 10)</i>.",
  "The reputation of related entities and business associates raises no concern <i>(procedures 2, 6)</i>."]},
- {t:"Part C &mdash; Client risk rating",kind:"opts",intro:"Weigh the Part B evaluation. A &ldquo;No&rdquo; answer, an unresolved screening match or an unanswered predecessor inquiry precludes a Low rating. Refer a High rating to the engagement partner before giving the client any commitment.",opts:["Low","Moderate","High"],after:"Record the reasons for the rating, citing the Part A evidence that supports it, and its effect on the engagement (review requirement under ACC-7, fraud risk baseline, staffing and supervision):"}]},
+ {t:"Part C &mdash; Client risk rating",kind:"auto",intro:"The rating is set on the engagement record in the tool, together with the reasons for it, and appears here. Weigh the Part B evaluation when setting it. A &ldquo;No&rdquo; answer, an unresolved screening match or an unanswered predecessor inquiry precludes a Low rating. Refer a High rating to the engagement partner before giving the client any commitment.",rows:[
+ ["Client risk rating","From the engagement record: Low, Moderate or High"],
+ ["Reasons recorded","From the engagement record: the reasons for the rating and the Part A evidence cited in support"],
+ ["Effect on the engagement","Derived by the engine: the review requirement under ACC-7, the fraud risk baseline, and the staffing and supervision plan"]]}]},
 {code:"ACC-2",title:"Competence, capability and resources",
  std:"ISA 220 (Revised) &para;25&ndash;28 &middot; ISQM 1 &para;32",
  use:["Complete this form before accepting the engagement. It records that the engagement team, together with any auditor&rsquo;s expert, has the competence, capability and time to perform the audit, and that the resources required are available when needed.",
@@ -392,14 +390,13 @@ var ACC_FORMS=[
  sign:SIGNOFF,
  parts:[
  {t:"Part A &mdash; Engagement profile",kind:"capture",intro:"Record the following from the engagement record and from discussion with the engagement partner.",rows:["Applicable financial reporting framework, and whether the entity is listed","Reporting deadlines and other key dates","Locations and components within the scope of the audit","Need for an auditor&rsquo;s expert identified (information technology, tax, valuation, actuarial, legal)"]},
- {t:"Part B &mdash; Evaluation of capability",kind:"yn",intro:"Evaluate each statement against the engagement profile in Part A and the staffing plan in Part C. Explain each &ldquo;No&rdquo; in the box beneath it.",items:[
+ {t:"Part B &mdash; Evaluation of capability",kind:"yn",intro:"Set the team up in the engagement&rsquo;s team management before completing this part, giving each member a role on the audit ladder. Evaluate each statement against the engagement profile in Part A and the team assembled. Explain each &ldquo;No&rdquo; in the box beneath it.",items:[
  "The team has appropriate knowledge of the industry and experience of the applicable financial reporting framework.",
  "The engagement partner has sufficient time for appropriate involvement in, and direction of, the engagement.",
  "Any auditor&rsquo;s expert identified in Part A is available, and we are able to direct and evaluate that work.",
- "The time budget is consistent with the reporting deadlines, the assessed risk profile and the staffing plan in Part C.",
+ "The time budget is consistent with the reporting deadlines, the assessed risk profile and the team assembled.",
  "Where ACC-7 requires an engagement quality review, an eligible reviewer is available.",
- "The team covers the language and jurisdiction requirements of the engagement, including OHADA filing obligations."]},
- {t:"Part C &mdash; Staffing plan",kind:"grid",intro:"Set the team up in the engagement&rsquo;s team management, giving each member a role on the audit ladder: audit staff, audit senior, audit manager, audit senior manager, audit director, audit partner. Tasks are assigned to members there. Names and roles populate this grid from that setup. Record the planned hours and the availability of each member.",cols:["Name (from team setup)","Role on the engagement","Planned hours","Key dates and availability"],n:5}]},
+ "The team covers the language and jurisdiction requirements of the engagement, including OHADA filing obligations."]}]},
 {code:"ACC-3",title:"Independence and ethics",
  std:"IESBA Code, Parts 1 and 4A &middot; ISA 220 (Revised) &para;16&ndash;21 &middot; ISQM 1 &para;29. Engine rule R29, gate G1.",
  use:["Complete this form before accepting the engagement. It records compliance with the fundamental principles and with independence at firm, network and engagement-team level.",
@@ -408,7 +405,11 @@ var ACC_FORMS=[
  "The threats recorded in Part C have been reduced to an acceptable level by the safeguards applied."],
  sign:SIGNOFF,
  parts:[
- {t:"Part A &mdash; Team declarations",kind:"grid",intro:"Record the independence declaration obtained from each member of the engagement team, including any auditor&rsquo;s expert. Names and roles populate from the engagement team setup.",cols:["Name","Role","Date declaration signed","Exceptions reported"],n:5},
+ {t:"Part A &mdash; Team declarations",kind:"auto",intro:"Declarations are requested and collected in the tool. Issue the independence campaign for this engagement, then confirm that every member has responded before fieldwork begins.",rows:[
+ ["Members and roles","From the engagement team setup"],
+ ["Declarations received","From the independence campaign: the date each member signed"],
+ ["Outstanding declarations","From the independence campaign: any member yet to respond"],
+ ["Exceptions reported","From the independence campaign: each exception reported, for evaluation in Part C"]]},
  {t:"Part B &mdash; Evaluation of independence",kind:"yn",na:true,intro:"Evaluate each statement at firm, network and engagement-team level. Explain each &ldquo;No&rdquo; in the box beneath it and record the resulting threat in Part C.",items:[
  "No member of the team, and no part of the firm, holds a direct financial interest or a material indirect financial interest in the entity.",
  "No loan or guarantee exists between the firm and the entity, other than on normal commercial terms with a financial-institution client.",
@@ -485,7 +486,7 @@ var ACC_FORMS=[
  {t:"Part B &mdash; Appointment of the reviewer",kind:"capture",intro:"Complete this part only where Part A requires a review.",rows:["Name and qualifications of the reviewer","Basis on which eligibility is confirmed: competence, authority and objectivity, including the two-year cooling-off period after serving as engagement partner (ISQM 2 &para;19)","Points at which the review will take place (planning conclusions, significant judgements, the report)"]}]}];
 function fx(s){return '<textarea class="fx'+(s?' fxs':'')+'" rows="'+(s?1:2)+'" placeholder="&#9001; '+(s?'record result + W/P ref':'Document the results of the work performed, with W/P reference')+' &#9002;"></textarea>';}
 function fauto(t){return '<span class="fauto">&#9881; '+t+'</span>';}
-var PREP_AUTO=fauto('Recorded automatically on sign-off below: the preparer&rsquo;s name and the date');
+var PREP_AUTO=fauto('Recorded when the preparer signs off the acceptance task in the tool');
 var GID=0;
 var ABBR=[
 ["PEP","Politically exposed person &mdash; an individual who is or has been entrusted with a prominent public function, together with their family members and close associates; screened because of elevated bribery, corruption and money-laundering exposure."],
@@ -499,11 +500,11 @@ var ABBR=[
 ["OHADA","Organisation pour l&rsquo;Harmonisation en Afrique du Droit des Affaires &mdash; the uniform business-law system applicable in the region."],
 ["SYSCOHADA","Syst&egrave;me Comptable OHADA &mdash; the OHADA accounting framework."],
 ["IFRS","International Financial Reporting Standards."]];
-function formBadge(code){var st=loadState();if(st[code+":signed"])return " &#10003; signed";for(var k in st)if(k.indexOf(code+":")===0)return " &middot; in progress";return "";}
+function formBadge(code){var st=loadState();for(var k in st)if(k.indexOf(code+":")===0)return " &middot; in progress";return "";}
 function accRender(f){
  GID=0;
  var h='<button class="fmClose" type="button">&#10005; Close</button><div class="fmCode">'+f.code+' &middot; ACCEPTANCE &middot; PHASE 00</div><h1>'+f.title+'</h1>';
- h+='<table class="ft"><tr><td class="fl">Entity name</td><td>'+fauto('From the engagement record')+'</td></tr><tr><td class="fl">Date of financial statements</td><td>'+fauto('From the engagement record: the period end date')+'</td></tr><tr><td class="fl">Prepared by / date</td><td id="'+f.code+'-prep">'+PREP_AUTO+'</td></tr><tr><td class="fl">Reviewed by / date</td><td>'+fauto('Recorded by the sign-off engine when the reviewer signs off in the review queue')+'</td></tr></table>';
+ h+='<table class="ft"><tr><td class="fl">Entity name</td><td>'+fauto('From the engagement record')+'</td></tr><tr><td class="fl">Date of financial statements</td><td>'+fauto('From the engagement record: the period end date')+'</td></tr><tr><td class="fl">Prepared by / date</td><td id="'+f.code+'-prep">'+PREP_AUTO+'</td></tr><tr><td class="fl">Reviewed by / date</td><td>'+fauto('Recorded when the reviewer signs off the acceptance task in the review queue')+'</td></tr></table>';
  h+='<h2>When and how to use this form</h2><p><b>Requirement for use:</b> required. This form supports the acceptance decision and gate G1.</p>'+f.use.map(function(p){return '<p>'+p+'</p>';}).join('');
  h+='<p class="fstd"><b>Applicable standards &amp; methodology:</b> '+f.std+'</p>';
  h+='<!--DEFS-->';
@@ -519,9 +520,10 @@ function accRender(f){
    +pt.items.map(function(it,i){var g='g'+(++GID);return '<tr><td class="fnum">'+(i+1)+'.</td><td>'+it+'</td><td class="fyn"><input type="checkbox" class="cb" data-g="'+g+'"></td><td class="fyn"><input type="checkbox" class="cb" data-g="'+g+'" data-no="1"></td>'+(pt.na?'<td class="fyn"><input type="checkbox" class="cb" data-g="'+g+'"></td>':'')+'</tr><tr class="noexpl" data-for="'+g+'"><td></td><td colspan="'+(pt.na?4:3)+'"><p class="fexpl">Explanation of the &ldquo;No&rdquo; answer to question '+(i+1)+' (procedures performed and/or other comments, with W/P reference):</p>'+fx()+'</td></tr>';}).join('')+'</table>';}
   if(pt.kind==='grid')h+='<table class="ft"><tr>'+pt.cols.map(function(c){return '<th>'+c+'</th>';}).join('')+'</tr>'
    +Array.apply(null,{length:pt.n||4}).map(function(){return '<tr>'+pt.cols.map(function(){return '<td>'+fx(1)+'</td>';}).join('')+'</tr>';}).join('')+'</table>';
+  if(pt.kind==='auto')h+='<table class="ft">'+pt.rows.map(function(r){return '<tr><td class="fl" style="width:38%">'+r[0]+'</td><td>'+fauto(r[1])+'</td></tr>';}).join('')+'</table>';
   if(pt.kind==='opts'){var og='g'+(++GID);h+='<p style="font-size:16px">'+pt.opts.map(function(o){return '<label class="fopt"><input type="checkbox" class="cb" data-g="'+og+'"> '+o+'</label>';}).join('')+'</p>'+(pt.after?'<p class="fexpl">'+pt.after+'</p>'+fx():'');}
  });
- h+='<div class="fmSignRow"><button type="button" class="fmSign">Complete &amp; sign off as preparer</button><span class="fmSignNote">Signing off records the <b>Prepared by</b> signature and date above. In AuditISA the signature is that of the logged-in user. The reviewer signs off in the review queue. Editing any field after signing withdraws the signature.</span></div><p class="ffoot">'+f.code+' &middot; Acceptance section &middot; AuditISA audit engine. The structure follows established firm form conventions; the wording is original and anchored to the standards cited.</p>';
+ h+='<p class="ffoot">'+f.code+' &middot; Acceptance section &middot; AuditISA audit engine. The structure follows established firm form conventions; the wording is original and anchored to the standards cited.</p>';
  return h.replace('<!--DEFS-->',defsTable(h));
 }
 /* Definitions table: scan the whole rendered form, then resolve recursively so a
@@ -545,18 +547,15 @@ var fmWrap=document.getElementById("fmWrap"),fmPage=document.getElementById("fmP
 function loadState(){try{return JSON.parse(localStorage.getItem("accFormsV1")||"{}");}catch(e){return {};}}
 function saveState(st){try{localStorage.setItem("accFormsV1",JSON.stringify(st));}catch(e){}}
 function saveEl(el){var st=loadState();if(el.tagName==="TEXTAREA"){if(el.value)st[el.dataset.sid]=el.value;else delete st[el.dataset.sid];}else{if(el.checked)st[el.dataset.sid]=1;else delete st[el.dataset.sid];}saveState(st);}
-function markSigned(code,iso){var cell=document.getElementById(code+"-prep");if(cell)cell.innerHTML='<span class="fsigned">&#10003; Prepared &mdash; signed off '+iso.slice(0,16).replace("T"," &middot; ")+'</span>';var btn=fmPage.querySelector(".fmSign");if(btn){btn.disabled=true;btn.innerHTML="Signed off &#10003;";}}
-function unsign(code){var st=loadState();if(st[code+":signed"]){delete st[code+":signed"];saveState(st);var cell=document.getElementById(code+"-prep");if(cell)cell.innerHTML=PREP_AUTO;var btn=fmPage.querySelector(".fmSign");if(btn){btn.disabled=false;btn.innerHTML="Complete &amp; sign off as preparer";}}}
 function wireForm(code){var st=loadState(),els=fmPage.querySelectorAll("input.cb,textarea.fx");
  Array.prototype.forEach.call(els,function(el,i){el.dataset.sid=code+":"+i;var v=st[el.dataset.sid];if(el.tagName==="TEXTAREA"){if(v)el.value=v;}else if(v)el.checked=true;});
- Array.prototype.forEach.call(fmPage.querySelectorAll(".noexpl"),function(r){var no=fmPage.querySelector('input.cb[data-no="1"][data-g="'+r.dataset.for+'"]');r.style.display=no&&no.checked?"":"none";});
- if(st[code+":signed"])markSigned(code,st[code+":signed"]);}
+ Array.prototype.forEach.call(fmPage.querySelectorAll(".noexpl"),function(r){var no=fmPage.querySelector('input.cb[data-no="1"][data-g="'+r.dataset.for+'"]');r.style.display=no&&no.checked?"":"none";});}
 function openForm(i){curForm=ACC_FORMS[i].code;fmPage.innerHTML=accRender(ACC_FORMS[i]);wireForm(curForm);fmWrap.classList.add("open");fmWrap.scrollTop=0;document.body.style.overflow="hidden";}
 function closeForm(){fmWrap.classList.remove("open");document.body.style.overflow="";drawPhases();}
 fmWrap.addEventListener("click",function(e){if(e.target===fmWrap)closeForm();});
-fmPage.addEventListener("click",function(e){if(e.target.closest(".fmClose")){closeForm();return;}var s=e.target.closest(".fmSign");if(s&&!s.disabled){var st=loadState(),iso=new Date().toISOString();st[curForm+":signed"]=iso;saveState(st);markSigned(curForm,iso);}});
-fmPage.addEventListener("change",function(e){var el=e.target;if(!el.classList.contains("cb"))return;unsign(curForm);if(el.checked)Array.prototype.forEach.call(fmPage.querySelectorAll('input.cb[data-g="'+el.dataset.g+'"]'),function(o){if(o!==el&&o.checked){o.checked=false;saveEl(o);}});var row=fmPage.querySelector('.noexpl[data-for="'+el.dataset.g+'"]');if(row){var no=fmPage.querySelector('input.cb[data-no="1"][data-g="'+el.dataset.g+'"]');row.style.display=no&&no.checked?"":"none";}saveEl(el);});
-fmPage.addEventListener("input",function(e){if(e.target.classList.contains("fx")){unsign(curForm);saveEl(e.target);}});
+fmPage.addEventListener("click",function(e){if(e.target.closest(".fmClose"))closeForm();});
+fmPage.addEventListener("change",function(e){var el=e.target;if(!el.classList.contains("cb"))return;if(el.checked)Array.prototype.forEach.call(fmPage.querySelectorAll('input.cb[data-g="'+el.dataset.g+'"]'),function(o){if(o!==el&&o.checked){o.checked=false;saveEl(o);}});var row=fmPage.querySelector('.noexpl[data-for="'+el.dataset.g+'"]');if(row){var no=fmPage.querySelector('input.cb[data-no="1"][data-g="'+el.dataset.g+'"]');row.style.display=no&&no.checked?"":"none";}saveEl(el);});
+fmPage.addEventListener("input",function(e){if(e.target.classList.contains("fx"))saveEl(e.target);});
 document.addEventListener("keydown",function(e){if(e.key==="Escape"&&fmWrap.classList.contains("open"))closeForm();});
 var tiles=document.getElementById("phTiles"),stepsEl=document.getElementById("phSteps");var cur=0;
 function drawPhases(){tiles.innerHTML=PHASES.map(function(p,i){return '<button class="ph'+(i===cur?' on':'')+'" data-i="'+i+'"><span class="num">PHASE '+p.n+'</span><b>'+p.t+'</b><span>'+p.s+'</span></button>';}).join("");
