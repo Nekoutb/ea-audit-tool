@@ -11,6 +11,7 @@ import {
   PHASE_SLUG_OF,
   engagementReviewer,
   engagementTasks,
+  existingTaskCodes,
   initials,
   phaseDeadline,
   phaseOfTask,
@@ -63,7 +64,12 @@ export default async function GroupTasksPage(props: {
   const engagement = await getEngagement(id);
   if (!engagement) notFound();
 
-  const [allTasks, reviewerName] = await Promise.all([engagementTasks(id), engagementReviewer(id)]);
+  const [allTasks, reviewerName, existingCodes] = await Promise.all([
+    engagementTasks(id),
+    engagementReviewer(id),
+    existingTaskCodes(id),
+  ]);
+  const missing = g.members.filter((code) => !existingCodes.has(code));
   const byCode = new Map(allTasks.map((task) => [task.code, task]));
   const tasks = g.members.map((code) => byCode.get(code)).filter((task): task is PhaseTask => Boolean(task));
   const reviewedCount = tasks.filter((task) => task.status === "reviewed").length;
@@ -183,7 +189,7 @@ export default async function GroupTasksPage(props: {
       <Panel flush className="flex flex-col">
         <div className="flex flex-wrap items-center justify-between gap-3 border-b border-line px-5 py-3.5">
           <PanelHeader title={td.taskList} right={<span className="text-xs font-semibold text-muted tnum">{tasks.length}</span>} />
-          {tasks.length < g.members.length && canReview(session.user.role) ? (
+          {missing.length > 0 && canReview(session.user.role) ? (
             <form action={instantiateGroupTasksAction}>
               <input type="hidden" name="engagementId" value={id} />
               <input type="hidden" name="group" value={group} />
@@ -191,7 +197,7 @@ export default async function GroupTasksPage(props: {
                 className="rounded-full border border-line-strong px-3.5 py-1.5 text-[12px] font-semibold text-ink-soft hover:bg-surface-2"
                 testId="add-group-tasks"
               >
-                {td.stage.addMissing.replace("{n}", String(g.members.length - tasks.length))}
+                {td.stage.addMissing.replace("{n}", String(missing.length))}
               </SubmitButton>
             </form>
           ) : null}

@@ -55,6 +55,13 @@ export const DEFAULT_FILE_INDEX: readonly FileIndexEntry[] = [
   // D — Acceptance & Planning (no D2; no D5.3 — intentional gaps)
   { code: "D1", section: "D", titleEn: "Engagement Strategy Driver", titleFr: "Pilote de la stratégie de mission" },
   { code: "D3.1", section: "D", titleEn: "Engagement Acceptance / Continuance Procedures", titleFr: "Procédures d'acceptation / de maintien de la mission" },
+  // D3.2–D3.6 complete the acceptance phase: the ISA 210 / ISQM requirements
+  // that previously had no working paper of their own.
+  { code: "D3.2", section: "D", titleEn: "Independence and Ethics Conclusion (IESBA Code)", titleFr: "Conclusion sur l'indépendance et l'éthique (Code IESBA)" },
+  { code: "D3.3", section: "D", titleEn: "Preconditions for an Audit (ISA 210)", titleFr: "Conditions préalables à l'audit (ISA 210)" },
+  { code: "D3.4", section: "D", titleEn: "Predecessor Auditor Communication (ISA 300 / IESBA §320)", titleFr: "Communication avec l'auditeur précédent (ISA 300 / IESBA §320)", conditional: true },
+  { code: "D3.5", section: "D", titleEn: "Engagement Letter (ISA 210)", titleFr: "Lettre de mission (ISA 210)" },
+  { code: "D3.6", section: "D", titleEn: "Engagement Quality Review Determination (ISQM 1/2)", titleFr: "Détermination de la revue de qualité (ISQM 1/2)" },
   { code: "D4.1", section: "D", titleEn: "Direction from the Engagement Partner", titleFr: "Directives de l'associé responsable de la mission" },
   { code: "D4.2", section: "D", titleEn: "Understanding the Entity, its Environment and the Applicable Financial Reporting Framework (ISA 315)", titleFr: "Connaissance de l'entité, de son environnement et du référentiel comptable applicable (ISA 315)" },
   { code: "D4.3", section: "D", titleEn: "Analytical Risk Assessment Procedures", titleFr: "Procédures analytiques d'évaluation des risques" },
@@ -134,6 +141,11 @@ const SHORT_TITLES: Record<string, { en: string; fr: string }> = {
   C1: { en: "Governance Communications (ISA 260)", fr: "Communications gouvernance (ISA 260)" },
   D1: { en: "Engagement Strategy Driver", fr: "Pilote de stratégie de mission" },
   "D3.1": { en: "Acceptance / Continuance", fr: "Acceptation / maintien" },
+  "D3.2": { en: "Independence & Ethics", fr: "Indépendance & éthique" },
+  "D3.3": { en: "Preconditions (ISA 210)", fr: "Conditions préalables (ISA 210)" },
+  "D3.4": { en: "Predecessor Auditor", fr: "Auditeur précédent" },
+  "D3.5": { en: "Engagement Letter", fr: "Lettre de mission" },
+  "D3.6": { en: "EQR Determination", fr: "Détermination revue qualité" },
   "D4.1": { en: "Partner Direction", fr: "Directives de l'associé" },
   "D4.2": { en: "Understanding the Entity (ISA 315)", fr: "Connaissance de l'entité (ISA 315)" },
   "D4.3": { en: "Analytical Risk Procedures", fr: "Procédures analytiques de risque" },
@@ -205,7 +217,10 @@ const CORE_CODES = new Set([
   "A1",
   "B1", "B4", "B5", "B6", "B7", "B8", "B10",
   "C1",
-  "D1", "D3.1", "D4.1", "D4.2", "D4.3", "D5.1", "D5.4", "D5.5", "D7.1", "D7.2",
+  // Acceptance applies to every engagement whatever its complexity, so the
+  // whole D3 family is core. D3.4 stays conditional (initial engagements only).
+  "D1", "D3.1", "D3.2", "D3.3", "D3.4", "D3.5", "D3.6",
+  "D4.1", "D4.2", "D4.3", "D5.1", "D5.4", "D5.5", "D7.1", "D7.2",
   "E100", "E110", "E120", "E170", "E180", "E330", "E360", "E370", "E380",
   "F1",
 ]);

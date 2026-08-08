@@ -439,7 +439,15 @@ export async function mostRecentEngagement(): Promise<EngagementSummary | null> 
  * the group pages roll these up client-side via lib/task-groups (the grouping
  * is a presentation concern; internal codes stay the storage keys).
  */
-export async function engagementTasks(engagementId: string): Promise<PhaseTask[]> {
+/**
+ * Tasks of an engagement. Conditional items (the predecessor communication, the
+ * IT deep-dives) are excluded by default because they apply only to some
+ * engagements; pass true to list those instead.
+ */
+export async function engagementTasks(
+  engagementId: string,
+  conditional = false,
+): Promise<PhaseTask[]> {
   const { tenantId } = await requireTenant();
   return withTenant(tenantId, async (tx) => {
     const dueDate = await dueDateExpr(tx);
@@ -486,9 +494,9 @@ export async function engagementTasks(engagementId: string): Promise<PhaseTask[]
             WHERE s.document_id = d.id AND s.role IN ('reviewer', 'partner') AND s.voided_at IS NULL
             ORDER BY s.signed_at LIMIT 1
          ) rs ON true
-        WHERE fi.engagement_id = $1 AND fi.conditional = false
+        WHERE fi.engagement_id = $1 AND fi.conditional = $2
         ORDER BY fi.sort_order`,
-      [engagementId],
+      [engagementId, conditional],
     );
     return result.rows.map((row) => {
       const status: PhaseTaskStatus = row.reviewer_name
@@ -673,5 +681,22 @@ export async function taskForItem(engagementId: string, code: string): Promise<P
       reviewerAt: row.reviewer_at,
       status,
     };
+  });
+}
+
+/**
+ * Every file-index code that exists on the engagement, including conditional
+ * items that the task lists hide. The "add the missing tasks" button compares
+ * against this — comparing against the visible list alone makes the button nag
+ * forever on any group holding a conditional member.
+ */
+export async function existingTaskCodes(engagementId: string): Promise<Set<string>> {
+  const { tenantId } = await requireTenant();
+  return withTenant(tenantId, async (tx) => {
+    const r = await tx.query<{ code: string }>(
+      "SELECT code FROM file_item WHERE engagement_id = $1",
+      [engagementId],
+    );
+    return new Set(r.rows.map((x) => x.code));
   });
 }

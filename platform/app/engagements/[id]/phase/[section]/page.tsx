@@ -53,7 +53,10 @@ export default async function PhasePage(props: {
   const engagement = await getEngagement(id);
   if (!engagement) notFound();
 
-  const tasks = await engagementTasks(id);
+  const [tasks, conditionalTasks] = await Promise.all([
+    engagementTasks(id),
+    engagementTasks(id, true),
+  ]);
   const byCode = new Map(tasks.map((x) => [x.code, x]));
   const groups = groupsOfSection(key);
   const ordered: { task: PhaseTask; group: string }[] = [];
@@ -63,6 +66,10 @@ export default async function PhasePage(props: {
       if (task) ordered.push({ task, group: g.code });
     }
   }
+  // Conditional papers of this phase — reachable, but outside the count, because
+  // they apply only when the engagement's facts call for them.
+  const memberCodes = new Set(groups.flatMap((g) => g.members));
+  const optional = conditionalTasks.filter((t) => memberCodes.has(t.code));
   const done = ordered.filter((x) => x.task.status === "reviewed").length;
   const links = linkedPhases(key);
   const intro = PHASE_INTRO[key][locale === "fr" ? "fr" : "en"];
@@ -168,6 +175,43 @@ export default async function PhasePage(props: {
           </ul>
         )}
       </Panel>
+
+      {optional.length > 0 ? (
+        <Panel className="mt-4">
+          <PanelHeader
+            title={locale === "fr" ? "S’applique selon le cas" : "Applies in some engagements"}
+            hint={String(optional.length)}
+          />
+          <p className="mt-2 text-sm text-muted">
+            {locale === "fr"
+              ? "Ces feuilles ne sont pas comptées dans la phase. Ouvrez-les lorsque les faits de la mission l’exigent."
+              : "These papers are not counted in the phase. Open one when the facts of the engagement call for it."}
+          </p>
+          <ul className="mt-3 divide-y divide-line" data-testid="phase-optional">
+            {optional.map((task) => (
+              <li key={task.id}>
+                <Link
+                  href={`/engagements/${id}/sections/${task.id}`}
+                  data-testid={`phase-optional-${task.code}`}
+                  className="flex items-center gap-3 py-2.5 transition hover:bg-surface-2"
+                >
+                  <span className={`h-2 w-2 flex-shrink-0 rounded-full ${DOT[task.status]}`} aria-hidden />
+                  <span className="min-w-0 flex-1">
+                    <span className="block truncate text-sm text-ink">
+                      {shortTitle(task.code, locale, locale === "fr" ? task.titleFr : task.titleEn)}
+                    </span>
+                    <span className="block truncate font-mono text-[11px] text-muted">
+                      {displayCode(task.code)} · {paperFor(task.code).std}
+                    </span>
+                  </span>
+                  <Chip tone="muted">{locale === "fr" ? "Conditionnel" : "Conditional"}</Chip>
+                  <span className="flex-shrink-0 text-muted" aria-hidden>›</span>
+                </Link>
+              </li>
+            ))}
+          </ul>
+        </Panel>
+      ) : null}
 
       {/* groups in this phase, for orientation */}
       <Panel className="mt-4">

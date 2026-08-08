@@ -41,6 +41,8 @@ describe("default audit file index", () => {
 
   it("marks exactly the conditional D-forms as conditional", () => {
     const conditional = DEFAULT_FILE_INDEX.filter((e) => e.conditional).map((e) => e.code);
-    expect(conditional.sort()).toEqual(["D4.5", "D4.6", "D4.7", "D4.8", "D4.9"]);
+    // D3.4 is the predecessor auditor communication: it applies on a change of
+    // auditor, so it is instantiated but kept out of the phase task counts.
+    expect(conditional.sort()).toEqual(["D3.4", "D4.5", "D4.6", "D4.7", "D4.8", "D4.9"]);
   });
 });

@@ -37,7 +37,10 @@ export interface TaskGroupDef {
 
 export const TASK_GROUPS: TaskGroupDef[] = [
   // ---- Acceptance (its own phase: everything performed before commitment) ----
-  { id: "st1", code: "ST1", section: "acceptance", titleEn: "Acceptance & Continuance", titleFr: "Acceptation & Maintien", members: ["D3.1", "D6.1"] },
+  // Order is the order the work is performed: background and integrity, then
+  // resources, independence, preconditions, the predecessor, the letter, and
+  // finally whether the engagement needs a quality review.
+  { id: "st1", code: "ST1", section: "acceptance", titleEn: "Acceptance & Continuance", titleFr: "Acceptation & Maintien", members: ["D3.1", "D6.1", "D3.2", "D3.3", "D3.4", "D3.5", "D3.6"] },
   // ---- Scope & Strategy (ST) ----
   { id: "st2", code: "ST2", section: "strategy", titleEn: "Strategy & Direction", titleFr: "Stratégie & Direction", members: ["D1", "D4.1", "D7.1"] },
   { id: "st3", code: "ST3", section: "strategy", titleEn: "Understanding the Entity", titleFr: "Connaissance de l'entité", members: ["D4.2", "D4.3", "D4.4", "D4.5"] },

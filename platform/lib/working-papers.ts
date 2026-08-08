@@ -6,28 +6,11 @@
 
 import { withTenant } from "@/lib/db";
 import { requireTenant } from "@/lib/tenant";
+import { ACCEPTANCE_PAPERS } from "@/lib/papers/acceptance";
+import { paperKeys, requiredKeys, type PaperDef, type PaperField } from "@/lib/papers/types";
 import { groupOfTask, type SectionKey } from "@/lib/task-groups";
 
-export interface PaperField {
-  key: string;
-  /** input = the preparer writes it; auto = a tool or the engagement record fills it. */
-  kind: "input" | "auto";
-  labelEn: string;
-  labelFr: string;
-  /** auto fields only: which tool produces the value. */
-  source?: string;
-}
-
-export interface PaperDef {
-  /** ISA / ISQM anchor shown under the title. */
-  std: string;
-  /** One line: the record this paper owns in the file. */
-  ownsEn: string;
-  ownsFr: string;
-  fields: PaperField[];
-  /** Tool ids whose output appears in this paper. */
-  tools?: string[];
-}
+export type { PaperField, PaperDef, PaperSection, PaperProc, PaperItem } from "@/lib/papers/types";
 
 const PROCEDURES: PaperField = {
   key: "procedures",
@@ -77,30 +60,6 @@ const GROUP_DEFAULT: Record<string, { std: string; en: string; fr: string }> = {
 
 /** Bespoke papers: the tasks the tool layer feeds, and the judgement-heavy ones. */
 const PAPERS: Record<string, PaperDef> = {
-  "D3.1": {
-    std: "ISQM 1 ¶30 · ISA 220 (Revised) ¶22–24 · IESBA Code §320",
-    ownsEn: "the client risk rating and the integrity conclusion",
-    ownsFr: "la notation du risque client et la conclusion sur l'intégrité",
-    tools: ["independence"],
-    fields: [
-      { key: "sources", kind: "input", labelEn: "Sources consulted: registry extract, screening, media, references, predecessor", labelFr: "Sources consultées : registre, criblage, médias, références, prédécesseur" },
-      { key: "screening", kind: "input", labelEn: "Screening performed — database, date, terms, and the disposition of every match", labelFr: "Criblage effectué — base, date, termes et traitement de chaque correspondance" },
-      { key: "integrity", kind: "input", labelEn: "Integrity evaluation, and the reasons for the client risk rating", labelFr: "Évaluation de l'intégrité et motifs de la notation du risque client" },
-      { key: "change", kind: "input", labelEn: "Reason for the change of auditor, corroborated with the predecessor", labelFr: "Motif du changement d'auditeur, corroboré auprès du prédécesseur" },
-      CONCLUSION,
-    ],
-  },
-  "D6.1": {
-    std: "ISA 220 (Revised) ¶25–28 · ISA 210 ¶9–13 · ISQM 2",
-    ownsEn: "the resources, terms and review-requirement conclusions",
-    ownsFr: "les conclusions ressources, termes et exigence de revue",
-    fields: [
-      { key: "resources", kind: "input", labelEn: "Competence, capability and time available to the team", labelFr: "Compétence, capacité et temps disponibles" },
-      { key: "letter", kind: "input", labelEn: "Engagement letter — date signed and countersigned, and the components it contains", labelFr: "Lettre de mission — dates de signature et éléments qu'elle contient" },
-      { key: "eqr", kind: "input", labelEn: "Engagement quality review required? Basis, and the reviewer appointed", labelFr: "Revue de qualité requise ? Motif et réviseur désigné" },
-      CONCLUSION,
-    ],
-  },
   "D5.1": {
     std: "ISA 320 ¶10–14 · ISA 450 ¶5",
     ownsEn: "materiality, performance materiality and the clearly trivial threshold",
@@ -214,7 +173,7 @@ const PAPERS: Record<string, PaperDef> = {
 
 /** The paper for a task: bespoke where defined, otherwise built from its group. */
 export function paperFor(code: string): PaperDef {
-  const bespoke = PAPERS[code];
+  const bespoke = ACCEPTANCE_PAPERS[code] ?? PAPERS[code];
   if (bespoke) return bespoke;
   const group = groupOfTask(code);
   const d = (group && GROUP_DEFAULT[group.id]) ?? {
@@ -239,9 +198,13 @@ export function fieldLabelOf(f: PaperField, locale: "en" | "fr"): string {
 
 /** A paper is complete when every input field carries text. */
 export function paperComplete(def: PaperDef, values: Record<string, string>): boolean {
-  return def.fields
-    .filter((f) => f.kind === "input")
-    .every((f) => (values[f.key] ?? "").trim().length > 0);
+  return requiredKeys(def).every((k) => (values[k] ?? "").trim().length > 0);
+}
+
+/** Answered fields over required fields, for the progress count. */
+export function paperProgress(def: PaperDef, values: Record<string, string>): { done: number; total: number } {
+  const keys = requiredKeys(def);
+  return { done: keys.filter((k) => (values[k] ?? "").trim().length > 0).length, total: keys.length };
 }
 
 const WP = (code: string) => `wp:${code}`;
@@ -268,8 +231,7 @@ export async function savePaper(
   values: Record<string, string>,
 ): Promise<void> {
   const { tenantId, userId } = await requireTenant();
-  const def = paperFor(code);
-  const allowed = new Set(def.fields.filter((f) => f.kind === "input").map((f) => f.key));
+  const allowed = paperKeys(paperFor(code));
   await withTenant(tenantId, async (tx) => {
     for (const [key, value] of Object.entries(values)) {
       if (!allowed.has(key)) continue;
