@@ -2,6 +2,7 @@ import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
 import { auth } from "@/auth";
 import { AppNav } from "@/components/AppNav";
+import { PhaseNav } from "@/components/PhaseNav";
 import { SectionStage, type StageSection } from "@/components/SectionStage";
 import { TilesToggle } from "@/components/TilesToggle";
 import { Chip, Panel, PanelHeader, StatCell } from "@/components/ui/atlas";
@@ -38,6 +39,7 @@ const ROUTE_TONE: Record<AttentionTone, string> = {
 
 /** Deadline source phase per section (framework §6: strategy pre-year-end). */
 const SECTION_DEADLINE_PHASE: Record<SectionKey, DashboardPhase> = {
+  acceptance: "acceptance",
   strategy: "planning",
   execution: "execution",
   conclusion: "conclusion",
@@ -110,8 +112,9 @@ export default async function EngagementDashboardPage(props: {
   const phaseLabel = t.engagements.stages[engagement.phase];
 
   return (
-    <main className="flex min-h-screen w-full flex-col gap-3 px-4 py-4 sm:px-6">
+    <main className="flex min-h-screen w-full flex-col gap-4 px-6 py-8">
       <AppNav locale={locale} current={{ id, label: engagement.name ?? engagement.clientName }} />
+      <PhaseNav engagementId={id} locale={locale} active="overview" />
 
       <div className="flex flex-wrap items-end justify-between gap-4">
         <div>
@@ -173,6 +176,7 @@ export default async function EngagementDashboardPage(props: {
             <div className="text-[10.5px] font-extrabold uppercase tracking-[0.08em] text-muted">{td.stage.refDocs}</div>
             <div className="mt-2 flex flex-wrap gap-1.5">
               {[
+                { href: `/engagements/${id}/tools`, label: locale === "fr" ? "Outils" : "Tools" },
                 { href: `/engagements/${id}/tasks`, label: locale === "fr" ? "Mes tâches" : "My Tasks" },
                 { href: `/engagements/${id}/cra`, label: "CRA" },
                 { href: `/engagements/${id}/data`, label: t.planning.dataTitle },
@@ -194,7 +198,7 @@ export default async function EngagementDashboardPage(props: {
         }
       />
 
-      <section className="grid grid-cols-1 items-start gap-3 lg:grid-cols-[1.6fr_1fr]">
+      <section className="grid grid-cols-1 gap-3 lg:grid-cols-[1.6fr_1fr] lg:items-stretch">
         <div className="flex min-w-0 flex-col gap-3">
           <TilesToggle my={stats.my} all={stats.all} labels={td.tiles} />
 
@@ -264,7 +268,7 @@ export default async function EngagementDashboardPage(props: {
             </div>
             <div className="flex flex-col p-1.5" data-testid="engagement-feed">
               {feed.length === 0 ? (
-                <p className="px-4 py-5 text-center text-sm text-muted">{td.activity.empty}</p>
+                <p className="px-3.5 py-2.5 text-[12.5px] text-muted">{td.activity.empty}</p>
               ) : (
                 feed.map((row) => (
                   <div key={row.id} className="flex gap-2.5 rounded-[var(--radius-atlas-xs)] px-3 py-2">
@@ -283,11 +287,11 @@ export default async function EngagementDashboardPage(props: {
             </div>
           </Panel>
 
-          <Panel flush className="flex flex-col">
+          <Panel flush className="flex flex-1 flex-col">
             <div className="border-b border-line px-5 py-3.5">
               <PanelHeader title={td.activity.title} />
             </div>
-            <div className="flex flex-col gap-3.5 p-5">
+            <div className="flex flex-1 flex-col gap-3.5 p-5">
               <StatCell label={td.currentPhase} value={phaseLabel} right={<Chip tone="warn">{td.activeLabel}</Chip>} />
               <StatCell
                 label={td.nextDeadline}

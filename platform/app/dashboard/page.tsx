@@ -66,7 +66,7 @@ export default async function DashboardPage() {
     .slice(0, 4);
 
   return (
-    <main className="flex min-h-screen w-full flex-col gap-4 px-6 py-4">
+    <main className="flex min-h-screen w-full flex-col gap-4 px-6 py-8">
       <AppNav locale={locale} />
 
       <div>

@@ -163,7 +163,7 @@ export default async function MyTasksPage(props: {
   const chipIdle = `${chipBase} border-line-strong text-ink-soft hover:bg-surface-2`;
 
   return (
-    <main className="flex min-h-screen w-full flex-col gap-4 px-6 py-4">
+    <main className="flex min-h-screen w-full flex-col gap-4 px-6 py-8">
       <AppNav locale={locale} current={{ id, label: engagement.name ?? engagement.clientName }} />
 
       <div>

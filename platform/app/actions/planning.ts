@@ -13,6 +13,7 @@ import { approveMateriality, createMaterialityVersion, type Benchmark } from "@/
 import { addCustomStep, generateProgram } from "@/lib/programs";
 import { dismissPotentialRisk, linkRiskToStep, mapRiskToSection, promotePotentialRisk, raisePotentialRisk, rebutRevenueFraudRisk, updateRisk, type Assertion, type RiskRating, type RiskStatus } from "@/lib/risks";
 import { canReview } from "@/lib/rbac";
+import { savePaper } from "@/lib/working-papers";
 import { addPbcItem, assignTask, assignTeamMember, removeTeamMember, setBudgetLine, setPbcStatus, type PbcItem, type TeamRole } from "@/lib/team";
 import { getLocale } from "@/lib/locale";
 
@@ -453,5 +454,22 @@ export async function setMaterialAction(
 ): Promise<void> {
   await guarded(`/engagements/${engagementId}/planning`, () =>
     setSectionMaterial(fileItemId, material),
+  );
+}
+
+// ---- Working papers (one per task, console design) ----
+
+export async function savePaperAction(
+  engagementId: string,
+  itemId: string,
+  code: string,
+  formData: FormData,
+): Promise<void> {
+  const values: Record<string, string> = {};
+  for (const [key, value] of formData.entries()) {
+    if (typeof value === "string") values[key] = value;
+  }
+  await guarded(`/engagements/${engagementId}/sections/${itemId}`, () =>
+    savePaper(engagementId, code, values),
   );
 }

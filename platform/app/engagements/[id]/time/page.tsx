@@ -40,7 +40,7 @@ export default async function TimePage(props: {
   const label = "flex flex-col gap-1 text-sm text-ink-soft";
 
   return (
-    <main className="flex min-h-screen w-full flex-col gap-4 px-6 py-4">
+    <main className="flex min-h-screen w-full flex-col gap-4 px-6 py-8">
       <AppNav locale={locale} current={{ id, label: engagement.name ?? engagement.clientName }} />
       <div>
         <NavLink

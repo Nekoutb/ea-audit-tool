@@ -48,7 +48,7 @@ test("full Phase 2 acceptance → planning → gates → close", async ({ page }
   await page.goto(engagementUrl);
 
   // --- Acceptance: D3.1 structured form ---
-  await page.getByTestId("tab-acceptance").click();
+  await page.goto(`${engagementUrl}/acceptance`);
   await page.waitForURL("**/acceptance");
   await page.getByTestId("open-d31-form").click();
   await page.waitForURL("**/forms/D3.1");
@@ -62,7 +62,7 @@ test("full Phase 2 acceptance → planning → gates → close", async ({ page }
 
   // --- Independence: launch → my link → an exception → partner disposition ---
   await page.goto(engagementUrl);
-  await page.getByTestId("tab-acceptance").click();
+  await page.goto(`${engagementUrl}/acceptance`);
   await page.getByTestId("campaign-recipients").selectOption({ label: "Alice Alpha" });
   await page.getByTestId("launch-campaign").click();
   await page.getByTestId("my-confirmation-link").click();
@@ -73,7 +73,7 @@ test("full Phase 2 acceptance → planning → gates → close", async ({ page }
   await expect(page.getByTestId("confirmation-done")).toBeVisible();
 
   await page.goto(engagementUrl);
-  await page.getByTestId("tab-acceptance").click();
+  await page.goto(`${engagementUrl}/acceptance`);
   await page.getByTestId("disposition-input").fill("Interest divested; safeguards applied.");
   await page.getByTestId("dispose-exception").click();
 
@@ -84,13 +84,13 @@ test("full Phase 2 acceptance → planning → gates → close", async ({ page }
   // Partner sign-off on the D3.1 working paper, then advance.
   await partnerSignCode(page, engagementUrl, "D3.1");
   await page.goto(engagementUrl);
-  await page.getByTestId("tab-acceptance").click();
+  await page.goto(`${engagementUrl}/acceptance`);
   await page.getByTestId("advance-to-planning").click();
   await page.waitForURL("**/acceptance");
   await expect(page.getByTestId("planning-error")).toHaveCount(0);
 
   // --- Planning: materiality version + partner approval ---
-  await page.getByTestId("tab-planning").click();
+  await page.goto(`${engagementUrl}/planning`);
   await page.waitForURL("**/planning");
   await page.getByTestId("materiality-benchmark").selectOption("revenue");
   await page.getByTestId("materiality-amount").fill("2000000000");
@@ -142,7 +142,7 @@ test("full Phase 2 acceptance → planning → gates → close", async ({ page }
 
   // --- Close planning: gates all green → execution ---
   await page.goto(engagementUrl);
-  await page.getByTestId("tab-planning").click();
+  await page.goto(`${engagementUrl}/planning`);
   await page.getByTestId("close-planning").click();
   await page.waitForURL("**/planning");
   await expect(page.getByTestId("planning-error")).toHaveCount(0);

@@ -4,14 +4,23 @@
 // (D3.1, E100, B5 …) stay the storage keys — this module is the presentation and
 // grouping layer that maps them to the ST/E/C display codes and rolls them up.
 
-export type SectionKey = "strategy" | "execution" | "conclusion";
+export type SectionKey = "acceptance" | "strategy" | "execution" | "conclusion";
 
-export const SECTION_ORDER: SectionKey[] = ["strategy", "execution", "conclusion"];
+export const SECTION_ORDER: SectionKey[] = ["acceptance", "strategy", "execution", "conclusion"];
 
 export const SECTION_LABELS: Record<SectionKey, { en: string; fr: string }> = {
+  acceptance: { en: "Acceptance", fr: "Acceptation" },
   strategy: { en: "Scope & Strategy", fr: "Cadrage & Stratégie" },
   execution: { en: "Execution", fr: "Exécution" },
   conclusion: { en: "Conclusion", fr: "Conclusion" },
+};
+
+/** The quality gate each phase closes against. */
+export const SECTION_GATE: Record<SectionKey, string> = {
+  acceptance: "G1",
+  strategy: "G2",
+  execution: "G3 · G4",
+  conclusion: "G4 · G5 · G6",
 };
 
 export interface TaskGroupDef {
@@ -27,8 +36,9 @@ export interface TaskGroupDef {
 }
 
 export const TASK_GROUPS: TaskGroupDef[] = [
-  // ---- Planning & Strategy (ST) ----
-  { id: "st1", code: "ST1", section: "strategy", titleEn: "Acceptance & Continuance", titleFr: "Acceptation & Maintien", members: ["D3.1", "D6.1"] },
+  // ---- Acceptance (its own phase: everything performed before commitment) ----
+  { id: "st1", code: "ST1", section: "acceptance", titleEn: "Acceptance & Continuance", titleFr: "Acceptation & Maintien", members: ["D3.1", "D6.1"] },
+  // ---- Scope & Strategy (ST) ----
   { id: "st2", code: "ST2", section: "strategy", titleEn: "Strategy & Direction", titleFr: "Stratégie & Direction", members: ["D1", "D4.1", "D7.1"] },
   { id: "st3", code: "ST3", section: "strategy", titleEn: "Understanding the Entity", titleFr: "Connaissance de l'entité", members: ["D4.2", "D4.3", "D4.4", "D4.5"] },
   { id: "st4", code: "ST4", section: "strategy", titleEn: "IT & Reliance", titleFr: "Informatique & Appuis", members: ["D4.6", "D4.7", "D4.8", "D4.9"] },

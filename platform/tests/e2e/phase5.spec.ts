@@ -103,7 +103,7 @@ test("Phase 5: engines run on demo data; projected misstatement lands in B5", as
   await expect(page.getByTestId("engine-runs")).toContainText("substantive_analytics");
 
   // Findings: the projected misstatement is in B5 and the recon diff in B4.
-  await page.getByTestId("tab-findings").click();
+  await page.goto(`${engagementUrl}/findings`);
   await page.waitForURL("**/findings");
   await expect(page.getByTestId("b5-table")).toContainText("Projected misstatement");
   await expect(page.getByTestId("b4-list")).toContainText("Unreconciled difference");

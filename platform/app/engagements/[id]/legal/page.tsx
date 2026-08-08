@@ -69,7 +69,7 @@ export default async function LegalPage(props: {
   const stageName = (stage: string): string => tl.stages[stage as keyof typeof tl.stages] ?? stage;
 
   return (
-    <main className="min-h-screen w-full px-6 py-10">
+    <main className="min-h-screen w-full px-6 py-8">
       <AppNav locale={locale} />
       <h1 className="mt-8 text-2xl font-semibold text-ink">
         {engagement.clientName} — {engagement.fiscalYear} · {tl.title}

@@ -30,7 +30,7 @@ export default async function UsersPage(props: {
   const roleName = (r: string) => (tu.roles as Record<string, string>)[r] ?? r;
 
   return (
-    <main className="min-h-screen w-full px-6 py-10">
+    <main className="min-h-screen w-full px-6 py-8">
       <AppNav locale={locale} />
       <h1 className="mt-8 text-2xl font-semibold tracking-[-0.01em] text-ink">{tu.title}</h1>
       <p className="mt-1 text-[13px] text-ink-soft">{tu.subtitle}</p>

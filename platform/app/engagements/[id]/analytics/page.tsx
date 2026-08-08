@@ -33,7 +33,7 @@ export default async function AnalyticsPage(props: {
     "rounded-[var(--radius-atlas-sm)] border border-line-strong bg-surface px-2.5 py-1 text-xs font-medium text-ink-soft hover:bg-surface-2";
 
   return (
-    <main className="min-h-screen w-full px-6 py-10">
+    <main className="min-h-screen w-full px-6 py-8">
       <AppNav locale={locale} />
       <h1 className="mt-8 text-2xl font-semibold tracking-[-0.01em] text-ink">
         {engagement.clientName} — {engagement.fiscalYear} · {ta.title}

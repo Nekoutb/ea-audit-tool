@@ -26,7 +26,7 @@ export default async function ActivityPage(props: { params: Promise<{ id: string
   const rows = await listActivity(id);
 
   return (
-    <main className="flex min-h-screen w-full flex-col gap-4 px-6 py-4">
+    <main className="flex min-h-screen w-full flex-col gap-4 px-6 py-8">
       <AppNav locale={locale} current={{ id, label: engagement.name ?? engagement.clientName }} />
 
       <div>

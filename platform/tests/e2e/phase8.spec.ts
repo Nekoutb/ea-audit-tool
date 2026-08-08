@@ -58,7 +58,7 @@ test("Phase 8: deadlines → conventions/rapport spécial → alerte → equity 
   await expect(page.getByTestId("tb-import-status")).toContainText("valid");
 
   // --- F1: statutory deadlines calendar ---
-  await page.getByTestId("tab-legal").click();
+  await page.goto(`${engagementUrl}/legal`);
   await page.waitForURL("**/legal");
   await page.getByTestId("generate-deadlines").click();
   await expect(page.getByTestId("deadlines-table")).toContainText("FS arrêtés");

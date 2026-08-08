@@ -130,7 +130,7 @@ export default async function CraPage(props: { params: Promise<{ id: string }> }
   const td = "border-t border-line px-5 py-3 text-[13px] text-ink-soft tnum";
 
   return (
-    <main className="flex min-h-screen w-full flex-col gap-4 px-6 py-4">
+    <main className="flex min-h-screen w-full flex-col gap-4 px-6 py-8">
       <AppNav locale={locale} current={{ id, label: engagement.name ?? engagement.clientName }} />
 
       <div className="flex flex-wrap items-end justify-between gap-4">

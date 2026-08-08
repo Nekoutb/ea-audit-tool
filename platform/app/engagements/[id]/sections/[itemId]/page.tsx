@@ -14,9 +14,10 @@ import {
   runReconAction,
   runSamplingAction,
 } from "@/app/actions/engines";
-import { addStepAction, assignTaskAction, generateProgramAction, linkRiskStepAction } from "@/app/actions/planning";
+import { addStepAction, assignTaskAction, generateProgramAction, linkRiskStepAction, savePaperAction } from "@/app/actions/planning";
 import { AppNav } from "@/components/AppNav";
-import { EngagementTabs } from "@/components/EngagementTabs";
+import { PhaseNav } from "@/components/PhaseNav";
+import { WorkingPaper } from "@/components/WorkingPaper";
 import { ErrorBanner } from "@/components/GatesPanel";
 import { Panel, PanelHeader, Chip } from "@/components/ui/atlas";
 import { withTenant } from "@/lib/db";
@@ -26,6 +27,8 @@ import { getSectionConclusion, listControlTests } from "@/lib/execution";
 import { listDatasets } from "@/lib/subledgers";
 import { getMessages } from "@/lib/i18n";
 import { getLocale } from "@/lib/locale";
+import { groupOfTask, type SectionKey } from "@/lib/task-groups";
+import { loadPaper, paperFor } from "@/lib/working-papers";
 import { listProgramSteps, sectionCoverage } from "@/lib/programs";
 import { canReview } from "@/lib/rbac";
 import { ASSERTIONS, risksForSection } from "@/lib/risks";
@@ -65,6 +68,11 @@ export default async function SectionPage(props: {
 
   const [engagement, section] = await Promise.all([getEngagement(id), sectionInfo(itemId)]);
   if (!engagement || !section || section.engagement_id !== id) notFound();
+
+  const group = groupOfTask(section.code);
+  const phaseKey: SectionKey = group?.section ?? "strategy";
+  const paperDef = paperFor(section.code);
+  const paperValues = await loadPaper(id, section.code);
 
   const [risks, steps, coverage, controlTests, conclusion, datasets, runs, team, assignee] =
     await Promise.all([
@@ -113,7 +121,7 @@ export default async function SectionPage(props: {
     "rounded-[var(--radius-atlas-sm)] border border-line-strong bg-surface px-3 py-1.5 text-sm font-medium text-ink-soft hover:bg-surface-2";
 
   return (
-    <main className="min-h-screen w-full px-6 py-10">
+    <main className="min-h-screen w-full px-6 py-8">
       <AppNav locale={locale} />
       <div className="mt-8 flex flex-wrap items-center justify-between gap-2">
         <h1 className="text-2xl font-semibold text-ink">
@@ -121,7 +129,7 @@ export default async function SectionPage(props: {
         </h1>
         {section.material ? <Chip tone="warn">{ts.material}</Chip> : null}
       </div>
-      <EngagementTabs engagementId={id} locale={locale} active="planning" />
+      <PhaseNav engagementId={id} locale={locale} active={phaseKey} />
       <ErrorBanner error={error} locale={locale} />
 
       {/* Direct task assignment (six-level ladder): who is doing this task. */}
@@ -153,8 +161,17 @@ export default async function SectionPage(props: {
         )}
       </div>
 
+      <WorkingPaper
+        code={section.code}
+        def={paperDef}
+        values={paperValues}
+        autoValues={{}}
+        locale={locale}
+        action={savePaperAction.bind(null, id, itemId, section.code)}
+      />
+
       {/* Linked risks pinned at the top of the section (spec §8.1) */}
-      <Panel className="mt-6 border-l-4 border-l-[color:var(--color-rose)]">
+      <Panel className="mt-6">
         <PanelHeader title={ts.linkedRisks} />
         {risks.length === 0 ? (
           <p className="mt-2 text-sm text-muted">{ts.noRisks}</p>

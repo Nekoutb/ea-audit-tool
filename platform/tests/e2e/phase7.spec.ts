@@ -136,7 +136,7 @@ test("Phase 7: gates block → complete file → issue report → archive → ro
   }
 
   // Conclusion tab: gates visible, several failing; issuance is BLOCKED.
-  await page.getByTestId("tab-conclusion").click();
+  await page.goto(`${engagementUrl}/conclusion`);
   await page.waitForURL("**/conclusion");
   await expect(page.getByTestId("gates-panel")).toBeVisible();
   await expect(page.getByTestId("gate-risks_concluded")).toContainText("✗");
@@ -160,15 +160,21 @@ test("Phase 7: gates block → complete file → issue report → archive → ro
   await expect(page.getByTestId("gate-fs_tieout_passed")).toContainText("✓");
 
   // Disclosure checklist, subsequent events, B10 points, partner conclusion.
+  // Each save re-renders the panel, so wait for its gate before the next fill —
+  // otherwise the fill lands on the pre-render DOM and is discarded.
   await page.getByTestId("disclosure-complete").check();
   await page.getByTestId("save-disclosure").click();
+  await expect(page.getByTestId("gate-disclosure_checklist")).toContainText("✓");
   await page.getByTestId("subsequent-date").fill("2026-03-31");
   await page.getByTestId("save-subsequent").click();
+  await expect(page.getByTestId("gate-subsequent_events")).toContainText("✓");
   await page.getByTestId("points-forward").fill("Review the new IT system next year.");
   await page.getByTestId("save-points").click();
+  await expect(page.getByTestId("points-forward")).toHaveValue(/Review the new IT system/);
   await page.getByTestId("partner-conclusion-text").fill("Sufficient appropriate evidence obtained; opinion unmodified.");
   await page.getByTestId("independence-reconfirm").check();
   await page.getByTestId("save-partner-conclusion").click();
+  await expect(page.getByTestId("gate-partner_conclusion")).toContainText("✓");
 
   // OHADA double representation letters (B8) + final management letter.
   await page.getByTestId("gen-affirmation").click();

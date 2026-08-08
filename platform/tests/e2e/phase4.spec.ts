@@ -35,7 +35,7 @@ test("Phase 4: step execution → findings routing → B5 vs materiality → rev
   await page.goto(engagementUrl);
 
   // Materiality (overall 1.5M / trivial 75k) so B5 verdicts are live.
-  await page.getByTestId("tab-planning").click();
+  await page.goto(`${engagementUrl}/planning`);
   await page.getByTestId("materiality-benchmark").selectOption("revenue");
   await page.getByTestId("materiality-amount").fill("150000000");
   await page.getByTestId("materiality-pct").fill("1");
@@ -81,7 +81,7 @@ test("Phase 4: step execution → findings routing → B5 vs materiality → rev
   await expect(page.getByTestId("conclusion-state")).toContainText("Objectives achieved for payables.");
 
   // Findings tab: B5 totals vs materiality — exceeds, then correct → within (4.6).
-  await page.getByTestId("tab-findings").click();
+  await page.goto(`${engagementUrl}/findings`);
   await page.waitForURL("**/findings");
   await expect(page.getByTestId("b5-totals")).toContainText("8 000 000");
   await expect(page.getByTestId("b5-verdict")).toContainText(/EXCEED/i);
@@ -93,7 +93,7 @@ test("Phase 4: step execution → findings routing → B5 vs materiality → rev
   await page.locator("[data-testid^=clear-finding-]").first().click({ trial: true }).catch(() => {});
 
   // Risks: the revise-approach risk is pending partner approval → approve (4.10).
-  await page.getByTestId("tab-risks").click();
+  await page.goto(`${engagementUrl}/risks`);
   await page.waitForURL("**/risks");
   await expect(page.getByTestId("risk-register")).toContainText("inventory obsolescence");
   await expect(page.locator("[data-testid^=pending-approval-]")).toHaveCount(1);

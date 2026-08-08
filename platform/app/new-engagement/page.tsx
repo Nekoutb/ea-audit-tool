@@ -28,7 +28,7 @@ export default async function NewEngagementPage(props: {
   const [clients, branding, partners] = await Promise.all([listClients(), getBranding(), listFirmUsers()]);
 
   return (
-    <main className="flex min-h-screen w-full flex-col gap-4 px-6 py-4">
+    <main className="flex min-h-screen w-full flex-col gap-4 px-6 py-8">
       <AppNav locale={locale} />
       <div>
         <h1 className="text-2xl font-bold tracking-[-0.02em] text-ink">{te.newEngagementTitle}</h1>

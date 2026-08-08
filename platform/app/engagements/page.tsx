@@ -92,7 +92,7 @@ export default async function EngagementsPage(props: {
     "border-b border-line bg-surface-2 px-4 py-3 text-left text-[10px] font-extrabold uppercase tracking-[0.07em] text-muted first:px-5";
 
   return (
-    <main className="flex min-h-screen w-full flex-col gap-4 px-6 py-4">
+    <main className="flex min-h-screen w-full flex-col gap-4 px-6 py-8">
       <AppNav locale={locale} />
 
       <div className="flex flex-wrap items-end justify-between gap-4">

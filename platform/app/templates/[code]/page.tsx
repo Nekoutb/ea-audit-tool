@@ -36,7 +36,7 @@ export default async function TemplateEditPage(props: {
   const label = "flex flex-col gap-1 text-sm text-ink-soft";
 
   return (
-    <main className="min-h-screen w-full px-6 py-10">
+    <main className="min-h-screen w-full px-6 py-8">
       <AppNav locale={locale} />
       <div className="mt-8">
         <Link href="/templates" className="text-[13px] font-semibold text-emerald-700 hover:underline dark:text-emerald-400">

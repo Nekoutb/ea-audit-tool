@@ -35,7 +35,7 @@ test("Phase 6: AR + bank confirmation cycle with exception → B5 and a non-repl
   await page.goto(engagementUrl);
 
   // Materiality so client-error differences can land in B5 cleanly.
-  await page.getByTestId("tab-planning").click();
+  await page.goto(`${engagementUrl}/planning`);
   await page.getByTestId("materiality-benchmark").selectOption("revenue");
   await page.getByTestId("materiality-amount").fill("200000000");
   await page.getByTestId("materiality-pct").fill("1");
@@ -55,7 +55,7 @@ test("Phase 6: AR + bank confirmation cycle with exception → B5 and a non-repl
   await expect(page.getByTestId("datasets-table")).toContainText("ar.csv");
 
   // Confirmations tab: select AR positives above 1M (ACME + Beta).
-  await page.getByTestId("tab-confirmations").click();
+  await page.goto(`${engagementUrl}/confirmations`);
   await page.waitForURL("**/confirmations");
   await page.getByTestId("conf-type").selectOption("ar_positive");
   await page.getByTestId("conf-threshold").fill("1000000");

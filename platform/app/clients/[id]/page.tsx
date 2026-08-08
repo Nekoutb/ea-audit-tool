@@ -127,7 +127,7 @@ export default async function ClientDetailPage(props: {
   ];
 
   return (
-    <main className="min-h-screen w-full px-6 py-10">
+    <main className="min-h-screen w-full px-6 py-8">
       <AppNav locale={locale} />
 
       <div className="mt-8">

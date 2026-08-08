@@ -128,7 +128,7 @@ export default async function FormPage(props: {
   ) : null;
 
   return (
-    <main className="flex min-h-screen w-full flex-col gap-4 px-6 py-4">
+    <main className="flex min-h-screen w-full flex-col gap-4 px-6 py-8">
       <AppNav locale={locale} current={{ id, label: engagement.name ?? engagement.clientName }} />
 
       {/* NAV: back to the phase task list (canvas block 1) */}

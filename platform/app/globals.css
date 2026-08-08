@@ -26,6 +26,9 @@
   --muted: #515863;
   --line: rgba(27, 30, 35, 0.09);
   --line-strong: rgba(27, 30, 35, 0.17);
+  /* working paper: values a tool produced vs judgement the preparer records */
+  --wp-auto: rgba(52, 70, 127, 0.09);
+  --wp-input: rgba(180, 120, 10, 0.11);
   --warn: #9c660e;
   --warn-soft: #f7edd8;
   --rose: #b23c4f;
@@ -63,6 +66,8 @@
     --muted: #aab7ca;
     --line: rgba(255, 255, 255, 0.08);
     --line-strong: rgba(255, 255, 255, 0.16);
+  --wp-auto: rgba(147, 164, 221, 0.14);
+  --wp-input: rgba(224, 169, 74, 0.14);
     --warn: #e0b054;
     --warn-soft: #2a2113;
     --rose: #f9a3b0;

@@ -79,7 +79,7 @@ export default async function AcceptancePage(props: {
   const heading = "text-lg font-semibold text-ink";
 
   return (
-    <main className="min-h-screen w-full px-6 py-10">
+    <main className="min-h-screen w-full px-6 py-8">
       <AppNav locale={locale} />
       <h1 className="mt-8 text-2xl font-semibold text-ink">
         {engagement.clientName} — {engagement.fiscalYear} · {tp.acceptanceTitle}
