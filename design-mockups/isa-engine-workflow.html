@@ -103,6 +103,18 @@
   .fmPage .fnum{text-align:right;color:#666;width:30px}
   .fmPage .fsrc{font-size:12.5px;color:#4a4a4a}
   .fauto{display:block;background:#EFF3F6;border:1px solid #B9C4CC;border-radius:3px;color:#3d5666;padding:7px 10px;margin:2px 0;font-size:13px}
+  .fmPage textarea.fx{width:100%;box-sizing:border-box;resize:vertical;font:italic 13px Arial;min-height:40px}
+  .fmPage textarea.fx::placeholder{color:#b09025}
+  .fmPage textarea.fxs{min-height:26px;font-size:12px}
+  .fmPage input.cb{width:16px;height:16px;accent-color:#1a7f37;cursor:pointer;vertical-align:-2px}
+  .fmPage .noexpl>td{border-top:0;background:#FFFDF2}
+  .fopt{margin-right:26px;cursor:pointer;white-space:nowrap}
+  .fsigned{color:#1a7f37;font-weight:700}
+  .fmSignRow{margin-top:22px;display:flex;gap:14px;align-items:center;flex-wrap:wrap}
+  .fmSign{font:700 14px Arial;background:#1a7f37;color:#fff;border:0;border-radius:4px;padding:10px 18px;cursor:pointer}
+  .fmSign:disabled{background:#8dbb9b;cursor:default}
+  .fmSignNote{font-size:12.5px;color:#555;max-width:60ch}
+  .fabbr td{font-size:13px}
   .fx{display:block;background:#FFF7DC;border:1px dashed #C9A227;border-radius:3px;color:#8a6d1a;font-style:italic;padding:7px 10px;margin:2px 0;font-size:13px}
   .fxs{padding:4px 6px;font-size:12px;text-align:center}
   .fstd{background:#f2f2f2;border-left:4px solid #141414;padding:8px 12px}
@@ -339,7 +351,7 @@ var MODS=[
 ["A5","Dependency wiring","module events → engine rules",
  "TB re-import → <span class='hook'>R01</span> · confirmation non-response → <span class='hook'>R19</span> · confirmed difference → <span class='hook'>R18→R23</span> · refusal → <span class='hook'>R19 esc</span> · sample exception → <span class='hook'>R18</span> · size override → <span class='hook'>R17</span> · ToC failure → <span class='hook'>R11→R23/R12</span> · GITC fail → <span class='hook'>R10→R21</span> · unmapped account → <span class='hook'>G2</span> · opinion-path change → <span class='hook'>R25/R26/R28</span>. Every row ships with an automated test that triggers the event and asserts the effect."]];
 /* ===== Acceptance forms (structure replicates firm form conventions; wording original, ISA-anchored) ===== */
-var SIGNOFF="Preparation, review and approval of this form are evidenced in the platform&rsquo;s sign-off engine on the related acceptance task. Gate G1 does not clear while this form&rsquo;s conclusion is unanswered, or negative without documented resolution.";
+var SIGNOFF="This form lives in the tool: it opens pre-populated with the engagement&rsquo;s current data, you complete it on screen, and the saved version reappears whenever it is reopened. The <b>Prepared by</b> date is stamped automatically when you complete the form and sign off at the end; review and approval follow in the platform&rsquo;s sign-off engine. Gate G1 does not clear while this form&rsquo;s conclusion is unanswered, or negative without documented resolution.";
 var ACC_FORMS=[
 {code:"ACC-1",title:"Client background, integrity &amp; risk rating",
  std:"ISQM 1 &para;30 &middot; ISA 220 (Revised) &para;22&ndash;24 &middot; feeds the EQR determination (ACC-7) and the R07 fraud baseline",
@@ -460,7 +472,7 @@ var ACC_FORMS=[
  use:["Complete this form to determine whether this engagement requires an engagement quality review, and where it does, to appoint an eligible reviewer and plan the review points.",
  "An affirmative determination sets the release-gate flag: the report date field remains disabled until the reviewer&rsquo;s conclusion is recorded (R31, G5)."],
  concl:["The determination of whether this engagement requires an engagement quality review has been made and, where required, an eligible reviewer has been appointed."],
- sign:"Preparation, review and approval of this form are evidenced in the platform&rsquo;s sign-off engine. Where an EQR is required, release remains blocked (R31, gate G5) until the reviewer&rsquo;s conclusion is recorded.",
+ sign:"This form lives in the tool: it opens pre-populated, you complete it on screen, and the saved version reappears when reopened. The <b>Prepared by</b> date is stamped automatically on sign-off below. Where an EQR is required, release remains blocked (R31, gate G5) until the reviewer&rsquo;s conclusion is recorded.",
  parts:[
  {t:"Part A &mdash; Criteria",kind:"yn",intro:"An engagement quality review is required where any of the following applies:",items:[
  "The entity is a listed entity.",
@@ -469,40 +481,68 @@ var ACC_FORMS=[
  "The client risk rating recorded in ACC-1 Part C is High.",
  "Another firm-policy trigger applies (describe below)."]},
  {t:"Part B &mdash; Reviewer appointment (complete when an EQR is required)",kind:"capture",rows:["Reviewer name and qualifications","Eligibility confirmed &mdash; competence, authority, objectivity, including the two-year cooling-off after serving as engagement partner (ISQM 2 &para;19)","Planned review points (planning conclusions &middot; significant judgements &middot; the report)"]}]}];
-function fx(s){return '<span class="fx'+(s?' fxs':'')+'">&#9001; '+(s?'result':'Document the results of the work performed')+' &#9002;</span>';}
+function fx(s){return '<textarea class="fx'+(s?' fxs':'')+'" rows="'+(s?1:2)+'" placeholder="&#9001; '+(s?'record result + W/P ref':'Document the results of the work performed, with W/P reference')+' &#9002;"></textarea>';}
 function fauto(t){return '<span class="fauto">&#9881; '+t+'</span>';}
+var PREP_AUTO=fauto('Signed off automatically when the form is completed and signed off below (in AuditISA: the logged-in preparer&rsquo;s signature and date)');
+var GID=0;
+var ABBR=[
+["PEP","Politically exposed person &mdash; an individual who is or has been entrusted with a prominent public function, together with their family members and close associates; screened because of elevated bribery, corruption and money-laundering exposure."],
+["ISQM","International Standard on Quality Management &mdash; ISQM 1 governs the firm&rsquo;s system of quality management; ISQM 2 governs engagement quality reviews."],
+["ISA","International Standard on Auditing, issued by the International Auditing and Assurance Standards Board."],
+["IESBA","International Ethics Standards Board for Accountants &mdash; its Code sets the independence and ethics requirements applied in this form."],
+["RCCM","Registre du Commerce et du Cr&eacute;dit Mobilier &mdash; the OHADA trade and credit register from which the entity&rsquo;s registration extract is obtained."],
+["EQR","Engagement quality review (or reviewer) under ISQM 2 &mdash; an objective evaluation of the significant judgements by an eligible reviewer outside the engagement team, completed before the report is released on qualifying engagements."],
+["TCWG","Those charged with governance &mdash; the persons or body overseeing the entity&rsquo;s strategic direction and its accountability obligations (for example the board or supervisory body)."],
+["W/P","Working paper &mdash; the referenced evidence retained in the engagement file."],
+["OHADA","Organisation pour l&rsquo;Harmonisation en Afrique du Droit des Affaires &mdash; the uniform business-law system applicable in the region."],
+["SYSCOHADA","Syst&egrave;me Comptable OHADA &mdash; the OHADA accounting framework."],
+["IFRS","International Financial Reporting Standards."]];
+function formBadge(code){var st=loadState();if(st[code+":signed"])return " &#10003; signed";for(var k in st)if(k.indexOf(code+":")===0)return " &middot; in progress";return "";}
 function accRender(f){
+ GID=0;
  var h='<button class="fmClose" type="button">&#10005; Close</button><div class="fmCode">'+f.code+' &middot; ACCEPTANCE &middot; PHASE 00</div><h1>'+f.title+'</h1>';
- h+='<table class="ft"><tr><td class="fl">Entity name</td><td>'+fauto('Auto-populated from the engagement record')+'</td></tr><tr><td class="fl">Date of financial statements</td><td>'+fauto('Auto-populated from the engagement record (period end)')+'</td></tr><tr><td class="fl">Prepared by / date</td><td>'+fauto('Auto-populated by the sign-off engine &mdash; preparer signature and date')+'</td></tr><tr><td class="fl">Reviewed by / date</td><td>'+fauto('Auto-populated by the sign-off engine &mdash; reviewer signature and date')+'</td></tr></table>';
+ h+='<table class="ft"><tr><td class="fl">Entity name</td><td>'+fauto('Auto-populated from the engagement record')+'</td></tr><tr><td class="fl">Date of financial statements</td><td>'+fauto('Auto-populated from the engagement record (period end)')+'</td></tr><tr><td class="fl">Prepared by / date</td><td id="'+f.code+'-prep">'+PREP_AUTO+'</td></tr><tr><td class="fl">Reviewed by / date</td><td>'+fauto('Auto-populated by the sign-off engine &mdash; reviewer signature and date, from the review queue')+'</td></tr></table>';
  h+='<h2>When and how to use this form</h2><p><b>Requirement for use:</b> required &mdash; this form supports the acceptance decision and gate G1.</p>'+f.use.map(function(p){return '<p>'+p+'</p>';}).join('');
  h+='<p class="fstd"><b>Applicable standards &amp; methodology:</b> '+f.std+'</p>';
+ var plain=JSON.stringify(f),gates=/\bG[1-6]\b|\bR\d{2}\b/.test(plain);
+ var used=ABBR.filter(function(a){return new RegExp('(^|[^A-Za-z])'+a[0].replace('/','\\/')+'([^A-Za-z]|$)').test(plain);});
+ if(used.length||gates)h+='<h2>Definitions &mdash; abbreviations used in this form</h2><table class="ft fabbr">'+used.map(function(a){return '<tr><td class="fl" style="width:18%">'+a[0]+'</td><td>'+a[1]+'</td></tr>';}).join('')+(gates?'<tr><td class="fl" style="width:18%">G1&ndash;G6 &middot; R01&ndash;R34</td><td>The engine&rsquo;s quality gates and dependency rules; each one is defined in sections 02&ndash;03 of this workflow page.</td></tr>':'')+'</table>';
  h+='<p class="flegend">Amber fields mark where you document the results of the work performed. Grey fields are auto-populated by the platform (engagement record &middot; team setup &middot; sign-off engine) and are not typed. Answer every question; explain every &ldquo;No&rdquo;.</p>';
- h+='<h2>Conclusion</h2><table class="ft">'+f.concl.map(function(c){return '<tr><td>'+c+'</td><td class="fyn">&#9744; Yes</td><td class="fyn">&#9744; No</td></tr>';}).join('')+'</table>';
- h+='<p class="fexpl">Provide details here when we conclude &ldquo;No&rdquo;:</p>'+fx();
+ h+='<h2>Conclusion</h2><table class="ft">'+f.concl.map(function(c){var g='g'+(++GID);return '<tr><td>'+c+'</td><td class="fyn"><label><input type="checkbox" class="cb" data-g="'+g+'"> Yes</label></td><td class="fyn"><label><input type="checkbox" class="cb" data-g="'+g+'" data-no="1"> No</label></td></tr><tr class="noexpl" data-for="'+g+'"><td colspan="3"><p class="fexpl">Provide details for this &ldquo;No&rdquo; conclusion:</p>'+fx()+'</td></tr>';}).join('')+'</table>';
  h+='<p class="fsign">'+f.sign+'</p>';
  f.parts.forEach(function(pt){
   h+='<h2>'+pt.t+'</h2>';if(pt.intro)h+='<p>'+pt.intro+'</p>';
   if(pt.kind==='capture')h+='<table class="ft">'+pt.rows.map(function(r){return '<tr><td class="fl" style="width:38%">'+r+'</td><td>'+fx()+'</td></tr>';}).join('')+'</table>';
   if(pt.kind==='proc')h+='<table class="ft"><tr><th style="width:26px"></th><th style="width:42%">Procedure to perform</th><th style="width:25%">Expected sources</th><th>Record of results and evidence reference</th></tr>'
-   +pt.rows.map(function(r,i){return '<tr><td class="fnum">'+(i+1)+'.</td><td>'+r.p+'</td><td class="fsrc">'+r.s+'</td><td><span class="fx fxs">&#9001; record result + W/P ref &#9002;</span></td></tr>';}).join('')+'</table>';
+   +pt.rows.map(function(r,i){return '<tr><td class="fnum">'+(i+1)+'.</td><td>'+r.p+'</td><td class="fsrc">'+r.s+'</td><td>'+fx(1)+'</td></tr>';}).join('')+'</table>';
   if(pt.kind==='yn'){h+='<table class="ft"><tr><th style="width:30px"></th><th></th><th class="fyn">Yes</th><th class="fyn">No</th>'+(pt.na?'<th class="fyn">N/A</th>':'')+'</tr>'
-   +pt.items.map(function(it,i){return '<tr><td class="fnum">'+(i+1)+'.</td><td>'+it+'</td><td class="fyn">&#9744;</td><td class="fyn">&#9744;</td>'+(pt.na?'<td class="fyn">&#9744;</td>':'')+'</tr>';}).join('')+'</table>';
-   h+='<p class="fexpl">Explanation of &ldquo;No&rdquo; answers (procedures performed and/or other comments):</p>'+fx();}
+   +pt.items.map(function(it,i){var g='g'+(++GID);return '<tr><td class="fnum">'+(i+1)+'.</td><td>'+it+'</td><td class="fyn"><input type="checkbox" class="cb" data-g="'+g+'"></td><td class="fyn"><input type="checkbox" class="cb" data-g="'+g+'" data-no="1"></td>'+(pt.na?'<td class="fyn"><input type="checkbox" class="cb" data-g="'+g+'"></td>':'')+'</tr><tr class="noexpl" data-for="'+g+'"><td></td><td colspan="'+(pt.na?4:3)+'"><p class="fexpl">Explanation of the &ldquo;No&rdquo; answer to question '+(i+1)+' (procedures performed and/or other comments, with W/P reference):</p>'+fx()+'</td></tr>';}).join('')+'</table>';}
   if(pt.kind==='grid')h+='<table class="ft"><tr>'+pt.cols.map(function(c){return '<th>'+c+'</th>';}).join('')+'</tr>'
    +Array.apply(null,{length:pt.n||4}).map(function(){return '<tr>'+pt.cols.map(function(){return '<td>'+fx(1)+'</td>';}).join('')+'</tr>';}).join('')+'</table>';
-  if(pt.kind==='opts')h+='<p style="font-size:16px">'+pt.opts.map(function(o){return '&#9744; '+o;}).join('&nbsp;&nbsp;&nbsp;&nbsp;')+'</p>'+(pt.after?'<p class="fexpl">'+pt.after+'</p>'+fx():'');
+  if(pt.kind==='opts'){var og='g'+(++GID);h+='<p style="font-size:16px">'+pt.opts.map(function(o){return '<label class="fopt"><input type="checkbox" class="cb" data-g="'+og+'"> '+o+'</label>';}).join('')+'</p>'+(pt.after?'<p class="fexpl">'+pt.after+'</p>'+fx():'');}
  });
- return h+'<p class="ffoot">'+f.code+' &middot; Acceptance section &middot; AuditISA ISA engine &mdash; structure replicates firm form conventions; wording original, anchored to the standards cited.</p>';
+ return h+'<div class="fmSignRow"><button type="button" class="fmSign">Complete &amp; sign off as preparer</button><span class="fmSignNote">Signing off stamps the <b>Prepared by</b> date above. In AuditISA the signature is the logged-in user; the reviewer&rsquo;s sign-off follows in the review queue. Editing any field after signing withdraws the signature.</span></div><p class="ffoot">'+f.code+' &middot; Acceptance section &middot; AuditISA ISA engine &mdash; structure replicates firm form conventions; wording original, anchored to the standards cited.</p>';
 }
-var fmWrap=document.getElementById("fmWrap"),fmPage=document.getElementById("fmPage");
-function openForm(i){fmPage.innerHTML=accRender(ACC_FORMS[i]);fmWrap.classList.add("open");fmWrap.scrollTop=0;document.body.style.overflow="hidden";}
-function closeForm(){fmWrap.classList.remove("open");document.body.style.overflow="";}
+var fmWrap=document.getElementById("fmWrap"),fmPage=document.getElementById("fmPage"),curForm=null;
+function loadState(){try{return JSON.parse(localStorage.getItem("accFormsV1")||"{}");}catch(e){return {};}}
+function saveState(st){try{localStorage.setItem("accFormsV1",JSON.stringify(st));}catch(e){}}
+function saveEl(el){var st=loadState();if(el.tagName==="TEXTAREA"){if(el.value)st[el.dataset.sid]=el.value;else delete st[el.dataset.sid];}else{if(el.checked)st[el.dataset.sid]=1;else delete st[el.dataset.sid];}saveState(st);}
+function markSigned(code,iso){var cell=document.getElementById(code+"-prep");if(cell)cell.innerHTML='<span class="fsigned">&#10003; Prepared &mdash; signed off '+iso.slice(0,16).replace("T"," &middot; ")+'</span>';var btn=fmPage.querySelector(".fmSign");if(btn){btn.disabled=true;btn.innerHTML="Signed off &#10003;";}}
+function unsign(code){var st=loadState();if(st[code+":signed"]){delete st[code+":signed"];saveState(st);var cell=document.getElementById(code+"-prep");if(cell)cell.innerHTML=PREP_AUTO;var btn=fmPage.querySelector(".fmSign");if(btn){btn.disabled=false;btn.innerHTML="Complete &amp; sign off as preparer";}}}
+function wireForm(code){var st=loadState(),els=fmPage.querySelectorAll("input.cb,textarea.fx");
+ Array.prototype.forEach.call(els,function(el,i){el.dataset.sid=code+":"+i;var v=st[el.dataset.sid];if(el.tagName==="TEXTAREA"){if(v)el.value=v;}else if(v)el.checked=true;});
+ Array.prototype.forEach.call(fmPage.querySelectorAll(".noexpl"),function(r){var no=fmPage.querySelector('input.cb[data-no="1"][data-g="'+r.dataset.for+'"]');r.style.display=no&&no.checked?"":"none";});
+ if(st[code+":signed"])markSigned(code,st[code+":signed"]);}
+function openForm(i){curForm=ACC_FORMS[i].code;fmPage.innerHTML=accRender(ACC_FORMS[i]);wireForm(curForm);fmWrap.classList.add("open");fmWrap.scrollTop=0;document.body.style.overflow="hidden";}
+function closeForm(){fmWrap.classList.remove("open");document.body.style.overflow="";drawPhases();}
 fmWrap.addEventListener("click",function(e){if(e.target===fmWrap)closeForm();});
-fmPage.addEventListener("click",function(e){if(e.target.closest(".fmClose"))closeForm();});
-document.addEventListener("keydown",function(e){if(e.key==="Escape")closeForm();});
+fmPage.addEventListener("click",function(e){if(e.target.closest(".fmClose")){closeForm();return;}var s=e.target.closest(".fmSign");if(s&&!s.disabled){var st=loadState(),iso=new Date().toISOString();st[curForm+":signed"]=iso;saveState(st);markSigned(curForm,iso);}});
+fmPage.addEventListener("change",function(e){var el=e.target;if(!el.classList.contains("cb"))return;unsign(curForm);if(el.checked)Array.prototype.forEach.call(fmPage.querySelectorAll('input.cb[data-g="'+el.dataset.g+'"]'),function(o){if(o!==el&&o.checked){o.checked=false;saveEl(o);}});var row=fmPage.querySelector('.noexpl[data-for="'+el.dataset.g+'"]');if(row){var no=fmPage.querySelector('input.cb[data-no="1"][data-g="'+el.dataset.g+'"]');row.style.display=no&&no.checked?"":"none";}saveEl(el);});
+fmPage.addEventListener("input",function(e){if(e.target.classList.contains("fx")){unsign(curForm);saveEl(e.target);}});
+document.addEventListener("keydown",function(e){if(e.key==="Escape"&&fmWrap.classList.contains("open"))closeForm();});
 var tiles=document.getElementById("phTiles"),stepsEl=document.getElementById("phSteps");var cur=0;
 function drawPhases(){tiles.innerHTML=PHASES.map(function(p,i){return '<button class="ph'+(i===cur?' on':'')+'" data-i="'+i+'"><span class="num">PHASE '+p.n+'</span><b>'+p.t+'</b><span>'+p.s+'</span></button>';}).join("");
- stepsEl.innerHTML=PHASES[cur].steps.map(function(s,j){return "<li>"+s+(cur===0&&ACC_FORMS[j]?' <button class="formlink" type="button" data-f="'+j+'">&#128196; '+ACC_FORMS[j].code+' &mdash; open form</button>':'')+"</li>";}).join("");
+ stepsEl.innerHTML=PHASES[cur].steps.map(function(s,j){return "<li>"+s+(cur===0&&ACC_FORMS[j]?' <button class="formlink" type="button" data-f="'+j+'">&#128196; '+ACC_FORMS[j].code+formBadge(ACC_FORMS[j].code)+' &mdash; open form</button>':'')+"</li>";}).join("");
  tiles.querySelectorAll(".ph").forEach(function(b){b.addEventListener("click",function(){cur=+b.dataset.i;drawPhases();});});}
 drawPhases();
 stepsEl.addEventListener("click",function(e){var b=e.target.closest(".formlink");if(b)openForm(+b.dataset.f);});
