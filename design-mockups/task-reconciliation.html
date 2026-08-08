@@ -1,0 +1,205 @@
+<title>Task inventory reconciliation — plan</title>
+<style>
+:root{
+  --canvas:#dde1e5; --surface:#fff; --surface-2:#f3f5f7;
+  --ink:#1b1e23; --ink-soft:#2b323b; --muted:#5a626e;
+  --line:rgba(27,30,35,.12); --line-soft:rgba(27,30,35,.07);
+  --accent:#0b6b52; --accent-soft:rgba(11,107,82,.10);
+  --amber:#8a5a08; --amber-soft:rgba(180,120,10,.14);
+  --rose:#a8231c; --rose-soft:rgba(168,35,28,.10);
+  --blue:#31538f; --blue-soft:rgba(49,83,143,.10);
+  --sans:ui-sans-serif,-apple-system,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+  --mono:ui-monospace,"SF Mono",Menlo,Consolas,monospace;
+}
+@media(prefers-color-scheme:dark){:root{
+  --canvas:#121418;--surface:#1b1f25;--surface-2:#22262d;--ink:#eef1f5;--ink-soft:#c8d1de;--muted:#a4aebc;
+  --line:rgba(255,255,255,.13);--line-soft:rgba(255,255,255,.07);--accent:#34d399;--accent-soft:rgba(52,211,153,.13);
+  --amber:#e0a94a;--amber-soft:rgba(224,169,74,.15);--rose:#ff8078;--rose-soft:rgba(255,128,120,.13);--blue:#93a4dd;--blue-soft:rgba(147,164,221,.14);}}
+:root[data-theme="dark"]{--canvas:#121418;--surface:#1b1f25;--surface-2:#22262d;--ink:#eef1f5;--ink-soft:#c8d1de;--muted:#a4aebc;
+ --line:rgba(255,255,255,.13);--line-soft:rgba(255,255,255,.07);--accent:#34d399;--accent-soft:rgba(52,211,153,.13);
+ --amber:#e0a94a;--amber-soft:rgba(224,169,74,.15);--rose:#ff8078;--rose-soft:rgba(255,128,120,.13);--blue:#93a4dd;--blue-soft:rgba(147,164,221,.14);}
+:root[data-theme="light"]{--canvas:#dde1e5;--surface:#fff;--surface-2:#f3f5f7;--ink:#1b1e23;--ink-soft:#2b323b;--muted:#5a626e;
+ --line:rgba(27,30,35,.12);--line-soft:rgba(27,30,35,.07);--accent:#0b6b52;--accent-soft:rgba(11,107,82,.10);
+ --amber:#8a5a08;--amber-soft:rgba(180,120,10,.14);--rose:#a8231c;--rose-soft:rgba(168,35,28,.10);--blue:#31538f;--blue-soft:rgba(49,83,143,.10);}
+*{box-sizing:border-box}
+body{margin:0;background:var(--canvas);color:var(--ink);font:15px/1.55 var(--sans);-webkit-font-smoothing:antialiased}
+.wrap{max-width:1180px;margin:0 auto;padding:40px 22px 90px}
+h1{margin:0;font-size:clamp(27px,4vw,37px);letter-spacing:-.025em;line-height:1.08;text-wrap:balance}
+h2{margin:0;font-size:17px;letter-spacing:-.015em}
+.eyebrow{font:700 11px var(--mono);letter-spacing:.13em;text-transform:uppercase;color:var(--accent)}
+.lede{color:var(--muted);max-width:72ch;margin:10px 0 0;font-size:15.5px}
+section{margin-top:36px}
+.shead{display:flex;align-items:baseline;gap:12px;border-top:2px solid var(--ink);padding-top:11px;margin-bottom:13px;flex-wrap:wrap}
+.shead .n{font:700 12px var(--mono);color:var(--accent)}
+.shead .sub{margin-left:auto;font-size:12.5px;color:var(--muted)}
+.tw{overflow-x:auto;border:1px solid var(--line);border-radius:12px;background:var(--surface)}
+table{width:100%;border-collapse:collapse;font-size:13.4px}
+th{text-align:left;font:700 10.5px var(--sans);letter-spacing:.08em;text-transform:uppercase;color:var(--muted);
+   padding:10px 12px;border-bottom:1px solid var(--line);white-space:nowrap;background:var(--surface-2);position:sticky;top:0}
+td{padding:8px 12px;border-bottom:1px solid var(--line-soft);vertical-align:top}
+tr:last-child td{border-bottom:0}
+td.c{font-family:var(--mono);font-size:11.5px;white-space:nowrap}
+td.a{color:var(--accent);font-weight:600}
+.pill{display:inline-block;font:700 10px var(--sans);letter-spacing:.04em;text-transform:uppercase;border-radius:99px;padding:2px 8px;white-space:nowrap}
+.pill.map{background:var(--accent-soft);color:var(--accent)}
+.pill.add{background:var(--amber-soft);color:var(--amber)}
+.pill.split{background:var(--blue-soft);color:var(--blue)}
+.pill.keep{background:var(--surface-2);color:var(--muted)}
+.stats{display:grid;grid-template-columns:repeat(4,1fr);gap:11px;margin:16px 0 0}
+@media(max-width:760px){.stats{grid-template-columns:repeat(2,1fr)}}
+.stat{background:var(--surface);border:1px solid var(--line);border-radius:11px;padding:13px 15px}
+.stat b{display:block;font-size:27px;font-weight:700;letter-spacing:-.03em;font-variant-numeric:tabular-nums;line-height:1.15}
+.stat span{font-size:11.5px;color:var(--muted)}
+.stat.map b{color:var(--accent)} .stat.add b{color:var(--amber)} .stat.split b{color:var(--blue)}
+.note{background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:14px 16px;font-size:13.7px;color:var(--ink-soft);margin-top:12px}
+.note b{color:var(--ink)}
+ol.steps{counter-reset:s;list-style:none;padding:0;margin:0}
+ol.steps li{counter-increment:s;position:relative;padding:0 0 0 42px;margin-bottom:16px}
+ol.steps li:before{content:counter(s);position:absolute;left:0;top:1px;width:27px;height:27px;border-radius:50%;
+  background:var(--accent);color:#fff;display:grid;place-items:center;font:700 12.5px var(--mono)}
+@media(prefers-color-scheme:dark){ol.steps li:before{color:#08211a}}
+ol.steps h3{margin:2px 0 4px;font-size:15px;letter-spacing:-.01em}
+ol.steps p{margin:0;color:var(--muted);font-size:13.7px;max-width:78ch}
+ol.steps .risk{display:inline-block;margin-top:5px;font-size:12px;color:var(--amber);background:var(--amber-soft);border-radius:6px;padding:3px 9px}
+footer{margin-top:44px;border-top:1px solid var(--line);padding-top:14px;font-size:12px;color:var(--muted)}
+</style>
+
+<div class="wrap">
+<div class="eyebrow">AuditISA · reconciliation plan · 8 August 2026</div>
+<h1>Bringing the 36 designed papers and the<br>66 platform tasks into one inventory</h1>
+<p class="lede">The console proposal names 36 working papers. The platform carries 66 tasks under its own codes. They overlap heavily but were never reconciled. This is the mapping, task by task, and what it would take to act on it.</p>
+
+<div class="stats">
+  <div class="stat map"><b>27</b><span>designed papers that map onto an existing task</span></div>
+  <div class="stat add"><b>6</b><span>that have no counterpart and must be added</span></div>
+  <div class="stat split"><b>3</b><span>that split across several existing tasks</span></div>
+  <div class="stat"><b>36</b><span>platform tasks the design never named — all kept</span></div>
+</div>
+
+<div class="note">
+  <b>The headline:</b> this is a merge, not a replacement. The platform is richer than the design in execution and statutory work — it has a task per account cycle and the full OHADA set, where the design has one generic “substantive procedures” paper. The design is richer in acceptance, where the platform has two tasks against seven. Reconciling means adopting the design’s <i>content</i> onto the platform’s <i>structure</i>, and adding the six papers genuinely missing.
+</div>
+
+<!-- 01 -->
+<section>
+  <div class="shead"><span class="n">01</span><h2>Acceptance — the real gap</h2><span class="sub">7 designed · 2 existing</span></div>
+  <div class="tw"><table>
+    <tr><th>Designed paper</th><th>Action</th><th>Platform task</th><th>Note</th></tr>
+    <tr><td class="a">ACC-1 Client background, integrity and risk rating</td><td><span class="pill map">map</span></td><td class="c">D3.1 · ST1.1</td><td>Acceptance / Continuance Procedures. Content replaced by ACC-1’s ten procedures with expected sources.</td></tr>
+    <tr><td class="a">ACC-2 Competence, capability and resources</td><td><span class="pill map">map</span></td><td class="c">D6.1 · ST1.2</td><td>Documentation of Job Arrangements already covers resourcing.</td></tr>
+    <tr><td class="a">ACC-3 Independence and ethics</td><td><span class="pill add">add</span></td><td class="c">—</td><td>The independence <i>campaign</i> exists as a tool; there is no working paper recording the conclusion, threats and safeguards.</td></tr>
+    <tr><td class="a">ACC-4 Preconditions for an audit</td><td><span class="pill add">add</span></td><td class="c">—</td><td>ISA 210 ¶6–8. Nothing records framework acceptability or management’s acknowledgements.</td></tr>
+    <tr><td class="a">ACC-5 Predecessor auditor and opening balances</td><td><span class="pill split">split</span></td><td class="c">E370</td><td>E370 covers opening balances in Execution. The predecessor communication half has no home — add it to Acceptance and cross-refer.</td></tr>
+    <tr><td class="a">ACC-6 Engagement letter</td><td><span class="pill add">add</span></td><td class="c">—</td><td>Terms are mentioned inside D6.1; ISA 210 ¶9–13 deserves its own paper and its own G1 condition.</td></tr>
+    <tr><td class="a">ACC-7 Engagement quality review determination</td><td><span class="pill split">split</span></td><td class="c">B2 · C5.1</td><td>B2 is the EQR <i>conclusion</i> in Conclusion. The <i>determination</i> belongs at acceptance — add it, feed B2.</td></tr>
+  </table></div>
+  <div class="note"><b>Net effect:</b> Acceptance goes from 2 tasks to 7. Four new tasks (ACC-3, ACC-4, ACC-6, ACC-7-determination) plus a predecessor-communication paper. This is where the site most visibly fails an inspection today.</div>
+</section>
+
+<!-- 02 -->
+<section>
+  <div class="shead"><span class="n">02</span><h2>Scope &amp; Strategy — near one-to-one</h2><span class="sub">9 designed · 18 existing</span></div>
+  <div class="tw"><table>
+    <tr><th>Designed paper</th><th>Action</th><th>Platform task</th><th>Note</th></tr>
+    <tr><td class="a">PLN-1 Overall audit strategy and audit plan</td><td><span class="pill map">map</span></td><td class="c">D1 · ST2.1</td><td>Engagement Strategy Driver. Add the ISA 300 ¶7–12 element list and the change log.</td></tr>
+    <tr><td class="a">PLN-2 Engagement team discussion</td><td><span class="pill map">map</span></td><td class="c">D7.1 · ST2.3</td><td>Team Discussion. Add the locked fraud agenda and the absentee-briefing record.</td></tr>
+    <tr><td class="a">PLN-3 Understanding the entity and the framework</td><td><span class="pill map">map</span></td><td class="c">D4.2 · ST3.1</td><td>Direct match. Adopt the eight procedures with sources.</td></tr>
+    <tr><td class="a">PLN-4 System of internal control and IT</td><td><span class="pill split">split</span></td><td class="c">D4.3 D4.4 D4.5 D4.6</td><td>The platform splits this four ways: analytical procedures, components of internal control, control environment, IT environment. Keep the split; distribute PLN-4’s parts.</td></tr>
+    <tr><td class="a">PLN-5 Materiality</td><td><span class="pill map">map</span></td><td class="c">D5.1 · ST5.1</td><td>Direct match, already tool-fed.</td></tr>
+    <tr><td class="a">PLN-6 Account scoping and preliminary analytics</td><td><span class="pill map">map</span></td><td class="c">D5.2 · ST5.2</td><td>D5.2 is currently “Commitments &amp; Contingencies” — a misnomer for the scoping slot. Retitle it.</td></tr>
+    <tr><td class="a">PLN-7 Significant classes of transactions</td><td><span class="pill add">add</span></td><td class="c">—</td><td>No SCOT task exists. The E1 group holds cycle work but nothing documents the critical path and walkthrough.</td></tr>
+    <tr><td class="a">PLN-8 Fraud, related parties, going concern, laws</td><td><span class="pill split">split</span></td><td class="c">D5.4 D5.5 D5.6 + E310</td><td>Platform already separates fraud, related parties, estimates and NOCLAR — better than one combined paper. Distribute PLN-8’s four parts; add the going-concern preliminary to D5.5.</td></tr>
+    <tr><td class="a">PLN-9 Risk register and planned responses</td><td><span class="pill map">map</span></td><td class="c">D7.2 · ST6.1</td><td>Direct match.</td></tr>
+  </table></div>
+  <div class="note"><b>Also present, not in the design:</b> D4.1 partner direction, D4.7 experts (ISA 620), D4.8 service organisations (ISA 402), D4.9 internal audit (ISA 610), D5.7 estimates at planning. All keep — the design folded these into other papers or omitted them.</div>
+</section>
+
+<!-- 03 -->
+<section>
+  <div class="shead"><span class="n">03</span><h2>Execution — the platform wins</h2><span class="sub">7 designed · 26 existing</span></div>
+  <div class="tw"><table>
+    <tr><th>Designed paper</th><th>Action</th><th>Platform task</th><th>Note</th></tr>
+    <tr><td class="a">EXE-1 Audit programme</td><td><span class="pill map">map</span></td><td class="c">every E task</td><td>Not a task of its own — the programme panel already sits on each task page. Adopt EXE-1’s derivation and completion checks as page behaviour, not a paper.</td></tr>
+    <tr><td class="a">EXE-2 Tests of controls</td><td><span class="pill map">map</span></td><td class="c">E500 E510</td><td>ITGC and application controls. Adopt the operating-effectiveness structure and the deviation cascade.</td></tr>
+    <tr><td class="a">EXE-3 Sampling</td><td><span class="pill map">map</span></td><td class="c">tool</td><td>Sampling is a tool, invoked from account tasks. Its plan and evaluation belong in the account paper, not a separate task.</td></tr>
+    <tr><td class="a">EXE-4 External confirmations</td><td><span class="pill map">map</span></td><td class="c">B9 · C4.2</td><td>External Confirmation Letter exists in Conclusion; the confirmations tool runs in Execution. Keep both, cross-refer.</td></tr>
+    <tr><td class="a">EXE-5 Substantive procedures</td><td><span class="pill split">split</span></td><td class="c">E100–E280 (16 tasks)</td><td>One designed paper against sixteen real account tasks. Keep all sixteen; EXE-5 becomes the shared template each inherits.</td></tr>
+    <tr><td class="a">EXE-6 Accounting estimates</td><td><span class="pill map">map</span></td><td class="c">E390 · E4.7</td><td>Direct match. Adopt the bias-indicator part.</td></tr>
+    <tr><td class="a">EXE-7 Misstatements and fraud indicators</td><td><span class="pill map">map</span></td><td class="c">E350 · E5.1</td><td>Fraud &amp; Management Override. Accumulation feeds B5.</td></tr>
+  </table></div>
+  <div class="note"><b>Also present, not in the design:</b> E320 related parties in execution, E330 going concern, E360 minutes and statutory records, E370 opening balances and comparatives. All keep.</div>
+</section>
+
+<!-- 04 -->
+<section>
+  <div class="shead"><span class="n">04</span><h2>Conclusion — mostly present</h2><span class="sub">13 designed · 20 existing</span></div>
+  <div class="tw"><table>
+    <tr><th>Designed paper</th><th>Action</th><th>Platform task</th><th>Note</th></tr>
+    <tr><td class="a">CON-1 Final analytical procedures</td><td><span class="pill map">map</span></td><td class="c">B1 · C1.2</td><td>Completion Checklist holds the final analytics gate today; give it its own section in the paper.</td></tr>
+    <tr><td class="a">CON-2 Subsequent events</td><td><span class="pill map">map</span></td><td class="c">B7 · C3.1</td><td>Direct match.</td></tr>
+    <tr><td class="a">CON-3 Going concern conclusion</td><td><span class="pill map">map</span></td><td class="c">E330</td><td>Sits in Execution today. Move to Conclusion or cross-refer; the conclusion is a completion judgement.</td></tr>
+    <tr><td class="a">CON-4 Evaluation of uncorrected misstatements</td><td><span class="pill map">map</span></td><td class="c">B5 · C2.1</td><td>Direct match.</td></tr>
+    <tr><td class="a">CON-5 Financial statements, disclosures, comparatives</td><td><span class="pill map">map</span></td><td class="c">A1 · C1.1</td><td>Financial Statements Program. Add the framework disclosure checklist and ISA 710 comparatives.</td></tr>
+    <tr><td class="a">CON-6 Written representations</td><td><span class="pill map">map</span></td><td class="c">B8 · C4.1</td><td>Direct match.</td></tr>
+    <tr><td class="a">CON-7 Sufficiency of evidence and completion</td><td><span class="pill map">map</span></td><td class="c">B1 · C1.2</td><td>Shares B1 with CON-1. Consider splitting B1 into two papers.</td></tr>
+    <tr><td class="a">CON-8 Auditor’s report and opinion</td><td><span class="pill add">add</span></td><td class="c">—</td><td>Report issue happens on the conclusion page, but no working paper records the opinion determination and component check.</td></tr>
+    <tr><td class="a">CON-9 Key audit matters</td><td><span class="pill map">map</span></td><td class="c">B4 · C2.2</td><td>Significant Matters. Add the ISA 701 selection and the considered-not-selected record.</td></tr>
+    <tr><td class="a">CON-10 Communication with governance</td><td><span class="pill map">map</span></td><td class="c">C1 · C5.2</td><td>ISA 260/265 communications. Direct match.</td></tr>
+    <tr><td class="a">CON-11 Other information</td><td><span class="pill add">add</span></td><td class="c">—</td><td>ISA 720 has no task at all. Gate G5 should not clear without it.</td></tr>
+    <tr><td class="a">CON-12 Engagement quality review conclusion</td><td><span class="pill map">map</span></td><td class="c">B2 · C5.1</td><td>Direct match; pairs with the ACC-7 determination.</td></tr>
+    <tr><td class="a">CON-13 File assembly and archive</td><td><span class="pill map">map</span></td><td class="c">B6 B10</td><td>Points Outstanding and Points Forward. Add the 60-day assembly and amendment log.</td></tr>
+  </table></div>
+  <div class="note"><b>Also present, not in the design:</b> B3 consultation record, and the whole C6 OHADA statutory set — statutory deadlines, conventions réglementées, article 715, procédure d’alerte, révélation des faits délictueux, registres de titres, equity monitoring, co-CAC coordination. Eight tasks the design never contemplated, and the ones that make this a Cameroonian statutory audit tool rather than a generic one. All keep.</div>
+</section>
+
+<!-- 05 -->
+<section>
+  <div class="shead"><span class="n">05</span><h2>The work, in order</h2><span class="sub">each step shippable on its own</span></div>
+  <ol class="steps">
+    <li>
+      <h3>Add the six missing tasks</h3>
+      <p>ACC-3 independence, ACC-4 preconditions, ACC-6 engagement letter, ACC-7 review determination, PLN-7 significant classes of transactions, CON-8 auditor’s report, CON-11 other information. New codes in the file index, placed in their groups, with their gate conditions. Acceptance goes 2 → 7.</p>
+      <span class="risk">Migration: file_item rows for existing engagements need backfilling, using the same idempotent button already built for the E2 group.</span>
+    </li>
+    <li>
+      <h3>Retitle and re-home the misplaced</h3>
+      <p>D5.2 becomes account scoping rather than commitments and contingencies. Going concern conclusion moves from Execution to Conclusion, or gains a cross-reference. B1 splits into final analytics and sufficiency.</p>
+      <span class="risk">Retitling is safe; moving a task between phases changes which gate it blocks — check the gate queries first.</span>
+    </li>
+    <li>
+      <h3>Port the paper content</h3>
+      <p>Replace the group-derived defaults in <span class="c">lib/working-papers.ts</span> with the real content: procedures with expected sources, Yes/No factor checklists with per-question explanation boxes, the standards narrative, the definitions table. Roughly 43,000 words already written and register-checked.</p>
+      <span class="risk">Largest single step. Do it phase by phase — acceptance first, since it is the weakest.</span>
+    </li>
+    <li>
+      <h3>Merge the two template systems</h3>
+      <p>One definition per task drives both the on-screen paper and the .docx export, replacing the three real templates plus generic stub in <span class="c">lib/templates.ts</span> and the parallel structure in <span class="c">lib/working-papers.ts</span>.</p>
+      <span class="risk">Documents already generated are frozen by design; the merge must not invalidate them.</span>
+    </li>
+    <li>
+      <h3>Wire the tool values into the papers</h3>
+      <p>The blue fields currently show a source hint. Feed them the real numbers: materiality into ACC/PLN-5, the account universe and significance into PLN-6, what-can-go-wrong into PLN-7, the strategy into PLN-9, the misstatement totals into CON-4.</p>
+    </li>
+    <li>
+      <h3>Extend the gates</h3>
+      <p>The new papers need gate conditions: G1 does not clear without independence, preconditions and the letter; G2 not without SCOT understanding; G5 not without other information and the report paper.</p>
+      <span class="risk">Adding a gate condition can block an engagement mid-flight. Ship with the condition reporting but not blocking, then switch it on.</span>
+    </li>
+  </ol>
+</section>
+
+<!-- 06 -->
+<section>
+  <div class="shead"><span class="n">06</span><h2>Decisions I need from you</h2></div>
+  <div class="tw"><table>
+    <tr><th>Question</th><th>My recommendation</th></tr>
+    <tr><td>Keep the platform’s 36 unnamed tasks, or trim to the design’s 36?</td><td><b>Keep.</b> The account cycle tasks and the OHADA statutory set are what make this usable in Cameroon. Trimming would lose them.</td></tr>
+    <tr><td>Renumber to the ACC/PLN/EXE/CON scheme, or keep D/E/A/B/C/F codes?</td><td><b>Keep the internal codes, show the display codes.</b> The ST/E/C display layer already does this; renumbering the storage keys would break every document and sign-off.</td></tr>
+    <tr><td>Should going concern be one paper or two (planning and conclusion)?</td><td><b>Two.</b> The standard treats them as separate judgements at separate dates, and the platform already has D5.5 and E330.</td></tr>
+    <tr><td>Do the new gate conditions block immediately?</td><td><b>No.</b> Report first, block a period later, so no live engagement is stranded.</td></tr>
+    <tr><td>Which phase first?</td><td><b>Acceptance.</b> Two tasks against seven is the gap an inspector would find first.</td></tr>
+  </table></div>
+</section>
+
+<footer>Mapping derived from lib/task-groups.ts and lib/file-index.ts as deployed (v31), against the 36 papers in isa-engine-workflow.html. 66 platform tasks, 36 designed papers, 27 direct maps.</footer>
+</div>
