@@ -351,139 +351,141 @@ var MODS=[
 ["A5","Dependency wiring","module events → engine rules",
  "TB re-import → <span class='hook'>R01</span> · confirmation non-response → <span class='hook'>R19</span> · confirmed difference → <span class='hook'>R18→R23</span> · refusal → <span class='hook'>R19 esc</span> · sample exception → <span class='hook'>R18</span> · size override → <span class='hook'>R17</span> · ToC failure → <span class='hook'>R11→R23/R12</span> · GITC fail → <span class='hook'>R10→R21</span> · unmapped account → <span class='hook'>G2</span> · opinion-path change → <span class='hook'>R25/R26/R28</span>. Every row ships with an automated test that triggers the event and asserts the effect."]];
 /* ===== Acceptance forms (structure replicates firm form conventions; wording original, ISA-anchored) ===== */
-var SIGNOFF="This form lives in the tool: it opens pre-populated with the engagement&rsquo;s current data, you complete it on screen, and the saved version reappears whenever it is reopened. The <b>Prepared by</b> date is stamped automatically when you complete the form and sign off at the end; review and approval follow in the platform&rsquo;s sign-off engine. Gate G1 does not clear while this form&rsquo;s conclusion is unanswered, or negative without documented resolution.";
+var SIGNOFF="The form opens with the engagement&rsquo;s current data already entered. Complete it on screen; entries are saved as you work and reload each time the form is opened. Signing off below records the preparer&rsquo;s signature and date. Review and approval follow in the sign-off engine. Gate G1 does not clear while the conclusion above is unanswered, or answered &ldquo;No&rdquo; without a documented resolution.";
 var ACC_FORMS=[
-{code:"ACC-1",title:"Client background, integrity &amp; risk rating",
- std:"ISQM 1 &para;30 &middot; ISA 220 (Revised) &para;22&ndash;24 &middot; feeds the EQR determination (ACC-7) and the R07 fraud baseline",
- use:["Complete this form before accepting a new engagement or continuing a recurring one, and before any commitment is given to the client. <b>Part A sets out the procedures to perform and the sources from which each piece of information is expected to come.</b> Part B evaluates what Part A produced. Part C converts that evaluation into the client risk rating that drives staffing, the fraud baseline and the EQR criteria (ACC-7).",
- "The information in this form is obtained by <b>inquiry</b> (of management, the predecessor auditor and third parties), <b>inspection</b> (of registers, licences, financial statements and correspondence) and <b>external search</b> (trade registry, sanctions and PEP databases, press and internet). Corroborate every significant management representation with at least one source independent of management before relying on it.",
- "Complete Part A before the engagement letter (ACC-6) is issued, so that any matter arising can be resolved, safeguarded or escalated before commitment. Answer all questions. Explain every &ldquo;No&rdquo; in the space provided or in an attachment referenced to the related question."],
- concl:["Based on the procedures documented in this form, nothing has come to our attention to indicate that the client lacks integrity, and acceptance (or continuance) of this engagement is appropriate.",
- "The client risk rating recorded in Part C is consistent with the evidence documented in this form."],
+{code:"ACC-1",title:"Client background, integrity and risk rating",
+ std:"ISQM 1 &para;30 &middot; ISA 220 (Revised) &para;22&ndash;24. Feeds the engagement quality review determination (ACC-7) and the fraud risk baseline (R07).",
+ use:["Complete this form before accepting a new engagement or continuing an existing one, and before giving the client any commitment. Part A sets out the procedures to perform and the source of each item of information. Part B evaluates what those procedures produced. Part C records the client risk rating.",
+ "Obtain the information by inquiry, inspection and external search. Corroborate every significant representation made by management against a source independent of management before relying on it.",
+ "Complete Part A before the engagement letter is issued (ACC-6), so that any matter arising can be resolved or escalated before commitment. Answer every question. Explain each &ldquo;No&rdquo; in the box that opens beneath it."],
+ concl:["Nothing has come to our attention from the procedures in this form to indicate that the client lacks integrity, and acceptance of this engagement is appropriate.",
+ "The client risk rating in Part C is supported by the evidence recorded in this form."],
  sign:SIGNOFF,
  parts:[
- {t:"Part A &mdash; Procedures to perform and expected sources",kind:"proc",intro:"Perform each procedure and record the result in the shaded cell, including what was obtained, from whom or from which source, and the file reference of the evidence retained. Where an expected source is unavailable, record the alternative used and why it is sufficient.",rows:[
- {p:"<b>Obtain and inspect</b> the entity&rsquo;s constitutive and registration documents; record the legal form, registered office and registration identifiers.",s:"Articles / statutes &middot; RCCM (trade-registry) extract &middot; tax registration certificate"},
- {p:"<b>Obtain or construct</b> the ownership structure down to the ultimate beneficial owners; <b>corroborate</b> it against the share register and shareholder minutes.",s:"Share register &middot; statutes &middot; shareholder minutes &middot; management inquiry"},
- {p:"<b>Inquire</b> of management about principal activities, operating locations and key customers and suppliers; <b>corroborate</b> the responses against independent material.",s:"Management interview &middot; prior financial statements &middot; entity website &middot; site visit where practicable"},
- {p:"<b>Identify</b> the sector&rsquo;s regulators and required licences; <b>inspect</b> the licences held and the most recent regulator correspondence.",s:"Licence documents &middot; regulator correspondence &middot; firm sector knowledge"},
- {p:"<b>Screen</b> the entity, its principal owners, directors and key management against sanctions and politically-exposed-person lists and adverse media; record each search run (database, date, terms) and the disposition of every hit.",s:"Sanctions / PEP screening service &middot; adverse-media databases"},
- {p:"<b>Search</b> press and internet coverage of the entity and its principals for indications of fraud, litigation, insolvency or regulatory action; record the terms and dates of the searches.",s:"Press archives &middot; internet search engines"},
- {p:"<b>Communicate</b> with the predecessor auditor on matters bearing on integrity (professional clearance &mdash; performed and filed in ACC-5); carry any integrity-relevant response into Part B.",s:"Predecessor auditor&rsquo;s written response (ACC-5)"},
- {p:"Where the circumstances warrant it, <b>obtain references</b> on the entity and its principals from their bankers or legal advisers.",s:"Banker reference &middot; legal adviser reference"},
- {p:"<b>Inspect</b> the prior period&rsquo;s financial statements and auditor&rsquo;s reports for modifications, going-concern language, restatements or late filings.",s:"Prior financial statements &middot; prior auditor&rsquo;s reports &middot; filing records"},
- {p:"<b>Inquire</b> of management why the auditor is being changed and what expectations exist about scope, timing and fees; <b>compare</b> the account given with the predecessor&rsquo;s (procedure 7).",s:"Management inquiry &middot; ACC-5 response"}]},
- {t:"Part A (continued) &mdash; Key management and those charged with governance",kind:"grid",intro:"From the procedures above, list the principal owners, key management and those charged with governance, and the result of the background procedures (5&ndash;8) for each.",cols:["Name","Role / position","Result of background procedures and evidence reference"],n:4},
- {t:"Part B &mdash; Evaluation of integrity factors",kind:"yn",intro:"Having performed the Part A procedures, determine whether the following statements hold. Each factor cites the Part A procedures expected to inform it. Any &ldquo;No&rdquo; is explained below and weighed in the conclusion and the Part C rating.",items:[
- "The identity and business reputation of the principal owners, key management and those charged with governance raise no concern <i>(procedures 2, 5&ndash;8)</i>.",
+ {t:"Part A &mdash; Procedures and expected sources",kind:"proc",intro:"Perform each procedure and record the result in the adjoining cell. State what was obtained, from whom or from which source, and the reference of the evidence filed. Where an expected source is not available, record the alternative used and why it is sufficient.",rows:[
+ {p:"Obtain and inspect the entity&rsquo;s constitutive and registration documents. Record the legal form, registered office and registration numbers.",s:"Statutes &middot; RCCM extract &middot; tax registration certificate"},
+ {p:"Obtain the ownership structure down to the ultimate beneficial owners. Agree it to the share register and the shareholder minutes.",s:"Share register &middot; statutes &middot; shareholder minutes &middot; inquiry of management"},
+ {p:"Inquire of management about the entity&rsquo;s activities, operating locations and principal customers and suppliers. Corroborate the responses against independent information.",s:"Interview with management &middot; prior financial statements &middot; entity website &middot; site visit where practicable"},
+ {p:"Identify the regulators and licences that apply to the entity&rsquo;s sector. Inspect the licences held and the most recent correspondence with each regulator.",s:"Licence documents &middot; regulator correspondence &middot; firm sector knowledge"},
+ {p:"Screen the entity, its principal owners, directors and key management against sanctions lists, PEP lists and adverse media. Record each search performed, with the database, date and terms used, and the disposition of every match.",s:"Sanctions and PEP screening service &middot; adverse media databases"},
+ {p:"Search press and internet sources for indications of fraud, litigation, insolvency or regulatory action against the entity or its principals. Record the terms and dates of the searches.",s:"Press archives &middot; internet search"},
+ {p:"Communicate with the predecessor auditor on matters bearing on integrity. The communication itself is performed and filed under ACC-5. Carry any integrity finding into Part B.",s:"Written response of the predecessor auditor (ACC-5)"},
+ {p:"Obtain references on the entity and its principals from their bankers or legal advisers where the circumstances warrant it.",s:"Banker&rsquo;s reference &middot; legal adviser&rsquo;s reference"},
+ {p:"Inspect the prior period financial statements and auditor&rsquo;s reports. Note any modification, going concern reference, restatement or late filing.",s:"Prior financial statements &middot; prior auditor&rsquo;s reports &middot; filing records"},
+ {p:"Inquire why the auditor is being changed and what the entity expects as to scope, timing and fees. Compare the answer with the predecessor&rsquo;s account obtained at procedure 7.",s:"Inquiry of management &middot; response obtained under ACC-5"}]},
+ {t:"Part A (continued) &mdash; Key management and those charged with governance",kind:"grid",intro:"List the principal owners, key management and those charged with governance identified in Part A. For each, record the result of the background procedures at 5 to 8 and the reference of the evidence filed.",cols:["Name","Role or position","Result of background procedures and evidence reference"],n:4},
+ {t:"Part B &mdash; Evaluation of integrity",kind:"yn",intro:"Evaluate the results of the Part A procedures against each statement. The procedures that inform each statement are shown in brackets. Explain each &ldquo;No&rdquo; in the box beneath it and reflect it in the Part C rating.",items:[
+ "The identity and business reputation of the principal owners, key management and those charged with governance raise no concern <i>(procedures 2, 5 to 8)</i>.",
  "The nature of the entity&rsquo;s operations and its business practices raise no concern <i>(procedures 3, 4, 6)</i>.",
- "There is no indication of an inappropriately aggressive attitude to the application of accounting standards or to internal control <i>(procedures 7, 9, 10)</i>.",
- "There is no inappropriate concern with minimising our fees or limiting the scope of our work <i>(procedure 10)</i>.",
+ "There is no indication of an aggressive attitude towards the application of accounting standards or towards internal control <i>(procedures 7, 9, 10)</i>.",
+ "There is no undue concern with minimising our fees or with limiting the scope of our work <i>(procedure 10)</i>.",
  "There is no indication that the entity or its principals are involved in money laundering or other criminal activity <i>(procedures 5, 6, 8)</i>.",
  "The reasons given for the change of auditor are consistent with the predecessor&rsquo;s account <i>(procedures 7, 10)</i>.",
- "No limitation of scope has been suggested by management <i>(procedure 10)</i>.",
+ "Management has suggested no limitation on the scope of our work <i>(procedure 10)</i>.",
  "The reputation of related entities and business associates raises no concern <i>(procedures 2, 6)</i>."]},
- {t:"Part C &mdash; Client risk rating",kind:"opts",intro:"Weigh the Part B evaluation. Any &ldquo;No&rdquo;, any unresolved screening hit and any unanswered predecessor inquiry precludes a Low rating. A High rating is escalated to the engagement partner before any commitment is given.",opts:["Low","Moderate","High"],after:"Rationale for the rating &mdash; the specific Part A evidence that drives it &mdash; and its effect on the engagement (EQR criteria in ACC-7, fraud baseline, staffing and supervision):"}]},
-{code:"ACC-2",title:"Competence, capability &amp; resources",
+ {t:"Part C &mdash; Client risk rating",kind:"opts",intro:"Weigh the Part B evaluation. A &ldquo;No&rdquo; answer, an unresolved screening match or an unanswered predecessor inquiry precludes a Low rating. Refer a High rating to the engagement partner before giving the client any commitment.",opts:["Low","Moderate","High"],after:"Record the reasons for the rating, citing the Part A evidence that supports it, and its effect on the engagement (review requirement under ACC-7, fraud risk baseline, staffing and supervision):"}]},
+{code:"ACC-2",title:"Competence, capability and resources",
  std:"ISA 220 (Revised) &para;25&ndash;28 &middot; ISQM 1 &para;32",
- use:["Complete this form to document that the engagement team, together with any auditor&rsquo;s experts, collectively has the competence, capability and time to perform the engagement, and that the resources it needs are available when needed.",
- "Answer all questions. Explain every &ldquo;No&rdquo; in the space provided."],
- concl:["The engagement team, taken together with any auditor&rsquo;s experts, has the competence, capability and time to perform this engagement in accordance with professional standards and applicable legal and regulatory requirements, and the resources required are available."],
+ use:["Complete this form before accepting the engagement. It records that the engagement team, together with any auditor&rsquo;s expert, has the competence, capability and time to perform the audit, and that the resources required are available when needed.",
+ "Answer every question. Explain each &ldquo;No&rdquo; in the box beneath it."],
+ concl:["The engagement team, together with any auditor&rsquo;s expert, has the competence, capability and time to perform this engagement in accordance with professional standards and applicable legal and regulatory requirements, and the resources required are available."],
  sign:SIGNOFF,
  parts:[
- {t:"Part A &mdash; Engagement profile",kind:"capture",rows:["Applicable financial reporting framework and listing status","Reporting deadlines and key dates","Locations and components in scope","Specialist needs identified (IT &middot; tax &middot; valuation &middot; actuarial &middot; legal)"]},
- {t:"Part B &mdash; Capability factors",kind:"yn",items:[
- "The team collectively has appropriate knowledge of the industry and experience of the applicable framework.",
- "The engagement partner has sufficient time for appropriate involvement and direction throughout.",
- "The specialists and experts identified in Part A are available and their work can be directed and evaluated.",
- "The time budget is consistent with the deadlines, the assessed risk profile and the staffing plan below.",
- "Where ACC-7 requires an engagement quality reviewer, an eligible reviewer is available.",
- "Language and jurisdiction capabilities (including OHADA filing requirements) are covered within the team."]},
- {t:"Part C &mdash; Staffing plan",kind:"grid",intro:"The team is set up directly in the engagement&rsquo;s team management, each member with a role from the audit ladder &mdash; audit staff &middot; audit senior &middot; audit manager &middot; audit senior manager &middot; audit director &middot; audit partner &mdash; and tasks are assigned to members directly in the application. Names and roles auto-populate here once the team is saved; document only the hours and availability.",cols:["Name (from team setup)","Role (audit staff &rarr; audit partner)","Planned hours","Key dates / availability"],n:5}]},
-{code:"ACC-3",title:"Independence &amp; ethics",
- std:"IESBA Code Parts 1 &amp; 4A &middot; ISA 220 (Revised) &para;16&ndash;21 &middot; ISQM 1 &para;29 &mdash; engine rule R29, gate G1",
- use:["Complete this form to document compliance with the fundamental principles and independence at firm, network and engagement-team level, and to log every threat identified with the safeguard that reduces it to an acceptable level.",
- "Answer all questions. Any threat that cannot be reduced to an acceptable level blocks acceptance (R29)."],
- concl:["We are independent of the entity within the meaning of the IESBA Code and applicable local requirements, at firm, network and engagement-team level, and the threats identified in Part C have been reduced to an acceptable level by the safeguards documented."],
+ {t:"Part A &mdash; Engagement profile",kind:"capture",intro:"Record the following from the engagement record and from discussion with the engagement partner.",rows:["Applicable financial reporting framework, and whether the entity is listed","Reporting deadlines and other key dates","Locations and components within the scope of the audit","Need for an auditor&rsquo;s expert identified (information technology, tax, valuation, actuarial, legal)"]},
+ {t:"Part B &mdash; Evaluation of capability",kind:"yn",intro:"Evaluate each statement against the engagement profile in Part A and the staffing plan in Part C. Explain each &ldquo;No&rdquo; in the box beneath it.",items:[
+ "The team has appropriate knowledge of the industry and experience of the applicable financial reporting framework.",
+ "The engagement partner has sufficient time for appropriate involvement in, and direction of, the engagement.",
+ "Any auditor&rsquo;s expert identified in Part A is available, and we are able to direct and evaluate that work.",
+ "The time budget is consistent with the reporting deadlines, the assessed risk profile and the staffing plan in Part C.",
+ "Where ACC-7 requires an engagement quality review, an eligible reviewer is available.",
+ "The team covers the language and jurisdiction requirements of the engagement, including OHADA filing obligations."]},
+ {t:"Part C &mdash; Staffing plan",kind:"grid",intro:"Set the team up in the engagement&rsquo;s team management, giving each member a role on the audit ladder: audit staff, audit senior, audit manager, audit senior manager, audit director, audit partner. Tasks are assigned to members there. Names and roles populate this grid from that setup. Record the planned hours and the availability of each member.",cols:["Name (from team setup)","Role on the engagement","Planned hours","Key dates and availability"],n:5}]},
+{code:"ACC-3",title:"Independence and ethics",
+ std:"IESBA Code, Parts 1 and 4A &middot; ISA 220 (Revised) &para;16&ndash;21 &middot; ISQM 1 &para;29. Engine rule R29, gate G1.",
+ use:["Complete this form before accepting the engagement. It records compliance with the fundamental principles and with independence at firm, network and engagement-team level.",
+ "Obtain a signed declaration from every member of the team before fieldwork begins. Answer every question. Record each threat identified in Part C together with the safeguard applied. A threat that cannot be reduced to an acceptable level prevents acceptance (R29)."],
+ concl:["We are independent of the entity at firm, network and engagement-team level, for the purposes of the IESBA Code and applicable local requirements.",
+ "The threats recorded in Part C have been reduced to an acceptable level by the safeguards applied."],
  sign:SIGNOFF,
  parts:[
- {t:"Part A &mdash; Team independence declarations",kind:"grid",cols:["Name","Role","Declaration signed (date)","Exceptions noted"],n:5},
- {t:"Part B &mdash; Independence factors",kind:"yn",na:true,items:[
- "No member of the team or the firm holds a direct, or material indirect, financial interest in the entity.",
- "No loans or guarantees exist to or from the entity other than on normal commercial terms from a financial-institution client.",
- "No close business relationships exist between the firm or team members and the entity.",
- "No family or close personal relationships exist between team members and the entity&rsquo;s directors, officers or influential employees.",
- "No team member has recently been employed by the entity, or is in employment negotiations with it.",
- "Long-association and rotation thresholds for senior personnel are not breached.",
- "No significant fees are overdue from the entity, and no fees are contingent.",
- "Total fees from the entity remain within acceptable dependence thresholds.",
- "All non-assurance services provided have been evaluated and are permissible with safeguards documented in Part C.",
- "No gifts or hospitality other than trivial and inconsequential have been accepted."]},
- {t:"Part C &mdash; Threats &amp; safeguards log",kind:"grid",cols:["Threat identified","Type (self-interest &middot; self-review &middot; advocacy &middot; familiarity &middot; intimidation)","Safeguard applied","Residual level acceptable?"],n:4}]},
+ {t:"Part A &mdash; Team declarations",kind:"grid",intro:"Record the independence declaration obtained from each member of the engagement team, including any auditor&rsquo;s expert. Names and roles populate from the engagement team setup.",cols:["Name","Role","Date declaration signed","Exceptions reported"],n:5},
+ {t:"Part B &mdash; Evaluation of independence",kind:"yn",na:true,intro:"Evaluate each statement at firm, network and engagement-team level. Explain each &ldquo;No&rdquo; in the box beneath it and record the resulting threat in Part C.",items:[
+ "No member of the team, and no part of the firm, holds a direct financial interest or a material indirect financial interest in the entity.",
+ "No loan or guarantee exists between the firm and the entity, other than on normal commercial terms with a financial-institution client.",
+ "No close business relationship exists between the firm or a team member and the entity.",
+ "No family or close personal relationship exists between a team member and a director, officer or influential employee of the entity.",
+ "No team member has recently been employed by the entity or is in employment discussions with it.",
+ "The long-association and rotation thresholds for senior personnel are not exceeded.",
+ "No significant fee is overdue from the entity, and no fee is contingent.",
+ "The total fees from the entity remain within acceptable dependence thresholds.",
+ "Every non-assurance service provided has been evaluated, is permitted, and is supported by the safeguards recorded in Part C.",
+ "No gift or hospitality other than trivial and inconsequential has been accepted from the entity."]},
+ {t:"Part C &mdash; Threats and safeguards",kind:"grid",intro:"Record each threat identified, its type, the safeguard applied and whether the residual threat is at an acceptable level. Where it is not, the engagement is not accepted.",cols:["Threat identified","Type (self-interest, self-review, advocacy, familiarity, intimidation)","Safeguard applied","Residual threat acceptable?"],n:4}]},
 {code:"ACC-4",title:"Preconditions for an audit",
  std:"ISA 210 &para;6&ndash;8",
- use:["Complete this form to document that the preconditions for an audit are present: an acceptable financial reporting framework, and management&rsquo;s agreement to the premise on which the audit is conducted.",
- "Answer all questions. If a precondition is absent, the engagement is not accepted unless required by law or regulation."],
+ use:["Complete this form before accepting the engagement. It records that the preconditions for an audit are present: the financial reporting framework is acceptable, and management agrees to the premise on which an audit is conducted.",
+ "Answer every question. Where a precondition is absent, do not accept the engagement unless law or regulation requires us to do so."],
  concl:["The preconditions for an audit are present."],
  sign:SIGNOFF,
  parts:[
- {t:"Part A &mdash; Applicable financial reporting framework",kind:"capture",rows:["Framework selected (SYSCOHADA &middot; IFRS &middot; other) &mdash; the reporting templates lock to this selection","Why the framework is acceptable (nature of the entity, purpose of the statements, intended users, prescription by law)"]},
- {t:"Part B &mdash; Management&rsquo;s acknowledgements",kind:"yn",intro:"Management acknowledges and understands its responsibility:",items:[
- "For the preparation of the financial statements in accordance with the applicable framework, including fair presentation where relevant.",
- "For such internal control as management determines necessary to enable statements free from material misstatement.",
- "To provide us with access to all information relevant to the preparation of the statements.",
- "To provide additional information that we may request for the purpose of the audit.",
- "To provide unrestricted access to persons within the entity from whom we determine it necessary to obtain evidence.",
+ {t:"Part A &mdash; Applicable financial reporting framework",kind:"capture",intro:"Record the framework and the basis on which it is acceptable. The reporting templates lock to the framework selected here.",rows:["Framework selected (SYSCOHADA, IFRS or other)","Basis on which the framework is acceptable: the nature of the entity, the purpose of the financial statements, the intended users, and any prescription by law or regulation"]},
+ {t:"Part B &mdash; Management&rsquo;s acknowledgements",kind:"yn",intro:"Confirm by discussion with management that it acknowledges and understands each of the following responsibilities. Explain each &ldquo;No&rdquo; in the box beneath it.",items:[
+ "Preparing the financial statements in accordance with the applicable framework, including fair presentation where the framework requires it.",
+ "Maintaining the internal control that management determines is necessary to enable the preparation of financial statements free from material misstatement, whether due to fraud or error.",
+ "Providing us with access to all information relevant to the preparation of the financial statements.",
+ "Providing any additional information that we request for the purpose of the audit.",
+ "Providing unrestricted access to persons within the entity from whom we determine it necessary to obtain audit evidence.",
  "These acknowledgements are recorded in the engagement letter (ACC-6)."]},
- {t:"Part C &mdash; Scope limitations",kind:"yn",items:[
- "Management has imposed no limitation on the scope of our work of a nature likely to result in a disclaimer of opinion. (If such a limitation exists and the audit is not required by law or regulation, we do not accept the engagement.)"]}]},
-{code:"ACC-5",title:"Predecessor communication &amp; opening balances",
- std:"ISA 300 &para;13 &middot; ISA 510 &middot; IESBA Code &sect;320 &mdash; engine rule R26",
- use:["Complete this form for initial engagements. It documents the communication with the predecessor auditor and the strategy for obtaining sufficient appropriate evidence on opening balances.",
- "Answer all questions. Explain every &ldquo;No&rdquo; in the space provided."],
- concl:["Communication with the predecessor auditor has been completed (or the client&rsquo;s refusal evaluated), and the opening-balances strategy documented in Part C is appropriate to the circumstances."],
+ {t:"Part C &mdash; Limitation on scope",kind:"yn",intro:"Explain a &ldquo;No&rdquo; answer in the box beneath it. Where management imposes a limitation of this kind and the audit is not required by law or regulation, we do not accept the engagement.",items:[
+ "Management has imposed no limitation on the scope of our work of a nature likely to result in a disclaimer of opinion."]}]},
+{code:"ACC-5",title:"Predecessor auditor and opening balances",
+ std:"ISA 300 &para;13 &middot; ISA 510 &middot; IESBA Code &sect;320. Engine rule R26.",
+ use:["Complete this form for an initial engagement. It records the communication with the predecessor auditor and the strategy for obtaining sufficient appropriate audit evidence over opening balances.",
+ "Request the client&rsquo;s permission in writing before contacting the predecessor. Answer every question. Explain each &ldquo;No&rdquo; in the box beneath it."],
+ concl:["The communication with the predecessor auditor has been completed, or the client&rsquo;s refusal of permission has been evaluated, and the opening balances strategy recorded in Part C is appropriate in the circumstances."],
  sign:SIGNOFF,
  parts:[
- {t:"Part A &mdash; Predecessor details",kind:"capture",rows:["Predecessor firm and contact","Periods audited by the predecessor","Opinion issued on the most recent period, including any modifications (feeds Part C and R26)"]},
- {t:"Part B &mdash; Communication procedures",kind:"yn",items:[
- "The client&rsquo;s permission to communicate with the predecessor was requested and given. (Refusal &rarr; consider declining the engagement.)",
- "Inquiry was made of the predecessor: integrity of management, disagreements on accounting or auditing matters, the status of fees, and the reasons given for the change.",
- "The predecessor&rsquo;s response was received and evaluated. (A limited or no response &rarr; consider the implications for acceptance.)",
- "Access to the predecessor&rsquo;s working papers was sought where available under local practice."]},
- {t:"Part C &mdash; Opening-balances strategy",kind:"opts",opts:["Review of predecessor working papers","Evidence from current-period procedures","Specific procedures on opening balances"],after:"Describe the strategy selected and any prior-period modifications relevant to the current period (feeds R26):"}]},
+ {t:"Part A &mdash; Predecessor auditor",kind:"capture",rows:["Firm and contact person","Periods audited by the predecessor","Opinion issued on the most recent period, including any modification"]},
+ {t:"Part B &mdash; Communication procedures",kind:"yn",intro:"Perform each procedure and answer accordingly. Explain each &ldquo;No&rdquo; in the box beneath it, including the effect on the acceptance decision.",items:[
+ "The client&rsquo;s permission to communicate with the predecessor auditor was requested and given. A refusal is a matter to weigh in deciding whether to accept the engagement.",
+ "We inquired of the predecessor about the integrity of management, any disagreement over accounting or auditing matters, the status of fees, and the reasons given for the change of auditor.",
+ "A response was received from the predecessor and evaluated. A limited response, or no response, is a matter to weigh in deciding whether to accept the engagement.",
+ "Access to the predecessor&rsquo;s working papers was requested, where local practice permits."]},
+ {t:"Part C &mdash; Opening balances strategy",kind:"opts",intro:"Select the strategy for obtaining sufficient appropriate audit evidence that the opening balances contain no misstatement that materially affects the current period.",opts:["Review of the predecessor&rsquo;s working papers","Evidence arising from current period procedures","Specific procedures on opening balances"],after:"Describe the strategy selected, and any modification to the prior period opinion that is relevant to the current period:"}]},
 {code:"ACC-6",title:"Engagement letter",
- std:"ISA 210 &para;9&ndash;13 &mdash; gate G1",
- use:["Complete this form to document that the terms of the engagement have been agreed and recorded in a signed engagement letter before the commencement of planning work.",
- "For recurring engagements, Part B documents the assessment of whether the terms need revision and whether the entity needs reminding of the existing terms."],
- concl:["A signed engagement letter recording the agreed terms of this engagement is on file before the commencement of planning work."],
+ std:"ISA 210 &para;9&ndash;13. Gate G1.",
+ use:["Complete this form once the terms of the engagement have been agreed. A signed engagement letter must be on file before planning work begins.",
+ "For a recurring engagement, use Part B to record whether the terms require revision and whether the entity should be reminded of the existing terms.",
+ "Answer every question. Explain each &ldquo;No&rdquo; in the box beneath it."],
+ concl:["A signed engagement letter recording the agreed terms of this engagement is on file, and planning work has not begun before that date."],
  sign:SIGNOFF,
  parts:[
- {t:"Part A &mdash; Letter components",kind:"yn",intro:"The engagement letter includes:",items:[
+ {t:"Part A &mdash; Contents of the letter",kind:"yn",intro:"Read the signed letter and confirm that it contains each of the following. Explain each &ldquo;No&rdquo; in the box beneath it.",items:[
  "The objective and scope of the audit of the financial statements.",
  "The responsibilities of the auditor.",
- "The responsibilities of management, including the acknowledgements documented in ACC-4 Part B.",
+ "The responsibilities of management, including the acknowledgements recorded in ACC-4 Part B.",
  "Identification of the applicable financial reporting framework.",
- "Reference to the expected form and content of our reports, with the statement that circumstances may cause a report to differ.",
- "The basis of fees and billing arrangements.",
- "Arrangements for access to, and inspection of, documentation."]},
- {t:"Part B &mdash; Execution and recurring-engagement assessment",kind:"capture",rows:["Date of the letter","Signed for the entity by (name and capacity)","Date countersigned and returned","Recurring engagements &mdash; factors assessed for revision of terms (changes in the entity, ownership, management, framework or legal requirements) and outcome"]}]},
+ "Reference to the expected form and content of our reports, and a statement that circumstances may require a report to differ from that expected form.",
+ "The basis on which fees are charged and the billing arrangements.",
+ "The arrangements for access to, and inspection of, the audit documentation."]},
+ {t:"Part B &mdash; Execution and recurring engagements",kind:"capture",rows:["Date of the letter","Signed for the entity by (name and capacity)","Date countersigned and returned to us","Recurring engagements: the factors assessed in deciding whether the terms require revision (changes in the entity, its ownership, its management, the applicable framework or legal requirements) and the conclusion reached"]}]},
 {code:"ACC-7",title:"Engagement quality review determination",
- std:"ISQM 1 &para;34(f) &middot; ISQM 2 &mdash; engine rule R31, gate G5",
- use:["Complete this form to determine whether this engagement requires an engagement quality review, and where it does, to appoint an eligible reviewer and plan the review points.",
- "An affirmative determination sets the release-gate flag: the report date field remains disabled until the reviewer&rsquo;s conclusion is recorded (R31, G5)."],
- concl:["The determination of whether this engagement requires an engagement quality review has been made and, where required, an eligible reviewer has been appointed."],
- sign:"This form lives in the tool: it opens pre-populated, you complete it on screen, and the saved version reappears when reopened. The <b>Prepared by</b> date is stamped automatically on sign-off below. Where an EQR is required, release remains blocked (R31, gate G5) until the reviewer&rsquo;s conclusion is recorded.",
+ std:"ISQM 1 &para;34(f) &middot; ISQM 2. Engine rule R31, gate G5.",
+ use:["Complete this form before planning work begins. It records whether the engagement requires an engagement quality review and, where it does, the reviewer appointed and the points at which the review will take place.",
+ "Answer every criterion in Part A. A &ldquo;Yes&rdquo; to any criterion requires a review. Where a review is required, the report cannot be dated until the reviewer&rsquo;s conclusion is recorded (R31, gate G5)."],
+ concl:["The requirement for an engagement quality review has been determined and, where a review is required, an eligible reviewer has been appointed."],
+ sign:"The form opens with the engagement&rsquo;s current data already entered. Complete it on screen; entries are saved as you work and reload each time the form is opened. Signing off below records the preparer&rsquo;s signature and date. Where a review is required, release remains blocked (R31, gate G5) until the reviewer&rsquo;s conclusion is recorded.",
  parts:[
- {t:"Part A &mdash; Criteria",kind:"yn",intro:"An engagement quality review is required where any of the following applies:",items:[
+ {t:"Part A &mdash; Criteria",kind:"yn",intro:"A review is required where any criterion below is answered &ldquo;Yes&rdquo;. Explain a &ldquo;No&rdquo; only where the position is not self-evident from the engagement record.",items:[
  "The entity is a listed entity.",
- "An EQR is required by law or regulation.",
- "The entity has public-interest characteristics (regulated financial institution &middot; significant public profile &middot; lender reliance on covenant compliance).",
+ "A review is required by law or regulation.",
+ "The entity has public interest characteristics, such as being a regulated financial institution, having a significant public profile, or having lenders that rely on covenant compliance.",
  "The client risk rating recorded in ACC-1 Part C is High.",
- "Another firm-policy trigger applies (describe below)."]},
- {t:"Part B &mdash; Reviewer appointment (complete when an EQR is required)",kind:"capture",rows:["Reviewer name and qualifications","Eligibility confirmed &mdash; competence, authority, objectivity, including the two-year cooling-off after serving as engagement partner (ISQM 2 &para;19)","Planned review points (planning conclusions &middot; significant judgements &middot; the report)"]}]}];
+ "Another trigger under firm policy applies."]},
+ {t:"Part B &mdash; Appointment of the reviewer",kind:"capture",intro:"Complete this part only where Part A requires a review.",rows:["Name and qualifications of the reviewer","Basis on which eligibility is confirmed: competence, authority and objectivity, including the two-year cooling-off period after serving as engagement partner (ISQM 2 &para;19)","Points at which the review will take place (planning conclusions, significant judgements, the report)"]}]}];
 function fx(s){return '<textarea class="fx'+(s?' fxs':'')+'" rows="'+(s?1:2)+'" placeholder="&#9001; '+(s?'record result + W/P ref':'Document the results of the work performed, with W/P reference')+' &#9002;"></textarea>';}
 function fauto(t){return '<span class="fauto">&#9881; '+t+'</span>';}
-var PREP_AUTO=fauto('Signed off automatically when the form is completed and signed off below (in AuditISA: the logged-in preparer&rsquo;s signature and date)');
+var PREP_AUTO=fauto('Recorded automatically on sign-off below: the preparer&rsquo;s name and the date');
 var GID=0;
 var ABBR=[
 ["PEP","Politically exposed person &mdash; an individual who is or has been entrusted with a prominent public function, together with their family members and close associates; screened because of elevated bribery, corruption and money-laundering exposure."],
@@ -501,13 +503,11 @@ function formBadge(code){var st=loadState();if(st[code+":signed"])return " &#100
 function accRender(f){
  GID=0;
  var h='<button class="fmClose" type="button">&#10005; Close</button><div class="fmCode">'+f.code+' &middot; ACCEPTANCE &middot; PHASE 00</div><h1>'+f.title+'</h1>';
- h+='<table class="ft"><tr><td class="fl">Entity name</td><td>'+fauto('Auto-populated from the engagement record')+'</td></tr><tr><td class="fl">Date of financial statements</td><td>'+fauto('Auto-populated from the engagement record (period end)')+'</td></tr><tr><td class="fl">Prepared by / date</td><td id="'+f.code+'-prep">'+PREP_AUTO+'</td></tr><tr><td class="fl">Reviewed by / date</td><td>'+fauto('Auto-populated by the sign-off engine &mdash; reviewer signature and date, from the review queue')+'</td></tr></table>';
- h+='<h2>When and how to use this form</h2><p><b>Requirement for use:</b> required &mdash; this form supports the acceptance decision and gate G1.</p>'+f.use.map(function(p){return '<p>'+p+'</p>';}).join('');
+ h+='<table class="ft"><tr><td class="fl">Entity name</td><td>'+fauto('From the engagement record')+'</td></tr><tr><td class="fl">Date of financial statements</td><td>'+fauto('From the engagement record: the period end date')+'</td></tr><tr><td class="fl">Prepared by / date</td><td id="'+f.code+'-prep">'+PREP_AUTO+'</td></tr><tr><td class="fl">Reviewed by / date</td><td>'+fauto('Recorded by the sign-off engine when the reviewer signs off in the review queue')+'</td></tr></table>';
+ h+='<h2>When and how to use this form</h2><p><b>Requirement for use:</b> required. This form supports the acceptance decision and gate G1.</p>'+f.use.map(function(p){return '<p>'+p+'</p>';}).join('');
  h+='<p class="fstd"><b>Applicable standards &amp; methodology:</b> '+f.std+'</p>';
- var plain=JSON.stringify(f),gates=/\bG[1-6]\b|\bR\d{2}\b/.test(plain);
- var used=ABBR.filter(function(a){return new RegExp('(^|[^A-Za-z])'+a[0].replace('/','\\/')+'([^A-Za-z]|$)').test(plain);});
- if(used.length||gates)h+='<h2>Definitions &mdash; abbreviations used in this form</h2><table class="ft fabbr">'+used.map(function(a){return '<tr><td class="fl" style="width:18%">'+a[0]+'</td><td>'+a[1]+'</td></tr>';}).join('')+(gates?'<tr><td class="fl" style="width:18%">G1&ndash;G6 &middot; R01&ndash;R34</td><td>The engine&rsquo;s quality gates and dependency rules; each one is defined in sections 02&ndash;03 of this workflow page.</td></tr>':'')+'</table>';
- h+='<p class="flegend">Amber fields mark where you document the results of the work performed. Grey fields are auto-populated by the platform (engagement record &middot; team setup &middot; sign-off engine) and are not typed. Answer every question; explain every &ldquo;No&rdquo;.</p>';
+ h+='<!--DEFS-->';
+ h+='<p class="flegend">Amber fields are for you to complete: record the results of the work performed and the reference of the evidence filed. Grey fields are populated by the system from the engagement record, the team setup and the sign-off engine. Answer every question. A &ldquo;No&rdquo; answer opens an explanation box directly beneath that question.</p>';
  h+='<h2>Conclusion</h2><table class="ft">'+f.concl.map(function(c){var g='g'+(++GID);return '<tr><td>'+c+'</td><td class="fyn"><label><input type="checkbox" class="cb" data-g="'+g+'"> Yes</label></td><td class="fyn"><label><input type="checkbox" class="cb" data-g="'+g+'" data-no="1"> No</label></td></tr><tr class="noexpl" data-for="'+g+'"><td colspan="3"><p class="fexpl">Provide details for this &ldquo;No&rdquo; conclusion:</p>'+fx()+'</td></tr>';}).join('')+'</table>';
  h+='<p class="fsign">'+f.sign+'</p>';
  f.parts.forEach(function(pt){
@@ -521,7 +521,25 @@ function accRender(f){
    +Array.apply(null,{length:pt.n||4}).map(function(){return '<tr>'+pt.cols.map(function(){return '<td>'+fx(1)+'</td>';}).join('')+'</tr>';}).join('')+'</table>';
   if(pt.kind==='opts'){var og='g'+(++GID);h+='<p style="font-size:16px">'+pt.opts.map(function(o){return '<label class="fopt"><input type="checkbox" class="cb" data-g="'+og+'"> '+o+'</label>';}).join('')+'</p>'+(pt.after?'<p class="fexpl">'+pt.after+'</p>'+fx():'');}
  });
- return h+'<div class="fmSignRow"><button type="button" class="fmSign">Complete &amp; sign off as preparer</button><span class="fmSignNote">Signing off stamps the <b>Prepared by</b> date above. In AuditISA the signature is the logged-in user; the reviewer&rsquo;s sign-off follows in the review queue. Editing any field after signing withdraws the signature.</span></div><p class="ffoot">'+f.code+' &middot; Acceptance section &middot; AuditISA ISA engine &mdash; structure replicates firm form conventions; wording original, anchored to the standards cited.</p>';
+ h+='<div class="fmSignRow"><button type="button" class="fmSign">Complete &amp; sign off as preparer</button><span class="fmSignNote">Signing off records the <b>Prepared by</b> signature and date above. In AuditISA the signature is that of the logged-in user. The reviewer signs off in the review queue. Editing any field after signing withdraws the signature.</span></div><p class="ffoot">'+f.code+' &middot; Acceptance section &middot; AuditISA audit engine. The structure follows established firm form conventions; the wording is original and anchored to the standards cited.</p>';
+ return h.replace('<!--DEFS-->',defsTable(h));
+}
+/* Definitions table: scan the whole rendered form, then resolve recursively so a
+   term used only inside another definition is itself defined. */
+function defsTable(html){
+ var hit=function(term,text){return new RegExp('(^|[^A-Za-z])'+term.replace('/','\\/')+'([^A-Za-z]|$)').test(text);};
+ var scan=html.replace(/<th[^>]*>[\s\S]*?<\/th>/g,' '),used=[],added=true;
+ while(added){added=false;ABBR.forEach(function(a){
+  if(used.indexOf(a)>-1)return;
+  if(hit(a[0],scan)||used.some(function(u){return hit(a[0],u[1]);})){used.push(a);added=true;}
+ });}
+ used.sort(function(x,y){return ABBR.indexOf(x)-ABBR.indexOf(y);});
+ var gates=/\bG[1-6]\b|\bR\d{2}\b/.test(scan);
+ if(!used.length&&!gates)return '';
+ return '<h2>Definitions &mdash; abbreviations used in this form</h2><table class="ft fabbr">'
+  +used.map(function(a){return '<tr><td class="fl" style="width:18%">'+a[0]+'</td><td>'+a[1]+'</td></tr>';}).join('')
+  +(gates?'<tr><td class="fl" style="width:18%">G1&ndash;G6 and R01&ndash;R34</td><td>The engine&rsquo;s quality gates and dependency rules. Each is defined in sections 02 and 03 of this workflow page.</td></tr>':'')
+  +'</table>';
 }
 var fmWrap=document.getElementById("fmWrap"),fmPage=document.getElementById("fmPage"),curForm=null;
 function loadState(){try{return JSON.parse(localStorage.getItem("accFormsV1")||"{}");}catch(e){return {};}}
