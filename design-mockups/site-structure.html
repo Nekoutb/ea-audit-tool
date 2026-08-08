@@ -1,0 +1,281 @@
+<title>AuditISA — site structure</title>
+<style>
+:root{
+  --canvas:#dde1e5; --surface:#fff; --surface-2:#f3f5f7;
+  --ink:#1b1e23; --ink-soft:#2b323b; --muted:#5a626e;
+  --line:rgba(27,30,35,.12); --line-soft:rgba(27,30,35,.07);
+  --accent:#0b6b52; --accent-soft:rgba(11,107,82,.10);
+  --amber:#8a5a08; --amber-soft:rgba(180,120,10,.13);
+  --rose:#a8231c; --rose-soft:rgba(168,35,28,.10);
+  --blue:#31538f; --blue-soft:rgba(49,83,143,.10);
+  --sans:ui-sans-serif,-apple-system,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+  --mono:ui-monospace,"SF Mono",Menlo,Consolas,monospace;
+}
+@media(prefers-color-scheme:dark){:root{
+  --canvas:#121418; --surface:#1b1f25; --surface-2:#22262d;
+  --ink:#eef1f5; --ink-soft:#c8d1de; --muted:#a4aebc;
+  --line:rgba(255,255,255,.13); --line-soft:rgba(255,255,255,.07);
+  --accent:#34d399; --accent-soft:rgba(52,211,153,.13);
+  --amber:#e0a94a; --amber-soft:rgba(224,169,74,.14);
+  --rose:#ff8078; --rose-soft:rgba(255,128,120,.13);
+  --blue:#93a4dd; --blue-soft:rgba(147,164,221,.14);
+}}
+:root[data-theme="dark"]{--canvas:#121418;--surface:#1b1f25;--surface-2:#22262d;--ink:#eef1f5;--ink-soft:#c8d1de;--muted:#a4aebc;
+ --line:rgba(255,255,255,.13);--line-soft:rgba(255,255,255,.07);--accent:#34d399;--accent-soft:rgba(52,211,153,.13);
+ --amber:#e0a94a;--amber-soft:rgba(224,169,74,.14);--rose:#ff8078;--rose-soft:rgba(255,128,120,.13);--blue:#93a4dd;--blue-soft:rgba(147,164,221,.14);}
+:root[data-theme="light"]{--canvas:#dde1e5;--surface:#fff;--surface-2:#f3f5f7;--ink:#1b1e23;--ink-soft:#2b323b;--muted:#5a626e;
+ --line:rgba(27,30,35,.12);--line-soft:rgba(27,30,35,.07);--accent:#0b6b52;--accent-soft:rgba(11,107,82,.10);
+ --amber:#8a5a08;--amber-soft:rgba(180,120,10,.13);--rose:#a8231c;--rose-soft:rgba(168,35,28,.10);--blue:#31538f;--blue-soft:rgba(49,83,143,.10);}
+*{box-sizing:border-box}
+body{margin:0;background:var(--canvas);color:var(--ink);font:15px/1.55 var(--sans);-webkit-font-smoothing:antialiased}
+.wrap{max-width:1140px;margin:0 auto;padding:40px 22px 90px}
+h1{margin:0;font-size:clamp(27px,4vw,38px);letter-spacing:-.025em;line-height:1.08;text-wrap:balance}
+h2{margin:0;font-size:17px;letter-spacing:-.015em}
+h3{margin:0;font-size:14px;letter-spacing:-.01em}
+.eyebrow{font:700 11px var(--mono);letter-spacing:.13em;text-transform:uppercase;color:var(--accent)}
+.lede{color:var(--muted);max-width:70ch;margin:10px 0 0;font-size:15.5px}
+.meta{display:flex;flex-wrap:wrap;gap:8px;margin-top:16px}
+.tag{font:600 11.5px var(--sans);border:1px solid var(--line);border-radius:99px;padding:3px 11px;color:var(--muted)}
+.tag.on{border-color:var(--accent);color:var(--accent);background:var(--accent-soft)}
+section{margin-top:38px}
+.shead{display:flex;align-items:baseline;gap:12px;border-top:2px solid var(--ink);padding-top:11px;margin-bottom:14px;flex-wrap:wrap}
+.shead .n{font:700 12px var(--mono);color:var(--accent)}
+.shead .sub{margin-left:auto;font-size:12.5px;color:var(--muted)}
+.card{background:var(--surface);border:1px solid var(--line);border-radius:12px}
+.mono{font-family:var(--mono)}
+.tnum{font-variant-numeric:tabular-nums}
+
+/* flow */
+.flow{display:grid;grid-template-columns:repeat(5,1fr);gap:0;align-items:start}
+@media(max-width:900px){.flow{grid-template-columns:1fr;gap:12px}}
+.col{position:relative;padding:0 9px}
+.col+.col:before{content:"";position:absolute;left:-1px;top:26px;bottom:10px;width:1px;background:var(--line)}
+@media(max-width:900px){.col+.col:before{display:none}}
+.col h3{font:700 10.5px var(--mono);letter-spacing:.1em;text-transform:uppercase;color:var(--muted);margin-bottom:9px}
+.node{background:var(--surface);border:1px solid var(--line);border-radius:9px;padding:9px 11px;margin-bottom:7px}
+.node b{display:block;font-size:13px;font-weight:600}
+.node code{display:block;font:11px var(--mono);color:var(--accent);margin-top:2px;word-break:break-all}
+.node small{display:block;font-size:11.5px;color:var(--muted);margin-top:4px;line-height:1.4}
+.node.entry{border-color:var(--accent);background:var(--accent-soft)}
+.node.gap{border-color:var(--amber);background:var(--amber-soft)}
+
+/* tables */
+.tw{overflow-x:auto;border:1px solid var(--line);border-radius:12px;background:var(--surface)}
+table{width:100%;border-collapse:collapse;font-size:13.5px}
+th{text-align:left;font:700 10.5px var(--sans);letter-spacing:.08em;text-transform:uppercase;color:var(--muted);
+   padding:10px 13px;border-bottom:1px solid var(--line);white-space:nowrap;background:var(--surface-2)}
+td{padding:9px 13px;border-bottom:1px solid var(--line-soft);vertical-align:top}
+tr:last-child td{border-bottom:0}
+td.c{font-family:var(--mono);font-size:11.5px;color:var(--accent);white-space:nowrap}
+td.w{color:var(--ink-soft)}
+.pill{display:inline-block;font:600 10.5px var(--sans);border-radius:99px;padding:2px 8px;white-space:nowrap}
+.pill.ok{background:var(--accent-soft);color:var(--accent)}
+.pill.warn{background:var(--amber-soft);color:var(--amber)}
+.pill.info{background:var(--blue-soft);color:var(--blue)}
+.pill.bad{background:var(--rose-soft);color:var(--rose)}
+
+/* nav strip illustration */
+.strip{display:flex;flex-wrap:wrap;gap:6px;padding:12px 13px;background:var(--surface-2);border:1px solid var(--line);border-radius:10px}
+.seg{display:inline-flex;gap:3px;background:var(--surface);border:1px solid var(--line);border-radius:9px;padding:3px}
+.seg span{font-size:12.5px;padding:4px 11px;border-radius:6px;color:var(--muted)}
+.seg span.on{background:var(--accent);color:#fff;font-weight:600}
+@media(prefers-color-scheme:dark){.seg span.on{color:#08211a}}
+.side{display:inline-flex;gap:2px;align-items:center}
+.side span{font-size:12.5px;padding:4px 10px;color:var(--muted)}
+
+.note{background:var(--surface);border:1px solid var(--line);border-left:none;border-radius:12px;padding:14px 16px;font-size:13.5px;color:var(--ink-soft)}
+.note b{color:var(--ink)}
+.grid2{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+@media(max-width:820px){.grid2{grid-template-columns:1fr}}
+.kv{display:flex;gap:10px;padding:7px 0;border-top:1px solid var(--line-soft);font-size:13.5px}
+.kv:first-child{border-top:0}
+.kv b{min-width:120px;font-weight:600;font-size:12.5px;color:var(--muted)}
+footer{margin-top:44px;border-top:1px solid var(--line);padding-top:14px;font-size:12px;color:var(--muted)}
+</style>
+
+<div class="wrap">
+<div class="eyebrow">AuditISA · www.auditisa.com · v31, live</div>
+<h1>Site structure: every page, every click,<br>and what it reveals</h1>
+<p class="lede">Mapped from the routes as they are deployed today, not from the design. Where the site does not yet match the console proposal, it is marked.</p>
+<div class="meta">
+  <span class="tag on">40 routes</span>
+  <span class="tag">4 phases</span>
+  <span class="tag">8 tools</span>
+  <span class="tag">59 tasks on a full engagement</span>
+  <span class="tag">1 working paper per task</span>
+</div>
+
+<!-- 01 -->
+<section>
+  <div class="shead"><span class="n">01</span><h2>The spine: five levels deep</h2><span class="sub">left to right, each column is one click</span></div>
+  <div class="flow">
+    <div class="col">
+      <h3>Entry</h3>
+      <div class="node entry"><b>Sign in</b><code>/login</code><small>Email and password. On success you land on your most recent engagement; if you have none, on the firm dashboard.</small></div>
+      <div class="node"><b>Firm dashboard</b><code>/dashboard</code><small>Portfolio across all engagements: counts, priority queue, deadlines.</small></div>
+      <div class="node"><b>Engagements</b><code>/engagements</code><small>The register. Filter by year, partner, mine. Click a row to open it.</small></div>
+      <div class="node"><b>Entities</b><code>/clients</code><small>Client master records. Reached from Settings and from “About {entity}”.</small></div>
+    </div>
+    <div class="col">
+      <h3>Engagement</h3>
+      <div class="node entry"><b>Overview</b><code>/engagements/:id/dashboard</code><small>The hub. Four phase rings, task status by group, reference rail, attention queue, activity feed.</small></div>
+      <div class="node"><b>Audit file</b><code>/engagements/:id</code><small>The full file index, by section letter.</small></div>
+      <div class="node"><b>My tasks</b><code>/engagements/:id/tasks</code><small>Your queue across all four phases.</small></div>
+      <div class="node"><b>Team</b><code>/engagements/:id/team</code><small>Six-grade ladder, assignment, open-task counts.</small></div>
+    </div>
+    <div class="col">
+      <h3>Phase</h3>
+      <div class="node entry"><b>Acceptance</b><code>/phase/acceptance</code><small>Gate G1 · 2 tasks</small></div>
+      <div class="node entry"><b>Scope &amp; Strategy</b><code>/phase/strategy</code><small>Gate G2 · 13 tasks</small></div>
+      <div class="node entry"><b>Execution</b><code>/phase/execution</code><small>Gates G3 · G4 · 24 tasks</small></div>
+      <div class="node entry"><b>Conclusion</b><code>/phase/conclusion</code><small>Gates G4 · G5 · G6 · 20 tasks</small></div>
+      <div class="node"><b>Group</b><code>/groups/:group</code><small>One task group, e.g. ST5 Materiality &amp; Specific Risks.</small></div>
+    </div>
+    <div class="col">
+      <h3>Task</h3>
+      <div class="node entry"><b>Task page</b><code>/sections/:itemId</code><small>Opens on its own page. Assignment, working paper, linked risks, programme steps, coverage, matters arising, controls, conclusion.</small></div>
+      <div class="node"><b>Form</b><code>/forms/:code</code><small>The legacy structured form, where one exists for the task.</small></div>
+      <div class="node"><b>Document</b><code>/documents/:id</code><small>A generated working paper or letter, with its versions.</small></div>
+    </div>
+    <div class="col">
+      <h3>Tools</h3>
+      <div class="node entry"><b>Tools index</b><code>/engagements/:id/tools</code><small>All eight in one place, each naming the papers it feeds. Independence inquiry runs here.</small></div>
+      <div class="node"><b>Registers</b><code>/risks /findings /cra</code><small>Risk register, misstatements, combined risk matrix.</small></div>
+      <div class="node"><b>Data</b><code>/data /analytics</code><small>Trial balance, lead schedules, analytics.</small></div>
+      <div class="node"><b>Other</b><code>/confirmations /pbc /legal</code><small>Circularisations, client requests, OHADA statutory.</small></div>
+    </div>
+  </div>
+</section>
+
+<!-- 02 -->
+<section>
+  <div class="shead"><span class="n">02</span><h2>The two navigation bars</h2><span class="sub">what is on screen at all times</span></div>
+  <div class="grid2">
+    <div class="card" style="padding:15px 17px">
+      <h3 style="margin-bottom:9px">Application bar — every page</h3>
+      <div class="strip" style="margin-bottom:11px">
+        <span class="side"><span>Brand</span><span>Dashboard</span><span>Engagements</span></span>
+        <span class="side" style="margin-left:auto"><span>Engagement ▾</span><span>🔔</span><span>⚙</span><span>EN/FR</span><span>AD</span></span>
+      </div>
+      <div class="kv"><b>Dashboard</b><span>Firm portfolio across engagements</span></div>
+      <div class="kv"><b>Engagements</b><span>The register, with filters</span></div>
+      <div class="kv"><b>Engagement ▾</b><span>Switch engagement without losing your place</span></div>
+      <div class="kv"><b>Bell</b><span>Notifications, with unread count</span></div>
+      <div class="kv"><b>Gear</b><span>Settings: branding, entity records, users</span></div>
+    </div>
+    <div class="card" style="padding:15px 17px">
+      <h3 style="margin-bottom:9px">Phase bar — engagement pages</h3>
+      <div class="strip" style="margin-bottom:11px">
+        <span class="seg"><span>Overview</span><span class="on">Acceptance</span><span>Scope &amp; Strategy</span><span>Execution</span><span>Conclusion</span></span>
+        <span class="side"><span>Tools</span><span>Audit file</span><span>Team</span></span>
+      </div>
+      <div class="kv"><b>Segmented</b><span>The four phases in the order the work is done</span></div>
+      <div class="kv"><b>Overview</b><span>Back to the engagement hub</span></div>
+      <div class="kv"><b>Tools</b><span>All eight tools and the independence inquiry</span></div>
+      <div class="kv"><b>Audit file</b><span>The file index by section letter</span></div>
+      <div class="kv"><b>Team</b><span>Roles, assignment, workload</span></div>
+    </div>
+  </div>
+</section>
+
+<!-- 03 -->
+<section>
+  <div class="shead"><span class="n">03</span><h2>Click by click</h2><span class="sub">from the hub outward</span></div>
+  <div class="tw"><table>
+    <tr><th>Where you click</th><th>Takes you to</th><th>What it reveals</th></tr>
+    <tr><td class="w"><b>Phase ring</b> on the hub</td><td class="c">stays on hub</td><td class="w">Swaps the Task status panel to that phase’s groups with their completion bars.</td></tr>
+    <tr><td class="w"><b>Group row</b> in Task status</td><td class="c">/groups/:group</td><td class="w">The group’s detail tasks, each with status, assignee and due date.</td></tr>
+    <tr><td class="w"><b>Phase</b> in the phase bar</td><td class="c">/phase/:section</td><td class="w">The phase page: gate, completion, the phases that feed it and that it feeds, then every task numbered in the order performed, then the groups.</td></tr>
+    <tr><td class="w"><b>Task row</b> on a phase page</td><td class="c">/sections/:itemId</td><td class="w">The task on its own page — see section 04.</td></tr>
+    <tr><td class="w"><b>Attention item</b> on the hub</td><td class="c">the owning page</td><td class="w">Jumps to whatever needs action: an unsigned paper, an open risk, a gate blocker.</td></tr>
+    <tr><td class="w"><b>Reference rail</b> chip</td><td class="c">tools · tasks · cra · data · pbc · legal · team</td><td class="w">Direct shortcut, plus Export file index as .xlsx.</td></tr>
+    <tr><td class="w"><b>Tools</b> in the phase bar</td><td class="c">/tools</td><td class="w">Eight tools, each with the phase it belongs to and the working papers it feeds. Independence inquiry panel below.</td></tr>
+    <tr><td class="w"><b>A tool row</b></td><td class="c">that tool’s page</td><td class="w">Materiality → planning · Trial balance → data · Analytics → analytics · Risk register → risks · Combined risk → cra · Confirmations → confirmations · Misstatements → findings.</td></tr>
+    <tr><td class="w"><b>Issue to the team</b></td><td class="c">stays on /tools</td><td class="w">Sends the independence declaration to every team member not yet invited; the table then tracks responded, outstanding and exceptions, with reminders.</td></tr>
+    <tr><td class="w"><b>About {entity} →</b></td><td class="c">/clients/:id</td><td class="w">The entity master record and its engagement history.</td></tr>
+    <tr><td class="w"><b>Engagement ▾</b></td><td class="c">another engagement</td><td class="w">Recent engagements, and browse all.</td></tr>
+  </table></div>
+</section>
+
+<!-- 04 -->
+<section>
+  <div class="shead"><span class="n">04</span><h2>Inside a task</h2><span class="sub">/engagements/:id/sections/:itemId — top to bottom</span></div>
+  <div class="tw"><table>
+    <tr><th>Panel</th><th>What it holds</th><th>Source</th></tr>
+    <tr><td class="w"><b>Header</b></td><td class="w">Task code and title, material chip, phase bar with this task’s phase selected.</td><td><span class="pill info">engagement</span></td></tr>
+    <tr><td class="w"><b>Assigned to</b></td><td class="w">Any team member on the six-grade ladder. Reviewers and above can change it.</td><td><span class="pill info">team setup</span></td></tr>
+    <tr><td class="w"><b>Working paper</b></td><td class="w">The ISA anchor, the record this paper owns, then its fields: blue for values a tool produced, amber for the judgement you record. Saves to the file.</td><td><span class="pill ok">new in v31</span></td></tr>
+    <tr><td class="w"><b>Linked risks</b></td><td class="w">The risks mapped to this account or flow, with their assessment.</td><td><span class="pill info">risk register</span></td></tr>
+    <tr><td class="w"><b>Programme</b></td><td class="w">The derived steps, their assertions, sign-offs, and the button to regenerate or add a step.</td><td><span class="pill info">derived</span></td></tr>
+    <tr><td class="w"><b>Coverage</b></td><td class="w">Which assertions the planned work actually answers.</td><td><span class="pill info">derived</span></td></tr>
+    <tr><td class="w"><b>Matters arising</b></td><td class="w">Findings raised here and where they routed.</td><td><span class="pill info">findings</span></td></tr>
+    <tr><td class="w"><b>Controls</b></td><td class="w">Control tests attached to this section and their results.</td><td><span class="pill info">controls</span></td></tr>
+    <tr><td class="w"><b>Conclusion</b></td><td class="w">The section conclusion and its sign-off.</td><td><span class="pill info">sign-off engine</span></td></tr>
+  </table></div>
+</section>
+
+<!-- 05 -->
+<section>
+  <div class="shead"><span class="n">05</span><h2>Where the site does not match the proposal</h2><span class="sub">stated plainly</span></div>
+  <div class="tw"><table>
+    <tr><th>Item</th><th>Proposal</th><th>Live site</th><th></th></tr>
+    <tr><td class="w"><b>Acceptance tasks</b></td><td class="w">7 papers: integrity, competence, independence, preconditions, predecessor, engagement letter, EQR</td><td class="w">2 tasks: D3.1 acceptance and continuance, D6.1 job administration</td><td><span class="pill warn">gap</span></td></tr>
+    <tr><td class="w"><b>Task inventory</b></td><td class="w">36 named papers, ACC-1 to CON-13</td><td class="w">59 tasks on a full engagement, using the platform’s own codes</td><td><span class="pill warn">not reconciled</span></td></tr>
+    <tr><td class="w"><b>Paper content</b></td><td class="w">Procedures with expected sources, Yes/No factor checklists, standards narrative, definitions</td><td class="w">Fields generated from the task’s group — the 43,000 words are not ported</td><td><span class="pill warn">gap</span></td></tr>
+    <tr><td class="w"><b>.docx templates</b></td><td class="w">One per task</td><td class="w">Three real ones (D3.1, E500, E510); every other task renders a four-line generic stub</td><td><span class="pill bad">thin</span></td></tr>
+    <tr><td class="w"><b>Template systems</b></td><td class="w">One</td><td class="w">Two, unaware of each other: lib/templates.ts renders .docx, lib/working-papers.ts saves to form_response</td><td><span class="pill bad">to merge</span></td></tr>
+    <tr><td class="w"><b>Tools in the task</b></td><td class="w">Tool output shown inline in the paper it feeds</td><td class="w">Blue fields render their source hint; live values not wired yet</td><td><span class="pill warn">partial</span></td></tr>
+  </table></div>
+  <div class="note" style="margin-top:12px">
+    <b>What is genuinely in place:</b> the four phases and their gates, the phase bar replacing the eleven-tab cluster, phase pages listing tasks in sequence with their linkages, standalone task pages each carrying a working paper that saves, all eight tools grouped in one place with the independence inquiry, the six-grade team ladder with direct task assignment, and one page shell across all 40 routes so nothing shifts as you navigate.
+  </div>
+</section>
+
+<!-- 06 -->
+<section>
+  <div class="shead"><span class="n">06</span><h2>Full route list</h2><span class="sub">40 routes</span></div>
+  <div class="tw"><table>
+    <tr><th>Route</th><th>Purpose</th></tr>
+    <tr><td class="c">/login</td><td class="w">Sign in</td></tr>
+    <tr><td class="c">/dashboard</td><td class="w">Firm portfolio</td></tr>
+    <tr><td class="c">/engagements</td><td class="w">Engagement register</td></tr>
+    <tr><td class="c">/new-engagement</td><td class="w">Create an engagement, with inline new-entity step</td></tr>
+    <tr><td class="c">/engagements/:id</td><td class="w">Audit file index</td></tr>
+    <tr><td class="c">/engagements/:id/dashboard</td><td class="w">Engagement hub</td></tr>
+    <tr><td class="c">/engagements/:id/phase/:section</td><td class="w">Phase page — the four phases</td></tr>
+    <tr><td class="c">/engagements/:id/groups/:group</td><td class="w">One task group</td></tr>
+    <tr><td class="c">/engagements/:id/sections/:itemId</td><td class="w">Task page with its working paper</td></tr>
+    <tr><td class="c">/engagements/:id/tools</td><td class="w">All tools, plus independence inquiry</td></tr>
+    <tr><td class="c">/engagements/:id/tasks</td><td class="w">My tasks queue</td></tr>
+    <tr><td class="c">/engagements/:id/team</td><td class="w">Team, roles and assignment</td></tr>
+    <tr><td class="c">/engagements/:id/planning</td><td class="w">Materiality and planning gates</td></tr>
+    <tr><td class="c">/engagements/:id/acceptance</td><td class="w">Acceptance procedures and independence campaign</td></tr>
+    <tr><td class="c">/engagements/:id/conclusion</td><td class="w">Completion gates, report issue, archive</td></tr>
+    <tr><td class="c">/engagements/:id/risks</td><td class="w">Risk register</td></tr>
+    <tr><td class="c">/engagements/:id/cra</td><td class="w">Combined risk assessment matrix</td></tr>
+    <tr><td class="c">/engagements/:id/findings</td><td class="w">Misstatements and deficiencies</td></tr>
+    <tr><td class="c">/engagements/:id/data</td><td class="w">Trial balance, lead schedules, journals</td></tr>
+    <tr><td class="c">/engagements/:id/analytics</td><td class="w">Analytical procedures</td></tr>
+    <tr><td class="c">/engagements/:id/confirmations</td><td class="w">External confirmations</td></tr>
+    <tr><td class="c">/engagements/:id/pbc</td><td class="w">Client request list</td></tr>
+    <tr><td class="c">/engagements/:id/legal</td><td class="w">OHADA statutory and legal</td></tr>
+    <tr><td class="c">/engagements/:id/considerations</td><td class="w">Engagement considerations</td></tr>
+    <tr><td class="c">/engagements/:id/discussion</td><td class="w">Team discussion thread</td></tr>
+    <tr><td class="c">/engagements/:id/activity</td><td class="w">Full activity log</td></tr>
+    <tr><td class="c">/engagements/:id/time</td><td class="w">Time recording</td></tr>
+    <tr><td class="c">/engagements/:id/forms/:code</td><td class="w">Legacy structured form</td></tr>
+    <tr><td class="c">/engagements/:id/phases/:phase</td><td class="w">Older phase view — superseded, still routable</td></tr>
+    <tr><td class="c">/documents/:id</td><td class="w">A document and its versions</td></tr>
+    <tr><td class="c">/clients · /clients/:id</td><td class="w">Entity records</td></tr>
+    <tr><td class="c">/templates · /templates/:code</td><td class="w">Working-paper template registry</td></tr>
+    <tr><td class="c">/users</td><td class="w">Firm users and roles</td></tr>
+    <tr><td class="c">/settings</td><td class="w">Branding, entity records, preferences</td></tr>
+    <tr><td class="c">/notifications</td><td class="w">Notification inbox</td></tr>
+    <tr><td class="c">/resources</td><td class="w">Reference material</td></tr>
+    <tr><td class="c">/portal</td><td class="w">Client-facing portal</td></tr>
+    <tr><td class="c">/independence/:token</td><td class="w">Team member’s independence declaration — no login required</td></tr>
+  </table></div>
+</section>
+
+<footer>AuditISA · structure as deployed 8 August 2026 (v31). Task counts are for a full-tier engagement; smaller engagements instantiate fewer.</footer>
+</div>

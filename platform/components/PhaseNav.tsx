@@ -20,7 +20,8 @@ export function PhaseNav({
   const base = `/engagements/${engagementId}`;
   const side = [
     { key: "tools", href: `${base}/tools`, label: locale === "fr" ? "Outils" : "Tools" },
-    { key: "documents", href: `${base}/documents`, label: "Documents" },
+    // The audit file index lives at the engagement root, not /documents.
+    { key: "documents", href: base, label: locale === "fr" ? "Dossier" : "Audit file" },
     { key: "team", href: `${base}/team`, label: locale === "fr" ? "Équipe" : "Team" },
   ];
 
