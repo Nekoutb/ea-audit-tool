@@ -713,10 +713,12 @@
       "role": "Role",
       "remove": "Remove",
       "roles": {
-        "partner": "Partner",
-        "manager": "Manager",
-        "senior": "Senior",
-        "staff": "Staff",
+        "partner": "Audit partner",
+        "director": "Audit director",
+        "senior_manager": "Audit senior manager",
+        "manager": "Audit manager",
+        "senior": "Audit senior",
+        "staff": "Audit staff",
         "eqr_reviewer": "EQR reviewer"
       }
     },

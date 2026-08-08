@@ -2,6 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
+import { auth } from "@/auth";
 import { withTenant } from "@/lib/db";
 import { carryForwardFromPriorYear, FORM_DEFINITIONS, saveForm, type FormValues } from "@/lib/forms";
 import { advanceToPlanning, closePlanning, GateError, setSectionMaterial } from "@/lib/gates";
@@ -11,7 +12,8 @@ import { generateLetter, type LetterKind } from "@/lib/letters";
 import { approveMateriality, createMaterialityVersion, type Benchmark } from "@/lib/materiality";
 import { addCustomStep, generateProgram } from "@/lib/programs";
 import { dismissPotentialRisk, linkRiskToStep, mapRiskToSection, promotePotentialRisk, raisePotentialRisk, rebutRevenueFraudRisk, updateRisk, type Assertion, type RiskRating, type RiskStatus } from "@/lib/risks";
-import { addPbcItem, assignTeamMember, removeTeamMember, setBudgetLine, setPbcStatus, type PbcItem, type TeamRole } from "@/lib/team";
+import { canReview } from "@/lib/rbac";
+import { addPbcItem, assignTask, assignTeamMember, removeTeamMember, setBudgetLine, setPbcStatus, type PbcItem, type TeamRole } from "@/lib/team";
 import { getLocale } from "@/lib/locale";
 
 /** Wrap a mutation: domain errors become ?error=<code> banners, not 500s. */
@@ -264,6 +266,33 @@ export async function assignTeamFromTeamPageAction(engagementId: string, formDat
 export async function removeTeamFromTeamPageAction(engagementId: string, userId: string): Promise<void> {
   const path = `/engagements/${engagementId}/team`;
   await guarded(path, () => removeTeamMember(engagementId, userId));
+}
+
+/**
+ * Directly assign a task (file item) to a team member — or unassign with an
+ * empty value. Same permission gate as team management (canReview); the target
+ * must be a team_member row of the engagement (enforced in lib/team).
+ */
+export async function assignTaskAction(
+  engagementId: string,
+  itemId: string,
+  formData: FormData,
+): Promise<void> {
+  const path = `/engagements/${engagementId}/sections/${itemId}`;
+  const userIdOrNull = String(formData.get("assignee") ?? "").trim() || null;
+  const session = await auth();
+  try {
+    if (!session?.user || !canReview(session.user.role)) throw new Error("forbidden");
+    await assignTask(engagementId, itemId, userIdOrNull);
+  } catch (error) {
+    if (error instanceof Error && /^[a-z0-9-]+$/.test(error.message)) {
+      redirect(`${path}?error=${encodeURIComponent(error.message)}`);
+    }
+    throw error;
+  }
+  revalidatePath(`/engagements/${engagementId}/tasks`);
+  revalidatePath(path);
+  redirect(path);
 }
 
 export async function setBudgetAction(engagementId: string, formData: FormData): Promise<void> {

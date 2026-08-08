@@ -14,7 +14,7 @@ import {
   runReconAction,
   runSamplingAction,
 } from "@/app/actions/engines";
-import { addStepAction, generateProgramAction, linkRiskStepAction } from "@/app/actions/planning";
+import { addStepAction, assignTaskAction, generateProgramAction, linkRiskStepAction } from "@/app/actions/planning";
 import { AppNav } from "@/components/AppNav";
 import { EngagementTabs } from "@/components/EngagementTabs";
 import { ErrorBanner } from "@/components/GatesPanel";
@@ -27,7 +27,9 @@ import { listDatasets } from "@/lib/subledgers";
 import { getMessages } from "@/lib/i18n";
 import { getLocale } from "@/lib/locale";
 import { listProgramSteps, sectionCoverage } from "@/lib/programs";
+import { canReview } from "@/lib/rbac";
 import { ASSERTIONS, risksForSection } from "@/lib/risks";
+import { getTaskAssignee, listTeam } from "@/lib/team";
 import { requireTenant } from "@/lib/tenant";
 
 async function sectionInfo(itemId: string) {
@@ -64,18 +66,22 @@ export default async function SectionPage(props: {
   const [engagement, section] = await Promise.all([getEngagement(id), sectionInfo(itemId)]);
   if (!engagement || !section || section.engagement_id !== id) notFound();
 
-  const [risks, steps, coverage, controlTests, conclusion, datasets, runs] = await Promise.all([
-    risksForSection(itemId),
-    listProgramSteps(itemId),
-    sectionCoverage(itemId),
-    listControlTests(itemId),
-    getSectionConclusion(itemId),
-    listDatasets(id),
-    listRuns(itemId),
-  ]);
+  const [risks, steps, coverage, controlTests, conclusion, datasets, runs, team, assignee] =
+    await Promise.all([
+      risksForSection(itemId),
+      listProgramSteps(itemId),
+      sectionCoverage(itemId),
+      listControlTests(itemId),
+      getSectionConclusion(itemId),
+      listDatasets(id),
+      listRuns(itemId),
+      listTeam(id),
+      getTaskAssignee(itemId),
+    ]);
   const te = t.planning.execution;
   const tg = t.planning.engines;
   const fr = locale === "fr";
+  const canAssign = canReview(session.user.role);
 
   // A2: default confidence from the assessed risk band (§04) — high/significant
   // risk → 95%, medium → 85%, purely low → 70%.
@@ -117,6 +123,35 @@ export default async function SectionPage(props: {
       </div>
       <EngagementTabs engagementId={id} locale={locale} active="planning" />
       <ErrorBanner error={error} locale={locale} />
+
+      {/* Direct task assignment (six-level ladder): who is doing this task. */}
+      <div className="mt-4 flex flex-wrap items-center gap-2 text-sm">
+        <span className="text-muted">{fr ? "Assigné à" : "Assigned to"}</span>
+        {canAssign ? (
+          <form action={assignTaskAction.bind(null, id, itemId)} className="flex flex-wrap items-center gap-1.5">
+            <select
+              name="assignee"
+              defaultValue={assignee?.userId ?? ""}
+              className={input}
+              data-testid="task-assignee"
+            >
+              <option value="">—</option>
+              {team.map((member) => (
+                <option key={member.userId} value={member.userId}>
+                  {member.userName}
+                </option>
+              ))}
+            </select>
+            <button type="submit" className={btn} data-testid="save-assignee">
+              {fr ? "Enregistrer" : "Save"}
+            </button>
+          </form>
+        ) : (
+          <span className="font-medium text-ink" data-testid="task-assignee">
+            {assignee?.name ?? "—"}
+          </span>
+        )}
+      </div>
 
       {/* Linked risks pinned at the top of the section (spec §8.1) */}
       <Panel className="mt-6 border-l-4 border-l-[color:var(--color-rose)]">

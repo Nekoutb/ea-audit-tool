@@ -4,7 +4,7 @@ import { AppNav } from "@/components/AppNav";
 import { NavLink } from "@/components/NavLink";
 import { Panel } from "@/components/ui/atlas";
 import { withTenant } from "@/lib/db";
-import { engagementTasks, type PhaseTask, type PhaseTaskStatus } from "@/lib/engagement-dashboard";
+import { engagementTasks, initials, type PhaseTask, type PhaseTaskStatus } from "@/lib/engagement-dashboard";
 import { getEngagement } from "@/lib/engagements";
 import { shortTitle } from "@/lib/file-index";
 import { FORM_DEFINITIONS } from "@/lib/forms";
@@ -22,6 +22,7 @@ const LABELS = {
     all: "All",
     review: "For my review",
     todo: "To-dos",
+    mine: "Assigned to me",
     hideCompleted: "Hide completed",
     due: "Due",
   },
@@ -30,6 +31,7 @@ const LABELS = {
     all: "Toutes",
     review: "Pour ma revue",
     todo: "À faire",
+    mine: "Assignées à moi",
     hideCompleted: "Masquer les terminées",
     due: "Échéance",
   },
@@ -52,11 +54,12 @@ const DOT_CLASS: Record<PhaseTaskStatus, string> = {
   not_started: "border-[1.5px] border-line-strong bg-transparent",
 };
 
-type Filter = "all" | "review" | "todo" | "open";
+type Filter = "all" | "review" | "todo" | "mine" | "open";
 
-function applyFilter(tasks: PhaseTask[], filter: Filter): PhaseTask[] {
+function applyFilter(tasks: PhaseTask[], filter: Filter, userId: string): PhaseTask[] {
   if (filter === "review") return tasks.filter((t) => t.status === "in_review");
   if (filter === "todo") return tasks.filter((t) => t.status === "not_started");
+  if (filter === "mine") return tasks.filter((t) => t.assigneeUserId === userId);
   if (filter === "open") return tasks.filter((t) => t.status !== "reviewed");
   return tasks;
 }
@@ -118,11 +121,13 @@ export default async function MyTasksPage(props: {
   const [tasks, noteCounts] = await Promise.all([engagementTasks(id), openNoteCounts(id)]);
 
   const filter: Filter =
-    rawFilter === "review" || rawFilter === "todo" || rawFilter === "open" ? rawFilter : "all";
-  const visible = applyFilter(tasks, filter);
+    rawFilter === "review" || rawFilter === "todo" || rawFilter === "mine" || rawFilter === "open"
+      ? rawFilter
+      : "all";
+  const visible = applyFilter(tasks, filter, session.user.id);
 
   const base = `/engagements/${id}/tasks`;
-  const chips: { key: Filter; label: string; count: number; href: string }[] = [
+  const chips: { key: Filter; label: string; count: number; href: string; testId?: string }[] = [
     { key: "all", label: L.all, count: tasks.length, href: base },
     {
       key: "review",
@@ -135,6 +140,13 @@ export default async function MyTasksPage(props: {
       label: L.todo,
       count: tasks.filter((task) => task.status === "not_started").length,
       href: `${base}?filter=todo`,
+    },
+    {
+      key: "mine",
+      label: L.mine,
+      count: tasks.filter((task) => task.assigneeUserId === session.user.id).length,
+      href: `${base}?filter=mine`,
+      testId: "filter-assigned",
     },
     {
       key: "open",
@@ -178,6 +190,7 @@ export default async function MyTasksPage(props: {
           <NavLink
             key={chip.key}
             href={chip.href}
+            testId={chip.testId}
             className={filter === chip.key ? chipActive : chipIdle}
           >
             {chip.label}
@@ -215,6 +228,15 @@ export default async function MyTasksPage(props: {
                       className="inline-flex flex-shrink-0 items-center gap-1 rounded-full bg-amber-100 px-2 py-0.5 text-[11px] font-bold text-amber-800 tnum dark:bg-amber-950/40 dark:text-amber-300"
                     >
                       {notes} ✎
+                    </span>
+                  ) : null}
+                  {task.assigneeName ? (
+                    <span
+                      title={task.assigneeName}
+                      data-testid={`assignee-chip-${task.code}`}
+                      className="inline-flex flex-shrink-0 items-center rounded-full border border-line bg-surface-2 px-2 py-0.5 text-[10.5px] font-bold tracking-wide text-ink-soft"
+                    >
+                      {initials(task.assigneeName)}
                     </span>
                   ) : null}
                   <span className="w-[120px] flex-shrink-0 text-right text-[12px] text-muted tnum">

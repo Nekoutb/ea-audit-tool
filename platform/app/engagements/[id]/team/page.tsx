@@ -11,9 +11,15 @@ import { getEngagement } from "@/lib/engagements";
 import { getMessages } from "@/lib/i18n";
 import { getLocale } from "@/lib/locale";
 import { canReview } from "@/lib/rbac";
-import { TEAM_ROLES, listFirmUsers, listTeam } from "@/lib/team";
+import { TEAM_ROLES, listFirmUsers, listTeam, openAssignedTaskCounts } from "@/lib/team";
 
 export const metadata = { title: "Manage team · AuditISA" };
+
+// Page-local label for the open-assigned-tasks cell (not in messages/*.json).
+const OPEN_TASKS = {
+  en: (n: number) => (n === 1 ? "1 open task" : `${n} open tasks`),
+  fr: (n: number) => (n === 1 ? "1 tâche ouverte" : `${n} tâches ouvertes`),
+} as const;
 
 /** Manage Team (Canvas structure): active members table + add/remove. */
 export default async function TeamPage(props: {
@@ -28,11 +34,17 @@ export default async function TeamPage(props: {
   const locale = await getLocale();
   const t = getMessages(locale);
   const tt = t.team;
+  // The six-level ladder labels live in planning.team.roles (single source).
+  const roleLabels = t.planning.team.roles;
 
   const engagement = await getEngagement(id);
   if (!engagement) notFound();
 
-  const [team, firmUsers] = await Promise.all([listTeam(id), listFirmUsers()]);
+  const [team, firmUsers, openCounts] = await Promise.all([
+    listTeam(id),
+    listFirmUsers(),
+    openAssignedTaskCounts(id),
+  ]);
   const assignable = firmUsers.filter((u) => !team.some((m) => m.userId === u.id));
   const canManage = canReview(session.user.role);
 
@@ -80,6 +92,7 @@ export default async function TeamPage(props: {
                   <th className={th}>{tt.member}</th>
                   <th className={th}>{tt.initials}</th>
                   <th className={th}>{tt.role}</th>
+                  <th className={th} />
                   {canManage ? <th className={`${th} text-right`} /> : null}
                 </tr>
               </thead>
@@ -96,7 +109,13 @@ export default async function TeamPage(props: {
                       {initials(m.userName)}
                     </td>
                     <td className="border-t border-line px-5 py-3.5 text-[13px] text-ink-soft">
-                      {tt.roles[m.teamRole]}
+                      {roleLabels[m.teamRole]}
+                    </td>
+                    <td
+                      className="border-t border-line px-5 py-3.5 text-[12px] text-muted tnum"
+                      data-testid={`open-tasks-${m.userId}`}
+                    >
+                      {OPEN_TASKS[locale](openCounts.get(m.userId) ?? 0)}
                     </td>
                     {canManage ? (
                       <td className="border-t border-line px-5 py-3.5 text-right">
@@ -137,7 +156,7 @@ export default async function TeamPage(props: {
               <select name="teamRole" defaultValue="staff" className={input} data-testid="team-role">
                 {TEAM_ROLES.map((r) => (
                   <option key={r} value={r}>
-                    {tt.roles[r]}
+                    {roleLabels[r]}
                   </option>
                 ))}
               </select>

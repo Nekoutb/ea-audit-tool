@@ -8,6 +8,7 @@ import {
   type EngagementPhase,
   type EngagementSummary,
 } from "@/lib/engagements";
+import { fileItemHasAssignee } from "@/lib/team";
 import { requireTenant } from "@/lib/tenant";
 
 /**
@@ -24,6 +25,16 @@ async function dueDateExpr(tx: PoolClient): Promise<string> {
     dueDateColumnKnown = (r.rowCount ?? 0) > 0;
   }
   return dueDateColumnKnown ? "to_char(fi.due_date, 'YYYY-MM-DD')" : "NULL::text";
+}
+
+/** Schema-tolerant assignee columns (same expand/contract story as due_date). */
+async function assigneeExprs(tx: PoolClient): Promise<{ id: string; name: string }> {
+  return (await fileItemHasAssignee(tx))
+    ? {
+        id: "fi.assignee_user_id",
+        name: "(SELECT coalesce(name, email) FROM app_user WHERE id = fi.assignee_user_id)",
+      }
+    : { id: "NULL::uuid", name: "NULL::text" };
 }
 
 /** The four dashboard phases (all engagement phases except terminal `archived`). */
@@ -134,6 +145,9 @@ export interface PhaseTask {
   dueDate: string | null;
   /** Assigned preparer (file_item.owner_id), name or null. */
   ownerName: string | null;
+  /** Direct task assignee (file_item.assignee_user_id), or null. */
+  assigneeUserId: string | null;
+  assigneeName: string | null;
   /** Preparer sign-off, if signed. */
   preparerName: string | null;
   preparerAt: string | null;
@@ -160,6 +174,7 @@ export async function phaseTasks(engagementId: string, phase: DashboardPhase): P
   const { tenantId } = await requireTenant();
   return withTenant(tenantId, async (tx) => {
     const dueDate = await dueDateExpr(tx);
+    const assignee = await assigneeExprs(tx);
     const result = await tx.query<{
       id: string;
       code: string;
@@ -169,6 +184,8 @@ export async function phaseTasks(engagementId: string, phase: DashboardPhase): P
       document_id: string | null;
       due_date: string | null;
       owner_name: string | null;
+      assignee_user_id: string | null;
+      assignee_name: string | null;
       preparer_name: string | null;
       preparer_at: string | null;
       reviewer_name: string | null;
@@ -178,6 +195,8 @@ export async function phaseTasks(engagementId: string, phase: DashboardPhase): P
               d.id AS document_id,
               ${dueDate} AS due_date,
               (SELECT coalesce(name, email) FROM app_user WHERE id = fi.owner_id) AS owner_name,
+              ${assignee.id} AS assignee_user_id,
+              ${assignee.name} AS assignee_name,
               ps.signer AS preparer_name, to_char(ps.signed_at, 'DD Mon YYYY') AS preparer_at,
               rs.signer AS reviewer_name, to_char(rs.signed_at, 'DD Mon YYYY') AS reviewer_at
          FROM file_item fi
@@ -220,6 +239,8 @@ export async function phaseTasks(engagementId: string, phase: DashboardPhase): P
         documentId: row.document_id,
         dueDate: row.due_date,
         ownerName: row.owner_name,
+        assigneeUserId: row.assignee_user_id,
+        assigneeName: row.assignee_name,
         preparerName: row.preparer_name,
         preparerAt: row.preparer_at,
         reviewerName: row.reviewer_name,
@@ -422,6 +443,7 @@ export async function engagementTasks(engagementId: string): Promise<PhaseTask[]
   const { tenantId } = await requireTenant();
   return withTenant(tenantId, async (tx) => {
     const dueDate = await dueDateExpr(tx);
+    const assignee = await assigneeExprs(tx);
     const result = await tx.query<{
       id: string;
       code: string;
@@ -431,6 +453,8 @@ export async function engagementTasks(engagementId: string): Promise<PhaseTask[]
       document_id: string | null;
       due_date: string | null;
       owner_name: string | null;
+      assignee_user_id: string | null;
+      assignee_name: string | null;
       preparer_name: string | null;
       preparer_at: string | null;
       reviewer_name: string | null;
@@ -440,6 +464,8 @@ export async function engagementTasks(engagementId: string): Promise<PhaseTask[]
               d.id AS document_id,
               ${dueDate} AS due_date,
               (SELECT coalesce(name, email) FROM app_user WHERE id = fi.owner_id) AS owner_name,
+              ${assignee.id} AS assignee_user_id,
+              ${assignee.name} AS assignee_name,
               ps.signer AS preparer_name, to_char(ps.signed_at, 'DD Mon YYYY') AS preparer_at,
               rs.signer AS reviewer_name, to_char(rs.signed_at, 'DD Mon YYYY') AS reviewer_at
          FROM file_item fi
@@ -481,6 +507,8 @@ export async function engagementTasks(engagementId: string): Promise<PhaseTask[]
         documentId: row.document_id,
         dueDate: row.due_date,
         ownerName: row.owner_name,
+        assigneeUserId: row.assignee_user_id,
+        assigneeName: row.assignee_name,
         preparerName: row.preparer_name,
         preparerAt: row.preparer_at,
         reviewerName: row.reviewer_name,
@@ -572,6 +600,7 @@ export async function taskForItem(engagementId: string, code: string): Promise<P
   const { tenantId } = await requireTenant();
   return withTenant(tenantId, async (tx) => {
     const dueDate = await dueDateExpr(tx);
+    const assignee = await assigneeExprs(tx);
     const result = await tx.query<{
       id: string;
       code: string;
@@ -581,6 +610,8 @@ export async function taskForItem(engagementId: string, code: string): Promise<P
       document_id: string | null;
       due_date: string | null;
       owner_name: string | null;
+      assignee_user_id: string | null;
+      assignee_name: string | null;
       preparer_name: string | null;
       preparer_at: string | null;
       reviewer_name: string | null;
@@ -590,6 +621,8 @@ export async function taskForItem(engagementId: string, code: string): Promise<P
               d.id AS document_id,
               ${dueDate} AS due_date,
               (SELECT coalesce(name, email) FROM app_user WHERE id = fi.owner_id) AS owner_name,
+              ${assignee.id} AS assignee_user_id,
+              ${assignee.name} AS assignee_name,
               ps.signer AS preparer_name, to_char(ps.signed_at, 'DD Mon YYYY') AS preparer_at,
               rs.signer AS reviewer_name, to_char(rs.signed_at, 'DD Mon YYYY') AS reviewer_at
          FROM file_item fi
@@ -632,6 +665,8 @@ export async function taskForItem(engagementId: string, code: string): Promise<P
       documentId: row.document_id,
       dueDate: row.due_date,
       ownerName: row.owner_name,
+      assigneeUserId: row.assignee_user_id,
+      assigneeName: row.assignee_name,
       preparerName: row.preparer_name,
       preparerAt: row.preparer_at,
       reviewerName: row.reviewer_name,

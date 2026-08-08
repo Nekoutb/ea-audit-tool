@@ -1,11 +1,28 @@
 // D6.1 job administration (spec §4.4): team assignment (with the EQR
 // independence rule), hours-by-grade budget, and the PBC request list.
 
+import type { PoolClient } from "pg";
 import { withTenant } from "@/lib/db";
 import { requireTenant } from "@/lib/tenant";
 
-export type TeamRole = "partner" | "manager" | "senior" | "staff" | "eqr_reviewer";
-export const TEAM_ROLES: readonly TeamRole[] = ["partner", "manager", "senior", "staff", "eqr_reviewer"];
+/** The six-level audit ladder (top down), plus the independent EQR. */
+export type TeamRole =
+  | "partner"
+  | "director"
+  | "senior_manager"
+  | "manager"
+  | "senior"
+  | "staff"
+  | "eqr_reviewer";
+export const TEAM_ROLES: readonly TeamRole[] = [
+  "partner",
+  "director",
+  "senior_manager",
+  "manager",
+  "senior",
+  "staff",
+  "eqr_reviewer",
+];
 
 export interface TeamMember {
   id: string;
@@ -80,6 +97,91 @@ export async function removeTeamMember(engagementId: string, userId: string): Pr
       engagementId,
       userId,
     ]);
+  });
+}
+
+/**
+ * Schema-tolerant read of file_item.assignee_user_id (expand/contract deploy):
+ * until the 20260808 migration runs, tasks simply report no assignee. Checked
+ * once per process (same pattern as due_date in lib/engagement-dashboard).
+ */
+let assigneeColumnKnown: boolean | null = null;
+export async function fileItemHasAssignee(tx: PoolClient): Promise<boolean> {
+  if (assigneeColumnKnown === null) {
+    const r = await tx.query(
+      "SELECT 1 FROM information_schema.columns WHERE table_name = 'file_item' AND column_name = 'assignee_user_id'",
+    );
+    assigneeColumnKnown = (r.rowCount ?? 0) > 0;
+  }
+  return assigneeColumnKnown;
+}
+
+/** Current direct assignee of a task (file item), or null. */
+export async function getTaskAssignee(
+  itemId: string,
+): Promise<{ userId: string; name: string } | null> {
+  const { tenantId } = await requireTenant();
+  return withTenant(tenantId, async (tx) => {
+    if (!(await fileItemHasAssignee(tx))) return null;
+    const r = await tx.query<{ user_id: string; name: string }>(
+      `SELECT u.id AS user_id, coalesce(u.name, u.email) AS name
+         FROM file_item fi JOIN app_user u ON u.id = fi.assignee_user_id
+        WHERE fi.id = $1`,
+      [itemId],
+    );
+    const row = r.rows[0];
+    return row ? { userId: row.user_id, name: row.name } : null;
+  });
+}
+
+/**
+ * Directly assign a task (file item) to an engagement team member, or unassign
+ * with null. Only current team_member rows of the engagement are assignable.
+ */
+export async function assignTask(
+  engagementId: string,
+  itemId: string,
+  userIdOrNull: string | null,
+): Promise<void> {
+  const { tenantId } = await requireTenant();
+  await withTenant(tenantId, async (tx) => {
+    if (userIdOrNull) {
+      const member = await tx.query(
+        "SELECT 1 FROM team_member WHERE engagement_id = $1 AND user_id = $2",
+        [engagementId, userIdOrNull],
+      );
+      if ((member.rowCount ?? 0) === 0) throw new Error("not-found");
+    }
+    const updated = await tx.query(
+      "UPDATE file_item SET assignee_user_id = $3 WHERE id = $2 AND engagement_id = $1",
+      [engagementId, itemId, userIdOrNull],
+    );
+    if ((updated.rowCount ?? 0) === 0) throw new Error("not-found");
+  });
+}
+
+/**
+ * Open (not yet reviewed) directly-assigned tasks per team member of the
+ * engagement, in one query: user_id → count.
+ */
+export async function openAssignedTaskCounts(engagementId: string): Promise<Map<string, number>> {
+  const { tenantId } = await requireTenant();
+  return withTenant(tenantId, async (tx) => {
+    if (!(await fileItemHasAssignee(tx))) return new Map();
+    const r = await tx.query<{ user_id: string; n: string }>(
+      `SELECT fi.assignee_user_id AS user_id, count(*)::text AS n
+         FROM file_item fi
+        WHERE fi.engagement_id = $1 AND fi.conditional = false
+          AND fi.assignee_user_id IS NOT NULL
+          AND NOT EXISTS (
+            SELECT 1 FROM document d JOIN signoff s ON s.document_id = d.id
+             WHERE d.file_item_id = fi.id AND s.role IN ('reviewer', 'partner')
+               AND s.voided_at IS NULL
+          )
+        GROUP BY fi.assignee_user_id`,
+      [engagementId],
+    );
+    return new Map(r.rows.map((row) => [row.user_id, Number(row.n)]));
   });
 }
 

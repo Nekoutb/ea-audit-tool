@@ -713,10 +713,12 @@
       "role": "Rôle",
       "remove": "Retirer",
       "roles": {
-        "partner": "Associé",
-        "manager": "Manager",
-        "senior": "Senior",
-        "staff": "Assistant",
+        "partner": "Associé d'audit",
+        "director": "Directeur audit",
+        "senior_manager": "Senior manager audit",
+        "manager": "Manager audit",
+        "senior": "Senior audit",
+        "staff": "Assistant audit",
         "eqr_reviewer": "Réviseur qualité (EQR)"
       }
     },
