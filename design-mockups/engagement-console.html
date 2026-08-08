@@ -221,28 +221,57 @@ input[type=range]{accent-color:var(--accent);flex:1;min-width:140px}
 .mcard b{display:block;font:700 10px var(--mono);color:var(--accent-ink)}
 .mcard span{display:block;color:var(--muted);font-size:11px;margin-top:3px}
 footer{margin-top:22px;font-size:11.5px;color:var(--muted);border-top:1px solid var(--line);padding-top:11px}
-</style>
 
+/* ===== section page ===== */
+.sechead{display:flex;gap:14px;align-items:center;flex-wrap:wrap;margin-bottom:12px}
+.sechead .big{font:700 22px var(--sans);letter-spacing:-.02em}
+.sechead .num{width:30px;height:30px;border-radius:9px;background:var(--accent);color:var(--on-accent);display:grid;place-items:center;font:700 14px var(--sans)}
+.linkband{display:grid;grid-template-columns:1fr 1fr;gap:11px;margin-bottom:13px}
+@media(max-width:820px){.linkband{grid-template-columns:1fr}}
+.linkbox{border:1px solid var(--line);border-radius:var(--r-s);background:var(--solid);padding:11px 13px}
+.linkbox h5{margin:0 0 7px;font:600 10px var(--sans);letter-spacing:.09em;text-transform:uppercase;color:var(--muted)}
+.linkrow{display:flex;gap:8px;align-items:flex-start;padding:5px 0;border-top:1px solid var(--line);font-size:12.3px}
+.linkrow:first-of-type{border-top:0}
+.linkrow .sn{font:700 10px var(--mono);color:var(--accent-ink);background:var(--accent-soft);border-radius:99px;padding:2px 7px;white-space:nowrap;flex:0 0 auto}
+.linkrow em{font-style:normal;color:var(--muted)}
+.seq{display:flex;flex-direction:column;gap:6px}
+.seqitem{border:1px solid var(--line);border-radius:var(--r-s);background:var(--surface);backdrop-filter:blur(12px);overflow:hidden}
+.seqitem.open{border-color:var(--accent);box-shadow:0 0 0 3px var(--accent-soft)}
+.seqhead{display:flex;gap:11px;align-items:center;width:100%;text-align:left;background:transparent;border:0;padding:11px 13px}
+.seqhead:hover{background:var(--accent-soft)}
+.seqno{font:700 11px var(--mono);width:22px;height:22px;border-radius:50%;background:var(--line-strong);display:grid;place-items:center;flex:0 0 auto}
+.seqitem.open .seqno{background:var(--accent);color:var(--on-accent)}
+.seqttl{font-size:13.5px;font-weight:600;min-width:0}
+.seqttl span{display:block;font-weight:400;font-size:11.5px;color:var(--muted);margin-top:1px}
+.seqmeta{margin-left:auto;display:flex;gap:6px;align-items:center;flex-wrap:wrap;justify-content:flex-end}
+.seqbody{display:none;padding:0 13px 14px;border-top:1px solid var(--line)}
+.seqitem.open .seqbody{display:block}
+.tool{border:1px solid var(--accent);border-radius:var(--r-s);background:var(--accent-soft);padding:12px 13px;margin:12px 0}
+.tool h5{margin:0 0 4px;font:700 11px var(--sans);letter-spacing:.07em;text-transform:uppercase;color:var(--accent-ink)}
+.tool p.note{margin:0 0 9px}
+.docrow{display:flex;gap:9px;align-items:center;padding:7px 9px;border:1px solid var(--line);border-radius:var(--r-xs);background:var(--solid);font-size:12.5px;margin-bottom:6px}
+.docrow .dt{font:700 9.5px var(--mono);border:1px solid var(--line-strong);border-radius:3px;padding:1px 5px;color:var(--muted)}
+.docrow .rm{margin-left:auto}
+.drop{border:1.5px dashed var(--line-strong);border-radius:var(--r-s);padding:14px;text-align:center;font-size:12.5px;color:var(--muted);background:var(--solid)}
+.drop b{color:var(--accent-ink)}
+.assertchip{display:inline-block;font:700 10px var(--mono);border:1px solid var(--accent);color:var(--accent-ink);background:var(--accent-soft);border-radius:4px;padding:2px 6px;margin:0 4px 4px 0}
+
+</style>
 <div class="app">
-<!-- ================= LEFT RAIL ================= -->
 <aside class="rail">
   <div class="brand"><i>EA</i> AuditISA</div>
   <button class="nav" data-v="hub" aria-current="true"><span class="ic">◎</span>Engagement hub</button>
   <button class="nav" data-v="mytasks"><span class="ic">☰</span>My tasks<span class="bdg" id="myCount">6</span></button>
-  <div class="railh">Engagement file</div>
-  <button class="nav" data-sec="0"><span class="ic">①</span>Acceptance</button>
-  <button class="nav" data-sec="1"><span class="ic">②</span>Scope &amp; Strategy</button>
-  <button class="nav" data-sec="2"><span class="ic">③</span>Execution</button>
-  <button class="nav" data-sec="3"><span class="ic">④</span>Conclusion</button>
-  <div class="railh">Working tools</div>
-  <button class="nav" data-v="console"><span class="ic">▤</span>Working console</button>
-  <button class="nav" data-v="cra"><span class="ic">▦</span>Combined risk</button>
-  <button class="nav" data-v="map"><span class="ic">⇄</span>Linkage map</button>
+  <div class="railh">The engagement, in sequence</div>
+  <button class="nav" data-v="sec0"><span class="ic">①</span>Acceptance<span class="bdg" id="b0"></span></button>
+  <button class="nav" data-v="sec1"><span class="ic">②</span>Scope &amp; Strategy<span class="bdg" id="b1"></span></button>
+  <button class="nav" data-v="sec2"><span class="ic">③</span>Execution<span class="bdg" id="b2"></span></button>
+  <button class="nav" data-v="sec3"><span class="ic">④</span>Conclusion<span class="bdg" id="b3"></span></button>
+  <div class="railh">Engagement</div>
   <button class="nav" data-v="team"><span class="ic">◍</span>Team</button>
-  <div class="railfoot">Design proposal · 8 Aug 2026<br>Structure after EY Canvas; wording and visual language original.</div>
+  <div class="railfoot">Design proposal · 8 Aug 2026<br>Layout conventions after EY Canvas; wording, visual language and methodology original.</div>
 </aside>
 
-<!-- ================= MAIN ================= -->
 <div class="main">
 <div class="topbar">
   <div class="entpick"><b>ZOEDEN SA</b> · FY 2026 <span style="color:var(--muted)">▾</span></div>
@@ -261,44 +290,22 @@ footer{margin-top:22px;font-size:11.5px;color:var(--muted);border-top:1px solid 
 
 <div class="body">
 
-<!-- ============ HUB ============ -->
 <section class="view on" id="v-hub">
   <div class="band">
-    <div class="panel">
-      <div class="phead"><h2>Completion</h2></div>
-      <div class="gauges" id="gauges"></div>
-    </div>
-    <div class="panel">
-      <div class="phead"><h2>Task status</h2><span class="sub" id="tsSub"></span></div>
-      <div class="statuslist" id="statuslist"></div>
-    </div>
-    <div class="panel">
-      <div class="phead"><h2>Reference</h2></div>
-      <div class="reflist">
-        <a href="#" data-v="console">▤ <span>Working console</span></a>
-        <a href="#" data-v="cra">▦ <span>Combined risk assessment</span></a>
-        <a href="#" data-form="PLN-5">◇ <span>Materiality (PLN-5)</span></a>
-        <a href="#" data-form="ACC-6">◇ <span>Engagement letter (ACC-6)</span></a>
-        <a href="#" data-v="map">⇄ <span>Linkage map</span></a>
-      </div>
-    </div>
+    <div class="panel"><div class="phead"><h2>Completion</h2></div><div class="gauges" id="gauges"></div></div>
+    <div class="panel"><div class="phead"><h2>Task status</h2><span class="sub" id="tsSub"></span></div><div class="statuslist" id="statuslist"></div></div>
+    <div class="panel"><div class="phead"><h2>Findings</h2><span class="sub">raised across the file</span></div><div id="findSum"></div></div>
   </div>
-
   <div class="panel" style="margin-bottom:12px">
-    <div class="phead"><h2>Evidence spine</h2><span class="sub">Each node consumes the one before it. Click a live node to open it in the console.</span></div>
+    <div class="phead"><h2>Evidence spine</h2><span class="sub">Each node consumes the one before it. Click a node to open the section and the task that owns it.</span></div>
     <div class="spine" id="spine"></div>
   </div>
-
-  <div class="phead" style="padding:0 3px"><h2>Sections</h2><span class="sub">Click to unveil groups, then a group for its working papers.</span></div>
-  <div class="secgrid" id="secgrid"></div>
-
-  <div class="panel" style="margin-top:12px">
+  <div class="panel">
     <div class="phead"><h2>Needs attention</h2><span class="sub">Derived from the file, not maintained by hand</span></div>
     <div id="attn"></div>
   </div>
 </section>
 
-<!-- ============ MY TASKS ============ -->
 <section class="view" id="v-mytasks">
   <div class="panel">
     <div class="phead"><h2>My tasks</h2><span class="sub">Assigned to Adèle Nkoulou · Audit senior</span></div>
@@ -306,141 +313,11 @@ footer{margin-top:22px;font-size:11.5px;color:var(--muted);border-top:1px solid 
   </div>
 </section>
 
-<!-- ============ CONSOLE ============ -->
-<section class="view" id="v-console">
-  <div class="console">
-    <div class="steprail" id="steprail"></div>
-    <div>
-      <div class="step on" id="step-0"><div class="panel">
-        <div class="phead"><h2>Trial balance and general ledger</h2><span class="sub">Imported 8 Aug · version 2 · 14 accounts</span></div>
-        <p class="note">Map every account to a lead schedule. An unmapped account blocks gate G2, so the mapping is completed here before scoping begins. Prior-period balances load with the import, and the comparison feeds the preliminary analytics.</p>
-        <div class="kpis" id="k1"></div>
-        <div class="tblwrap"><table class="grid" id="tbTable"></table></div>
-        <p class="hint" style="margin-top:9px">Try it: map an unmapped account and watch the gate chip, the account universe and PLN-6 update together.</p>
-      </div></div>
+<section class="view" id="v-sec0"></section>
+<section class="view" id="v-sec1"></section>
+<section class="view" id="v-sec2"></section>
+<section class="view" id="v-sec3"></section>
 
-      <div class="step" id="step-1"><div class="panel">
-        <div class="phead"><h2>Significance and relevant assertions</h2><span class="sub">ISA 315 (Revised 2019) ¶29</span></div>
-        <p class="note">An account is significant where it has one or more relevant assertion. The quantitative test runs against performance materiality automatically. The qualitative test is yours: tick an account whose size does not make it significant but whose nature does.</p>
-        <div class="slider" style="margin:12px 0">
-          <label for="omRange">Overall materiality</label>
-          <input type="range" id="omRange" min="4000000" max="42000000" step="500000" value="12500000">
-          <span class="tnum" id="omOut">12 500 000</span>
-          <span class="chip info" id="propChip">performance materiality 8 125 000</span>
-        </div>
-        <div class="kpis" id="k2"></div>
-        <div class="tblwrap"><table class="grid" id="sigTable"></table></div>
-        <p class="hint" style="margin-top:9px">Try it: drag materiality. Accounts cross the threshold, and anything already built on an account that drops out is flagged as stale.</p>
-      </div></div>
-
-      <div class="step" id="step-2"><div class="panel">
-        <div class="phead"><h2>What can go wrong, and the controls that address it</h2><span class="sub">ISA 315 ¶25–26</span></div>
-        <p class="note">For each significant account, record what can go wrong against the assertion it would affect. Name the control that addresses it, or leave it to be answered substantively in the next step. A row with neither answer blocks gate G2.</p>
-        <div class="kpis" id="k3"></div>
-        <div id="wcgwHost"></div>
-      </div></div>
-
-      <div class="step" id="step-3"><div class="panel">
-        <div class="phead"><h2>Audit strategy per assertion</h2><span class="sub">ISA 330 ¶6–8</span></div>
-        <p class="note">Choose the strategy for each row. Controls reliance requires a named control and commits you to testing its operating effectiveness. Fully substantive holds control risk at maximum, and the sample size computed downstream rises with it.</p>
-        <div class="kpis" id="k4"></div>
-        <div class="tblwrap"><table class="grid" id="stratTable"></table></div>
-        <p class="hint" style="margin-top:9px">Try it: switch a row to controls reliance without naming a control. The row reports what is missing rather than accepting it.</p>
-      </div></div>
-    </div>
-
-    <div class="ctxrail">
-      <div class="panel"><h4>This step feeds</h4><div class="flow" id="railFlow"></div></div>
-      <div class="panel"><h4>Working papers served</h4><div id="railForms" style="display:flex;flex-direction:column;gap:5px"></div></div>
-      <div class="panel"><h4>Propagation log</h4><div id="railLog" style="font-size:12px;color:var(--muted)">No change yet.</div></div>
-    </div>
-  </div>
-</section>
-
-<!-- ============ CRA ============ -->
-<section class="view" id="v-cra">
-  <div class="panel">
-    <div class="phead"><h2>Combined risk assessment</h2><span class="sub">Significant accounts × relevant assertions</span></div>
-    <p class="note">Inherent risk comes from what can go wrong at each assertion. Control risk follows the strategy: maximum where the approach is fully substantive, below maximum where a control is named and will be tested. The combined assessment drives the extent of work the programme derives.</p>
-    <div class="kpis" id="kcra"></div>
-    <div class="tblwrap"><table class="grid cra" id="craTable"></table></div>
-    <p class="hint" style="margin-top:9px">H higher · M moderate · L lower · — no relevant assertion identified. Built from console steps 2 to 4.</p>
-  </div>
-</section>
-
-<!-- ============ TASK ============ -->
-<section class="view" id="v-task">
-  <div class="panel" style="padding:0;overflow:hidden">
-    <div class="tmeta">
-      <span class="chip mono" id="tCode">PLN-6</span>
-      <b id="tTitle" style="font-size:14.5px">Account scoping</b>
-      <span class="chip info" id="tGate">Gate G2</span>
-      <span class="chip" id="tStatus">In progress</span>
-      <span class="chip" id="tAssign">Assigned · Adèle Nkoulou</span>
-      <button class="mini pri" style="margin-left:auto" id="tSign">Sign off as preparer</button>
-    </div>
-    <div class="ttabs">
-      <button class="ttab" aria-selected="true" data-tp="paper">Working paper</button>
-      <button class="ttab" aria-selected="false" data-tp="evidence">Evidence</button>
-      <button class="ttab" aria-selected="false" data-tp="links">Linkages</button>
-    </div>
-
-    <div class="tpane on" id="tp-paper">
-      <div class="work">
-        <div>
-          <div class="legend">
-            <span><i style="background:var(--blue-soft);border:1px solid var(--blue)"></i>Written by the console — change it there</span>
-            <span><i style="background:#FFFBEB;border:1px dashed #C9A227"></i>Your judgement, recorded here</span>
-          </div>
-          <div class="formpaper" id="formPaper"></div>
-        </div>
-        <div class="ctxrail">
-          <div class="panel">
-            <h4>Sign-off</h4>
-            <div class="signrow"><span>Preparer</span><b style="margin-left:auto" id="sgPrep">—</b></div>
-            <div class="signrow"><span>Reviewer</span><b style="margin-left:auto">—</b></div>
-            <div class="signrow" style="border:0"><span>Partner</span><b style="margin-left:auto">—</b></div>
-          </div>
-          <div class="panel">
-            <h4>Review notes</h4>
-            <div id="revNotes"></div>
-            <div style="display:flex;gap:6px;margin-top:8px">
-              <input type="text" id="revIn" placeholder="Add a review note" style="flex:1">
-              <button class="mini" id="revAdd">Add</button>
-            </div>
-          </div>
-          <div class="panel">
-            <h4>Open in console</h4>
-            <div id="tConsole" style="display:flex;flex-direction:column;gap:6px"></div>
-          </div>
-        </div>
-      </div>
-    </div>
-
-    <div class="tpane" id="tp-evidence">
-      <div class="tblwrap"><table class="grid" id="evTable"></table></div>
-      <p class="hint" style="margin-top:9px">Evidence attaches to the task, and every item carries the working-paper reference used in the paper.</p>
-    </div>
-
-    <div class="tpane" id="tp-links">
-      <div class="work">
-        <div class="panel"><h4 style="margin:0 0 8px;font-size:10.5px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted)">Fed by</h4><div class="flow" id="tFedBy"></div></div>
-        <div class="panel"><h4 style="margin:0 0 8px;font-size:10.5px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted)">Feeds into</h4><div class="flow" id="tFeeds"></div></div>
-      </div>
-    </div>
-  </div>
-</section>
-
-<!-- ============ MAP ============ -->
-<section class="view" id="v-map">
-  <div class="panel">
-    <div class="phead"><h2>Where each record comes from and where it goes</h2><span class="sub">36 working papers across five phases</span></div>
-    <p class="note" style="margin-bottom:13px">Each card names the paper, the record it owns, and the papers it hands that record on to. Click a card to open the paper.</p>
-    <div class="maplane" id="maplane"></div>
-  </div>
-</section>
-
-<!-- ============ TEAM ============ -->
 <section class="view" id="v-team">
   <div class="panel">
     <div class="phead"><h2>Engagement team</h2><span class="sub">Roles drive review rights and the tasks that can be assigned</span></div>
@@ -448,11 +325,10 @@ footer{margin-top:22px;font-size:11.5px;color:var(--muted);border-top:1px solid 
   </div>
 </section>
 
-<footer>AuditISA · Engagement Console · design proposal. Demo data for ZOEDEN SA. Structure follows the EY Canvas layout conventions the firm already works to; all wording, visual language and methodology content are original to AuditISA.</footer>
+<footer>AuditISA · Engagement Console · design proposal. Demo data for ZOEDEN SA. Every task, tool and document sits inside one of the four sections, in the order the work is performed.</footer>
 </div></div></div>
 
 <script>
-/* =============== data =============== */
 var FMT=function(n){return (Math.round(n)+'').replace(/\B(?=(\d{3})+(?!\d))/g,' ');};
 var ENG={om:12500000,pmPct:.65,ctPct:.05};
 function PM(){return Math.round(ENG.om*ENG.pmPct);}
@@ -542,7 +418,6 @@ def('CON-13','File assembly and archive','ISA 230 ¶14–16','G6',['CON-8'],[],'
 var DONE={'ACC-1':1,'ACC-2':1,'ACC-3':1,'ACC-4':1,'ACC-5':1,'ACC-6':1,'ACC-7':1,'PLN-3':1,'PLN-5':1,'PLN-2':3,'PLN-6':2,'PLN-7':2,'PLN-4':2,'PLN-9':0,'PLN-1':0,'PLN-8':0};
 var MINE=['PLN-6','PLN-7','PLN-9','PLN-8','EXE-4','EXE-5'];
 
-/* =============== derived =============== */
 function mapped(){return TB.filter(function(r){return r.l;});}
 function unmapped(){return TB.filter(function(r){return !r.l;});}
 function isSig(r){return Math.abs(r.v)>=PM()||!!QUAL[r.c];}
@@ -557,88 +432,6 @@ function kpi(v,l){return '<div class="kpi"><b class="tnum">'+v+'</b><span>'+l+'<
 function secStats(s){var all=[],d=0;s.groups.forEach(function(g){g.forms.forEach(function(f){all.push(f);if(DONE[f]===1)d++;});});
   return {n:all.length,done:d,pct:all.length?Math.round(d/all.length*100):0};}
 
-/* =============== hub =============== */
-function drawGauges(){
-  document.getElementById('gauges').innerHTML=SECT.map(function(s,i){var st=secStats(s);
-    return '<button class="gauge" data-sec="'+i+'"><div class="ring" style="--p:'+st.pct+'"><i>'+st.pct+'%</i></div>'+
-      '<span class="gl">'+s.name+'</span><span class="gs">'+st.done+' of '+st.n+' papers</span></button>';}).join('');
-}
-function drawStatus(){
-  var rows=[];SECT.forEach(function(s){s.groups.forEach(function(g){
-    var d=g.forms.filter(function(f){return DONE[f]===1;}).length;
-    rows.push('<button class="strow" data-grpjump="'+g.c+'"><span class="gc">'+g.c+'</span><span style="flex:0 0 auto;min-width:120px">'+g.t+'</span>'+
-      '<span class="bar"><i style="width:'+Math.round(d/g.forms.length*100)+'%"></i></span><span class="n">'+d+'/'+g.forms.length+'</span></button>');});});
-  document.getElementById('statuslist').innerHTML=rows.join('');
-  var tot=Object.keys(F).length,dn=Object.keys(DONE).filter(function(k){return DONE[k]===1;}).length;
-  document.getElementById('tsSub').textContent=dn+' of '+tot+' working papers signed off';
-}
-var SPINE=[
- {k:'Trial balance',s:function(){return mapped().length+' of '+TB.length+' mapped';},step:0},
- {k:'Account universe',s:function(){return sigAccts().length+' significant';},step:1},
- {k:'What can go wrong',s:function(){return WCGW.length+' recorded';},step:2},
- {k:'Strategy',s:function(){return WCGW.filter(function(w){return w.strat==='reliance';}).length+' reliance · '+WCGW.filter(function(w){return w.strat==='substantive';}).length+' substantive';},step:3},
- {k:'Combined risk',s:function(){return 'assertion matrix';},step:null,v:'cra'},
- {k:'Programme',s:function(){return 'derived, not copied';},step:null},
- {k:'Evidence',s:function(){return 'per assertion';},step:null},
- {k:'Opinion',s:function(){return 'framework-locked';},step:null}];
-function drawSpine(){
-  document.getElementById('spine').innerHTML=SPINE.map(function(n){
-    return '<button class="snode'+(n.step!==null||n.v?' live':'')+'" data-step="'+(n.step===null?'':n.step)+'" data-jv="'+(n.v||'')+'">'+
-      '<b>'+n.k+'</b><span>'+n.s()+'</span></button>';}).join('');
-}
-function drawSections(){
-  document.getElementById('secgrid').innerHTML=SECT.map(function(s,i){var st=secStats(s);
-    var block=s.id==='st'?(unmapped().length||noCover().length?'<span class="chip bad">G2 blocked</span>':'<span class="chip warn">G2 open</span>')
-      :s.id==='acc'?'<span class="chip ok">G1 cleared</span>':'<span class="chip">'+s.gate+' not reached</span>';
-    return '<div><button class="seccard" aria-expanded="false" data-sec="'+i+'">'+
-      '<div class="code">'+s.code+'</div><h3>'+s.name+'</h3>'+
-      '<div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:9px"><span class="chip">'+st.done+' of '+st.n+' papers</span>'+block+'</div></button>'+
-      '<div class="unveil" id="unveil-'+i+'"></div></div>';}).join('');
-}
-function drawUnveil(i){
-  document.getElementById('unveil-'+i).innerHTML=SECT[i].groups.map(function(g,j){
-    return '<button class="grouprow" data-sec="'+i+'" data-grp="'+j+'"><span class="gc">'+g.c+'</span><span class="gt">'+g.t+'</span><span class="gn">'+g.forms.length+'</span></button>'+
-      '<div class="tasklist" id="tl-'+i+'-'+j+'">'+g.forms.map(function(fc){var d=DONE[fc]||0;
-        return '<button class="taskrow" data-form="'+fc+'"><span class="dot '+(d===1?'done':d===2?'prog':d===3?'rev':'')+'"></span><span>'+F[fc].t+'</span><span class="fc">'+fc+'</span></button>';}).join('')+'</div>';}).join('');
-}
-function drawAttn(){
-  var it=[];
-  if(unmapped().length)it.push(['bad','Gate G2 blocked','<b>'+unmapped().length+' account'+(unmapped().length>1?'s':'')+'</b> not mapped to a lead schedule: '+unmapped().map(function(r){return r.c;}).join(', ')+'. Map in console step 1.']);
-  if(noCover().length)it.push(['bad','Coverage gap','<b>'+noCover().length+' significant account'+(noCover().length>1?'s have':' has')+'</b> no what-can-go-wrong recorded: '+noCover().map(function(a){return a.c;}).join(', ')+'.']);
-  if(orphanWcgw().length)it.push(['warn','Stale record','<b>'+orphanWcgw().length+' what-can-go-wrong</b> sits on an account that is no longer significant. Reconsider it in step 3.']);
-  if(unanswered().length)it.push(['warn','Incomplete strategy','<b>'+unanswered().length+' row</b> set to controls reliance with no control named.']);
-  if(!it.length)it.push(['ok','Clear','Nothing is blocking the current gate.']);
-  document.getElementById('attn').innerHTML=it.map(function(x){
-    return '<div style="display:flex;gap:10px;align-items:flex-start;padding:8px 0;border-top:1px solid var(--line)"><span class="chip '+x[0]+'">'+x[1]+'</span><span style="font-size:12.5px;color:var(--ink-soft)">'+x[2]+'</span></div>';}).join('');
-  var g=document.getElementById('gateChip');
-  var blocked=unmapped().length||noCover().length;
-  g.className='chip '+(blocked?'bad':'warn');g.textContent=blocked?'G2 blocked':'G2 open';
-}
-function drawMine(){
-  document.getElementById('myTable').innerHTML='<tr><th>Working paper</th><th>Section</th><th>Status</th><th>Gate</th><th></th></tr>'+
-   MINE.map(function(c){var f=F[c],d=DONE[c]||0;
-    var sec=SECT.filter(function(s){return s.groups.some(function(g){return g.forms.indexOf(c)>-1;});})[0];
-    return '<tr><td><span class="mono" style="color:var(--muted)">'+c+'</span> '+f.t+'</td><td>'+(sec?sec.name:'')+'</td>'+
-     '<td>'+(d===1?'<span class="chip ok">signed off</span>':d===2?'<span class="chip info">in progress</span>':d===3?'<span class="chip warn">for review</span>':'<span class="chip">not started</span>')+'</td>'+
-     '<td><span class="chip mono">'+f.gate+'</span></td><td><button class="mini" data-form="'+c+'">Open</button></td></tr>';}).join('');
-  document.getElementById('myCount').textContent=MINE.length;
-}
-
-/* =============== console =============== */
-var STEPS=[
- {lab:'Trial balance and mapping',sub:'Import, map to lead schedules',feeds:[['Account universe','Every account mapped to its lead schedule and cycle'],['Preliminary analytics','Current against prior period, by lead']],forms:['PLN-6']},
- {lab:'Significance',sub:'Quantitative and qualitative',feeds:[['Relevant assertions','Per significant account'],['Scope of the file','What must be answered before G2 clears']],forms:['PLN-5','PLN-6']},
- {lab:'What can go wrong',sub:'By assertion, with controls',feeds:[['Flow understanding','The critical path and its control points'],['Control population','What PLN-4 evaluates for design and implementation']],forms:['PLN-7','PLN-4']},
- {lab:'Audit strategy',sub:'Reliance or fully substantive',feeds:[['Combined risk assessment','Inherent and control risk per assertion'],['Programme derivation','Nature, timing and extent of every step']],forms:['PLN-9','EXE-1']}];
-var curStep=0;
-function drawRail(){
-  document.getElementById('steprail').innerHTML=STEPS.map(function(s,i){
-    return '<button data-step="'+i+'" aria-current="'+(i===curStep)+'"><span class="n">'+(i+1)+'</span><span class="lab">'+s.lab+'<span class="sub">'+s.sub+'</span></span></button>';}).join('');
-  var s=STEPS[curStep];
-  document.getElementById('railFlow').innerHTML=s.feeds.map(function(f){return '<div><b>'+f[0]+'</b>'+f[1]+'</div>';}).join('');
-  document.getElementById('railForms').innerHTML=s.forms.map(function(fc){return '<button class="mini" data-form="'+fc+'" style="text-align:left">'+fc+' · '+F[fc].t+'</button>';}).join('');
-}
-function showStep(i){curStep=i;Array.prototype.forEach.call(document.querySelectorAll('.step'),function(el,j){el.classList.toggle('on',j===i);});drawRail();}
 function drawTb(){
   document.getElementById('tbTable').innerHTML='<tr><th>Account</th><th>Description</th><th style="text-align:right">Current</th><th style="text-align:right">Prior</th><th style="text-align:right">Movement</th><th>Lead schedule</th></tr>'+
    TB.map(function(r,i){var mv=r.v-r.py,pc=r.py?Math.round(mv/Math.abs(r.py)*100):0;
@@ -661,10 +454,9 @@ function drawSig(){
   var cov=sigAccts().reduce(function(a,r){return a+Math.abs(r.v);},0),tot=TB.reduce(function(a,r){return a+Math.abs(r.v);},0);
   document.getElementById('k2').innerHTML=kpi(sigAccts().length,'significant')+kpi(TB.length-sigAccts().length,'not significant')+
    kpi(Math.round(cov/tot*100)+'%','coverage')+kpi(sigAccts().filter(function(r){return QUAL[r.c];}).length,'by nature');
-  ['omOut'].forEach(function(id){document.getElementById(id).textContent=FMT(ENG.om);});
-  document.getElementById('propChip').textContent='performance materiality '+FMT(PM());
-  document.getElementById('omLabel').textContent=FMT(ENG.om);
-  document.getElementById('pmLabel').textContent=FMT(PM());
+  var _o=document.getElementById("omOut");if(_o)_o.textContent=FMT(ENG.om);
+  document.getElementById("omLabel").textContent=FMT(ENG.om);
+  document.getElementById("pmLabel").textContent=FMT(PM());
 }
 function drawWcgw(){
   var sig=sigAccts();
@@ -698,7 +490,6 @@ function drawStrat(){
    kpi(rows.filter(function(w){return w.strat==='reliance';}).length,'controls to test');
 }
 
-/* =============== CRA =============== */
 function craLevel(acct,as){
   var w=WCGW.filter(function(x){return x.a===acct&&x.as===as;});
   if(!w.length)return (ASSERT[acct]||[]).indexOf(as)>-1?['l','L']:['n','—'];
@@ -720,8 +511,6 @@ function drawCra(){
    kpi(WCGW.filter(function(w){return w.strat==='reliance'&&w.ctrl;}).length,'controls relied on');
 }
 
-/* =============== task page =============== */
-var curForm='PLN-6';
 function flowCard(l){return l.map(function(x){var f=F[x];return '<div><b>'+(f?x:'source')+'</b>'+(f?f.t:x)+'</div>';}).join('')||'<div style="font-size:12px;color:var(--muted)">Nothing recorded</div>';}
 function fauto(l,v){return '<div class="frow"><div class="flab">'+l+'</div><div class="fauto">'+v+'</div></div>';}
 function fin(l){return '<div class="frow"><div class="flab">'+l+'</div><textarea class="fin" placeholder="⟨ Document the results of the work performed, with W/P reference ⟩"></textarea></div>';}
@@ -757,108 +546,337 @@ function formBody(c){
     fin('The procedures, evaluations and conclusions this paper records')+
     fin('Explanation of each negative answer, opening beneath the question it belongs to');
 }
-function drawNotes(){
-  var ns=NOTES[curForm]||[];
-  document.getElementById('revNotes').innerHTML=ns.length?ns.map(function(n){
-    return '<div class="rnote'+(n[4]?' open':'')+'"><div class="rh"><span class="who">'+n[0]+'</span><span class="chip mono">'+n[1]+'</span><span class="when">'+n[2]+'</span></div>'+n[3]+'</div>';}).join('')
-    :'<p class="hint" style="margin:0">No review notes on this paper.</p>';
+
+/* ============ sequence within each section ============ */
+var SEQ=[
+ ['ACC-1','ACC-2','ACC-3','ACC-4','ACC-5','ACC-6','ACC-7'],
+ ['PLN-3','PLN-2','PLN-5','PLN-6','PLN-7','PLN-4','PLN-8','PLN-9','PLN-1'],
+ ['EXE-1','EXE-2','EXE-3','EXE-4','EXE-5','EXE-6','EXE-7'],
+ ['CON-1','CON-2','CON-3','CON-4','CON-5','CON-6','CON-7','CON-8','CON-9','CON-10','CON-11','CON-12','CON-13']];
+var SECNAME=['Acceptance','Scope & Strategy','Execution','Conclusion'];
+var SECGATE=['G1','G2','G3 and G4','G4, G5 and G6'];
+var SECINTRO=[
+ 'Performed before any commitment is given to the client. Nothing in the later sections may begin until gate G1 clears.',
+ 'Establishes what the audit will cover, at what threshold, against which risks, and by which strategy. Gate G2 holds the file here until the scope is complete.',
+ 'Performs the programme the previous section derived. Controls conclusions clear gate G3; the evidence conclusion feeds gate G4.',
+ 'Draws the file together, evaluates what was found, and forms the opinion. Gates G4, G5 and G6 sit in this section.'];
+/* which section a form belongs to */
+var SEC_OF={};SEQ.forEach(function(l,i){l.forEach(function(c){SEC_OF[c]=i;});});
+/* interactive tools embedded in the task that owns them */
+var TOOLS={'PLN-5':['mat'],'PLN-6':['tb','sig'],'PLN-7':['wcgw'],'PLN-9':['strat','cra']};
+var TOOLMETA={
+ mat:['Materiality','Set the amounts. Every dependent figure in the file recomputes: the significance test below, the sample sizes in EXE-3 and the evaluation in CON-4.'],
+ tb:['Trial balance and lead-schedule mapping','Map every account. An unmapped account blocks gate G2, so the mapping is completed before scoping begins.'],
+ sig:['Significance and relevant assertions','The quantitative test runs against performance materiality. The qualitative test is yours: tick an account whose nature, not size, makes it significant.'],
+ wcgw:['What can go wrong, and the controls that address it','Record what can go wrong against the assertion it would affect. Name the control, or leave it to be answered substantively.'],
+ strat:['Audit strategy per assertion','Controls reliance requires a named control and a test of operating effectiveness. Fully substantive holds control risk at maximum.'],
+ cra:['Combined risk assessment','Built from the rows above. Inherent risk comes from what can go wrong; control risk follows the strategy.']};
+/* per-section documents */
+var DOCS=[
+ [['Signed engagement letter','pdf','2 Aug'],['RCCM extract','pdf','28 Jul'],['Sanctions and PEP screening report','pdf','29 Jul']],
+ [['Trial balance export, version 2','xlsx','8 Aug'],['Prior-year signed financial statements','pdf','25 Jul'],['Board minutes, Jan to Jun','pdf','1 Aug'],['Organisation chart','pdf','1 Aug']],
+ [['Bank confirmation responses','pdf','—'],['Inventory count instructions','docx','—']],
+ [['Draft financial statements','xlsx','—']]];
+/* findings, in the Canvas sense: matters raised on a task */
+var FINDINGS={'PLN-6':[['Open','Two accounts remain unmapped, blocking gate G2','Adèle Nkoulou','8 Aug']],
+ 'PLN-7':[['Cleared','Cut-off control not evidenced for the last two days of the period','Yannick Fotso','6 Aug']]};
+var openTask={};
+
+/* ============ cross-section linkages ============ */
+function sectionLinks(i){
+  var inn={},out={};
+  SEQ[i].forEach(function(c){
+    (F[c].fedBy||[]).forEach(function(src){
+      var s=SEC_OF[src];
+      if(s===undefined){ (inn['ext']=inn['ext']||[]).push([src,c]); }
+      else if(s!==i){ (inn[s]=inn[s]||[]).push([src,c]); }});
+    (F[c].feeds||[]).forEach(function(dst){
+      var s=SEC_OF[dst];
+      if(s!==undefined&&s!==i){ (out[s]=out[s]||[]).push([c,dst]); }});
+  });
+  return {inn:inn,out:out};
 }
-function openForm(c){
-  curForm=c;var f=F[c],d=DONE[c]||0;
-  document.getElementById('tCode').textContent=c;
-  document.getElementById('tTitle').textContent=f.t;
-  document.getElementById('tGate').textContent='Gate '+f.gate;
-  var st=document.getElementById('tStatus');
-  st.className='chip '+(d===1?'ok':d===2?'info':d===3?'warn':'');
-  st.textContent=d===1?'Signed off':d===2?'In progress':d===3?'For review':'Not started';
-  document.getElementById('sgPrep').textContent=d===1?'A. Nkoulou · 4 Aug':'—';
-  document.getElementById('formPaper').innerHTML='<div class="fcode">'+c+' · WORKING PAPER</div><h3>'+f.t+'</h3>'+
-    '<div class="fstd"><b>Applicable standards:</b> '+f.std+' · gate '+f.gate+'</div>'+
-    '<div class="fsec">Record owned by this paper</div><p class="hint" style="margin:0 0 6px">'+f.owns+'</p>'+
-    '<div class="fsec">The paper</div>'+formBody(c);
-  document.getElementById('tFedBy').innerHTML=flowCard(f.fedBy);
-  document.getElementById('tFeeds').innerHTML=flowCard(f.feeds);
-  document.getElementById('tConsole').innerHTML=(f.st!==undefined)?
-    '<button class="mini pri" data-console="'+f.st+'" style="text-align:left">Console step '+(f.st+1)+' · '+STEPS[f.st].lab+'</button><p class="hint" style="margin:6px 0 0">The blue fields are written by that step.</p>'
-    :'<p class="hint" style="margin:0">Documented on the paper itself. Header and sign-off still come from the engagement record.</p>';
-  var ev=EVID[c]||[['—','No evidence attached yet','',''] ];
-  document.getElementById('evTable').innerHTML='<tr><th>W/P ref</th><th>Item</th><th>Type</th><th>Added</th></tr>'+
-    ev.map(function(e){return '<tr><td class="mono">'+e[0]+'</td><td>'+e[1]+'</td><td>'+e[2]+'</td><td style="color:var(--muted)">'+e[3]+'</td></tr>';}).join('');
-  drawNotes();show('task');
+function linkBand(i){
+  var L=sectionLinks(i),h='';
+  function rows(m,dir){
+    var ks=Object.keys(m);
+    if(!ks.length)return '<div class="linkrow"><em>'+(dir==='in'?'Nothing outside this section feeds it.':'Nothing in this section feeds a later one.')+'</em></div>';
+    return ks.map(function(k){
+      var label=k==='ext'?'Engagement record':SECNAME[k];
+      var items=m[k].map(function(p){
+        return dir==='in'?'<b>'+p[0]+'</b> → '+p[1]:'<b>'+p[0]+'</b> → '+p[1];}).join(' · ');
+      return '<div class="linkrow"><span class="sn">'+label+'</span><span>'+items+'</span></div>';}).join('');
+  }
+  h='<div class="linkband">'+
+    '<div class="linkbox"><h5>What this section is fed by</h5>'+rows(L.inn,'in')+'</div>'+
+    '<div class="linkbox"><h5>What this section feeds</h5>'+rows(L.out,'out')+'</div></div>';
+  return h;
 }
 
-/* =============== map / team =============== */
-function drawMap(){
-  document.getElementById('maplane').innerHTML=SECT.map(function(s){
-    var codes=[];s.groups.forEach(function(g){g.forms.forEach(function(f){codes.push(f);});});
-    return '<div class="lane"><h4>'+s.name+' · '+s.gate+'</h4>'+codes.map(function(c){var f=F[c];
-      return '<button class="mcard" data-form="'+c+'"><b>'+c+'</b>'+f.t+'<span>owns: '+f.owns+'</span>'+(f.feeds.length?'<span>→ '+f.feeds.join(', ')+'</span>':'<span>→ end of chain</span>')+'</button>';}).join('')+'</div>';}).join('');
+/* ============ section rendering ============ */
+function statusChip(c){var d=DONE[c]||0;
+  return d===1?'<span class="chip ok">Signed off</span>':d===2?'<span class="chip info">In progress</span>':
+    d===3?'<span class="chip warn">For review</span>':'<span class="chip">Not started</span>';}
+function drawSection(i){
+  var st=secStats(SECT[i]);
+  var docs=DOCS[i]||[];
+  var html='<div class="sechead"><span class="num">'+(i+1)+'</span><span class="big">'+SECNAME[i]+'</span>'+
+    '<span class="chip mono">Gate '+SECGATE[i]+'</span><span class="chip">'+st.done+' of '+st.n+' papers signed off</span>'+
+    '<span class="bar" style="max-width:180px"><i style="width:'+st.pct+'%"></i></span></div>'+
+    '<p class="note" style="margin-bottom:13px">'+SECINTRO[i]+'</p>'+
+    linkBand(i)+
+    '<div class="phead" style="padding:0 3px"><h2>Tasks, in the order they are performed</h2><span class="sub">Open a task to work in it: the paper, its tools, evidence and findings are all inside.</span></div>'+
+    '<div class="seq">'+SEQ[i].map(function(c,j){return seqItem(c,j+1);}).join('')+'</div>'+
+    '<div class="panel" style="margin-top:14px">'+
+      '<div class="phead"><h2>Section documents</h2><span class="sub">'+docs.length+' attached</span></div>'+
+      '<div id="docs-'+i+'">'+docs.map(function(d,k){
+        return '<div class="docrow"><span class="dt">'+d[1]+'</span><span>'+d[0]+'</span><span style="color:var(--muted);font-size:11.5px">'+d[2]+'</span>'+
+          '<button class="mini rm" data-rmdoc="'+i+'|'+k+'">Remove</button></div>';}).join('')+'</div>'+
+      '<div class="drop" style="margin-top:8px">Drop files here, or <b data-adddoc="'+i+'" style="cursor:pointer;text-decoration:underline">attach a document</b> to this section</div>'+
+    '</div>';
+  document.getElementById('v-sec'+i).innerHTML=html;
+  SEQ[i].forEach(function(c){if(openTask[c])mountTask(c);});
+}
+function seqItem(c,n){
+  var f=F[c],op=!!openTask[c],tools=TOOLS[c]||[];
+  var fnd=(FINDINGS[c]||[]).filter(function(x){return x[0]==='Open';}).length;
+  return '<div class="seqitem'+(op?' open':'')+'" id="si-'+c+'">'+
+    '<button class="seqhead" data-tog="'+c+'"><span class="seqno">'+n+'</span>'+
+      '<span class="seqttl">'+f.t+'<span>'+c+' · '+f.std+'</span></span>'+
+      '<span class="seqmeta">'+(tools.length?'<span class="chip ok">'+tools.length+' tool'+(tools.length>1?'s':'')+'</span>':'')+
+      (fnd?'<span class="chip bad">'+fnd+' finding</span>':'')+statusChip(c)+
+      '<span class="chip mono">'+f.gate+'</span></span></button>'+
+    '<div class="seqbody" id="sb-'+c+'"></div></div>';
+}
+function mountTask(c){
+  var host=document.getElementById('sb-'+c);if(!host)return;
+  var f=F[c],tools=TOOLS[c]||[],d=DONE[c]||0;
+  host.innerHTML=
+   '<div class="tmeta" style="padding:11px 0;border-bottom:1px solid var(--line)">'+
+     '<span class="chip">Assigned · Adèle Nkoulou</span>'+
+     '<span class="chip mono">Time phase · planning</span>'+
+     '<button class="mini" data-handoff="'+c+'">Hand off to reviewer ▸</button>'+
+     '<button class="mini" data-sign="'+c+'">'+(d===1?'Withdraw sign-off':'Sign off as preparer')+'</button>'+
+     '<span class="chip" id="sg-'+c+'" style="margin-left:auto">'+(d===1?'Preparer · A. Nkoulou':'Not signed')+'</span>'+
+   '</div>'+
+   '<div class="ttabs" style="padding:0">'+
+     ['paper|Working paper','tools|Tools '+(tools.length?'('+tools.length+')':''),'evidence|Evidence','findings|Findings','activity|Activity']
+      .map(function(t,k){var p=t.split('|');
+        if(p[0]==='tools'&&!tools.length)return '';
+        return '<button class="ttab" data-tt="'+c+'|'+p[0]+'" aria-selected="'+(k===0)+'">'+p[1]+'</button>';}).join('')+
+   '</div>'+
+   '<div class="tpane on" id="pn-'+c+'-paper">'+paperPane(c)+'</div>'+
+   (tools.length?'<div class="tpane" id="pn-'+c+'-tools">'+tools.map(function(t){
+      return '<div class="tool"><h5>'+TOOLMETA[t][0]+'</h5><p class="note">'+TOOLMETA[t][1]+'</p><div id="tool-'+t+'"></div></div>';}).join('')+'</div>':'')+
+   '<div class="tpane" id="pn-'+c+'-evidence">'+evidencePane(c)+'</div>'+
+   '<div class="tpane" id="pn-'+c+'-findings">'+findingsPane(c)+'</div>'+
+   '<div class="tpane" id="pn-'+c+'-activity">'+activityPane(c)+'</div>';
+  tools.forEach(mountTool);
+}
+function paperPane(c){
+  var f=F[c];
+  return '<div class="legend" style="margin-top:12px">'+
+      '<span><i style="background:var(--blue-soft);border:1px solid var(--blue)"></i>Written by a tool in this section</span>'+
+      '<span><i style="background:#FFFBEB;border:1px dashed #C9A227"></i>Your judgement, recorded here</span></div>'+
+    '<div class="formpaper"><div class="fcode">'+c+' · WORKING PAPER</div><h3>'+f.t+'</h3>'+
+    '<div class="fstd"><b>Applicable standards:</b> '+f.std+' · gate '+f.gate+'</div>'+
+    '<div class="fsec">Record owned by this paper</div><p class="hint" style="margin:0 0 6px">'+f.owns+'</p>'+
+    '<div class="fsec">Relevant assertions</div><div style="margin-bottom:4px">'+
+      (SEC_OF[c]===1?Object.keys(ASSERT).slice(0,0).join(''):'')+
+      ['O','C','A','CO','CL','E','RO','AVA','P'].slice(0,5).map(function(a){return '<span class="assertchip">'+a+'</span>';}).join('')+
+      '<span class="hint">carried from the risk register</span></div>'+
+    '<div class="fsec">The paper</div>'+formBody(c)+'</div>';
+}
+function evidencePane(c){
+  var ev=EVID[c]||[];
+  return '<div style="padding-top:12px">'+
+   (ev.length?'<div class="tblwrap"><table class="grid"><tr><th>W/P ref</th><th>Item</th><th>Type</th><th>Added</th></tr>'+
+     ev.map(function(e){return '<tr><td class="mono">'+e[0]+'</td><td>'+e[1]+'</td><td>'+e[2]+'</td><td style="color:var(--muted)">'+e[3]+'</td></tr>';}).join('')+'</table></div>'
+    :'<p class="hint">No evidence attached to this task yet.</p>')+
+   '<div class="drop" style="margin-top:9px">Drop files here, or <b data-addev="'+c+'" style="cursor:pointer;text-decoration:underline">add evidence</b> to this task</div></div>';
+}
+function findingsPane(c){
+  var fs=FINDINGS[c]||[];
+  return '<div style="padding-top:12px">'+
+   (fs.length?'<div class="tblwrap"><table class="grid"><tr><th>Status</th><th>Finding</th><th>Raised by</th><th>Date</th></tr>'+
+     fs.map(function(x){return '<tr><td>'+(x[0]==='Open'?'<span class="chip bad">Open</span>':'<span class="chip ok">Cleared</span>')+'</td><td>'+x[1]+'</td><td>'+x[2]+'</td><td style="color:var(--muted)">'+x[3]+'</td></tr>';}).join('')+'</table></div>'
+    :'<p class="hint">No finding raised on this task.</p>')+
+   '<div style="display:flex;gap:7px;margin-top:9px"><input type="text" id="fi-'+c+'" placeholder="Describe the finding" style="flex:1">'+
+   '<button class="mini pri" data-addfind="'+c+'">Raise finding</button></div></div>';
+}
+function activityPane(c){
+  var ns=NOTES[c]||[];
+  return '<div style="padding-top:12px">'+
+   (ns.length?ns.map(function(n){return '<div class="rnote'+(n[4]?' open':'')+'"><div class="rh"><span class="who">'+n[0]+'</span><span class="chip mono">'+n[1]+'</span><span class="when">'+n[2]+'</span></div>'+n[3]+'</div>';}).join('')
+    :'<p class="hint">No review note on this task.</p>')+
+   '<div style="display:flex;gap:7px;margin-top:8px"><input type="text" id="rn-'+c+'" placeholder="Add a review note" style="flex:1">'+
+   '<button class="mini" data-addnote="'+c+'">Add note</button></div></div>';
+}
+
+/* ============ tools mounted inside tasks ============ */
+function mountTool(t){
+  var h=document.getElementById('tool-'+t);if(!h)return;
+  if(t==='mat')h.innerHTML='<div class="slider"><label for="omRange">Overall materiality</label>'+
+    '<input type="range" id="omRange" min="4000000" max="42000000" step="500000" value="'+ENG.om+'">'+
+    '<span class="tnum" id="omOut">'+FMT(ENG.om)+'</span></div>'+
+    '<div class="kpis" id="kmat"></div>';
+  if(t==='tb')h.innerHTML='<div class="kpis" id="k1"></div><div class="tblwrap"><table class="grid" id="tbTable"></table></div>';
+  if(t==='sig')h.innerHTML='<div class="kpis" id="k2"></div><div class="tblwrap"><table class="grid" id="sigTable"></table></div>';
+  if(t==='wcgw')h.innerHTML='<div class="kpis" id="k3"></div><div id="wcgwHost"></div>';
+  if(t==='strat')h.innerHTML='<div class="kpis" id="k4"></div><div class="tblwrap"><table class="grid" id="stratTable"></table></div>';
+  if(t==='cra')h.innerHTML='<div class="kpis" id="kcra"></div><div class="tblwrap"><table class="grid cra" id="craTable"></table></div>'+
+    '<p class="hint" style="margin-top:7px">H higher · M moderate · L lower · — no relevant assertion identified.</p>';
+  redrawTools();
+}
+function el(id){return document.getElementById(id);}
+function redrawTools(){
+  if(el('tbTable'))drawTb();
+  if(el('sigTable'))drawSig();
+  if(el('wcgwHost'))drawWcgw();
+  if(el('stratTable'))drawStrat();
+  if(el('craTable'))drawCra();
+  if(el('kmat'))el('kmat').innerHTML=kpi(FMT(ENG.om),'overall')+kpi(FMT(PM()),'performance')+
+    kpi(FMT(Math.round(ENG.om*ENG.ctPct)),'clearly trivial')+kpi(sigAccts().length,'accounts in scope');
+  el('omLabel').textContent=FMT(ENG.om);el('pmLabel').textContent=FMT(PM());
+  if(el('omOut'))el('omOut').textContent=FMT(ENG.om);
+}
+function log(m){LOG.unshift(m);if(LOG.length>6)LOG.pop();}
+
+/* ============ hub ============ */
+function drawGauges(){
+  el('gauges').innerHTML=SECT.map(function(s,i){var st=secStats(s);
+    return '<button class="gauge" data-gonav="sec'+i+'"><div class="ring" style="--p:'+st.pct+'"><i>'+st.pct+'%</i></div>'+
+      '<span class="gl">'+SECNAME[i]+'</span><span class="gs">'+st.done+' of '+st.n+' papers</span></button>';}).join('');
+  [0,1,2,3].forEach(function(i){var b=el('b'+i);if(b){var st=secStats(SECT[i]);b.textContent=st.done+'/'+st.n;}});
+}
+function drawStatus(){
+  var rows=[];SECT.forEach(function(s,i){s.groups.forEach(function(g){
+    var d=g.forms.filter(function(f){return DONE[f]===1;}).length;
+    rows.push('<button class="strow" data-gonav="sec'+i+'"><span class="gc">'+g.c+'</span><span style="flex:0 0 auto;min-width:118px">'+g.t+'</span>'+
+      '<span class="bar"><i style="width:'+Math.round(d/g.forms.length*100)+'%"></i></span><span class="n">'+d+'/'+g.forms.length+'</span></button>');});});
+  el('statuslist').innerHTML=rows.join('');
+  var tot=Object.keys(F).length,dn=Object.keys(DONE).filter(function(k){return DONE[k]===1;}).length;
+  el('tsSub').textContent=dn+' of '+tot+' working papers signed off';
+}
+function drawFind(){
+  var open=0,cl=0,rows=[];
+  Object.keys(FINDINGS).forEach(function(c){FINDINGS[c].forEach(function(x){
+    if(x[0]==='Open')open++;else cl++;
+    rows.push('<button class="strow" data-goform="'+c+'"><span class="gc">'+c+'</span><span style="flex:1;font-size:12.3px">'+x[1].slice(0,58)+'</span>'+
+      (x[0]==='Open'?'<span class="chip bad">Open</span>':'<span class="chip ok">Cleared</span>')+'</button>');});});
+  el('findSum').innerHTML='<div class="kpis" style="margin-top:0">'+kpi(open,'open')+kpi(cl,'cleared')+'</div>'+rows.join('');
+}
+var SPINE=[
+ {k:'Trial balance',s:function(){return mapped().length+' of '+TB.length+' mapped';},go:'PLN-6'},
+ {k:'Materiality',s:function(){return FMT(PM())+' performance';},go:'PLN-5'},
+ {k:'Account universe',s:function(){return sigAccts().length+' significant';},go:'PLN-6'},
+ {k:'What can go wrong',s:function(){return WCGW.length+' recorded';},go:'PLN-7'},
+ {k:'Strategy and combined risk',s:function(){return WCGW.filter(function(w){return w.strat==='reliance';}).length+' reliance · '+WCGW.filter(function(w){return w.strat==='substantive';}).length+' substantive';},go:'PLN-9'},
+ {k:'Programme',s:function(){return 'derived, not copied';},go:'EXE-1'},
+ {k:'Evidence',s:function(){return 'per assertion';},go:'EXE-5'},
+ {k:'Opinion',s:function(){return 'framework-locked';},go:'CON-8'}];
+function drawSpine(){
+  el('spine').innerHTML=SPINE.map(function(n){
+    return '<button class="snode live" data-goform="'+n.go+'"><b>'+n.k+'</b><span>'+n.s()+'</span></button>';}).join('');
+}
+function drawAttn(){
+  var it=[];
+  if(unmapped().length)it.push(['bad','Gate G2 blocked','<b>'+unmapped().length+' account'+(unmapped().length>1?'s':'')+'</b> not mapped to a lead schedule: '+unmapped().map(function(r){return r.c;}).join(', ')+'. Map them in Scope &amp; Strategy, task 4.','PLN-6']);
+  if(noCover().length)it.push(['bad','Coverage gap','<b>'+noCover().length+' significant account'+(noCover().length>1?'s have':' has')+'</b> no what-can-go-wrong: '+noCover().map(function(a){return a.c;}).join(', ')+'.','PLN-7']);
+  if(orphanWcgw().length)it.push(['warn','Stale record','<b>'+orphanWcgw().length+' what-can-go-wrong</b> sits on an account that is no longer significant.','PLN-7']);
+  if(unanswered().length)it.push(['warn','Incomplete strategy','<b>'+unanswered().length+' row</b> set to controls reliance with no control named.','PLN-9']);
+  if(!it.length)it.push(['ok','Clear','Nothing is blocking the current gate.','']);
+  el('attn').innerHTML=it.map(function(x){
+    return '<div style="display:flex;gap:10px;align-items:flex-start;padding:8px 0;border-top:1px solid var(--line)">'+
+      '<span class="chip '+x[0]+'">'+x[1]+'</span><span style="font-size:12.5px;color:var(--ink-soft);flex:1">'+x[2]+'</span>'+
+      (x[3]?'<button class="mini" data-goform="'+x[3]+'">Open</button>':'')+'</div>';}).join('');
+  var g=el('gateChip'),blocked=unmapped().length||noCover().length;
+  g.className='chip '+(blocked?'bad':'warn');g.textContent=blocked?'G2 blocked':'G2 open';
+}
+function drawMine(){
+  el('myTable').innerHTML='<tr><th>Working paper</th><th>Section</th><th>Status</th><th>Gate</th><th></th></tr>'+
+   MINE.map(function(c){var f=F[c];
+    return '<tr><td><span class="mono" style="color:var(--muted)">'+c+'</span> '+f.t+'</td><td>'+SECNAME[SEC_OF[c]]+'</td>'+
+     '<td>'+statusChip(c)+'</td><td><span class="chip mono">'+f.gate+'</span></td>'+
+     '<td><button class="mini" data-goform="'+c+'">Open</button></td></tr>';}).join('');
+  el('myCount').textContent=MINE.length;
 }
 function drawTeam(){
-  document.getElementById('teamTable').innerHTML='<tr><th>Name</th><th>Role</th><th>Rights</th><th>Assigned</th></tr>'+
+  el('teamTable').innerHTML='<tr><th>Name</th><th>Role</th><th>Rights</th><th>Assigned</th></tr>'+
    TEAM.map(function(t){return '<tr><td><b>'+t[0]+'</b></td><td><span class="chip">'+t[1]+'</span></td><td style="color:var(--muted)">'+t[2]+'</td><td>'+t[3]+'</td></tr>';}).join('');
 }
 
-/* =============== wiring =============== */
+/* ============ navigation ============ */
 function show(v){
   Array.prototype.forEach.call(document.querySelectorAll('.view'),function(s){s.classList.toggle('on',s.id==='v-'+v);});
   Array.prototype.forEach.call(document.querySelectorAll('.nav'),function(n){n.setAttribute('aria-current',n.dataset.v===v);});
   window.scrollTo({top:0,behavior:'smooth'});
 }
-function jumpSection(i){show('hub');
-  var card=document.querySelector('.seccard[data-sec="'+i+'"]');
-  if(card&&card.getAttribute('aria-expanded')!=='true'){card.setAttribute('aria-expanded','true');drawUnveil(i);document.getElementById('unveil-'+i).classList.add('on');}
-  setTimeout(function(){card&&card.scrollIntoView({behavior:'smooth',block:'center'});},60);
+function goForm(c){
+  var i=SEC_OF[c];if(i===undefined)return;
+  openTask[c]=true;drawSection(i);show('sec'+i);
+  setTimeout(function(){var e=el('si-'+c);if(e)e.scrollIntoView({behavior:'smooth',block:'center'});},80);
 }
-function redraw(){drawTb();drawSig();drawWcgw();drawStrat();drawCra();drawSpine();drawSections();drawAttn();drawGauges();drawStatus();}
+function redraw(){
+  drawSpine();drawAttn();drawGauges();drawStatus();drawFind();drawMine();
+  [0,1,2,3].forEach(function(i){if(el('v-sec'+i)&&el('v-sec'+i).innerHTML)drawSection(i);});
+  redrawTools();
+}
 
 document.addEventListener('click',function(e){
   var t=e.target,x;
-  if((x=t.closest('.nav'))){if(x.dataset.v)show(x.dataset.v);else if(x.dataset.sec!==undefined)jumpSection(+x.dataset.sec);return;}
-  if((x=t.closest('.reflist a'))){e.preventDefault();if(x.dataset.v)show(x.dataset.v);else if(x.dataset.form)openForm(x.dataset.form);return;}
-  if((x=t.closest('.snode'))){if(x.dataset.jv){show(x.dataset.jv);}else if(x.dataset.step!==''){showStep(+x.dataset.step);show('console');}return;}
-  if((x=t.closest('.gauge'))){jumpSection(+x.dataset.sec);return;}
-  if((x=t.closest('.seccard'))){var i=+x.dataset.sec,o=x.getAttribute('aria-expanded')==='true';
-    x.setAttribute('aria-expanded',!o);if(!o)drawUnveil(i);document.getElementById('unveil-'+i).classList.toggle('on',!o);return;}
-  if((x=t.closest('.grouprow'))){document.getElementById('tl-'+x.dataset.sec+'-'+x.dataset.grp).classList.toggle('on');return;}
-  if((x=t.closest('[data-grpjump]'))){var gi=-1,si=-1;SECT.forEach(function(s,a){s.groups.forEach(function(g,b){if(g.c===x.dataset.grpjump){si=a;gi=b;}});});
-    if(si>=0){jumpSection(si);setTimeout(function(){var el=document.getElementById('tl-'+si+'-'+gi);if(el)el.classList.add('on');},80);}return;}
-  if((x=t.closest('[data-form]'))){openForm(x.dataset.form);return;}
-  if((x=t.closest('[data-console]'))){showStep(+x.dataset.console);show('console');return;}
-  if((x=t.closest('.steprail button'))){showStep(+x.dataset.step);return;}
-  if((x=t.closest('.ttab'))){Array.prototype.forEach.call(document.querySelectorAll('.ttab'),function(b){b.setAttribute('aria-selected',b===x);});
-    Array.prototype.forEach.call(document.querySelectorAll('.tpane'),function(p){p.classList.toggle('on',p.id==='tp-'+x.dataset.tp);});return;}
+  if((x=t.closest('.nav'))){show(x.dataset.v);return;}
+  if((x=t.closest('[data-gonav]'))){show(x.dataset.gonav);return;}
+  if((x=t.closest('[data-goform]'))){goForm(x.dataset.goform);return;}
+  if((x=t.closest('[data-tog]'))){var c=x.dataset.tog;openTask[c]=!openTask[c];
+    var item=el('si-'+c);item.classList.toggle('open',openTask[c]);
+    if(openTask[c])mountTask(c);else el('sb-'+c).innerHTML='';return;}
+  if((x=t.closest('[data-tt]'))){var p=x.dataset.tt.split('|');
+    Array.prototype.forEach.call(el('sb-'+p[0]).querySelectorAll('.ttab'),function(b){b.setAttribute('aria-selected',b===x);});
+    Array.prototype.forEach.call(el('sb-'+p[0]).querySelectorAll('.tpane'),function(pn){pn.classList.toggle('on',pn.id==='pn-'+p[0]+'-'+p[1]);});
+    return;}
   if((x=t.closest('[data-addw]'))){var id=Math.max.apply(null,WCGW.map(function(w){return w.id;}).concat([0]))+1;
-    WCGW.push({id:id,a:x.dataset.addw,as:'C',t:'',ctrl:'',strat:'substantive'});
-    log('What-can-go-wrong added on <span>'+x.dataset.addw+'</span>. PLN-7, PLN-9 and the combined risk assessment updated.');redraw();return;}
-  if((x=t.closest('[data-delw]'))){WCGW=WCGW.filter(function(w){return w.id!==+x.dataset.delw;});
-    log('Row removed. The derived programme step is withdrawn from EXE-1.');redraw();return;}
-  if(t.id==='revAdd'){var v=document.getElementById('revIn').value.trim();if(!v)return;
-    (NOTES[curForm]=NOTES[curForm]||[]).unshift(['Jean-Paul Biya','Manager','today',v,1]);
-    document.getElementById('revIn').value='';drawNotes();return;}
-  if(t.id==='tSign'){DONE[curForm]=1;document.getElementById('sgPrep').textContent='A. Nkoulou · today';
-    var st=document.getElementById('tStatus');st.className='chip ok';st.textContent='Signed off';redraw();return;}
+    WCGW.push({id:id,a:x.dataset.addw,as:'C',t:'',ctrl:'',strat:'substantive'});redraw();return;}
+  if((x=t.closest('[data-delw]'))){WCGW=WCGW.filter(function(w){return w.id!==+x.dataset.delw;});redraw();return;}
+  if((x=t.closest('[data-sign]'))){var c2=x.dataset.sign;DONE[c2]=DONE[c2]===1?2:1;mountTask(c2);redraw();return;}
+  if((x=t.closest('[data-handoff]'))){var c3=x.dataset.handoff;DONE[c3]=3;
+    (NOTES[c3]=NOTES[c3]||[]).unshift(['Adèle Nkoulou','Senior','today','Handed off for review with the evidence attached.',0]);
+    mountTask(c3);redraw();return;}
+  if((x=t.closest('[data-addfind]'))){var c4=x.dataset.addfind,v=el('fi-'+c4).value.trim();if(!v)return;
+    (FINDINGS[c4]=FINDINGS[c4]||[]).unshift(['Open',v,'Adèle Nkoulou','today']);mountTask(c4);
+    var pn=el('pn-'+c4+'-findings');if(pn){Array.prototype.forEach.call(el('sb-'+c4).querySelectorAll('.tpane'),function(p){p.classList.remove('on');});pn.classList.add('on');}
+    drawFind();return;}
+  if((x=t.closest('[data-addnote]'))){var c5=x.dataset.addnote,v2=el('rn-'+c5).value.trim();if(!v2)return;
+    (NOTES[c5]=NOTES[c5]||[]).unshift(['Jean-Paul Biya','Manager','today',v2,1]);mountTask(c5);
+    var pa=el('pn-'+c5+'-activity');if(pa){Array.prototype.forEach.call(el('sb-'+c5).querySelectorAll('.tpane'),function(p){p.classList.remove('on');});pa.classList.add('on');}
+    return;}
+  if((x=t.closest('[data-addev]'))){var c6=x.dataset.addev;
+    (EVID[c6]=EVID[c6]||[]).push(['A-'+((EVID[c6]||[]).length+1),'Attached document '+((EVID[c6]||[]).length+1),'pdf','today']);mountTask(c6);
+    var pe=el('pn-'+c6+'-evidence');if(pe){Array.prototype.forEach.call(el('sb-'+c6).querySelectorAll('.tpane'),function(p){p.classList.remove('on');});pe.classList.add('on');}
+    return;}
+  if((x=t.closest('[data-adddoc]'))){var i2=+x.dataset.adddoc;
+    DOCS[i2].push(['Attached document '+(DOCS[i2].length+1),'pdf','today']);drawSection(i2);return;}
+  if((x=t.closest('[data-rmdoc]'))){var pr=x.dataset.rmdoc.split('|');DOCS[+pr[0]].splice(+pr[1],1);drawSection(+pr[0]);return;}
   if(t.id==='themeBtn'){var d=document.documentElement.getAttribute('data-theme')==='dark';
     document.documentElement.setAttribute('data-theme',d?'light':'dark');t.textContent=d?'Dark':'Light';return;}
 });
 document.addEventListener('change',function(e){
   var t=e.target;
-  if(t.dataset.map!==undefined){TB[+t.dataset.map].l=t.value;
-    log(t.value?'<span>'+TB[+t.dataset.map].c+'</span> mapped to '+LEADS[t.value]+'. Account universe and gate G2 recomputed.':'<span>'+TB[+t.dataset.map].c+'</span> unmapped. Gate G2 blocked.');redraw();return;}
-  if(t.dataset.qual!==undefined){QUAL[t.dataset.qual]=t.checked;
-    log('Qualitative significance '+(t.checked?'set':'removed')+' on <span>'+t.dataset.qual+'</span>. PLN-6 and the scope of G2 updated.');redraw();return;}
+  if(t.dataset.map!==undefined){TB[+t.dataset.map].l=t.value;redraw();return;}
+  if(t.dataset.qual!==undefined){QUAL[t.dataset.qual]=t.checked;redraw();return;}
   if(t.dataset.was!==undefined){WCGW.filter(function(w){return w.id===+t.dataset.was;})[0].as=t.value;redraw();return;}
-  if(t.dataset.strat!==undefined){var w=WCGW.filter(function(x){return x.id===+t.dataset.strat;})[0];w.strat=t.value;
-    log('Strategy on <span>'+w.a+' · '+w.as+'</span> set to '+(t.value==='reliance'?'controls reliance. EXE-2 gains a test; the sample size in EXE-3 falls.':'fully substantive. Control risk at maximum; the sample size in EXE-3 rises.'));redraw();return;}
+  if(t.dataset.strat!==undefined){WCGW.filter(function(x){return x.id===+t.dataset.strat;})[0].strat=t.value;redraw();return;}
 });
 document.addEventListener('input',function(e){
   var t=e.target;
-  if(t.id==='omRange'){ENG.om=+t.value;drawSig();drawCra();drawSpine();drawSections();drawAttn();drawGauges();return;}
+  if(t.id==='omRange'){ENG.om=+t.value;redrawTools();drawSpine();drawAttn();drawGauges();return;}
   if(t.dataset.wt!==undefined){WCGW.filter(function(w){return w.id===+t.dataset.wt;})[0].t=t.value;return;}
-  if(t.dataset.wc!==undefined){WCGW.filter(function(w){return w.id===+t.dataset.wc;})[0].ctrl=t.value;drawStrat();drawCra();drawAttn();return;}
+  if(t.dataset.wc!==undefined){WCGW.filter(function(w){return w.id===+t.dataset.wc;})[0].ctrl=t.value;
+    if(el('stratTable'))drawStrat();if(el('craTable'))drawCra();drawAttn();return;}
 });
-document.getElementById('omRange').addEventListener('change',function(){
-  log('Overall materiality set to <span>'+FMT(ENG.om)+'</span>. Significance re-tested; sample sizes in EXE-3 and the evaluation in CON-4 recompute.');redraw();});
 
-drawRail();redraw();drawMap();drawTeam();drawMine();openForm('PLN-6');show('hub');
+/* boot */
+[0,1,2,3].forEach(drawSection);
+openTask['PLN-6']=true;drawSection(1);
+redraw();show('hub');
 </script>
