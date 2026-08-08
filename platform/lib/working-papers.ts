@@ -7,6 +7,9 @@
 import { withTenant } from "@/lib/db";
 import { requireTenant } from "@/lib/tenant";
 import { ACCEPTANCE_PAPERS } from "@/lib/papers/acceptance";
+import { STRATEGY_PAPERS } from "@/lib/papers/strategy";
+import { EXECUTION_PAPERS } from "@/lib/papers/execution";
+import { CONCLUSION_PAPERS } from "@/lib/papers/conclusion";
 import { paperKeys, requiredKeys, type PaperDef, type PaperField } from "@/lib/papers/types";
 import { groupOfTask, type SectionKey } from "@/lib/task-groups";
 
@@ -58,122 +61,17 @@ const GROUP_DEFAULT: Record<string, { std: string; en: string; fr: string }> = {
   c6: { std: "OHADA — Acte uniforme relatif au droit des sociétés commerciales", en: "the statutory report", fr: "le rapport statutaire" },
 };
 
-/** Bespoke papers: the tasks the tool layer feeds, and the judgement-heavy ones. */
-const PAPERS: Record<string, PaperDef> = {
-  "D5.1": {
-    std: "ISA 320 ¶10–14 · ISA 450 ¶5",
-    ownsEn: "materiality, performance materiality and the clearly trivial threshold",
-    ownsFr: "le seuil de signification, le seuil de travail et le seuil négligeable",
-    tools: ["materiality"],
-    fields: [
-      { key: "benchmark", kind: "auto", labelEn: "Benchmark, percentage and amounts", labelFr: "Référence, pourcentage et montants", source: "materiality" },
-      { key: "why_benchmark", kind: "input", labelEn: "Reasons for the benchmark selected, and why an alternative was not used", labelFr: "Motifs du choix de la référence" },
-      { key: "why_pm", kind: "input", labelEn: "Reasons for the performance materiality percentage: assessed risk, prior misstatements, expected number and size", labelFr: "Motifs du pourcentage du seuil de travail" },
-      { key: "specific", kind: "input", labelEn: "Specific materiality, where a class or disclosure has a lower threshold", labelFr: "Seuil spécifique, le cas échéant" },
-      { key: "revisions", kind: "input", labelEn: "Revisions during the engagement, and their effect on procedures already performed", labelFr: "Révisions et leur effet sur les procédures" },
-    ],
-  },
-  "D5.2": {
-    std: "ISA 315 (Revised 2019) ¶14(b), ¶29 · ISA 520",
-    ownsEn: "the account universe and the significance conclusion",
-    ownsFr: "l'univers des comptes et la conclusion de significativité",
-    tools: ["trial-balance", "significance"],
-    fields: [
-      { key: "universe", kind: "auto", labelEn: "Account universe and mapping", labelFr: "Univers des comptes et rattachement", source: "trial-balance" },
-      { key: "significant", kind: "auto", labelEn: "Accounts assessed as significant, and the basis", labelFr: "Comptes significatifs et base retenue", source: "significance" },
-      { key: "expectation", kind: "input", labelEn: "Expectation formed before the current-against-prior comparison was reviewed", labelFr: "Attente formée avant l'examen des variations" },
-      { key: "variances", kind: "input", labelEn: "Each variance investigated, and how the explanation was corroborated", labelFr: "Variations examinées et corroboration des explications" },
-      { key: "qualitative", kind: "input", labelEn: "Reasons for each qualitative significance conclusion", labelFr: "Motifs de chaque conclusion qualitative" },
-    ],
-  },
-  "D7.2": {
-    std: "ISA 315 (Revised 2019) ¶28–34 · ISA 330 ¶5–15 · ISA 240",
-    ownsEn: "the assessed risks and the planned response to each",
-    ownsFr: "les risques évalués et la réponse prévue",
-    tools: ["what-can-go-wrong", "strategy"],
-    fields: [
-      { key: "register", kind: "auto", labelEn: "Assertion-level risks and the strategy set against each", labelFr: "Risques par assertion et stratégie retenue", source: "strategy" },
-      { key: "fs_level", kind: "input", labelEn: "Financial statement level risks and the overall responses, including the unpredictability element", labelFr: "Risques au niveau des états financiers et réponses globales" },
-      { key: "separate", kind: "input", labelEn: "Inherent risk and control risk assessed separately, with the reasons", labelFr: "Risque inhérent et risque lié au contrôle évalués séparément" },
-      { key: "significant", kind: "input", labelEn: "Significant risks, and the test of details responding to each", labelFr: "Risques importants et tests de détail correspondants" },
-      CONCLUSION,
-    ],
-  },
-  "D4.2": {
-    std: "ISA 315 (Revised 2019) ¶19(a)–(c), ¶22",
-    ownsEn: "the understanding of the entity, its environment and the framework",
-    ownsFr: "la connaissance de l'entité, de son environnement et du référentiel",
-    fields: [
-      { key: "business", kind: "input", labelEn: "Business model, activities, markets and locations", labelFr: "Modèle économique, activités, marchés et implantations" },
-      { key: "governance", kind: "input", labelEn: "Ownership, group structure and governance", labelFr: "Actionnariat, structure du groupe et gouvernance" },
-      { key: "external", kind: "input", labelEn: "Industry, regulatory and other external factors", labelFr: "Secteur, réglementation et autres facteurs externes" },
-      { key: "policies", kind: "input", labelEn: "Accounting policies, changes in the period, and their appropriateness", labelFr: "Méthodes comptables, changements et pertinence" },
-      { key: "carried", kind: "input", labelEn: "Matters carried into the risk assessment", labelFr: "Points reportés dans l'évaluation des risques" },
-    ],
-  },
-  "E100": {
-    std: "ISA 315 (Revised 2019) ¶25–26 · ISA 330 ¶18–23 · ISA 505",
-    ownsEn: "the revenue and receivables flow, and the evidence obtained",
-    ownsFr: "le flux ventes et créances et les éléments probants",
-    tools: ["what-can-go-wrong"],
-    fields: [
-      { key: "flow", kind: "input", labelEn: "Critical path: initiation, recording, processing, reporting — actors, documents, applications, control points", labelFr: "Chemin critique : initiation, enregistrement, traitement, restitution" },
-      { key: "walkthrough", kind: "input", labelEn: "Walkthrough: the item traced, the evidence at each step, and any deviation", labelFr: "Test de cheminement : élément tracé, preuves et écarts" },
-      PROCEDURES,
-      RESULTS,
-      EXCEPTIONS,
-      CONCLUSION,
-    ],
-  },
-  "B5": {
-    std: "ISA 450 ¶5–15",
-    ownsEn: "the misstatement schedule and its evaluation",
-    ownsFr: "le récapitulatif des anomalies et son évaluation",
-    fields: [
-      { key: "reassess", kind: "input", labelEn: "Materiality reassessed against the final results", labelFr: "Seuil réévalué au regard des résultats définitifs" },
-      { key: "nature", kind: "input", labelEn: "Evaluation by nature as well as size: covenants, loss into profit, related parties, trends", labelFr: "Évaluation par nature autant que par montant" },
-      { key: "communicated", kind: "input", labelEn: "Communication to those charged with governance, and the reasons given for items not corrected", labelFr: "Communication au gouvernement d'entreprise et motifs de non-correction" },
-      CONCLUSION,
-    ],
-  },
-  "B7": {
-    std: "ISA 560 · ISA 570 (Revised)",
-    ownsEn: "the subsequent events and going concern conclusions",
-    ownsFr: "les conclusions événements postérieurs et continuité d'exploitation",
-    fields: [
-      { key: "se_procedures", kind: "input", labelEn: "Subsequent events procedures, and the date to which they extend", labelFr: "Procédures événements postérieurs et date de fin" },
-      { key: "se_events", kind: "input", labelEn: "Events identified, classified as adjusting or non-adjusting, and how reflected", labelFr: "Événements relevés, classement et traitement" },
-      { key: "gc_assessment", kind: "input", labelEn: "Management's assessment, the period it covers, and its evaluation", labelFr: "Évaluation de la direction, période couverte et appréciation" },
-      { key: "gc_conclusion", kind: "input", labelEn: "Material uncertainty? Conclusion and the effect on the report", labelFr: "Incertitude significative ? Conclusion et effet sur le rapport" },
-    ],
-  },
-  "B8": {
-    std: "ISA 580 ¶9–20",
-    ownsEn: "the written representations obtained",
-    ownsFr: "les déclarations écrites obtenues",
-    fields: [
-      { key: "requested", kind: "input", labelEn: "Representations requested, and the ISA that requires each", labelFr: "Déclarations demandées et norme applicable" },
-      { key: "received", kind: "input", labelEn: "Signatories, the date of the letter, and the date of the auditor's report", labelFr: "Signataires, date de la lettre et date du rapport" },
-      { key: "consistency", kind: "input", labelEn: "Consistency with other evidence, and the resolution of any inconsistency", labelFr: "Cohérence avec les autres éléments et résolution des écarts" },
-      CONCLUSION,
-    ],
-  },
-  "C1": {
-    std: "ISA 700 · ISA 705 (Revised) · ISA 706 (Revised) · ISA 710",
-    ownsEn: "the opinion and the auditor's report",
-    ownsFr: "l'opinion et le rapport de l'auditeur",
-    fields: [
-      { key: "opinion", kind: "input", labelEn: "Opinion determined, and the basis for it", labelFr: "Opinion retenue et son fondement" },
-      { key: "components", kind: "input", labelEn: "Required components confirmed against the drafted report", labelFr: "Composantes requises vérifiées sur le projet de rapport" },
-      { key: "extra", kind: "input", labelEn: "Emphasis of matter, other matter and key audit matters included", labelFr: "Paragraphes d'observation, autres points et questions clés" },
-      { key: "dating", kind: "input", labelEn: "Date of the report, and the date sufficient appropriate evidence was obtained", labelFr: "Date du rapport et date d'obtention des éléments suffisants" },
-    ],
-  },
+/** Every task's paper, one map per phase, consulted in phase order. */
+const ALL_PAPERS: Record<string, PaperDef> = {
+  ...ACCEPTANCE_PAPERS,
+  ...STRATEGY_PAPERS,
+  ...EXECUTION_PAPERS,
+  ...CONCLUSION_PAPERS,
 };
 
 /** The paper for a task: bespoke where defined, otherwise built from its group. */
 export function paperFor(code: string): PaperDef {
-  const bespoke = ACCEPTANCE_PAPERS[code] ?? PAPERS[code];
+  const bespoke = ALL_PAPERS[code];
   if (bespoke) return bespoke;
   const group = groupOfTask(code);
   const d = (group && GROUP_DEFAULT[group.id]) ?? {
