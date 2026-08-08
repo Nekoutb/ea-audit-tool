@@ -560,7 +560,7 @@ function accRender(f){
   if(pt.kind==='auto')h+='<table class="ft">'+pt.rows.map(function(r){return '<tr><td class="fl" style="width:38%">'+r[0]+'</td><td>'+fauto(r[1])+'</td></tr>';}).join('')+'</table>';
   if(pt.kind==='opts'){var og='g'+(++GID);h+='<p style="font-size:16px">'+pt.opts.map(function(o){return '<label class="fopt"><input type="checkbox" class="cb" data-g="'+og+'"> '+o+'</label>';}).join('')+'</p>'+(pt.after?'<p class="fexpl">'+pt.after+'</p>'+fx():'');}
  });
- h+='<p class="ffoot">'+f.code+' &middot; Acceptance section &middot; AuditISA audit engine. The structure follows established firm form conventions; the wording is original and anchored to the standards cited.</p>';
+ h+='<p class="ffoot">'+f.code+' &middot; Acceptance section &middot; AuditISA audit engine. The structure follows established firm form conventions; the wording is original and anchored to the standards cited. Paragraph references are to the IAASB 2025 Handbook and to the IESBA Code in force at that date. Confirm them against the firm&rsquo;s current copy before the form is used on a live file. Paragraph references are to the IAASB 2025 Handbook and the IESBA Code in force at that date; confirm them against the firm&rsquo;s current copy before the form is used on a live file.</p>';
  return h.replace('<!--DEFS-->',defsTable(h));
 }
 /* Definitions table: scan the whole rendered form, then resolve recursively so a
