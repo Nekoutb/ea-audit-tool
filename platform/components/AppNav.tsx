@@ -92,7 +92,7 @@ export async function AppNav({
       </div>
 
       <div className="flex min-w-0 flex-wrap items-center justify-end gap-2.5">
-        {recent.length > 0 ? (
+        {recent.length > 0 && !minimal ? (
           <EngagementSelector
             current={currentLabel}
             items={recent}
