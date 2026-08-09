@@ -23,13 +23,12 @@ async function createEngagementViaUi(page: Page, clientUrl: string, year: string
   await page.getByTestId("new-engagement").click();
   await page.waitForURL("**/new-engagement**");
   await page.getByTestId("engagement-year").fill(year);
-  await page.getByTestId("engagement-period-end").selectOption("12-31");
   await page.getByTestId("create-engagement").click();
-  // The nature-of-entity screen concludes the scope and propagates the tasks.
+  // The nature-of-entity screen concludes the scope; the team screen follows.
   await page.waitForURL("**/nature");
   await page.getByTestId("cq-listed").check();
   await page.getByTestId("classify-entity").click();
-  await page.waitForURL("**/dashboard");
+  await page.waitForURL("**/team");
   return page.url().split("/engagements/")[1].split(/[/?#]/)[0];
 }
 

@@ -27,14 +27,13 @@ test("Phase 6: AR + bank confirmation cycle with exception → B5 and a non-repl
   await page.getByTestId("new-engagement").click();
   await page.waitForURL("**/new-engagement**");
   await page.getByTestId("engagement-year").fill("2025");
-  await page.getByTestId("engagement-period-end").selectOption("12-31");
   await page.getByTestId("create-engagement").click();
-  // The nature-of-entity screen concludes the scope and propagates the tasks.
+  // The nature-of-entity screen concludes the scope; the team screen follows.
   await page.waitForURL("**/nature");
   await page.getByTestId("cq-listed").check();
   await page.getByTestId("classify-entity").click();
-  await page.waitForURL("**/dashboard");
-  const engagementUrl = page.url().replace(/\/dashboard$/, "");
+  await page.waitForURL("**/team");
+  const engagementUrl = page.url().replace(/\/team$/, "");
   await page.goto(engagementUrl);
 
   // Materiality so client-error differences can land in B5 cleanly.

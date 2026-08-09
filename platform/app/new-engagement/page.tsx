@@ -3,14 +3,13 @@ import { auth } from "@/auth";
 import { AppNav } from "@/components/AppNav";
 import { EngagementWizard } from "@/components/EngagementWizard";
 import { ErrorBanner } from "@/components/GatesPanel";
-import { LEGAL_FORMS, listClients } from "@/lib/clients";
-import { listFirmUsers } from "@/lib/team";
+import { listClients } from "@/lib/clients";
 import { getMessages } from "@/lib/i18n";
 import { getLocale } from "@/lib/locale";
 
 export const metadata = { title: "New engagement · AuditISA" };
 
-/** Dedicated engagement-creation screen (identity + complexity assessment). */
+/** Engagement creation: the three identity questions; scope and team follow. */
 export default async function NewEngagementPage(props: {
   searchParams: Promise<{ client?: string; error?: string }>;
 }) {
@@ -22,40 +21,30 @@ export default async function NewEngagementPage(props: {
   const t = getMessages(locale);
   const te = t.engagements;
 
-  // Zero clients no longer bounces to /clients — the wizard's inline
-  // "+ New entity…" step creates the first entity in place (IA audit flow F3).
-  const [clients, partners] = await Promise.all([listClients(), listFirmUsers()]);
+  const clients = await listClients();
+  // The ?client= parameter (from an entity page) preselects that client's name.
+  const defaultClientName = client ? clients.find((c) => c.id === client)?.name : undefined;
 
   return (
     <main className="flex min-h-screen w-full flex-col gap-4 px-6 py-8">
       <AppNav locale={locale} />
-      <div>
+      <div className="mx-auto w-full max-w-4xl pt-4">
         <h1 className="text-2xl font-bold tracking-[-0.02em] text-ink">{te.newEngagementTitle}</h1>
         <p className="mt-1 text-[13px] text-ink-soft">{te.newEngagementHint}</p>
+        <ErrorBanner error={error} locale={locale} />
+        <div className="mt-4">
+          <EngagementWizard
+            clients={clients.map((c) => ({ id: c.id, name: c.name }))}
+            defaultClientName={defaultClientName}
+            locale={locale === "fr" ? "fr" : "en"}
+            labels={{
+              clientLabel: te.client,
+              yearLabel: te.fiscalYear,
+              submit: te.createEngagement,
+            }}
+          />
+        </div>
       </div>
-      <ErrorBanner error={error} locale={locale} />
-      <EngagementWizard
-        clients={clients.map((c) => ({ id: c.id, name: c.name }))}
-        partners={partners}
-        legalForms={LEGAL_FORMS}
-        defaultClientId={client}
-        locale={locale === "fr" ? "fr" : "en"}
-        labels={{
-          clientLabel: te.client,
-          yearLabel: te.fiscalYear,
-          submit: te.createEngagement,
-          yes: t.common.yes,
-          no: t.common.no,
-          partnerLabel: te.partnerLabel,
-          partnerNone: te.partnerNone,
-          newEntity: te.newEntity,
-          newEntityHint: te.newEntityHint,
-          entityName: t.clients.name,
-          legalForm: t.clients.legalForm,
-          listed: t.clients.listed,
-          coCac: t.clients.coCac,
-        }}
-      />
     </main>
   );
 }

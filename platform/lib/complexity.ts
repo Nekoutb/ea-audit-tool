@@ -124,11 +124,11 @@ export function generateEngagementName(
   nature: string,
 ): string {
   const period = YEAR_END_OPTIONS.find((o) => o.value === yearEnd);
-  const natureLabel = NATURE_OPTIONS.find((o) => o.value === nature);
+  // a known option renders its English label; free text passes through as typed
   return [
     clientName.trim().toUpperCase(),
     `${(period?.en ?? "").toUpperCase()} ${fiscalYear}`,
-    (natureLabel?.en ?? "").toUpperCase(),
+    (NATURE_OPTIONS.find((o) => o.value === nature)?.en ?? nature.replaceAll("_", " ")).toUpperCase(),
   ]
     .filter(Boolean)
     .join("_")
