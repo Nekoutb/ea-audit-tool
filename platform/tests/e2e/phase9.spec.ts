@@ -18,14 +18,11 @@ async function login(page: Page, email: string, password: string): Promise<void>
 test("Phase 9: portal PBC round-trip + dashboards + export", async ({ page }) => {
   test.setTimeout(300_000);
   await login(page, EMAIL, PASSWORD);
-  // Login lands on the most-recently-worked engagement's dashboard; this test
-  // asserts on the FIRM dashboard, so navigate there explicitly.
+  // Sign-in lands on the welcome screen: a greeting and only the engagements
+  // the user is assigned to — the firm-wide panels were removed by design.
   await page.waitForURL("**/dashboard");
-  await page.goto("/dashboard");
-
-  // Firm dashboard panels render (9.4/9.5).
-  await expect(page.getByTestId("firm-by-phase")).toBeVisible();
-  await expect(page.getByTestId("portfolio-risks")).toBeVisible();
+  await expect(page.getByTestId("welcome")).toBeVisible();
+  await expect(page.getByTestId("my-engagements")).toBeVisible();
 
   const stamp = Date.now();
   const clientName = `Portal SA ${stamp}`;
