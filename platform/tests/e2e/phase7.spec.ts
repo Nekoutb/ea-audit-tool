@@ -170,6 +170,12 @@ test("Phase 7: gates block → complete file → issue report → archive → ro
   await expect(page.getByTestId("gate-subsequent_events")).toContainText("✓");
   await page.getByTestId("points-forward").fill("Review the new IT system next year.");
   await page.getByTestId("save-points").click();
+  // points_forward has no gate row, and toHaveValue passes against the PRE-save
+  // DOM (the filled value persists there), so it cannot anchor the re-render.
+  // Navigate fresh instead: the next fills then cannot land on a mid-air swap
+  // that would reset the independence checkbox before the submit.
+  await page.waitForLoadState("networkidle");
+  await page.goto(`${engagementUrl}/conclusion`);
   await expect(page.getByTestId("points-forward")).toHaveValue(/Review the new IT system/);
   await page.getByTestId("partner-conclusion-text").fill("Sufficient appropriate evidence obtained; opinion unmodified.");
   await page.getByTestId("independence-reconfirm").check();
