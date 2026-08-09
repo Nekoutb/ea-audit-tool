@@ -21,9 +21,12 @@ function initials(source: string): string {
 export async function AppNav({
   locale,
   current,
+  minimal = false,
 }: {
   locale: Locale;
   current?: { id: string; label: string };
+  /** Hide the primary links — the welcome screen announces the engagements itself. */
+  minimal?: boolean;
 }) {
   const t = getMessages(locale);
   const session = await auth();
@@ -70,6 +73,7 @@ export async function AppNav({
           )}
           <span data-testid="brand-name">{branding?.displayName ?? t.common.appName}</span>
         </span>
+        {minimal ? null : (
         <nav className="hidden items-center gap-1 md:flex">
           {links.map((link) => (
             <NavLink
@@ -84,6 +88,7 @@ export async function AppNav({
             </NavLink>
           ))}
         </nav>
+        )}
       </div>
 
       <div className="flex min-w-0 flex-wrap items-center justify-end gap-2.5">

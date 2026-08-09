@@ -121,6 +121,10 @@ export default async function EngagementDashboardPage(props: {
     dashboardStats(id),
   ]);
 
+  // An engagement with no file items has not been classified yet — the
+  // nature-of-entity screen must conclude before any task exists.
+  if (tasks.length === 0) redirect(`/engagements/${id}/nature`);
+
   const sections = buildSections(tasks, id, engagement.periodEnd, locale, td.stage.due);
   const doneTasks = sections.reduce((sum, s) => sum + s.done, 0);
   const totalTasks = sections.reduce((sum, s) => sum + s.total, 0);

@@ -27,10 +27,13 @@ test("Phase 4: step execution → findings routing → B5 vs materiality → rev
   await page.getByTestId("new-engagement").click();
   await page.waitForURL("**/new-engagement**");
   await page.getByTestId("engagement-year").fill("2025");
-  await page.getByTestId("engagement-period-end").fill("2025-12-31");
-  await page.getByTestId("cq-listed").check();
+  await page.getByTestId("engagement-period-end").selectOption("12-31");
   await page.getByTestId("create-engagement").click();
-  await page.waitForURL("**/engagements/**");
+  // The nature-of-entity screen concludes the scope and propagates the tasks.
+  await page.waitForURL("**/nature");
+  await page.getByTestId("cq-listed").check();
+  await page.getByTestId("classify-entity").click();
+  await page.waitForURL("**/dashboard");
   const engagementUrl = page.url().replace(/\/dashboard$/, "");
   await page.goto(engagementUrl);
 

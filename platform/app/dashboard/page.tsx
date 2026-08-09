@@ -49,9 +49,11 @@ export default async function DashboardPage() {
 
   return (
     <main className="flex min-h-screen w-full flex-col gap-4 px-6 py-8">
-      <AppNav locale={locale} />
+      <AppNav locale={locale} minimal />
 
       <div className="mx-auto w-full max-w-3xl pt-6">
+        <div className="flex items-end justify-between gap-4">
+          <div>
         <h1 className="text-2xl font-bold tracking-[-0.02em] text-ink" data-testid="welcome">
           {fr ? "Bienvenue" : "Welcome back"}
           {firstName ? `, ${firstName}` : ""}
@@ -59,6 +61,15 @@ export default async function DashboardPage() {
         <p className="mt-1 text-[13px] text-ink-soft">
           {fr ? "Vos missions." : "Your engagements."}
         </p>
+          </div>
+          <Link
+            href="/new-engagement"
+            data-testid="new-engagement"
+            className="inline-flex min-h-[36px] items-center rounded-[var(--radius-atlas-sm)] bg-emerald-700 px-4 py-1.5 text-sm font-semibold text-white transition hover:bg-emerald-800"
+          >
+            {fr ? "+ Nouvelle mission" : "+ New engagement"}
+          </Link>
+        </div>
 
         <Panel flush className="mt-4 flex flex-col">
           <div className="flex flex-col gap-1 p-1.5" data-testid="my-engagements">

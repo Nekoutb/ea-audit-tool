@@ -3,7 +3,6 @@ import { auth } from "@/auth";
 import { AppNav } from "@/components/AppNav";
 import { EngagementWizard } from "@/components/EngagementWizard";
 import { ErrorBanner } from "@/components/GatesPanel";
-import { getBranding } from "@/lib/branding";
 import { LEGAL_FORMS, listClients } from "@/lib/clients";
 import { listFirmUsers } from "@/lib/team";
 import { getMessages } from "@/lib/i18n";
@@ -25,7 +24,7 @@ export default async function NewEngagementPage(props: {
 
   // Zero clients no longer bounces to /clients — the wizard's inline
   // "+ New entity…" step creates the first entity in place (IA audit flow F3).
-  const [clients, branding, partners] = await Promise.all([listClients(), getBranding(), listFirmUsers()]);
+  const [clients, partners] = await Promise.all([listClients(), listFirmUsers()]);
 
   return (
     <main className="flex min-h-screen w-full flex-col gap-4 px-6 py-8">
@@ -40,19 +39,10 @@ export default async function NewEngagementPage(props: {
         partners={partners}
         legalForms={LEGAL_FORMS}
         defaultClientId={client}
-        namingPattern={branding.engagementNaming}
+        locale={locale === "fr" ? "fr" : "en"}
         labels={{
           clientLabel: te.client,
-          nameLabel: te.name,
-          nameHint: te.nameHint,
           yearLabel: te.fiscalYear,
-          periodEndLabel: te.periodEnd,
-          assessmentTitle: te.assessment.title,
-          assessmentHint: te.assessment.hint,
-          resultLabel: te.assessment.result,
-          levels: te.assessment.levels,
-          formsNote: te.assessment.formsNote,
-          questions: te.assessment.questions,
           submit: te.createEngagement,
           yes: t.common.yes,
           no: t.common.no,

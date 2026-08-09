@@ -1,4 +1,4 @@
-// Engagement complexity assessment (ISA for LCE-inspired). Fifteen yes/no
+// Nature-of-entity assessment (ISA for LCE-inspired). Seventeen yes/no
 // questions answered at engagement creation classify the entity as complex,
 // non-complex or very simple. Certain answers (listing, public interest, group
 // consolidation) disqualify the LCE route outright and force "complex"; the rest
@@ -33,6 +33,8 @@ export const COMPLEXITY_QUESTIONS: readonly ComplexityQuestion[] = [
   { key: "firstAudit", weight: 1 },
   { key: "goingConcern", weight: 2 },
   { key: "relatedParties", weight: 1 },
+  { key: "restructuring", weight: 2 },
+  { key: "litigation", weight: 2 },
 ] as const;
 
 /** Score at or above which the engagement is complex even without a knock-out. */
@@ -80,4 +82,55 @@ export function applyNamingConvention(pattern: string, clientName: string, fisca
     .replaceAll("{CLIENT}", clientName)
     .replaceAll("{YEAR}", String(fiscalYear))
     .trim();
+}
+
+/* ---- engagement identity profile (creation wizard) ---- */
+
+/** Year-end period options: month-day, with display month names. */
+export const YEAR_END_OPTIONS = [
+  { value: "06-30", en: "June 30", fr: "30 juin" },
+  { value: "07-31", en: "July 31", fr: "31 juillet" },
+  { value: "12-31", en: "December 31", fr: "31 décembre" },
+  { value: "03-31", en: "March 31", fr: "31 mars" },
+] as const;
+
+export const DURATION_OPTIONS = [6, 12] as const;
+
+export const NATURE_OPTIONS = [
+  { value: "statutory_audit", en: "Statutory audit", fr: "Commissariat aux comptes" },
+  { value: "agreed_procedures", en: "Agreed-upon procedures", fr: "Procédures convenues" },
+  { value: "other", en: "Other", fr: "Autre" },
+] as const;
+
+export const ENGAGEMENT_PHASE_OPTIONS = [
+  { value: "interim", en: "Interim", fr: "Intérimaire" },
+  { value: "year_end", en: "Year end", fr: "Clôture" },
+] as const;
+
+export const FRAMEWORK_OPTIONS = [
+  { value: "syscohada", en: "SYSCOHADA", fr: "SYSCOHADA" },
+  { value: "ifrs", en: "IFRS", fr: "IFRS" },
+] as const;
+
+/**
+ * The generated engagement name: CLIENT_PERIOD END_NATURE, uppercase — e.g.
+ * "ZOEDEN_DECEMBER 31 2026_STATUTORY AUDIT". The tool generates it; the user
+ * does not type it.
+ */
+export function generateEngagementName(
+  clientName: string,
+  yearEnd: string,
+  fiscalYear: number | string,
+  nature: string,
+): string {
+  const period = YEAR_END_OPTIONS.find((o) => o.value === yearEnd);
+  const natureLabel = NATURE_OPTIONS.find((o) => o.value === nature);
+  return [
+    clientName.trim().toUpperCase(),
+    `${(period?.en ?? "").toUpperCase()} ${fiscalYear}`,
+    (natureLabel?.en ?? "").toUpperCase(),
+  ]
+    .filter(Boolean)
+    .join("_")
+    .slice(0, 120);
 }

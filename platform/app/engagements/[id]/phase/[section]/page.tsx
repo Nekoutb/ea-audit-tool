@@ -2,7 +2,6 @@ import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
 import { auth } from "@/auth";
 import { AppNav } from "@/components/AppNav";
-import { PhaseNav } from "@/components/PhaseNav";
 import { Chip, Panel, PanelHeader } from "@/components/ui/atlas";
 import { engagementTasks, type PhaseTask, type PhaseTaskStatus } from "@/lib/engagement-dashboard";
 import { getEngagement } from "@/lib/engagements";
@@ -77,7 +76,16 @@ export default async function PhasePage(props: {
   return (
     <main className="min-h-screen w-full px-6 py-8">
       <AppNav locale={locale} current={{ id, label: engagement.clientName }} />
-      <PhaseNav engagementId={id} locale={locale} active={key} />
+      {/* phases are navigated from the dashboard cards — no phase bar here */}
+      <div className="mt-4">
+        <Link
+          href={`/engagements/${id}/dashboard`}
+          data-testid="back-to-dashboard"
+          className="inline-flex min-h-[28px] items-center gap-1.5 rounded-full bg-surface-2 px-3.5 py-1 text-[12.5px] font-semibold text-ink-soft transition hover:bg-line/60"
+        >
+          ← {locale === "fr" ? "Tableau de bord" : "Dashboard"}
+        </Link>
+      </div>
 
       <header className="mt-8">
         <h1 className="text-[28px] font-semibold leading-tight tracking-[-0.02em] text-ink">

@@ -416,12 +416,12 @@
     "nameHint": "Pre-filled from your firm's naming convention (Settings).",
     "assessment": {
       "title": "Engagement profile",
-      "hint": "15 questions · determines the complexity classification",
+      "hint": "17 questions · concludes whether the entity is complex, non-complex or simple",
       "result": "Classification",
       "levels": {
         "complex": "Complex entity",
         "non_complex": "Non-complex entity",
-        "very_simple": "Very simple entity"
+        "very_simple": "Simple entity"
       },
       "formsNote": "{count} working papers will be instantiated",
       "questions": {
@@ -439,7 +439,9 @@
         "largeSize": "Does it exceed large-entity thresholds (revenue above 1 billion FCFA or over 100 staff)?",
         "firstAudit": "Is this a first-year audit, or has the entity existed for less than two years?",
         "goingConcern": "Is there going-concern pressure, significant litigation or a prior modified opinion?",
-        "relatedParties": "Are there extensive related-party or intra-group transactions?"
+        "relatedParties": "Are there extensive related-party or intra-group transactions?",
+        "restructuring": "Was there a major acquisition, disposal or restructuring during the period?",
+        "litigation": "Is the entity party to significant litigation, claims or regulatory proceedings?"
       }
     },
     "open": "Open",

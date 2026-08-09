@@ -416,12 +416,12 @@
     "nameHint": "Pré-rempli selon la convention de nommage du cabinet (Paramètres).",
     "assessment": {
       "title": "Profil de la mission",
-      "hint": "15 questions · détermine la classification de complexité",
+      "hint": "17 questions · conclut si l’entité est complexe, non complexe ou simple",
       "result": "Classification",
       "levels": {
         "complex": "Entité complexe",
         "non_complex": "Entité non complexe",
-        "very_simple": "Entité très simple"
+        "very_simple": "Entité simple"
       },
       "formsNote": "{count} feuilles de travail seront instanciées",
       "questions": {
@@ -439,7 +439,9 @@
         "largeSize": "Dépasse-t-elle les seuils de grande entité (chiffre d'affaires supérieur à 1 milliard FCFA ou plus de 100 salariés) ?",
         "firstAudit": "S'agit-il d'un premier audit, ou l'entité existe-t-elle depuis moins de deux ans ?",
         "goingConcern": "Existe-t-il un risque de continuité d'exploitation, des litiges significatifs ou une opinion antérieure modifiée ?",
-        "relatedParties": "Existe-t-il des transactions importantes avec des parties liées ou intragroupe ?"
+        "relatedParties": "Existe-t-il des transactions importantes avec des parties liées ou intragroupe ?",
+        "restructuring": "Une acquisition, cession ou restructuration majeure est-elle intervenue sur l’exercice ?",
+        "litigation": "L’entité est-elle partie à des litiges, réclamations ou procédures significatifs ?"
       }
     },
     "open": "Ouvrir",

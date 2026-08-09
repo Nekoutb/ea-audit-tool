@@ -170,18 +170,28 @@ export async function createEngagement(input: {
   fiscalYear: number;
   periodEnd: string;
   name?: string | null;
-  complexity?: EngagementComplexity;
+  /** null = defer scoping: no file items until the nature-of-entity screen. */
+  complexity?: EngagementComplexity | null;
   complexityAnswers?: ComplexityAnswers | null;
   /** Optional engagement partner — becomes the default reviewer immediately. */
   partnerId?: string | null;
+  durationMonths?: number | null;
+  nature?: string | null;
+  engagementPhase?: string | null;
+  framework?: string | null;
+  firstYear?: boolean | null;
 }): Promise<string> {
   const { tenantId } = await requireTenant();
+  // undefined keeps the legacy full-file default; null defers scoping to the
+  // nature-of-entity screen (no file items are instantiated yet).
+  const deferred = input.complexity === null;
   const complexity = input.complexity ?? "complex";
   const name = input.name?.trim().slice(0, 120) || null;
   return withTenant(tenantId, async (tx) => {
     const result = await tx.query<{ id: string }>(
-      `INSERT INTO engagement (tenant_id, client_id, fiscal_year, period_end, name, complexity, complexity_answers)
-       VALUES ($1, $2, $3, $4, $5, $6, $7)
+      `INSERT INTO engagement (tenant_id, client_id, fiscal_year, period_end, name, complexity, complexity_answers,
+                               duration_months, nature, engagement_phase, framework, first_year)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
        RETURNING id`,
       [
         tenantId,
@@ -191,12 +201,21 @@ export async function createEngagement(input: {
         name,
         complexity,
         input.complexityAnswers ? JSON.stringify(input.complexityAnswers) : null,
+        input.durationMonths ?? null,
+        input.nature ?? null,
+        input.engagementPhase ?? null,
+        input.framework ?? null,
+        input.firstYear ?? null,
       ],
     );
     const engagementId = result.rows[0].id;
-    await instantiateFileIndex(tx, tenantId, engagementId, complexity);
-    // Spec §3: two presumed ISA 240 risks are auto-seeded on every engagement.
-    await seedPresumedRisks(tx, tenantId, engagementId);
+    if (!deferred) {
+      await instantiateFileIndex(tx, tenantId, engagementId, complexity);
+      // Spec §3: two presumed ISA 240 risks are auto-seeded on every
+      // engagement. They attach to the E100/E350 items, so under deferred
+      // scoping the seeding happens at classification instead.
+      await seedPresumedRisks(tx, tenantId, engagementId);
+    }
     // Assign the engagement partner (default reviewer) when chosen at creation.
     if (input.partnerId) {
       await tx.query(
@@ -207,6 +226,49 @@ export async function createEngagement(input: {
       );
     }
     return engagementId;
+  });
+}
+
+
+/**
+ * Record the nature-of-entity classification and propagate the audit file at
+ * the level it concludes. Idempotent on the file index: only codes that do not
+ * yet exist are inserted, so re-answering never duplicates a task.
+ */
+export async function applyComplexity(
+  engagementId: string,
+  complexity: EngagementComplexity,
+  answers: ComplexityAnswers,
+): Promise<void> {
+  const { tenantId } = await requireTenant();
+  await withTenant(tenantId, async (tx) => {
+    await tx.query(
+      "UPDATE engagement SET complexity = $2, complexity_answers = $3 WHERE id = $1",
+      [engagementId, complexity, JSON.stringify(answers)],
+    );
+    const existing = await tx.query<{ code: string }>(
+      "SELECT code FROM file_item WHERE engagement_id = $1",
+      [engagementId],
+    );
+    const have = new Set(existing.rows.map((r) => r.code));
+    let sortOrder = 0;
+    for (const entry of itemsForComplexity(complexity)) {
+      sortOrder += 10;
+      if (have.has(entry.code)) continue;
+      await tx.query(
+        `INSERT INTO file_item
+           (tenant_id, engagement_id, code, section, title_en, title_fr, sort_order, conditional)
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+         ON CONFLICT (engagement_id, code) DO NOTHING`,
+        [tenantId, engagementId, entry.code, entry.section, entry.titleEn, entry.titleFr, sortOrder, entry.conditional ?? false],
+      );
+    }
+    // The presumed ISA 240 risks attach to E100/E350, which exist from here.
+    const seeded = await tx.query(
+      "SELECT 1 FROM risk WHERE engagement_id = $1 AND presumed_type IS NOT NULL LIMIT 1",
+      [engagementId],
+    );
+    if (seeded.rowCount === 0) await seedPresumedRisks(tx, tenantId, engagementId);
   });
 }
 
