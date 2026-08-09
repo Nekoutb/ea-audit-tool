@@ -22,11 +22,14 @@ export async function AppNav({
   locale,
   current,
   minimal = false,
+  hideLinks = false,
 }: {
   locale: Locale;
   current?: { id: string; label: string };
   /** Hide the primary links — the welcome screen announces the engagements itself. */
   minimal?: boolean;
+  /** Hide the links but keep the engagement selector (engagement console pages). */
+  hideLinks?: boolean;
 }) {
   const t = getMessages(locale);
   const session = await auth();
@@ -73,7 +76,7 @@ export async function AppNav({
           )}
           <span data-testid="brand-name">{branding?.displayName ?? t.common.appName}</span>
         </span>
-        {minimal ? null : (
+        {minimal || hideLinks ? null : (
         <nav className="hidden items-center gap-1 md:flex">
           {links.map((link) => (
             <NavLink

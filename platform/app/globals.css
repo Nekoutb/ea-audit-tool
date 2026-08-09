@@ -120,7 +120,7 @@
    caps its wrap at ~1240px; unbounded pages read as trailing emptiness. */
 main {
   width: 100%;
-  max-width: 1300px;
+  max-width: 95vw;
   margin-inline: auto;
 }
 
