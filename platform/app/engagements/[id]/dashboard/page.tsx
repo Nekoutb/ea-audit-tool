@@ -52,49 +52,33 @@ const STATUS_LABEL: Record<"en" | "fr", Record<PhaseTask["status"], string>> = {
 function buildSections(
   tasks: PhaseTask[],
   engagementId: string,
-  periodEnd: string,
   locale: "en" | "fr",
-  dueLabel: string,
-): StageSection[] {
+): (StageSection & { done: number; total: number })[] {
   const byCode = new Map(tasks.map((t) => [t.code, t]));
   return SECTION_ORDER.map((key) => {
     const groups = groupsOfSection(key).map((g) => {
       const members = g.members.map((code) => byCode.get(code)).filter((t): t is PhaseTask => Boolean(t));
+      const done = members.filter((t) => t.status === "reviewed").length;
       return {
         id: g.id,
-        code: g.code,
         title: groupTitle(g, locale),
-        done: members.filter((t) => t.status === "reviewed").length,
-        total: members.length,
+        pct: members.length > 0 ? Math.round((done / members.length) * 100) : 0,
         href: `/engagements/${engagementId}/groups/${g.id}`,
+        done,
+        total: members.length,
       };
     });
-    // the phase's tasks, flattened in the order they are performed
-    const sectionTasks = groupsOfSection(key)
-      .flatMap((g) => g.members)
-      .map((code) => byCode.get(code))
-      .filter((t): t is PhaseTask => Boolean(t))
-      .map((t) => ({
-        code: t.code,
-        display: displayCode(t.code),
-        title: shortTitle(t.code, locale, locale === "fr" ? t.titleFr : t.titleEn),
-        status: t.status,
-        statusLabel: STATUS_LABEL[locale][t.status],
-        href: `/engagements/${engagementId}/sections/${t.id}`,
-      }));
     const done = groups.reduce((sum, g) => sum + g.done, 0);
     const total = groups.reduce((sum, g) => sum + g.total, 0);
     const pct = total > 0 ? Math.round((done / total) * 100) : 0;
     return {
       key,
       label: sectionLabel(key, locale),
-      done,
-      total,
       pct,
-      deadline: `${dueLabel} ${phaseDeadline(periodEnd, SECTION_DEADLINE_PHASE[key])}`,
       color: pct >= 70 ? "var(--color-emerald-600)" : pct > 0 ? "var(--color-warn)" : "var(--color-muted)",
       groups,
-      tasks: sectionTasks,
+      done,
+      total,
     };
   });
 }
@@ -125,7 +109,7 @@ export default async function EngagementDashboardPage(props: {
   // nature-of-entity screen must conclude before any task exists.
   if (tasks.length === 0) redirect(`/engagements/${id}/nature`);
 
-  const sections = buildSections(tasks, id, engagement.periodEnd, locale, td.stage.due);
+  const sections = buildSections(tasks, id, locale);
   const doneTasks = sections.reduce((sum, s) => sum + s.done, 0);
   const totalTasks = sections.reduce((sum, s) => sum + s.total, 0);
   const overall = totalTasks > 0 ? Math.round((doneTasks / totalTasks) * 100) : 0;
@@ -138,20 +122,10 @@ export default async function EngagementDashboardPage(props: {
 
       <div className="flex flex-wrap items-end justify-between gap-4">
         <div>
-          <p className="flex items-center gap-1.5 text-xs font-semibold text-emerald-700 dark:text-emerald-400">
-            <span className="h-1.5 w-1.5 rounded-full bg-emerald-600" />
-            {td.resumed}
-          </p>
           <h1 className="mt-1 text-2xl font-bold tracking-[-0.02em] text-ink">
             {engagement.name ?? engagement.clientName}
           </h1>
           <p className="mt-1 text-[13px] text-ink-soft">
-            {engagement.name ? (
-              <>
-                {engagement.clientName}
-                <span className="px-2 text-line-strong">·</span>
-              </>
-            ) : null}
             {phaseLabel}
             <span className="px-2 text-line-strong">·</span>
             {t.engagements.fiscalYear} {engagement.fiscalYear}
@@ -175,101 +149,65 @@ export default async function EngagementDashboardPage(props: {
             {overall}
             <span className="text-lg text-muted">%</span>
           </div>
-          <div className="mt-1.5 flex w-[220px] gap-1">
-            {sections.map((s) => (
-              <div key={s.key} className="h-1.5 flex-1 overflow-hidden rounded-full bg-line">
-                <div className="h-full rounded-full bg-emerald-600" style={{ width: `${s.pct}%` }} />
-              </div>
-            ))}
-          </div>
         </div>
       </div>
 
-      {/* The four phases — the only place they appear on this screen. */}
-      <SectionStage
-        sections={sections}
-        hint={fr ? "Cliquer une phase pour dérouler ses tâches." : "Click a phase to reveal its tasks."}
-        reviewedLabel={td.stage.reviewed}
-        tasksLabel={fr ? "Tâches, dans l’ordre d’exécution" : "Tasks, in the order they are performed"}
-        allPhasesLabel={fr ? "Toutes les phases" : "All phases"}
-        refDocs={
-          <>
-            <div className="text-[10.5px] font-extrabold uppercase tracking-[0.08em] text-muted">{td.stage.refDocs}</div>
-            <div className="mt-2 flex flex-wrap gap-1.5">
-              {[
-                { href: `/engagements/${id}/tools`, label: fr ? "Outils" : "Tools" },
-                { href: `/engagements/${id}`, label: fr ? "Dossier" : "Audit file" },
-                { href: `/engagements/${id}/tasks`, label: fr ? "Mes tâches" : "My Tasks" },
-                { href: `/engagements/${id}/cra`, label: "CRA" },
-                { href: `/engagements/${id}/data`, label: t.planning.dataTitle },
-                { href: `/engagements/${id}/pbc`, label: t.pbc.title },
-                { href: `/engagements/${id}/legal`, label: t.planning.legal.title },
-                { href: `/engagements/${id}/team`, label: t.team.manage },
-                { href: `/api/engagements/${id}/export`, label: t.engagementDashboard.export },
-              ].map((r) => (
-                <Link
-                  key={r.href}
-                  href={r.href}
-                  className="inline-flex min-h-[26px] items-center rounded-full bg-line/60 px-3 py-0.5 text-[11.5px] font-semibold text-ink-soft transition hover:bg-surface-2"
-                >
-                  {r.label}
-                </Link>
-              ))}
-            </div>
-          </>
-        }
-      />
+      {/* The four phases, filling the row — click one to slide its six
+          grouped tasks open beside it. */}
+      <SectionStage sections={sections} />
 
-      <section className="grid grid-cols-1 gap-3 lg:grid-cols-2 lg:items-start">
-        <div className="flex min-w-0 flex-col gap-3">
-          <TilesToggle my={stats.my} all={stats.all} labels={td.tiles} />
-
-          <Panel className="px-5 py-4" data-testid="findings-band">
-            <PanelHeader title={td.findingsBand.title} />
-            <div className="mt-3 grid grid-cols-2 gap-3">
-              <Link href={`/engagements/${id}/findings`} className="rounded-[var(--radius-atlas-sm)] bg-surface-2 px-4 py-3 transition hover:bg-line/60">
-                <span className="block text-[10.5px] font-extrabold uppercase tracking-[0.07em] text-muted">{td.findingsBand.misstatements}</span>
-                <span className="block text-[30px] font-extrabold leading-tight tracking-[-0.03em] text-ink tnum">{dash.misstatementCount}</span>
-              </Link>
-              <Link href={`/engagements/${id}/findings`} className="rounded-[var(--radius-atlas-sm)] bg-surface-2 px-4 py-3 transition hover:bg-line/60">
-                <span className="block text-[10.5px] font-extrabold uppercase tracking-[0.07em] text-muted">{td.findingsBand.deficiencies}</span>
-                <span className="block text-[30px] font-extrabold leading-tight tracking-[-0.03em] text-ink tnum">{dash.deficiencyCount}</span>
-              </Link>
+      {/* The sketch's summary row: my tasks · review notes · findings · tools */}
+      <section className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
+        <Link href={`/engagements/${id}/tasks`} className="block">
+          <Panel className="h-full px-5 py-4 transition hover:border-emerald-600/40">
+            <PanelHeader title={fr ? "Mes tâches" : "My tasks"} />
+            <div className="mt-2 text-[30px] font-extrabold leading-tight tracking-[-0.03em] text-ink tnum">
+              {stats.my.myTasks}
             </div>
+            <div className="text-[11.5px] text-muted">{fr ? "qui me sont affectées" : "assigned to me"}</div>
           </Panel>
-        </div>
-
-        <Panel flush className="flex min-w-0 flex-col">
-          <div className="border-b border-line px-5 py-3.5">
-            <PanelHeader
-              title={td.requiresAttention}
-              right={<span className="text-xs font-semibold text-muted">{attention.length}</span>}
-            />
+        </Link>
+        <Panel className="px-5 py-4" data-testid="review-notes-box">
+          <PanelHeader title={fr ? "Notes de revue" : "Review notes"} />
+          <div className="mt-2 flex flex-col">
+            <span className="flex items-center justify-between border-b border-line py-1.5 text-[12.5px] text-ink-soft">
+              {fr ? "Pour moi" : "For me"} <b className="tnum">{stats.my.notesForMe}</b>
+            </span>
+            <span className="flex items-center justify-between py-1.5 text-[12.5px] text-ink-soft">
+              {fr ? "Par moi" : "By me"} <b className="tnum">{stats.my.notesByMe}</b>
+            </span>
           </div>
-          <div className="max-h-[340px] overflow-y-auto p-1.5" data-testid="attention-queue">
-            {attention.length === 0 ? (
-              <p className="px-4 py-6 text-center text-sm text-muted">{t.planning.findings.empty}</p>
-            ) : (
-              attention.map((item, idx) => (
-                <div
-                  key={`${item.code}-${idx}`}
-                  className="flex items-center gap-3 rounded-[var(--radius-atlas-xs)] px-3.5 py-2.5 transition hover:bg-surface-2"
-                >
-                  <span
-                    className={`grid h-6 w-12 flex-shrink-0 place-items-center rounded-md text-[10px] font-extrabold ${ROUTE_TONE[item.tone]}`}
-                  >
-                    {displayCode(item.code)}
-                  </span>
-                  <span className="min-w-0 flex-1">
-                    <span className="block truncate text-[13px] font-medium text-ink">{item.title}</span>
-                    <span className="block truncate text-[11.5px] text-muted">{item.meta}</span>
-                  </span>
-                  <span className="flex-shrink-0 text-[11px] text-muted tnum">
-                    {item.ageDays === 0 ? "today" : `${item.ageDays}d`}
-                  </span>
-                </div>
-              ))
-            )}
+        </Panel>
+        <Panel className="px-5 py-4" data-testid="findings-band">
+          <PanelHeader title={td.findingsBand.title} />
+          <div className="mt-2 flex flex-col">
+            <Link href={`/engagements/${id}/findings`} className="flex items-center justify-between border-b border-line py-1.5 text-[12.5px] text-ink-soft hover:text-emerald-700">
+              {td.findingsBand.deficiencies} <b className="tnum">{dash.deficiencyCount}</b>
+            </Link>
+            <Link href={`/engagements/${id}/findings`} className="flex items-center justify-between py-1.5 text-[12.5px] text-ink-soft hover:text-emerald-700">
+              {td.findingsBand.misstatements} <b className="tnum">{dash.misstatementCount}</b>
+            </Link>
+          </div>
+        </Panel>
+        <Panel className="px-5 py-4">
+          <PanelHeader title={fr ? "Outils" : "Tools"} />
+          <div className="mt-2 flex flex-wrap gap-1.5">
+            {[
+              { href: `/engagements/${id}/tools`, label: fr ? "Campagne d’indépendance" : "Independence campaign" },
+              { href: `/engagements/${id}/tools`, label: fr ? "Échantillonnage" : "Sampling" },
+              { href: `/engagements/${id}/confirmations`, label: fr ? "Circularisation" : "Circularisation" },
+              { href: `/engagements/${id}/data`, label: fr ? "Balance" : "Trial balance" },
+              { href: `/engagements/${id}`, label: fr ? "Dossier" : "Audit file" },
+              { href: `/engagements/${id}/team`, label: fr ? "Équipe" : "Team" },
+            ].map((r, i) => (
+              <Link
+                key={i}
+                href={r.href}
+                className="inline-flex min-h-[26px] items-center rounded-full border border-line bg-surface-2 px-3 py-0.5 text-[11.5px] font-semibold text-ink-soft transition hover:border-emerald-600 hover:text-emerald-700"
+              >
+                {r.label}
+              </Link>
+            ))}
           </div>
         </Panel>
       </section>

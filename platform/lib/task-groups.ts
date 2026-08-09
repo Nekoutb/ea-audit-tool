@@ -36,30 +36,41 @@ export interface TaskGroupDef {
 }
 
 export const TASK_GROUPS: TaskGroupDef[] = [
-  // ---- Acceptance (its own phase: everything performed before commitment) ----
-  // Order is the order the work is performed: background and integrity, then
-  // resources, independence, preconditions, the predecessor, the letter, and
-  // finally whether the engagement needs a quality review.
-  { id: "st1", code: "ST1", section: "acceptance", titleEn: "Acceptance & Continuance", titleFr: "Acceptation & Maintien", members: ["D3.1", "D6.1", "D3.2", "D3.3", "D3.4", "D3.5", "D3.6"] },
-  // ---- Scope & Strategy (ST) ----
-  { id: "st2", code: "ST2", section: "strategy", titleEn: "Strategy & Direction", titleFr: "Stratégie & Direction", members: ["D1", "D4.1", "D7.1"] },
-  { id: "st3", code: "ST3", section: "strategy", titleEn: "Understanding the Entity", titleFr: "Connaissance de l'entité", members: ["D4.2", "D4.3", "D4.4", "D4.5"] },
-  { id: "st4", code: "ST4", section: "strategy", titleEn: "IT & Reliance", titleFr: "Informatique & Appuis", members: ["D4.6", "D4.7", "D4.8", "D4.9"] },
-  { id: "st5", code: "ST5", section: "strategy", titleEn: "Materiality & Specific Risks", titleFr: "Seuil & Risques spécifiques", members: ["D5.1", "D5.2", "D5.4", "D5.5", "D5.6", "D5.7"] },
-  { id: "st6", code: "ST6", section: "strategy", titleEn: "Risk Register & Response Plan", titleFr: "Registre des risques & Réponses", members: ["D7.2"] },
-  // ---- Execution (E) ----
-  { id: "e1", code: "E1", section: "execution", titleEn: "Significant Transaction Classes", titleFr: "Flux de transactions significatifs", members: ["E100", "E110", "E120"] },
-  { id: "e2", code: "E2", section: "execution", titleEn: "IT", titleFr: "Informatique", members: ["E500", "E510"] },
-  { id: "e3", code: "E3", section: "execution", titleEn: "Accounts", titleFr: "Comptes", members: ["E130", "E140", "E150", "E160", "E170", "E180", "E190", "E200", "E210", "E220", "E230", "E270", "E280"] },
-  { id: "e4", code: "E4", section: "execution", titleEn: "General", titleFr: "Général", members: ["E310", "E320", "E330", "E360", "E370", "E380", "E390"] },
-  { id: "e5", code: "E5", section: "execution", titleEn: "Response Tasks", titleFr: "Tâches de réponse", members: ["E350"] },
-  // ---- Conclusion (C) ----
-  { id: "c1", code: "C1", section: "conclusion", titleEn: "Financial Statements & Completion", titleFr: "États financiers & Achèvement", members: ["A1", "B1", "B6", "B10"] },
-  { id: "c2", code: "C2", section: "conclusion", titleEn: "Misstatements & Significant Matters", titleFr: "Anomalies & Points significatifs", members: ["B5", "B4", "B3"] },
-  { id: "c3", code: "C3", section: "conclusion", titleEn: "Subsequent Events & Going Concern", titleFr: "Événements postérieurs & Continuité", members: ["B7"] },
-  { id: "c4", code: "C4", section: "conclusion", titleEn: "Representations & Confirmations", titleFr: "Déclarations & Confirmations", members: ["B8", "B9"] },
-  { id: "c5", code: "C5", section: "conclusion", titleEn: "Quality & Governance", titleFr: "Qualité & Gouvernance", members: ["B2", "C1"] },
-  { id: "c6", code: "C6", section: "conclusion", titleEn: "Legal & Statutory (OHADA)", titleFr: "Juridique & Statutaire (OHADA)", members: ["F1", "F2", "F3", "F4", "F5", "F6", "F7", "F8"] },
+  // Six grouped tasks per phase — the console's flyout list. Members stay in
+  // the order the work is performed; every internal code lives in exactly one
+  // group. Internal codes remain the storage keys throughout.
+
+  // ---- Acceptance ----
+  { id: "a1", code: "A1", section: "acceptance", titleEn: "Client background & integrity", titleFr: "Contexte client & intégrité", members: ["D3.1"] },
+  { id: "a2", code: "A2", section: "acceptance", titleEn: "Resources & capability", titleFr: "Ressources & capacité", members: ["D6.1"] },
+  { id: "a3", code: "A3", section: "acceptance", titleEn: "Independence & ethics", titleFr: "Indépendance & éthique", members: ["D3.2"] },
+  { id: "a4", code: "A4", section: "acceptance", titleEn: "Preconditions for the audit", titleFr: "Conditions préalables à l'audit", members: ["D3.3"] },
+  { id: "a5", code: "A5", section: "acceptance", titleEn: "Predecessor & opening balances", titleFr: "Prédécesseur & soldes d'ouverture", members: ["D3.4"] },
+  { id: "a6", code: "A6", section: "acceptance", titleEn: "Engagement letter & quality review", titleFr: "Lettre de mission & revue qualité", members: ["D3.5", "D3.6"] },
+
+  // ---- Scope & Strategy ----
+  { id: "s1", code: "S1", section: "strategy", titleEn: "Strategy & direction", titleFr: "Stratégie & direction", members: ["D1", "D4.1", "D7.1"] },
+  { id: "s2", code: "S2", section: "strategy", titleEn: "Understanding the entity", titleFr: "Connaissance de l'entité", members: ["D4.2", "D4.3"] },
+  { id: "s3", code: "S3", section: "strategy", titleEn: "Internal control & IT", titleFr: "Contrôle interne & informatique", members: ["D4.4", "D4.5", "D4.6"] },
+  { id: "s4", code: "S4", section: "strategy", titleEn: "Reliance on others", titleFr: "Appui sur des tiers", members: ["D4.7", "D4.8", "D4.9"] },
+  { id: "s5", code: "S5", section: "strategy", titleEn: "Materiality & specific risks", titleFr: "Seuil & risques spécifiques", members: ["D5.1", "D5.2", "D5.4", "D5.5", "D5.6", "D5.7"] },
+  { id: "s6", code: "S6", section: "strategy", titleEn: "Risk register & response plan", titleFr: "Registre des risques & réponses", members: ["D7.2"] },
+
+  // ---- Execution ----
+  { id: "e1", code: "E1", section: "execution", titleEn: "Transaction flows", titleFr: "Flux de transactions", members: ["E100", "E110", "E120"] },
+  { id: "e2", code: "E2", section: "execution", titleEn: "IT controls", titleFr: "Contrôles informatiques", members: ["E500", "E510"] },
+  { id: "e3", code: "E3", section: "execution", titleEn: "Assets & financing", titleFr: "Actifs & financement", members: ["E130", "E140", "E150", "E160", "E170"] },
+  { id: "e4", code: "E4", section: "execution", titleEn: "Tax, provisions & other balances", titleFr: "Impôts, provisions & autres soldes", members: ["E180", "E190", "E200", "E210", "E220", "E230", "E270", "E280"] },
+  { id: "e5", code: "E5", section: "execution", titleEn: "Fraud & management override", titleFr: "Fraude & contournement des contrôles", members: ["E350"] },
+  { id: "e6", code: "E6", section: "execution", titleEn: "General procedures", titleFr: "Procédures générales", members: ["E310", "E320", "E330", "E360", "E370", "E380", "E390"] },
+
+  // ---- Conclusion ----
+  { id: "c1", code: "C1", section: "conclusion", titleEn: "Financial statements & completion", titleFr: "États financiers & achèvement", members: ["A1", "B1", "B6", "B10"] },
+  { id: "c2", code: "C2", section: "conclusion", titleEn: "Misstatements & significant matters", titleFr: "Anomalies & points significatifs", members: ["B5", "B4", "B3"] },
+  { id: "c3", code: "C3", section: "conclusion", titleEn: "Subsequent events & going concern", titleFr: "Événements postérieurs & continuité", members: ["B7"] },
+  { id: "c4", code: "C4", section: "conclusion", titleEn: "Representations & confirmations", titleFr: "Déclarations & confirmations", members: ["B8", "B9"] },
+  { id: "c5", code: "C5", section: "conclusion", titleEn: "Quality, governance & the report", titleFr: "Qualité, gouvernance & rapport", members: ["B2", "C1"] },
+  { id: "c6", code: "C6", section: "conclusion", titleEn: "OHADA statutory", titleFr: "Statutaire OHADA", members: ["F1", "F2", "F3", "F4", "F5", "F6", "F7", "F8"] },
 ];
 
 export const GROUP_BY_ID: Record<string, TaskGroupDef> = Object.fromEntries(
