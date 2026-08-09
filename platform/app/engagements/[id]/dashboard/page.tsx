@@ -2,11 +2,9 @@ import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
 import { auth } from "@/auth";
 import { AppNav } from "@/components/AppNav";
-import { PhaseNav } from "@/components/PhaseNav";
 import { SectionStage, type StageSection } from "@/components/SectionStage";
 import { TilesToggle } from "@/components/TilesToggle";
-import { Chip, Panel, PanelHeader, StatCell } from "@/components/ui/atlas";
-import { listActivity } from "@/lib/activity";
+import { Panel, PanelHeader } from "@/components/ui/atlas";
 import { engagementDashboard } from "@/lib/dashboards";
 import {
   dashboardStats,
@@ -18,8 +16,9 @@ import {
   type PhaseTask,
 } from "@/lib/engagement-dashboard";
 import { getEngagement } from "@/lib/engagements";
-import { formatFCFA, getMessages } from "@/lib/i18n";
+import { getMessages } from "@/lib/i18n";
 import { getLocale } from "@/lib/locale";
+import { shortTitle } from "@/lib/file-index";
 import {
   SECTION_ORDER,
   displayCode,
@@ -45,6 +44,11 @@ const SECTION_DEADLINE_PHASE: Record<SectionKey, DashboardPhase> = {
   conclusion: "conclusion",
 };
 
+const STATUS_LABEL: Record<"en" | "fr", Record<PhaseTask["status"], string>> = {
+  en: { reviewed: "Reviewed", in_review: "For review", in_progress: "In progress", not_started: "Not started" },
+  fr: { reviewed: "Revu", in_review: "À revoir", in_progress: "En cours", not_started: "Non démarré" },
+};
+
 function buildSections(
   tasks: PhaseTask[],
   engagementId: string,
@@ -65,6 +69,19 @@ function buildSections(
         href: `/engagements/${engagementId}/groups/${g.id}`,
       };
     });
+    // the phase's tasks, flattened in the order they are performed
+    const sectionTasks = groupsOfSection(key)
+      .flatMap((g) => g.members)
+      .map((code) => byCode.get(code))
+      .filter((t): t is PhaseTask => Boolean(t))
+      .map((t) => ({
+        code: t.code,
+        display: displayCode(t.code),
+        title: shortTitle(t.code, locale, locale === "fr" ? t.titleFr : t.titleEn),
+        status: t.status,
+        statusLabel: STATUS_LABEL[locale][t.status],
+        href: `/engagements/${engagementId}/sections/${t.id}`,
+      }));
     const done = groups.reduce((sum, g) => sum + g.done, 0);
     const total = groups.reduce((sum, g) => sum + g.total, 0);
     const pct = total > 0 ? Math.round((done / total) * 100) : 0;
@@ -77,6 +94,7 @@ function buildSections(
       deadline: `${dueLabel} ${phaseDeadline(periodEnd, SECTION_DEADLINE_PHASE[key])}`,
       color: pct >= 70 ? "var(--color-emerald-600)" : pct > 0 ? "var(--color-warn)" : "var(--color-muted)",
       groups,
+      tasks: sectionTasks,
     };
   });
 }
@@ -91,30 +109,28 @@ export default async function EngagementDashboardPage(props: {
   const locale = await getLocale();
   const t = getMessages(locale);
   const td = t.dashboard;
+  const fr = locale === "fr";
 
   const engagement = await getEngagement(id);
   if (!engagement) notFound();
 
-  const [tasks, attention, dash, stats, feed] = await Promise.all([
+  const [tasks, attention, dash, stats] = await Promise.all([
     engagementTasks(id),
     engagementAttention(id, locale),
     engagementDashboard(id),
     dashboardStats(id),
-    listActivity(id, 8),
   ]);
 
   const sections = buildSections(tasks, id, engagement.periodEnd, locale, td.stage.due);
   const doneTasks = sections.reduce((sum, s) => sum + s.done, 0);
   const totalTasks = sections.reduce((sum, s) => sum + s.total, 0);
   const overall = totalTasks > 0 ? Math.round((doneTasks / totalTasks) * 100) : 0;
-  const nextDeadline = dash.nextDeadlines[0] ?? null;
   // One stage vocabulary everywhere (register, hub, entity history).
   const phaseLabel = t.engagements.stages[engagement.phase];
 
   return (
     <main className="flex min-h-screen w-full flex-col gap-4 px-6 py-8">
       <AppNav locale={locale} current={{ id, label: engagement.name ?? engagement.clientName }} />
-      <PhaseNav engagementId={id} locale={locale} active="overview" />
 
       <div className="flex flex-wrap items-end justify-between gap-4">
         <div>
@@ -165,19 +181,21 @@ export default async function EngagementDashboardPage(props: {
         </div>
       </div>
 
+      {/* The four phases — the only place they appear on this screen. */}
       <SectionStage
         sections={sections}
-        hint={td.stage.groupsHint}
+        hint={fr ? "Cliquer une phase pour dérouler ses tâches." : "Click a phase to reveal its tasks."}
         reviewedLabel={td.stage.reviewed}
-        groupsLabel={td.stage.groups}
-        taskStatusLabel={td.stage.taskStatus}
+        tasksLabel={fr ? "Tâches, dans l’ordre d’exécution" : "Tasks, in the order they are performed"}
+        allPhasesLabel={fr ? "Toutes les phases" : "All phases"}
         refDocs={
           <>
             <div className="text-[10.5px] font-extrabold uppercase tracking-[0.08em] text-muted">{td.stage.refDocs}</div>
             <div className="mt-2 flex flex-wrap gap-1.5">
               {[
-                { href: `/engagements/${id}/tools`, label: locale === "fr" ? "Outils" : "Tools" },
-                { href: `/engagements/${id}/tasks`, label: locale === "fr" ? "Mes tâches" : "My Tasks" },
+                { href: `/engagements/${id}/tools`, label: fr ? "Outils" : "Tools" },
+                { href: `/engagements/${id}`, label: fr ? "Dossier" : "Audit file" },
+                { href: `/engagements/${id}/tasks`, label: fr ? "Mes tâches" : "My Tasks" },
                 { href: `/engagements/${id}/cra`, label: "CRA" },
                 { href: `/engagements/${id}/data`, label: t.planning.dataTitle },
                 { href: `/engagements/${id}/pbc`, label: t.pbc.title },
@@ -198,43 +216,9 @@ export default async function EngagementDashboardPage(props: {
         }
       />
 
-      <section className="grid grid-cols-1 gap-3 lg:grid-cols-[1.6fr_1fr] lg:items-stretch">
+      <section className="grid grid-cols-1 gap-3 lg:grid-cols-2 lg:items-start">
         <div className="flex min-w-0 flex-col gap-3">
           <TilesToggle my={stats.my} all={stats.all} labels={td.tiles} />
-
-          <Panel flush className="flex flex-col">
-            <div className="border-b border-line px-5 py-3.5">
-              <PanelHeader
-                title={td.requiresAttention}
-                right={<span className="text-xs font-semibold text-muted">{attention.length}</span>}
-              />
-            </div>
-            <div className="max-h-[300px] overflow-y-auto p-1.5" data-testid="attention-queue">
-              {attention.length === 0 ? (
-                <p className="px-4 py-6 text-center text-sm text-muted">{t.planning.findings.empty}</p>
-              ) : (
-                attention.map((item, idx) => (
-                  <div
-                    key={`${item.code}-${idx}`}
-                    className="flex items-center gap-3 rounded-[var(--radius-atlas-xs)] px-3.5 py-2.5 transition hover:bg-surface-2"
-                  >
-                    <span
-                      className={`grid h-6 w-12 flex-shrink-0 place-items-center rounded-md text-[10px] font-extrabold ${ROUTE_TONE[item.tone]}`}
-                    >
-                      {displayCode(item.code)}
-                    </span>
-                    <span className="min-w-0 flex-1">
-                      <span className="block truncate text-[13px] font-medium text-ink">{item.title}</span>
-                      <span className="block truncate text-[11.5px] text-muted">{item.meta}</span>
-                    </span>
-                    <span className="flex-shrink-0 text-[11px] text-muted tnum">
-                      {item.ageDays === 0 ? "today" : `${item.ageDays}d`}
-                    </span>
-                  </div>
-                ))
-              )}
-            </div>
-          </Panel>
 
           <Panel className="px-5 py-4" data-testid="findings-band">
             <PanelHeader title={td.findingsBand.title} />
@@ -251,119 +235,39 @@ export default async function EngagementDashboardPage(props: {
           </Panel>
         </div>
 
-        <div className="flex min-w-0 flex-col gap-3">
-          <Panel flush className="flex flex-col">
-            <div className="border-b border-line px-5 py-3.5">
-              <PanelHeader
-                title={td.feedTitle}
-                right={
-                  <Link
-                    href={`/engagements/${id}/activity`}
-                    className="text-xs font-semibold text-emerald-700 hover:underline dark:text-emerald-400"
+        <Panel flush className="flex min-w-0 flex-col">
+          <div className="border-b border-line px-5 py-3.5">
+            <PanelHeader
+              title={td.requiresAttention}
+              right={<span className="text-xs font-semibold text-muted">{attention.length}</span>}
+            />
+          </div>
+          <div className="max-h-[340px] overflow-y-auto p-1.5" data-testid="attention-queue">
+            {attention.length === 0 ? (
+              <p className="px-4 py-6 text-center text-sm text-muted">{t.planning.findings.empty}</p>
+            ) : (
+              attention.map((item, idx) => (
+                <div
+                  key={`${item.code}-${idx}`}
+                  className="flex items-center gap-3 rounded-[var(--radius-atlas-xs)] px-3.5 py-2.5 transition hover:bg-surface-2"
+                >
+                  <span
+                    className={`grid h-6 w-12 flex-shrink-0 place-items-center rounded-md text-[10px] font-extrabold ${ROUTE_TONE[item.tone]}`}
                   >
-                    {td.activity.link}
-                  </Link>
-                }
-              />
-            </div>
-            <div className="flex flex-col p-1.5" data-testid="engagement-feed">
-              {feed.length === 0 ? (
-                <p className="px-3.5 py-2.5 text-[12.5px] text-muted">{td.activity.empty}</p>
-              ) : (
-                feed.map((row) => (
-                  <div key={row.id} className="flex gap-2.5 rounded-[var(--radius-atlas-xs)] px-3 py-2">
-                    <span className="mt-0.5 grid h-6 w-6 flex-shrink-0 place-items-center rounded-full bg-line text-[9px] font-extrabold text-ink-soft">
-                      {(row.userName ?? "•").slice(0, 2).toUpperCase()}
-                    </span>
-                    <span className="min-w-0">
-                      <span className="block truncate text-[12.5px] text-ink">
-                        {row.userName ? <b>{row.userName}</b> : null} {row.summary ?? row.action}
-                      </span>
-                      <span className="block text-[10.5px] text-muted tnum">{row.at}</span>
-                    </span>
-                  </div>
-                ))
-              )}
-            </div>
-          </Panel>
-
-          <Panel flush className="flex flex-1 flex-col">
-            <div className="border-b border-line px-5 py-3.5">
-              <PanelHeader title={td.activity.title} />
-            </div>
-            <div className="flex flex-1 flex-col gap-3.5 p-5">
-              <StatCell label={td.currentPhase} value={phaseLabel} right={<Chip tone="warn">{td.activeLabel}</Chip>} />
-              <StatCell
-                label={td.nextDeadline}
-                value={nextDeadline ? nextDeadline.dueDate : "—"}
-                sub={
-                  nextDeadline
-                    ? `${nextDeadline.key} · ${nextDeadline.daysLeft} ${t.planning.legal.daysLeft.toLowerCase()}`
-                    : undefined
-                }
-              />
-              <StatCell
-                label={t.dashboard.portfolioRisks}
-                value={`${dash.risks.significant}`}
-                right={
-                  dash.risks.significant > 0 ? <Chip tone="rose">open</Chip> : <Chip tone="good">clear</Chip>
-                }
-                sub={`${dash.risks.identified} open · ${dash.risks.concluded} concluded`}
-              />
-              <StatCell
-                label={t.engagementDashboard.b5}
-                value={formatFCFA(dash.b5.uncorrected)}
-                sub={
-                  dash.b5.materiality === null
-                    ? t.dashboard.noMateriality
-                    : `${t.planning.findings.vsMateriality} ${formatFCFA(dash.b5.materiality)}`
-                }
-                right={
-                  dash.b5.materiality !== null && Math.abs(dash.b5.uncorrected) > dash.b5.materiality ? (
-                    <Chip tone="rose">{t.dashboard.exceeds}</Chip>
-                  ) : (
-                    <Chip tone="good">{t.dashboard.within}</Chip>
-                  )
-                }
-              />
-              <StatCell
-                label={t.engagementDashboard.pbcOpen}
-                value={`${dash.pbcOpen}`}
-                sub={`${dash.documentsUnsigned} ${t.engagementDashboard.unsigned.toLowerCase()}`}
-              />
-              <div className="mt-auto flex flex-wrap items-center gap-4 pt-1">
-                <a
-                  href={`/api/engagements/${id}/export`}
-                  data-testid="dashboard-export-index"
-                  className="inline-flex min-h-[24px] items-center text-[12.5px] font-semibold text-emerald-700 hover:underline dark:text-emerald-400"
-                >
-                  {t.engagementDashboard.export}
-                </a>
-                <Link
-                  href={`/engagements/${id}/activity`}
-                  data-testid="dashboard-activity-link"
-                  className="inline-flex min-h-[24px] items-center text-[12.5px] font-semibold text-emerald-700 hover:underline dark:text-emerald-400"
-                >
-                  {td.activity.link}
-                </Link>
-                <Link
-                  href={`/engagements/${id}/time`}
-                  data-testid="dashboard-time-link"
-                  className="inline-flex min-h-[24px] items-center text-[12.5px] font-semibold text-emerald-700 hover:underline dark:text-emerald-400"
-                >
-                  {t.time.link}
-                </Link>
-                <Link
-                  href={`/engagements/${id}/discussion`}
-                  data-testid="dashboard-discussion-link"
-                  className="inline-flex min-h-[24px] items-center text-[12.5px] font-semibold text-emerald-700 hover:underline dark:text-emerald-400"
-                >
-                  {t.discussion.link}
-                </Link>
-              </div>
-            </div>
-          </Panel>
-        </div>
+                    {displayCode(item.code)}
+                  </span>
+                  <span className="min-w-0 flex-1">
+                    <span className="block truncate text-[13px] font-medium text-ink">{item.title}</span>
+                    <span className="block truncate text-[11.5px] text-muted">{item.meta}</span>
+                  </span>
+                  <span className="flex-shrink-0 text-[11px] text-muted tnum">
+                    {item.ageDays === 0 ? "today" : `${item.ageDays}d`}
+                  </span>
+                </div>
+              ))
+            )}
+          </div>
+        </Panel>
       </section>
     </main>
   );

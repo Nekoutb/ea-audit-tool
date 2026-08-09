@@ -27,7 +27,9 @@ export function PhaseNav({
 
   return (
     <nav className="mt-4 flex flex-wrap items-center gap-x-4 gap-y-2" aria-label={locale === "fr" ? "Phases" : "Phases"}>
-      <div className="inline-flex max-w-full flex-nowrap gap-0.5 overflow-x-auto rounded-[var(--radius-atlas)] bg-surface-2 p-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+      {/* wraps rather than scrolls: a hidden scrollbar was cutting the fourth
+          phase off narrower screens, so the bar read as three phases */}
+      <div className="inline-flex max-w-full flex-wrap gap-0.5 rounded-[var(--radius-atlas)] bg-surface-2 p-1">
         <Link
           href={`${base}/dashboard`}
           data-testid="phase-overview"

@@ -29,6 +29,7 @@ export default async function DashboardPage() {
 
   const showDiagnostics = process.env.NODE_ENV !== "production";
   const { email, role, tenantId } = session.user;
+  const firstName = (session.user.name ?? email ?? "").split(/[ @]/)[0] ?? "";
   const locale = await getLocale();
   const t = getMessages(locale);
   const td = t.dashboard;
@@ -60,21 +61,64 @@ export default async function DashboardPage() {
     acceptance: "bg-[var(--color-warn-soft)] text-warn",
   };
 
-  const myEngagements = register
-    .filter((e) => e.isMine && e.phase !== "archived")
+  const active = register.filter((e) => e.phase !== "archived");
+  const mine = active.filter((e) => e.isMine);
+  const myEngagements = (mine.length > 0 ? mine : active)
     .sort((a, b) => (b.lastActivity ?? "").localeCompare(a.lastActivity ?? ""))
-    .slice(0, 4);
+
 
   return (
     <main className="flex min-h-screen w-full flex-col gap-4 px-6 py-8">
       <AppNav locale={locale} />
 
       <div>
-        <h1 className="text-2xl font-bold tracking-[-0.02em] text-ink">{td.portfolioTitle}</h1>
-        <p className="mt-1 text-[13px] text-ink-soft">{td.portfolioHint}</p>
+        <h1 className="text-2xl font-bold tracking-[-0.02em] text-ink" data-testid="welcome">
+          {locale === "fr" ? "Bienvenue" : "Welcome back"}{firstName ? `, ${firstName}` : ""}
+        </h1>
+        <p className="mt-1 text-[13px] text-ink-soft">
+          {locale === "fr" ? "Vos missions, et ce qui requiert votre attention." : "Your engagements, and what needs your attention."}
+        </p>
       </div>
 
       <section className="grid grid-cols-1 items-start gap-3 lg:grid-cols-[1.35fr_1fr]">
+        <Panel flush className="flex flex-col">
+          <div className="border-b border-line px-5 py-3.5">
+            <PanelHeader title={td.myEngagements.title} />
+          </div>
+          <div className="flex flex-col gap-1 p-1.5" data-testid="my-engagements">
+            {myEngagements.length === 0 ? (
+              <p className="px-4 py-6 text-center text-sm text-muted">{td.myEngagements.empty}</p>
+            ) : (
+              myEngagements.map((e) => {
+                const pct = e.tasksTotal > 0 ? Math.round((e.tasksDone / e.tasksTotal) * 100) : 0;
+                return (
+                  <Link
+                    key={e.id}
+                    href={`/engagements/${e.id}/dashboard`}
+                    className="flex items-center gap-3 rounded-[var(--radius-atlas-xs)] px-3.5 py-2.5 transition hover:bg-surface-2"
+                  >
+                    <span className="min-w-0 flex-1">
+                      <span className="block truncate text-[13px] font-semibold text-ink">
+                        {e.name ?? e.clientName}
+                      </span>
+                      <span className="block truncate text-[11.5px] text-muted tnum">
+                        {t.engagements.stages[e.phase]} · {phaseDeadline(e.periodEnd, (e.phase === "archived" ? "conclusion" : e.phase) as DashboardPhase)}
+                      </span>
+                    </span>
+                    <span className="flex flex-shrink-0 items-center gap-2">
+                      <span className="h-[5px] w-[56px] overflow-hidden rounded-full bg-line">
+                        <span className="block h-full rounded-full bg-emerald-600" style={{ width: `${pct}%` }} />
+                      </span>
+                      <span className="text-[11px] font-semibold text-emerald-700 dark:text-emerald-400">
+                        {td.myEngagements.continueLabel} →
+                      </span>
+                    </span>
+                  </Link>
+                );
+              })
+            )}
+          </div>
+        </Panel>
         <Panel flush className="flex flex-col">
           <div className="border-b border-line px-5 py-3.5">
             <PanelHeader
@@ -117,44 +161,6 @@ export default async function DashboardPage() {
           </div>
         </Panel>
 
-        <Panel flush className="flex flex-col">
-          <div className="border-b border-line px-5 py-3.5">
-            <PanelHeader title={td.myEngagements.title} />
-          </div>
-          <div className="flex flex-col gap-1 p-1.5" data-testid="my-engagements">
-            {myEngagements.length === 0 ? (
-              <p className="px-4 py-6 text-center text-sm text-muted">{td.myEngagements.empty}</p>
-            ) : (
-              myEngagements.map((e) => {
-                const pct = e.tasksTotal > 0 ? Math.round((e.tasksDone / e.tasksTotal) * 100) : 0;
-                return (
-                  <Link
-                    key={e.id}
-                    href={`/engagements/${e.id}/dashboard`}
-                    className="flex items-center gap-3 rounded-[var(--radius-atlas-xs)] px-3.5 py-2.5 transition hover:bg-surface-2"
-                  >
-                    <span className="min-w-0 flex-1">
-                      <span className="block truncate text-[13px] font-semibold text-ink">
-                        {e.name ?? e.clientName}
-                      </span>
-                      <span className="block truncate text-[11.5px] text-muted tnum">
-                        {t.engagements.stages[e.phase]} · {phaseDeadline(e.periodEnd, (e.phase === "archived" ? "conclusion" : e.phase) as DashboardPhase)}
-                      </span>
-                    </span>
-                    <span className="flex flex-shrink-0 items-center gap-2">
-                      <span className="h-[5px] w-[56px] overflow-hidden rounded-full bg-line">
-                        <span className="block h-full rounded-full bg-emerald-600" style={{ width: `${pct}%` }} />
-                      </span>
-                      <span className="text-[11px] font-semibold text-emerald-700 dark:text-emerald-400">
-                        {td.myEngagements.continueLabel} →
-                      </span>
-                    </span>
-                  </Link>
-                );
-              })
-            )}
-          </div>
-        </Panel>
       </section>
 
       <section className="grid grid-cols-1 gap-3 lg:grid-cols-2">
