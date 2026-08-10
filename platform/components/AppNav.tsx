@@ -1,6 +1,7 @@
 import { auth, signOut } from "@/auth";
 import { EngagementSelector, type SelectorItem } from "@/components/EngagementSelector";
 import { NavLink } from "@/components/NavLink";
+import { ThemeToggle } from "@/components/ThemeToggle";
 import { getBranding, type Branding } from "@/lib/branding";
 import { recentEngagements } from "@/lib/engagement-dashboard";
 import { getMessages, type Locale } from "@/lib/i18n";
@@ -95,6 +96,7 @@ export async function AppNav({
       </div>
 
       <div className="flex min-w-0 flex-wrap items-center justify-end gap-2.5">
+        <ThemeToggle />
         {recent.length > 0 && !minimal ? (
           <EngagementSelector
             current={currentLabel}

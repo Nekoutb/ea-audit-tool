@@ -1,5 +1,9 @@
 @import "tailwindcss";
 
+/* dark: variants follow the user's explicit choice; the head script always
+   stamps data-theme, resolving the OS preference when no choice is stored. */
+@custom-variant dark (&:where([data-theme="dark"], [data-theme="dark"] *));
+
 /*
  * Atlas design system.
  * The accent stays on Tailwind v4's emerald scale (var(--color-emerald-*)) so the
@@ -79,6 +83,64 @@
     --shadow-atlas: 0 1px 2px rgba(0, 0, 0, 0.4), 0 16px 38px rgba(0, 0, 0, 0.48), inset 0 1px 0 var(--glass-inner);
     --shadow-atlas-lg: 0 2px 6px rgba(0, 0, 0, 0.5), 0 24px 52px rgba(0, 0, 0, 0.55), inset 0 1px 0 var(--glass-inner);
   }
+}
+
+/* Explicit theme choice: the toggle stamps data-theme on <html>. dark mirrors
+   the media block above; light re-asserts the defaults so choosing light on a
+   dark OS actually goes bright. */
+:root[data-theme="dark"] {
+    --ground-a: #131518;
+    --ground-b: #1a1d21;
+    --ground-c: #101214;
+    --canvas: #121418;
+    --surface: rgba(40, 44, 51, 0.52);
+    --glass-border: rgba(255, 255, 255, 0.1);
+    --surface-2: rgba(255, 255, 255, 0.055);
+    --glass-inner: rgba(255, 255, 255, 0.07);
+    --ink: #eef1f5;
+    --ink-soft: #c8d1de;
+    --muted: #aab7ca;
+    --line: rgba(255, 255, 255, 0.08);
+    --line-strong: rgba(255, 255, 255, 0.16);
+  --wp-auto: rgba(147, 164, 221, 0.14);
+  --wp-input: rgba(224, 169, 74, 0.14);
+    --warn: #e0b054;
+    --warn-soft: #2a2113;
+    --rose: #f9a3b0;
+    --rose-soft: #2b171b;
+    --good: #5cd8a3;
+    --good-soft: #12241d;
+
+    --shadow-atlas-sm: 0 1px 2px rgba(0, 0, 0, 0.42), inset 0 1px 0 var(--glass-inner);
+    --shadow-atlas: 0 1px 2px rgba(0, 0, 0, 0.4), 0 16px 38px rgba(0, 0, 0, 0.48), inset 0 1px 0 var(--glass-inner);
+    --shadow-atlas-lg: 0 2px 6px rgba(0, 0, 0, 0.5), 0 24px 52px rgba(0, 0, 0, 0.55), inset 0 1px 0 var(--glass-inner);
+  }
+
+:root[data-theme="light"] {
+  --ground-a: #e4e7eb;
+  --ground-b: #ced3d9;
+  --ground-c: #bdc3cb;
+  --canvas: #dde1e5;
+  --surface: rgba(255, 255, 255, 0.55);
+  --glass-border: rgba(255, 255, 255, 0.7);
+  --surface-2: rgba(228, 232, 236, 0.75);
+  --glass-inner: rgba(255, 255, 255, 0.85);
+  --ink: #1b1e23;
+  --ink-soft: #2b323b;
+  --muted: #515863;
+  --line: rgba(27, 30, 35, 0.09);
+  --line-strong: rgba(27, 30, 35, 0.17);
+  --wp-auto: rgba(52, 70, 127, 0.09);
+  --wp-input: rgba(180, 120, 10, 0.11);
+  --warn: #9c660e;
+  --warn-soft: #f7edd8;
+  --rose: #b23c4f;
+  --rose-soft: #f7e7ea;
+  --good: #12795a;
+  --good-soft: #e4f2ec;
+  --shadow-atlas-sm: 0 1px 2px rgba(20, 24, 30, 0.07), inset 0 1px 0 var(--glass-inner);
+  --shadow-atlas: 0 1px 2px rgba(20, 24, 30, 0.06), 0 14px 36px rgba(20, 24, 30, 0.11), inset 0 1px 0 var(--glass-inner);
+  --shadow-atlas-lg: 0 2px 6px rgba(20, 24, 30, 0.08), 0 22px 48px rgba(20, 24, 30, 0.16), inset 0 1px 0 var(--glass-inner);
 }
 
 @theme inline {

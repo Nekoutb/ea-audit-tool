@@ -31,6 +31,15 @@ export default async function RootLayout({
       lang={locale}
       className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}
     >
+      <head>
+        {/* stamp the theme before first paint — stored choice, else the OS */}
+        <script
+          dangerouslySetInnerHTML={{
+            __html:
+              "try{var t=localStorage.getItem(\"theme\");if(t!==\"light\"&&t!==\"dark\"){t=matchMedia(\"(prefers-color-scheme: dark)\").matches?\"dark\":\"light\"}document.documentElement.setAttribute(\"data-theme\",t)}catch(e){}",
+          }}
+        />
+      </head>
       <body className="min-h-full flex flex-col">
         <BrandStyle />
         <PageLoader />

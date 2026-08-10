@@ -17,6 +17,7 @@ import {
 import { addStepAction, assignTaskAction, generateProgramAction, linkRiskStepAction, savePaperAction } from "@/app/actions/planning";
 import { AppNav } from "@/components/AppNav";
 import { PhaseNav } from "@/components/PhaseNav";
+import { TaskAttachments } from "@/components/TaskAttachments";
 import { WorkingPaper } from "@/components/WorkingPaper";
 import { ErrorBanner } from "@/components/GatesPanel";
 import { Panel, PanelHeader, Chip } from "@/components/ui/atlas";
@@ -28,6 +29,7 @@ import { listDatasets } from "@/lib/subledgers";
 import { getMessages } from "@/lib/i18n";
 import { getLocale } from "@/lib/locale";
 import { groupOfTask, type SectionKey } from "@/lib/task-groups";
+import { listAttachments } from "@/lib/attachments";
 import { loadPaper, paperFor } from "@/lib/working-papers";
 import { listProgramSteps, sectionCoverage } from "@/lib/programs";
 import { canReview } from "@/lib/rbac";
@@ -76,6 +78,7 @@ export default async function SectionPage(props: {
   // task that already holds one, so nothing recorded elsewhere is lost.
   const isExecution = phaseKey === "execution";
   const paperValues = await loadPaper(id, section.code);
+  const attachments = await listAttachments(itemId);
 
   const [risks, steps, coverage, controlTests, conclusion, datasets, runs, team, assignee] =
     await Promise.all([
@@ -172,6 +175,9 @@ export default async function SectionPage(props: {
         locale={locale}
         action={savePaperAction.bind(null, id, itemId, section.code)}
       />
+
+      {/* files of the task: upload · download · versions · edit-locally watcher */}
+      <TaskAttachments fileItemId={itemId} initial={attachments} locale={locale === "fr" ? "fr" : "en"} />
 
       {/* Linked risks pinned at the top of the section (spec §8.1) */}
       {isExecution || phaseKey === "strategy" || risks.length > 0 ? (

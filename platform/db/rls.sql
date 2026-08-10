@@ -36,6 +36,7 @@ BEGIN
     'review_note',
     'activity_log',
     'time_entry',
+    'task_attachment',
     'comment',
     'template_override'
   ]
