@@ -6,12 +6,14 @@
 
 export interface PaperField {
   key: string;
-  /** input = the preparer writes it; auto = a tool or the engagement record fills it. */
-  kind: "input" | "auto";
+  /** input = typed; auto = tool-filled; select = one clickable option. */
+  kind: "input" | "auto" | "select";
   labelEn: string;
   labelFr: string;
   /** auto fields only: which tool produces the value. */
   source?: string;
+  /** select fields only: the clickable options. */
+  options?: { value: string; en: string; fr: string }[];
 }
 
 /** One numbered procedure: what to do, where the information comes from. */
@@ -70,10 +72,10 @@ export function paperKeys(def: PaperDef): Set<string> {
   // key_findings is universal: the working-paper screen records them on every task
   const keys = new Set<string>(["key_findings"]);
   (def.fields ?? []).forEach((f) => {
-    if (f.kind === "input") keys.add(f.key);
+    if (f.kind === "input" || f.kind === "select") keys.add(f.key);
   });
   (def.sections ?? []).forEach((s) => {
-    if (s.kind === "fields") s.fields.forEach((f) => f.kind === "input" && keys.add(f.key));
+    if (s.kind === "fields") s.fields.forEach((f) => (f.kind === "input" || f.kind === "select") && keys.add(f.key));
     if (s.kind === "proc") s.procs.forEach((p) => keys.add(procKey(p.key)));
     if (s.kind === "yn")
       s.items.forEach((i) => {
@@ -91,9 +93,9 @@ export function paperKeys(def: PaperDef): Set<string> {
 /** Fields the preparer must complete, for the progress count. */
 export function requiredKeys(def: PaperDef): string[] {
   const out: string[] = [];
-  (def.fields ?? []).forEach((f) => f.kind === "input" && out.push(f.key));
+  (def.fields ?? []).forEach((f) => (f.kind === "input" || f.kind === "select") && out.push(f.key));
   (def.sections ?? []).forEach((s) => {
-    if (s.kind === "fields") s.fields.forEach((f) => f.kind === "input" && out.push(f.key));
+    if (s.kind === "fields") s.fields.forEach((f) => (f.kind === "input" || f.kind === "select") && out.push(f.key));
     if (s.kind === "proc") s.procs.forEach((p) => out.push(procKey(p.key)));
     if (s.kind === "yn") s.items.forEach((i) => out.push(ynKey(i.key)));
   });

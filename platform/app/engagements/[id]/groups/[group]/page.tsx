@@ -86,17 +86,9 @@ export default async function GroupTasksPage(props: {
   const returnTo = `/engagements/${id}/groups/${group}`;
 
   const rows: PhaseRowData[] = tasks.map((task) => {
-    const href = task.documentId
-      ? `/documents/${task.documentId}`
-      : FORM_DEFINITIONS[task.code]
-        ? `/engagements/${id}/forms/${task.code}`
-        : task.code === "D5.1"
-          ? `/engagements/${id}/planning`
-          : task.code === "D7.2"
-            ? `/engagements/${id}/risks`
-            : task.section === "F"
-              ? `/engagements/${id}/legal`
-              : `/engagements/${id}/sections/${task.id}`;
+    // Every task opens its working-paper screen; the legacy /forms and hub
+    // routes remain reachable for direct links but are no longer the way in.
+    const href = `/engagements/${id}/sections/${task.id}`;
 
     const preparerSigned = Boolean(task.preparerName);
     const reviewerSigned = Boolean(task.reviewerName);

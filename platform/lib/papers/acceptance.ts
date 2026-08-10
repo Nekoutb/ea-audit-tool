@@ -32,6 +32,23 @@ const D3_1: PaperDef = {
   ],
   sections: [
     {
+      kind: "fields",
+      titleEn: "Engagement profile",
+      titleFr: "Profil de la mission",
+      introEn: "Select what applies before performing the procedures.",
+      introFr: "Sélectionner ce qui s'applique avant de mettre en œuvre les procédures.",
+      fields: [
+        { key: "engagement_type", kind: "select", labelEn: "Engagement type", labelFr: "Type de mission", options: [
+          { value: "new", en: "New engagement", fr: "Nouvelle mission" },
+          { value: "recurring", en: "Recurring engagement", fr: "Mission récurrente" },
+        ] },
+        { key: "auditor_change", kind: "select", labelEn: "Change of auditor?", labelFr: "Changement d'auditeur ?", options: [
+          { value: "yes", en: "Yes — predecessor communication applies (D3.4)", fr: "Oui — communication avec le prédécesseur (D3.4)" },
+          { value: "no", en: "No", fr: "Non" },
+        ] },
+      ],
+    },
+    {
       kind: "proc",
       titleEn: "Part A — Procedures and expected sources",
       titleFr: "Partie A — Procédures et sources attendues",
@@ -80,7 +97,11 @@ const D3_1: PaperDef = {
       introFr:
         "Peser l'évaluation de la partie B. Un « Non », une correspondance de criblage non résolue ou une demande sans réponse auprès du prédécesseur exclut une notation Faible.",
       fields: [
-        { key: "rating", kind: "input", labelEn: "Rating: Low, Moderate or High", labelFr: "Notation : Faible, Modérée ou Élevée" },
+        { key: "rating", kind: "select", labelEn: "Client risk rating", labelFr: "Notation du risque client", options: [
+          { value: "low", en: "Low", fr: "Faible" },
+          { value: "moderate", en: "Moderate", fr: "Modérée" },
+          { value: "high", en: "High", fr: "Élevée" },
+        ] },
         { key: "rating_why", kind: "input", labelEn: "Reasons for the rating, citing the Part A evidence, and its effect on the engagement: the review requirement under D3.6, the fraud risk baseline, staffing and supervision", labelFr: "Motifs de la notation, éléments de la partie A à l'appui, et effet sur la mission : exigence de revue (D3.6), base d'évaluation du risque de fraude, dotation et supervision" },
       ],
     },

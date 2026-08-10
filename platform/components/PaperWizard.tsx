@@ -210,6 +210,31 @@ export function PaperWizard({
                   </div>
                 );
               }
+              if (f.kind === "select") {
+                return (
+                  <div key={f.key} className="rounded-[var(--radius-atlas-sm)] border border-line px-2.5 py-1.5">
+                    <span className="block text-[11px] text-muted">{label}</span>
+                    <div className="mt-1 flex flex-wrap gap-1.5">
+                      {(f.options ?? []).map((o) => (
+                        <label key={o.value} className="cursor-pointer">
+                          <input
+                            type="radio"
+                            name={f.key}
+                            value={o.value}
+                            defaultChecked={values[f.key] === o.value}
+                            disabled={readOnly}
+                            data-testid={`wp-${f.key}-${o.value}`}
+                            className="peer sr-only"
+                          />
+                          <span className="inline-flex items-center rounded-full border border-line-strong px-3 py-1 text-[11.8px] font-semibold text-ink-soft transition peer-checked:border-emerald-600 peer-checked:bg-emerald-600 peer-checked:text-white hover:border-emerald-600">
+                            {fr ? o.fr : o.en}
+                          </span>
+                        </label>
+                      ))}
+                    </div>
+                  </div>
+                );
+              }
               return (
                 <label key={f.key} className="block">
                   <span className="block text-[11px] text-muted">{label}</span>
