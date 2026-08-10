@@ -34,8 +34,7 @@ import { getMessages } from "@/lib/i18n";
 import { getLocale } from "@/lib/locale";
 import { groupOfTask, type SectionKey } from "@/lib/task-groups";
 import { signOffPreparerAction, signOffReviewerAction } from "@/app/actions/audit-file";
-import { listAttachments, saveAttachment } from "@/lib/attachments";
-import { DOCX_MIME_TYPE, STANDARD_TEMPLATE_NAME, renderPaperTemplate } from "@/lib/paper-template";
+import { listAttachments } from "@/lib/attachments";
 import { taskForItem, engagementTasks } from "@/lib/engagement-dashboard";
 import { listConfirmations, sendDueReminders } from "@/lib/independence";
 import { listTeam as listEngagementTeam } from "@/lib/team";
@@ -87,24 +86,7 @@ export default async function SectionPage(props: {
   // task that already holds one, so nothing recorded elsewhere is lost.
   const isExecution = phaseKey === "execution";
   const paperValues = await loadPaper(id, section.code);
-  let attachments = await listAttachments(itemId);
-  // The standard working paper (the artifact's form) is pre-attached to every
-  // task, generated from the paper's own definition on first view. Edits flow
-  // back through the attachment watcher like any other file.
-  if (phaseKey !== "execution" && !attachments.some((a) => a.name === STANDARD_TEMPLATE_NAME(section.code))) {
-    try {
-      const template = await renderPaperTemplate(
-        section.code,
-        locale === "fr" ? section.title_fr : section.title_en,
-        paperDef,
-        locale === "fr" ? "fr" : "en",
-      );
-      await saveAttachment(itemId, STANDARD_TEMPLATE_NAME(section.code), DOCX_MIME_TYPE, template);
-      attachments = await listAttachments(itemId);
-    } catch {
-      // template generation must never block the task page
-    }
-  }
+  const attachments = await listAttachments(itemId);
   // The Independence task (D3.2) embeds the campaign. Rendering it also runs
   // the 24-hour reminder sweep — idempotent per day, so simply working the
   // file keeps reminders flowing without a separate scheduler.

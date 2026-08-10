@@ -103,3 +103,28 @@ export async function getAttachment(
     return r.rows[0] ?? null;
   });
 }
+
+/**
+ * Rename a document (every version of it, so the chain stays intact). The
+ * extension is preserved when the new name omits one.
+ */
+export async function renameAttachment(id: string, newNameRaw: string): Promise<string> {
+  const { tenantId } = await requireTenant();
+  return withTenant(tenantId, async (tx) => {
+    const row = await tx.query<{ file_item_id: string; name: string }>(
+      "SELECT file_item_id, name FROM task_attachment WHERE id = $1",
+      [id],
+    );
+    if (!row.rows[0]) throw new Error("not-found");
+    const { file_item_id, name } = row.rows[0];
+    let next = newNameRaw.trim().replace(/[\/:*?"<>|]/g, "").slice(0, 120);
+    if (!next) throw new Error("name-required");
+    const oldExt = name.includes(".") ? name.slice(name.lastIndexOf(".")) : "";
+    if (oldExt && !next.toLowerCase().endsWith(oldExt.toLowerCase())) next += oldExt;
+    await tx.query(
+      "UPDATE task_attachment SET name = $3 WHERE file_item_id = $1 AND name = $2",
+      [file_item_id, name, next],
+    );
+    return next;
+  });
+}

@@ -23,6 +23,31 @@ function fmtSize(bytes: number): string {
   return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
 }
 
+/** File-type icon: a coloured tile with the family letter. */
+function FileIcon({ name }: { name: string }) {
+  const ext = name.toLowerCase().split(".").pop() ?? "";
+  const [letter, bg] =
+    ext === "doc" || ext === "docx"
+      ? ["W", "#2b579a"]
+      : ext === "xls" || ext === "xlsx" || ext === "csv"
+        ? ["X", "#217346"]
+        : ext === "ppt" || ext === "pptx"
+          ? ["P", "#d24726"]
+          : ext === "pdf"
+            ? ["PDF", "#c11e1e"]
+            : ["F", "#6b7280"];
+  return (
+    <span
+      className="grid h-7 w-7 flex-shrink-0 place-items-center rounded-md text-[10px] font-extrabold text-white"
+      style={{ background: bg }}
+      aria-hidden
+      data-testid={`file-icon-${letter}`}
+    >
+      {letter}
+    </span>
+  );
+}
+
 /**
  * The files of a task: upload, download, versioned re-uploads — and an
  * edit-locally mode. "Edit locally" saves the file to a location the user
@@ -47,6 +72,7 @@ export function TaskAttachments({
   const [error, setError] = useState<string | null>(null);
   /** attachment name → watcher state */
   const [watching, setWatching] = useState<Record<string, number>>({});
+  const [renaming, setRenaming] = useState<string | null>(null);
   const watchers = useRef<Map<string, { stop: () => void }>>(new Map());
   const inputRef = useRef<HTMLInputElement>(null);
   const canWatch = typeof window !== "undefined" && typeof window.showSaveFilePicker === "function";
@@ -137,6 +163,25 @@ export function TaskAttachments({
     setWatching((prev) => ({ ...prev, [row.name]: row.version }));
   }
 
+  async function commitRename(row: AttachmentRow, value: string) {
+    setRenaming(null);
+    const next = value.trim();
+    if (!next || next === row.name) return;
+    const res = await fetch(`/api/attachments/file/${row.id}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ name: next }),
+    });
+    if (!res.ok) {
+      setError(fr ? "Le renommage a échoué." : "The rename failed.");
+      return;
+    }
+    const j = (await res.json()) as { name: string };
+    stopWatch(row.name); // the watcher is keyed by name — re-arm after renaming
+    setRows((prev) => prev.map((r) => (r.name === row.name ? { ...r, name: j.name } : r)));
+    setError(null);
+  }
+
   function stopWatch(name: string) {
     watchers.current.get(name)?.stop();
     watchers.current.delete(name);
@@ -179,41 +224,73 @@ export function TaskAttachments({
       ) : (
         <ul className="mt-3 divide-y divide-line" data-testid="attachments-list">
           {rows.map((row) => (
-            <li key={row.name} className="flex flex-wrap items-center gap-x-3 gap-y-1 py-2.5">
+            <li key={row.name} className="flex items-center gap-2.5 py-2">
+              <FileIcon name={row.name} />
               <span className="min-w-0 flex-1">
-                <span className="block truncate text-sm font-medium text-ink">{row.name}</span>
-                <span className="block truncate text-[11.5px] text-muted tnum">
-                  v{watching[row.name] ?? row.version} · {fmtSize(row.sizeBytes)} · {row.uploadedBy} · {row.uploadedAt}
+                {renaming === row.name ? (
+                  <input
+                    autoFocus
+                    defaultValue={row.name}
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter") commitRename(row, (e.target as HTMLInputElement).value);
+                      if (e.key === "Escape") setRenaming(null);
+                    }}
+                    onBlur={(e) => commitRename(row, e.target.value)}
+                    className="w-full rounded-[var(--radius-atlas-xs)] border border-emerald-600 bg-surface px-1.5 py-0.5 text-sm text-ink outline-none"
+                    data-testid={`attachment-rename-input-${row.name}`}
+                  />
+                ) : (
+                  <span className="block truncate text-sm font-medium text-ink">{row.name}</span>
+                )}
+                <span className="block truncate text-[11px] text-muted tnum">
+                  v{watching[row.name] ?? row.version} · {fmtSize(row.sizeBytes)} · {row.uploadedAt}
+                  {watching[row.name] !== undefined ? (fr ? " · suivi actif" : " · watching saves") : ""}
                 </span>
               </span>
+              {/* rename */}
+              <button
+                type="button"
+                onClick={() => setRenaming(row.name)}
+                title={fr ? "Renommer" : "Rename"}
+                aria-label={fr ? "Renommer" : "Rename"}
+                className="grid h-7 w-7 flex-shrink-0 place-items-center rounded-full text-muted transition hover:bg-surface-2 hover:text-ink"
+                data-testid={`attachment-rename-${row.name}`}
+              >
+                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 20h9" /><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4Z" /></svg>
+              </button>
+              {/* edit locally / stop watching */}
               {watching[row.name] !== undefined ? (
-                <>
-                  <Chip tone="good">{fr ? "Suivi des enregistrements" : "Watching saves"}</Chip>
-                  <button
-                    type="button"
-                    onClick={() => stopWatch(row.name)}
-                    className="text-xs font-semibold text-muted hover:text-ink"
-                    data-testid={`attachment-stop-${row.name}`}
-                  >
-                    {fr ? "Arrêter" : "Stop"}
-                  </button>
-                </>
+                <button
+                  type="button"
+                  onClick={() => stopWatch(row.name)}
+                  title={fr ? "Arrêter le suivi" : "Stop watching"}
+                  aria-label={fr ? "Arrêter le suivi" : "Stop watching"}
+                  className="grid h-7 w-7 flex-shrink-0 place-items-center rounded-full text-emerald-700 transition hover:bg-surface-2 dark:text-emerald-400"
+                  data-testid={`attachment-stop-${row.name}`}
+                >
+                  <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor"><rect x="6" y="6" width="12" height="12" rx="1.5" /></svg>
+                </button>
               ) : canWatch ? (
                 <button
                   type="button"
                   onClick={() => editLocally(row)}
-                  className="text-xs font-semibold text-emerald-700 hover:underline dark:text-emerald-400"
+                  title={fr ? "Modifier en local — chaque enregistrement remonte automatiquement" : "Edit locally — each save syncs back automatically"}
+                  aria-label={fr ? "Modifier en local" : "Edit locally"}
+                  className="grid h-7 w-7 flex-shrink-0 place-items-center rounded-full text-muted transition hover:bg-surface-2 hover:text-emerald-700"
                   data-testid={`attachment-edit-${row.name}`}
                 >
-                  {fr ? "Modifier en local" : "Edit locally"}
+                  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 12a9 9 0 1 1-2.6-6.3" /><path d="M21 3v6h-6" /></svg>
                 </button>
               ) : null}
+              {/* download */}
               <a
                 href={`/api/attachments/file/${row.id}`}
-                className="text-xs font-semibold text-emerald-700 hover:underline dark:text-emerald-400"
+                title={fr ? "Télécharger" : "Download"}
+                aria-label={fr ? "Télécharger" : "Download"}
+                className="grid h-7 w-7 flex-shrink-0 place-items-center rounded-full text-muted transition hover:bg-surface-2 hover:text-emerald-700"
                 data-testid={`attachment-download-${row.name}`}
               >
-                {fr ? "Télécharger" : "Download"}
+                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 3v12" /><path d="m7 10 5 5 5-5" /><path d="M5 21h14" /></svg>
               </a>
             </li>
           ))}

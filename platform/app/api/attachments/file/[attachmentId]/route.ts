@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { getAttachment } from "@/lib/attachments";
+import { getAttachment, renameAttachment } from "@/lib/attachments";
 
 /** Download one attachment version. RLS scopes the read to the tenant. */
 export async function GET(_request: Request, context: { params: Promise<{ attachmentId: string }> }) {
@@ -16,5 +16,19 @@ export async function GET(_request: Request, context: { params: Promise<{ attach
     });
   } catch {
     return NextResponse.json({ error: "unauthenticated" }, { status: 401 });
+  }
+}
+
+
+/** Rename the document (all versions). Body: { name: string }. */
+export async function PATCH(request: Request, context: { params: Promise<{ attachmentId: string }> }) {
+  const { attachmentId } = await context.params;
+  try {
+    const body = (await request.json()) as { name?: string };
+    const name = await renameAttachment(attachmentId, String(body.name ?? ""));
+    return NextResponse.json({ name });
+  } catch (error) {
+    const code = error instanceof Error ? error.message : "rename-failed";
+    return NextResponse.json({ error: code }, { status: code === "not-found" ? 404 : 400 });
   }
 }
