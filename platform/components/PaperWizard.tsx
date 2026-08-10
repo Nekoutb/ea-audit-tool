@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState, type FormEvent } from "react";
+import { useLayoutEffect, useMemo, useRef, useState, type FormEvent } from "react";
 import { SubmitButton } from "@/components/SubmitButton";
 import {
   conclKey,
@@ -22,7 +22,25 @@ import {
  * whole paper.
  */
 
-const CHUNK = 7;
+/**
+ * Estimated worst-case height per item (px), reserving room for the yellow
+ * box every question could open — so a page can never clip, whatever is
+ * answered. Pages are packed against the measured column height.
+ */
+const COST = { yn: 118, proc: 142, input: 96, select: 92, auto: 80, header: 24 } as const;
+function itemCost(it: StepItem): number {
+  const base =
+    it.kind === "proc"
+      ? COST.proc
+      : it.kind === "yn"
+        ? COST.yn
+        : it.field.kind === "select"
+          ? COST.select
+          : it.field.kind === "auto"
+            ? COST.auto
+            : COST.input;
+  return base + (it.sectionTitle ? COST.header : 0);
+}
 
 type StepItem = (
   | { kind: "field"; field: PaperField }
@@ -114,12 +132,42 @@ export function PaperWizard({
 }) {
   const fr = locale === "fr";
   const items = useMemo(() => buildItems(def, fr), [def, fr]);
+  // Measure the space a page really has on this screen, and pack items so
+  // the worst case (every yellow box open) still fits — anything more flows
+  // to the next page.
+  const areaRef = useRef<HTMLDivElement>(null);
+  const [areaH, setAreaH] = useState(560);
+  useLayoutEffect(() => {
+    const el = areaRef.current;
+    if (!el) return;
+    const measure = () => setAreaH(Math.max(240, el.clientHeight));
+    measure();
+    const ro = new ResizeObserver(measure);
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, []);
   const steps = useMemo(() => {
     const out: StepItem[][] = [];
-    for (let i = 0; i < items.length; i += CHUNK) out.push(items.slice(i, i + CHUNK));
+    let page: StepItem[] = [];
+    let used = 0;
+    for (const it of items) {
+      const c = itemCost(it);
+      if (page.length > 0 && used + c > areaH) {
+        out.push(page);
+        page = [];
+        used = 0;
+      }
+      page.push(it);
+      used += c;
+    }
+    if (page.length) out.push(page);
     return out;
-  }, [items]);
+  }, [items, areaH]);
   const [step, setStep] = useState(0);
+  // if a resize shrinks the page count, stay on a valid step
+  useLayoutEffect(() => {
+    setStep((s) => Math.min(s, steps.length));
+  }, [steps.length]);
   const total = steps.length + 1; // step 0 = conclusion & key findings
   const concl = (fr ? def.conclFr : def.conclEn) ?? [];
 
@@ -187,8 +235,10 @@ export function PaperWizard({
         </span>
       </div>
 
+      {/* the measuring shell: all steps render inside; its height drives packing */}
+      <div ref={areaRef} className="relative min-h-0 flex-1 overflow-hidden">
       {/* step 0: overall conclusion + key findings */}
-      <div hidden={step !== 0} className="mt-2 flex min-h-0 flex-1 flex-col gap-2 overflow-hidden">
+      <div hidden={step !== 0} className="absolute inset-0 mt-2 flex flex-col gap-2 overflow-hidden">
         {concl.map((c, i) => (
           <div key={i} className="rounded-[var(--radius-atlas-sm)] border border-line px-3 py-2">
             <div className="flex items-start justify-between gap-3">
@@ -227,7 +277,7 @@ export function PaperWizard({
 
       {/* the questionnaire, one continuous stream in screen-sized pages */}
       {steps.map((pageItems, si) => (
-        <div key={si} hidden={step !== si + 1} className="mt-2 flex min-h-0 flex-1 flex-col gap-1.5 overflow-hidden">
+        <div key={si} hidden={step !== si + 1} className="absolute inset-0 mt-2 flex flex-col gap-1.5 overflow-hidden">
           {pageItems.map((item) => {
             const header = item.sectionTitle ? (
               <p className="mb-0.5 mt-1 text-[10.5px] font-extrabold uppercase tracking-[0.07em] text-emerald-700 dark:text-emerald-400">
@@ -347,6 +397,8 @@ export function PaperWizard({
           })}
         </div>
       ))}
+
+      </div>
 
       {readOnly ? null : (
         <div className="mt-auto flex justify-end border-t border-line pt-2">
