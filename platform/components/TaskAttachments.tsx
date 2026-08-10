@@ -31,10 +31,12 @@ function fmtSize(bytes: number): string {
  * so the tool always holds the latest state of the document.
  */
 export function TaskAttachments({
+  compact = false,
   fileItemId,
   initial,
   locale,
 }: {
+  compact?: boolean;
   fileItemId: string;
   initial: AttachmentRow[];
   locale: "en" | "fr";
@@ -146,7 +148,7 @@ export function TaskAttachments({
   }
 
   return (
-    <Panel className="mt-6" data-testid="task-attachments">
+    <Panel className={compact ? "flex min-h-0 flex-1 flex-col overflow-hidden" : "mt-6"} data-testid="task-attachments">
       <PanelHeader
         title={fr ? "Fichiers de la tâche" : "Task files"}
         right={

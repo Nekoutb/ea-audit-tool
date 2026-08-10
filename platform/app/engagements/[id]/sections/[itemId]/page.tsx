@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
 import { auth } from "@/auth";
 import {
@@ -18,6 +19,7 @@ import { addStepAction, assignTaskAction, generateProgramAction, linkRiskStepAct
 import { AppNav } from "@/components/AppNav";
 import { PhaseNav } from "@/components/PhaseNav";
 import { launchIndependenceToTeamAction } from "@/app/actions/team-independence";
+import { PaperWizard } from "@/components/PaperWizard";
 import { SubmitButton } from "@/components/SubmitButton";
 import { TaskAttachments } from "@/components/TaskAttachments";
 import { WorkingPaper } from "@/components/WorkingPaper";
@@ -31,7 +33,9 @@ import { listDatasets } from "@/lib/subledgers";
 import { getMessages } from "@/lib/i18n";
 import { getLocale } from "@/lib/locale";
 import { groupOfTask, type SectionKey } from "@/lib/task-groups";
+import { signOffPreparerAction, signOffReviewerAction } from "@/app/actions/audit-file";
 import { listAttachments } from "@/lib/attachments";
+import { taskForItem, engagementTasks } from "@/lib/engagement-dashboard";
 import { listConfirmations, sendDueReminders } from "@/lib/independence";
 import { listTeam as listEngagementTeam } from "@/lib/team";
 import { loadPaper, paperFor } from "@/lib/working-papers";
@@ -98,6 +102,33 @@ export default async function SectionPage(props: {
     [campaign, campaignTeam] = await Promise.all([listConfirmations(id), listEngagementTeam(id)]);
   }
 
+  // The fixed working-paper screen (non-execution tasks): sign-off state,
+  // deadline, and the linked tasks resolved to their pages.
+  const taskInfo = await taskForItem(id, section.code);
+  const CROSS_LINKS: Record<string, string[]> = {
+    "D3.1": ["D3.4", "D3.2"], "D3.2": ["D3.1", "D3.6"], "D3.4": ["D3.1", "E370"],
+    "D3.6": ["D3.2", "B2"], "D5.1": ["B5", "D7.2"], "D5.2": ["E270"],
+    "D5.4": ["E350", "E100"], "D5.5": ["E330", "B7"], "D5.6": ["E320"], "D5.7": ["E390"],
+    "D7.2": ["D5.4", "E500"], "B5": ["D5.1", "B4"], "B7": ["E380", "E330", "C1"],
+    "B8": ["B5", "E270"], "B9": ["E100", "E170"], "B2": ["D3.6", "C1"], "C1": ["B5", "B7", "B2"],
+    "B1": ["B6", "B10"], "B4": ["B5", "B3"], "F2": ["E320"], "F7": ["E280", "E330"],
+  };
+  let linkedTasks: { code: string; title: string; href: string }[] = [];
+  if (phaseKey !== "execution") {
+    const [allTasks, condTasks] = await Promise.all([engagementTasks(id), engagementTasks(id, true)]);
+    const byCode = new Map([...allTasks, ...condTasks].map((x) => [x.code, x]));
+    const siblings = (groupOfTask(section.code)?.members ?? []).filter((c) => c !== section.code);
+    const wanted = [...new Set([...(CROSS_LINKS[section.code] ?? []), ...siblings])].slice(0, 6);
+    linkedTasks = wanted
+      .map((c) => byCode.get(c))
+      .filter((x): x is NonNullable<typeof x> => Boolean(x))
+      .map((x) => ({
+        code: x.code,
+        title: locale === "fr" ? x.titleFr : x.titleEn,
+        href: `/engagements/${id}/sections/${x.id}`,
+      }));
+  }
+
   const [risks, steps, coverage, controlTests, conclusion, datasets, runs, team, assignee] =
     await Promise.all([
       risksForSection(itemId),
@@ -144,12 +175,168 @@ export default async function SectionPage(props: {
   const btn =
     "rounded-[var(--radius-atlas-sm)] border border-line-strong bg-surface px-3 py-1.5 text-sm font-medium text-ink-soft hover:bg-surface-2";
 
+  const hasTools = (paperDef.tools?.length ?? 0) > 0;
+  const req = ((locale === "fr" ? paperDef.reqFr : paperDef.reqEn) ?? []) as string[];
+  const dueDate = taskInfo?.dueDate ?? null;
+  const overdue = dueDate !== null && dueDate < new Date().toISOString().slice(0, 10) && taskInfo?.status !== "reviewed";
+  const pSigned = Boolean(taskInfo?.preparerName);
+  const rSigned = Boolean(taskInfo?.reviewerName);
+  const chip = (on: boolean) =>
+    `grid h-7 w-7 place-items-center rounded-full text-[12px] font-extrabold transition ${
+      on ? "bg-emerald-600 text-white" : "bg-surface-2 text-muted hover:bg-line/70"
+    }`;
+
+  // ── The fixed working-paper screen: header band + 25/50/25, no page scroll.
+  //    Execution tasks keep the legacy page below (their tools stay untouched).
+  if (phaseKey !== "execution") {
+    return (
+      <main className="flex h-screen w-full flex-col gap-3 overflow-hidden px-6 py-4" data-testid="wp-screen">
+        <AppNav locale={locale} current={{ id, label: engagement.name ?? engagement.clientName }} />
+
+        <div className="flex flex-wrap items-center gap-x-4 gap-y-2 rounded-[var(--radius-atlas)] border border-glass-border bg-surface px-4 py-2.5 shadow-atlas-sm backdrop-blur-xl">
+          <h1 className="min-w-0 flex-1 truncate text-[15px] font-bold tracking-[-0.01em] text-ink">
+            {section.code} — {locale === "fr" ? section.title_fr : section.title_en}
+            {hasTools ? (
+              <span
+                className="ml-2 inline-flex items-center rounded-md bg-[var(--color-warn-soft)] px-1.5 py-0.5 align-middle text-[10px] font-extrabold text-warn"
+                title={fr ? "Des outils sont utilisés sur cette tâche" : "Tools are used on this task"}
+                data-testid="tl-badge"
+              >
+                TL
+              </span>
+            ) : null}
+          </h1>
+          <span className="hidden max-w-[220px] truncate text-[12px] text-muted lg:block">
+            {engagement.name ?? engagement.clientName}
+          </span>
+          <span className="flex items-center gap-1.5 text-[12px] text-muted tnum">
+            {fr ? "Échéance" : "Deadline"}: {dueDate ?? "—"}
+            <Chip tone={overdue ? "rose" : "good"}>{overdue ? (fr ? "En retard" : "Overdue") : fr ? "Dans les temps" : "On track"}</Chip>
+          </span>
+          <span className="flex items-center gap-1.5">
+            <form action={signOffPreparerAction}>
+              <input type="hidden" name="fileItemId" value={itemId} />
+              <input type="hidden" name="engagementId" value={id} />
+              <input type="hidden" name="returnTo" value={`/engagements/${id}/sections/${itemId}`} />
+              <button type="submit" className={chip(pSigned)} title={pSigned ? `${taskInfo?.preparerName} · ${taskInfo?.preparerAt}` : fr ? "Signer préparateur" : "Sign as preparer"} data-testid="chip-preparer" data-signed={String(pSigned)}>
+                P
+              </button>
+            </form>
+            <form action={signOffReviewerAction}>
+              <input type="hidden" name="fileItemId" value={itemId} />
+              <input type="hidden" name="engagementId" value={id} />
+              <input type="hidden" name="returnTo" value={`/engagements/${id}/sections/${itemId}`} />
+              <button type="submit" className={chip(rSigned)} title={rSigned ? `${taskInfo?.reviewerName} · ${taskInfo?.reviewerAt}` : fr ? "Signer réviseur" : "Sign as reviewer"} data-testid="chip-reviewer" data-signed={String(rSigned)}>
+                R
+              </button>
+            </form>
+          </span>
+          <span className="flex items-center gap-1.5 text-[12px] text-muted">
+            {fr ? "Assigné à" : "Assigned to"}
+            {canAssign ? (
+              <form action={assignTaskAction.bind(null, id, itemId)} className="flex items-center gap-1">
+                <select name="assignee" defaultValue={assignee?.userId ?? ""} className={input} data-testid="task-assignee">
+                  <option value="">—</option>
+                  {team.map((member) => (
+                    <option key={member.userId} value={member.userId}>{member.userName}</option>
+                  ))}
+                </select>
+                <SubmitButton className="rounded-[var(--radius-atlas-sm)] border border-line-strong px-2 py-1 text-[11.5px] text-ink-soft hover:bg-surface-2" testId="task-assign-save">OK</SubmitButton>
+              </form>
+            ) : (
+              <b className="text-ink-soft" data-testid="task-assignee">{assignee?.name ?? "—"}</b>
+            )}
+          </span>
+        </div>
+
+        <ErrorBanner error={error} locale={locale} />
+
+        <div className="grid min-h-0 flex-1 grid-cols-[25fr_50fr_25fr] gap-3 overflow-hidden">
+          <section className="flex min-h-0 flex-col overflow-hidden rounded-[var(--radius-atlas)] border border-glass-border bg-surface px-4 py-3 shadow-atlas-sm backdrop-blur-xl" data-testid="wp-guidance">
+            <h2 className="text-[11px] font-extrabold uppercase tracking-[0.07em] text-muted">Guidance</h2>
+            <p className="mt-1 text-[10.5px] font-semibold text-emerald-700 dark:text-emerald-400">{paperDef.std}</p>
+            <ul className="mt-2 flex min-h-0 flex-col gap-1.5 overflow-hidden">
+              {req.slice(0, 4).map((g, i) => (
+                <li key={i} className="flex gap-1.5 text-[11.8px] leading-snug text-ink-soft">
+                  <span className="text-emerald-700 dark:text-emerald-400">•</span>
+                  <span className="line-clamp-6">{g}</span>
+                </li>
+              ))}
+            </ul>
+          </section>
+
+          <section className="flex min-h-0 flex-col overflow-hidden rounded-[var(--radius-atlas)] border border-glass-border bg-surface px-4 py-3 shadow-atlas backdrop-blur-xl">
+            <PaperWizard
+              code={section.code}
+              def={paperDef}
+              values={paperValues}
+              autoValues={{}}
+              locale={fr ? "fr" : "en"}
+              action={savePaperAction.bind(null, id, itemId, section.code)}
+            />
+          </section>
+
+          <section className="flex min-h-0 flex-col gap-3 overflow-hidden">
+            <TaskAttachments fileItemId={itemId} initial={attachments} locale={fr ? "fr" : "en"} compact />
+            <div className="flex min-h-0 flex-1 flex-col overflow-hidden rounded-[var(--radius-atlas)] border border-glass-border bg-surface px-4 py-3 shadow-atlas-sm backdrop-blur-xl" data-testid="wp-linked">
+              <h2 className="text-[11px] font-extrabold uppercase tracking-[0.07em] text-muted">
+                {fr ? "Tâches liées" : "Linked tasks"}
+              </h2>
+              <ul className="mt-1.5 flex min-h-0 flex-col overflow-hidden">
+                {linkedTasks.length === 0 ? (
+                  <li className="text-[12px] text-muted">—</li>
+                ) : (
+                  linkedTasks.map((l) => (
+                    <li key={l.code}>
+                      <Link href={l.href} className="flex items-baseline gap-1.5 rounded-[var(--radius-atlas-xs)] px-1.5 py-1 text-[12.3px] text-ink-soft transition hover:bg-surface-2 hover:text-emerald-700" data-testid={`linked-${l.code}`}>
+                        <span className="font-mono text-[10.5px] text-muted">{l.code}</span>
+                        <span className="min-w-0 flex-1 truncate">{l.title}</span>
+                      </Link>
+                    </li>
+                  ))
+                )}
+              </ul>
+              {isIndependenceTask ? (
+                <div className="mt-auto border-t border-line pt-2" data-testid="independence-campaign">
+                  <h3 className="text-[11px] font-extrabold uppercase tracking-[0.07em] text-muted">
+                    {fr ? "Campagne d'indépendance" : "Independence campaign"}
+                  </h3>
+                  <ul className="mt-1 flex flex-col gap-0.5" data-testid="campaign-list">
+                    {campaign.slice(0, 5).map((c) => (
+                      <li key={c.id} className="flex items-center gap-2 text-[11.5px]" data-testid={`campaign-row-${c.userId}`}>
+                        <span className={`h-1.5 w-1.5 flex-shrink-0 rounded-full ${c.status === "completed" ? "bg-emerald-600" : c.status === "exception" ? "bg-[var(--color-rose)]" : "border border-line-strong"}`} aria-hidden />
+                        <span className="min-w-0 flex-1 truncate text-ink-soft">{c.userName}</span>
+                        <span className="flex-shrink-0 text-[10.5px] text-muted tnum">
+                          {c.signedAt ? `Completed · ${c.signedAt}` : fr ? "En attente" : "Awaiting"}
+                        </span>
+                      </li>
+                    ))}
+                  </ul>
+                  {campaignTeam.some((m) => !campaign.some((c) => c.userId === m.userId)) || campaign.length === 0 ? (
+                    <form action={launchIndependenceToTeamAction.bind(null, id, `/engagements/${id}/sections/${itemId}`)} className="mt-1.5">
+                      <SubmitButton className="rounded-[var(--radius-atlas-sm)] bg-emerald-700 px-3 py-1 text-[11.5px] font-medium text-white hover:bg-emerald-800" testId="launch-campaign-team">
+                        {fr ? `Lancer à l'équipe (${campaignTeam.length})` : `Issue to the team (${campaignTeam.length})`}
+                      </SubmitButton>
+                    </form>
+                  ) : null}
+                </div>
+              ) : null}
+            </div>
+          </section>
+        </div>
+      </main>
+    );
+  }
+
   return (
     <main className="min-h-screen w-full px-6 py-8">
       <AppNav locale={locale} />
       <div className="mt-8 flex flex-wrap items-center justify-between gap-2">
         <h1 className="text-2xl font-semibold text-ink">
           {section.code} — {locale === "fr" ? section.title_fr : section.title_en}
+          {hasTools ? (
+            <span className="ml-2 inline-flex items-center rounded-md bg-[var(--color-warn-soft)] px-1.5 py-0.5 align-middle text-[10px] font-extrabold text-warn" title={fr ? "Des outils sont utilisés sur cette tâche" : "Tools are used on this task"} data-testid="tl-badge">TL</span>
+          ) : null}
         </h1>
         {section.material ? <Chip tone="warn">{ts.material}</Chip> : null}
       </div>

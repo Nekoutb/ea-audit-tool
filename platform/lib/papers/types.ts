@@ -67,7 +67,8 @@ export const conclWhyKey = (i: number) => `c_${i}_x`;
 
 /** Every key a paper can persist — used to validate what may be saved. */
 export function paperKeys(def: PaperDef): Set<string> {
-  const keys = new Set<string>();
+  // key_findings is universal: the working-paper screen records them on every task
+  const keys = new Set<string>(["key_findings"]);
   (def.fields ?? []).forEach((f) => {
     if (f.kind === "input") keys.add(f.key);
   });

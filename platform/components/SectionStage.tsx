@@ -6,7 +6,8 @@ import { useState } from "react";
 export interface StageGroup {
   id: string;
   title: string;
-  pct: number;
+  done: number;
+  total: number;
   href: string;
 }
 
@@ -86,7 +87,7 @@ export function SectionStage({ sections }: { sections: StageSection[] }) {
                     <span className="min-w-0 flex-1 truncate text-[12.8px] font-semibold text-ink-soft">
                       {g.title}
                     </span>
-                    <span className="w-9 flex-shrink-0 text-right text-[11.5px] text-muted tnum">{g.pct}%</span>
+                    <span className="w-9 flex-shrink-0 text-right text-[11.5px] text-muted tnum">{g.done}/{g.total}</span>
                   </Link>
                 ))}
               </div>

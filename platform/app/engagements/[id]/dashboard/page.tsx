@@ -65,7 +65,6 @@ function buildSections(
       return {
         id: g.id,
         title: groupTitle(g, locale),
-        pct: members.length > 0 ? Math.round((done / members.length) * 100) : 0,
         href: `/engagements/${engagementId}/groups/${g.id}`,
         done,
         total: members.length,
