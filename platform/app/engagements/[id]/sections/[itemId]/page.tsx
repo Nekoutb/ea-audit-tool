@@ -17,6 +17,8 @@ import {
 import { addStepAction, assignTaskAction, generateProgramAction, linkRiskStepAction, savePaperAction } from "@/app/actions/planning";
 import { AppNav } from "@/components/AppNav";
 import { PhaseNav } from "@/components/PhaseNav";
+import { launchIndependenceToTeamAction } from "@/app/actions/team-independence";
+import { SubmitButton } from "@/components/SubmitButton";
 import { TaskAttachments } from "@/components/TaskAttachments";
 import { WorkingPaper } from "@/components/WorkingPaper";
 import { ErrorBanner } from "@/components/GatesPanel";
@@ -30,6 +32,8 @@ import { getMessages } from "@/lib/i18n";
 import { getLocale } from "@/lib/locale";
 import { groupOfTask, type SectionKey } from "@/lib/task-groups";
 import { listAttachments } from "@/lib/attachments";
+import { listConfirmations, sendDueReminders } from "@/lib/independence";
+import { listTeam as listEngagementTeam } from "@/lib/team";
 import { loadPaper, paperFor } from "@/lib/working-papers";
 import { listProgramSteps, sectionCoverage } from "@/lib/programs";
 import { canReview } from "@/lib/rbac";
@@ -79,6 +83,20 @@ export default async function SectionPage(props: {
   const isExecution = phaseKey === "execution";
   const paperValues = await loadPaper(id, section.code);
   const attachments = await listAttachments(itemId);
+  // The Independence task (D3.2) embeds the campaign. Rendering it also runs
+  // the 24-hour reminder sweep — idempotent per day, so simply working the
+  // file keeps reminders flowing without a separate scheduler.
+  const isIndependenceTask = section.code === "D3.2";
+  let campaign: Awaited<ReturnType<typeof listConfirmations>> = [];
+  let campaignTeam: Awaited<ReturnType<typeof listEngagementTeam>> = [];
+  if (isIndependenceTask) {
+    try {
+      await sendDueReminders(id);
+    } catch {
+      // reminders must never block the task page
+    }
+    [campaign, campaignTeam] = await Promise.all([listConfirmations(id), listEngagementTeam(id)]);
+  }
 
   const [risks, steps, coverage, controlTests, conclusion, datasets, runs, team, assignee] =
     await Promise.all([
@@ -178,6 +196,59 @@ export default async function SectionPage(props: {
 
       {/* files of the task: upload · download · versions · edit-locally watcher */}
       <TaskAttachments fileItemId={itemId} initial={attachments} locale={locale === "fr" ? "fr" : "en"} />
+
+      {isIndependenceTask ? (
+        <Panel className="mt-6" data-testid="independence-campaign">
+          <PanelHeader
+            title={locale === "fr" ? "Campagne d’indépendance" : "Independence campaign"}
+            hint={`${campaign.filter((c) => c.status === "completed" || c.status === "exception").length}/${campaign.length || campaignTeam.length}`}
+          />
+          <p className="mt-2 text-[12.5px] text-muted">
+            {locale === "fr"
+              ? "Chaque membre de l’équipe confirme son indépendance avant le début des travaux. Les réponses sont verrouillées avec leur horodatage ; une relance automatique part après 24 heures sans réponse."
+              : "Every team member confirms independence before the work starts. Responses lock with their timestamp; an automatic reminder goes out after 24 hours without a response."}
+          </p>
+          {campaign.length === 0 ? (
+            <p className="mt-3 text-sm text-muted">
+              {locale === "fr" ? "Aucune invitation envoyée." : "No invitations sent yet."}
+            </p>
+          ) : (
+            <ul className="mt-3 divide-y divide-line" data-testid="campaign-list">
+              {campaign.map((c) => (
+                <li key={c.id} className="flex items-center gap-3 py-2" data-testid={`campaign-row-${c.userId}`}>
+                  <span
+                    className={`h-2 w-2 flex-shrink-0 rounded-full ${
+                      c.status === "completed" ? "bg-emerald-600" : c.status === "exception" ? "bg-[var(--color-rose)]" : "border-[1.5px] border-line-strong bg-transparent"
+                    }`}
+                    aria-hidden
+                  />
+                  <span className="min-w-0 flex-1 truncate text-[13px] text-ink">{c.userName}</span>
+                  <span className="flex-shrink-0 text-[11.5px] text-muted tnum">
+                    {c.status === "completed"
+                      ? (locale === "fr" ? `Confirmé · ${c.signedAt}` : `Completed · ${c.signedAt}`)
+                      : c.status === "exception"
+                        ? (locale === "fr" ? `Exception · ${c.signedAt}` : `Exception · ${c.signedAt}`)
+                        : (locale === "fr" ? "Invité — en attente" : "Invited — awaiting response") +
+                          (c.reminderCount > 0 ? ` · ${c.reminderCount}× ${locale === "fr" ? "relance" : "reminded"}` : "")}
+                  </span>
+                </li>
+              ))}
+            </ul>
+          )}
+          {campaignTeam.some((m) => !campaign.some((c) => c.userId === m.userId)) || campaign.length === 0 ? (
+            <form action={launchIndependenceToTeamAction.bind(null, id, `/engagements/${id}/sections/${itemId}`)} className="mt-4">
+              <SubmitButton
+                className="rounded-[var(--radius-atlas-sm)] bg-emerald-700 px-4 py-1.5 text-sm font-medium text-white hover:bg-emerald-800"
+                testId="launch-campaign-team"
+              >
+                {locale === "fr"
+                  ? `Lancer la campagne à l’équipe (${campaignTeam.length})`
+                  : `Issue the campaign to the team (${campaignTeam.length})`}
+              </SubmitButton>
+            </form>
+          ) : null}
+        </Panel>
+      ) : null}
 
       {/* Linked risks pinned at the top of the section (spec §8.1) */}
       {isExecution || phaseKey === "strategy" || risks.length > 0 ? (

@@ -293,3 +293,43 @@ export async function sendReminder(confirmationId: string): Promise<void> {
     });
   }
 }
+
+/**
+ * The automatic 24-hour cadence: every confirmation still outstanding a day
+ * after it was sent — and not reminded within the last day — gets an email and
+ * an in-app notification. Idempotent per 24 hours; called when the campaign
+ * status renders, so working the file keeps the reminders flowing without a
+ * separate scheduler.
+ */
+export async function sendDueReminders(engagementId: string): Promise<number> {
+  const { tenantId } = await requireTenant();
+  const due = await withTenant(tenantId, async (tx) => {
+    const r = await tx.query<{ user_id: string; email: string; token: string }>(
+      `UPDATE independence_confirmation ic
+          SET reminder_count = ic.reminder_count + 1, last_reminder_at = now()
+         FROM independence_campaign c, app_user u
+        WHERE c.id = ic.campaign_id AND c.engagement_id = $1 AND u.id = ic.user_id
+          AND ic.status IN ('sent', 'opened')
+          AND ic.created_at < now() - interval '24 hours'
+          AND (ic.last_reminder_at IS NULL OR ic.last_reminder_at < now() - interval '24 hours')
+        RETURNING ic.user_id, u.email, ic.token`,
+      [engagementId],
+    );
+    return r.rows;
+  });
+  for (const row of due) {
+    sendEmail({
+      to: row.email,
+      subject: "Reminder: independence confirmation outstanding",
+      body: `Your independence confirmation is still outstanding. Complete it: /independence/${row.token}`,
+    });
+    await createNotification({
+      tenantId,
+      userId: row.user_id,
+      kind: "independence-reminder",
+      title: "Independence confirmation outstanding",
+      body: `Your confirmation is more than a day old. Complete it: /independence/${row.token}`,
+    });
+  }
+  return due.length;
+}

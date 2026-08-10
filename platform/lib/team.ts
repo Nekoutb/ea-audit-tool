@@ -1,7 +1,10 @@
 // D6.1 job administration (spec §4.4): team assignment (with the EQR
 // independence rule), hours-by-grade budget, and the PBC request list.
 
+import { randomBytes } from "node:crypto";
 import type { PoolClient } from "pg";
+import { sendEmail } from "@/lib/email";
+import { createNotification } from "@/lib/notifications";
 import { withTenant } from "@/lib/db";
 import { requireTenant } from "@/lib/tenant";
 
@@ -28,28 +31,33 @@ export interface TeamMember {
   id: string;
   userId: string;
   userName: string;
+  email: string;
   teamRole: TeamRole;
+  status: "invited" | "accepted" | "declined";
+  respondedAt: string | null;
 }
 
 export async function listTeam(engagementId: string): Promise<TeamMember[]> {
   const { tenantId } = await requireTenant();
   return withTenant(tenantId, async (tx) => {
-    const result = await tx.query<{ id: string; user_id: string; user_name: string; team_role: TeamRole }>(
-      `SELECT tm.id, tm.user_id, coalesce(u.name, u.email) AS user_name, tm.team_role
+    const result = await tx.query<{ id: string; user_id: string; user_name: string; email: string; team_role: TeamRole; status: "invited" | "accepted" | "declined"; responded_at: string | null }>(
+      `SELECT tm.id, tm.user_id, coalesce(u.name, u.email) AS user_name, u.email, tm.team_role,
+              coalesce(tm.status, 'accepted') AS status,
+              to_char(tm.responded_at, 'DD Mon YYYY HH24:MI') AS responded_at
          FROM team_member tm JOIN app_user u ON u.id = tm.user_id
         WHERE tm.engagement_id = $1 ORDER BY tm.created_at`,
       [engagementId],
     );
-    return result.rows.map((r) => ({ id: r.id, userId: r.user_id, userName: r.user_name, teamRole: r.team_role }));
+    return result.rows.map((r) => ({ id: r.id, userId: r.user_id, userName: r.user_name, email: r.email, teamRole: r.team_role, status: r.status, respondedAt: r.responded_at }));
   });
 }
 
 /** Firm users assignable to the engagement (same tenant via membership). */
-export async function listFirmUsers(): Promise<{ id: string; name: string }[]> {
+export async function listFirmUsers(): Promise<{ id: string; name: string; email: string }[]> {
   const { tenantId } = await requireTenant();
   return withTenant(tenantId, async (tx) => {
-    const result = await tx.query<{ id: string; name: string }>(
-      `SELECT u.id, coalesce(u.name, u.email) AS name
+    const result = await tx.query<{ id: string; name: string; email: string }>(
+      `SELECT u.id, coalesce(u.name, u.email) AS name, u.email
          FROM app_user u JOIN membership m ON m.user_id = u.id
         WHERE m.tenant_id = $1 ORDER BY name`,
       [tenantId],
@@ -247,5 +255,98 @@ export async function setPbcStatus(id: string, status: PbcItem["status"]): Promi
   const { tenantId } = await requireTenant();
   await withTenant(tenantId, async (tx) => {
     await tx.query("UPDATE pbc_item SET status = $2 WHERE id = $1", [id, status]);
+  });
+}
+
+/**
+ * Add a team member by email address. An existing firm user is matched; an
+ * unknown email provisions the account (random password — the firm admin sets
+ * the real one under Settings → Users). The member starts as "invited" and is
+ * prompted by email to accept or decline the engagement from the console.
+ */
+export async function addTeamMemberByEmail(
+  engagementId: string,
+  emailRaw: string,
+  teamRole: TeamRole,
+  engagementName: string,
+): Promise<void> {
+  const { tenantId } = await requireTenant();
+  const email = emailRaw.trim().toLowerCase();
+  if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)) throw new Error("invalid-email");
+
+  const userId = await withTenant(tenantId, async (tx) => {
+    const existing = await tx.query<{ id: string }>(
+      `SELECT u.id FROM app_user u JOIN membership m ON m.user_id = u.id
+        WHERE lower(u.email) = $1 AND m.tenant_id = $2`,
+      [email, tenantId],
+    );
+    if (existing.rows[0]) return existing.rows[0].id;
+    // Same email in another tenant is a different firm's user — never attach.
+    const elsewhere = await tx.query<{ id: string }>(
+      "SELECT id FROM app_user WHERE lower(email) = $1",
+      [email],
+    );
+    if (elsewhere.rows[0]) throw new Error("email-taken");
+    const bcrypt = (await import("bcryptjs")).default;
+    const hash = await bcrypt.hash(randomBytes(18).toString("hex"), 10);
+    const name = email.split("@")[0].replace(/[._-]+/g, " ").replace(/\b\w/g, (c) => c.toUpperCase());
+    const user = await tx.query<{ id: string }>(
+      "INSERT INTO app_user (email, name, password_hash) VALUES ($1, $2, $3) RETURNING id",
+      [email, name, hash],
+    );
+    await tx.query("INSERT INTO membership (user_id, tenant_id, role) VALUES ($1, $2, 'staff')", [
+      user.rows[0].id,
+      tenantId,
+    ]);
+    return user.rows[0].id;
+  });
+
+  await withTenant(tenantId, async (tx) => {
+    await tx.query(
+      `INSERT INTO team_member (tenant_id, engagement_id, user_id, team_role, status, invited_at)
+       VALUES ($1, $2, $3, $4, 'invited', now())
+       ON CONFLICT (engagement_id, user_id)
+       DO UPDATE SET team_role = EXCLUDED.team_role`,
+      [tenantId, engagementId, userId, teamRole],
+    );
+  });
+
+  sendEmail({
+    to: email,
+    subject: `You have been added to ${engagementName}`,
+    body: `You have been added to the engagement "${engagementName}" as ${teamRole.replace("_", " ")}. Sign in and accept or decline it from the engagement dashboard: /engagements/${engagementId}/dashboard`,
+  });
+  await createNotification({
+    tenantId,
+    userId,
+    kind: "engagement-invite",
+    title: `Added to ${engagementName}`,
+    body: "Accept or decline the engagement from its dashboard.",
+  });
+}
+
+/** The signed-in user's own membership status on the engagement, if any. */
+export async function myTeamStatus(
+  engagementId: string,
+): Promise<"invited" | "accepted" | "declined" | null> {
+  const { tenantId, userId } = await requireTenant();
+  return withTenant(tenantId, async (tx) => {
+    const r = await tx.query<{ status: "invited" | "accepted" | "declined" }>(
+      "SELECT coalesce(status, 'accepted') AS status FROM team_member WHERE engagement_id = $1 AND user_id = $2",
+      [engagementId, userId],
+    );
+    return r.rows[0]?.status ?? null;
+  });
+}
+
+/** Accept or decline the engagement invitation; the response is timestamped. */
+export async function respondToEngagement(engagementId: string, accept: boolean): Promise<void> {
+  const { tenantId, userId } = await requireTenant();
+  await withTenant(tenantId, async (tx) => {
+    await tx.query(
+      `UPDATE team_member SET status = $3, responded_at = now()
+        WHERE engagement_id = $1 AND user_id = $2 AND status = 'invited'`,
+      [engagementId, userId, accept ? "accepted" : "declined"],
+    );
   });
 }

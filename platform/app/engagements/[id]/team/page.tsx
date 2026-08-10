@@ -1,6 +1,7 @@
 import { notFound, redirect } from "next/navigation";
 import { auth } from "@/auth";
-import { assignTeamFromTeamPageAction, removeTeamFromTeamPageAction } from "@/app/actions/planning";
+import { removeTeamFromTeamPageAction } from "@/app/actions/planning";
+import { addTeamByEmailAction } from "@/app/actions/team-independence";
 import { AppNav } from "@/components/AppNav";
 import { ErrorBanner } from "@/components/GatesPanel";
 import { NavLink } from "@/components/NavLink";
@@ -92,6 +93,7 @@ export default async function TeamPage(props: {
                   <th className={th}>{tt.member}</th>
                   <th className={th}>{tt.initials}</th>
                   <th className={th}>{tt.role}</th>
+                  <th className={th}>{locale === "fr" ? "Statut" : "Status"}</th>
                   <th className={th} />
                   {canManage ? <th className={`${th} text-right`} /> : null}
                 </tr>
@@ -110,6 +112,21 @@ export default async function TeamPage(props: {
                     </td>
                     <td className="border-t border-line px-5 py-3.5 text-[13px] text-ink-soft">
                       {roleLabels[m.teamRole]}
+                    </td>
+                    <td className="border-t border-line px-5 py-3.5 text-[12px]" data-testid={`team-status-${m.userId}`}>
+                      {m.status === "accepted" ? (
+                        <span className="font-semibold text-emerald-700 dark:text-emerald-400">
+                          {locale === "fr" ? "Acceptée" : "Accepted"}
+                          {m.respondedAt ? ` · ${m.respondedAt}` : ""}
+                        </span>
+                      ) : m.status === "declined" ? (
+                        <span className="font-semibold text-rose">
+                          {locale === "fr" ? "Refusée" : "Declined"}
+                          {m.respondedAt ? ` · ${m.respondedAt}` : ""}
+                        </span>
+                      ) : (
+                        <span className="text-muted">{locale === "fr" ? "Invitée — en attente" : "Invited — awaiting response"}</span>
+                      )}
                     </td>
                     <td
                       className="border-t border-line px-5 py-3.5 text-[12px] text-muted tnum"
@@ -140,16 +157,28 @@ export default async function TeamPage(props: {
       {canManage ? (
         <Panel className="p-6">
           <PanelHeader title={tt.add} />
-          <form action={assignTeamFromTeamPageAction.bind(null, id)} className="mt-4 flex flex-wrap items-end gap-3">
+          <form action={addTeamByEmailAction.bind(null, id, engagement.name ?? engagement.clientName)} className="mt-4 flex flex-wrap items-end gap-3">
             <label className="flex flex-col gap-1 text-sm text-ink-soft">
-              {tt.member}
-              <select name="userId" required className={input} data-testid="team-user">
+              {locale === "fr" ? "Adresse e-mail" : "Email address"}
+              <input
+                type="email"
+                name="email"
+                required
+                list="firm-user-emails"
+                placeholder={locale === "fr" ? "prenom.nom@cabinet.com" : "first.last@firm.com"}
+                className={input}
+                data-testid="team-email"
+              />
+              <datalist id="firm-user-emails">
                 {assignable.map((u) => (
-                  <option key={u.id} value={u.id}>
-                    {u.name}
-                  </option>
+                  <option key={u.id} value={u.email ?? ""}>{u.name}</option>
                 ))}
-              </select>
+              </datalist>
+              <span className="text-xs text-muted">
+                {locale === "fr"
+                  ? "Une adresse inconnue crée le compte ; le membre est invité par e-mail à accepter la mission."
+                  : "An unknown address provisions the account; the member is emailed to accept or decline the engagement."}
+              </span>
             </label>
             <label className="flex flex-col gap-1 text-sm text-ink-soft">
               {tt.role}

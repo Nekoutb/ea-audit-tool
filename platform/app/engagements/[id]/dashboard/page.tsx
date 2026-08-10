@@ -15,7 +15,10 @@ import {
   type DashboardPhase,
   type PhaseTask,
 } from "@/lib/engagement-dashboard";
+import { respondEngagementAction } from "@/app/actions/team-independence";
+import { SubmitButton } from "@/components/SubmitButton";
 import { getEngagement } from "@/lib/engagements";
+import { myTeamStatus } from "@/lib/team";
 import { getMessages } from "@/lib/i18n";
 import { getLocale } from "@/lib/locale";
 import { shortTitle } from "@/lib/file-index";
@@ -98,6 +101,7 @@ export default async function EngagementDashboardPage(props: {
   const engagement = await getEngagement(id);
   if (!engagement) notFound();
 
+  const myStatus = await myTeamStatus(id);
   const [tasks, attention, dash, stats] = await Promise.all([
     engagementTasks(id),
     engagementAttention(id, locale),
@@ -119,6 +123,37 @@ export default async function EngagementDashboardPage(props: {
   return (
     <main className="flex min-h-screen w-full flex-col gap-4 px-6 py-8">
       <AppNav locale={locale} current={{ id, label: engagement.name ?? engagement.clientName }} hideLinks />
+
+      {myStatus === "invited" ? (
+        <div
+          className="flex flex-wrap items-center justify-between gap-3 rounded-[var(--radius-atlas)] border border-emerald-600/40 bg-emerald-50 px-5 py-3.5 dark:bg-emerald-950/30"
+          data-testid="engagement-invite-banner"
+        >
+          <p className="text-sm font-medium text-ink">
+            {fr
+              ? "Vous avez été ajouté à cette mission. L’acceptez-vous ?"
+              : "You have been added to this engagement. Do you accept it?"}
+          </p>
+          <span className="flex gap-2">
+            <form action={respondEngagementAction.bind(null, id, true)}>
+              <SubmitButton
+                className="rounded-[var(--radius-atlas-sm)] bg-emerald-700 px-4 py-1.5 text-sm font-semibold text-white hover:bg-emerald-800"
+                testId="accept-engagement"
+              >
+                {fr ? "Accepter" : "Accept"}
+              </SubmitButton>
+            </form>
+            <form action={respondEngagementAction.bind(null, id, false)}>
+              <SubmitButton
+                className="rounded-[var(--radius-atlas-sm)] border border-line-strong px-4 py-1.5 text-sm font-semibold text-ink-soft hover:bg-surface-2"
+                testId="decline-engagement"
+              >
+                {fr ? "Refuser" : "Decline"}
+              </SubmitButton>
+            </form>
+          </span>
+        </div>
+      ) : null}
 
       <div className="flex flex-wrap items-end justify-between gap-4">
         <div>
