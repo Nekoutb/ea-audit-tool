@@ -194,6 +194,15 @@ export default async function SectionPage(props: {
         <AppNav locale={locale} current={{ id, label: engagement.name ?? engagement.clientName }} />
 
         <div className="flex flex-wrap items-center gap-x-4 gap-y-2 rounded-[var(--radius-atlas)] border border-glass-border bg-surface px-4 py-2.5 shadow-atlas-sm backdrop-blur-xl">
+          <Link
+            href={`/engagements/${id}/dashboard`}
+            className="grid h-7 w-7 flex-shrink-0 place-items-center rounded-full text-[15px] font-bold text-ink-soft transition hover:bg-surface-2 hover:text-ink"
+            title={fr ? "Retour au tableau de bord" : "Back to dashboard"}
+            aria-label={fr ? "Retour" : "Back"}
+            data-testid="wp-back-dashboard"
+          >
+            ←
+          </Link>
           <h1 className="min-w-0 flex-1 truncate text-[15px] font-bold tracking-[-0.01em] text-ink">
             {section.code} — {locale === "fr" ? section.title_fr : section.title_en}
             {hasTools ? (
