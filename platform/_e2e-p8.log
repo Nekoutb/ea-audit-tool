@@ -1,0 +1,10 @@
+◇ injected env (6) from .env // tip: ⌘ enable debugging { debug: true }
+◇ injected env (0) from .env // tip: ⌘ enable debugging { debug: true }
+Seeded 2 firms: alice@firm-a.test/password, bob@firm-b.test/password
+
+Running 1 test using 1 worker
+
+◇ injected env (0) from .env // tip: ◈ secrets for agents [www.dotenvx.com]
+
+[1/1] [chromium] › tests\e2e\phase4.spec.ts:18:5 › Phase 4: step execution → findings routing → B5 vs materiality → revise-approach
+  1 passed (14.0s)

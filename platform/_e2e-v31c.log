@@ -1,0 +1,106 @@
+◇ injected env (6) from .env // tip: ⌘ custom filepath { path: '/custom/path/.env' }
+◇ injected env (0) from .env // tip: ◈ secrets for agents [www.dotenvx.com]
+Seeded 2 firms: alice@firm-a.test/password, bob@firm-b.test/password
+
+Running 3 tests using 1 worker
+
+◇ injected env (0) from .env // tip: ⌁ auth for agents [www.vestauth.com]
+
+[1/3] [chromium] › tests\e2e\phase6.spec.ts:18:5 › Phase 6: AR + bank confirmation cycle with exception → B5 and a non-reply → alternative
+
+[WebServer] ⨯ Error: Failed to find Server Action. This request might be from an older or newer deployment.
+[WebServer] Read more: https://nextjs.org/docs/messages/failed-to-find-server-action
+[WebServer]     at ignore-listed frames
+
+[WebServer] ⨯ Error: Failed to find Server Action. This request might be from an older or newer deployment.
+[WebServer] Read more: https://nextjs.org/docs/messages/failed-to-find-server-action
+[WebServer]     at ignore-listed frames
+  1) [chromium] › tests\e2e\phase6.spec.ts:18:5 › Phase 6: AR + bank confirmation cycle with exception → B5 and a non-reply → alternative 
+
+    Error: expect(locator).toContainText(expected) failed
+
+    Locator: getByTestId('datasets-table')
+    Expected substring: "ar.csv"
+    Timeout: 5000ms
+    Error: element(s) not found
+
+    Call log:
+      - Expect "toContainText" with timeout 5000ms
+      - waiting for getByTestId('datasets-table')
+
+
+      56 |   });
+      57 |   await page.getByTestId("dataset-upload").click();
+    > 58 |   await expect(page.getByTestId("datasets-table")).toContainText("ar.csv");
+         |                                                    ^
+      59 |
+      60 |   // Confirmations tab: select AR positives above 1M (ACME + Beta).
+      61 |   await page.goto(`${engagementUrl}/confirmations`);
+        at C:\Users\UltraBook 3.1\Documents\AI Projects\EA AUDIT TOOL\platform\tests\e2e\phase6.spec.ts:58:52
+
+    Error Context: test-results\phase6-Phase-6-AR-bank-con-2d9f5-d-a-non-reply-→-alternative-chromium\error-context.md
+
+
+◇ injected env (0) from .env // tip: ⌘ override existing { override: true }
+
+[2/3] [chromium] › tests\e2e\phase8.spec.ts:22:5 › Phase 8: deadlines → conventions/rapport spécial → alerte → equity → faits
+
+[WebServer] ⨯ Error: Failed to find Server Action. This request might be from an older or newer deployment.
+[WebServer] Read more: https://nextjs.org/docs/messages/failed-to-find-server-action
+[WebServer]     at ignore-listed frames
+
+[WebServer] ⨯ Error: Failed to find Server Action. This request might be from an older or newer deployment.
+[WebServer] Read more: https://nextjs.org/docs/messages/failed-to-find-server-action
+[WebServer]     at ignore-listed frames
+  2) [chromium] › tests\e2e\phase8.spec.ts:22:5 › Phase 8: deadlines → conventions/rapport spécial → alerte → equity → faits 
+
+    Error: expect(locator).toContainText(expected) failed
+
+    Locator: getByTestId('tb-import-status')
+    Expected substring: "valid"
+    Timeout: 5000ms
+    Error: element(s) not found
+
+    Call log:
+      - Expect "toContainText" with timeout 5000ms
+      - waiting for getByTestId('tb-import-status')
+
+
+      59 |   });
+      60 |   await page.getByTestId("tb-upload").click();
+    > 61 |   await expect(page.getByTestId("tb-import-status")).toContainText("valid");
+         |                                                      ^
+      62 |
+      63 |   // --- F1: statutory deadlines calendar ---
+      64 |   await page.goto(`${engagementUrl}/legal`);
+        at C:\Users\UltraBook 3.1\Documents\AI Projects\EA AUDIT TOOL\platform\tests\e2e\phase8.spec.ts:61:54
+
+    Error Context: test-results\phase8-Phase-8-deadlines-→-bc77a-l-→-alerte-→-equity-→-faits-chromium\error-context.md
+
+
+◇ injected env (0) from .env // tip: ⌘ enable debugging { debug: true }
+
+[3/3] [chromium] › tests\e2e\phase9.spec.ts:18:5 › Phase 9: portal PBC round-trip + dashboards + export
+  3) [chromium] › tests\e2e\phase9.spec.ts:18:5 › Phase 9: portal PBC round-trip + dashboards + export 
+
+    Error: expect(received).toBe(expected) // Object.is equality
+
+    Expected: 200
+    Received: 404
+
+      50 |   const exportHref = await page.getByTestId("export-file-index").getAttribute("href");
+      51 |   const exported = await page.request.get(exportHref!);
+    > 52 |   expect(exported.status()).toBe(200);
+         |                             ^
+      53 |   expect((await exported.body()).subarray(0, 2).toString("latin1")).toBe("PK");
+      54 |
+      55 |   // Portal contact for the client (9.1).
+        at C:\Users\UltraBook 3.1\Documents\AI Projects\EA AUDIT TOOL\platform\tests\e2e\phase9.spec.ts:52:29
+
+    Error Context: test-results\phase9-Phase-9-portal-PBC-round-trip-dashboards-export-chromium\error-context.md
+
+
+  3 failed
+    [chromium] › tests\e2e\phase6.spec.ts:18:5 › Phase 6: AR + bank confirmation cycle with exception → B5 and a non-reply → alternative 
+    [chromium] › tests\e2e\phase8.spec.ts:22:5 › Phase 8: deadlines → conventions/rapport spécial → alerte → equity → faits 
+    [chromium] › tests\e2e\phase9.spec.ts:18:5 › Phase 9: portal PBC round-trip + dashboards + export 

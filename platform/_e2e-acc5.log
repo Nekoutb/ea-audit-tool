@@ -1,0 +1,18 @@
+◇ injected env (6) from .env // tip: ⌘ custom filepath { path: '/custom/path/.env' }
+◇ injected env (0) from .env // tip: ◈ secrets for agents [www.dotenvx.com]
+Seeded 2 firms: alice@firm-a.test/password, bob@firm-b.test/password
+
+Running 9 tests using 1 worker
+
+◇ injected env (0) from .env // tip: ⌘ override existing { override: true }
+
+[1/9] [chromium] › tests\e2e\phase1.spec.ts:18:5 › full Phase 1 acceptance flow on D3.1
+[2/9] [chromium] › tests\e2e\phase2.spec.ts:30:5 › full Phase 2 acceptance → planning → gates → close
+[3/9] [chromium] › tests\e2e\phase3.spec.ts:36:5 › Phase 3 full: import TB → lead schedule → journal → analytics → risk
+[4/9] [chromium] › tests\e2e\phase4.spec.ts:18:5 › Phase 4: step execution → findings routing → B5 vs materiality → revise-approach
+[5/9] [chromium] › tests\e2e\phase5.spec.ts:18:5 › Phase 5: engines run on demo data; projected misstatement lands in B5
+[6/9] [chromium] › tests\e2e\phase6.spec.ts:18:5 › Phase 6: AR + bank confirmation cycle with exception → B5 and a non-reply → alternative
+[7/9] [chromium] › tests\e2e\phase7.spec.ts:32:5 › Phase 7: gates block → complete file → issue report → archive → rollforward
+[8/9] [chromium] › tests\e2e\phase8.spec.ts:22:5 › Phase 8: deadlines → conventions/rapport spécial → alerte → equity → faits
+[9/9] [chromium] › tests\e2e\phase9.spec.ts:18:5 › Phase 9: portal PBC round-trip + dashboards + export
+  9 passed (1.5m)

@@ -15,6 +15,7 @@ type TbColumn =
 
 interface Preview {
   headers: string[];
+  headerSamples: Record<string, string[]>;
   mapping: Partial<Record<TbColumn, string>>;
   mappingError: string | null;
   rowCount: number;
@@ -24,7 +25,7 @@ interface Preview {
 
 const COLUMN_LABELS: Record<TbColumn, { en: string; fr: string; required?: boolean }> = {
   account: { en: "Account number", fr: "Numéro de compte", required: true },
-  label: { en: "Account name", fr: "Intitulé du compte" },
+  label: { en: "Account name", fr: "Intitulé du compte", required: true },
   openingDebit: { en: "Opening balance — debit", fr: "Solde d'ouverture — débit" },
   openingCredit: { en: "Opening balance — credit", fr: "Solde d'ouverture — crédit" },
   debit: { en: "Movements — debit", fr: "Mouvements — débit" },
@@ -145,33 +146,49 @@ export function TbAnalyzer({
           {/* step 1 — the detected columns, editable */}
           <div>
             <h3 className="text-[11px] font-extrabold uppercase tracking-[0.07em] text-muted">
-              {fr ? "1 · Colonnes détectées — confirmer" : "1 · Detected columns — confirm"}
+              {fr ? "1 · Colonnes obligatoires — confirmer" : "1 · Mandatory columns — confirm"}
             </h3>
-            <div className="mt-2 grid grid-cols-1 gap-2 sm:grid-cols-2 lg:grid-cols-3">
-              {(Object.keys(COLUMN_LABELS) as TbColumn[]).map((col) => (
-                <label key={col} className="flex items-center justify-between gap-2 text-[12px] text-ink-soft">
-                  <span>
-                    {fr ? COLUMN_LABELS[col].fr : COLUMN_LABELS[col].en}
-                    {COLUMN_LABELS[col].required ? <b className="text-rose"> *</b> : null}
-                  </span>
-                  <select
-                    className={select}
-                    value={mapping[col] ?? ""}
-                    data-testid={`tb-col-${col}`}
-                    onChange={(e) => {
-                      const next = { ...mapping };
-                      if (e.target.value) next[col] = e.target.value; else delete next[col];
-                      setMapping(next);
-                      analyze(next);
-                    }}
-                  >
-                    <option value="">—</option>
-                    {preview.headers.map((h) => (
-                      <option key={h} value={h}>{h}</option>
-                    ))}
-                  </select>
-                </label>
-              ))}
+            <div className="mt-2 overflow-x-auto rounded-[var(--radius-atlas-sm)] border border-line">
+              <table className="w-full text-[12px]" data-testid="tb-columns">
+                <thead>
+                  <tr className="bg-surface-2 text-left text-muted">
+                    <th className="px-3 py-1.5">{fr ? "Colonne requise" : "Required column"}</th>
+                    <th className="px-3 py-1.5">{fr ? "Colonne du fichier" : "Your file's column"}</th>
+                    <th className="px-3 py-1.5">{fr ? "Exemple de données" : "Example data"}</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {(Object.keys(COLUMN_LABELS) as TbColumn[]).map((col) => (
+                    <tr key={col} className={`border-t border-line ${COLUMN_LABELS[col].required && !mapping[col] ? "bg-[var(--color-warn-soft)]" : ""}`}>
+                      <td className="px-3 py-1.5 font-medium text-ink">
+                        {fr ? COLUMN_LABELS[col].fr : COLUMN_LABELS[col].en}
+                        {COLUMN_LABELS[col].required ? <b className="text-rose"> *</b> : null}
+                      </td>
+                      <td className="px-3 py-1.5">
+                        <select
+                          className={select}
+                          value={mapping[col] ?? ""}
+                          data-testid={`tb-col-${col}`}
+                          onChange={(e) => {
+                            const next = { ...mapping };
+                            if (e.target.value) next[col] = e.target.value; else delete next[col];
+                            setMapping(next);
+                            analyze(next);
+                          }}
+                        >
+                          <option value="">—</option>
+                          {preview.headers.map((h) => (
+                            <option key={h} value={h}>{h}</option>
+                          ))}
+                        </select>
+                      </td>
+                      <td className="px-3 py-1.5 font-mono text-[11px] text-muted" data-testid={`tb-sample-${col}`}>
+                        {mapping[col] ? (preview.headerSamples?.[mapping[col]!] ?? []).join(" · ") || "—" : "—"}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
             </div>
             {preview.mappingError ? (
               <p className="mt-2 text-[12px] text-rose">

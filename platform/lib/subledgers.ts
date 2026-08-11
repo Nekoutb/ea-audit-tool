@@ -134,10 +134,12 @@ export async function createDataset(
   kind: SubLedgerKind,
   filename: string,
   buffer: Buffer,
+  mapping?: Record<string, string>,
 ): Promise<string> {
   const { tenantId, userId } = await requireTenant();
   const table = await parseTabularFile(filename, buffer);
-  const amountColumn = detectAmountColumn(table);
+  // the confirmed amount-bearing column wins over the guess
+  const amountColumn = mapping?.amount ?? detectAmountColumn(table);
   const sha256 = createHash("sha256").update(buffer).digest("hex");
 
   return withTenant(tenantId, async (tx) => {
@@ -145,10 +147,10 @@ export async function createDataset(
     const dataset = await tx.query<{ id: string }>(
       `INSERT INTO sub_ledger_dataset
          (tenant_id, engagement_id, kind, name, source_filename, source_sha256,
-          row_count, amount_column, created_by)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+          row_count, amount_column, mapping, created_by)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
        RETURNING id`,
-      [tenantId, engagementId, kind, filename.replace(/\.[^.]+$/, ""), filename, sha256, table.rows.length, amountColumn, userId],
+      [tenantId, engagementId, kind, filename.replace(/\.[^.]+$/, ""), filename, sha256, table.rows.length, amountColumn, mapping ? JSON.stringify(mapping) : null, userId],
     );
     const datasetId = dataset.rows[0].id;
     let rowNo = 0;
@@ -164,6 +166,28 @@ export async function createDataset(
     await tx.query("UPDATE sub_ledger_dataset SET total_amount = $2 WHERE id = $1", [datasetId, total]);
     return datasetId;
   });
+}
+
+export interface DatasetPreview {
+  headers: string[];
+  headerSamples: Record<string, string[]>;
+  rowCount: number;
+}
+
+/** Parse a sub-ledger file without storing it: headers + example values. */
+export async function previewDataset(filename: string, buffer: Buffer): Promise<DatasetPreview> {
+  const table = await parseTabularFile(filename, buffer);
+  const headerSamples: Record<string, string[]> = {};
+  for (const header of table.headers) {
+    const values: string[] = [];
+    for (const raw of table.rows) {
+      const v = String(raw[header] ?? "").trim();
+      if (v) values.push(v);
+      if (values.length >= 3) break;
+    }
+    headerSamples[header] = values;
+  }
+  return { headers: table.headers, headerSamples, rowCount: table.rows.length };
 }
 
 export async function listDatasets(engagementId: string): Promise<DatasetSummary[]> {

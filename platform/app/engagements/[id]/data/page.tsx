@@ -2,16 +2,10 @@ import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
 import { auth } from "@/auth";
 import { assignSectionAction, generateLeadScheduleAction } from "@/app/actions/data";
-import {
-  addOverrideAction,
-  createJournalAction,
-  deactivateOverrideAction,
-  postJournalAction,
-} from "@/app/actions/tb";
 import { AppNav } from "@/components/AppNav";
 import { EngagementTabs } from "@/components/EngagementTabs";
 import { ErrorBanner } from "@/components/GatesPanel";
-import { UploadDataset } from "@/components/UploadDataset";
+import { DatasetAnalyzer } from "@/components/DatasetAnalyzer";
 import { TbAnalyzer } from "@/components/TbAnalyzer";
 import { Panel, Chip } from "@/components/ui/atlas";
 import { withTenant } from "@/lib/db";
@@ -20,7 +14,7 @@ import { formatFCFA, getMessages } from "@/lib/i18n";
 import { sectionBalances } from "@/lib/leadsheets";
 import { getLocale } from "@/lib/locale";
 import { listDatasets } from "@/lib/subledgers";
-import { diffTbVersions, listJournals, listOverrides, listTbVersions } from "@/lib/tb";
+import { diffTbVersions, listTbVersions } from "@/lib/tb";
 import { leadRef } from "@/lib/lead-taxonomy";
 import { listFirmUsers } from "@/lib/team";
 import { requireTenant } from "@/lib/tenant";
@@ -46,13 +40,13 @@ async function leadsheetDocs(
 
 export default async function DataPage(props: {
   params: Promise<{ id: string }>;
-  searchParams: Promise<{ error?: string; jdesc?: string; jamount?: string }>;
+  searchParams: Promise<{ error?: string }>;
 }) {
   const session = await auth();
   if (!session?.user) redirect("/login");
 
   const { id } = await props.params;
-  const { error, jdesc, jamount } = await props.searchParams;
+  const { error } = await props.searchParams;
   const locale = await getLocale();
   const t = getMessages(locale);
   const td = t.planning.dataPage;
@@ -60,7 +54,7 @@ export default async function DataPage(props: {
   const engagement = await getEngagement(id);
   if (!engagement) notFound();
 
-  const [datasets, balances, items, docs, users, tbVersions, journals, overrides] =
+  const [datasets, balances, items, docs, users, tbVersions] =
     await Promise.all([
       listDatasets(id),
       sectionBalances(id),
@@ -68,8 +62,6 @@ export default async function DataPage(props: {
       leadsheetDocs(id),
       listFirmUsers(),
       listTbVersions(id),
-      listJournals(id),
-      listOverrides((await getEngagement(id))!.clientId),
     ]);
   const latestSummary = tbVersions.find((v) => v.summary)?.summary ?? null;
 
@@ -197,95 +189,12 @@ export default async function DataPage(props: {
           </div>
         ) : null}
 
-        <h3 className="mt-6 text-sm font-semibold uppercase tracking-wide text-muted">
-          {t.planning.tbPage.journals}
-        </h3>
-        <ul className="mt-2 flex flex-col gap-1.5 text-sm" data-testid="journals-list">
-          {journals.map((journal) => (
-            <li key={journal.id} className="flex flex-wrap items-center justify-between gap-2 rounded-[var(--radius-atlas-sm)] border border-line bg-surface px-3 py-1.5">
-              <span>
-                #{journal.journalNo} — {journal.description} · {formatFCFA(journal.total)} ·{" "}
-                {journal.status === "posted" ? t.planning.tbPage.postedAs : journal.status}
-              </span>
-              {journal.status === "draft" ? (
-                <form action={postJournalAction.bind(null, id, journal.id)} className="flex items-center gap-2">
-                  <select name="kind" className={input}>
-                    <option value="adjusted">{t.planning.tbPage.kind.adjusted}</option>
-                    <option value="final">{t.planning.tbPage.kind.final}</option>
-                  </select>
-                  <button type="submit" className={btn} data-testid={`post-journal-${journal.journalNo}`}>
-                    {t.planning.tbPage.post}
-                  </button>
-                </form>
-              ) : null}
-            </li>
-          ))}
-        </ul>
-        <form action={createJournalAction.bind(null, id)} className="mt-3 flex flex-col gap-2" id="journal">
-          <input
-            name="description"
-            placeholder={t.planning.tbPage.journalDescription}
-            defaultValue={jdesc ?? ""}
-            required
-            className={`${input} max-w-md`}
-            data-testid="journal-description"
-          />
-          <textarea
-            name="lines"
-            placeholder={t.planning.tbPage.journalLines}
-            defaultValue={jamount ? `;;${jamount};\n;;;${jamount}` : ""}
-            rows={3}
-            required
-            className={`${input} max-w-md font-mono`}
-            data-testid="journal-lines"
-          />
-          <div>
-            <button type="submit" className={btn} data-testid="create-journal">
-              {t.planning.tbPage.createJournal}
-            </button>
-          </div>
-        </form>
-
-        <h3 className="mt-6 text-sm font-semibold uppercase tracking-wide text-muted">
-          {t.planning.tbPage.overrides}
-        </h3>
-        <ul className="mt-2 flex flex-col gap-1 text-sm" data-testid="overrides-list">
-          {overrides
-            .filter((o) => o.active)
-            .map((override) => (
-              <li key={override.id} className="flex items-center justify-between rounded-[var(--radius-atlas-sm)] border border-line bg-surface px-3 py-1.5">
-                <span>
-                  {override.accountPrefix} ({override.matchType}) → {override.sectionCode} — {override.rationale}
-                </span>
-                <form action={deactivateOverrideAction.bind(null, id, override.id)}>
-                  <button type="submit" className="text-xs text-rose hover:underline">
-                    {t.planning.tbPage.deactivate}
-                  </button>
-                </form>
-              </li>
-            ))}
-        </ul>
-        <form
-          action={addOverrideAction.bind(null, id, engagement.clientId)}
-          className="mt-2 flex flex-wrap items-end gap-2"
-        >
-          <input name="accountPrefix" placeholder={t.planning.tbPage.prefix} required className={input} data-testid="override-prefix" />
-          <select name="matchType" className={input}>
-            <option value="prefix">prefix</option>
-            <option value="exact">exact</option>
-          </select>
-          <input name="sectionCode" placeholder="E100" required className={input} data-testid="override-section" />
-          <input name="rationale" placeholder={t.planning.tbPage.rationale} required className={input} data-testid="override-rationale" />
-          <button type="submit" className={btn} data-testid="add-override">
-            {t.planning.tbPage.addOverride}
-          </button>
-        </form>
       </Panel>
 
       <Panel className="mt-6" id="subledgers">
         <h2 className="text-lg font-semibold text-ink">{td.subledgers}</h2>
         <div className="mt-3">
-          <UploadDataset engagementId={id} messages={t.planning} />
+          <DatasetAnalyzer engagementId={id} locale={locale} messages={t.planning} />
         </div>
         {datasets.length > 0 ? (
           <div className="mt-4 overflow-x-auto rounded-[var(--radius-atlas)] border border-line">

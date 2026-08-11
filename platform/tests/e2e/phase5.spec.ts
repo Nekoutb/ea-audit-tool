@@ -68,10 +68,12 @@ test("Phase 5: engines run on demo data; projected misstatement lands in B5", as
     name: "ar.csv",
     mimeType: "text/csv",
     buffer: Buffer.from(
-      "Customer;Amount\nACME;5000000\nBeta;2500000\nGamma;1800000\nDelta;1200000\nEpsilon;900000\nZeta;700000\nEta;300000\nTheta;200000",
+      "Code;Customer;Amount\nC1;ACME;5000000\nC2;Beta;2500000\nC3;Gamma;1800000\nC4;Delta;1200000\nC5;Epsilon;900000\nC6;Zeta;700000\nC7;Eta;300000\nC8;Theta;200000",
       "utf8",
     ),
   });
+  await page.getByTestId("dataset-analyze").click();
+  await page.getByTestId("dataset-confirm").waitFor();
   await page.getByTestId("dataset-upload").click();
   await expect(page.getByTestId("datasets-table")).toContainText("ar.csv");
 

@@ -1,0 +1,13 @@
+◇ injected env (6) from .env // tip: ⌘ multiple files { path: ['.env.local', '.env'] }
+◇ injected env (0) from .env // tip: ◈ encrypted .env [www.dotenvx.com]
+Seeded 2 firms: alice@firm-a.test/password, bob@firm-b.test/password
+
+Running 4 tests using 1 worker
+
+◇ injected env (0) from .env // tip: ⌘ multiple files { path: ['.env.local', '.env'] }
+
+[1/4] [chromium] › tests\e2e\phase1.spec.ts:18:5 › full Phase 1 acceptance flow on D3.1
+[2/4] [chromium] › tests\e2e\phase2.spec.ts:30:5 › full Phase 2 acceptance → planning → gates → close
+[3/4] [chromium] › tests\e2e\phase7.spec.ts:32:5 › Phase 7: gates block → complete file → issue report → archive → rollforward
+[4/4] [chromium] › tests\e2e\phase9.spec.ts:18:5 › Phase 9: portal PBC round-trip + dashboards + export
+  4 passed (59.2s)

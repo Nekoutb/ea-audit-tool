@@ -1,0 +1,11 @@
+Compte;Intitule;Solde ouverture debit;Solde ouverture credit;Mouvement debit;Mouvement credit
+101000;Capital social;0;113000000;0;0
+120000;Report a nouveau;0;12000000;0;0
+215000;Materiel industriel;80000000;0;5000000;0
+311000;Stocks marchandises;20000000;0;3000000;0
+411000;Clients;35000000;0;120000000;110000000
+401000;Fournisseurs;0;25000000;90000000;95000000
+521000;Banque;15000000;0;40000000;38000000
+601000;Achats de marchandises;0;0;115000000;0
+661000;Charges de personnel;0;0;30000000;0
+701000;Ventes de marchandises;0;0;0;160000000

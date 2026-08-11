@@ -1,0 +1,78 @@
+◇ injected env (6) from .env // tip: ⌘ multiple files { path: ['.env.local', '.env'] }
+◇ injected env (0) from .env // tip: ◈ encrypted .env [www.dotenvx.com]
+Seeded 2 firms: alice@firm-a.test/password, bob@firm-b.test/password
+
+Running 6 tests using 1 worker
+
+◇ injected env (0) from .env // tip: ◈ encrypted .env [www.dotenvx.com]
+
+[1/6] [chromium] › tests\e2e\phase1.spec.ts:18:5 › full Phase 1 acceptance flow on D3.1
+[2/6] [chromium] › tests\e2e\phase4.spec.ts:18:5 › Phase 4: step execution → findings routing → B5 vs materiality → revise-approach
+[3/6] [chromium] › tests\e2e\phase5.spec.ts:18:5 › Phase 5: engines run on demo data; projected misstatement lands in B5
+[4/6] [chromium] › tests\e2e\phase6.spec.ts:18:5 › Phase 6: AR + bank confirmation cycle with exception → B5 and a non-reply → alternative
+  1) [chromium] › tests\e2e\phase6.spec.ts:18:5 › Phase 6: AR + bank confirmation cycle with exception → B5 and a non-reply → alternative 
+
+    Test timeout of 300000ms exceeded.
+
+    Error: page.waitForURL: Test timeout of 300000ms exceeded.
+    =========================== logs ===========================
+    waiting for navigation to "**/documents/**" until "load"
+      navigated to "http://localhost:3100/engagements/2a08e7bd-f28e-4878-b429-3f3e255b9d8e/confirmations"
+    ============================================================
+
+      75 |   // → disposition client error → B5.
+      76 |   await page.getByTestId("letter-ACME").click();
+    > 77 |   await page.waitForURL("**/documents/**");
+         |              ^
+      78 |   await expect(page.getByTestId("download-current")).toBeVisible();
+      79 |   await page.goBack();
+      80 |   await page.getByTestId("approve-ACME").click();
+        at C:\Users\UltraBook 3.1\Documents\AI Projects\EA AUDIT TOOL\platform\tests\e2e\phase6.spec.ts:77:14
+
+    Error Context: test-results\phase6-Phase-6-AR-bank-con-2d9f5-d-a-non-reply-→-alternative-chromium\error-context.md
+
+
+◇ injected env (0) from .env // tip: ◈ secrets for agents [www.dotenvx.com]
+
+[5/6] [chromium] › tests\e2e\phase8.spec.ts:22:5 › Phase 8: deadlines → conventions/rapport spécial → alerte → equity → faits
+  2) [chromium] › tests\e2e\phase8.spec.ts:22:5 › Phase 8: deadlines → conventions/rapport spécial → alerte → equity → faits 
+
+    TimeoutError: browserType.launch: Timeout 180000ms exceeded.
+    Call log:
+      - <launching> C:\Users\UltraBook 3.1\AppData\Local\ms-playwright\chromium_headless_shell-1228\chrome-headless-shell-win64\chrome-headless-shell.exe --disable-field-trial-config --disable-background-networking --disable-background-timer-throttling --disable-backgrounding-occluded-windows --disable-back-forward-cache --disable-breakpad --disable-client-side-phishing-detection --disable-component-extensions-with-background-pages --disable-component-update --no-default-browser-check --disable-default-apps --disable-dev-shm-usage --disable-edgeupdater --disable-extensions --disable-features=AvoidUnnecessaryBeforeUnloadCheckSync,BoundaryEventDispatchTracksNodeRemoval,DestroyProfileOnBrowserClose,DialMediaRouteProvider,GlobalMediaControls,HttpsUpgrades,LensOverlay,MediaRouter,PaintHolding,ThirdPartyStoragePartitioning,Translate,AutoDeElevate,RenderDocument,OptimizationHints,msForceBrowserSignIn,msEdgeUpdateLaunchServicesPreferredVersion --enable-features=CDPScreenshotNewSurface --allow-pre-commit-input --disable-hang-monitor --disable-ipc-flooding-protection --disable-popup-blocking --disable-prompt-on-repost --disable-renderer-backgrounding --force-color-profile=srgb --metrics-recording-only --no-first-run --password-store=basic --use-mock-keychain --no-service-autorun --export-tagged-pdf --disable-search-engine-choice-screen --unsafely-disable-devtools-self-xss-warnings --edge-skip-compat-layer-relaunch --disable-infobars --disable-search-engine-choice-screen --disable-sync --enable-unsafe-swiftshader --headless --hide-scrollbars --mute-audio --blink-settings=primaryHoverType=2,availableHoverTypes=2,primaryPointerType=4,availablePointerTypes=4 --no-sandbox --user-data-dir=C:\Users\ULTRAB~1.1\AppData\Local\Temp\playwright_chromiumdev_profile-mVL1Mg --remote-debugging-pipe --no-startup-window
+      - <launched> pid=33864
+
+
+    Error Context: test-results\phase8-Phase-8-deadlines-→-bc77a-l-→-alerte-→-equity-→-faits-chromium\error-context.md
+
+
+◇ injected env (0) from .env // tip: ⌘ multiple files { path: ['.env.local', '.env'] }
+
+[6/6] [chromium] › tests\e2e\phase9.spec.ts:18:5 › Phase 9: portal PBC round-trip + dashboards + export
+  3) [chromium] › tests\e2e\phase9.spec.ts:18:5 › Phase 9: portal PBC round-trip + dashboards + export 
+
+    Error: page.goto: net::ERR_NETWORK_CHANGED at http://localhost:3100/login
+    Call log:
+      - navigating to "http://localhost:3100/login", waiting until "load"
+
+
+      10 | async function login(page: Page, email: string, password: string): Promise<void> {
+      11 |   await page.context().addCookies([{ name: "locale", value: "en", url: "http://localhost:3100" }]);
+    > 12 |   await page.goto("/login");
+         |              ^
+      13 |   await page.fill("input[name=email]", email);
+      14 |   await page.fill("input[name=password]", password);
+      15 |   await page.getByTestId("login-submit").click();
+        at login (C:\Users\UltraBook 3.1\Documents\AI Projects\EA AUDIT TOOL\platform\tests\e2e\phase9.spec.ts:12:14)
+        at C:\Users\UltraBook 3.1\Documents\AI Projects\EA AUDIT TOOL\platform\tests\e2e\phase9.spec.ts:20:3
+
+    Error Context: test-results\phase9-Phase-9-portal-PBC-round-trip-dashboards-export-chromium\error-context.md
+
+
+  Slow test file: [chromium] › tests\e2e\phase6.spec.ts (5.1m)
+  Consider running tests from slow files in parallel. See: https://playwright.dev/docs/test-parallel
+  3 failed
+    [chromium] › tests\e2e\phase6.spec.ts:18:5 › Phase 6: AR + bank confirmation cycle with exception → B5 and a non-reply → alternative 
+    [chromium] › tests\e2e\phase8.spec.ts:22:5 › Phase 8: deadlines → conventions/rapport spécial → alerte → equity → faits 
+    [chromium] › tests\e2e\phase9.spec.ts:18:5 › Phase 9: portal PBC round-trip + dashboards + export 
+  3 passed (5.3h)

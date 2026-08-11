@@ -1,0 +1,15 @@
+◇ injected env (6) from .env // tip: ⌘ suppress logs { quiet: true }
+◇ injected env (0) from .env // tip: ⌘ multiple files { path: ['.env.local', '.env'] }
+Seeded 2 firms: alice@firm-a.test/password, bob@firm-b.test/password
+
+Running 3 tests using 1 worker
+
+◇ injected env (0) from .env // tip: ⌘ enable debugging { debug: true }
+
+[1/3] [chromium] › tests\e2e\branding.spec.ts:22:5 › firm branding: settings → themed UI + nav identity, isolated per tenant
+
+[WebServer] (node:28980) DeprecationWarning: Calling client.query() when the client is already executing a query is deprecated and will be removed in pg@9.0. Use async/await or an external async flow control mechanism instead.
+[WebServer] (Use `node --trace-deprecation ...` to show where the warning was created)
+[2/3] [chromium] › tests\e2e\notifications.spec.ts:19:5 › a notification reaches only the user it was created for
+[3/3] [chromium] › tests\e2e\notifications.spec.ts:41:5 › marking notifications read clears the unread badge
+  3 passed (1.0m)

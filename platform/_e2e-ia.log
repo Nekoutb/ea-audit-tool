@@ -1,0 +1,45 @@
+◇ injected env (6) from .env // tip: ⌁ auth for agents [www.vestauth.com]
+◇ injected env (0) from .env // tip: ⌘ custom filepath { path: '/custom/path/.env' }
+Seeded 2 firms: alice@firm-a.test/password, bob@firm-b.test/password
+
+Running 4 tests using 1 worker
+
+◇ injected env (0) from .env // tip: ⌘ override existing { override: true }
+
+[1/4] [chromium] › tests\e2e\phase1.spec.ts:18:5 › full Phase 1 acceptance flow on D3.1
+[2/4] [chromium] › tests\e2e\phase2.spec.ts:30:5 › full Phase 2 acceptance → planning → gates → close
+[3/4] [chromium] › tests\e2e\phase7.spec.ts:32:5 › Phase 7: gates block → complete file → issue report → archive → rollforward
+  1) [chromium] › tests\e2e\phase7.spec.ts:32:5 › Phase 7: gates block → complete file → issue report → archive → rollforward 
+
+    Error: expect(locator).toContainText(expected) failed
+
+    Locator: getByTestId('gate-partner_conclusion')
+    Expected substring: "✓"
+    Received string:    "✗partner_conclusion"
+    Timeout: 5000ms
+
+    Call log:
+      - Expect "toContainText" with timeout 5000ms
+      - waiting for getByTestId('gate-partner_conclusion')
+        14 × locator resolved to <li data-testid="gate-partner_conclusion" class="flex items-center gap-2 text-sm">…</li>
+           - unexpected value "✗partner_conclusion"
+
+
+      175 |   await page.getByTestId("independence-reconfirm").check();
+      176 |   await page.getByTestId("save-partner-conclusion").click();
+    > 177 |   await expect(page.getByTestId("gate-partner_conclusion")).toContainText("✓");
+          |                                                             ^
+      178 |
+      179 |   // OHADA double representation letters (B8) + final management letter.
+      180 |   await page.getByTestId("gen-affirmation").click();
+        at C:\Users\UltraBook 3.1\Documents\AI Projects\EA AUDIT TOOL\platform\tests\e2e\phase7.spec.ts:177:61
+
+    Error Context: test-results\phase7-Phase-7-gates-block-eadff-ort-→-archive-→-rollforward-chromium\error-context.md
+
+
+◇ injected env (0) from .env // tip: ⌘ custom filepath { path: '/custom/path/.env' }
+
+[4/4] [chromium] › tests\e2e\phase9.spec.ts:18:5 › Phase 9: portal PBC round-trip + dashboards + export
+  1 failed
+    [chromium] › tests\e2e\phase7.spec.ts:32:5 › Phase 7: gates block → complete file → issue report → archive → rollforward 
+  3 passed (1.1m)

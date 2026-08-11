@@ -663,6 +663,8 @@ export interface TbPreviewClass {
 
 export interface TbPreview {
   headers: string[];
+  /** first non-empty values of each header, so the user can see the data behind a column choice */
+  headerSamples: Record<string, string[]>;
   mapping: TbMapping;
   /** null when the mapping supports extraction; else the blocking error code */
   mappingError: string | null;
@@ -734,8 +736,19 @@ export async function previewTrialBalance(
         return { prefix, accountCount: entry.accounts.size, closingTotal: Math.round(entry.total), section };
       });
 
+    const headerSamples: Record<string, string[]> = {};
+    for (const header of table.headers) {
+      const values: string[] = [];
+      for (const raw of table.rows) {
+        const v = String(raw[header] ?? "").trim();
+        if (v) values.push(v);
+        if (values.length >= 3) break;
+      }
+      headerSamples[header] = values;
+    }
     return {
       headers: table.headers,
+      headerSamples,
       mapping,
       mappingError,
       rowCount: rows.length,

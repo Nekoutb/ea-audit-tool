@@ -15,7 +15,9 @@ export async function POST(request: Request, context: { params: Promise<{ id: st
       return NextResponse.json({ error: "file-size" }, { status: 400 });
     }
     const buffer = Buffer.from(await file.arrayBuffer());
-    const datasetId = await createDataset(id, kind, file.name, buffer);
+    const rawMapping = form.get("mapping");
+    const mapping = typeof rawMapping === "string" && rawMapping ? (JSON.parse(rawMapping) as Record<string, string>) : undefined;
+    const datasetId = await createDataset(id, kind, file.name, buffer, mapping);
     return NextResponse.json({ datasetId });
   } catch (error) {
     if (error instanceof SubLedgerError) {

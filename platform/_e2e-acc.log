@@ -1,0 +1,161 @@
+
+> platform@0.1.0 test:e2e
+> playwright test
+
+◇ injected env (6) from .env // tip: ⌘ override existing { override: true }
+◇ injected env (0) from .env // tip: ⌁ auth for agents [www.vestauth.com]
+Seeded 2 firms: alice@firm-a.test/password, bob@firm-b.test/password
+
+Running 16 tests using 1 worker
+
+◇ injected env (0) from .env // tip: ◈ encrypted .env [www.dotenvx.com]
+
+[1/16] [chromium] › tests\e2e\branding.spec.ts:22:5 › firm branding: settings → themed UI + nav identity, isolated per tenant
+  1) [chromium] › tests\e2e\branding.spec.ts:22:5 › firm branding: settings → themed UI + nav identity, isolated per tenant 
+
+    Test timeout of 180000ms exceeded.
+
+    Error: page.fill: Test timeout of 180000ms exceeded.
+    Call log:
+      - waiting for locator('input[name=email]')
+
+
+      14 |   await page.request.get("/api/auth/csrf");
+      15 |   await page.goto("/login");
+    > 16 |   await page.fill("input[name=email]", email);
+         |              ^
+      17 |   await page.fill("input[name=password]", "password");
+      18 |   await page.getByTestId("login-submit").click();
+      19 |   await page.waitForURL("**/dashboard");
+        at login (C:\Users\UltraBook 3.1\Documents\AI Projects\EA AUDIT TOOL\platform\tests\e2e\branding.spec.ts:16:14)
+        at C:\Users\UltraBook 3.1\Documents\AI Projects\EA AUDIT TOOL\platform\tests\e2e\branding.spec.ts:58:3
+
+    Error Context: test-results\branding-firm-branding-set-649d7-dentity-isolated-per-tenant-chromium\error-context.md
+
+
+◇ injected env (0) from .env // tip: ⌘ override existing { override: true }
+
+[2/16] [chromium] › tests\e2e\isolation.spec.ts:30:5 › Firm A sees only its own data on the dashboard
+  2) [chromium] › tests\e2e\isolation.spec.ts:30:5 › Firm A sees only its own data on the dashboard 
+
+    Error: expect(locator).toContainText(expected) failed
+
+    Locator: getByTestId('firm-notes')
+    Expected substring: "Alpha confidential"
+    Timeout: 5000ms
+    Error: element(s) not found
+
+    Call log:
+      - Expect "toContainText" with timeout 5000ms
+      - waiting for getByTestId('firm-notes')
+
+
+      31 |   await login(page, FIRM_A.email);
+      32 |   const notes = page.getByTestId("firm-notes");
+    > 33 |   await expect(notes).toContainText(FIRM_A.note);
+         |                       ^
+      34 |   await expect(notes).not.toContainText(FIRM_B.note);
+      35 | });
+      36 |
+        at C:\Users\UltraBook 3.1\Documents\AI Projects\EA AUDIT TOOL\platform\tests\e2e\isolation.spec.ts:33:23
+
+    Error Context: test-results\isolation-Firm-A-sees-only-its-own-data-on-the-dashboard-chromium\error-context.md
+
+
+◇ injected env (0) from .env // tip: ⌁ auth for agents [www.vestauth.com]
+
+[3/16] [chromium] › tests\e2e\isolation.spec.ts:37:5 › Firm B sees only its own data on the dashboard
+  3) [chromium] › tests\e2e\isolation.spec.ts:37:5 › Firm B sees only its own data on the dashboard 
+
+    Error: expect(locator).toContainText(expected) failed
+
+    Locator: getByTestId('firm-notes')
+    Expected substring: "Beta confidential"
+    Timeout: 5000ms
+    Error: element(s) not found
+
+    Call log:
+      - Expect "toContainText" with timeout 5000ms
+      - waiting for getByTestId('firm-notes')
+
+
+      38 |   await login(page, FIRM_B.email);
+      39 |   const notes = page.getByTestId("firm-notes");
+    > 40 |   await expect(notes).toContainText(FIRM_B.note);
+         |                       ^
+      41 |   await expect(notes).not.toContainText(FIRM_A.note);
+      42 | });
+      43 |
+        at C:\Users\UltraBook 3.1\Documents\AI Projects\EA AUDIT TOOL\platform\tests\e2e\isolation.spec.ts:40:23
+
+    Error Context: test-results\isolation-Firm-B-sees-only-its-own-data-on-the-dashboard-chromium\error-context.md
+
+
+◇ injected env (0) from .env // tip: ⌘ override existing { override: true }
+
+[4/16] [chromium] › tests\e2e\isolation.spec.ts:44:5 › a crafted API request cannot cross tenants
+[5/16] [chromium] › tests\e2e\isolation.spec.ts:56:5 › the tenant API rejects unauthenticated requests
+[6/16] [chromium] › tests\e2e\notifications.spec.ts:19:5 › a notification reaches only the user it was created for
+  4) [chromium] › tests\e2e\notifications.spec.ts:19:5 › a notification reaches only the user it was created for 
+
+    Test timeout of 30000ms exceeded.
+
+    Error: locator.click: Test ended.
+    Call log:
+      - waiting for getByTestId('send-test-notification')
+
+
+      22 |   const alice = await aliceContext.newPage();
+      23 |   await login(alice, FIRM_A_EMAIL);
+    > 24 |   await alice.getByTestId("send-test-notification").click();
+         |                                                     ^
+      25 |   await expect(alice.getByTestId("unread-badge")).toHaveText("1");
+      26 |
+      27 |   await alice.goto("/notifications");
+        at C:\Users\UltraBook 3.1\Documents\AI Projects\EA AUDIT TOOL\platform\tests\e2e\notifications.spec.ts:24:53
+
+    Error Context: test-results\notifications-a-notificati-ccba8-the-user-it-was-created-for-chromium\error-context.md
+
+
+◇ injected env (0) from .env // tip: ◈ secrets for agents [www.dotenvx.com]
+
+[7/16] [chromium] › tests\e2e\notifications.spec.ts:41:5 › marking notifications read clears the unread badge
+  5) [chromium] › tests\e2e\notifications.spec.ts:41:5 › marking notifications read clears the unread badge 
+
+    Test timeout of 30000ms exceeded.
+
+    Error: locator.click: Test timeout of 30000ms exceeded.
+    Call log:
+      - waiting for getByTestId('send-test-notification')
+
+
+      41 | test("marking notifications read clears the unread badge", async ({ page }) => {
+      42 |   await login(page, FIRM_A_EMAIL);
+    > 43 |   await page.getByTestId("send-test-notification").click();
+         |                                                    ^
+      44 |   await page.goto("/notifications");
+      45 |
+      46 |   // Clear every unread notification (other tests may have left some behind).
+        at C:\Users\UltraBook 3.1\Documents\AI Projects\EA AUDIT TOOL\platform\tests\e2e\notifications.spec.ts:43:52
+
+    Error Context: test-results\notifications-marking-noti-530b3-ead-clears-the-unread-badge-chromium\error-context.md
+
+
+◇ injected env (0) from .env // tip: ⌘ enable debugging { debug: true }
+
+[8/16] [chromium] › tests\e2e\phase1.spec.ts:18:5 › full Phase 1 acceptance flow on D3.1
+[9/16] [chromium] › tests\e2e\phase2.spec.ts:30:5 › full Phase 2 acceptance → planning → gates → close
+[10/16] [chromium] › tests\e2e\phase3.spec.ts:36:5 › Phase 3 full: import TB → lead schedule → journal → analytics → risk
+[11/16] [chromium] › tests\e2e\phase4.spec.ts:18:5 › Phase 4: step execution → findings routing → B5 vs materiality → revise-approach
+[12/16] [chromium] › tests\e2e\phase5.spec.ts:18:5 › Phase 5: engines run on demo data; projected misstatement lands in B5
+[13/16] [chromium] › tests\e2e\phase6.spec.ts:18:5 › Phase 6: AR + bank confirmation cycle with exception → B5 and a non-reply → alternative
+[14/16] [chromium] › tests\e2e\phase7.spec.ts:32:5 › Phase 7: gates block → complete file → issue report → archive → rollforward
+[15/16] [chromium] › tests\e2e\phase8.spec.ts:22:5 › Phase 8: deadlines → conventions/rapport spécial → alerte → equity → faits
+[16/16] [chromium] › tests\e2e\phase9.spec.ts:18:5 › Phase 9: portal PBC round-trip + dashboards + export
+  5 failed
+    [chromium] › tests\e2e\branding.spec.ts:22:5 › firm branding: settings → themed UI + nav identity, isolated per tenant 
+    [chromium] › tests\e2e\isolation.spec.ts:30:5 › Firm A sees only its own data on the dashboard ─
+    [chromium] › tests\e2e\isolation.spec.ts:37:5 › Firm B sees only its own data on the dashboard ─
+    [chromium] › tests\e2e\notifications.spec.ts:19:5 › a notification reaches only the user it was created for 
+    [chromium] › tests\e2e\notifications.spec.ts:41:5 › marking notifications read clears the unread badge 
+  11 passed (6.4m)

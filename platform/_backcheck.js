@@ -1,0 +1,24 @@
+const { chromium } = require("@playwright/test");
+require("dotenv").config();
+const { Pool } = require("pg");
+const ok = (c, m) => console.log(`${c ? "PASS" : "FAIL"} ${m}`);
+(async () => {
+  const pool = new Pool({ connectionString: process.env.DATABASE_URL });
+  const d31 = (await pool.query("SELECT fi.id, fi.engagement_id FROM file_item fi JOIN engagement e ON e.id=fi.engagement_id JOIN tenant t ON t.id=e.tenant_id WHERE t.name='Cabinet Alpha' AND fi.code='D3.1' AND e.phase<>'archived' ORDER BY e.created_at DESC LIMIT 1")).rows[0];
+  await pool.end();
+  const b = await chromium.launch();
+  const p = await b.newPage({ viewport: { width: 1600, height: 900 } });
+  await p.context().addCookies([{ name: "locale", value: "en", url: "http://localhost:3100" }]);
+  await p.goto("http://localhost:3100/login");
+  await p.fill("input[name=email]", "alice@firm-a.test");
+  await p.fill("input[name=password]", "password");
+  await p.getByTestId("login-submit").click();
+  await p.waitForURL("**/dashboard");
+  await p.goto(`http://localhost:3100/engagements/${d31.engagement_id}/sections/${d31.id}`);
+  await p.locator('[data-testid="wp-screen"]').waitFor();
+  ok(await p.getByTestId("wp-back-dashboard").isVisible(), "back arrow visible on the task header");
+  await p.getByTestId("wp-back-dashboard").click();
+  await p.waitForURL("**/dashboard");
+  ok(true, "arrow returns to the engagement dashboard");
+  await b.close();
+})().catch((e) => { console.error("ERROR", e.message); process.exit(1); });

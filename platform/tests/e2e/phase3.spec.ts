@@ -81,14 +81,6 @@ test("Phase 3 full: import TB → lead schedule → journal → analytics → ri
   await expect(page.getByTestId("tb-status-1")).toContainText(/Valid/i);
   await expect(page.getByTestId("tb-checks")).toBeVisible();
 
-  // 3.3: post an adjusting journal → ADJUSTED version becomes current.
-  await page.getByTestId("journal-description").fill("Cut-off accrual");
-  await page.getByTestId("journal-lines").fill("601000;Achats;1000000;0\n408000;FNP;0;1000000");
-  await page.getByTestId("create-journal").click();
-  await page.getByTestId("post-journal-1").click();
-  await expect(page.getByTestId("tb-versions")).toContainText("v2");
-  await expect(page.getByTestId("tb-versions")).toContainText(/Adjusted/i);
-
   // Materiality for flags + lead-schedule header.
   await page.goto(`/engagements/${current}/planning`);
   await page.getByTestId("materiality-benchmark").selectOption("revenue");
