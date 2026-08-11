@@ -66,6 +66,8 @@ test("Phase 7: gates block → complete file → issue report → archive → ro
       "utf8",
     ),
   });
+  await page.getByTestId("tb-analyze").click();
+  await page.getByTestId("tb-confirm").waitFor();
   await page.getByTestId("tb-upload").click();
   await expect(page.getByTestId("tb-import-status")).toContainText("valid");
 

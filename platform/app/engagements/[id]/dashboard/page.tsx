@@ -190,8 +190,9 @@ export default async function EngagementDashboardPage(props: {
           grouped tasks open beside it. */}
       <SectionStage sections={sections} />
 
-      {/* The sketch's summary row: my tasks · review notes · findings · tools */}
-      <section className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
+      {/* The sketch's summary row: my tasks · review notes · findings.
+          Tools moved to the header icon (nav-tools). */}
+      <section className="grid grid-cols-1 gap-3 sm:grid-cols-3">
         <Link href={`/engagements/${id}/tasks`} className="block">
           <Panel className="h-full px-5 py-4 transition hover:border-emerald-600/40">
             <PanelHeader title={fr ? "Mes tâches" : "My tasks"} />
@@ -221,27 +222,6 @@ export default async function EngagementDashboardPage(props: {
             <Link href={`/engagements/${id}/findings`} className="flex items-center justify-between py-1.5 text-[12.5px] text-ink-soft hover:text-emerald-700">
               {td.findingsBand.misstatements} <b className="tnum">{dash.misstatementCount}</b>
             </Link>
-          </div>
-        </Panel>
-        <Panel className="px-5 py-4">
-          <PanelHeader title={fr ? "Outils" : "Tools"} />
-          <div className="mt-2 flex flex-wrap gap-1.5">
-            {[
-              { href: `/engagements/${id}/tools`, label: fr ? "Campagne d’indépendance" : "Independence campaign" },
-              { href: `/engagements/${id}/tools`, label: fr ? "Échantillonnage" : "Sampling" },
-              { href: `/engagements/${id}/confirmations`, label: fr ? "Circularisation" : "Circularisation" },
-              { href: `/engagements/${id}/data`, label: fr ? "Balance" : "Trial balance" },
-              { href: `/engagements/${id}`, label: fr ? "Dossier" : "Audit file" },
-              { href: `/engagements/${id}/team`, label: fr ? "Équipe" : "Team" },
-            ].map((r, i) => (
-              <Link
-                key={i}
-                href={r.href}
-                className="inline-flex min-h-[26px] items-center rounded-full border border-line bg-surface-2 px-3 py-0.5 text-[11.5px] font-semibold text-ink-soft transition hover:border-emerald-600 hover:text-emerald-700"
-              >
-                {r.label}
-              </Link>
-            ))}
           </div>
         </Panel>
       </section>

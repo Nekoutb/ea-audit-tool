@@ -12,7 +12,7 @@ import { AppNav } from "@/components/AppNav";
 import { EngagementTabs } from "@/components/EngagementTabs";
 import { ErrorBanner } from "@/components/GatesPanel";
 import { UploadDataset } from "@/components/UploadDataset";
-import { UploadTb } from "@/components/UploadTb";
+import { TbAnalyzer } from "@/components/TbAnalyzer";
 import { Panel, Chip } from "@/components/ui/atlas";
 import { withTenant } from "@/lib/db";
 import { getEngagement, listFileItems } from "@/lib/engagements";
@@ -107,7 +107,12 @@ export default async function DataPage(props: {
           {t.planning.tbPage.title}
         </h2>
         <div className="mt-3">
-          <UploadTb engagementId={id} messages={t.planning} />
+          <TbAnalyzer
+            engagementId={id}
+            locale={locale}
+            messages={t.planning}
+            sectionOptions={eSections.map((sec) => ({ code: sec.code, title: locale === "fr" ? sec.titleFr : sec.titleEn }))}
+          />
         </div>
         {tbVersions.length > 0 ? (
           <div className="mt-4 overflow-x-auto rounded-[var(--radius-atlas)] border border-line">
@@ -277,7 +282,7 @@ export default async function DataPage(props: {
         </form>
       </Panel>
 
-      <Panel className="mt-6">
+      <Panel className="mt-6" id="subledgers">
         <h2 className="text-lg font-semibold text-ink">{td.subledgers}</h2>
         <div className="mt-3">
           <UploadDataset engagementId={id} messages={t.planning} />

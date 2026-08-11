@@ -8,6 +8,7 @@
 import { createHash } from "node:crypto";
 import type { PoolClient } from "pg";
 import { withTenant } from "@/lib/db";
+import { resolveSection } from "@/lib/leadsheets";
 import { parseTabularFile, type ParsedTable } from "@/lib/subledgers";
 import { requireTenant } from "@/lib/tenant";
 
@@ -236,10 +237,12 @@ export async function importTrialBalance(
   engagementId: string,
   filename: string,
   buffer: Buffer,
+  mappingOverride?: TbMapping,
 ): Promise<TbImportResult> {
   const { tenantId, userId } = await requireTenant();
   const table = await parseTabularFile(filename, buffer);
-  const mapping = inferTbMapping(table.headers);
+  const mapping = mappingOverride ?? inferTbMapping(table.headers);
+  validateMapping(mapping);
   const rows = extractTbRows(table, mapping);
 
   return withTenant(tenantId, async (tx) => {
@@ -638,6 +641,112 @@ export async function listOverrides(clientId: string): Promise<GroupingOverride[
       rationale: row.rationale,
       active: row.active,
     }));
+  });
+}
+
+/** The account and at least one amount column must be mapped. */
+function validateMapping(mapping: TbMapping): void {
+  if (!mapping.account) throw new TbError("missing-account-column");
+  const hasMovements = mapping.debit && mapping.credit;
+  const hasClosing = (mapping.closingDebit && mapping.closingCredit) || mapping.closing;
+  if (!hasMovements && !hasClosing) throw new TbError("missing-amount-columns");
+}
+
+export interface TbPreviewClass {
+  /** two-digit account prefix found in the file */
+  prefix: string;
+  accountCount: number;
+  closingTotal: number;
+  /** lead-schedule section the grouping rules resolve to, null = unmapped */
+  section: string | null;
+}
+
+export interface TbPreview {
+  headers: string[];
+  mapping: TbMapping;
+  /** null when the mapping supports extraction; else the blocking error code */
+  mappingError: string | null;
+  rowCount: number;
+  sample: { account: string; label: string | null; opening: number; closing: number }[];
+  classes: TbPreviewClass[];
+}
+
+/**
+ * Analyze a TB file WITHOUT ingesting: infer (or take) the column mapping,
+ * extract the rows, and resolve each two-digit account class against the
+ * grouping rules — the confirm-and-map screen renders this.
+ */
+export async function previewTrialBalance(
+  engagementId: string,
+  filename: string,
+  buffer: Buffer,
+  mappingOverride?: TbMapping,
+): Promise<TbPreview> {
+  const { tenantId } = await requireTenant();
+  const table = await parseTabularFile(filename, buffer);
+  let mapping: TbMapping = mappingOverride ?? {};
+  let mappingError: string | null = null;
+  let rows: TbImportRow[] = [];
+  try {
+    if (!mappingOverride) mapping = inferTbMapping(table.headers);
+    else validateMapping(mapping);
+    rows = extractTbRows(table, mapping);
+  } catch (error) {
+    mappingError = error instanceof TbError ? error.code : "mapping-failed";
+  }
+
+  const closingOf = (row: TbImportRow) =>
+    row.openingDebit - row.openingCredit + row.debit - row.credit;
+
+  return withTenant(tenantId, async (tx) => {
+    const meta = await tx.query<{ client_id: string }>(
+      "SELECT client_id FROM engagement WHERE id = $1",
+      [engagementId],
+    );
+    if (!meta.rows[0]) throw new TbError("not-found");
+    const over = await tx.query<{ account_prefix: string; section_code: string; match_type: string }>(
+      "SELECT account_prefix, section_code, match_type FROM client_grouping_override WHERE client_id = $1 AND active",
+      [meta.rows[0].client_id],
+    );
+    const glob = await tx.query<{ account_prefix: string; section_code: string; priority: number }>(
+      "SELECT account_prefix, section_code, priority FROM syscohada_grouping_rule WHERE active",
+    );
+    const overrides = over.rows.map((r) => ({ prefix: r.account_prefix, sectionCode: r.section_code, exact: r.match_type === "exact", priority: 100 }));
+    const global = glob.rows.map((r) => ({ prefix: r.account_prefix, sectionCode: r.section_code, exact: false, priority: r.priority }));
+
+    const byPrefix = new Map<string, { accounts: Set<string>; total: number; sections: Map<string | null, number> }>();
+    for (const row of rows) {
+      const prefix = row.account.slice(0, 2);
+      const entry = byPrefix.get(prefix) ?? { accounts: new Set<string>(), total: 0, sections: new Map<string | null, number>() };
+      entry.accounts.add(row.account);
+      entry.total += closingOf(row);
+      const section = resolveSection(row.account, overrides, global);
+      entry.sections.set(section, (entry.sections.get(section) ?? 0) + 1);
+      byPrefix.set(prefix, entry);
+    }
+    const classes: TbPreviewClass[] = [...byPrefix.entries()]
+      .sort(([a], [b]) => a.localeCompare(b))
+      .map(([prefix, entry]) => {
+        // the class maps to the section most of its accounts resolve to
+        let section: string | null = null;
+        let best = -1;
+        for (const [sec, count] of entry.sections) if (count > best) { best = count; section = sec; }
+        return { prefix, accountCount: entry.accounts.size, closingTotal: Math.round(entry.total), section };
+      });
+
+    return {
+      headers: table.headers,
+      mapping,
+      mappingError,
+      rowCount: rows.length,
+      sample: rows.slice(0, 6).map((row) => ({
+        account: row.account,
+        label: row.label,
+        opening: Math.round(row.openingDebit - row.openingCredit),
+        closing: Math.round(closingOf(row)),
+      })),
+      classes,
+    };
   });
 }
 

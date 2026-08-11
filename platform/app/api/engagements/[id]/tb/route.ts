@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { SubLedgerError } from "@/lib/subledgers";
-import { importTrialBalance, TbError } from "@/lib/tb";
+import { addOverride, importTrialBalance, TbError, type TbMapping } from "@/lib/tb";
+import { getEngagement } from "@/lib/engagements";
 
 const MAX_BYTES = 25 * 1024 * 1024;
 
@@ -14,7 +15,26 @@ export async function POST(request: Request, context: { params: Promise<{ id: st
       return NextResponse.json({ error: "file-size" }, { status: 400 });
     }
     const buffer = Buffer.from(await file.arrayBuffer());
-    const result = await importTrialBalance(id, file.name, buffer);
+    const rawMapping = form.get("mapping");
+    const mapping = typeof rawMapping === "string" && rawMapping ? (JSON.parse(rawMapping) as TbMapping) : undefined;
+    // class-mapping decisions taken on the confirm screen persist as client
+    // grouping overrides before the rows are ingested
+    const rawOverrides = form.get("overrides");
+    if (typeof rawOverrides === "string" && rawOverrides) {
+      const overrides = JSON.parse(rawOverrides) as { prefix: string; sectionCode: string }[];
+      const engagement = await getEngagement(id);
+      if (engagement) {
+        for (const o of overrides) {
+          await addOverride(engagement.clientId, {
+            matchType: "prefix",
+            accountPrefix: o.prefix,
+            sectionCode: o.sectionCode,
+            rationale: "Mapped on the trial-balance confirm screen",
+          });
+        }
+      }
+    }
+    const result = await importTrialBalance(id, file.name, buffer, mapping);
     return NextResponse.json({
       versionNo: result.versionNo,
       status: result.summary.status,

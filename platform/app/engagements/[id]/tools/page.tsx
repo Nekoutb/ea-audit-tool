@@ -33,86 +33,49 @@ interface ToolDef {
   href: (id: string) => string;
 }
 
-const TOOLS: ToolDef[] = [
+interface ToolSection {
+  titleEn: string;
+  titleFr: string;
+  tools: ToolDef[];
+}
+
+const TOOL_SECTIONS: ToolSection[] = [
   {
-    id: "independence",
-    nameEn: "Independence inquiry",
-    nameFr: "Enquête d’indépendance",
-    descEn: "Issue the declaration to the whole team and manage the responses",
-    descFr: "Adresser la déclaration à toute l’équipe et suivre les réponses",
-    feeds: ["D3.1", "B2"],
-    phase: "acceptance",
-    href: () => "#independence",
+    titleEn: "Data Analytics",
+    titleFr: "Analyse de données",
+    tools: [
+      { id: "trial-balance", nameEn: "Trial Balance Analyzer", nameFr: "Analyseur de balance générale", descEn: "Upload, confirm the detected columns, map accounts to lead schedules, ingest and version", descFr: "Importer, confirmer les colonnes détectées, rattacher les comptes aux feuilles maîtresses, ingérer et versionner", feeds: ["D5.1", "D5.8", "D5.2"], phase: "acceptance", href: (id) => `/engagements/${id}/data` },
+      { id: "gl-analyzer", nameEn: "General Ledger Analyzer", nameFr: "Analyseur du grand livre", descEn: "Journal-entry population for the fraud procedures and close-process work", descFr: "Population d'écritures pour les procédures de fraude et l'arrêté des comptes", feeds: ["E350", "D8.4"], phase: "execution", href: (id) => `/engagements/${id}/data#subledgers` },
+      { id: "ar-analyzer", nameEn: "Accounts Receivable Analyzer", nameFr: "Analyseur des créances clients", descEn: "Open-items ageing, concentrations and circularisation candidates", descFr: "Balance âgée, concentrations et candidats à la circularisation", feeds: ["E100"], phase: "execution", href: (id) => `/engagements/${id}/data#subledgers` },
+      { id: "ap-analyzer", nameEn: "Accounts Payable Analyzer", nameFr: "Analyseur des dettes fournisseurs", descEn: "Open items, supplier statements and the unrecorded-liabilities search", descFr: "Postes ouverts, relevés fournisseurs et recherche de passifs non comptabilisés", feeds: ["E110"], phase: "execution", href: (id) => `/engagements/${id}/data#subledgers` },
+      { id: "inventory-analyzer", nameEn: "Inventory Analyzer", nameFr: "Analyseur des stocks", descEn: "Inventory listing against the ledger, count support and valuation checks", descFr: "État des stocks contre la comptabilité, appui d'inventaire et contrôles de valorisation", feeds: ["E130"], phase: "execution", href: (id) => `/engagements/${id}/data#subledgers` },
+      { id: "analytics", nameEn: "Analytical Procedures", nameFr: "Procédures analytiques", descEn: "Current against prior period, by lead schedule, with ratios", descFr: "Exercice courant contre antérieur, par feuille maîtresse", feeds: ["D4.3", "A1"], phase: "strategy", href: (id) => `/engagements/${id}/analytics` },
+      { id: "materiality", nameEn: "Materiality", nameFr: "Seuil de signification", descEn: "PM, TE and SAD nominal amount from the trial balance bases, with approval", descFr: "PM, TE et seuil SAD à partir des bases de la balance, avec approbation", feeds: ["D5.1"], phase: "acceptance", href: (id) => `/engagements/${id}/planning` },
+      { id: "risk", nameEn: "Risk Register", nameFr: "Registre des risques", descEn: "What can go wrong by assertion, and the strategy against each", descFr: "Ce qui peut mal tourner par assertion et la stratégie retenue", feeds: ["D7.2"], phase: "strategy", href: (id) => `/engagements/${id}/risks` },
+      { id: "cra", nameEn: "Combined Risk Assessment", nameFr: "Évaluation combinée des risques", descEn: "Accounts against assertions, inherent and control risk", descFr: "Comptes par assertions, risque inhérent et de contrôle", feeds: ["D7.2", "E300"], phase: "strategy", href: (id) => `/engagements/${id}/cra` },
+      { id: "findings", nameEn: "Misstatement Schedule", nameFr: "Récapitulatif des anomalies", descEn: "Accumulation, projection and evaluation against materiality", descFr: "Accumulation, extrapolation et évaluation au regard du seuil", feeds: ["B5"], phase: "conclusion", href: (id) => `/engagements/${id}/findings` },
+    ],
   },
   {
-    id: "materiality",
-    nameEn: "Materiality",
-    nameFr: "Seuil de signification",
-    descEn: "Overall, performance and clearly trivial, with approval",
-    descFr: "Seuil global, seuil de travail et seuil négligeable",
-    feeds: ["D5.1"],
-    phase: "strategy",
-    href: (id) => `/engagements/${id}/planning`,
+    titleEn: "Sampling",
+    titleFr: "Échantillonnage",
+    tools: [
+      { id: "sampling", nameEn: "Sampling", nameFr: "Échantillonnage", descEn: "MUS and attribute sampling on the ingested datasets — run from the cycle task, computed not typed", descFr: "Sondage MUS et par attributs sur les données ingérées — lancé depuis la tâche de cycle", feeds: ["E100", "E110", "E130"], phase: "execution", href: (id) => `/engagements/${id}/phases` },
+    ],
   },
   {
-    id: "trial-balance",
-    nameEn: "Trial balance",
-    nameFr: "Balance générale",
-    descEn: "Import, map to lead schedules, and version",
-    descFr: "Importer, rattacher aux feuilles maîtresses et versionner",
-    feeds: ["D5.2"],
-    phase: "strategy",
-    href: (id) => `/engagements/${id}/data`,
+    titleEn: "Circularisation",
+    titleFr: "Circularisation",
+    tools: [
+      { id: "confirmations", nameEn: "External Confirmations", nameFr: "Confirmations externes", descEn: "Positive and negative requests, dispatch, replies and exceptions", descFr: "Demandes positives et négatives, envois, réponses et exceptions", feeds: ["E100", "E170", "B9"], phase: "execution", href: (id) => `/engagements/${id}/confirmations` },
+    ],
   },
   {
-    id: "analytics",
-    nameEn: "Analytical procedures",
-    nameFr: "Procédures analytiques",
-    descEn: "Current against prior period, by lead schedule, with ratios",
-    descFr: "Exercice courant contre antérieur, par feuille maîtresse",
-    feeds: ["D5.2"],
-    phase: "strategy",
-    href: (id) => `/engagements/${id}/analytics`,
-  },
-  {
-    id: "risk",
-    nameEn: "Risk register",
-    nameFr: "Registre des risques",
-    descEn: "What can go wrong by assertion, and the strategy against each",
-    descFr: "Ce qui peut mal tourner par assertion et la stratégie retenue",
-    feeds: ["D7.2"],
-    phase: "strategy",
-    href: (id) => `/engagements/${id}/risks`,
-  },
-  {
-    id: "cra",
-    nameEn: "Combined risk assessment",
-    nameFr: "Évaluation combinée des risques",
-    descEn: "Accounts against assertions, inherent and control risk",
-    descFr: "Comptes par assertions, risque inhérent et de contrôle",
-    feeds: ["D7.2"],
-    phase: "strategy",
-    href: (id) => `/engagements/${id}/cra`,
-  },
-  {
-    id: "confirmations",
-    nameEn: "External confirmations",
-    nameFr: "Confirmations externes",
-    descEn: "Positive and negative requests, dispatch, replies and exceptions",
-    descFr: "Demandes positives et négatives, envois, réponses et exceptions",
-    feeds: ["E100", "E170"],
-    phase: "execution",
-    href: (id) => `/engagements/${id}/confirmations`,
-  },
-  {
-    id: "findings",
-    nameEn: "Misstatement schedule",
-    nameFr: "Récapitulatif des anomalies",
-    descEn: "Accumulation, projection and evaluation against materiality",
-    descFr: "Accumulation, extrapolation et évaluation au regard du seuil",
-    feeds: ["B5"],
-    phase: "conclusion",
-    href: (id) => `/engagements/${id}/findings`,
+    titleEn: "Independence Campaign",
+    titleFr: "Campagne d'indépendance",
+    tools: [
+      { id: "independence", nameEn: "Independence Campaign", nameFr: "Campagne d'indépendance", descEn: "Issue the declaration to the whole team and manage the responses below", descFr: "Adresser la déclaration à toute l'équipe et suivre les réponses ci-dessous", feeds: ["D3.2", "B2"], phase: "acceptance", href: () => "#independence" },
+    ],
   },
 ];
 
@@ -154,40 +117,45 @@ export default async function ToolsPage(props: { params: Promise<{ id: string }>
         </p>
       </header>
 
-      <Panel className="mt-6">
-        <ul className="divide-y divide-line" data-testid="tool-list">
-          {TOOLS.map((tool) => (
-            <li key={tool.id}>
-              <Link
-                href={tool.href(id)}
-                data-testid={`tool-${tool.id}`}
-                className="flex flex-wrap items-center gap-x-3 gap-y-1 py-3 transition hover:bg-surface-2"
-              >
-                <span className="min-w-0 flex-1">
-                  <span className="block text-sm font-medium text-ink">{fr ? tool.nameFr : tool.nameEn}</span>
-                  <span className="block text-xs text-muted">{fr ? tool.descFr : tool.descEn}</span>
-                </span>
-                <span className="flex flex-shrink-0 flex-wrap items-center gap-1">
-                  <Chip tone="muted">{sectionLabel(tool.phase, locale)}</Chip>
-                  {tool.feeds.map((code) => {
-                    const task = byCode.get(code);
-                    return (
-                      <span
-                        key={code}
-                        className="rounded-full bg-emerald-50 px-2 py-0.5 font-mono text-[10.5px] font-semibold text-emerald-800 dark:bg-emerald-950/40 dark:text-emerald-300"
-                        title={task ? (fr ? task.titleFr : task.titleEn) : code}
-                      >
-                        {code}
-                      </span>
-                    );
-                  })}
-                </span>
-                <span className="flex-shrink-0 text-muted" aria-hidden>›</span>
-              </Link>
-            </li>
-          ))}
-        </ul>
-      </Panel>
+      {TOOL_SECTIONS.map((sec) => (
+        <Panel className="mt-6" key={sec.titleEn}>
+          <h2 className="text-[12px] font-extrabold uppercase tracking-[0.07em] text-muted" data-testid={`tool-section-${sec.titleEn.toLowerCase().replace(/\s+/g, "-")}`}>
+            {fr ? sec.titleFr : sec.titleEn}
+          </h2>
+          <ul className="mt-1 divide-y divide-line">
+            {sec.tools.map((tool) => (
+              <li key={tool.id}>
+                <Link
+                  href={tool.href(id)}
+                  data-testid={`tool-${tool.id}`}
+                  className="flex flex-wrap items-center gap-x-3 gap-y-1 py-3 transition hover:bg-surface-2"
+                >
+                  <span className="min-w-0 flex-1">
+                    <span className="block text-sm font-medium text-ink">{fr ? tool.nameFr : tool.nameEn}</span>
+                    <span className="block text-xs text-muted">{fr ? tool.descFr : tool.descEn}</span>
+                  </span>
+                  <span className="flex flex-shrink-0 flex-wrap items-center gap-1">
+                    <Chip tone="muted">{sectionLabel(tool.phase, locale)}</Chip>
+                    {tool.feeds.map((code) => {
+                      const task = byCode.get(code);
+                      return (
+                        <span
+                          key={code}
+                          className="rounded-full bg-emerald-50 px-2 py-0.5 font-mono text-[10.5px] font-semibold text-emerald-800 dark:bg-emerald-950/40 dark:text-emerald-300"
+                          title={task ? (fr ? task.titleFr : task.titleEn) : code}
+                        >
+                          {code}
+                        </span>
+                      );
+                    })}
+                  </span>
+                  <span className="flex-shrink-0 text-muted" aria-hidden>›</span>
+                </Link>
+              </li>
+            ))}
+          </ul>
+        </Panel>
+      ))}
 
       {/* Independence inquiry — issued to the whole team, responses managed here */}
       <Panel className="mt-6" id="independence">

@@ -32,6 +32,7 @@ import { getSectionConclusion, listControlTests } from "@/lib/execution";
 import { listDatasets } from "@/lib/subledgers";
 import { getMessages } from "@/lib/i18n";
 import { getLocale } from "@/lib/locale";
+import { currentMateriality } from "@/lib/materiality";
 import { groupOfTask, type SectionKey } from "@/lib/task-groups";
 import { signOffPreparerAction, signOffReviewerAction } from "@/app/actions/audit-file";
 import { listAttachments } from "@/lib/attachments";
@@ -91,6 +92,16 @@ export default async function SectionPage(props: {
   // the 24-hour reminder sweep — idempotent per day, so simply working the
   // file keeps reminders flowing without a separate scheduler.
   const isIndependenceTask = section.code === "D3.2";
+  // Tool-filled values for the blue auto fields: D5.1 shows the approved
+  // (or latest) materiality version computed from the trial-balance basis.
+  const autoValues: Record<string, string> = {};
+  if (section.code === "D5.1") {
+    const m = await currentMateriality(id);
+    if (m) {
+      const n = (x: number) => new Intl.NumberFormat("fr-FR").format(x);
+      autoValues.benchmark = `${m.benchmark} · ${m.percentage}% × ${n(m.benchmarkAmount)} → PM ${n(m.overall)} · TE ${n(m.performance)} · SAD ${n(m.trivial)} FCFA (${m.status}${m.approvedByName ? " · " + m.approvedByName : ""})`;
+    }
+  }
   let campaign: Awaited<ReturnType<typeof listConfirmations>> = [];
   let campaignTeam: Awaited<ReturnType<typeof listEngagementTeam>> = [];
   if (isIndependenceTask) {
@@ -279,7 +290,7 @@ export default async function SectionPage(props: {
               code={section.code}
               def={paperDef}
               values={paperValues}
-              autoValues={{}}
+              autoValues={autoValues}
               locale={fr ? "fr" : "en"}
               action={savePaperAction.bind(null, id, itemId, section.code)}
             />
@@ -385,7 +396,7 @@ export default async function SectionPage(props: {
         code={section.code}
         def={paperDef}
         values={paperValues}
-        autoValues={{}}
+        autoValues={autoValues}
         locale={locale}
         action={savePaperAction.bind(null, id, itemId, section.code)}
       />

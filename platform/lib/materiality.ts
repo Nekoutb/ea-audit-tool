@@ -92,6 +92,50 @@ const SELECT_VERSION = `
     FROM materiality m
     LEFT JOIN app_user u ON u.id = m.approved_by`;
 
+/**
+ * Candidate benchmark amounts derived from the current trial-balance version,
+ * by SYSCOHADA class: revenue = class 7 (credit), expenses = class 6 (debit),
+ * PBT = revenue - expenses, equity = accounts 10-15 (credit), total assets =
+ * debit-balance accounts of classes 2-5. Null when no TB is ingested yet.
+ */
+export async function tbBenchmarkAmounts(
+  engagementId: string,
+): Promise<Record<Benchmark, number> | null> {
+  const { tenantId } = await requireTenant();
+  return withTenant(tenantId, async (tx) => {
+    const r = await tx.query<{ account_code: string; closing: string }>(
+      `SELECT r.account_code,
+              (r.opening_debit - r.opening_credit + r.debit - r.credit)::text AS closing
+         FROM trial_balance tb
+         JOIN trial_balance_version v
+           ON v.trial_balance_id = tb.id AND v.version_no = tb.current_version_no
+         JOIN trial_balance_row r ON r.version_id = v.id
+        WHERE tb.engagement_id = $1`,
+      [engagementId],
+    );
+    if (r.rows.length === 0) return null;
+    let cl6 = 0, cl7 = 0, equity = 0, assets = 0;
+    for (const row of r.rows) {
+      const closing = Number(row.closing);
+      const c1 = row.account_code[0];
+      const c2 = row.account_code.slice(0, 2);
+      if (c1 === "6") cl6 += closing;
+      else if (c1 === "7") cl7 += closing;
+      if (["10", "11", "12", "13", "14", "15"].includes(c2)) equity += closing;
+      if (["2", "3", "4", "5"].includes(c1) && closing > 0) assets += closing;
+    }
+    const revenue = Math.round(-cl7);
+    const expenses = Math.round(cl6);
+    return {
+      revenue: Math.max(0, revenue),
+      expenses: Math.max(0, expenses),
+      pbt: revenue - expenses,
+      equity: Math.max(0, Math.round(-equity)),
+      total_assets: Math.round(assets),
+    };
+  });
+}
+
 export async function currentMateriality(engagementId: string): Promise<MaterialityVersion | null> {
   const { tenantId } = await requireTenant();
   return withTenant(tenantId, async (tx) => {

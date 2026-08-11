@@ -74,6 +74,8 @@ test("Phase 3 full: import TB → lead schedule → journal → analytics → ri
       "utf8",
     ),
   });
+  await page.getByTestId("tb-analyze").click();
+  await page.getByTestId("tb-confirm").waitFor();
   await page.getByTestId("tb-upload").click();
   await expect(page.getByTestId("tb-import-status")).toContainText("valid");
   await expect(page.getByTestId("tb-status-1")).toContainText(/Valid/i);

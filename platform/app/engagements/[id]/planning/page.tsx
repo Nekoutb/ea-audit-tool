@@ -14,6 +14,7 @@ import {
   setPbcStatusAction,
 } from "@/app/actions/planning";
 import { AppNav } from "@/components/AppNav";
+import { MaterialityBasis } from "@/components/MaterialityBasis";
 import { EngagementTabs } from "@/components/EngagementTabs";
 import { ErrorBanner, GatesPanel } from "@/components/GatesPanel";
 import { Chip, Panel, PanelHeader, btnPrimary } from "@/components/ui/atlas";
@@ -23,7 +24,7 @@ import { FORM_DEFINITIONS, isFormComplete, type FormValues } from "@/lib/forms";
 import { planningCloseGates } from "@/lib/gates";
 import { formatFCFA, getMessages } from "@/lib/i18n";
 import { getLocale } from "@/lib/locale";
-import { BENCHMARK_RANGES, BENCHMARKS, listMaterialityVersions } from "@/lib/materiality";
+import { BENCHMARK_RANGES, BENCHMARKS, listMaterialityVersions, tbBenchmarkAmounts } from "@/lib/materiality";
 import { listBudget, listFirmUsers, listPbc, listTeam, TEAM_ROLES } from "@/lib/team";
 import { requireTenant } from "@/lib/tenant";
 
@@ -100,6 +101,7 @@ export default async function PlanningPage(props: {
   const tp = t.planning;
 
   const engagement = await getEngagement(id);
+  const tbBases = await tbBenchmarkAmounts(id);
   if (!engagement) notFound();
 
   const [gates, statuses, versions, team, users, budget, pbc, items] = await Promise.all([
@@ -226,6 +228,15 @@ export default async function PlanningPage(props: {
             </table>
           </div>
         ) : null}
+        {tbBases ? (
+          <MaterialityBasis locale={locale} bases={tbBases} />
+        ) : (
+          <p className="mt-4 text-[12.5px] text-muted" data-testid="materiality-no-tb">
+            {locale === "fr"
+              ? "Aucune balance ingérée — importer la balance dans l'Analyseur de balance pour dériver les bases."
+              : "No trial balance ingested yet — import one in the Trial Balance Analyzer to derive the bases."}
+          </p>
+        )}
         <form action={createMaterialityAction.bind(null, id)} className="mt-4 grid grid-cols-2 gap-3 md:grid-cols-4">
           <label className="flex flex-col gap-1 text-sm">
             <span className="text-ink-soft">{tp.materiality.benchmark}</span>
