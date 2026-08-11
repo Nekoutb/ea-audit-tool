@@ -1,39 +1,39 @@
-"use client";
+// Server-action login: works with AND without JavaScript. Filtered networks
+// (antivirus web-protection proxies) sometimes block script files entirely —
+// with the old client-only form the submit degraded to a GET that leaked the
+// password into the URL and never signed in. A server action degrades to a
+// plain POST handled by Next, so the flow works everywhere.
 
-import { signIn } from "next-auth/react";
-import { useRouter } from "next/navigation";
-import { useState } from "react";
+import { redirect } from "next/navigation";
+import { AuthError } from "next-auth";
+import { signIn } from "@/auth";
+import { SubmitButton } from "@/components/SubmitButton";
 import type { Messages } from "@/lib/i18n";
 
-export function LoginForm({ messages }: { messages: Messages["login"] }) {
-  const router = useRouter();
-  const [error, setError] = useState<string | null>(null);
-  const [pending, setPending] = useState(false);
-
-  async function onSubmit(event: React.FormEvent<HTMLFormElement>) {
-    event.preventDefault();
-    setError(null);
-    setPending(true);
-
-    const form = new FormData(event.currentTarget);
-    const result = await signIn("credentials", {
-      email: String(form.get("email") ?? ""),
-      password: String(form.get("password") ?? ""),
-      redirect: false,
+async function loginAction(formData: FormData): Promise<void> {
+  "use server";
+  try {
+    await signIn("credentials", {
+      email: String(formData.get("email") ?? ""),
+      password: String(formData.get("password") ?? ""),
+      // "/" resolves to the most-recently-worked engagement's dashboard.
+      redirectTo: "/",
     });
-
-    setPending(false);
-    if (!result || result.error) {
-      setError(messages.error);
-      return;
-    }
-    // "/" resolves to the most-recently-worked engagement's dashboard.
-    router.push("/");
-    router.refresh();
+  } catch (error) {
+    if (error instanceof AuthError) redirect("/login?error=1");
+    throw error; // NEXT_REDIRECT on success must propagate
   }
+}
 
+export function LoginForm({
+  messages,
+  failed,
+}: {
+  messages: Messages["login"];
+  failed?: boolean;
+}) {
   return (
-    <form onSubmit={onSubmit} className="flex flex-col gap-4">
+    <form action={loginAction} className="flex flex-col gap-4">
       <label className="flex flex-col gap-1 text-sm">
         <span className="font-medium text-ink-soft">{messages.email}</span>
         <input
@@ -56,20 +56,18 @@ export function LoginForm({ messages }: { messages: Messages["login"] }) {
         />
       </label>
 
-      {error ? (
+      {failed ? (
         <p role="alert" className="text-sm text-rose">
-          {error}
+          {messages.error}
         </p>
       ) : null}
 
-      <button
-        type="submit"
-        data-testid="login-submit"
-        disabled={pending}
+      <SubmitButton
+        testId="login-submit"
         className="mt-2 rounded-[var(--radius-atlas-sm)] bg-emerald-700 px-4 py-2 font-medium text-white transition hover:bg-emerald-800 focus:outline-none focus:ring-2 focus:ring-emerald-600/40 disabled:opacity-60"
       >
-        {pending ? messages.submitting : messages.submit}
-      </button>
+        {messages.submit}
+      </SubmitButton>
     </form>
   );
 }

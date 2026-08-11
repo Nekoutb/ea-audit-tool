@@ -5,12 +5,15 @@ import { LoginForm } from "@/components/LoginForm";
 import { getMessages } from "@/lib/i18n";
 import { getLocale } from "@/lib/locale";
 
-export default async function LoginPage() {
+export default async function LoginPage(props: {
+  searchParams: Promise<{ error?: string }>;
+}) {
   // Already signed in? Skip the form.
   const session = await auth();
   if (session?.user) {
     redirect("/dashboard");
   }
+  const { error } = await props.searchParams;
 
   const locale = await getLocale();
   const messages = getMessages(locale);
@@ -32,7 +35,7 @@ export default async function LoginPage() {
           </div>
           <LanguageSwitcher current={locale} />
         </div>
-        <LoginForm messages={messages.login} />
+        <LoginForm messages={messages.login} failed={Boolean(error)} />
       </div>
     </main>
   );
