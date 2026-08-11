@@ -10,6 +10,7 @@ import { ACCEPTANCE_PAPERS } from "@/lib/papers/acceptance";
 import { STRATEGY_PAPERS } from "@/lib/papers/strategy";
 import { EXECUTION_PAPERS } from "@/lib/papers/execution";
 import { CONCLUSION_PAPERS } from "@/lib/papers/conclusion";
+import { GAM_PAPERS } from "@/lib/papers/gam";
 import { paperKeys, requiredKeys, type PaperDef, type PaperField } from "@/lib/papers/types";
 import { groupOfTask, type SectionKey } from "@/lib/task-groups";
 
@@ -42,23 +43,29 @@ const CONCLUSION: PaperField = {
 
 /** Anchor and framing per group, used where a task has no bespoke paper. */
 const GROUP_DEFAULT: Record<string, { std: string; en: string; fr: string }> = {
-  st1: { std: "ISQM 1 ¶30 · ISA 220 (Revised) ¶22–28 · ISA 210", en: "the acceptance conclusion", fr: "la conclusion d'acceptation" },
-  st2: { std: "ISA 300 ¶7–12 · ISA 315 (Revised 2019) ¶17", en: "the strategy record", fr: "le cadrage de la mission" },
-  st3: { std: "ISA 315 (Revised 2019) ¶19, ¶24–25", en: "the understanding of the entity", fr: "la connaissance de l'entité" },
-  st4: { std: "ISA 315 (Revised 2019) ¶25–26 · ISA 402", en: "the IT and reliance conclusion", fr: "la conclusion informatique" },
-  st5: { std: "ISA 320 · ISA 315 (Revised 2019) ¶28–34", en: "the risk and materiality record", fr: "le seuil et les risques" },
-  st6: { std: "ISA 315 (Revised 2019) ¶28–34 · ISA 330 ¶5–15", en: "the assessed risks and planned responses", fr: "les risques évalués et les réponses" },
-  e1: { std: "ISA 315 (Revised 2019) ¶25–26 · ISA 330", en: "the flow understanding and its testing", fr: "la compréhension du flux et ses tests" },
-  e2: { std: "ISA 315 (Revised 2019) ¶26(b)–(c) · ISA 330 ¶8–17", en: "the IT controls conclusion", fr: "la conclusion sur les contrôles informatiques" },
-  e3: { std: "ISA 330 ¶18–23 · ISA 500 · ISA 520", en: "the evidence obtained on the account", fr: "les éléments probants du compte" },
-  e4: { std: "ISA 330 · ISA 500", en: "the evidence obtained", fr: "les éléments probants obtenus" },
-  e5: { std: "ISA 450 · ISA 240", en: "the response and its outcome", fr: "la réponse et son résultat" },
-  c1: { std: "ISA 700 ¶12–15 · ISA 220 (Revised) ¶29–35", en: "the completion conclusion", fr: "la conclusion d'achèvement" },
-  c2: { std: "ISA 450 ¶10–15 · ISA 701", en: "the evaluation of matters found", fr: "l'évaluation des points relevés" },
-  c3: { std: "ISA 560 · ISA 570 (Revised)", en: "the subsequent events and going concern conclusion", fr: "la conclusion événements postérieurs et continuité" },
-  c4: { std: "ISA 580 · ISA 505", en: "the representations obtained", fr: "les déclarations obtenues" },
-  c5: { std: "ISA 260 (Revised) · ISA 265 · ISQM 2 · ISA 230", en: "the governance and quality record", fr: "le dossier gouvernance et qualité" },
-  c6: { std: "OHADA — Acte uniforme relatif au droit des sociétés commerciales", en: "the statutory report", fr: "le rapport statutaire" },
+  p1: { std: "ISQM 1 ¶30 · ISA 220 (Revised) ¶22–28 · ISA 210", en: "the acceptance conclusion", fr: "la conclusion d'acceptation" },
+  p2: { std: "IESBA Code · ISA 220 (Revised) ¶16–21", en: "the independence and resourcing record", fr: "le dossier indépendance et moyens" },
+  p3: { std: "ISA 315 (Revised 2019) ¶19, ¶A56–A67", en: "the understanding of the business", fr: "la connaissance de l'activité" },
+  p4: { std: "ISA 315 (Revised 2019) ¶21–27", en: "the entity-level control and IT conclusion", fr: "la conclusion contrôles de l'entité et informatique" },
+  p5: { std: "ISA 240 ¶17–27 · ISA 315 (Revised 2019) ¶17", en: "the fraud risk record and team discussion", fr: "le dossier risques de fraude et discussion d'équipe" },
+  p6: { std: "ISA 320 · ISA 315 (Revised 2019) ¶28–29", en: "the materiality and scoping record", fr: "le seuil de signification et le périmètre" },
+  s1: { std: "ISA 315 (Revised 2019) ¶25–26, ¶A136–A150", en: "the transaction-flow understanding", fr: "la compréhension des flux de transactions" },
+  s2: { std: "ISA 330 ¶8–11", en: "the controls-reliance strategy", fr: "la stratégie d'appui sur les contrôles" },
+  s3: { std: "ISA 315 (Revised 2019) ¶28–34 · ISA 330 ¶5–15", en: "the combined risk assessment and planned responses", fr: "l'évaluation combinée des risques et les réponses" },
+  s4: { std: "ISA 402 · ISA 610 (Revised) · ISA 620", en: "the reliance on others' work", fr: "l'utilisation des travaux de tiers" },
+  s5: { std: "ISA 300 ¶7–12", en: "the audit strategies memorandum", fr: "le mémorandum de stratégie d'audit" },
+  e1: { std: "ISA 330 ¶8–17 · ISA 315 (Revised 2019) ¶26(b)–(c)", en: "the controls testing conclusion", fr: "la conclusion des tests de contrôles" },
+  e2: { std: "ISA 240 ¶32–33 · ISA 450", en: "the journal-entry and fraud response", fr: "la réponse écritures comptables et fraude" },
+  e3: { std: "ISA 315 (Revised 2019) ¶25–26 · ISA 330", en: "the flow understanding and its testing", fr: "la compréhension du flux et ses tests" },
+  e4: { std: "ISA 330 ¶18–23 · ISA 500 · ISA 520", en: "the evidence obtained on the account", fr: "les éléments probants du compte" },
+  e5: { std: "ISA 330 · ISA 500", en: "the evidence obtained", fr: "les éléments probants obtenus" },
+  e6: { std: "ISA 330 ¶25–27 · ISA 450", en: "the response and its outcome", fr: "la réponse et son résultat" },
+  c1: { std: "ISA 450 ¶10–15 · ISA 701", en: "the evaluation of audit differences", fr: "l'évaluation des écarts d'audit" },
+  c2: { std: "ISA 520 ¶6 · ISA 560 · ISA 570 (Revised)", en: "the final review conclusion", fr: "la conclusion de revue finale" },
+  c3: { std: "ISA 580 · ISA 505", en: "the representations obtained", fr: "les déclarations obtenues" },
+  c4: { std: "ISA 700 ¶12–15 · ISA 220 (Revised) ¶29–35", en: "the review and approval record", fr: "le dossier de revue et d'approbation" },
+  c5: { std: "ISA 260 (Revised) · ISA 265 · OHADA — Acte uniforme (sociétés commerciales)", en: "the communications and statutory record", fr: "le dossier communications et obligations légales" },
+  c6: { std: "ISA 230 ¶14–16 · ISQM 1 ¶31(f)", en: "the assembly and archive record", fr: "le dossier d'assemblage et d'archivage" },
 };
 
 /** Every task's paper, one map per phase, consulted in phase order. */
@@ -67,6 +74,7 @@ const ALL_PAPERS: Record<string, PaperDef> = {
   ...STRATEGY_PAPERS,
   ...EXECUTION_PAPERS,
   ...CONCLUSION_PAPERS,
+  ...GAM_PAPERS,
 };
 
 /** The paper for a task: bespoke where defined, otherwise built from its group. */

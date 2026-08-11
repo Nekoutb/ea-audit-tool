@@ -56,10 +56,10 @@
   "dashboard": {
     "title": "Dashboard",
     "phaseNames": {
-      "acceptance": "Pre-Planning",
-      "planning": "Planning",
+      "acceptance": "Planning & Risk Identification",
+      "planning": "Strategy & Risk Assessment",
       "execution": "Execution",
-      "conclusion": "Conclusion"
+      "conclusion": "Conclusion & Reporting"
     },
     "taskList": "Task list",
     "backToDashboard": "Back to dashboard",
@@ -453,10 +453,10 @@
       "archived": "Archived"
     },
     "stages": {
-      "acceptance": "Engagement Evaluation",
-      "planning": "Planning & Strategy",
+      "acceptance": "Planning & Risk Identification",
+      "planning": "Strategy & Risk Assessment",
       "execution": "Execution",
-      "conclusion": "Conclusion",
+      "conclusion": "Conclusion & Reporting",
       "archived": "Archived"
     },
     "status": {

@@ -56,10 +56,10 @@
   "dashboard": {
     "title": "Tableau de bord",
     "phaseNames": {
-      "acceptance": "Pré-planification",
-      "planning": "Planification",
+      "acceptance": "Planification & identification des risques",
+      "planning": "Stratégie & évaluation des risques",
       "execution": "Exécution",
-      "conclusion": "Conclusion"
+      "conclusion": "Conclusion & rapports"
     },
     "taskList": "Liste des tâches",
     "backToDashboard": "Retour au tableau de bord",
@@ -453,10 +453,10 @@
       "archived": "Archivée"
     },
     "stages": {
-      "acceptance": "Évaluation de la mission",
-      "planning": "Planification & Stratégie",
+      "acceptance": "Planification & identification des risques",
+      "planning": "Stratégie & évaluation des risques",
       "execution": "Exécution",
-      "conclusion": "Conclusion",
+      "conclusion": "Conclusion & rapports",
       "archived": "Archivée"
     },
     "status": {
