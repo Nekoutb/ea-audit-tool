@@ -10,6 +10,7 @@ import { TbAnalyzer } from "@/components/TbAnalyzer";
 import { Panel, Chip } from "@/components/ui/atlas";
 import { withTenant } from "@/lib/db";
 import { getEngagement, listFileItems } from "@/lib/engagements";
+import { DEFAULT_FILE_INDEX } from "@/lib/file-index";
 import { formatFCFA, getMessages } from "@/lib/i18n";
 import { sectionBalances } from "@/lib/leadsheets";
 import { getLocale } from "@/lib/locale";
@@ -103,7 +104,7 @@ export default async function DataPage(props: {
             engagementId={id}
             locale={locale}
             messages={t.planning}
-            sectionOptions={eSections.map((sec) => ({ code: sec.code, title: locale === "fr" ? sec.titleFr : sec.titleEn }))}
+            sectionOptions={DEFAULT_FILE_INDEX.filter((e) => e.section === "E").map((e) => ({ code: e.code, title: locale === "fr" ? e.titleFr : e.titleEn }))}
           />
         </div>
         {tbVersions.length > 0 ? (

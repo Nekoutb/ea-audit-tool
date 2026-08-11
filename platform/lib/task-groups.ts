@@ -62,7 +62,7 @@ export const TASK_GROUPS: TaskGroupDef[] = [
   { id: "e2", code: "E2", section: "execution", titleEn: "Journal Entries & Fraud", titleFr: "Écritures comptables & fraude", members: ["E350"] },
   { id: "e3", code: "E3", section: "execution", titleEn: "Transaction Cycles", titleFr: "Cycles de transactions", members: ["E100", "E110", "E120"] },
   { id: "e4", code: "E4", section: "execution", titleEn: "Accounts", titleFr: "Comptes", members: ["E130", "E140", "E150", "E160", "E170"] },
-  { id: "e5", code: "E5", section: "execution", titleEn: "General Procedures", titleFr: "Procédures générales", members: ["E180", "E190", "E200", "E210", "E220", "E230", "E270", "E280"] },
+  { id: "e5", code: "E5", section: "execution", titleEn: "General Procedures", titleFr: "Procédures générales", members: ["E180", "E190", "E200", "E210", "E220", "E230", "E270", "E280", "E600", "E610", "E620", "E630", "E700"] },
   { id: "e6", code: "E6", section: "execution", titleEn: "Standards Responses & Reassessment", titleFr: "Réponses normatives & réévaluation", members: ["E310", "E320", "E330", "E360", "E370", "E380", "E390", "E300"] },
 
   // ---- Conclusion & Reporting ----

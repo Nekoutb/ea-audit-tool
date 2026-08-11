@@ -23,12 +23,12 @@ interface FieldDef {
 const FIELDS: Record<SubLedgerKind, FieldDef[]> = {
   journal_entries: [
     { key: "account", en: "Account number", fr: "Numéro de compte", required: true, aliases: ["compte", "account", "code"] },
-    { key: "accountName", en: "Account name", fr: "Intitulé du compte", aliases: ["intitule", "libelle", "accountname", "designation"] },
+    { key: "accountName", en: "Account description (from the TB)", fr: "Intitulé du compte (issu de la balance)", aliases: ["intitule", "accountname", "designation"] },
     { key: "jeNumber", en: "JE number", fr: "Numéro d'écriture", required: true, aliases: ["piece", "numeroecriture", "jenumber", "entry", "numero"] },
-    { key: "jeDescription", en: "JE description", fr: "Libellé de l'écriture", required: true, aliases: ["libelleecriture", "description", "narration", "libelle"] },
+    { key: "jeDescription", en: "Transaction description", fr: "Libellé de la transaction", required: true, aliases: ["libelleecriture", "description", "narration", "libelle"] },
     { key: "amount", en: "Amount", fr: "Montant", required: true, aliases: ["montant", "amount", "debit", "valeur"] },
-    { key: "journalDate", en: "Journal date", fr: "Date du journal", required: true, aliases: ["datejournal", "journaldate", "date"] },
-    { key: "jeDate", en: "JE date (optional)", fr: "Date d'écriture (facultatif)", aliases: ["dateecriture", "jedate", "entrydate"] },
+    { key: "jeDate", en: "Journal entry date (captured in the system)", fr: "Date de saisie de l'écriture", required: true, aliases: ["datesaisie", "dateecriture", "jedate", "entrydate", "capture"] },
+    { key: "journalDate", en: "Journal date (period it relates to)", fr: "Date du journal (période concernée)", required: true, aliases: ["datejournal", "journaldate", "periode", "date"] },
   ],
   ap_open_items: [
     { key: "party", en: "Supplier number", fr: "Numéro fournisseur", required: true, aliases: ["code", "numero", "compte", "fournisseur", "supplier"] },
@@ -97,15 +97,18 @@ export function DatasetAnalyzer({
   engagementId,
   locale,
   messages,
+  fixedKind,
 }: {
   engagementId: string;
   locale: "en" | "fr";
   messages: Messages["planning"];
+  /** lock the analyzer to one dataset kind (the dedicated analyzer pages) */
+  fixedKind?: SubLedgerKind;
 }) {
   const fr = locale === "fr";
   const router = useRouter();
   const fileRef = useRef<HTMLInputElement>(null);
-  const [kind, setKind] = useState<SubLedgerKind>("ar_open_items");
+  const [kind, setKind] = useState<SubLedgerKind>(fixedKind ?? "ar_open_items");
   const [preview, setPreview] = useState<{ headers: string[]; headerSamples: Record<string, string[]>; rowCount: number } | null>(null);
   const [mapping, setMapping] = useState<Record<string, string>>({});
   const [error, setError] = useState<string | null>(null);
@@ -160,16 +163,18 @@ export function DatasetAnalyzer({
   return (
     <div className="flex flex-col gap-3">
       <div className="flex flex-wrap items-center gap-3">
-        <select
-          value={kind}
-          onChange={(e) => { setKind(e.target.value as SubLedgerKind); setPreview(null); }}
-          className="rounded-[var(--radius-atlas-sm)] border border-line-strong bg-surface px-3 py-2 text-sm text-ink outline-none focus:border-emerald-600"
-          data-testid="dataset-kind"
-        >
-          {SUB_LEDGER_KINDS.map((value) => (
-            <option key={value} value={value}>{messages.dataPage.kinds[value]}</option>
-          ))}
-        </select>
+        {fixedKind ? null : (
+          <select
+            value={kind}
+            onChange={(e) => { setKind(e.target.value as SubLedgerKind); setPreview(null); }}
+            className="rounded-[var(--radius-atlas-sm)] border border-line-strong bg-surface px-3 py-2 text-sm text-ink outline-none focus:border-emerald-600"
+            data-testid="dataset-kind"
+          >
+            {SUB_LEDGER_KINDS.map((value) => (
+              <option key={value} value={value}>{messages.dataPage.kinds[value]}</option>
+            ))}
+          </select>
+        )}
         <input
           ref={fileRef}
           type="file"

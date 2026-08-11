@@ -121,6 +121,12 @@ export const DEFAULT_FILE_INDEX: readonly FileIndexEntry[] = [
   { code: "E500", section: "E", titleEn: "ITGC Testing", titleFr: "Tests des contrôles généraux informatiques" },
   { code: "E510", section: "E", titleEn: "Application & IT-Dependent Controls", titleFr: "Contrôles applicatifs et dépendants de l'informatique" },
 
+  // P&L lead schedules — the class 6/7 groupings of the audit file.
+  { code: "E600", section: "E", titleEn: "Operating Expenditures", titleFr: "Charges opérationnelles" },
+  { code: "E610", section: "E", titleEn: "Administrative Expenditures", titleFr: "Charges administratives" },
+  { code: "E620", section: "E", titleEn: "Other Expenses", titleFr: "Autres charges" },
+  { code: "E630", section: "E", titleEn: "Finance Cost", titleFr: "Charges financières" },
+  { code: "E700", section: "E", titleEn: "Other Income", titleFr: "Autres produits" },
   { code: "E520", section: "E", titleEn: "Update Tests of Controls and ITGCs (post-interim)", titleFr: "Mettre à jour les tests de contrôles et des ITGC (post-intérim)" },
 
   // F — OHADA statutory section
@@ -212,6 +218,11 @@ const SHORT_TITLES: Record<string, { en: string; fr: string }> = {
   E500: { en: "ITGC Testing", fr: "Contrôles généraux informatiques" },
   E510: { en: "Application Controls", fr: "Contrôles applicatifs" },
   E520: { en: "Update ToC & ITGCs (post-interim)", fr: "MAJ tests de contrôles & ITGC" },
+  E600: { en: "Operating Expenditures", fr: "Charges opérationnelles" },
+  E610: { en: "Administrative Expenditures", fr: "Charges administratives" },
+  E620: { en: "Other Expenses", fr: "Autres charges" },
+  E630: { en: "Finance Cost", fr: "Charges financières" },
+  E700: { en: "Other Income", fr: "Autres produits" },
   F1: { en: "Statutory Deadlines Calendar", fr: "Calendrier des échéances légales" },
   F2: { en: "Conventions Réglementées", fr: "Conventions réglementées" },
   F3: { en: "Article 715 Board Report", fr: "Rapport article 715" },

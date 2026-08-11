@@ -1,0 +1,94 @@
+import Link from "next/link";
+import { notFound, redirect } from "next/navigation";
+import { auth } from "@/auth";
+import { AppNav } from "@/components/AppNav";
+import { DatasetAnalyzer } from "@/components/DatasetAnalyzer";
+import { Panel } from "@/components/ui/atlas";
+import { getEngagement } from "@/lib/engagements";
+import { formatFCFA, getMessages } from "@/lib/i18n";
+import { getLocale } from "@/lib/locale";
+import { listDatasets } from "@/lib/subledgers";
+import { isSubLedgerKind, type SubLedgerKind } from "@/lib/subledger-kinds";
+
+export const metadata = { title: "Analyzer · AuditISA" };
+
+// The dedicated analyzer pages: each tool uploads ONLY its own data kind and
+// lists only its own datasets. Back returns to the Tools list, not the dashboard.
+const ANALYZER_TITLES: Partial<Record<SubLedgerKind, { en: string; fr: string }>> = {
+  journal_entries: { en: "General Ledger Analyzer", fr: "Analyseur du grand livre" },
+  ar_open_items: { en: "Accounts Receivable Analyzer", fr: "Analyseur des créances clients" },
+  ap_open_items: { en: "Accounts Payable Analyzer", fr: "Analyseur des dettes fournisseurs" },
+  inventory_listing: { en: "Inventory Analyzer", fr: "Analyseur des stocks" },
+  fixed_asset_register: { en: "Fixed Asset Analyzer", fr: "Analyseur des immobilisations" },
+  payroll_register: { en: "Payroll Analyzer", fr: "Analyseur de la paie" },
+  bank_statement: { en: "Bank Statement Analyzer", fr: "Analyseur des relevés bancaires" },
+  supplier_statements: { en: "Supplier Statements Analyzer", fr: "Analyseur des relevés fournisseurs" },
+};
+
+export default async function AnalyzerPage(props: {
+  params: Promise<{ id: string; kind: string }>;
+}) {
+  const session = await auth();
+  if (!session?.user) redirect("/login");
+
+  const { id, kind } = await props.params;
+  if (!isSubLedgerKind(kind)) notFound();
+  const locale = await getLocale();
+  const t = getMessages(locale);
+  const fr = locale === "fr";
+
+  const engagement = await getEngagement(id);
+  if (!engagement) notFound();
+  const datasets = (await listDatasets(id)).filter((d) => d.kind === kind);
+  const title = ANALYZER_TITLES[kind] ?? { en: kind, fr: kind };
+
+  return (
+    <main className="min-h-screen w-full px-6 py-8">
+      <AppNav locale={locale} current={{ id, label: engagement.name ?? engagement.clientName }} />
+      <div className="mt-6 flex items-center gap-3">
+        <Link
+          href={`/engagements/${id}/tools`}
+          className="grid h-8 w-8 place-items-center rounded-full text-[16px] font-bold text-ink-soft transition hover:bg-surface-2 hover:text-ink"
+          title={fr ? "Retour aux outils" : "Back to tools"}
+          aria-label={fr ? "Retour" : "Back"}
+          data-testid="analyzer-back"
+        >
+          ←
+        </Link>
+        <h1 className="text-[22px] font-semibold leading-tight tracking-[-0.02em] text-ink">
+          {fr ? title.fr : title.en}
+        </h1>
+      </div>
+
+      <Panel className="mt-5">
+        <DatasetAnalyzer engagementId={id} locale={locale} messages={t.planning} fixedKind={kind} />
+        {datasets.length > 0 ? (
+          <div className="mt-5 overflow-x-auto rounded-[var(--radius-atlas)] border border-line">
+            <table className="w-full text-sm" data-testid="analyzer-datasets">
+              <tbody>
+                {datasets.map((dataset) => (
+                  <tr key={dataset.id} className="border-t border-line first:border-t-0 hover:bg-surface-2">
+                    <td className="px-4 py-2 font-medium text-ink">{dataset.sourceFilename}</td>
+                    <td className="px-4 py-2 text-ink-soft tnum">
+                      {dataset.rowCount} {fr ? "lignes" : "rows"}
+                    </td>
+                    <td className="px-4 py-2 text-ink-soft tnum">
+                      {dataset.totalAmount !== null ? formatFCFA(dataset.totalAmount) : "—"}
+                    </td>
+                    <td className="px-4 py-2 text-muted tnum">{dataset.createdAt}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        ) : (
+          <p className="mt-4 text-[12.5px] text-muted" data-testid="analyzer-empty">
+            {fr
+              ? "Aucun jeu de données de ce type — importer le fichier ci-dessus."
+              : "No dataset of this kind yet — upload the file above."}
+          </p>
+        )}
+      </Panel>
+    </main>
+  );
+}

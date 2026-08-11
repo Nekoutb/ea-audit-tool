@@ -11,7 +11,7 @@ import type { Messages } from "@/lib/i18n";
 
 type TbColumn =
   | "account" | "label" | "openingDebit" | "openingCredit"
-  | "debit" | "credit" | "closingDebit" | "closingCredit" | "closing";
+  | "debit" | "credit" | "closingDebit" | "closingCredit" | "closing" | "opening";
 
 interface Preview {
   headers: string[];
@@ -23,17 +23,20 @@ interface Preview {
   classes: { prefix: string; accountCount: number; closingTotal: number; section: string | null }[];
 }
 
-const COLUMN_LABELS: Record<TbColumn, { en: string; fr: string; required?: boolean }> = {
-  account: { en: "Account number", fr: "Numéro de compte", required: true },
-  label: { en: "Account name", fr: "Intitulé du compte", required: true },
-  openingDebit: { en: "Opening balance — debit", fr: "Solde d'ouverture — débit" },
-  openingCredit: { en: "Opening balance — credit", fr: "Solde d'ouverture — crédit" },
-  debit: { en: "Movements — debit", fr: "Mouvements — débit" },
-  credit: { en: "Movements — credit", fr: "Mouvements — crédit" },
-  closingDebit: { en: "Closing balance — debit", fr: "Solde de clôture — débit" },
-  closingCredit: { en: "Closing balance — credit", fr: "Solde de clôture — crédit" },
-  closing: { en: "Closing balance (net)", fr: "Solde de clôture (net)" },
-};
+// The four columns the user confirms. Debit/credit-style files are still
+// detected server-side: when a concept is covered by variant columns the row
+// says which, instead of asking for a pick.
+const CONCEPTS: {
+  key: TbColumn;
+  en: string;
+  fr: string;
+  variants: TbColumn[];
+}[] = [
+  { key: "account", en: "Account number", fr: "Numéro de compte", variants: [] },
+  { key: "label", en: "Account name", fr: "Intitulé du compte", variants: [] },
+  { key: "opening", en: "Opening balance", fr: "Solde d'ouverture", variants: ["openingDebit", "openingCredit"] },
+  { key: "closing", en: "Closing balance", fr: "Solde de clôture", variants: ["closingDebit", "closingCredit", "debit", "credit"] },
+];
 
 const fmt = (n: number) => new Intl.NumberFormat("fr-FR").format(n);
 
@@ -158,35 +161,46 @@ export function TbAnalyzer({
                   </tr>
                 </thead>
                 <tbody>
-                  {(Object.keys(COLUMN_LABELS) as TbColumn[]).map((col) => (
-                    <tr key={col} className={`border-t border-line ${COLUMN_LABELS[col].required && !mapping[col] ? "bg-[var(--color-warn-soft)]" : ""}`}>
-                      <td className="px-3 py-1.5 font-medium text-ink">
-                        {fr ? COLUMN_LABELS[col].fr : COLUMN_LABELS[col].en}
-                        {COLUMN_LABELS[col].required ? <b className="text-rose"> *</b> : null}
-                      </td>
-                      <td className="px-3 py-1.5">
-                        <select
-                          className={select}
-                          value={mapping[col] ?? ""}
-                          data-testid={`tb-col-${col}`}
-                          onChange={(e) => {
-                            const next = { ...mapping };
-                            if (e.target.value) next[col] = e.target.value; else delete next[col];
-                            setMapping(next);
-                            analyze(next);
-                          }}
-                        >
-                          <option value="">—</option>
-                          {preview.headers.map((h) => (
-                            <option key={h} value={h}>{h}</option>
-                          ))}
-                        </select>
-                      </td>
-                      <td className="px-3 py-1.5 font-mono text-[11px] text-muted" data-testid={`tb-sample-${col}`}>
-                        {mapping[col] ? (preview.headerSamples?.[mapping[col]!] ?? []).join(" · ") || "—" : "—"}
-                      </td>
-                    </tr>
-                  ))}
+                  {CONCEPTS.map((concept) => {
+                    const coveredBy = concept.variants.filter((v) => mapping[v]);
+                    const covered = Boolean(mapping[concept.key]) || coveredBy.length > 0;
+                    const sampleHeader = mapping[concept.key] ?? (coveredBy[0] ? mapping[coveredBy[0]] : undefined);
+                    return (
+                      <tr key={concept.key} className={`border-t border-line ${covered ? "" : "bg-[var(--color-warn-soft)]"}`}>
+                        <td className="px-3 py-1.5 font-medium text-ink">
+                          {fr ? concept.fr : concept.en}
+                          <b className="text-rose"> *</b>
+                        </td>
+                        <td className="px-3 py-1.5">
+                          {!mapping[concept.key] && coveredBy.length > 0 ? (
+                            <span className="text-[11.5px] text-emerald-700 dark:text-emerald-400" data-testid={`tb-col-${concept.key}`}>
+                              {(fr ? "détecté : " : "detected: ") + coveredBy.map((v) => mapping[v]).join(" / ")}
+                            </span>
+                          ) : (
+                            <select
+                              className={select}
+                              value={mapping[concept.key] ?? ""}
+                              data-testid={`tb-col-${concept.key}`}
+                              onChange={(e) => {
+                                const next = { ...mapping };
+                                if (e.target.value) next[concept.key] = e.target.value; else delete next[concept.key];
+                                setMapping(next);
+                                analyze(next);
+                              }}
+                            >
+                              <option value="">—</option>
+                              {preview.headers.map((h) => (
+                                <option key={h} value={h}>{h}</option>
+                              ))}
+                            </select>
+                          )}
+                        </td>
+                        <td className="px-3 py-1.5 font-mono text-[11px] text-muted" data-testid={`tb-sample-${concept.key}`}>
+                          {sampleHeader ? (preview.headerSamples?.[sampleHeader] ?? []).join(" · ") || "—" : "—"}
+                        </td>
+                      </tr>
+                    );
+                  })}
                 </tbody>
               </table>
             </div>

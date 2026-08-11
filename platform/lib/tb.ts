@@ -21,7 +21,8 @@ export type TbColumn =
   | "credit"
   | "closingDebit"
   | "closingCredit"
-  | "closing";
+  | "closing"
+  | "opening";
 
 export type TbMapping = Partial<Record<TbColumn, string>>;
 
@@ -34,7 +35,8 @@ const ALIASES: Record<TbColumn, readonly string[]> = {
   credit: ["credit", "credits", "mouvementcredit", "mouvementscredit", "movementcredit", "cumulcredit"],
   closingDebit: ["closingdebit", "soldedebit", "soldefinaldebit", "balancedebit"],
   closingCredit: ["closingcredit", "soldecredit", "soldefinalcredit", "balancecredit"],
-  closing: ["closing", "solde", "soldefinal", "balance", "net"],
+  closing: ["closing", "closingbalance", "solde", "soldefinal", "soldecloture", "balance", "net"],
+  opening: ["opening", "openingbalance", "soldeouverture", "soldedouverture", "anouveau", "soldeinitial", "ouverture", "soldedebut"],
 };
 
 function normalizeHeader(value: string): string {
@@ -109,11 +111,18 @@ export function extractTbRows(table: ParsedTable, mapping: TbMapping): TbImportR
         credit = closing < 0 ? -closing : 0;
       }
     }
+    let openingDebit = get("openingDebit");
+    let openingCredit = get("openingCredit");
+    if (!mapping.openingDebit && !mapping.openingCredit && mapping.opening) {
+      const opening = get("opening");
+      openingDebit = opening > 0 ? opening : 0;
+      openingCredit = opening < 0 ? -opening : 0;
+    }
     rows.push({
       account,
       label: mapping.label ? String(raw[mapping.label] ?? "").trim() || null : null,
-      openingDebit: get("openingDebit"),
-      openingCredit: get("openingCredit"),
+      openingDebit,
+      openingCredit,
       debit,
       credit,
       raw,
@@ -718,7 +727,7 @@ export async function previewTrialBalance(
 
     const byPrefix = new Map<string, { accounts: Set<string>; total: number; sections: Map<string | null, number> }>();
     for (const row of rows) {
-      const prefix = row.account.slice(0, 2);
+      const prefix = row.account.slice(0, 4);
       const entry = byPrefix.get(prefix) ?? { accounts: new Set<string>(), total: 0, sections: new Map<string | null, number>() };
       entry.accounts.add(row.account);
       entry.total += closingOf(row);
