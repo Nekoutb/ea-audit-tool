@@ -20,6 +20,7 @@ import { AppNav } from "@/components/AppNav";
 import { PhaseNav } from "@/components/PhaseNav";
 import { launchIndependenceToTeamAction } from "@/app/actions/team-independence";
 import { PaperWizard } from "@/components/PaperWizard";
+import { PracticalTips, type TipEntry } from "@/components/PracticalTips";
 import { SubmitButton } from "@/components/SubmitButton";
 import { TaskAttachments } from "@/components/TaskAttachments";
 import { WorkingPaper } from "@/components/WorkingPaper";
@@ -115,6 +116,26 @@ export default async function SectionPage(props: {
 
   // The fixed working-paper screen (non-execution tasks): sign-off state,
   // deadline, and the linked tasks resolved to their pages.
+  // Practical considerations per questionnaire item: bespoke tips where the
+  // paper carries them, otherwise the procedure&apos;s expected sources.
+  const isFr = locale === "fr";
+  const practicalTips: TipEntry[] = [];
+  for (const sec of paperDef.sections ?? []) {
+    if (sec.kind === "proc") {
+      for (const proc of sec.procs) {
+        const tip = isFr ? (proc.tipFr ?? proc.tipEn) : (proc.tipEn ?? proc.tipFr);
+        const src = isFr ? proc.srcFr : proc.srcEn;
+        const text = tip ?? (src ? (isFr ? "Sources attendues : " : "Expected sources: ") + src : null);
+        if (text) practicalTips.push({ key: "p:" + proc.key, text });
+      }
+    }
+    if (sec.kind === "yn") {
+      for (const item of sec.items) {
+        const tip = isFr ? (item.tipFr ?? item.tipEn) : (item.tipEn ?? item.tipFr);
+        if (tip) practicalTips.push({ key: "q:" + item.key, text: tip });
+      }
+    }
+  }
   const taskInfo = await taskForItem(id, section.code);
   const CROSS_LINKS: Record<string, string[]> = {
     "D3.1": ["D3.4", "D3.2"], "D3.2": ["D3.1", "D3.6"], "D3.4": ["D3.1", "E370"],
@@ -283,6 +304,7 @@ export default async function SectionPage(props: {
                 </li>
               ))}
             </ul>
+            <PracticalTips tips={practicalTips} locale={isFr ? "fr" : "en"} />
           </section>
 
           <section className="flex min-h-0 flex-col overflow-hidden rounded-[var(--radius-atlas)] border border-glass-border bg-surface px-4 py-3 shadow-atlas backdrop-blur-xl">

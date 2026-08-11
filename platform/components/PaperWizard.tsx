@@ -164,6 +164,11 @@ export function PaperWizard({
     return out;
   }, [items, areaH]);
   const [step, setStep] = useState(0);
+  // Tell the guidance rail which items are on screen (practical tips follow the page).
+  useLayoutEffect(() => {
+    const keys = step === 0 ? ["__conclusion__"] : (steps[step - 1] ?? []).map((it) => (it.kind === "proc" ? "p:" + it.key : it.kind === "yn" ? "q:" + it.key : "f:" + it.field.key));
+    window.dispatchEvent(new CustomEvent("wp-step-items", { detail: { keys } }));
+  }, [step, steps]);
   // if a resize shrinks the page count, stay on a valid step
   useLayoutEffect(() => {
     setStep((s) => Math.min(s, steps.length));
@@ -238,7 +243,7 @@ export function PaperWizard({
       {/* the measuring shell: all steps render inside; its height drives packing */}
       <div ref={areaRef} className="relative min-h-0 flex-1 overflow-hidden">
       {/* step 0: overall conclusion + key findings */}
-      <div hidden={step !== 0} className="absolute inset-0 mt-2 flex flex-col gap-2 overflow-hidden">
+      <div hidden={step !== 0} className="absolute inset-0 mt-2 flex flex-col gap-2 overflow-y-auto overflow-x-hidden">
         {concl.map((c, i) => (
           <div key={i} className="rounded-[var(--radius-atlas-sm)] border border-line px-3 py-2">
             <div className="flex items-start justify-between gap-3">
@@ -270,14 +275,14 @@ export function PaperWizard({
                 ? "Constats importants du travail effectué — repris en B4/B5 le cas échéant"
                 : "Significant findings from the work performed — routed to B4/B5 where applicable"
             }
-            className="min-h-0 w-full flex-1 resize-none rounded-[var(--radius-atlas-sm)] bg-[color:var(--wp-input)] px-2.5 py-1.5 text-[13.2px] font-normal normal-case tracking-normal text-ink outline-none placeholder:text-muted focus:ring-2 focus:ring-emerald-600/25"
+            className="h-[96px] w-full resize-none overflow-y-auto rounded-[var(--radius-atlas-sm)] bg-[color:var(--wp-input)] px-2.5 py-1.5 text-[13.2px] font-normal normal-case tracking-normal text-ink outline-none placeholder:text-muted focus:ring-2 focus:ring-emerald-600/25"
           />
         </label>
       </div>
 
       {/* the questionnaire, one continuous stream in screen-sized pages */}
       {steps.map((pageItems, si) => (
-        <div key={si} hidden={step !== si + 1} className="absolute inset-0 mt-2 flex flex-col gap-1.5 overflow-hidden">
+        <div key={si} hidden={step !== si + 1} className="absolute inset-0 mt-2 flex flex-col gap-1.5 overflow-y-auto overflow-x-hidden">
           {pageItems.map((item) => {
             const header = item.sectionTitle ? (
               <p className="mb-0.5 mt-1 text-[10.5px] font-extrabold uppercase tracking-[0.07em] text-emerald-700 dark:text-emerald-400">

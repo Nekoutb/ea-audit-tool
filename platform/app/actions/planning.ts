@@ -320,7 +320,8 @@ export async function setPbcStatusAction(
 // ---- Materiality (2.9/2.10) ----
 
 export async function createMaterialityAction(engagementId: string, formData: FormData): Promise<void> {
-  const path = `/engagements/${engagementId}/planning`;
+  const returnTo = String(formData.get("returnTo") ?? "");
+  const path = returnTo.startsWith(`/engagements/${engagementId}/`) ? returnTo : `/engagements/${engagementId}/planning`;
   // Cleared optional inputs fall back to their defaults instead of becoming 0
   // (which would trip DB CHECK constraints). [Adversarial-review fix]
   const numberOr = (key: string, fallback: number): number => {
@@ -340,8 +341,9 @@ export async function createMaterialityAction(engagementId: string, formData: Fo
   });
 }
 
-export async function approveMaterialityAction(engagementId: string, versionNo: number): Promise<void> {
-  const path = `/engagements/${engagementId}/planning`;
+export async function approveMaterialityAction(engagementId: string, versionNo: number, formData?: FormData): Promise<void> {
+  const returnTo = String(formData?.get("returnTo") ?? "");
+  const path = returnTo.startsWith(`/engagements/${engagementId}/`) ? returnTo : `/engagements/${engagementId}/planning`;
   await guarded(path, () => approveMateriality(engagementId, versionNo));
 }
 

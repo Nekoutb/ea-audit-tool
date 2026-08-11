@@ -24,6 +24,9 @@ export interface PaperProc {
   /** expected sources, e.g. "RCCM extract · share register" */
   srcEn: string;
   srcFr: string;
+  /** practical considerations: how to actually perform this, shown beside the wizard page */
+  tipEn?: string;
+  tipFr?: string;
 }
 
 /** One Yes/No factor. A "No" opens an explanation box beneath the question. */
@@ -33,6 +36,9 @@ export interface PaperItem {
   fr: string;
   /** offer a Not-applicable option as well as Yes/No */
   na?: boolean;
+  /** practical considerations for answering this factor */
+  tipEn?: string;
+  tipFr?: string;
 }
 
 export type PaperSection =
