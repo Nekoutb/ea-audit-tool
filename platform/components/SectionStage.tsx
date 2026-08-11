@@ -28,8 +28,8 @@ export interface StageSection {
  * covered or wrapped. Gutters are margins, not flex gap, so a closed
  * (zero-width) slot leaves no seam.
  */
-export function SectionStage({ sections }: { sections: StageSection[] }) {
-  const [open, setOpen] = useState<number | null>(null);
+export function SectionStage({ sections, initialOpen = null }: { sections: StageSection[]; initialOpen?: number | null }) {
+  const [open, setOpen] = useState<number | null>(initialOpen);
 
   return (
     <div className="flex min-h-[236px] items-stretch" data-testid="phase-gauges" role="tablist">

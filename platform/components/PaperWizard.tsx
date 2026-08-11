@@ -27,7 +27,7 @@ import {
  * box every question could open — so a page can never clip, whatever is
  * answered. Pages are packed against the measured column height.
  */
-const COST = { yn: 118, proc: 142, input: 96, select: 92, auto: 80, header: 24 } as const;
+const COST = { yn: 64, proc: 116, input: 80, select: 86, auto: 72, header: 22 } as const;
 function itemCost(it: StepItem): number {
   const base =
     it.kind === "proc"
@@ -146,13 +146,17 @@ export function PaperWizard({
     ro.observe(el);
     return () => ro.disconnect();
   }, []);
+  const conclCount = ((fr ? def.conclFr : def.conclEn) ?? []).length;
   const steps = useMemo(() => {
+    // page 1 opens with the conclusion + key findings, then the questions
+    // flow straight beneath — no page is left mostly empty.
+    const preludeCost = conclCount * 62 + 150;
     const out: StepItem[][] = [];
     let page: StepItem[] = [];
-    let used = 0;
+    let used = preludeCost;
     for (const it of items) {
       const c = itemCost(it);
-      if (page.length > 0 && used + c > areaH) {
+      if (used + c > areaH && (page.length > 0 || out.length === 0)) {
         out.push(page);
         page = [];
         used = 0;
@@ -160,20 +164,21 @@ export function PaperWizard({
       page.push(it);
       used += c;
     }
-    if (page.length) out.push(page);
+    out.push(page);
     return out;
-  }, [items, areaH]);
+  }, [items, areaH, conclCount]);
   const [step, setStep] = useState(0);
   // Tell the guidance rail which items are on screen (practical tips follow the page).
   useLayoutEffect(() => {
-    const keys = step === 0 ? ["__conclusion__"] : (steps[step - 1] ?? []).map((it) => (it.kind === "proc" ? "p:" + it.key : it.kind === "yn" ? "q:" + it.key : "f:" + it.field.key));
+    const pageKeys = (steps[step] ?? []).map((it) => (it.kind === "proc" ? "p:" + it.key : it.kind === "yn" ? "q:" + it.key : "f:" + it.field.key));
+    const keys = step === 0 ? ["__conclusion__", ...pageKeys] : pageKeys;
     window.dispatchEvent(new CustomEvent("wp-step-items", { detail: { keys } }));
   }, [step, steps]);
   // if a resize shrinks the page count, stay on a valid step
   useLayoutEffect(() => {
-    setStep((s) => Math.min(s, steps.length));
+    setStep((s) => Math.min(s, Math.max(0, steps.length - 1)));
   }, [steps.length]);
-  const total = steps.length + 1; // step 0 = conclusion & key findings
+  const total = Math.max(1, steps.length); // page 0 opens with conclusion & key findings
   const concl = (fr ? def.conclFr : def.conclEn) ?? [];
 
   // Answers that gate the yellow boxes: yn questions and the conclusions.
@@ -201,89 +206,9 @@ export function PaperWizard({
     </label>
   );
 
-  return (
-    <form action={action} data-testid={`wp-form-${code}`} className="flex h-full min-h-0 flex-col">
-      <div className="flex items-center justify-between gap-2 border-b border-line pb-2">
-        <span className="text-[11.5px] font-bold uppercase tracking-[0.07em] text-muted">
-          {step === 0
-            ? fr
-              ? "Conclusion & constats clés"
-              : "Conclusion & key findings"
-            : fr
-              ? "Questionnaire"
-              : "Questionnaire"}
-        </span>
-        <span className="flex items-center gap-1.5">
-          <span className="text-[11.5px] text-muted tnum" data-testid="wp-step">
-            {step + 1}/{total}
-          </span>
-          <button
-            type="button"
-            onClick={() => setStep((s) => Math.max(0, s - 1))}
-            disabled={step === 0}
-            data-testid="wp-back"
-            className="grid h-6 w-6 place-items-center rounded-full bg-surface-2 text-ink-soft disabled:opacity-30"
-            aria-label={fr ? "Précédent" : "Back"}
-          >
-            ‹
-          </button>
-          <button
-            type="button"
-            onClick={() => setStep((s) => Math.min(total - 1, s + 1))}
-            disabled={step === total - 1}
-            data-testid="wp-next"
-            className="grid h-6 w-6 place-items-center rounded-full bg-surface-2 text-ink-soft disabled:opacity-30"
-            aria-label={fr ? "Suivant" : "Next"}
-          >
-            ›
-          </button>
-        </span>
-      </div>
-
-      {/* the measuring shell: all steps render inside; its height drives packing */}
-      <div ref={areaRef} className="relative min-h-0 flex-1 overflow-hidden">
-      {/* step 0: overall conclusion + key findings */}
-      <div hidden={step !== 0} className="absolute inset-0 mt-2 flex flex-col gap-2 overflow-y-auto overflow-x-hidden">
-        {concl.map((c, i) => (
-          <div key={i} className="rounded-[var(--radius-atlas-sm)] border border-line px-3 py-2">
-            <div className="flex items-start justify-between gap-3">
-              <p className="min-w-0 flex-1 text-[13.2px] text-ink">{c}</p>
-              <span className="flex flex-shrink-0 gap-2.5">
-                {radio(conclKey(i), "yes", fr ? "Oui" : "Yes", values[conclKey(i)] === "yes")}
-                {radio(conclKey(i), "no", fr ? "Non" : "No", values[conclKey(i)] === "no")}
-              </span>
-            </div>
-            {answers[conclKey(i)] === "no" ? (
-              <Amber
-                name={conclWhyKey(i)}
-                defaultValue={values[conclWhyKey(i)] ?? ""}
-                placeholder={fr ? "Expliquer la réponse « Non »" : "Explain the “No” answer"}
-                readOnly={readOnly}
-              />
-            ) : null}
-          </div>
-        ))}
-        <label className="flex min-h-0 flex-1 flex-col gap-1 text-[11.5px] font-bold uppercase tracking-[0.07em] text-muted">
-          {fr ? "Constats clés" : "Key findings"}
-          <textarea
-            name="key_findings"
-            defaultValue={values["key_findings"] ?? ""}
-            readOnly={readOnly}
-            data-testid="wp-key-findings"
-            placeholder={
-              fr
-                ? "Constats importants du travail effectué — repris en B4/B5 le cas échéant"
-                : "Significant findings from the work performed — routed to B4/B5 where applicable"
-            }
-            className="h-[96px] w-full resize-none overflow-y-auto rounded-[var(--radius-atlas-sm)] bg-[color:var(--wp-input)] px-2.5 py-1.5 text-[13.2px] font-normal normal-case tracking-normal text-ink outline-none placeholder:text-muted focus:ring-2 focus:ring-emerald-600/25"
-          />
-        </label>
-      </div>
-
-      {/* the questionnaire, one continuous stream in screen-sized pages */}
-      {steps.map((pageItems, si) => (
-        <div key={si} hidden={step !== si + 1} className="absolute inset-0 mt-2 flex flex-col gap-1.5 overflow-y-auto overflow-x-hidden">
-          {pageItems.map((item) => {
+  // One questionnaire item — shared by page 0 (beneath the key findings) and
+  // every later page.
+  const renderItem = (item: StepItem) => {
             const header = item.sectionTitle ? (
               <p className="mb-0.5 mt-1 text-[10.5px] font-extrabold uppercase tracking-[0.07em] text-emerald-700 dark:text-emerald-400">
                 {item.sectionTitle}
@@ -399,7 +324,92 @@ export function PaperWizard({
                 </div>
               </div>
             );
-          })}
+  };
+
+  return (
+    <form action={action} data-testid={`wp-form-${code}`} className="flex h-full min-h-0 flex-col">
+      <div className="flex items-center justify-between gap-2 border-b border-line pb-2">
+        <span className="text-[11.5px] font-bold uppercase tracking-[0.07em] text-muted">
+          {step === 0
+            ? fr
+              ? "Conclusion & constats clés"
+              : "Conclusion & key findings"
+            : fr
+              ? "Questionnaire"
+              : "Questionnaire"}
+        </span>
+        <span className="flex items-center gap-1.5">
+          <span className="text-[11.5px] text-muted tnum" data-testid="wp-step">
+            {step + 1}/{total}
+          </span>
+          <button
+            type="button"
+            onClick={() => setStep((s) => Math.max(0, s - 1))}
+            disabled={step === 0}
+            data-testid="wp-back"
+            className="grid h-6 w-6 place-items-center rounded-full bg-surface-2 text-ink-soft disabled:opacity-30"
+            aria-label={fr ? "Précédent" : "Back"}
+          >
+            ‹
+          </button>
+          <button
+            type="button"
+            onClick={() => setStep((s) => Math.min(total - 1, s + 1))}
+            disabled={step === total - 1}
+            data-testid="wp-next"
+            className="grid h-6 w-6 place-items-center rounded-full bg-surface-2 text-ink-soft disabled:opacity-30"
+            aria-label={fr ? "Suivant" : "Next"}
+          >
+            ›
+          </button>
+        </span>
+      </div>
+
+      {/* the measuring shell: all steps render inside; its height drives packing */}
+      <div ref={areaRef} className="relative min-h-0 flex-1 overflow-hidden">
+      {/* step 0: overall conclusion + key findings */}
+      <div hidden={step !== 0} className="absolute inset-0 mt-2 flex flex-col gap-1.5 overflow-y-auto overflow-x-hidden">
+        {concl.map((c, i) => (
+          <div key={i} className="rounded-[var(--radius-atlas-sm)] border border-line px-3 py-2">
+            <div className="flex items-start justify-between gap-3">
+              <p className="min-w-0 flex-1 text-[13.2px] text-ink">{c}</p>
+              <span className="flex flex-shrink-0 gap-2.5">
+                {radio(conclKey(i), "yes", fr ? "Oui" : "Yes", values[conclKey(i)] === "yes")}
+                {radio(conclKey(i), "no", fr ? "Non" : "No", values[conclKey(i)] === "no")}
+              </span>
+            </div>
+            {answers[conclKey(i)] === "no" ? (
+              <Amber
+                name={conclWhyKey(i)}
+                defaultValue={values[conclWhyKey(i)] ?? ""}
+                placeholder={fr ? "Expliquer la réponse « Non »" : "Explain the “No” answer"}
+                readOnly={readOnly}
+              />
+            ) : null}
+          </div>
+        ))}
+        <label className="flex flex-col gap-1 text-[11.5px] font-bold uppercase tracking-[0.07em] text-muted">
+          {fr ? "Constats clés" : "Key findings"}
+          <textarea
+            name="key_findings"
+            defaultValue={values["key_findings"] ?? ""}
+            readOnly={readOnly}
+            data-testid="wp-key-findings"
+            placeholder={
+              fr
+                ? "Constats importants du travail effectué — repris en B4/B5 le cas échéant"
+                : "Significant findings from the work performed — routed to B4/B5 where applicable"
+            }
+            className="h-[96px] w-full resize-none overflow-y-auto rounded-[var(--radius-atlas-sm)] bg-[color:var(--wp-input)] px-2.5 py-1.5 text-[13.2px] font-normal normal-case tracking-normal text-ink outline-none placeholder:text-muted focus:ring-2 focus:ring-emerald-600/25"
+          />
+        </label>
+        {(steps[0] ?? []).map(renderItem)}
+      </div>
+
+      {/* pages beyond the first */}
+      {steps.slice(1).map((pageItems, si) => (
+        <div key={si} hidden={step !== si + 1} className="absolute inset-0 mt-2 flex flex-col gap-1.5 overflow-y-auto overflow-x-hidden">
+          {pageItems.map(renderItem)}
         </div>
       ))}
 

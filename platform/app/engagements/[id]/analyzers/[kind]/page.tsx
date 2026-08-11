@@ -44,12 +44,12 @@ export default async function AnalyzerPage(props: {
 
   return (
     <main className="min-h-screen w-full px-6 py-8">
-      <AppNav locale={locale} current={{ id, label: engagement.name ?? engagement.clientName }} />
+      <AppNav locale={locale} hideLinks current={{ id, label: engagement.name ?? engagement.clientName }} />
       <div className="mt-6 flex items-center gap-3">
         <Link
-          href={`/engagements/${id}/tools`}
+          href={`/engagements/${id}/tools/data-analytics`}
           className="grid h-8 w-8 place-items-center rounded-full text-[16px] font-bold text-ink-soft transition hover:bg-surface-2 hover:text-ink"
-          title={fr ? "Retour aux outils" : "Back to tools"}
+          title={fr ? "Retour à l'analyse de données" : "Back to Data Analytics"}
           aria-label={fr ? "Retour" : "Back"}
           data-testid="analyzer-back"
         >

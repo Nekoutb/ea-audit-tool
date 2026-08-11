@@ -6,6 +6,8 @@ import { getBranding, type Branding } from "@/lib/branding";
 import { recentEngagements } from "@/lib/engagement-dashboard";
 import { getMessages, type Locale } from "@/lib/i18n";
 import { unreadCount } from "@/lib/notifications";
+import Link from "next/link";
+import { SECTION_ORDER, sectionLabel } from "@/lib/task-groups";
 
 function initials(source: string): string {
   const parts = source.replace(/@.*/, "").split(/[.\s_-]+/).filter(Boolean);
@@ -77,7 +79,21 @@ export async function AppNav({
           )}
           <span data-testid="brand-name">{branding?.displayName ?? t.common.appName}</span>
         </span>
-        {minimal || hideLinks ? null : (
+        {minimal || hideLinks ? null : current ? (
+          /* inside an engagement the primary links are the four phases —
+             each opens the dashboard with that phase's sub-tasks revealed */
+          <nav className="hidden items-center gap-1 lg:flex" data-testid="nav-phases">
+            {SECTION_ORDER.map((key) => (
+              <Link
+                key={key}
+                href={`/engagements/${current.id}/dashboard?phase=${key}`}
+                className="rounded-[var(--radius-atlas-xs)] px-2.5 py-1.5 text-[12.5px] font-medium text-ink-soft transition hover:bg-surface-2"
+              >
+                {sectionLabel(key, locale as "en" | "fr")}
+              </Link>
+            ))}
+          </nav>
+        ) : (
         <nav className="hidden items-center gap-1 md:flex">
           {links.map((link) => (
             <NavLink

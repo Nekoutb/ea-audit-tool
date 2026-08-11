@@ -87,11 +87,13 @@ function buildSections(
 
 export default async function EngagementDashboardPage(props: {
   params: Promise<{ id: string }>;
+  searchParams: Promise<{ phase?: string }>;
 }) {
   const session = await auth();
   if (!session?.user) redirect("/login");
 
   const { id } = await props.params;
+  const { phase: phaseParam } = await props.searchParams;
   const locale = await getLocale();
   const t = getMessages(locale);
   const td = t.dashboard;
@@ -188,7 +190,7 @@ export default async function EngagementDashboardPage(props: {
 
       {/* The four phases, filling the row — click one to slide its six
           grouped tasks open beside it. */}
-      <SectionStage sections={sections} />
+      <SectionStage sections={sections} initialOpen={phaseParam ? Math.max(0, sections.findIndex((s) => s.key === phaseParam)) : null} />
 
       {/* The sketch's summary row: my tasks · review notes · findings.
           Tools moved to the header icon (nav-tools). */}

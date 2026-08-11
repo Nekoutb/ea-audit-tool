@@ -41,7 +41,7 @@ export default async function MaterialityPage(props: {
 
   return (
     <main className="min-h-screen w-full px-6 py-6">
-      <AppNav locale={locale} current={{ id, label: engagement.name ?? engagement.clientName }} />
+      <AppNav locale={locale} hideLinks current={{ id, label: engagement.name ?? engagement.clientName }} />
       <div className="mt-5 flex items-center gap-3">
         <Link
           href={`/engagements/${id}/tools`}
@@ -54,7 +54,6 @@ export default async function MaterialityPage(props: {
         </Link>
         <h1 className="text-[22px] font-semibold leading-tight tracking-[-0.02em] text-ink">
           {fr ? "Seuil de signification" : "Materiality"}
-          <span className="ml-2 align-middle font-mono text-[12px] font-semibold text-muted">ISA 320 · D5.1</span>
         </h1>
       </div>
       <ErrorBanner error={error} locale={locale} />

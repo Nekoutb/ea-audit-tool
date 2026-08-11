@@ -131,19 +131,19 @@ export default async function CraPage(props: { params: Promise<{ id: string }> }
 
   return (
     <main className="flex min-h-screen w-full flex-col gap-4 px-6 py-8">
-      <AppNav locale={locale} current={{ id, label: engagement.name ?? engagement.clientName }} />
+      <AppNav locale={locale} hideLinks current={{ id, label: engagement.name ?? engagement.clientName }} />
 
       <div className="flex flex-wrap items-end justify-between gap-4">
         <div>
           <NavLink
-            href={`/engagements/${id}/dashboard`}
+            href={`/engagements/${id}/tools`}
             className="inline-flex min-h-[24px] items-center gap-1.5 text-[13px] font-semibold text-emerald-700 hover:underline dark:text-emerald-400"
             testId="back-to-dashboard"
           >
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2">
               <path d="M19 12H5M11 18l-6-6 6-6" />
             </svg>
-            {t.dashboard.backToDashboard}
+            {locale === "fr" ? "Retour aux outils" : "Back to tools"}
           </NavLink>
           <h1 className="mt-2 text-2xl font-bold tracking-[-0.02em] text-ink">{l.title}</h1>
           <p className="mt-1 text-[13px] text-ink-soft">

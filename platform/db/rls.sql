@@ -37,6 +37,7 @@ BEGIN
     'activity_log',
     'time_entry',
     'task_attachment',
+    'client_lead_index_override',
     'comment',
     'template_override'
   ]

@@ -32,7 +32,7 @@ export default async function IndependencePage(props: { params: Promise<{ id: st
 
   return (
     <main className="min-h-screen w-full px-6 py-6">
-      <AppNav locale={locale} current={{ id, label: engagement.name ?? engagement.clientName }} />
+      <AppNav locale={locale} hideLinks current={{ id, label: engagement.name ?? engagement.clientName }} />
       <div className="mt-5 flex items-center gap-3">
         <Link
           href={`/engagements/${id}/tools`}

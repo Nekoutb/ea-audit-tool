@@ -3,7 +3,6 @@ import { notFound, redirect } from "next/navigation";
 import { auth } from "@/auth";
 import { clearFindingAction, setCorrectedAction } from "@/app/actions/execution";
 import { AppNav } from "@/components/AppNav";
-import { EngagementTabs } from "@/components/EngagementTabs";
 import { ErrorBanner } from "@/components/GatesPanel";
 import { Panel, PanelHeader, Chip } from "@/components/ui/atlas";
 import { getEngagement } from "@/lib/engagements";
@@ -85,11 +84,21 @@ export default async function FindingsPage(props: {
 
   return (
     <main className="min-h-screen w-full px-6 py-8">
-      <AppNav locale={locale} />
-      <h1 className="mt-8 text-2xl font-semibold text-ink">
-        {engagement.clientName} — {engagement.fiscalYear} · {tf.title}
-      </h1>
-      <EngagementTabs engagementId={id} locale={locale} active="findings" />
+      <AppNav locale={locale} hideLinks current={{ id, label: engagement.name ?? engagement.clientName }} />
+      <div className="mt-5 flex items-center gap-3">
+        <Link
+          href={`/engagements/${id}/tools`}
+          className="grid h-8 w-8 place-items-center rounded-full text-[16px] font-bold text-ink-soft transition hover:bg-surface-2 hover:text-ink"
+          title={locale === "fr" ? "Retour aux outils" : "Back to tools"}
+          aria-label={locale === "fr" ? "Retour" : "Back"}
+          data-testid="findings-back"
+        >
+          ←
+        </Link>
+        <h1 className="text-[22px] font-semibold leading-tight tracking-[-0.02em] text-ink">
+          {tf.title}
+        </h1>
+      </div>
       <ErrorBanner error={error} locale={locale} />
 
       <Panel className="mt-6">

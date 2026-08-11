@@ -30,7 +30,7 @@ const TILES: {
   { id: "risk", nameEn: "Risk Register", nameFr: "Registre des risques", descEn: "What can go wrong by assertion, and the strategy against each", descFr: "Ce qui peut mal tourner par assertion et la stratégie retenue", feeds: ["D7.2"], href: (id) => `/engagements/${id}/risks` },
   { id: "cra", nameEn: "Combined Risk Assessment", nameFr: "Évaluation combinée des risques", descEn: "Accounts against assertions, inherent and control risk", descFr: "Comptes par assertions, risque inhérent et de contrôle", feeds: ["D7.2", "E300"], href: (id) => `/engagements/${id}/cra` },
   { id: "findings", nameEn: "Misstatement Schedule", nameFr: "Récapitulatif des anomalies", descEn: "Accumulation, projection and evaluation against materiality", descFr: "Accumulation, extrapolation et évaluation au regard du seuil", feeds: ["B5"], href: (id) => `/engagements/${id}/findings` },
-  { id: "sampling", nameEn: "Sampling", nameFr: "Échantillonnage", descEn: "MUS and attribute sampling — run from the cycle tasks, computed not typed", descFr: "Sondage MUS et par attributs — lancé depuis les tâches de cycle", feeds: ["E100", "E110", "E130"], href: (id) => `/engagements/${id}/phase/execution` },
+  { id: "sampling", nameEn: "Sampling", nameFr: "Échantillonnage", descEn: "MUS and attribute sampling — run from the cycle tasks, computed not typed", descFr: "Sondage MUS et par attributs — lancé depuis les tâches de cycle", feeds: ["E100", "E110", "E130"], href: (id) => `/engagements/${id}/tools/sampling` },
   { id: "confirmations", nameEn: "Circularisation", nameFr: "Circularisation", descEn: "Positive and negative requests, dispatch, replies and exceptions", descFr: "Demandes positives et négatives, envois, réponses et exceptions", feeds: ["E100", "E170", "B9"], href: (id) => `/engagements/${id}/confirmations` },
   { id: "independence", nameEn: "Independence Campaign", nameFr: "Campagne d'indépendance", descEn: "Issue the declaration to the whole team and manage the responses", descFr: "Adresser la déclaration à l'équipe et suivre les réponses", feeds: ["D3.2", "B2"], href: (id) => `/engagements/${id}/tools/independence` },
 ];
@@ -49,7 +49,7 @@ export default async function ToolsPage(props: { params: Promise<{ id: string }>
 
   return (
     <main className="min-h-screen w-full px-6 py-6">
-      <AppNav locale={locale} current={{ id, label: engagement.name ?? engagement.clientName }} />
+      <AppNav locale={locale} hideLinks current={{ id, label: engagement.name ?? engagement.clientName }} />
 
       {/* back to the dashboard + the four phases — nothing else */}
       <div className="mt-5 flex flex-wrap items-center gap-3">

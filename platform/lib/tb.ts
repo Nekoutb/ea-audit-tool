@@ -9,6 +9,7 @@ import { createHash } from "node:crypto";
 import type { PoolClient } from "pg";
 import { withTenant } from "@/lib/db";
 import { resolveSection } from "@/lib/leadsheets";
+import { leadIndexFor } from "@/lib/lead-classes";
 import { parseTabularFile, type ParsedTable } from "@/lib/subledgers";
 import { requireTenant } from "@/lib/tenant";
 
@@ -662,12 +663,14 @@ function validateMapping(mapping: TbMapping): void {
 }
 
 export interface TbPreviewClass {
-  /** two-digit account prefix found in the file */
+  /** four-digit account prefix found in the file */
   prefix: string;
   accountCount: number;
   closingTotal: number;
   /** lead-schedule section the grouping rules resolve to, null = unmapped */
   section: string | null;
+  /** lead-schedule index (firm taxonomy): client override, else the embedded SYSCOHADA map */
+  leadIndex: string | null;
 }
 
 export interface TbPreview {
@@ -719,6 +722,11 @@ export async function previewTrialBalance(
       "SELECT account_prefix, section_code, match_type FROM client_grouping_override WHERE client_id = $1 AND active",
       [meta.rows[0].client_id],
     );
+    const idxOver = await tx.query<{ account_prefix: string; index_code: string }>(
+      "SELECT account_prefix, index_code FROM client_lead_index_override WHERE client_id = $1",
+      [meta.rows[0].client_id],
+    );
+    const indexOverride = new Map(idxOver.rows.map((r) => [r.account_prefix, r.index_code]));
     const glob = await tx.query<{ account_prefix: string; section_code: string; priority: number }>(
       "SELECT account_prefix, section_code, priority FROM syscohada_grouping_rule WHERE active",
     );
@@ -742,7 +750,13 @@ export async function previewTrialBalance(
         let section: string | null = null;
         let best = -1;
         for (const [sec, count] of entry.sections) if (count > best) { best = count; section = sec; }
-        return { prefix, accountCount: entry.accounts.size, closingTotal: Math.round(entry.total), section };
+        return {
+          prefix,
+          accountCount: entry.accounts.size,
+          closingTotal: Math.round(entry.total),
+          section,
+          leadIndex: indexOverride.get(prefix) ?? leadIndexFor(prefix),
+        };
       });
 
     const headerSamples: Record<string, string[]> = {};
@@ -769,6 +783,24 @@ export async function previewTrialBalance(
       })),
       classes,
     };
+  });
+}
+
+/** Persist the user's lead-index choice for an account-class prefix. */
+export async function saveLeadIndexOverride(
+  clientId: string,
+  accountPrefix: string,
+  indexCode: string,
+): Promise<void> {
+  const { tenantId, userId } = await requireTenant();
+  if (!/^[0-9]{1,8}$/.test(accountPrefix)) throw new TbError("invalid-prefix");
+  await withTenant(tenantId, async (tx) => {
+    await tx.query(
+      `INSERT INTO client_lead_index_override (tenant_id, client_id, account_prefix, index_code, created_by)
+       VALUES ($1, $2, $3, $4, $5)
+       ON CONFLICT (client_id, account_prefix) DO UPDATE SET index_code = EXCLUDED.index_code`,
+      [tenantId, clientId, accountPrefix, indexCode, userId],
+    );
   });
 }
 

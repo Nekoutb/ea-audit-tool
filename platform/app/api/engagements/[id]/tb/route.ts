@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { SubLedgerError } from "@/lib/subledgers";
-import { addOverride, importTrialBalance, TbError, type TbMapping } from "@/lib/tb";
+import { addOverride, importTrialBalance, saveLeadIndexOverride, TbError, type TbMapping } from "@/lib/tb";
 import { getEngagement } from "@/lib/engagements";
 
 const MAX_BYTES = 25 * 1024 * 1024;
@@ -32,6 +32,15 @@ export async function POST(request: Request, context: { params: Promise<{ id: st
             rationale: "Mapped on the trial-balance confirm screen",
           });
         }
+      }
+    }
+    // lead-index choices from the confirm screen persist per client
+    const rawIndexes = form.get("indexOverrides");
+    if (typeof rawIndexes === "string" && rawIndexes) {
+      const indexOverrides = JSON.parse(rawIndexes) as { prefix: string; indexCode: string }[];
+      const engagement2 = await getEngagement(id);
+      if (engagement2) {
+        for (const o of indexOverrides) await saveLeadIndexOverride(engagement2.clientId, o.prefix, o.indexCode);
       }
     }
     const result = await importTrialBalance(id, file.name, buffer, mapping);
