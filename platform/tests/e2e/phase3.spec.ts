@@ -94,12 +94,11 @@ test("Phase 3 full: import TB → lead schedule → journal → analytics → ri
   await expect(page.getByTestId("leadschedules")).toContainText("Trade Receivables");
   await expect(page.getByTestId("lead-E")).toContainText("Assets");
 
-  // Analytics: flagged variance raised into D7.1 and promoted (acceptance).
+  // Analytical procedures: the Excel-style account grid with commentary.
   await page.goto(`/engagements/${current}/analytics`);
-  await expect(page.getByTestId("flag-E100")).toBeVisible();
-  await page.getByTestId("raise-E100").click();
-  await page.goto(`/engagements/${current}/risks`);
-  await expect(page.getByTestId("potential-risks")).toContainText("D4.3 variance E100");
-  await page.locator("[data-testid^=promote-]").first().click();
-  await expect(page.getByTestId("risk-register")).toContainText("D4.3 variance E100");
+  await expect(page.getByTestId("ap-E")).toContainText("411000");
+  await expect(page.getByTestId("ap-E")).toContainText("Prior year balance");
+  await page.getByTestId("ap-comment-E-total").fill("Growth in line with new contracts.");
+  await page.getByTestId("ap-save-E").click();
+  await expect(page.getByTestId("ap-comment-E-total")).toHaveValue("Growth in line with new contracts.");
 });

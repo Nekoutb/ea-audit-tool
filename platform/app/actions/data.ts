@@ -2,6 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
+import { saveApComments } from "@/lib/analytical-procedures";
 import { assignSection, generateLeadSchedule } from "@/lib/leadsheets";
 import { getLocale } from "@/lib/locale";
 import { raisePotentialRisk } from "@/lib/risks";
@@ -50,4 +51,20 @@ export async function raiseAnalyticsRiskAction(
   await guarded(path, () =>
     raisePotentialRisk(engagementId, String(formData.get("description") ?? ""), "D4.3"),
   );
+}
+
+/** Save one lead schedule&apos;s commentary from the analytical-procedures grid. */
+export async function saveApCommentsAction(
+  engagementId: string,
+  index: string,
+  formData: FormData,
+): Promise<void> {
+  const path = `/engagements/${engagementId}/analytics`;
+  const entries: { key: string; value: string }[] = [];
+  for (const [name, value] of formData.entries()) {
+    if (name.startsWith("c_") && typeof value === "string") {
+      entries.push({ key: name.slice(2), value });
+    }
+  }
+  await guarded(path, () => saveApComments(engagementId, index, entries));
 }
