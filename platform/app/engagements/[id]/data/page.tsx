@@ -8,11 +8,9 @@ import { Chip, Panel } from "@/components/ui/atlas";
 import { getEngagement } from "@/lib/engagements";
 import { getMessages } from "@/lib/i18n";
 import { getLocale } from "@/lib/locale";
-import { leadSchedules, listTbTimings } from "@/lib/tb";
+import { listTbTimings } from "@/lib/tb";
 
 export const metadata = { title: "Trial Balance Analyzer · AuditISA" };
-
-const fmt = (n: number) => new Intl.NumberFormat("fr-FR").format(n);
 
 /**
  * The Trial Balance Analyzer: upload to the Pre-audit or Post-audit slot
@@ -35,7 +33,7 @@ export default async function DataPage(props: {
 
   const engagement = await getEngagement(id);
   if (!engagement) notFound();
-  const [timings, schedules] = await Promise.all([listTbTimings(id), leadSchedules(id)]);
+  const timings = await listTbTimings(id);
   const slotOf = (timing: "pre_audit" | "post_audit") => timings.find((x) => x.timing === timing);
 
   return (
@@ -95,86 +93,6 @@ export default async function DataPage(props: {
         </div>
       </Panel>
 
-      {/* the lead schedules, workbook layout: index → sub-totals → variance */}
-      <Panel className="mt-4">
-        <h2 className="text-[12px] font-extrabold uppercase tracking-[0.07em] text-muted">
-          {fr ? "Feuilles maîtresses" : "Lead schedules"}
-        </h2>
-        {schedules.length === 0 ? (
-          <p className="mt-2 text-[12.5px] text-muted" data-testid="leadschedules-empty">
-            {fr
-              ? "Aucune balance pré-audit valide — les feuilles maîtresses apparaissent après ingestion."
-              : "No valid pre-audit TB yet — the lead schedules appear once one is ingested."}
-          </p>
-        ) : (
-          <div className="mt-2 flex flex-col gap-2" data-testid="leadschedules">
-            {schedules.map((schedule) => (
-              <details key={schedule.index} className="rounded-[var(--radius-atlas-sm)] border border-line" data-testid={`lead-${schedule.index}`}>
-                <summary className="flex cursor-pointer select-none flex-wrap items-center gap-x-3 gap-y-1 px-4 py-2.5 hover:bg-surface-2">
-                  <span className="font-mono text-[13px] font-extrabold text-emerald-800 dark:text-emerald-300">
-                    {schedule.index}
-                  </span>
-                  <span className="min-w-0 flex-1 truncate text-[13.5px] font-semibold text-ink">
-                    {schedule.label}
-                  </span>
-                  <span className="hidden text-[11px] text-muted md:block">
-                    {schedule.accountType} · {schedule.accountClass}
-                  </span>
-                  <span className="text-[12.5px] font-semibold text-ink tnum">{fmt(schedule.current)}</span>
-                  <span
-                    className={`text-[11.5px] tnum ${schedule.variance >= 0 ? "text-emerald-700 dark:text-emerald-400" : "text-rose"}`}
-                  >
-                    {schedule.variance >= 0 ? "+" : ""}{fmt(schedule.variance)}
-                    {schedule.variancePct !== null ? ` (${schedule.variancePct >= 0 ? "+" : ""}${schedule.variancePct}%)` : ""}
-                  </span>
-                </summary>
-                <div className="overflow-x-auto border-t border-line">
-                  <table className="w-full text-[12.5px]">
-                    <thead>
-                      <tr className="bg-surface-2 text-left text-muted">
-                        <th className="px-4 py-1.5">{fr ? "Sous-total" : "Sub-total"}</th>
-                        <th className="px-4 py-1.5 text-right">{fr ? "Exercice courant" : "Current year"}</th>
-                        <th className="px-4 py-1.5 text-right">{fr ? "Exercice antérieur" : "Prior year"}</th>
-                        <th className="px-4 py-1.5 text-right">{fr ? "Écart" : "Variance"}</th>
-                        <th className="px-4 py-1.5 text-right">{fr ? "Écart %" : "Variance %"}</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {schedule.subtotals.map((sub) => (
-                        <tr key={sub.code} className="border-t border-line">
-                          <td className="px-4 py-1.5">
-                            <span className="font-mono text-[11px] font-bold text-muted">{sub.code}</span>
-                            <span className="ml-2 text-ink-soft">{sub.label}</span>
-                          </td>
-                          <td className="px-4 py-1.5 text-right tnum">{fmt(sub.current)}</td>
-                          <td className="px-4 py-1.5 text-right tnum">{fmt(sub.prior)}</td>
-                          <td className={`px-4 py-1.5 text-right tnum ${sub.variance >= 0 ? "text-emerald-700 dark:text-emerald-400" : "text-rose"}`}>
-                            {sub.variance >= 0 ? "+" : ""}{fmt(sub.variance)}
-                          </td>
-                          <td className="px-4 py-1.5 text-right tnum text-muted">
-                            {sub.variancePct !== null ? `${sub.variancePct >= 0 ? "+" : ""}${sub.variancePct}%` : "—"}
-                          </td>
-                        </tr>
-                      ))}
-                      <tr className="border-t border-line bg-surface-2/60 font-semibold">
-                        <td className="px-4 py-1.5 text-ink">{fr ? "Total" : "Total"} {schedule.index}</td>
-                        <td className="px-4 py-1.5 text-right tnum">{fmt(schedule.current)}</td>
-                        <td className="px-4 py-1.5 text-right tnum">{fmt(schedule.prior)}</td>
-                        <td className={`px-4 py-1.5 text-right tnum ${schedule.variance >= 0 ? "text-emerald-700 dark:text-emerald-400" : "text-rose"}`}>
-                          {schedule.variance >= 0 ? "+" : ""}{fmt(schedule.variance)}
-                        </td>
-                        <td className="px-4 py-1.5 text-right tnum text-muted">
-                          {schedule.variancePct !== null ? `${schedule.variancePct >= 0 ? "+" : ""}${schedule.variancePct}%` : "—"}
-                        </td>
-                      </tr>
-                    </tbody>
-                  </table>
-                </div>
-              </details>
-            ))}
-          </div>
-        )}
-      </Panel>
     </main>
   );
 }

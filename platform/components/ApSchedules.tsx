@@ -103,17 +103,30 @@ export function ApSchedules({
   schedules,
   comments,
   locale,
+  showOverall = true,
 }: {
   engagementId: string;
   schedules: ApLeadSchedule[];
   comments: Record<string, string>;
   locale: "en" | "fr";
+  showOverall?: boolean;
 }) {
   const fr = locale === "fr";
   const [unit, setUnit] = useState<Unit>("fcfa");
   const [open, setOpen] = useState<Record<string, boolean>>({});
   const fmt = useFmt(unit);
   const overall = useAutoSave(engagementId, "OVR", "total", comments["OVR|total"] ?? "");
+  // widths anchor to the FCFA rendering so switching units never moves a column
+  const numWidth = (() => {
+    let longest = 8;
+    const fcfa = new Intl.NumberFormat("fr-FR");
+    for (const sc of schedules) {
+      for (const v of [sc.closing, sc.prior, sc.movement]) longest = Math.max(longest, fcfa.format(v).length);
+      for (const a of sc.accounts) for (const v of [a.closing, a.prior, a.movement]) longest = Math.max(longest, fcfa.format(v).length);
+    }
+    return longest + 2 + "ch";
+  })();
+  const numStyle = { minWidth: numWidth, width: numWidth } as const;
 
   const unitBtn = (value: Unit, label: string) => (
     <button
@@ -176,10 +189,10 @@ export function ApSchedules({
                           <th className={`${CELL} text-left`}>{fr ? "Intitulé" : "Description"}</th>
                           <th className={`${CELL} text-left`}>{fr ? "Classe de compte" : "Account class"}</th>
                           <th className={`${CELL} text-left`}>{fr ? "Type de compte" : "Account type"}</th>
-                          <th className={NUMHEAD}>{fr ? "Solde exercice courant" : "Current year balance"}</th>
-                          <th className={NUMHEAD}>{fr ? "Solde antérieur" : "Prior year balance"}</th>
-                          <th className={NUMHEAD}>{fr ? "Mouvement" : "Movement"}</th>
-                          <th className={NUMHEAD}>{fr ? "Écart %" : "Variance %"}</th>
+                          <th className={NUMHEAD} style={numStyle}>{fr ? "Exercice N" : "Current Y"}</th>
+                          <th className={NUMHEAD} style={numStyle}>{fr ? "Exercice N-1" : "Prior Y"}</th>
+                          <th className={NUMHEAD} style={numStyle}>{fr ? "Mouvement" : "Movement"}</th>
+                          <th className={NUMHEAD} style={numStyle}>{fr ? "Écart %" : "Variance %"}</th>
                           <th className={`${CELL} text-left`}>{fr ? "Commentaire" : "Commentary"}</th>
                         </tr>
                       </thead>
@@ -242,6 +255,7 @@ export function ApSchedules({
         </div>
 
         {/* the overall analytical review — sticky, follows the scroll */}
+        {showOverall ? (
         <div
           className="sticky top-4 hidden max-h-[80vh] w-[30%] flex-shrink-0 flex-col overflow-y-auto rounded-[var(--radius-atlas)] border border-glass-border bg-surface p-3 shadow-atlas-sm backdrop-blur-xl lg:flex"
           data-testid="ap-overall"
@@ -266,6 +280,7 @@ export function ApSchedules({
             className="mt-2 min-h-[420px] w-full flex-1 resize-none rounded-[var(--radius-atlas-sm)] bg-[color:var(--wp-input,#f4f4f2)] px-2.5 py-2 text-[12px] leading-relaxed text-ink outline-none placeholder:text-muted focus:ring-2 focus:ring-emerald-600/25"
           />
         </div>
+        ) : null}
       </div>
     </div>
   );

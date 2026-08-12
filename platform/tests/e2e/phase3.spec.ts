@@ -89,10 +89,12 @@ test("Phase 3 full: import TB → lead schedule → journal → analytics → ri
   await page.getByTestId("create-materiality").click();
   await page.getByTestId("approve-materiality").click();
 
-  // Lead schedules render in the workbook layout, index-named.
-  await page.goto(`/engagements/${current}/data`);
-  await expect(page.getByTestId("leadschedules")).toContainText("Trade Receivables");
-  await expect(page.getByTestId("lead-E")).toContainText("Assets");
+  // The Lead Schedule tool: index-named schedules + the Excel extract.
+  await page.goto(`/engagements/${current}/tools/lead-schedule`);
+  await expect(page.getByTestId("ap-toggle-E")).toContainText("Trade Receivables");
+  await expect(page.getByTestId("leadschedule-export")).toBeVisible();
+  const xlsx = await page.request.get(`/api/engagements/${current}/lead-schedule-export`);
+  expect((await xlsx.body()).subarray(0, 2).toString("latin1")).toBe("PK");
 
   // Analytical procedures: collapsed schedules show the total; expanding one
   // reveals the Excel-style account grid whose commentary auto-saves.
@@ -102,7 +104,7 @@ test("Phase 3 full: import TB → lead schedule → journal → analytics → ri
   await expect(page.getByTestId("ap-overall")).toBeVisible();
   await page.getByTestId("ap-toggle-E").click();
   await expect(page.getByTestId("ap-E")).toContainText("411000");
-  await expect(page.getByTestId("ap-E")).toContainText("Prior year balance");
+  await expect(page.getByTestId("ap-E")).toContainText("Prior Y");
   await page.getByTestId("ap-comment-E-total").fill("Growth in line with new contracts.");
   await page.getByTestId("ap-comment-E-total").blur();
   await expect(page.getByTestId("ap-comment-E-total-state")).toHaveAttribute("data-state", "saved");
