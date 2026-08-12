@@ -94,11 +94,18 @@ test("Phase 3 full: import TB → lead schedule → journal → analytics → ri
   await expect(page.getByTestId("leadschedules")).toContainText("Trade Receivables");
   await expect(page.getByTestId("lead-E")).toContainText("Assets");
 
-  // Analytical procedures: the Excel-style account grid with commentary.
+  // Analytical procedures: collapsed schedules show the total; expanding one
+  // reveals the Excel-style account grid whose commentary auto-saves.
   await page.goto(`/engagements/${current}/analytics`);
+  await expect(page.getByTestId("ap-total-E")).toBeVisible();
+  await expect(page.getByTestId("ap-E")).not.toContainText("411000");
+  await page.getByTestId("ap-toggle-E").click();
   await expect(page.getByTestId("ap-E")).toContainText("411000");
   await expect(page.getByTestId("ap-E")).toContainText("Prior year balance");
   await page.getByTestId("ap-comment-E-total").fill("Growth in line with new contracts.");
-  await page.getByTestId("ap-save-E").click();
+  await page.getByTestId("ap-comment-E-total").blur();
+  await expect(page.getByTestId("ap-comment-E-total-state")).toHaveAttribute("data-state", "saved");
+  await page.reload();
+  await page.getByTestId("ap-toggle-E").click();
   await expect(page.getByTestId("ap-comment-E-total")).toHaveValue("Growth in line with new contracts.");
 });
