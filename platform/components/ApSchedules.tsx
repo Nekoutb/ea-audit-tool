@@ -169,7 +169,7 @@ export function ApSchedules({
 
                 {isOpen ? (
                   <div className="overflow-x-auto border-t border-line p-2">
-                    <table className="w-auto border-collapse bg-white dark:bg-surface" data-testid={`ap-grid-${schedule.def.code}`}>
+                    <table className="w-full border-collapse bg-white dark:bg-surface" data-testid={`ap-grid-${schedule.def.code}`}>
                       <thead>
                         <tr className="bg-surface-2 font-bold text-ink">
                           <th className={`${CELL} text-left`}>{fr ? "Compte" : "Account"}</th>
@@ -257,12 +257,13 @@ export function ApSchedules({
             onChange={(e) => overall.onChange(e.target.value)}
             onBlur={overall.onBlur}
             data-testid="ap-overall-text"
+            wrap="soft"
             placeholder={
               fr
                 ? "Conclusions de la revue analytique : tendances, écarts inattendus, cohérence entre les feuilles maîtresses…"
                 : "Conclusions of the analytical review: trends, unexpected variances, consistency across the lead schedules…"
             }
-            className="mt-2 min-h-[300px] w-full flex-1 resize-none rounded-[var(--radius-atlas-sm)] bg-[color:var(--wp-input,#f4f4f2)] px-2.5 py-2 text-[12px] leading-relaxed text-ink outline-none placeholder:text-muted focus:ring-2 focus:ring-emerald-600/25"
+            className="mt-2 min-h-[420px] w-full flex-1 resize-none rounded-[var(--radius-atlas-sm)] bg-[color:var(--wp-input,#f4f4f2)] px-2.5 py-2 text-[12px] leading-relaxed text-ink outline-none placeholder:text-muted focus:ring-2 focus:ring-emerald-600/25"
           />
         </div>
       </div>
