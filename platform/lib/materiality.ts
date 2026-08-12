@@ -136,6 +136,18 @@ export async function tbBenchmarkAmounts(
   });
 }
 
+/** The latest PARTNER-APPROVED thresholds — what the working papers may cite. */
+export async function approvedMateriality(engagementId: string): Promise<MaterialityVersion | null> {
+  const { tenantId } = await requireTenant();
+  return withTenant(tenantId, async (tx) => {
+    const result = await tx.query(
+      `${SELECT_VERSION} WHERE m.engagement_id = $1 AND m.status = 'approved' ORDER BY m.version_no DESC LIMIT 1`,
+      [engagementId],
+    );
+    return result.rows[0] ? toVersion(result.rows[0]) : null;
+  });
+}
+
 export async function currentMateriality(engagementId: string): Promise<MaterialityVersion | null> {
   const { tenantId } = await requireTenant();
   return withTenant(tenantId, async (tx) => {

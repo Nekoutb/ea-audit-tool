@@ -46,8 +46,7 @@ test("Phase 6: AR + bank confirmation cycle with exception → B5 and a non-repl
   await page.getByTestId("approve-materiality").click();
 
   // AR open items dataset.
-  await page.goto(`${engagementUrl}/data`);
-  await page.getByTestId("dataset-kind").selectOption("ar_open_items");
+  await page.goto(`${engagementUrl}/analyzers/ar_open_items`);
   await page.getByTestId("dataset-file").setInputFiles({
     name: "ar.csv",
     mimeType: "text/csv",
@@ -56,7 +55,7 @@ test("Phase 6: AR + bank confirmation cycle with exception → B5 and a non-repl
   await page.getByTestId("dataset-analyze").click();
   await page.getByTestId("dataset-confirm").waitFor();
   await page.getByTestId("dataset-upload").click();
-  await expect(page.getByTestId("datasets-table")).toContainText("ar.csv");
+  await expect(page.getByTestId("analyzer-datasets")).toContainText("ar.csv");
 
   // Confirmations tab: select AR positives above 1M (ACME + Beta).
   await page.goto(`${engagementUrl}/confirmations`);

@@ -43,7 +43,9 @@ export async function POST(request: Request, context: { params: Promise<{ id: st
         for (const o of indexOverrides) await saveLeadIndexOverride(engagement2.clientId, o.prefix, o.indexCode);
       }
     }
-    const result = await importTrialBalance(id, file.name, buffer, mapping);
+    const rawTiming = form.get("timing");
+    const timing = rawTiming === "post_audit" ? "post_audit" as const : "pre_audit" as const;
+    const result = await importTrialBalance(id, file.name, buffer, mapping, timing);
     return NextResponse.json({
       versionNo: result.versionNo,
       status: result.summary.status,

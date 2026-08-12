@@ -8,7 +8,7 @@
 import { useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import type { Messages } from "@/lib/i18n";
-import { LEAD_INDEXES, LEAD_INDEX_BY_CODE } from "@/lib/lead-classes";
+import { ACCOUNT_CLASSES, INDEX_SECTION, LEAD_INDEXES, LEAD_INDEX_BY_CODE, defaultIndexForClass } from "@/lib/lead-classes";
 
 type TbColumn =
   | "account" | "label" | "openingDebit" | "openingCredit"
@@ -43,13 +43,10 @@ const fmt = (n: number) => new Intl.NumberFormat("fr-FR").format(n);
 
 export function TbAnalyzer({
   engagementId,
-  sectionOptions,
   locale,
   messages,
 }: {
   engagementId: string;
-  /** lead-schedule section codes the classes can map to, e.g. E100 */
-  sectionOptions: { code: string; title: string }[];
   locale: "en" | "fr";
   messages: Messages["planning"];
 }) {
@@ -57,8 +54,8 @@ export function TbAnalyzer({
   const router = useRouter();
   const fileRef = useRef<HTMLInputElement>(null);
   const [preview, setPreview] = useState<Preview | null>(null);
+  const [timing, setTiming] = useState<"pre_audit" | "post_audit">("pre_audit");
   const [mapping, setMapping] = useState<Partial<Record<TbColumn, string>>>({});
-  const [classMap, setClassMap] = useState<Record<string, string>>({});
   const [indexMap, setIndexMap] = useState<Record<string, string>>({});
   const [error, setError] = useState<string | null>(null);
   const [status, setStatus] = useState<string | null>(null);
@@ -84,13 +81,8 @@ export function TbAnalyzer({
     const p = body as Preview;
     setPreview(p);
     setMapping(p.mapping);
-    const cm: Record<string, string> = {};
     const im: Record<string, string> = {};
-    for (const c of p.classes) {
-      if (c.section) cm[c.prefix] = c.section;
-      if (c.leadIndex) im[c.prefix] = c.leadIndex;
-    }
-    setClassMap(cm);
+    for (const c of p.classes) if (c.leadIndex) im[c.prefix] = c.leadIndex;
     setIndexMap(im);
   }
 
@@ -102,9 +94,11 @@ export function TbAnalyzer({
     const form = new FormData();
     form.set("file", file);
     form.set("mapping", JSON.stringify(mapping));
+    form.set("timing", timing);
+    // the internal working-paper section follows the chosen index
     const overrides = preview.classes
-      .filter((c) => classMap[c.prefix] && classMap[c.prefix] !== c.section)
-      .map((c) => ({ prefix: c.prefix, sectionCode: classMap[c.prefix] }));
+      .filter((c) => indexMap[c.prefix] && INDEX_SECTION[indexMap[c.prefix]] && INDEX_SECTION[indexMap[c.prefix]] !== c.section)
+      .map((c) => ({ prefix: c.prefix, sectionCode: INDEX_SECTION[indexMap[c.prefix]] }));
     form.set("overrides", JSON.stringify(overrides));
     const indexOverrides = preview.classes
       .filter((c) => indexMap[c.prefix] && indexMap[c.prefix] !== c.leadIndex)
@@ -118,18 +112,27 @@ export function TbAnalyzer({
       setError(messages.errors[code] ?? String(body.error));
       return;
     }
-    setStatus(`v${body.versionNo}: ${body.status}`);
+    setStatus(`${timing === "pre_audit" ? (fr ? "TB pré-audit" : "Pre-audit TB") : (fr ? "TB post-audit" : "Post-audit TB")}: ${body.status}`);
     setPreview(null);
     router.refresh();
   }
 
   const select =
     "rounded-[var(--radius-atlas-sm)] border border-line-strong bg-surface px-2 py-1 text-xs text-ink outline-none focus:border-emerald-600";
-  const unmappedCount = preview ? preview.classes.filter((c) => !classMap[c.prefix]).length : 0;
+  const unmappedCount = preview ? preview.classes.filter((c) => !indexMap[c.prefix]).length : 0;
 
   return (
     <div className="flex flex-col gap-3">
       <div className="flex flex-wrap items-center gap-3">
+        <select
+          value={timing}
+          onChange={(e) => setTiming(e.target.value as "pre_audit" | "post_audit")}
+          data-testid="tb-timing"
+          className="rounded-[var(--radius-atlas-sm)] border border-line-strong bg-surface px-3 py-1.5 text-sm text-ink outline-none focus:border-emerald-600"
+        >
+          <option value="pre_audit">{fr ? "TB pré-audit" : "Pre-audit TB"}</option>
+          <option value="post_audit">{fr ? "TB post-audit" : "Post-audit TB"}</option>
+        </select>
         <input
           ref={fileRef}
           type="file"
@@ -257,18 +260,18 @@ export function TbAnalyzer({
             </div>
           ) : null}
 
-          {/* step 3 — account classes → lead schedules */}
+          {/* step 3 — account classes & lead schedules, behind a reveal */}
           {preview.classes.length > 0 ? (
-            <div>
-              <h3 className="text-[11px] font-extrabold uppercase tracking-[0.07em] text-muted">
+            <details data-testid="tb-classes-details">
+              <summary className="cursor-pointer select-none text-[11px] font-extrabold uppercase tracking-[0.07em] text-muted hover:text-ink" data-testid="tb-classes-toggle">
                 {fr
-                  ? "3 · Classes de comptes → feuilles maîtresses"
-                  : "3 · Account classes → lead schedules"}
-              </h3>
+                  ? `3 · Classes de comptes & feuilles maîtresses (${preview.classes.length}) — cliquer pour afficher`
+                  : `3 · Account classes & lead schedules (${preview.classes.length}) — click to reveal`}
+              </summary>
               <p className="mt-0.5 text-[11.5px] text-muted">
                 {fr
-                  ? "Chaque classe alimente la feuille maîtresse indiquée ; corriger ici crée une règle client."
-                  : "Each class feeds the lead schedule shown; changing one records a client rule."}
+                  ? "Type, classe et indice sont attribués automatiquement ; toute correction est mémorisée pour ce client."
+                  : "Type, class and index are auto-assigned; any correction is remembered for this client."}
               </p>
               <div className="mt-1 overflow-x-auto rounded-[var(--radius-atlas-sm)] border border-line">
                 <table className="w-full text-[12px]" data-testid="tb-classes">
@@ -279,22 +282,40 @@ export function TbAnalyzer({
                       <th className="px-3 py-1.5 text-right">{fr ? "Solde de clôture" : "Closing total"}</th>
                       <th className="px-3 py-1.5">{fr ? "Type de compte" : "Account type"}</th>
                       <th className="px-3 py-1.5">{fr ? "Classe de compte" : "Account class"}</th>
-                      <th className="px-3 py-1.5">{fr ? "Indice" : "Index"}</th>
-                      <th className="px-3 py-1.5">{fr ? "Feuille maîtresse" : "Lead schedule"}</th>
+                      <th className="px-3 py-1.5">{fr ? "Feuille maîtresse (indice)" : "Lead schedule (index)"}</th>
                     </tr>
                   </thead>
                   <tbody>
                     {preview.classes.map((c) => {
                       const idxDef = indexMap[c.prefix] ? LEAD_INDEX_BY_CODE[indexMap[c.prefix]] : undefined;
                       return (
-                      <tr key={c.prefix} className={`border-t border-line ${classMap[c.prefix] ? "" : "bg-[var(--color-warn-soft)]"}`} data-testid={`tb-class-${c.prefix}`}>
+                      <tr key={c.prefix} className={`border-t border-line ${indexMap[c.prefix] ? "" : "bg-[var(--color-warn-soft)]"}`} data-testid={`tb-class-${c.prefix}`}>
                         <td className="px-3 py-1 font-mono font-semibold">{c.prefix}</td>
                         <td className="px-3 py-1 text-right tnum">{c.accountCount}</td>
                         <td className="px-3 py-1 text-right tnum">{fmt(c.closingTotal)}</td>
                         <td className="px-3 py-1 text-ink-soft" data-testid={`tb-type-${c.prefix}`}>{idxDef?.accountType ?? "—"}</td>
-                        <td className="px-3 py-1 text-ink-soft" data-testid={`tb-acclass-${c.prefix}`}>{idxDef?.accountClass ?? "—"}</td>
                         <td className="px-3 py-1">
-                          {/* auto-assigned from the embedded taxonomy; type and class follow the choice */}
+                          {/* picking a class re-homes the prefix to that class's first index */}
+                          <select
+                            className={select}
+                            value={idxDef?.accountClass ?? ""}
+                            data-testid={`tb-acclass-${c.prefix}`}
+                            onChange={(e) =>
+                              setIndexMap((m) => {
+                                const next = { ...m };
+                                const code = e.target.value ? defaultIndexForClass(e.target.value) : null;
+                                if (code) next[c.prefix] = code; else delete next[c.prefix];
+                                return next;
+                              })
+                            }
+                          >
+                            <option value="">—</option>
+                            {ACCOUNT_CLASSES.map((cls) => (
+                              <option key={cls} value={cls}>{cls}</option>
+                            ))}
+                          </select>
+                        </td>
+                        <td className="px-3 py-1">
                           <select
                             className={select}
                             value={indexMap[c.prefix] ?? ""}
@@ -309,26 +330,7 @@ export function TbAnalyzer({
                           >
                             <option value="">—</option>
                             {LEAD_INDEXES.map((d) => (
-                              <option key={d.code} value={d.code}>{d.code} — {d.labelFr}</option>
-                            ))}
-                          </select>
-                        </td>
-                        <td className="px-3 py-1">
-                          <select
-                            className={select}
-                            value={classMap[c.prefix] ?? ""}
-                            data-testid={`tb-class-map-${c.prefix}`}
-                            onChange={(e) =>
-                              setClassMap((m) => {
-                                const next = { ...m };
-                                if (e.target.value) next[c.prefix] = e.target.value; else delete next[c.prefix];
-                                return next;
-                              })
-                            }
-                          >
-                            <option value="">{fr ? "— non mappé —" : "— unmapped —"}</option>
-                            {sectionOptions.map((o) => (
-                              <option key={o.code} value={o.code}>{o.code} — {o.title}</option>
+                              <option key={d.code} value={d.code}>{d.code} — {d.labelEn}</option>
                             ))}
                           </select>
                         </td>
@@ -338,7 +340,7 @@ export function TbAnalyzer({
                   </tbody>
                 </table>
               </div>
-            </div>
+            </details>
           ) : null}
 
           <div className="flex flex-wrap items-center gap-3">

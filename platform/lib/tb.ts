@@ -9,7 +9,7 @@ import { createHash } from "node:crypto";
 import type { PoolClient } from "pg";
 import { withTenant } from "@/lib/db";
 import { resolveSection } from "@/lib/leadsheets";
-import { leadIndexFor } from "@/lib/lead-classes";
+import { LEAD_INDEXES, SUB_INDEX_BY_CODE, leadIndexFor, subIndexFor } from "@/lib/lead-classes";
 import { parseTabularFile, type ParsedTable } from "@/lib/subledgers";
 import { requireTenant } from "@/lib/tenant";
 
@@ -243,11 +243,14 @@ export interface TbImportResult {
 }
 
 /** 3.1: import a TB file as the next version (kind 'initial'), validate, activate. */
+export type TbTiming = "pre_audit" | "post_audit";
+
 export async function importTrialBalance(
   engagementId: string,
   filename: string,
   buffer: Buffer,
   mappingOverride?: TbMapping,
+  timing: TbTiming = "pre_audit",
 ): Promise<TbImportResult> {
   const { tenantId, userId } = await requireTenant();
   const table = await parseTabularFile(filename, buffer);
@@ -279,6 +282,12 @@ export async function importTrialBalance(
     );
     const trialBalanceId = tb.rows[0].id;
 
+    // one TB per timing: a new upload replaces the previous one outright
+    await tx.query(
+      "DELETE FROM trial_balance_version WHERE trial_balance_id = $1 AND timing = $2",
+      [trialBalanceId, timing],
+    );
+
     const next = await tx.query<{ v: number }>(
       "SELECT coalesce(max(version_no), 0) + 1 AS v FROM trial_balance_version WHERE trial_balance_id = $1",
       [trialBalanceId],
@@ -288,8 +297,8 @@ export async function importTrialBalance(
       `INSERT INTO trial_balance_version
          (tenant_id, trial_balance_id, version_no, version_kind, validation_status,
           source_filename, source_sha256, row_count, total_debit, total_credit,
-          validation_summary, created_by)
-       VALUES ($1, $2, $3, 'initial', $4, $5, $6, $7, $8, $9, $10, $11)
+          validation_summary, created_by, timing)
+       VALUES ($1, $2, $3, 'initial', $4, $5, $6, $7, $8, $9, $10, $11, $12)
        RETURNING id`,
       [
         tenantId,
@@ -303,6 +312,7 @@ export async function importTrialBalance(
         summary.checks.balanced.totalCredit,
         JSON.stringify(summary),
         userId,
+        timing,
       ],
     );
 
@@ -317,8 +327,9 @@ export async function importTrialBalance(
         [tenantId, version.rows[0].id, rowNo, row.account, row.label, row.openingDebit, row.openingCredit, row.debit, row.credit, JSON.stringify(row.raw)],
       );
     }
-    // Only a VALID import becomes the active version (invalid stays inspectable).
-    if (summary.status === "valid") {
+    // Only a VALID pre-audit import becomes the active (working) version —
+    // the post-audit TB sits alongside for comparison and never drives the file.
+    if (summary.status === "valid" && timing === "pre_audit") {
       await tx.query("UPDATE trial_balance SET current_version_no = $2 WHERE id = $1", [trialBalanceId, versionNo]);
     }
     return { versionId: version.rows[0].id, versionNo, summary };
@@ -374,6 +385,172 @@ export async function listTbVersions(engagementId: string): Promise<TbVersionSum
       createdAt: row.created_at,
       summary: "status" in row.validation_summary ? (row.validation_summary as TbValidationSummary) : null,
     }));
+  });
+}
+
+export interface TbTimingSlot {
+  timing: TbTiming;
+  filename: string;
+  rowCount: number;
+  status: "pending" | "valid" | "invalid";
+  createdAt: string;
+  summary: TbValidationSummary | null;
+}
+
+/** The two TB slots (Pre-audit / Post-audit) — at most one each. */
+export async function listTbTimings(engagementId: string): Promise<TbTimingSlot[]> {
+  const { tenantId } = await requireTenant();
+  return withTenant(tenantId, async (tx) => {
+    const result = await tx.query<{
+      timing: TbTiming;
+      source_filename: string;
+      row_count: number;
+      validation_status: TbTimingSlot["status"];
+      created_at: string;
+      validation_summary: TbValidationSummary | Record<string, never>;
+    }>(
+      `SELECT v.timing, v.source_filename, v.row_count, v.validation_status,
+              to_char(v.created_at, 'YYYY-MM-DD HH24:MI') AS created_at, v.validation_summary
+         FROM trial_balance_version v
+         JOIN trial_balance tb ON tb.id = v.trial_balance_id
+        WHERE tb.engagement_id = $1
+        ORDER BY v.created_at DESC`,
+      [engagementId],
+    );
+    const seen = new Set<string>();
+    const out: TbTimingSlot[] = [];
+    for (const row of result.rows) {
+      if (seen.has(row.timing)) continue;
+      seen.add(row.timing);
+      out.push({
+        timing: row.timing,
+        filename: row.source_filename,
+        rowCount: row.row_count,
+        status: row.validation_status,
+        createdAt: row.created_at,
+        summary: "status" in row.validation_summary ? (row.validation_summary as TbValidationSummary) : null,
+      });
+    }
+    return out;
+  });
+}
+
+export interface LeadScheduleSubtotal {
+  code: string;
+  label: string;
+  current: number;
+  prior: number;
+  variance: number;
+  variancePct: number | null;
+}
+
+export interface LeadScheduleView {
+  index: string;
+  label: string;
+  accountType: string;
+  accountClass: string;
+  subtotals: LeadScheduleSubtotal[];
+  current: number;
+  prior: number;
+  variance: number;
+  variancePct: number | null;
+}
+
+/**
+ * The workbook-layout lead schedules: one per index present in the pre-audit
+ * TB, broken into the workbook's sub-totals, each with current-year balance,
+ * prior-year balance and the variance in amount and percent. Client index
+ * overrides re-home whole account classes.
+ */
+export async function leadSchedules(engagementId: string): Promise<LeadScheduleView[]> {
+  const { tenantId } = await requireTenant();
+  return withTenant(tenantId, async (tx) => {
+    const meta = await tx.query<{ client_id: string }>(
+      "SELECT client_id FROM engagement WHERE id = $1",
+      [engagementId],
+    );
+    if (!meta.rows[0]) return [];
+    const rows = await tx.query<{ account_code: string; closing: string }>(
+      `SELECT r.account_code,
+              (r.opening_debit - r.opening_credit + r.debit - r.credit)::text AS closing
+         FROM trial_balance tb
+         JOIN trial_balance_version v ON v.trial_balance_id = tb.id AND v.version_no = tb.current_version_no
+         JOIN trial_balance_row r ON r.version_id = v.id
+        WHERE tb.engagement_id = $1`,
+      [engagementId],
+    );
+    if (rows.rows.length === 0) return [];
+    const prior = (await priorClosingsMap(tx, engagementId)) ?? new Map<string, number>();
+    const idxOver = await tx.query<{ account_prefix: string; index_code: string }>(
+      "SELECT account_prefix, index_code FROM client_lead_index_override WHERE client_id = $1",
+      [meta.rows[0].client_id],
+    );
+    const overrides = idxOver.rows
+      .map((r) => [r.account_prefix, r.index_code] as [string, string])
+      .sort((a, b) => b[0].length - a[0].length);
+    const indexOf = (account: string): string | null => {
+      for (const [prefix, code] of overrides) if (account.startsWith(prefix)) return code;
+      return leadIndexFor(account);
+    };
+
+    // accumulate account → (index, sub-total): current from the TB; prior-only
+    // accounts still appear so a disappeared balance shows its variance
+    const cells = new Map<string, { index: string; sub: string; current: number; prior: number }>();
+    const put = (account: string, current: number, priorAmt: number) => {
+      const index = indexOf(account);
+      if (!index) return;
+      const sub = subIndexFor(account) ?? `${index}-1`;
+      const key = index + "|" + sub;
+      const cell = cells.get(key) ?? { index, sub, current: 0, prior: 0 };
+      cell.current += current;
+      cell.prior += priorAmt;
+      cells.set(key, cell);
+    };
+    const seen = new Set<string>();
+    for (const row of rows.rows) {
+      seen.add(row.account_code);
+      put(row.account_code, Number(row.closing), prior.get(row.account_code) ?? 0);
+    }
+    for (const [account, amount] of prior) {
+      if (!seen.has(account)) put(account, 0, amount);
+    }
+
+    const byIndex = new Map<string, LeadScheduleSubtotal[]>();
+    for (const cell of cells.values()) {
+      const list = byIndex.get(cell.index) ?? [];
+      const current = Math.round(cell.current);
+      const priorAmt = Math.round(cell.prior);
+      list.push({
+        code: cell.sub,
+        label: SUB_INDEX_BY_CODE[cell.sub]?.labelEn ?? cell.sub,
+        current,
+        prior: priorAmt,
+        variance: current - priorAmt,
+        variancePct: priorAmt !== 0 ? Math.round(((current - priorAmt) / Math.abs(priorAmt)) * 1000) / 10 : null,
+      });
+      byIndex.set(cell.index, list);
+    }
+
+    const out: LeadScheduleView[] = [];
+    for (const def of LEAD_INDEXES) {
+      const subtotals = byIndex.get(def.code);
+      if (!subtotals) continue;
+      subtotals.sort((a, b) => a.code.localeCompare(b.code, undefined, { numeric: true }));
+      const current = subtotals.reduce((sum, x) => sum + x.current, 0);
+      const priorAmt = subtotals.reduce((sum, x) => sum + x.prior, 0);
+      out.push({
+        index: def.code,
+        label: def.labelEn,
+        accountType: def.accountType,
+        accountClass: def.accountClass,
+        subtotals,
+        current,
+        prior: priorAmt,
+        variance: current - priorAmt,
+        variancePct: priorAmt !== 0 ? Math.round(((current - priorAmt) / Math.abs(priorAmt)) * 1000) / 10 : null,
+      });
+    }
+    return out;
   });
 }
 

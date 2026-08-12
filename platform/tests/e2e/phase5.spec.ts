@@ -62,8 +62,7 @@ test("Phase 5: engines run on demo data; projected misstatement lands in B5", as
   await page.getByTestId("approve-materiality").click();
 
   // AR open items dataset via the Data tab (12.6M vs TB 10M).
-  await page.goto(`${engagementUrl}/data`);
-  await page.getByTestId("dataset-kind").selectOption("ar_open_items");
+  await page.goto(`${engagementUrl}/analyzers/ar_open_items`);
   await page.getByTestId("dataset-file").setInputFiles({
     name: "ar.csv",
     mimeType: "text/csv",
@@ -75,7 +74,7 @@ test("Phase 5: engines run on demo data; projected misstatement lands in B5", as
   await page.getByTestId("dataset-analyze").click();
   await page.getByTestId("dataset-confirm").waitFor();
   await page.getByTestId("dataset-upload").click();
-  await expect(page.getByTestId("datasets-table")).toContainText("ar.csv");
+  await expect(page.getByTestId("analyzer-datasets")).toContainText("ar.csv");
 
   // E100 workspace: run sampling (MUS, seeded) → run recorded + output document.
   await page.goto(engagementUrl);

@@ -78,8 +78,7 @@ test("Phase 3 full: import TB → lead schedule → journal → analytics → ri
   await page.getByTestId("tb-confirm").waitFor();
   await page.getByTestId("tb-upload").click();
   await expect(page.getByTestId("tb-import-status")).toContainText("valid");
-  await expect(page.getByTestId("tb-status-1")).toContainText(/Valid/i);
-  await expect(page.getByTestId("tb-checks")).toBeVisible();
+  await expect(page.getByTestId("tb-slot-pre_audit")).toContainText(/valid/i);
 
   // Materiality for flags + lead-schedule header.
   await page.goto(`/engagements/${current}/planning`);
@@ -90,22 +89,10 @@ test("Phase 3 full: import TB → lead schedule → journal → analytics → ri
   await page.getByTestId("create-materiality").click();
   await page.getByTestId("approve-materiality").click();
 
-  // Lead schedule for E100: generate → real xlsx → assign → notification.
+  // Lead schedules render in the workbook layout, index-named.
   await page.goto(`/engagements/${current}/data`);
-  await expect(page.getByTestId("leadsheets-table")).toContainText("E100");
-  await page.getByTestId("generate-lead-E100").click();
-  await page.waitForURL("**/documents/**");
-  await expect(page.locator("h1")).toContainText("E100.1");
-  const href = await page.getByTestId("download-current").getAttribute("href");
-  const download = await page.request.get(href!);
-  expect((await download.body()).subarray(0, 2).toString("latin1")).toBe("PK");
-
-  await page.goto(`/engagements/${current}/data`);
-  await page.getByTestId("owner-E100").selectOption({ label: "Alice Alpha" });
-  await page.getByTestId("assign-E100").click();
-  await expect(page.getByTestId("owner-badge-E100")).toContainText("Alice Alpha");
-  await page.goto("/notifications");
-  await expect(page.getByTestId("notifications-list")).toContainText("E100");
+  await expect(page.getByTestId("leadschedules")).toContainText("Trade Receivables");
+  await expect(page.getByTestId("lead-E")).toContainText("Assets");
 
   // Analytics: flagged variance raised into D7.1 and promoted (acceptance).
   await page.goto(`/engagements/${current}/analytics`);

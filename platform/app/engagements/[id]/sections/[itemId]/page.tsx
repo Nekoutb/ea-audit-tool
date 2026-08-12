@@ -33,7 +33,7 @@ import { getSectionConclusion, listControlTests } from "@/lib/execution";
 import { listDatasets } from "@/lib/subledgers";
 import { getMessages } from "@/lib/i18n";
 import { getLocale } from "@/lib/locale";
-import { currentMateriality } from "@/lib/materiality";
+import { approvedMateriality } from "@/lib/materiality";
 import { groupOfTask, type SectionKey } from "@/lib/task-groups";
 import { signOffPreparerAction, signOffReviewerAction } from "@/app/actions/audit-file";
 import { listAttachments } from "@/lib/attachments";
@@ -96,8 +96,11 @@ export default async function SectionPage(props: {
   // Tool-filled values for the blue auto fields: D5.1 shows the approved
   // (or latest) materiality version computed from the trial-balance basis.
   const autoValues: Record<string, string> = {};
+  // only PARTNER-APPROVED thresholds reach the working paper
+  let approvedM: Awaited<ReturnType<typeof approvedMateriality>> = null;
   if (section.code === "D5.1") {
-    const m = await currentMateriality(id);
+    approvedM = await approvedMateriality(id);
+    const m = approvedM;
     if (m) {
       const n = (x: number) => new Intl.NumberFormat("fr-FR").format(x);
       autoValues.benchmark = `${m.benchmark} · ${m.percentage}% × ${n(m.benchmarkAmount)} → PM ${n(m.overall)} · TE ${n(m.performance)} · SAD ${n(m.trivial)} FCFA (${m.status}${m.approvedByName ? " · " + m.approvedByName : ""})`;
@@ -308,6 +311,14 @@ export default async function SectionPage(props: {
           </section>
 
           <section className="flex min-h-0 flex-col overflow-hidden rounded-[var(--radius-atlas)] border border-glass-border bg-surface px-4 py-3 shadow-atlas backdrop-blur-xl">
+            {approvedM ? (
+              <div className="mb-2 flex flex-wrap items-center gap-x-4 gap-y-1 rounded-[var(--radius-atlas-sm)] border border-emerald-600/30 bg-emerald-50 px-3 py-2 text-[12px] dark:bg-emerald-950/30" data-testid="wp-materiality-strip">
+                <span className="text-muted">{fr ? "Base approuvée" : "Approved basis"}: <b className="text-ink">{approvedM.benchmark}</b> · {approvedM.percentage}%</span>
+                <span className="text-muted">{fr ? "Seuil global" : "Planning Materiality"}: <b className="text-ink tnum">{new Intl.NumberFormat("fr-FR").format(approvedM.overall)}</b></span>
+                <span className="text-muted">{fr ? "Seuil de travail" : "Tolerable Error"}: <b className="text-ink tnum">{new Intl.NumberFormat("fr-FR").format(approvedM.performance)}</b></span>
+                <span className="text-muted">SAD: <b className="text-ink tnum">{new Intl.NumberFormat("fr-FR").format(approvedM.trivial)}</b></span>
+              </div>
+            ) : null}
             <PaperWizard
               code={section.code}
               def={paperDef}

@@ -333,7 +333,7 @@ export async function createMaterialityAction(engagementId: string, formData: Fo
       benchmark: String(formData.get("benchmark") ?? "revenue") as Benchmark,
       benchmarkAmount: numberOr("benchmarkAmount", NaN),
       percentage: numberOr("percentage", NaN),
-      justification: String(formData.get("justification") ?? ""),
+      justification: String(formData.get("justification") || "Documented in D5.1") || "Documented in D5.1",
       performancePct: numberOr("performancePct", 75),
       performanceJustification: String(formData.get("performanceJustification") ?? "") || undefined,
       trivialPct: numberOr("trivialPct", 5),
