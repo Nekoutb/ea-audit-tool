@@ -97,8 +97,9 @@ test("Phase 3 full: import TB → lead schedule → journal → analytics → ri
   // Analytical procedures: collapsed schedules show the total; expanding one
   // reveals the Excel-style account grid whose commentary auto-saves.
   await page.goto(`/engagements/${current}/analytics`);
-  await expect(page.getByTestId("ap-total-E")).toBeVisible();
+  await expect(page.getByTestId("ap-toggle-E")).toBeVisible();
   await expect(page.getByTestId("ap-E")).not.toContainText("411000");
+  await expect(page.getByTestId("ap-overall")).toBeVisible();
   await page.getByTestId("ap-toggle-E").click();
   await expect(page.getByTestId("ap-E")).toContainText("411000");
   await expect(page.getByTestId("ap-E")).toContainText("Prior year balance");
