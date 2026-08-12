@@ -11,8 +11,9 @@ import type { ApLeadSchedule } from "@/lib/analytical-procedures";
 
 type Unit = "fcfa" | "k" | "m";
 
-const CELL = "border border-[color:var(--line-strong,#c9c9c9)] px-2 py-[3px] text-[11.5px] whitespace-nowrap";
+const CELL = "border border-[color:var(--line-strong,#c9c9c9)] px-1.5 py-[2px] text-[10.8px] whitespace-nowrap";
 const NUM = `${CELL} w-px text-right tnum`;
+const NUMHEAD = `${NUM} max-w-[76px] whitespace-normal leading-tight align-bottom`;
 
 function useFmt(unit: Unit) {
   return (n: number): string => {
@@ -90,7 +91,7 @@ function CommentCell({
         data-testid={testId}
         onChange={(e) => saver.onChange(e.target.value)}
         onBlur={saver.onBlur}
-        className="w-full min-w-[150px] bg-transparent px-1 py-0.5 text-[11.5px] text-ink outline-none placeholder:text-muted focus:bg-[var(--color-warn-soft)]"
+        className="w-full min-w-[90px] bg-transparent px-1 py-0.5 text-[10.8px] text-ink outline-none placeholder:text-muted focus:bg-[var(--color-warn-soft)]"
       />
       <SaveTick state={saver.state} testId={`${testId}-state`} />
     </span>
@@ -141,7 +142,7 @@ export function ApSchedules({
 
       <div className="flex items-start gap-4">
         {/* the grouped list — ~40% of the screen, tight lines */}
-        <div className="flex w-full flex-col gap-1 lg:w-[40%]" data-testid="ap-list">
+        <div className="flex w-full min-w-0 flex-1 flex-col gap-1" data-testid="ap-list">
           {schedules.map((schedule) => {
             const isOpen = open[schedule.def.code] ?? false;
             return (
@@ -175,10 +176,10 @@ export function ApSchedules({
                           <th className={`${CELL} text-left`}>{fr ? "Intitulé" : "Description"}</th>
                           <th className={`${CELL} text-left`}>{fr ? "Classe de compte" : "Account class"}</th>
                           <th className={`${CELL} text-left`}>{fr ? "Type de compte" : "Account type"}</th>
-                          <th className={NUM}>{fr ? "Solde exercice courant" : "Current year balance"}</th>
-                          <th className={NUM}>{fr ? "Solde antérieur" : "Prior year balance"}</th>
-                          <th className={NUM}>{fr ? "Mouvement" : "Movement"}</th>
-                          <th className={NUM}>{fr ? "Écart %" : "Variance %"}</th>
+                          <th className={NUMHEAD}>{fr ? "Solde exercice courant" : "Current year balance"}</th>
+                          <th className={NUMHEAD}>{fr ? "Solde antérieur" : "Prior year balance"}</th>
+                          <th className={NUMHEAD}>{fr ? "Mouvement" : "Movement"}</th>
+                          <th className={NUMHEAD}>{fr ? "Écart %" : "Variance %"}</th>
                           <th className={`${CELL} text-left`}>{fr ? "Commentaire" : "Commentary"}</th>
                         </tr>
                       </thead>
@@ -186,7 +187,7 @@ export function ApSchedules({
                         {schedule.accounts.map((row) => (
                           <tr key={row.account}>
                             <td className={`${CELL} font-mono`}>{row.account}</td>
-                            <td className={`${CELL} max-w-[200px] truncate`} title={row.name}>{row.name}</td>
+                            <td className={`${CELL} max-w-[170px] truncate`} title={row.name}>{row.name}</td>
                             <td className={CELL}>{schedule.def.accountClass}</td>
                             <td className={CELL}>{schedule.def.accountType}</td>
                             <td className={NUM}>{fmt(row.closing)}</td>
@@ -209,7 +210,7 @@ export function ApSchedules({
                         ))}
                         <tr className="border-t-2 font-bold" style={{ borderTopStyle: "double" }}>
                           <td className={`${CELL} font-mono`}>TOTAL</td>
-                          <td className={`${CELL} max-w-[200px] truncate`}>
+                          <td className={`${CELL} max-w-[170px] truncate`}>
                             {schedule.def.code} — {schedule.def.labelEn}
                           </td>
                           <td className={CELL} />
@@ -242,7 +243,7 @@ export function ApSchedules({
 
         {/* the overall analytical review — sticky, follows the scroll */}
         <div
-          className="sticky top-4 hidden max-h-[80vh] flex-1 flex-col overflow-y-auto rounded-[var(--radius-atlas)] border border-glass-border bg-surface p-4 shadow-atlas-sm backdrop-blur-xl lg:flex"
+          className="sticky top-4 hidden max-h-[80vh] w-[30%] flex-shrink-0 flex-col overflow-y-auto rounded-[var(--radius-atlas)] border border-glass-border bg-surface p-3 shadow-atlas-sm backdrop-blur-xl lg:flex"
           data-testid="ap-overall"
         >
           <div className="flex items-center justify-between gap-2">
@@ -261,7 +262,7 @@ export function ApSchedules({
                 ? "Conclusions de la revue analytique : tendances, écarts inattendus, cohérence entre les feuilles maîtresses…"
                 : "Conclusions of the analytical review: trends, unexpected variances, consistency across the lead schedules…"
             }
-            className="mt-2 min-h-[320px] w-full flex-1 resize-none rounded-[var(--radius-atlas-sm)] bg-[color:var(--wp-input,#f4f4f2)] px-3 py-2 text-[12.5px] leading-relaxed text-ink outline-none placeholder:text-muted focus:ring-2 focus:ring-emerald-600/25"
+            className="mt-2 min-h-[300px] w-full flex-1 resize-none rounded-[var(--radius-atlas-sm)] bg-[color:var(--wp-input,#f4f4f2)] px-2.5 py-2 text-[12px] leading-relaxed text-ink outline-none placeholder:text-muted focus:ring-2 focus:ring-emerald-600/25"
           />
         </div>
       </div>
