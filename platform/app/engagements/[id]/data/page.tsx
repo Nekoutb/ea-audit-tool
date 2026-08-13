@@ -9,6 +9,8 @@ import { getEngagement } from "@/lib/engagements";
 import { getMessages } from "@/lib/i18n";
 import { getLocale } from "@/lib/locale";
 import { listTbTimings } from "@/lib/tb";
+import { rollForward } from "@/lib/tb-rollforward";
+import { RollForwardGrid } from "@/components/RollForwardGrid";
 
 export const metadata = { title: "Trial Balance Analyzer · AuditISA" };
 
@@ -33,7 +35,7 @@ export default async function DataPage(props: {
 
   const engagement = await getEngagement(id);
   if (!engagement) notFound();
-  const timings = await listTbTimings(id);
+  const [timings, roll] = await Promise.all([listTbTimings(id), rollForward(id)]);
   const slotOf = (timing: "pre_audit" | "post_audit") => timings.find((x) => x.timing === timing);
 
   return (
@@ -91,6 +93,15 @@ export default async function DataPage(props: {
             );
           })}
         </div>
+        {roll ? (
+          <RollForwardGrid result={roll} locale={fr ? "fr" : "en"} />
+        ) : (
+          <p className="mt-3 text-[12px] text-muted" data-testid="rollforward-empty">
+            {fr
+              ? "Réconciliation indisponible — importer le grand livre dans l'Analyseur du grand livre."
+              : "Roll-forward unavailable — upload the general ledger in the GL Analyzer."}
+          </p>
+        )}
       </Panel>
 
     </main>

@@ -67,7 +67,7 @@ test("Phase 5: engines run on demo data; projected misstatement lands in B5", as
     name: "ar.csv",
     mimeType: "text/csv",
     buffer: Buffer.from(
-      "Code;Customer;Amount\nC1;ACME;5000000\nC2;Beta;2500000\nC3;Gamma;1800000\nC4;Delta;1200000\nC5;Epsilon;900000\nC6;Zeta;700000\nC7;Eta;300000\nC8;Theta;200000",
+      "Code;Customer;Reference facture;Date facture;Amount\nC1;ACME;INV-1;15/11/2025;5000000\nC2;Beta;INV-2;15/11/2025;2500000\nC3;Gamma;INV-3;15/10/2025;1800000\nC4;Delta;INV-4;15/10/2025;1200000\nC5;Epsilon;INV-5;15/09/2025;900000\nC6;Zeta;INV-6;15/09/2025;700000\nC7;Eta;INV-7;15/08/2025;300000\nC8;Theta;INV-8;15/07/2025;200000",
       "utf8",
     ),
   });

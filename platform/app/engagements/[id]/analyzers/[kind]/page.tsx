@@ -3,6 +3,8 @@ import { notFound, redirect } from "next/navigation";
 import { auth } from "@/auth";
 import { AppNav } from "@/components/AppNav";
 import { DatasetAnalyzer } from "@/components/DatasetAnalyzer";
+import { AgingGrid } from "@/components/AgingGrid";
+import { agingFor } from "@/lib/aging";
 import { Panel } from "@/components/ui/atlas";
 import { getEngagement } from "@/lib/engagements";
 import { formatFCFA, getMessages } from "@/lib/i18n";
@@ -40,6 +42,7 @@ export default async function AnalyzerPage(props: {
   const engagement = await getEngagement(id);
   if (!engagement) notFound();
   const datasets = (await listDatasets(id)).filter((d) => d.kind === kind);
+  const aging = kind === "ar_open_items" || kind === "ap_open_items" ? await agingFor(id, kind) : null;
   const title = ANALYZER_TITLES[kind] ?? { en: kind, fr: kind };
 
   return (
@@ -62,6 +65,16 @@ export default async function AnalyzerPage(props: {
 
       <Panel className="mt-5">
         <DatasetAnalyzer engagementId={id} locale={locale} messages={t.planning} fixedKind={kind} />
+        {aging ? (
+          <div className="mt-4">
+            <AgingGrid
+              aging={aging}
+              title={kind === "ar_open_items" ? (fr ? "Balance âgée clients" : "Receivables aging") : (fr ? "Balance âgée fournisseurs" : "Payables aging")}
+              partyLabel={kind === "ar_open_items" ? (fr ? "Client" : "Customer") : (fr ? "Fournisseur" : "Supplier")}
+              locale={fr ? "fr" : "en"}
+            />
+          </div>
+        ) : null}
         {datasets.length > 0 ? (
           <div className="mt-5 overflow-x-auto rounded-[var(--radius-atlas)] border border-line">
             <table className="w-full text-sm" data-testid="analyzer-datasets">

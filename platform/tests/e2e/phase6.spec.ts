@@ -50,7 +50,10 @@ test("Phase 6: AR + bank confirmation cycle with exception → B5 and a non-repl
   await page.getByTestId("dataset-file").setInputFiles({
     name: "ar.csv",
     mimeType: "text/csv",
-    buffer: Buffer.from("Code;Customer;Amount\nC1;ACME;5000000\nC2;Beta;2500000\nC3;Gamma;400000", "utf8"),
+    buffer: Buffer.from(
+      "Code;Customer;Reference facture;Date facture;Amount\nC1;ACME;INV-1;15/11/2025;5000000\nC2;Beta;INV-2;15/10/2025;2500000\nC3;Gamma;INV-3;15/09/2025;400000",
+      "utf8",
+    ),
   });
   await page.getByTestId("dataset-analyze").click();
   await page.getByTestId("dataset-confirm").waitFor();

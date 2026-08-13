@@ -91,7 +91,7 @@ function CommentCell({
         data-testid={testId}
         onChange={(e) => saver.onChange(e.target.value)}
         onBlur={saver.onBlur}
-        className="w-full min-w-[90px] bg-transparent px-1 py-0.5 text-[10.8px] text-ink outline-none placeholder:text-muted focus:bg-[var(--color-warn-soft)]"
+        className="w-full min-w-[90px] bg-[var(--color-warn-soft)] px-1 py-0.5 text-[10.8px] text-ink outline-none placeholder:text-muted/70 focus:ring-1 focus:ring-emerald-600/40"
       />
       <SaveTick state={saver.state} testId={`${testId}-state`} />
     </span>

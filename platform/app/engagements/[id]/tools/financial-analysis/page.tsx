@@ -23,9 +23,9 @@ export default async function FinancialAnalysisPage(props: { params: Promise<{ i
   const [analysis, comments] = await Promise.all([financialAnalysis(id), apComments(id)]);
 
   return (
-    <main className="min-h-screen w-full px-6 py-5">
+    <main className="min-h-screen w-full px-6 py-3">
       <AppNav locale={locale} hideLinks current={{ id, label: engagement.name ?? engagement.clientName }} />
-      <div className="mt-4 flex items-center gap-3">
+      <div className="mt-3 flex items-center gap-3">
         <Link
           href={`/engagements/${id}/tools/data-analytics`}
           className="grid h-8 w-8 place-items-center rounded-full text-[16px] font-bold text-ink-soft transition hover:bg-surface-2 hover:text-ink"
@@ -52,7 +52,7 @@ export default async function FinancialAnalysisPage(props: { params: Promise<{ i
             : "No pre-audit trial balance ingested yet — the ratios compute from the trial balance."}
         </p>
       ) : (
-        <div className="mt-3">
+        <div className="mt-2">
           <FinAnalysisGrid
             engagementId={id}
             rows={analysis.rows}
