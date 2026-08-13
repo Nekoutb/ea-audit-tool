@@ -100,24 +100,26 @@ export function extractTbRows(table: ParsedTable, mapping: TbMapping): TbImportR
     if (!account) continue;
     const get = (column: TbColumn): number =>
       mapping[column] ? parseAmount(raw[mapping[column]!]) : 0;
-    let debit = get("debit");
-    let credit = get("credit");
-    if (!mapping.debit && !mapping.credit) {
-      if (mapping.closingDebit || mapping.closingCredit) {
-        debit = get("closingDebit");
-        credit = get("closingCredit");
-      } else {
-        const closing = get("closing");
-        debit = closing > 0 ? closing : 0;
-        credit = closing < 0 ? -closing : 0;
-      }
-    }
     let openingDebit = get("openingDebit");
     let openingCredit = get("openingCredit");
     if (!mapping.openingDebit && !mapping.openingCredit && mapping.opening) {
       const opening = get("opening");
       openingDebit = opening > 0 ? opening : 0;
       openingCredit = opening < 0 ? -opening : 0;
+    }
+    let debit = get("debit");
+    let credit = get("credit");
+    if (!mapping.debit && !mapping.credit) {
+      // Closing columns hold BALANCES, not movements. Store the movement as
+      // closing − opening, so opening + movements always equals the file's
+      // closing — never opening + closing (which doubled the current year).
+      const closingNet =
+        mapping.closingDebit || mapping.closingCredit
+          ? get("closingDebit") - get("closingCredit")
+          : get("closing");
+      const movement = closingNet - (openingDebit - openingCredit);
+      debit = movement > 0 ? movement : 0;
+      credit = movement < 0 ? -movement : 0;
     }
     rows.push({
       account,
@@ -867,6 +869,48 @@ export interface TbPreview {
  * extract the rows, and resolve each two-digit account class against the
  * grouping rules — the confirm-and-map screen renders this.
  */
+/**
+ * Propose columns from the DATA when header names are unrecognised: the
+ * account column is the one full of 4+ digit codes, the label column the
+ * most textual, and unclaimed numeric columns become opening then closing
+ * (left to right). The user confirms on the analyzer screen either way.
+ */
+function heuristicFill(table: ParsedTable, mapping: TbMapping): TbMapping {
+  const out: TbMapping = { ...mapping };
+  const used = new Set(Object.values(out));
+  const sample = table.rows.slice(0, 50);
+  const stats = table.headers.map((header) => {
+    let digits = 0, text = 0, numeric = 0, filled = 0;
+    for (const row of sample) {
+      const v = String(row[header] ?? "").trim();
+      if (!v) continue;
+      filled += 1;
+      if (/^d{4,}$/.test(v)) digits += 1;
+      if (/[a-zA-ZÀ-ɏ]{3,}/.test(v)) text += 1;
+      const cleaned = v.replace(/[s  ]/g, "").replace(/,(?=d{1,2}$)/, ".").replace(/,/g, "").replace(/[()]/g, "");
+      if (cleaned !== "" && Number.isFinite(Number(cleaned))) numeric += 1;
+    }
+    return { header, digits: filled ? digits / filled : 0, text: filled ? text / filled : 0, numeric: filled ? numeric / filled : 0 };
+  });
+  const free = () => stats.filter((x) => !used.has(x.header));
+  if (!out.account) {
+    const best = free().filter((x) => x.digits >= 0.6).sort((a, b) => b.digits - a.digits)[0];
+    if (best) { out.account = best.header; used.add(best.header); }
+  }
+  if (!out.label) {
+    const best = free().filter((x) => x.text >= 0.6).sort((a, b) => b.text - a.text)[0];
+    if (best) { out.label = best.header; used.add(best.header); }
+  }
+  const hasAmounts = (out.debit && out.credit) || (out.closingDebit && out.closingCredit) || out.closing;
+  if (!hasAmounts) {
+    const numerics = free().filter((x) => x.numeric >= 0.6 && x.digits < 0.6);
+    if (numerics.length >= 2 && !out.opening) { out.opening = numerics[0].header; used.add(numerics[0].header); }
+    const last = numerics[numerics.length - 1];
+    if (last && !used.has(last.header)) { out.closing = last.header; used.add(last.header); }
+    else if (numerics.length === 1) { out.closing = numerics[0].header; }
+  }
+  return out;
+}
 export async function previewTrialBalance(
   engagementId: string,
   filename: string,
@@ -879,8 +923,15 @@ export async function previewTrialBalance(
   let mappingError: string | null = null;
   let rows: TbImportRow[] = [];
   try {
-    if (!mappingOverride) mapping = inferTbMapping(table.headers);
-    else validateMapping(mapping);
+    if (!mappingOverride) {
+      try {
+        mapping = inferTbMapping(table.headers);
+      } catch {
+        mapping = {};
+      }
+      mapping = heuristicFill(table, mapping);
+      validateMapping(mapping);
+    } else validateMapping(mapping);
     rows = extractTbRows(table, mapping);
   } catch (error) {
     mappingError = error instanceof TbError ? error.code : "mapping-failed";

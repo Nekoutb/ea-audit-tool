@@ -171,7 +171,7 @@ export async function AppNav({
         </NavLink>
 
         <NavLink
-          href="/settings"
+          href={current ? `/engagements/${current.id}/settings` : "/settings"}
           className="grid h-9 w-9 place-items-center rounded-[var(--radius-atlas-sm)] border border-line-strong bg-surface text-ink-soft transition"
           idleClassName="hover:bg-surface-2"
           activeClassName="bg-surface-2"

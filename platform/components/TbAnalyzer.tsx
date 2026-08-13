@@ -166,12 +166,13 @@ export function TbAnalyzer({
               {fr ? "1 · Colonnes obligatoires — confirmer" : "1 · Mandatory columns — confirm"}
             </h3>
             <div className="mt-2 overflow-x-auto rounded-[var(--radius-atlas-sm)] border border-line">
-              <table className="w-full text-[12px]" data-testid="tb-columns">
+              {/* fixed column widths: choosing a file column never shifts the table */}
+              <table className="w-auto table-fixed text-[12px]" data-testid="tb-columns">
                 <thead>
                   <tr className="bg-surface-2 text-left text-muted">
-                    <th className="px-3 py-1.5">{fr ? "Colonne requise" : "Required column"}</th>
-                    <th className="px-3 py-1.5">{fr ? "Colonne du fichier" : "Your file's column"}</th>
-                    <th className="px-3 py-1.5">{fr ? "Exemple de données" : "Example data"}</th>
+                    <th className="w-[150px] px-2 py-1">{fr ? "Colonne requise" : "Required column"}</th>
+                    <th className="w-[200px] px-2 py-1">{fr ? "Colonne du fichier" : "Your file's column"}</th>
+                    <th className="w-[280px] px-2 py-1">{fr ? "Exemple de données" : "Example data"}</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -181,7 +182,7 @@ export function TbAnalyzer({
                     const sampleHeader = mapping[concept.key] ?? (coveredBy[0] ? mapping[coveredBy[0]] : undefined);
                     return (
                       <tr key={concept.key} className={`border-t border-line ${covered ? "" : "bg-[var(--color-warn-soft)]"}`}>
-                        <td className="px-3 py-1.5 font-medium text-ink">
+                        <td className="truncate px-2 py-1 font-medium text-ink">
                           {fr ? concept.fr : concept.en}
                           <b className="text-rose"> *</b>
                         </td>
@@ -209,7 +210,7 @@ export function TbAnalyzer({
                             </select>
                           )}
                         </td>
-                        <td className="px-3 py-1.5 font-mono text-[11px] text-muted" data-testid={`tb-sample-${concept.key}`}>
+                        <td className="truncate px-2 py-1 font-mono text-[11px] text-muted" data-testid={`tb-sample-${concept.key}`}>
                           {sampleHeader ? (preview.headerSamples?.[sampleHeader] ?? []).join(" · ") || "—" : "—"}
                         </td>
                       </tr>
