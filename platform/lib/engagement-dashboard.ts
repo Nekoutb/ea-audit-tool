@@ -568,14 +568,16 @@ async function statsScoped(engagementId: string | null): Promise<DashboardStats>
            WHERE ($1::uuid IS NULL OR fi.engagement_id = $1) AND fi.conditional = false
              AND fi.owner_id = $2
              AND NOT EXISTS (SELECT 1 FROM document d WHERE d.file_item_id = fi.id))::text AS to_do,
+         -- notes reach me either through a document I own or, since review
+         -- notes live on tasks, by being addressed to me directly
          (SELECT count(*) FROM review_note n
-           JOIN document d ON d.id = n.document_id
-           JOIN file_item fi ON fi.id = d.file_item_id
+           LEFT JOIN document d ON d.id = n.document_id
+           LEFT JOIN file_item fi ON fi.id = coalesce(d.file_item_id, n.file_item_id)
           WHERE ($1::uuid IS NULL OR fi.engagement_id = $1)
-            AND n.status = 'open' AND fi.owner_id = $2)::text AS notes_for_me,
+            AND n.status = 'open' AND (fi.owner_id = $2 OR n.assignee_id = $2))::text AS notes_for_me,
          (SELECT count(*) FROM review_note n
-           JOIN document d ON d.id = n.document_id
-           JOIN file_item fi ON fi.id = d.file_item_id
+           LEFT JOIN document d ON d.id = n.document_id
+           LEFT JOIN file_item fi ON fi.id = coalesce(d.file_item_id, n.file_item_id)
           WHERE ($1::uuid IS NULL OR fi.engagement_id = $1)
             AND n.status = 'open' AND n.author_id = $2)::text AS notes_by_me`,
       [engagementId, userId],

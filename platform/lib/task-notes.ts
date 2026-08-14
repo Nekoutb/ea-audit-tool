@@ -170,3 +170,76 @@ export async function myOpenTaskNotes(limit = 12): Promise<MyTaskNote[]> {
     }));
   });
 }
+
+export interface NoteRegisterRow {
+  id: string;
+  code: string;
+  taskTitle: string;
+  fileItemId: string;
+  ownerName: string | null;
+  authorName: string;
+  body: string;
+  response: string | null;
+  status: "open" | "cleared";
+  createdAt: string;
+  clearedAt: string | null;
+  /** hours from raising to clearing, null while open */
+  resolutionHours: number | null;
+  mine: boolean;
+  forMe: boolean;
+}
+
+/** Every review note of the engagement, for the register panel. */
+export async function noteRegister(engagementId: string): Promise<NoteRegisterRow[]> {
+  const { tenantId, userId } = await requireTenant();
+  return withTenant(tenantId, async (tx) => {
+    const r = await tx.query<{
+      id: string;
+      code: string;
+      title_en: string;
+      title_fr: string;
+      file_item_id: string;
+      owner_name: string | null;
+      author_name: string;
+      author_id: string;
+      assignee_id: string | null;
+      body: string;
+      response: string | null;
+      status: "open" | "cleared";
+      created_at: string;
+      cleared_at: string | null;
+      hours: string | null;
+    }>(
+      `SELECT n.id, fi.code, fi.title_en, fi.title_fr, n.file_item_id,
+              coalesce(u.name, u.email) AS owner_name,
+              coalesce(a.name, a.email) AS author_name,
+              n.author_id, n.assignee_id, n.body, n.response, n.status,
+              to_char(n.created_at, 'DD Mon YYYY HH24:MI') AS created_at,
+              to_char(n.cleared_at, 'DD Mon YYYY HH24:MI') AS cleared_at,
+              round(extract(epoch FROM (n.cleared_at - n.created_at)) / 3600, 1)::text AS hours
+         FROM review_note n
+         JOIN file_item fi ON fi.id = n.file_item_id
+         JOIN app_user a ON a.id = n.author_id
+         LEFT JOIN app_user u ON u.id = n.assignee_id
+        WHERE n.engagement_id = $1
+        ORDER BY n.status = 'cleared', n.created_at DESC`,
+      [engagementId],
+    );
+    return r.rows.map((row) => ({
+      id: row.id,
+      code: row.code,
+      taskTitle: row.title_en,
+      fileItemId: row.file_item_id,
+      ownerName: row.owner_name,
+      authorName: row.author_name,
+      body: row.body,
+      response: row.response,
+      status: row.status,
+      createdAt: row.created_at,
+      clearedAt: row.cleared_at,
+      resolutionHours: row.hours === null ? null : Number(row.hours),
+      mine: row.author_id === userId,
+      forMe: row.assignee_id === userId,
+    }));
+  });
+}
