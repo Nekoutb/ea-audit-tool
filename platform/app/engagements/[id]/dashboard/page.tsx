@@ -19,6 +19,7 @@ import { respondEngagementAction } from "@/app/actions/team-independence";
 import { SubmitButton } from "@/components/SubmitButton";
 import { getEngagement } from "@/lib/engagements";
 import { myTeamStatus } from "@/lib/team";
+import { myOpenTaskNotes } from "@/lib/task-notes";
 import { getMessages } from "@/lib/i18n";
 import { getLocale } from "@/lib/locale";
 import { shortTitle } from "@/lib/file-index";
@@ -103,6 +104,7 @@ export default async function EngagementDashboardPage(props: {
   if (!engagement) notFound();
 
   const myStatus = await myTeamStatus(id);
+  const myNotes = await myOpenTaskNotes(6);
   const [tasks, attention, dash, stats] = await Promise.all([
     engagementTasks(id),
     engagementAttention(id, locale),
@@ -206,14 +208,24 @@ export default async function EngagementDashboardPage(props: {
         </Link>
         <Panel className="px-5 py-4" data-testid="review-notes-box">
           <PanelHeader title={fr ? "Notes de revue" : "Review notes"} />
-          <div className="mt-2 flex flex-col">
-            <span className="flex items-center justify-between border-b border-line py-1.5 text-[12.5px] text-ink-soft">
-              {fr ? "Pour moi" : "For me"} <b className="tnum">{stats.my.notesForMe}</b>
-            </span>
-            <span className="flex items-center justify-between py-1.5 text-[12.5px] text-ink-soft">
-              {fr ? "Par moi" : "By me"} <b className="tnum">{stats.my.notesByMe}</b>
-            </span>
-          </div>
+          {myNotes.length === 0 ? (
+            <p className="mt-2 text-[12px] text-muted">{fr ? "Aucune note ouverte pour vous." : "No open notes for you."}</p>
+          ) : (
+            <ul className="mt-1.5 flex max-h-[104px] flex-col gap-1 overflow-y-auto" data-testid="my-review-notes">
+              {myNotes.map((note) => (
+                <li key={note.id}>
+                  <Link
+                    href={`/engagements/${note.engagementId}/sections/${note.fileItemId}`}
+                    className="flex items-baseline gap-1.5 rounded-[var(--radius-atlas-xs)] px-1 py-0.5 text-[12px] text-ink-soft transition hover:bg-surface-2 hover:text-emerald-700"
+                    data-testid={`my-note-${note.id}`}
+                  >
+                    <span className="flex-shrink-0 font-mono text-[10px] font-semibold text-muted">{note.code}</span>
+                    <span className="min-w-0 flex-1 truncate">{note.body}</span>
+                  </Link>
+                </li>
+              ))}
+            </ul>
+          )}
         </Panel>
         <Panel className="px-5 py-4" data-testid="findings-band">
           <PanelHeader title={td.findingsBand.title} />

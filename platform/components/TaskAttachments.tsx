@@ -163,6 +163,16 @@ export function TaskAttachments({
     setWatching((prev) => ({ ...prev, [row.name]: row.version }));
   }
 
+  async function remove(row: AttachmentRow) {
+    if (!window.confirm(fr ? `Supprimer « ${row.name} » et toutes ses versions ?` : `Delete "${row.name}" and all its versions?`)) return;
+    const response = await fetch(`/api/attachments/file/${row.id}`, { method: "DELETE" });
+    if (!response.ok) {
+      setError(fr ? "Suppression impossible" : "Could not delete the file");
+      return;
+    }
+    stopWatch(row.name);
+    setRows((list) => list.filter((r) => r.name !== row.name));
+  }
   async function commitRename(row: AttachmentRow, value: string) {
     setRenaming(null);
     const next = value.trim();
@@ -292,6 +302,17 @@ export function TaskAttachments({
               >
                 <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 3v12" /><path d="m7 10 5 5 5-5" /><path d="M5 21h14" /></svg>
               </a>
+              {/* delete — the file and every version of it */}
+              <button
+                type="button"
+                onClick={() => void remove(row)}
+                title={fr ? "Supprimer" : "Delete"}
+                aria-label={fr ? "Supprimer" : "Delete"}
+                className="grid h-7 w-7 flex-shrink-0 place-items-center rounded-full text-muted transition hover:bg-[var(--color-rose-soft)] hover:text-rose"
+                data-testid={`attachment-delete-${row.name}`}
+              >
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round"><path d="M18 6 6 18" /><path d="m6 6 12 12" /></svg>
+              </button>
             </li>
           ))}
         </ul>

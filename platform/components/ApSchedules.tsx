@@ -209,7 +209,7 @@ export function ApSchedules({
                             <td className={NUM}>
                               {row.variancePct !== null ? `${row.variancePct >= 0 ? "+" : ""}${row.variancePct}%` : "—"}
                             </td>
-                            <td className={`${CELL} p-0`}>
+                            <td className={`${CELL} whitespace-normal p-0 align-top`}>
                               <CommentCell
                                 engagementId={engagementId}
                                 index={schedule.def.code}
@@ -234,7 +234,7 @@ export function ApSchedules({
                           <td className={NUM}>
                             {schedule.variancePct !== null ? `${schedule.variancePct >= 0 ? "+" : ""}${schedule.variancePct}%` : "—"}
                           </td>
-                          <td className={`${CELL} p-0`}>
+                          <td className={`${CELL} whitespace-normal p-0 align-top`}>
                             <CommentCell
                               engagementId={engagementId}
                               index={schedule.def.code}

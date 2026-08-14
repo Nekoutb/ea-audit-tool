@@ -1,6 +1,7 @@
 "use client";
 
 import { useLayoutEffect, useMemo, useRef, useState, type FormEvent } from "react";
+import { RichText } from "@/components/RichText";
 import { SubmitButton } from "@/components/SubmitButton";
 import {
   conclKey,
@@ -390,11 +391,11 @@ export function PaperWizard({
         ))}
         <label className="flex flex-col gap-1 text-[11.5px] font-bold uppercase tracking-[0.07em] text-muted">
           {fr ? "Constats clés" : "Key findings"}
-          <textarea
+          <RichText
             name="key_findings"
             defaultValue={values["key_findings"] ?? ""}
             readOnly={readOnly}
-            data-testid="wp-key-findings"
+            testId="wp-key-findings"
             placeholder={
               fr
                 ? "Constats importants du travail effectué — repris en B4/B5 le cas échéant"

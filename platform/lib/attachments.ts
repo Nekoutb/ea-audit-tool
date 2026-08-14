@@ -128,3 +128,19 @@ export async function renameAttachment(id: string, newNameRaw: string): Promise<
     return next;
   });
 }
+
+/** Delete a document and all its versions from the task. */
+export async function deleteAttachment(id: string): Promise<void> {
+  const { tenantId } = await requireTenant();
+  await withTenant(tenantId, async (tx) => {
+    const row = await tx.query<{ file_item_id: string; name: string }>(
+      "SELECT file_item_id, name FROM task_attachment WHERE id = $1",
+      [id],
+    );
+    if (!row.rows[0]) throw new Error("not-found");
+    await tx.query("DELETE FROM task_attachment WHERE file_item_id = $1 AND name = $2", [
+      row.rows[0].file_item_id,
+      row.rows[0].name,
+    ]);
+  });
+}

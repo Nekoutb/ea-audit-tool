@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { getAttachment, renameAttachment } from "@/lib/attachments";
+import { deleteAttachment, getAttachment, renameAttachment } from "@/lib/attachments";
 
 /** Download one attachment version. RLS scopes the read to the tenant. */
 export async function GET(_request: Request, context: { params: Promise<{ attachmentId: string }> }) {
@@ -30,5 +30,16 @@ export async function PATCH(request: Request, context: { params: Promise<{ attac
   } catch (error) {
     const code = error instanceof Error ? error.message : "rename-failed";
     return NextResponse.json({ error: code }, { status: code === "not-found" ? 404 : 400 });
+  }
+}
+
+/** Remove a document and every version of it from the task. */
+export async function DELETE(_request: Request, context: { params: Promise<{ attachmentId: string }> }) {
+  const { attachmentId } = await context.params;
+  try {
+    await deleteAttachment(attachmentId);
+    return NextResponse.json({ ok: true });
+  } catch {
+    return NextResponse.json({ error: "delete-failed" }, { status: 400 });
   }
 }

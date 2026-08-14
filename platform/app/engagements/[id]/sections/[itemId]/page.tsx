@@ -21,6 +21,10 @@ import { PhaseNav } from "@/components/PhaseNav";
 import { launchIndependenceToTeamAction } from "@/app/actions/team-independence";
 import { PaperWizard } from "@/components/PaperWizard";
 import { PracticalTips, type TipEntry } from "@/components/PracticalTips";
+import { ReviewNotes } from "@/components/ReviewNotes";
+import { SignificantAccounts } from "@/components/SignificantAccounts";
+import { listTaskNotes } from "@/lib/task-notes";
+import { significantAccounts } from "@/lib/significant-accounts";
 import { SubmitButton } from "@/components/SubmitButton";
 import { TaskAttachments } from "@/components/TaskAttachments";
 import { WorkingPaper } from "@/components/WorkingPaper";
@@ -139,6 +143,10 @@ export default async function SectionPage(props: {
       }
     }
   }
+  const taskNotes = await listTaskNotes(itemId);
+  // P6.2 (D5.8): the significance grid drives the task itself
+
+  const sigAccounts = section.code === "D5.8" ? await significantAccounts(id) : null;
   const taskInfo = await taskForItem(id, section.code);
   const CROSS_LINKS: Record<string, string[]> = {
     "D3.1": ["D3.4", "D3.2"], "D3.2": ["D3.1", "D3.6"], "D3.4": ["D3.1", "E370"],
@@ -296,21 +304,35 @@ export default async function SectionPage(props: {
         <ErrorBanner error={error} locale={locale} />
 
         <div className="grid min-h-0 flex-1 grid-cols-[25fr_50fr_25fr] gap-3 overflow-hidden">
-          <section className="flex min-h-0 flex-col overflow-hidden rounded-[var(--radius-atlas)] border border-glass-border bg-surface px-4 py-3 shadow-atlas-sm backdrop-blur-xl" data-testid="wp-guidance">
+          <div className="flex min-h-0 flex-col gap-3 overflow-hidden">
+          <section className="flex max-h-[50%] min-h-0 flex-col overflow-hidden rounded-[var(--radius-atlas)] border border-glass-border bg-surface px-4 py-3 shadow-atlas-sm backdrop-blur-xl" data-testid="wp-guidance">
             <h2 className="text-[11px] font-extrabold uppercase tracking-[0.07em] text-muted">Guidance</h2>
             <p className="mt-1 text-[10.5px] font-semibold text-emerald-700 dark:text-emerald-400">{paperDef.std}</p>
-            <ul className="mt-2 flex min-h-0 flex-col gap-1.5 overflow-hidden">
+            <ul className="mt-2 flex min-h-0 flex-col gap-1.5 overflow-y-auto">
               {req.slice(0, 4).map((g, i) => (
                 <li key={i} className="flex gap-1.5 text-[11.8px] leading-snug text-ink-soft">
                   <span className="text-emerald-700 dark:text-emerald-400">•</span>
-                  <span className="line-clamp-6">{g}</span>
+                  <span>{g}</span>
                 </li>
               ))}
             </ul>
             <PracticalTips tips={practicalTips} locale={isFr ? "fr" : "en"} />
           </section>
+          <ReviewNotes
+            engagementId={id}
+            fileItemId={itemId}
+            notes={taskNotes}
+            canRaise={canReview(session.user.role)}
+            locale={isFr ? "fr" : "en"}
+          />
+          </div>
 
           <section className="flex min-h-0 flex-col overflow-hidden rounded-[var(--radius-atlas)] border border-glass-border bg-surface px-4 py-3 shadow-atlas backdrop-blur-xl">
+            {sigAccounts ? (
+              <div className="mb-2 min-h-0 overflow-auto" data-testid="wp-sig-accounts">
+                <SignificantAccounts engagementId={id} view={sigAccounts} locale={isFr ? "fr" : "en"} />
+              </div>
+            ) : null}
             {approvedM ? (
               <div className="mb-2 flex flex-wrap items-center gap-x-4 gap-y-1 rounded-[var(--radius-atlas-sm)] border border-emerald-600/30 bg-emerald-50 px-3 py-2 text-[12px] dark:bg-emerald-950/30" data-testid="wp-materiality-strip">
                 <span className="text-muted">{fr ? "Base approuvée" : "Approved basis"}: <b className="text-ink">{approvedM.benchmark}</b> · {approvedM.percentage}%</span>
