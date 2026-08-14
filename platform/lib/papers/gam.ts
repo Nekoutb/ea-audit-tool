@@ -434,7 +434,64 @@ const B11: PaperDef = {
   ],
 };
 
+/* ---------------------------------------------------------------- D9.2 --- */
+// The planning-stage report to those charged with governance: what ISA 260
+// requires the auditor to communicate BEFORE fieldwork — scope, timing,
+// significant risks, independence — as a deliverable in its own right rather
+// than a paragraph inside the strategy memorandum.
+const D9_2: PaperDef = {
+  std: "ISA 260 (Revised) ¶15–18 · ISA 300 ¶9 · OHADA — AUSCGIE",
+  ownsEn: "the planning communication to those charged with governance",
+  ownsFr: "la communication de planification aux responsables de la gouvernance",
+  reqEn: [
+    "Before the detailed fieldwork begins, the auditor communicates with those charged with governance an overview of the planned scope and timing of the audit, including the significant risks identified (ISA 260 (Revised) ¶15). The communication does not compromise the effectiveness of the audit by making the procedures too predictable.",
+    "For listed entities, and wherever else it is appropriate, the communication includes a statement on independence: that the firm and the team have complied with the ethical requirements on independence, the relationships that may bear on it, and the related safeguards (ISA 260 (Revised) ¶17).",
+    "In the OHADA space the addressees are typically the board of directors or the managing body under the Acte uniforme; where an audit committee exists, it receives the communication. Record who received the report, in what form, and when.",
+  ],
+  reqFr: [
+    "Avant le début des travaux détaillés, l'auditeur communique aux responsables de la gouvernance une vue d'ensemble de l'étendue et du calendrier prévus de l'audit, y compris les risques importants identifiés (ISA 260 (Révisée) ¶15), sans rendre les procédures trop prévisibles.",
+    "Pour les entités cotées, et chaque fois que cela est approprié, la communication comporte une déclaration d'indépendance : respect des règles d'éthique, relations susceptibles de l'affecter et sauvegardes (ISA 260 (Révisée) ¶17).",
+    "Dans l'espace OHADA, les destinataires sont en principe le conseil d'administration ou l'organe de gestion prévu par l'Acte uniforme ; lorsqu'un comité d'audit existe, il reçoit la communication. Consigner qui a reçu le rapport, sous quelle forme et à quelle date.",
+  ],
+  conclEn: [
+    "The planned scope, timing and significant risks of the audit have been communicated to those charged with governance before fieldwork, together with the matters required by ISA 260.",
+  ],
+  conclFr: [
+    "L'étendue, le calendrier et les risques importants prévus ont été communiqués aux responsables de la gouvernance avant les travaux, avec les points requis par l'ISA 260.",
+  ],
+  sections: [
+    {
+      kind: "fields",
+      titleEn: "Part A — The report",
+      titleFr: "Partie A — Le rapport",
+      introEn: "Summarise what the report said. File the report itself as an attachment to this task.",
+      introFr: "Résumer le contenu du rapport. Classer le rapport lui-même en pièce jointe de cette tâche.",
+      fields: [
+        { key: "addressees", kind: "input", labelEn: "Addressees and how governance is structured: board, audit committee, managing body", labelFr: "Destinataires et structure de gouvernance : conseil, comité d'audit, organe de gestion" },
+        { key: "scope", kind: "input", labelEn: "Planned scope and timing communicated: phases, locations, use of others' work, the reporting timetable", labelFr: "Étendue et calendrier communiqués : phases, sites, travaux de tiers, calendrier de restitution" },
+        { key: "risks", kind: "input", labelEn: "Significant risks communicated, at the level of detail judged appropriate", labelFr: "Risques importants communiqués, au niveau de détail jugé approprié" },
+        { key: "independence", kind: "input", labelEn: "Independence statement made, or the reason none was required", labelFr: "Déclaration d'indépendance faite, ou motif de son absence" },
+        { key: "delivery", kind: "input", labelEn: "Form and date of the communication, and any response received", labelFr: "Forme et date de la communication, et toute réponse reçue" },
+      ],
+    },
+    {
+      kind: "yn",
+      titleEn: "Part B — Confirmations",
+      titleFr: "Partie B — Confirmations",
+      introEn: "Answer each item. Explain a “No” in the field beneath it.",
+      introFr: "Répondre à chaque point. Expliquer un « Non » dans le champ situé dessous.",
+      items: [
+        { key: "before", en: "The communication was made before the detailed fieldwork began.", fr: "La communication est intervenue avant le début des travaux détaillés." },
+        { key: "two_way", en: "The form of the communication allows a two-way exchange: governance can raise matters back to the auditor.", fr: "La forme retenue permet un échange dans les deux sens : la gouvernance peut soulever des points auprès de l'auditeur." },
+        { key: "predict", en: "The level of detail communicated does not make our procedures predictable enough to compromise their effectiveness.", fr: "Le niveau de détail communiqué ne rend pas nos procédures prévisibles au point d'en compromettre l'efficacité.", na: true },
+        { key: "filed", en: "The report as sent, and any minutes of the meeting at which it was discussed, are filed against this task.", fr: "Le rapport tel qu'envoyé, et tout procès-verbal de la réunion où il a été discuté, sont classés dans cette tâche." },
+      ],
+    },
+  ],
+};
+
 export const GAM_PAPERS: Record<string, PaperDef> = {
+  "D9.2": D9_2,
   "D5.8": D5_8,
   "D8.1": D8_1,
   "D8.2": D8_2,

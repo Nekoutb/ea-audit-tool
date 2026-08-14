@@ -50,6 +50,8 @@ export const TASK_GROUPS: TaskGroupDef[] = [
   { id: "p5", code: "P5", section: "acceptance", titleEn: "Fraud Risks & Team Discussion", titleFr: "Risques de fraude & discussion d'équipe", members: ["D5.4", "D7.1"] },
   { id: "p6", code: "P6", section: "acceptance", titleEn: "Materiality & Significant Accounts", titleFr: "Seuil de signification & comptes significatifs", members: ["D5.1", "D5.8"] },
 
+  { id: "p7", code: "P7", section: "acceptance", titleEn: "Planning Review & Approval", titleFr: "Revue & approbation de la planification", members: ["D9.2", "D9.1"] },
+
   // ---- Strategy & Risk Assessment ----
   { id: "s1", code: "S1", section: "strategy", titleEn: "SCOTs, Flows & Walkthroughs", titleFr: "SCOT, flux & cheminements", members: ["D8.1", "D8.2", "D8.3", "D8.4"] },
   { id: "s2", code: "S2", section: "strategy", titleEn: "Controls Strategy", titleFr: "Stratégie de contrôles", members: ["D8.5", "D8.6"] },

@@ -23,6 +23,9 @@ import { PaperWizard } from "@/components/PaperWizard";
 import { PracticalTips, type TipEntry } from "@/components/PracticalTips";
 import { ReviewNotes } from "@/components/ReviewNotes";
 import { SignificantAccounts } from "@/components/SignificantAccounts";
+import { PlanningRas } from "@/components/PlanningRas";
+import { SECTION_A, SECTION_B, SECTION_C, SIGNATURE_ROLES, planningRas } from "@/lib/planning-ras";
+import { atLeast, isRole } from "@/lib/rbac";
 import { listTaskNotes } from "@/lib/task-notes";
 import { significantAccounts } from "@/lib/significant-accounts";
 import { SubmitButton } from "@/components/SubmitButton";
@@ -147,6 +150,26 @@ export default async function SectionPage(props: {
   // P6.2 (D5.8): the significance grid drives the task itself
 
   const sigAccounts = section.code === "D5.8" ? await significantAccounts(id) : null;
+  // P7 — the planning review & approval summary takes over the centre column
+  const ras = section.code === "D9.1" ? await planningRas(id) : null;
+  // Appendix 1 rows: the engagement team by seniority, then three free rows
+  // for specialists brought in from outside the core team.
+  const rasTeam = ras
+    ? [
+        ...(await listEngagementTeam(id))
+          .filter((m) => m.status !== "declined")
+          .map((m) => ({
+            key: m.userId,
+            name: m.userName,
+            role: m.teamRole.replace(/_/g, " "),
+            fixed: true,
+          })),
+        { key: "x1", name: "", role: "", fixed: false },
+        { key: "x2", name: "", role: "", fixed: false },
+        { key: "x3", name: "", role: "", fixed: false },
+      ]
+    : [];
+  const userRole = isRole(session.user.role) ? session.user.role : null;
   const taskInfo = await taskForItem(id, section.code);
   const CROSS_LINKS: Record<string, string[]> = {
     "D3.1": ["D3.4", "D3.2"], "D3.2": ["D3.1", "D3.6"], "D3.4": ["D3.1", "E370"],
@@ -341,6 +364,26 @@ export default async function SectionPage(props: {
                 <span className="text-muted">SAD: <b className="text-ink tnum">{new Intl.NumberFormat("fr-FR").format(approvedM.trivial)}</b></span>
               </div>
             ) : null}
+            {ras ? (
+              <PlanningRas
+                engagementId={id}
+                view={ras}
+                sections={[
+                  { key: "A", titleEn: "Section A — prepared by the fieldwork lead and the manager", titleFr: "Section A — préparée par le responsable des travaux et le manager", items: SECTION_A },
+                  { key: "B", titleEn: "Section B — the engagement partner", titleFr: "Section B — l'associé responsable", items: SECTION_B },
+                  { key: "C", titleEn: "Section C — the engagement quality reviewer", titleFr: "Section C — le réviseur qualité", items: SECTION_C },
+                ]}
+                signatureRoles={SIGNATURE_ROLES.map((r) => ({
+                  role: r.role,
+                  en: r.en,
+                  fr: r.fr,
+                  allowed: userRole !== null && atLeast(userRole, r.min),
+                }))}
+                canSign={userRole !== null}
+                team={rasTeam}
+                locale={isFr ? "fr" : "en"}
+              />
+            ) : (
             <PaperWizard
               code={section.code}
               def={paperDef}
@@ -349,6 +392,7 @@ export default async function SectionPage(props: {
               locale={fr ? "fr" : "en"}
               action={savePaperAction.bind(null, id, itemId, section.code)}
             />
+            )}
           </section>
 
           <section className="flex min-h-0 flex-col gap-3 overflow-hidden">

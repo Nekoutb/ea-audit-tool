@@ -49,6 +49,7 @@ const GROUP_DEFAULT: Record<string, { std: string; en: string; fr: string }> = {
   p4: { std: "ISA 315 (Revised 2019) ¶21–27", en: "the entity-level control and IT conclusion", fr: "la conclusion contrôles de l'entité et informatique" },
   p5: { std: "ISA 240 ¶17–27 · ISA 315 (Revised 2019) ¶17", en: "the fraud risk record and team discussion", fr: "le dossier risques de fraude et discussion d'équipe" },
   p6: { std: "ISA 320 · ISA 315 (Revised 2019) ¶28–29", en: "the materiality and scoping record", fr: "le seuil de signification et le périmètre" },
+  p7: { std: "ISA 300 ¶7–12 · ISA 220 (Revised) ¶22–35 · ISQM 1", en: "the planning approval", fr: "l'approbation de la planification" },
   s1: { std: "ISA 315 (Revised 2019) ¶25–26, ¶A136–A150", en: "the transaction-flow understanding", fr: "la compréhension des flux de transactions" },
   s2: { std: "ISA 330 ¶8–11", en: "the controls-reliance strategy", fr: "la stratégie d'appui sur les contrôles" },
   s3: { std: "ISA 315 (Revised 2019) ¶28–34 · ISA 330 ¶5–15", en: "the combined risk assessment and planned responses", fr: "l'évaluation combinée des risques et les réponses" },
