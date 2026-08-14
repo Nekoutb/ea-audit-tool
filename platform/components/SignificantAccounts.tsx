@@ -127,7 +127,7 @@ export function SignificantAccounts({
                     {fmt(row.closing)}
                   </td>
                   <td className={GRID_NUM} data-testid={`sa-volume-${row.index}`}>{row.volume || "—"}</td>
-                  <td className={`${GRID_CELL} p-0`}>
+                  <td className={`${GRID_CELL} whitespace-normal p-0 align-top`}>
                     <select
                       value={row.status}
                       data-testid={`sa-status-${row.index}`}
@@ -144,9 +144,10 @@ export function SignificantAccounts({
                       <option value="not_significant">{fr ? "Non significatif" : "Not significant"}</option>
                     </select>
                   </td>
-                  <td className={`${GRID_CELL} p-0`}>
+                  <td className={`${GRID_CELL} whitespace-normal p-0 align-top`}>
                     <span className="flex items-center gap-1">
-                      <input
+                      <textarea
+                        rows={1}
                         defaultValue={row.justification}
                         placeholder={
                           needsWhy
@@ -158,10 +159,13 @@ export function SignificantAccounts({
                         data-testid={`sa-why-${row.index}`}
                         onChange={(e) => {
                           const justification = e.target.value;
+                          const el = e.target as HTMLTextAreaElement;
+                          el.style.height = "auto";
+                          el.style.height = Math.min(el.scrollHeight, 90) + "px";
                           setRows((rs) => rs.map((r) => (r.index === row.index ? { ...r, justification } : r)));
                         }}
                         onBlur={(e) => void save(row.index, row.status, e.target.value)}
-                        className={`${GRID_COMMENT_INPUT} ${needsWhy ? "ring-1 ring-rose/60" : ""}`}
+                        className={`${GRID_COMMENT_INPUT} resize-none whitespace-pre-wrap break-words leading-snug ${needsWhy ? "ring-1 ring-rose/60" : ""}`}
                       />
                       <span
                         className={`w-2.5 flex-shrink-0 text-[9px] ${
