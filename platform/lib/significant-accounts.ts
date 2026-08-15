@@ -16,8 +16,10 @@ export interface SignificantAccountRow {
   closing: number;
   /** general-ledger lines touching the accounts of this index */
   volume: number;
-  /** closing balance exceeds tolerable error */
+  /** closing balance exceeds the threshold that applies to this index */
   aboveTe: boolean;
+  /** a lower specific materiality set for this index, when one exists */
+  specificTe: number | null;
   /** the default from the threshold, before any override */
   defaultStatus: "significant" | "not_significant";
   /** the recorded decision (defaults to defaultStatus) */
@@ -25,6 +27,8 @@ export interface SignificantAccountRow {
   /** set when the decision departs from the default */
   overridden: boolean;
   justification: string;
+  /** relevant assertions recorded for the index, e.g. ["C","E","V"] */
+  assertions: string[];
 }
 
 export interface SignificantAccountsView {
@@ -99,13 +103,22 @@ export async function significantAccounts(engagementId: string): Promise<Signifi
       }
     }
 
-    // recorded decisions live with the paper's answers (code "wp:D5.8")
-    const saved = await tx.query<{ field_key: string; value: string }>(
-      `SELECT field_key, value #>> '{}' AS value
-         FROM form_response WHERE engagement_id = $1 AND code = 'wp:D5.8'`,
+    // recorded decisions live with the paper's answers (code "wp:D5.8");
+    // specific materiality per index rides with the materiality paper (wp:D5.1)
+    const saved = await tx.query<{ code: string; field_key: string; value: string }>(
+      `SELECT code, field_key, value #>> '{}' AS value
+         FROM form_response WHERE engagement_id = $1 AND code IN ('wp:D5.8', 'wp:D5.1')`,
       [engagementId],
     );
-    const decisions = new Map(saved.rows.map((r) => [r.field_key, r.value]));
+    const decisions = new Map(
+      saved.rows.filter((r) => r.code === "wp:D5.8").map((r) => [r.field_key, r.value]),
+    );
+    const specific = new Map<string, number>();
+    for (const r of saved.rows) {
+      if (r.code !== "wp:D5.1" || !r.field_key.startsWith("sm_")) continue;
+      const amount = Number(r.value.replace(/[^\d.-]/g, ""));
+      if (Number.isFinite(amount) && amount > 0) specific.set(r.field_key.slice(3), amount);
+    }
 
     const closings = new Map<string, number>();
     for (const row of tb.rows) {
@@ -118,10 +131,14 @@ export async function significantAccounts(engagementId: string): Promise<Signifi
     for (const def of LEAD_INDEXES) {
       if (!closings.has(def.code)) continue;
       const closing = Math.round(closings.get(def.code) ?? 0);
-      const aboveTe = tolerableError !== null && Math.abs(closing) > tolerableError;
+      // a specific (lower) materiality on the index replaces TE for its default
+      const specificTe = specific.get(def.code) ?? null;
+      const threshold = specificTe ?? tolerableError;
+      const aboveTe = threshold !== null && Math.abs(closing) > threshold;
       const defaultStatus: SignificantAccountRow["defaultStatus"] = aboveTe ? "significant" : "not_significant";
       const recorded = decisions.get(KEY(def.code));
       const status = recorded === "significant" || recorded === "not_significant" ? recorded : defaultStatus;
+      const savedAssertions = decisions.get(`${KEY(def.code)}_a`) ?? "";
       rows.push({
         index: def.code,
         label: def.labelEn,
@@ -130,10 +147,12 @@ export async function significantAccounts(engagementId: string): Promise<Signifi
         closing,
         volume: volumes.get(def.code) ?? 0,
         aboveTe,
+        specificTe,
         defaultStatus,
         status,
         overridden: status !== defaultStatus,
         justification: decisions.get(`${KEY(def.code)}_x`) ?? "",
+        assertions: savedAssertions === "" ? [] : savedAssertions.split(","),
       });
     }
 
@@ -148,20 +167,71 @@ export async function significantAccounts(engagementId: string): Promise<Signifi
   });
 }
 
-/** Persist one index's significance decision and its justification. */
+/** The specific (lower) materiality amounts recorded per lead index. */
+export async function specificThresholds(engagementId: string): Promise<Map<string, number>> {
+  const { tenantId } = await requireTenant();
+  return withTenant(tenantId, async (tx) => {
+    const r = await tx.query<{ field_key: string; value: string }>(
+      `SELECT field_key, value #>> '{}' AS value
+         FROM form_response
+        WHERE engagement_id = $1 AND code = 'wp:D5.1' AND field_key LIKE 'sm\\_%'`,
+      [engagementId],
+    );
+    const out = new Map<string, number>();
+    for (const row of r.rows) {
+      const amount = Number(row.value);
+      if (Number.isFinite(amount) && amount > 0) out.set(row.field_key.slice(3), amount);
+    }
+    return out;
+  });
+}
+
+const ASSERTION_CODES = new Set(["C", "E", "A", "V", "P"]);
+
+/**
+ * Persist one index's significance decision, its justification, the relevant
+ * assertions, and — when given — its specific materiality (stored with the
+ * D5.1 paper, since the threshold belongs to materiality, not to scoping).
+ */
 export async function saveSignificance(
   engagementId: string,
   index: string,
   status: "significant" | "not_significant",
   justification: string,
+  assertions?: string[],
+  specificTe?: string,
 ): Promise<void> {
   const { tenantId, userId } = await requireTenant();
   if (!/^[A-Z0-9]{1,4}$/.test(index)) throw new Error("invalid-index");
+  const assertionValue =
+    assertions === undefined
+      ? undefined
+      : assertions.filter((a) => ASSERTION_CODES.has(a)).join(",");
   await withTenant(tenantId, async (tx) => {
-    for (const [key, value] of [
+    if (specificTe !== undefined) {
+      const cleaned = specificTe.replace(/[^\d.]/g, "");
+      const amount = Number(cleaned);
+      if (cleaned === "" || !Number.isFinite(amount) || amount <= 0) {
+        await tx.query(
+          "DELETE FROM form_response WHERE engagement_id = $1 AND code = 'wp:D5.1' AND field_key = $2",
+          [engagementId, `sm_${index}`],
+        );
+      } else {
+        await tx.query(
+          `INSERT INTO form_response (tenant_id, engagement_id, code, field_key, value, updated_by)
+           VALUES ($1, $2, 'wp:D5.1', $3, to_jsonb($4::text), $5)
+           ON CONFLICT (engagement_id, code, field_key)
+           DO UPDATE SET value = EXCLUDED.value, updated_by = EXCLUDED.updated_by, updated_at = now()`,
+          [tenantId, engagementId, `sm_${index}`, String(Math.round(amount)), userId],
+        );
+      }
+    }
+    const pairs: (readonly [string, string])[] = [
       [KEY(index), status],
       [`${KEY(index)}_x`, justification.trim()],
-    ] as const) {
+    ];
+    if (assertionValue !== undefined) pairs.push([`${KEY(index)}_a`, assertionValue]);
+    for (const [key, value] of pairs) {
       if (value === "") {
         await tx.query(
           "DELETE FROM form_response WHERE engagement_id = $1 AND code = 'wp:D5.8' AND field_key = $2",

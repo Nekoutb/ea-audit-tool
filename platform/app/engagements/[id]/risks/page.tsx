@@ -117,6 +117,22 @@ export default async function RisksPage(props: {
               <div className="flex flex-wrap items-center justify-between gap-2">
                 <p className="font-medium text-ink">
                   {risk.description}
+                  {risk.category ? (
+                    <span
+                      className={`ml-2 inline-flex items-center rounded-[var(--radius-atlas-xs)] px-1.5 py-0.5 text-xs font-semibold ${
+                        risk.category === "fraud"
+                          ? "bg-[var(--color-rose-soft)] text-rose"
+                          : risk.category === "business"
+                            ? "bg-emerald-50 text-emerald-800 dark:bg-emerald-950/40 dark:text-emerald-300"
+                            : "bg-surface text-ink-soft"
+                      }`}
+                      data-testid={`risk-category-${risk.id}`}
+                    >
+                      {locale === "fr"
+                        ? { business: "activité", fraud: "fraude", error: "erreur" }[risk.category]
+                        : { business: "business", fraud: "fraud", error: "error" }[risk.category]}
+                    </span>
+                  ) : null}
                   {risk.presumedType ? (
                     <span className="ml-2 inline-flex items-center rounded-[var(--radius-atlas-xs)] bg-surface px-1.5 py-0.5 text-xs text-ink-soft">
                       {tr.presumed}
@@ -189,6 +205,20 @@ export default async function RisksPage(props: {
                       <input type="hidden" name="controlsReliance_present" value="1" />
                       <input type="checkbox" name="controlsReliance" defaultChecked={risk.controlsReliance} />
                       {tr.controlsReliance}
+                    </label>
+                    <label className="flex flex-col text-xs text-muted">
+                      {locale === "fr" ? "Catégorie" : "Category"}
+                      <select
+                        name="category"
+                        defaultValue={risk.category ?? ""}
+                        className={input}
+                        data-testid={`risk-cat-${risk.presumedType ?? risk.id}`}
+                      >
+                        <option value="">—</option>
+                        <option value="business">{locale === "fr" ? "Risque d'activité" : "Business risk"}</option>
+                        <option value="fraud">{locale === "fr" ? "Fraude" : "Fraud"}</option>
+                        <option value="error">{locale === "fr" ? "Erreur" : "Error"}</option>
+                      </select>
                     </label>
                     <label className="flex flex-col text-xs text-muted">
                       {tr.statusLabel}

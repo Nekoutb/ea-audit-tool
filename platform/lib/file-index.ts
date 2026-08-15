@@ -89,6 +89,7 @@ export const DEFAULT_FILE_INDEX: readonly FileIndexEntry[] = [
   { code: "D9.1", section: "D", titleEn: "Planning Review and Approval Summary", titleFr: "Revue et approbation de la planification", tier: "core" },
   { code: "D9.2", section: "D", titleEn: "Report to Those Charged with Governance - Audit Planning", titleFr: "Rapport aux responsables de la gouvernance - planification de l'audit", tier: "core" },
   { code: "D6.1", section: "D", titleEn: "Documentation of Job Arrangements", titleFr: "Documentation de l'organisation de la mission" },
+  { code: "D6.2", section: "D", titleEn: "Audit Scope and Components (ISA 600)", titleFr: "Perimetre d'audit et composants (ISA 600)", tier: "extended" },
   { code: "D7.1", section: "D", titleEn: "Engagement Team Discussion", titleFr: "Discussion de l'équipe de mission" },
   { code: "D7.2", section: "D", titleEn: "Make Combined Risk Assessments (Risk Register)", titleFr: "Établir l'évaluation combinée des risques (registre des risques)" },
 
@@ -191,6 +192,7 @@ const SHORT_TITLES: Record<string, { en: string; fr: string }> = {
   "D8.6": { en: "Design Tests of Controls", fr: "Conception des tests de contrôles" },
   "D9.1": { en: "Planning Review & Approval", fr: "Revue & approbation planification" },
   "D9.2": { en: "TCWG Planning Report", fr: "Rapport TCWG planification" },
+  "D6.2": { en: "Scope & Components", fr: "Perimetre & composants" },
   "D6.1": { en: "Job Arrangements", fr: "Organisation de la mission" },
   "D7.1": { en: "Engagement Team Discussion", fr: "Discussion de l'équipe" },
   "D7.2": { en: "Combined Risk Assessments", fr: "Évaluation combinée des risques" },

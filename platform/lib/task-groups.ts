@@ -44,7 +44,7 @@ export const TASK_GROUPS: TaskGroupDef[] = [
 
   // ---- Planning & Risk Identification ----
   { id: "p1", code: "P1", section: "acceptance", titleEn: "Acceptance & Continuance", titleFr: "Acceptation & maintien", members: ["D3.1", "D3.4", "D3.3", "D3.5", "D3.6"] },
-  { id: "p2", code: "P2", section: "acceptance", titleEn: "Independence & Team", titleFr: "Indépendance & équipe", members: ["D3.2", "D6.1"] },
+  { id: "p2", code: "P2", section: "acceptance", titleEn: "Independence & Team", titleFr: "Indépendance & équipe", members: ["D3.2", "D6.1", "D6.2"] },
   { id: "p3", code: "P3", section: "acceptance", titleEn: "Understand the Business", titleFr: "Comprendre l'activité", members: ["D4.2", "D4.3"] },
   { id: "p4", code: "P4", section: "acceptance", titleEn: "Entity-Level Controls & IT", titleFr: "Contrôles de l'entité & informatique", members: ["D4.4", "D4.5", "D4.6"] },
   { id: "p5", code: "P5", section: "acceptance", titleEn: "Fraud Risks & Team Discussion", titleFr: "Risques de fraude & discussion d'équipe", members: ["D5.4", "D7.1"] },

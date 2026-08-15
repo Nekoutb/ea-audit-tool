@@ -147,6 +147,7 @@ const D6_1: PaperDef = {
         { key: "framework", en: "Determine whether the team has applied the entity's financial reporting framework before, and record where that experience was obtained.", fr: "Déterminer si l'équipe a déjà appliqué le référentiel comptable de l'entité et consigner où cette expérience a été acquise.", srcEn: "Staff records · prior files · training records", srcFr: "Dossiers du personnel · dossiers antérieurs · registre de formation" },
         { key: "expert", en: "Identify the specialised areas that require an auditor's expert, such as valuations, actuarial work, tax or information technology. Record the area and why the team cannot cover it.", fr: "Identifier les domaines spécialisés requérant un expert de l'auditeur, tels que les évaluations, l'actuariat, la fiscalité ou l'informatique. Consigner le domaine et la raison pour laquelle l'équipe ne peut le couvrir.", srcEn: "Prior year file · discussion with the engagement partner", srcFr: "Dossier antérieur · échange avec l'associé responsable" },
         { key: "expertev", en: "Where an expert is required, obtain evidence of that expert's competence, capability and objectivity, and agree the nature, scope and objectives of the work in writing.", fr: "Lorsqu'un expert est requis, obtenir les éléments attestant de sa compétence, de sa capacité et de son objectivité, et convenir par écrit de la nature, de l'étendue et des objectifs des travaux.", srcEn: "Expert's professional credentials · written terms with the expert · independence confirmation", srcFr: "Titres professionnels de l'expert · termes écrits convenus · confirmation d'indépendance" },
+        { key: "mgmt_expert", en: "Determine whether the entity employs or has engaged its own experts — valuers, actuaries, legal counsel, engineers — whose work feeds the financial statements, and whether we can use that work as audit evidence: evaluate each expert's competence, capability and objectivity (ISA 500 ¶8).", fr: "Déterminer si l'entité emploie ou a mandaté ses propres experts — évaluateurs, actuaires, conseils juridiques, ingénieurs — dont les travaux alimentent les états financiers, et si nous pouvons utiliser ces travaux comme éléments probants : apprécier la compétence, la capacité et l'objectivité de chaque expert (ISA 500 ¶8).", srcEn: "Inquiry of management · expert's report and credentials · engagement terms with the expert", srcFr: "Entretien avec la direction · rapport et titres de l'expert · termes de la mission de l'expert" },
         { key: "hours", en: "Compare the budgeted hours by grade against the reporting deadline and against the prior period outturn. Record the effect of any shortfall.", fr: "Comparer les heures budgétées par grade à l'échéance de reporting et au réalisé de l'exercice précédent. Consigner l'effet de tout écart défavorable.", srcEn: "Budget · prior period time records · agreed timetable", srcFr: "Budget · temps passés de l'exercice précédent · calendrier convenu" },
         { key: "tech", en: "Determine the technology the engagement needs, including audit software, data analysis tools and the confirmation platform, and confirm access is in place before fieldwork begins.", fr: "Déterminer les moyens technologiques nécessaires, y compris le logiciel d'audit, les outils d'analyse de données et la plateforme de circularisation, et confirmer que les accès sont ouverts avant le début des travaux.", srcEn: "Firm IT function · licence records", srcFr: "Service informatique du cabinet · registre des licences" },
         { key: "action", en: "Where the resources required are not available, record the action taken: reallocation, recruitment, use of an expert, or renegotiation of the timetable with the entity.", fr: "Lorsque les ressources requises ne sont pas disponibles, consigner l'action retenue : réaffectation, recrutement, recours à un expert, ou renégociation du calendrier avec l'entité.", srcEn: "Firm resource plan · correspondence with the entity", srcFr: "Plan de charge du cabinet · correspondance avec l'entité" },
@@ -588,7 +589,62 @@ const D3_6: PaperDef = {
   ],
 };
 
+/* ---------------------------------------------------------------- D6.2 --- */
+// The scope of the audit when the entity is more than one place: branches,
+// subsidiaries, sites whose figures reach the financial statements. Scoped to
+// complex engagements — a single-site SARL never sees it.
+const D6_2: PaperDef = {
+  std: "ISA 600 (Revised) ¶17–31 · ISA 300 ¶8",
+  ownsEn: "the components in scope and the work planned at each",
+  ownsFr: "les composants inclus dans le périmètre et les travaux prévus sur chacun",
+  reqEn: [
+    "Where the financial statements include the financial information of components — branches, subsidiaries, divisions or other locations — the auditor determines the components on which work is to be performed, the nature of that work, and the involvement of any component auditor (ISA 600 (Revised)).",
+    "A component is scoped in for its significance to the group figures or for its assessed risk, not for its convenience. For components where no specific work is planned, analytical procedures at the aggregated level respond to the residual risk.",
+    "Where another auditor performs work on a component, the group auditor directs and supervises that work, evaluates its adequacy, and communicates the matters required — the group auditor's responsibility is not reduced by delegation.",
+  ],
+  reqFr: [
+    "Lorsque les états financiers comprennent l'information financière de composants — succursales, filiales, divisions ou autres sites — l'auditeur détermine les composants sur lesquels des travaux seront réalisés, la nature de ces travaux et l'implication de tout auditeur de composant (ISA 600 (Révisée)).",
+    "Un composant entre dans le périmètre pour son importance dans les chiffres d'ensemble ou pour son risque évalué, non pour sa commodité. Pour les composants sans travaux spécifiques, des procédures analytiques au niveau agrégé répondent au risque résiduel.",
+    "Lorsqu'un autre auditeur intervient sur un composant, l'auditeur du groupe dirige et supervise ces travaux, en apprécie le caractère suffisant et communique les points requis — la responsabilité de l'auditeur du groupe n'est pas réduite par la délégation.",
+  ],
+  conclEn: [
+    "The components within the scope of the audit have been identified, the work at each is planned in proportion to its significance and risk, and any component auditor's involvement is directed and supervised.",
+  ],
+  conclFr: [
+    "Les composants du périmètre d'audit ont été identifiés, les travaux sur chacun sont proportionnés à son importance et à son risque, et l'intervention de tout auditeur de composant est dirigée et supervisée.",
+  ],
+  sections: [
+    {
+      kind: "proc",
+      titleEn: "Part A — Procedures and expected sources",
+      titleFr: "Partie A — Procédures et sources attendues",
+      introEn: "Perform each procedure and record the result with the reference of the evidence filed.",
+      introFr: "Mettre en œuvre chaque procédure et consigner le résultat avec la référence des éléments classés.",
+      procs: [
+        { key: "map", en: "List every component whose financial information reaches the financial statements: branches, subsidiaries, sites, divisions. Record for each its location, its activity, and the balances or flows it contributes.", fr: "Recenser chaque composant dont l'information financière alimente les états financiers : succursales, filiales, sites, divisions. Consigner pour chacun sa localisation, son activité et les soldes ou flux qu'il apporte.", srcEn: "Group structure · consolidation schedules · management reports", srcFr: "Organigramme du groupe · tableaux de consolidation · rapports de gestion" },
+        { key: "significance", en: "Determine which components are significant, by their share of the entity's totals or by the risks they carry, and record the threshold or reasoning applied.", fr: "Déterminer les composants importants, par leur part dans les totaux de l'entité ou par les risques qu'ils portent, et consigner le seuil ou le raisonnement appliqué.", srcEn: "Consolidation schedules vs materiality (D5.1)", srcFr: "Tableaux de consolidation vs seuil (D5.1)" },
+        { key: "work", en: "Set the work to be performed at each component: an audit of its financial information, specified procedures on particular balances, or analytical procedures at the aggregated level — and record why that response fits the component's significance and risk.", fr: "Arrêter les travaux à réaliser sur chaque composant : audit de son information financière, procédures spécifiées sur des soldes déterminés, ou procédures analytiques au niveau agrégé — et consigner pourquoi cette réponse correspond à son importance et à son risque.", srcEn: "Component risk profile · D7.2", srcFr: "Profil de risque du composant · D7.2" },
+        { key: "auditors", en: "Where a component auditor is involved, record who they are, evaluate their competence and independence, and set how their work will be directed, supervised and reviewed, including the materiality allocated to them.", fr: "Lorsqu'un auditeur de composant intervient, consigner son identité, apprécier sa compétence et son indépendance, et fixer comment ses travaux seront dirigés, supervisés et revus, y compris le seuil qui lui est alloué.", srcEn: "Component auditor confirmations · group instructions", srcFr: "Confirmations de l'auditeur de composant · instructions du groupe" },
+        { key: "access", en: "Confirm access to the components' records and people, including any restriction from a different jurisdiction, and record how a restriction is overcome or its effect on the opinion.", fr: "Confirmer l'accès aux livres et aux personnes des composants, y compris toute restriction tenant à une autre juridiction, et consigner comment une restriction est levée ou son incidence sur l'opinion.", srcEn: "Engagement letter · correspondence with component management", srcFr: "Lettre de mission · correspondance avec la direction du composant" },
+      ],
+    },
+    {
+      kind: "yn",
+      titleEn: "Part B — Scoping confirmations",
+      titleFr: "Partie B — Confirmations de périmètre",
+      introEn: "Answer each item. Explain a “No” in the field beneath it.",
+      introFr: "Répondre à chaque point. Expliquer un « Non » dans le champ situé dessous.",
+      items: [
+        { key: "coverage", en: "The components scoped in account for the predominant part of each significant account, or the residual is addressed by analytical procedures.", fr: "Les composants retenus couvrent l'essentiel de chaque compte significatif, ou le résidu est traité par procédures analytiques." },
+        { key: "risk_led", en: "No component with a significant risk has been left outside the scope of specific work.", fr: "Aucun composant porteur d'un risque important n'est resté hors du périmètre de travaux spécifiques." },
+        { key: "directed", en: "Any component auditor's work is directed and supervised by this team, with the communications required by ISA 600 recorded.", fr: "Les travaux de tout auditeur de composant sont dirigés et supervisés par la présente équipe, avec les communications requises par l'ISA 600 consignées.", na: true },
+      ],
+    },
+  ],
+};
+
 export const ACCEPTANCE_PAPERS: Record<string, PaperDef> = {
+  "D6.2": D6_2,
   "D3.1": D3_1,
   "D6.1": D6_1,
   "D3.2": D3_2,

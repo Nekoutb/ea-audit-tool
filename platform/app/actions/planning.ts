@@ -390,6 +390,12 @@ export async function updateRiskAction(engagementId: string, riskId: string, for
       significant: checkbox("significant"),
       controlsReliance: checkbox("controlsReliance"),
       status: (formData.get("status") ? String(formData.get("status")) : undefined) as RiskStatus | undefined,
+      category: (() => {
+        const raw = formData.get("category");
+        if (raw === null) return undefined;
+        const value = String(raw);
+        return value === "business" || value === "fraud" || value === "error" ? value : null;
+      })(),
     }),
   );
 }

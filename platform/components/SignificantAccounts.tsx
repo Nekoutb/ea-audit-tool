@@ -13,13 +13,18 @@ import { GRID_CELL, GRID_COMMENT_INPUT, GRID_HEAD, GRID_NUM } from "@/components
 type Unit = "fcfa" | "k" | "m";
 
 const COLS = [
-  { width: "56px" },  // index
-  { width: "210px" }, // description
-  { width: "120px" }, // closing
-  { width: "78px" },  // volume
-  { width: "128px" }, // status
+  { width: "48px" },  // index
+  { width: "168px" }, // description
+  { width: "108px" }, // closing
+  { width: "58px" },  // volume
+  { width: "84px" },  // specific TE
+  { width: "96px" },  // assertions
+  { width: "104px" }, // status
   { width: undefined }, // justification
 ];
+
+/** the assertion set used across the tool: Completeness, Existence, Accuracy, Valuation, Presentation */
+const ASSERTION_CODES = ["C", "E", "A", "V", "P"] as const;
 
 export function SignificantAccounts({
   engagementId,
@@ -40,15 +45,36 @@ export function SignificantAccounts({
     return new Intl.NumberFormat("fr-FR", { maximumFractionDigits: unit === "m" ? 2 : 0 }).format(v);
   };
 
-  async function save(index: string, status: "significant" | "not_significant", justification: string) {
+  async function save(
+    index: string,
+    status: "significant" | "not_significant",
+    justification: string,
+    assertions?: string[],
+    specificTe?: string,
+  ) {
     setSaving((s) => ({ ...s, [index]: "pending" }));
     const response = await fetch(`/api/engagements/${engagementId}/significance`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ index, status, justification }),
+      body: JSON.stringify({ index, status, justification, assertions, specificTe }),
     }).catch(() => null);
     setSaving((s) => ({ ...s, [index]: response?.ok ? "saved" : "error" }));
     if (response?.ok) setTimeout(() => setSaving((s) => ({ ...s, [index]: undefined as never })), 2000);
+  }
+
+  // a specific TE changes the default: recompute the row's screen state locally
+  function applySpecific(index: string, raw: string) {
+    const amount = Number(raw.replace(/[^\d.]/g, ""));
+    const specificTe = raw.trim() !== "" && Number.isFinite(amount) && amount > 0 ? Math.round(amount) : null;
+    setRows((rs) =>
+      rs.map((r) => {
+        if (r.index !== index) return r;
+        const threshold = specificTe ?? view.tolerableError;
+        const aboveTe = threshold !== null && Math.abs(r.closing) > threshold;
+        const defaultStatus = aboveTe ? ("significant" as const) : ("not_significant" as const);
+        return { ...r, specificTe, aboveTe, defaultStatus, overridden: r.status !== defaultStatus };
+      }),
+    );
   }
 
   const unjustified = rows.filter((r) => r.status !== r.defaultStatus && r.justification.trim() === "").length;
@@ -89,6 +115,14 @@ export function SignificantAccounts({
             {unjustified} {fr ? "dérogation(s) à justifier" : "override(s) awaiting justification"}
           </span>
         ) : null}
+        {(() => {
+          const missing = rows.filter((r) => r.status === "significant" && r.assertions.length === 0).length;
+          return missing > 0 ? (
+            <span className="text-[11px] font-semibold text-warn" data-testid="sa-no-assertions">
+              {missing} {fr ? "compte(s) significatif(s) sans assertions" : "significant account(s) without assertions"}
+            </span>
+          ) : null;
+        })()}
         <span className="ml-auto flex items-center gap-1.5">{unitBtn("fcfa", "FCFA")}{unitBtn("k", "'000")}{unitBtn("m", "Millions")}</span>
       </div>
 
@@ -105,6 +139,12 @@ export function SignificantAccounts({
               <th className={`${GRID_CELL} text-left`}>{fr ? "Libellé de l'indice" : "Index description"}</th>
               <th className={GRID_NUM}>{fr ? "Solde de clôture" : "Closing balance"}</th>
               <th className={GRID_NUM}>{fr ? "Volume" : "Volume"}</th>
+              <th className={`${GRID_NUM} whitespace-normal`} title={fr ? "Seuil spécifique inférieur à l'erreur tolérable (ISA 320 ¶10)" : "Specific materiality below tolerable error (ISA 320 ¶10)"}>
+                {fr ? "Seuil spécif." : "Specific TE"}
+              </th>
+              <th className={`${GRID_CELL} text-left`} title={fr ? "Assertions pertinentes : Exhaustivité, Existence, Exactitude, Valorisation, Présentation" : "Relevant assertions: Completeness, Existence, Accuracy, Valuation, Presentation"}>
+                {fr ? "Assertions" : "Assertions"}
+              </th>
               <th className={`${GRID_CELL} text-left`}>{fr ? "Statut" : "Account status"}</th>
               <th className={`${GRID_CELL} text-left`}>{fr ? "Justification" : "Justification"}</th>
             </tr>
@@ -127,6 +167,53 @@ export function SignificantAccounts({
                     {fmt(row.closing)}
                   </td>
                   <td className={GRID_NUM} data-testid={`sa-volume-${row.index}`}>{row.volume || "—"}</td>
+                  <td className={`${GRID_NUM} p-0`}>
+                    <input
+                      defaultValue={row.specificTe !== null ? String(row.specificTe) : ""}
+                      inputMode="numeric"
+                      placeholder="—"
+                      title={fr ? "Seuil spécifique pour cet indice (FCFA), vide = erreur tolérable" : "Specific threshold for this index (FCFA), empty = tolerable error"}
+                      data-testid={`sa-specte-${row.index}`}
+                      onChange={(e) => applySpecific(row.index, e.target.value)}
+                      onBlur={(e) => {
+                        const current = rows.find((r) => r.index === row.index);
+                        void save(row.index, current?.status ?? row.status, current?.justification ?? row.justification, undefined, e.target.value);
+                      }}
+                      className={`${GRID_COMMENT_INPUT} text-right tnum`}
+                    />
+                  </td>
+                  <td className={`${GRID_CELL} p-0`}>
+                    <span className="flex items-center gap-[2px] px-1" data-testid={`sa-assert-${row.index}`}>
+                      {ASSERTION_CODES.map((code) => {
+                        const active = row.assertions.includes(code);
+                        return (
+                          <button
+                            key={code}
+                            type="button"
+                            data-testid={`sa-assert-${row.index}-${code}`}
+                            data-active={String(active)}
+                            title={
+                              { C: fr ? "Exhaustivité" : "Completeness", E: fr ? "Existence" : "Existence", A: fr ? "Exactitude" : "Accuracy", V: fr ? "Valorisation" : "Valuation", P: fr ? "Présentation" : "Presentation" }[code]
+                            }
+                            onClick={() => {
+                              const next = active
+                                ? row.assertions.filter((a) => a !== code)
+                                : [...row.assertions, code];
+                              setRows((rs) => rs.map((r) => (r.index === row.index ? { ...r, assertions: next } : r)));
+                              void save(row.index, row.status, row.justification, next);
+                            }}
+                            className={`h-[15px] w-[15px] rounded-[3px] text-[9px] font-bold leading-none transition ${
+                              active
+                                ? "bg-emerald-700 text-white"
+                                : "border border-line text-muted hover:border-emerald-600"
+                            }`}
+                          >
+                            {code}
+                          </button>
+                        );
+                      })}
+                    </span>
+                  </td>
                   <td className={`${GRID_CELL} whitespace-normal p-0 align-top`}>
                     <select
                       value={row.status}
@@ -187,6 +274,8 @@ export function SignificantAccounts({
               <td className={GRID_CELL}>{rows.length} {fr ? "indices" : "indexes"}</td>
               <td className={GRID_NUM}>{fmt(rows.reduce((s, r) => s + r.closing, 0))}</td>
               <td className={GRID_NUM}>{rows.reduce((s, r) => s + r.volume, 0) || "—"}</td>
+              <td className={GRID_CELL} />
+              <td className={GRID_CELL} />
               <td className={GRID_CELL} />
               <td className={GRID_CELL} />
             </tr>

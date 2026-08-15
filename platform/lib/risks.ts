@@ -41,6 +41,8 @@ export interface Risk {
   substantiveAloneInsufficient: boolean;
   controlsReliance: boolean;
   status: RiskStatus;
+  /** the deck's risk taxonomy: where the risk comes from */
+  category: "business" | "fraud" | "error" | null;
   presumedType: "revenue_fraud" | "mgmt_override" | null;
   rebutted: boolean;
   addedAfterPlanning: boolean;
@@ -92,8 +94,8 @@ export async function seedPresumedRisks(
   for (const entry of seed) {
     const risk = await tx.query<{ id: string }>(
       `INSERT INTO risk (tenant_id, engagement_id, description, level, likelihood, magnitude,
-                         significant, presumed_type, source)
-       VALUES ($1, $2, $3, 'assertion', 'high', 'high', true, $4, 'Auto-seeded (ISA 240)')
+                         significant, presumed_type, source, category)
+       VALUES ($1, $2, $3, 'assertion', 'high', 'high', true, $4, 'Auto-seeded (ISA 240)', 'fraud')
        RETURNING id`,
       [tenantId, engagementId, entry.description, entry.presumed],
     );
@@ -203,6 +205,7 @@ export async function listRisks(engagementId: string): Promise<Risk[]> {
       substantive_alone_insufficient: boolean;
       controls_reliance: boolean;
       status: RiskStatus;
+      category: Risk["category"];
       presumed_type: Risk["presumedType"];
       rebutted: boolean;
       added_after_planning: boolean;
@@ -211,7 +214,7 @@ export async function listRisks(engagementId: string): Promise<Risk[]> {
       linked_steps: string;
     }>(
       `SELECT r.id, r.description, r.source, r.level, r.likelihood, r.magnitude, r.significant,
-              r.substantive_alone_insufficient, r.controls_reliance, r.status, r.presumed_type,
+              r.substantive_alone_insufficient, r.controls_reliance, r.status, r.category, r.presumed_type,
               r.rebutted, r.added_after_planning, r.addition_approved_by,
               (SELECT json_agg(json_build_object(
                  'fileItemId', fi.id, 'code', fi.code, 'titleEn', fi.title_en,
@@ -236,6 +239,7 @@ export async function listRisks(engagementId: string): Promise<Risk[]> {
       substantiveAloneInsufficient: row.substantive_alone_insufficient,
       controlsReliance: row.controls_reliance,
       status: row.status,
+      category: row.category,
       presumedType: row.presumed_type,
       rebutted: row.rebutted,
       addedAfterPlanning: row.added_after_planning,
@@ -257,6 +261,7 @@ export async function updateRisk(
     substantiveAloneInsufficient?: boolean;
     controlsReliance?: boolean;
     status?: RiskStatus;
+    category?: "business" | "fraud" | "error" | null;
   },
 ): Promise<void> {
   const { tenantId } = await requireTenant();
@@ -282,7 +287,8 @@ export async function updateRisk(
          significant = coalesce($6, significant),
          substantive_alone_insufficient = coalesce($7, substantive_alone_insufficient),
          controls_reliance = coalesce($8, controls_reliance),
-         status = coalesce($9, status)
+         status = coalesce($9, status),
+         category = CASE WHEN $10::boolean THEN $11 ELSE category END
        WHERE id = $1`,
       [
         riskId,
@@ -294,6 +300,8 @@ export async function updateRisk(
         patch.substantiveAloneInsufficient ?? null,
         patch.controlsReliance ?? null,
         patch.status ?? null,
+        patch.category !== undefined,
+        patch.category ?? null,
       ],
     );
   });

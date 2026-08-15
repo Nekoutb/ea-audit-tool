@@ -27,7 +27,7 @@ import { PlanningRas } from "@/components/PlanningRas";
 import { SECTION_A, SECTION_B, SECTION_C, SIGNATURE_ROLES, planningRas } from "@/lib/planning-ras";
 import { atLeast, isRole } from "@/lib/rbac";
 import { listTaskNotes } from "@/lib/task-notes";
-import { significantAccounts } from "@/lib/significant-accounts";
+import { significantAccounts, specificThresholds } from "@/lib/significant-accounts";
 import { SubmitButton } from "@/components/SubmitButton";
 import { TaskAttachments } from "@/components/TaskAttachments";
 import { WorkingPaper } from "@/components/WorkingPaper";
@@ -111,6 +111,8 @@ export default async function SectionPage(props: {
     if (m) {
       const n = (x: number) => new Intl.NumberFormat("fr-FR").format(x);
       autoValues.benchmark = `${m.benchmark} · ${m.percentage}% × ${n(m.benchmarkAmount)} → PM ${n(m.overall)} · TE ${n(m.performance)} · SAD ${n(m.trivial)} FCFA (${m.status}${m.approvedByName ? " · " + m.approvedByName : ""})`;
+      const sm = await specificThresholds(id);
+      if (sm.size > 0) autoValues.benchmark += ` · ${sm.size} specific threshold${sm.size > 1 ? "s" : ""} (P6.2)`;
     }
   }
   let campaign: Awaited<ReturnType<typeof listConfirmations>> = [];
