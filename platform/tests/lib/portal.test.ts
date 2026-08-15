@@ -148,7 +148,7 @@ describe("9.1/9.2 PBC flow: requested → uploaded → accepted + attach", () =>
   });
 
   it("the firm accepts and attaches the upload as a working-paper document", async () => {
-    const e100 = (await listFileItems(engagementId)).find((item) => item.code === "E100")!.id;
+    const e100 = (await listFileItems(engagementId)).find((item) => item.code === "E4.1")!.id;
     const documentId = await acceptPbc(itemId, e100);
     expect(documentId).toBeTruthy();
     const doc = await admin.query<{ kind: string; title: string }>(
@@ -164,7 +164,7 @@ describe("9.1/9.2 PBC flow: requested → uploaded → accepted + attach", () =>
 });
 
 describe("9.3/9.4/9.5 dashboards", () => {
-  it("engagement dashboard aggregates steps, risks, B5 and PBC", async () => {
+  it("engagement dashboard aggregates steps, risks, C1.1 and PBC", async () => {
     const dash = await engagementDashboard(engagementId);
     expect(dash.phase).toBe("acceptance");
     expect(dash.risks.identified).toBe(2); // presumed ISA 240 pair
@@ -212,7 +212,7 @@ describe("9.7 performance", () => {
   }, 60_000);
 
   it("regenerates a lead schedule under the 10s budget", async () => {
-    const e100 = (await listFileItems(engagementId)).find((item) => item.code === "E100")!.id;
+    const e100 = (await listFileItems(engagementId)).find((item) => item.code === "E4.1")!.id;
     const started = Date.now();
     const result = await generateLeadSchedule(e100, "en");
     const elapsed = Date.now() - started;

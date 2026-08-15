@@ -40,7 +40,7 @@ test("Phase 8: deadlines → conventions/rapport spécial → alerte → equity 
   const engagementUrl = page.url().replace(/\/team$/, "");
   await page.goto(engagementUrl);
 
-  // Loss-making balanced TB for the F7 equity monitor (equity 2M vs capital 10M).
+  // Loss-making balanced TB for the C5.8 equity monitor (equity 2M vs capital 10M).
   await page.goto(`${engagementUrl}/data`);
   await page.getByTestId("tb-file").setInputFiles({
     name: "tb-2025.csv",
@@ -61,7 +61,7 @@ test("Phase 8: deadlines → conventions/rapport spécial → alerte → equity 
   await page.getByTestId("tb-upload").click();
   await expect(page.getByTestId("tb-import-status")).toContainText("valid");
 
-  // --- F1: statutory deadlines calendar ---
+  // --- C5.2: statutory deadlines calendar ---
   await page.goto(`${engagementUrl}/legal`);
   await page.waitForURL("**/legal");
   await page.getByTestId("generate-deadlines").click();
@@ -70,7 +70,7 @@ test("Phase 8: deadlines → conventions/rapport spécial → alerte → equity 
   await page.getByTestId("deadline-done-continuing_conventions_notice").click();
   await expect(page.getByTestId("deadlines-table")).toContainText("✓");
 
-  // --- F2: convention without board authorization → art. 447 flag ---
+  // --- C5.3: convention without board authorization → art. 447 flag ---
   await page.getByTestId("conv-parties").fill(`${clientName} / Immo SCI`);
   await page.getByTestId("conv-interested").fill("M. Dupont");
   await page.getByTestId("conv-nature").fill("Bail commercial du siège");
@@ -84,13 +84,13 @@ test("Phase 8: deadlines → conventions/rapport spécial → alerte → equity 
   await page.waitForURL("**/documents/**");
   await expect(page.locator("h1")).toContainText(/Rapport spécial/i);
 
-  // --- F3: article 715 report ---
+  // --- C5.4: article 715 report ---
   await page.goto(`${engagementUrl}/legal`);
   await page.getByTestId("article-715").click();
   await page.waitForURL("**/documents/**");
   await expect(page.locator("h1")).toContainText(/715/);
 
-  // --- F4: SA alerte walkthrough ---
+  // --- C5.5: SA alerte walkthrough ---
   await page.goto(`${engagementUrl}/legal`);
   await page.getByTestId("alerte-note").fill("Pertes récurrentes et trésorerie insuffisante.");
   await page.getByTestId("start-alerte").click();
@@ -101,12 +101,12 @@ test("Phase 8: deadlines → conventions/rapport spécial → alerte → equity 
   await page.getByTestId("advance-alerte").click();
   await expect(page.getByTestId("alerte-stage")).toContainText(/Board invited/i);
 
-  // --- F6: titres nominatifs attestation ---
+  // --- C5.7: titres nominatifs attestation ---
   await page.getByTestId("titres-attestation").click();
   await page.waitForURL("**/documents/**");
   await expect(page.locator("h1")).toContainText(/titres nominatifs/i);
 
-  // --- F7: equity < half of capital raises the EGM workflow ---
+  // --- C5.8: equity < half of capital raises the EGM workflow ---
   await page.goto(`${engagementUrl}/legal`);
   await page.getByTestId("share-capital").fill("10000000");
   await page.getByTestId("save-capital").click();
@@ -114,7 +114,7 @@ test("Phase 8: deadlines → conventions/rapport spécial → alerte → equity 
   await expect(page.getByTestId("equity-breach")).toBeVisible();
   await expect(page.getByTestId("deadlines-table")).toContainText(/EGM on equity/i);
 
-  // --- F5: fait délictueux (partner-only) → révélation letter ---
+  // --- C5.6: fait délictueux (partner-only) → révélation letter ---
   await page.getByTestId("fait-description").fill("Détournement présumé de recettes en espèces.");
   await page.getByTestId("reveal-fait").click();
   await page.waitForURL("**/documents/**");

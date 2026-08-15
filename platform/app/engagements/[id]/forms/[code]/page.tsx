@@ -37,11 +37,11 @@ export async function generateMetadata(props: { params: Promise<{ code: string }
 }
 
 async function subRegisters(engagementId: string, code: string) {
-  if (code !== "D5.6" && code !== "D5.7") return { parties: [], estimates: [] };
+  if (code !== "S3.4" && code !== "S3.5") return { parties: [], estimates: [] };
   const { tenantId } = await requireTenant();
   return withTenant(tenantId, async (tx) => {
     const parties =
-      code === "D5.6"
+      code === "S3.4"
         ? (
             await tx.query<{ id: string; name: string; relationship: string; notes: string | null; carried_forward: boolean }>(
               "SELECT id, name, relationship, notes, carried_forward FROM related_party WHERE engagement_id = $1 ORDER BY name",
@@ -50,7 +50,7 @@ async function subRegisters(engagementId: string, code: string) {
           ).rows
         : [];
     const estimates =
-      code === "D5.7"
+      code === "S3.5"
         ? (
             await tx.query<{ id: string; nature: string; method: string | null; uncertainty: string | null }>(
               "SELECT id, nature, method, uncertainty FROM accounting_estimate WHERE engagement_id = $1 ORDER BY created_at",
@@ -443,9 +443,9 @@ export default async function FormPage(props: {
         )}
       </Panel>
 
-      {code === "D5.6" ? (
+      {code === "S3.4" ? (
         <Panel>
-          <PanelHeader title={`${t.fileIndex.title} — D5.6`} />
+          <PanelHeader title={`${t.fileIndex.title} — S3.4`} />
           <ul className="mt-4 flex flex-col gap-2 text-sm" data-testid="related-parties">
             {registers.parties.map((party) => (
               <li
@@ -469,7 +469,7 @@ export default async function FormPage(props: {
         </Panel>
       ) : null}
 
-      {code === "D5.7" ? (
+      {code === "S3.5" ? (
         <Panel>
           <ul className="flex flex-col gap-2 text-sm" data-testid="estimates">
             {registers.estimates.map((estimate) => (

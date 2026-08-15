@@ -1,7 +1,7 @@
 import { expect, test, type Page } from "@playwright/test";
 
 // Phase 5 acceptance (spec §17): each engine runs on demo datasets producing
-// indexed working papers; a projected misstatement lands in B5 automatically.
+// indexed working papers; a projected misstatement lands in C1.1 automatically.
 
 const EMAIL = "alice@firm-a.test";
 const PASSWORD = "password";
@@ -15,7 +15,7 @@ async function login(page: Page): Promise<void> {
   await page.waitForURL("**/dashboard");
 }
 
-test("Phase 5: engines run on demo data; projected misstatement lands in B5", async ({ page }) => {
+test("Phase 5: engines run on demo data; projected misstatement lands in C1.1", async ({ page }) => {
   test.setTimeout(300_000);
   await login(page);
 
@@ -76,9 +76,9 @@ test("Phase 5: engines run on demo data; projected misstatement lands in B5", as
   await page.getByTestId("dataset-upload").click();
   await expect(page.getByTestId("analyzer-datasets")).toContainText("ar.csv");
 
-  // E100 workspace: run sampling (MUS, seeded) → run recorded + output document.
+  // E4.1 workspace: run sampling (MUS, seeded) → run recorded + output document.
   await page.goto(engagementUrl);
-  await page.getByTestId("open-section-E100").click();
+  await page.getByTestId("open-section-E4.1").click();
   await page.waitForURL("**/sections/**");
   const sectionUrl = page.url();
   await page.getByTestId("sampling-method").selectOption("mus");
@@ -87,17 +87,17 @@ test("Phase 5: engines run on demo data; projected misstatement lands in B5", as
   await page.getByTestId("run-sampling").click();
   await expect(page.getByTestId("engine-runs")).toContainText("sampling");
 
-  // Evaluate the sample → projected misstatement auto-raised to B5 (5.3).
+  // Evaluate the sample → projected misstatement auto-raised to C1.1 (5.3).
   await page.locator("[data-testid^=evaluate-input-]").first().fill("800000");
   await page.locator("[data-testid^=evaluate-run-]").first().click();
   await expect(page.getByTestId("engine-runs")).toContainText("projected");
 
-  // Reconciliation (5.4): 2.6M difference → B4 finding.
+  // Reconciliation (5.4): 2.6M difference → C1.2 finding.
   await page.goto(sectionUrl);
   await page.getByTestId("run-recon").click();
   await expect(page.getByTestId("engine-runs")).toContainText("recon_subledger");
 
-  // Substantive analytics (5.9): unexplained variance → B5.
+  // Substantive analytics (5.9): unexplained variance → C1.1.
   await page.goto(sectionUrl);
   await page.getByTestId("analytic-expectation").fill("5000000");
   await page.getByTestId("analytic-tolerance").fill("1000000");
@@ -105,7 +105,7 @@ test("Phase 5: engines run on demo data; projected misstatement lands in B5", as
   await page.getByTestId("run-analytic").click();
   await expect(page.getByTestId("engine-runs")).toContainText("substantive_analytics");
 
-  // Findings: the projected misstatement is in B5 and the recon diff in B4.
+  // Findings: the projected misstatement is in C1.1 and the recon diff in C1.2.
   await page.goto(`${engagementUrl}/findings`);
   await page.waitForURL("**/findings");
   await expect(page.getByTestId("b5-table")).toContainText("Projected misstatement");

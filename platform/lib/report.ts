@@ -62,7 +62,7 @@ const OPINION_FR: Record<OpinionType, { title: string; body: (client: string, ye
   },
 };
 
-/** Build and file the statutory report (FR) under A1 as kind='report'. */
+/** Build and file the statutory report (FR) under C2.1 as kind='report'. */
 export async function generateAuditReport(input: {
   engagementId: string;
   opinion: OpinionType;
@@ -81,7 +81,7 @@ export async function generateAuditReport(input: {
       a1_id: string;
     }>(
       `SELECT c.name AS client_name, c.listed, c.co_cac, e.fiscal_year,
-              (SELECT id FROM file_item WHERE engagement_id = e.id AND code = 'A1') AS a1_id
+              (SELECT id FROM file_item WHERE engagement_id = e.id AND code = 'C2.1') AS a1_id
          FROM engagement e JOIN client c ON c.id = e.client_id
         WHERE e.id = $1`,
       [input.engagementId],
@@ -127,7 +127,7 @@ export async function generateAuditReport(input: {
         "Nous avons procédé aux vérifications spécifiques prévues par les textes : concordance et sincérité des informations du rapport de gestion (art. 713), respect de l'égalité entre actionnaires (art. 714), détention d'actions par les administrateurs (art. 417). Les irrégularités et inexactitudes relevées, le cas échéant, sont signalées à la plus proche assemblée générale (art. 716).",
       ),
     );
-    // F8 (spec §12.5.10): joint report by the co-CACs; any documented
+    // C5.9 (spec §12.5.10): joint report by the co-CACs; any documented
     // divergence between them is disclosed in the report (art. 719).
     if (row.co_cac) {
       const disagreement = await tx.query<{ data: { text?: string } }>(

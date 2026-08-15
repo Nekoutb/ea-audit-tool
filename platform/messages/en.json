@@ -136,7 +136,7 @@
     "workload": "Workload (open program steps by owner)",
     "mandateExpiries": "Mandate expiries",
     "portfolioRisks": "Portfolio — significant risks",
-    "b5Exposure": "Portfolio — uncorrected B5 exposure",
+    "b5Exposure": "Portfolio — uncorrected C1.1 exposure",
     "exceeds": "EXCEEDS",
     "within": "Within",
     "noMateriality": "no approved materiality",
@@ -191,7 +191,7 @@
     "phase": "Phase",
     "steps": "Program steps",
     "risks": "Risks open / concluded / significant",
-    "b5": "B5 uncorrected vs materiality",
+    "b5": "C1.1 uncorrected vs materiality",
     "unsigned": "Draft documents",
     "pbcOpen": "PBC outstanding",
     "deadlines": "Next statutory deadlines",
@@ -271,11 +271,11 @@
   },
   "considerations": {
     "title": "Planning considerations",
-    "subtitle": "The conditional planning areas (control environment, IT, experts, service organisations, internal audit) in one place. Each applies only when its D1 trigger is answered Yes.",
+    "subtitle": "The conditional planning areas (control environment, IT, experts, service organisations, internal audit) in one place. Each applies only when its S5.1 trigger is answered Yes.",
     "back": "Back to Planning workspace",
     "applicable": "Applicable",
     "notRequired": "Not required",
-    "notRequiredHint": "Not required for this engagement — \"{trigger}\" is answered No (or unanswered) in the D1 strategy driver."
+    "notRequiredHint": "Not required for this engagement — \"{trigger}\" is answered No (or unanswered) in the S5.1 strategy driver."
   },
   "tabGroups": {
     "phases": "Phase work",
@@ -578,7 +578,7 @@
         "closingEquation": "Closing = opening + movements",
         "codification": "SYSCOHADA codification",
         "unknownAccounts": "Unmapped accounts",
-        "openingTiesToPrior": "Opening ties to prior-year closing (E370)"
+        "openingTiesToPrior": "Opening ties to prior-year closing (E6.5)"
       },
       "journals": "Adjusting journals",
       "journalDescription": "Description",
@@ -624,7 +624,7 @@
       "unmapped": "Unmapped accounts"
     },
     "analyticsPage": {
-      "title": "Preliminary analytical review (D4.3)",
+      "title": "Preliminary analytical review (P3.2)",
       "section": "Section",
       "closing": "Closing",
       "prior": "Prior year",
@@ -656,14 +656,14 @@
     "advanceToPlanning": "Advance to planning",
     "closePlanning": "Close planning (snapshot & open execution)",
     "gateNames": {
-      "d31_form_complete": "D3.1 checklist complete and concluded \"accept\"",
-      "d31_partner_signed": "Partner sign-off on D3.1",
+      "d31_form_complete": "P1.1 checklist complete and concluded \"accept\"",
+      "d31_partner_signed": "Partner sign-off on P1.1",
       "independence_complete": "All independence confirmations completed",
       "independence_exceptions_disposed": "Independence exceptions dispositioned by a partner",
       "materiality_approved": "Materiality approved by a partner",
-      "d61_partner_signed": "Partner sign-off on D6.1",
-      "d71_partner_signed": "Partner sign-off on D7.1",
-      "d72_partner_signed": "Partner sign-off on D7.2",
+      "d61_partner_signed": "Partner sign-off on P2.2",
+      "d71_partner_signed": "Partner sign-off on P5.2",
+      "d72_partner_signed": "Partner sign-off on S3.1",
       "significant_risks_linked": "Every significant risk linked to at least one program step",
       "rebuttals_approved": "Rebuttals carry partner approval",
       "material_sections_covered": "Every material section has planned coverage (stand-back)",
@@ -695,7 +695,7 @@
     "letters": {
       "title": "Letters",
       "engagement": "Generate engagement letter",
-      "planningTcwg": "Generate planning communication (C1)",
+      "planningTcwg": "Generate planning communication (C5.1)",
       "open": "Open"
     },
     "mandate": {
@@ -769,7 +769,7 @@
       }
     },
     "driver": {
-      "title": "D1 — Engagement strategy driver",
+      "title": "S5.1 — Engagement strategy driver",
       "form": "Form",
       "status": "Status",
       "statusValues": {
@@ -777,15 +777,15 @@
         "in_progress": "In progress",
         "complete": "Complete",
         "signed": "Signed",
-        "not_required": "Not required (D1 trigger off)"
+        "not_required": "Not required (S5.1 trigger off)"
       }
     },
     "risks": {
-      "potential": "D7.1 — Potential risks",
-      "register": "D7.2 — Risk register",
+      "potential": "P5.2 — Potential risks",
+      "register": "S3.1 — Risk register",
       "dismiss": "Dismiss",
       "dismissRationale": "Dismissal rationale",
-      "promote": "Promote to D7.2",
+      "promote": "Promote to S3.1",
       "source": "Source",
       "likelihood": "Likelihood",
       "magnitude": "Magnitude",
@@ -832,7 +832,7 @@
     },
     "legal": {
       "title": "OHADA legal",
-      "deadlines": "F1 — Statutory deadlines calendar",
+      "deadlines": "C5.2 — Statutory deadlines calendar",
       "generateDeadlines": "Generate / refresh calendar",
       "due": "Due",
       "daysLeft": "Days left",
@@ -850,7 +850,7 @@
         "mandate_expiry": "Mandate expiry (2/6 fiscal years)",
         "egm_equity": "EGM on equity < ½ capital (≤ 4 months)"
       },
-      "conventions": "F2 — Conventions réglementées register",
+      "conventions": "C5.3 — Conventions réglementées register",
       "parties": "Parties",
       "interested": "Interested person",
       "capacity": "Capacity",
@@ -871,8 +871,8 @@
       "addConvention": "Add convention",
       "unauthorized": "Unauthorized (art. 447)",
       "rapportSpecial": "Generate rapport spécial",
-      "article715": "F3 — Generate article 715 report to the board",
-      "alerte": "F4 — Procédure d'alerte",
+      "article715": "C5.4 — Generate article 715 report to the board",
+      "alerte": "C5.5 — Procédure d'alerte",
       "startAlerte": "Start alerte (request for explanations)",
       "stage": "Stage",
       "stageDeadline": "Stage deadline",
@@ -893,7 +893,7 @@
         "discontinued": "Discontinued",
         "resumed": "Resumed"
       },
-      "faits": "F5 — Faits délictueux (partner-only)",
+      "faits": "C5.6 — Faits délictueux (partner-only)",
       "revealFait": "Reveal to the ministère public (art. 716)",
       "faitDescription": "Facts",
       "irregularities": "Irregularities signalement letter",
@@ -902,9 +902,9 @@
       "toBoard": "Board",
       "points": "Points",
       "generateLetter": "Generate letter",
-      "titres": "F6 — Registres de titres nominatifs",
+      "titres": "C5.7 — Registres de titres nominatifs",
       "generateAttestation": "Generate attestation (art. 746-2)",
-      "equity": "F7 — Equity vs half of share capital",
+      "equity": "C5.8 — Equity vs half of share capital",
       "shareCapital": "Share capital (FCFA)",
       "saveCapital": "Save",
       "runEquityCheck": "Run check on final TB",
@@ -912,7 +912,7 @@
       "halfCapital": "Half of capital",
       "equityBreach": "BREACH — statutory EGM workflow raised (arts. 664-669 / 371-373)",
       "equityOk": "Above half of share capital",
-      "cocac": "F8 — Co-CAC coordination",
+      "cocac": "C5.9 — Co-CAC coordination",
       "worksplit": "Work split (balanced, rotated across the mandate)",
       "crossreview": "Cross-review of the other CAC's work",
       "disagreement": "Disagreement to disclose in the joint report (art. 719)",
@@ -921,19 +921,19 @@
     },
     "conclusion": {
       "title": "Conclusion",
-      "gates": "B1 completion gates",
+      "gates": "C4.1 completion gates",
       "gateNames": {
         "sections_concluded": "All worked E-sections concluded and reviewed; no open program steps",
         "risks_concluded": "All risks concluded; mid-audit additions partner-approved",
         "b5_within_materiality": "Uncorrected misstatements within final materiality",
-        "final_analytical_review": "Final analytical review performed (A1)",
+        "final_analytical_review": "Final analytical review performed (C2.1)",
         "fs_tieout_passed": "FS tie-out passed (Bilan equilibrium + CR cascade)",
         "disclosure_checklist": "SYSCOHADA disclosure checklist (Notes 1–36) completed",
         "subsequent_events": "Subsequent events reviewed to the report date (ISA 560)",
-        "rep_letters_generated": "Both OHADA representation letters generated (B8)",
-        "b4_cleared": "All B4 significant matters cleared",
-        "b6_confirmations_closed": "No confirmations outstanding (B6)",
-        "partner_conclusion": "Partner overall conclusion + independence reconfirmation (B1)"
+        "rep_letters_generated": "Both OHADA representation letters generated (C3.1)",
+        "b4_cleared": "All C1.2 significant matters cleared",
+        "b6_confirmations_closed": "No confirmations outstanding (C4.3)",
+        "partner_conclusion": "Partner overall conclusion + independence reconfirmation (C4.1)"
       },
       "runFinalAnalytics": "Run final analytical review",
       "runTieout": "Run FS tie-out",
@@ -942,17 +942,17 @@
       "allComplete": "All applicable notes completed",
       "notes": "Notes / exceptions",
       "save": "Save",
-      "subsequentEvents": "Subsequent events (B7/E380)",
+      "subsequentEvents": "Subsequent events (C2.2/E6.6)",
       "reviewedTo": "Reviewed up to",
       "events": "Events identified / treatment",
-      "pointsForward": "B10 — Points forward (next year)",
+      "pointsForward": "C6.1 — Points forward (next year)",
       "points": "Points",
-      "partnerConclusion": "Partner overall conclusion (B1)",
+      "partnerConclusion": "Partner overall conclusion (C4.1)",
       "independenceReconfirmed": "Independence reconfirmed",
-      "repLetters": "Representation letters (B8 — OHADA two-letter layering)",
+      "repLetters": "Representation letters (C3.1 — OHADA two-letter layering)",
       "affirmation": "Generate affirmation letter (pre-arrêté)",
       "complementary": "Generate complementary letter (post-arrêté)",
-      "managementLetter": "Generate final management letter (C1)",
+      "managementLetter": "Generate final management letter (C5.1)",
       "opinionTitle": "Opinion & report (ISA 700/705/706/570)",
       "materialMisstatement": "Uncorrected material misstatement",
       "pervasive": "Pervasive",
@@ -1011,7 +1011,7 @@
       "difference": "Difference",
       "dispositions": {
         "timing": "Timing",
-        "client_error": "Client error (→ B5)",
+        "client_error": "Client error (→ C1.1)",
         "confirmee_error": "Confirmee error"
       },
       "dispose": "Disposition",
@@ -1064,9 +1064,9 @@
       "matterArising": "Matter arising",
       "routeTo": "Route to",
       "routes": {
-        "b4": "B4 — significant matter",
-        "c1": "C1 — management letter",
-        "b5": "B5 — misstatement",
+        "b4": "C1.2 — significant matter",
+        "c1": "C5.1 — management letter",
+        "b5": "C1.1 — misstatement",
         "revise": "Revise approach (new risk)"
       },
       "titleField": "Title / description",
@@ -1095,7 +1095,7 @@
       "decisions": {
         "extend": "Extend testing",
         "abandon": "Abandon reliance",
-        "deficiency": "Record deficiency (C1)"
+        "deficiency": "Record deficiency (C5.1)"
       },
       "record": "Record",
       "conclusionTitle": "Section conclusion",
@@ -1112,9 +1112,9 @@
     },
     "findings": {
       "title": "Findings",
-      "b4": "B4 — Significant matters",
-      "c1": "C1 — Management letter points",
-      "b5": "B5 — Summary of misstatements",
+      "b4": "C1.2 — Significant matters",
+      "c1": "C5.1 — Management letter points",
+      "b5": "C1.1 — Summary of misstatements",
       "empty": "None.",
       "clear": "Clear",
       "response": "Response / resolution",
@@ -1162,7 +1162,7 @@
       "journal-lines-required": "A journal needs at least two lines.",
       "journal-not-draft": "Only draft journals can be posted.",
       "invalid-prefix": "The account prefix must be 1–8 digits.",
-      "invalid-section": "The section must be an E-code (e.g. E100).",
+      "invalid-section": "The section must be an E-code (e.g. E4.1).",
       "conclusion-required": "A conclusion is required.",
       "amount-required": "An amount is required for a misstatement.",
       "trivial-confirm-required": "Below the trivial threshold — tick the confirmation to log it as trivial.",

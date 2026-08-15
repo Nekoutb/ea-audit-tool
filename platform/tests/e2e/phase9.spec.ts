@@ -87,14 +87,14 @@ test("Phase 9: portal PBC round-trip + dashboards + export", async ({ page }) =>
   await page.getByTestId("portal-upload-Grand livre 2025").click();
   await expect(page.getByTestId("portal-status-Grand livre 2025")).toContainText(/Uploaded/i);
 
-  // --- Back to the firm: accept + attach to E100 as a working paper (9.2) ---
+  // --- Back to the firm: accept + attach to E4.1 as a working paper (9.2) ---
   await page.context().clearCookies();
   await login(page, EMAIL, PASSWORD);
   await page.waitForURL("**/dashboard");
   await page.goto(`${engagementUrl}/pbc`);
   await expect(page.getByTestId("pbc-status-Grand livre 2025")).toContainText(/Uploaded/i);
   await expect(page.getByTestId("pbc-table")).toContainText("grand-livre.csv");
-  await page.getByTestId("pbc-attach-Grand livre 2025").selectOption({ index: 1 }); // E100
+  await page.getByTestId("pbc-attach-Grand livre 2025").selectOption({ index: 1 }); // E4.1
   await page.getByTestId("pbc-accept-Grand livre 2025").click();
   await page.waitForURL("**/documents/**");
   await expect(page.locator("h1")).toContainText(/PBC — Grand livre 2025/);

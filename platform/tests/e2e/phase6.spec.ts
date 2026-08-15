@@ -15,7 +15,7 @@ async function login(page: Page): Promise<void> {
   await page.waitForURL("**/dashboard");
 }
 
-test("Phase 6: AR + bank confirmation cycle with exception → B5 and a non-reply → alternative", async ({ page }) => {
+test("Phase 6: AR + bank confirmation cycle with exception → C1.1 and a non-reply → alternative", async ({ page }) => {
   test.setTimeout(300_000);
   await login(page);
 
@@ -36,7 +36,7 @@ test("Phase 6: AR + bank confirmation cycle with exception → B5 and a non-repl
   const engagementUrl = page.url().replace(/\/team$/, "");
   await page.goto(engagementUrl);
 
-  // Materiality so client-error differences can land in B5 cleanly.
+  // Materiality so client-error differences can land in C1.1 cleanly.
   await page.goto(`${engagementUrl}/planning`);
   await page.getByTestId("materiality-benchmark").selectOption("revenue");
   await page.getByTestId("materiality-amount").fill("200000000");
@@ -75,7 +75,7 @@ test("Phase 6: AR + bank confirmation cycle with exception → B5 and a non-repl
   await page.getByTestId("manual-add").click();
 
   // ACME: letter → approve → send → reply with a DIFFERENT amount → exception
-  // → disposition client error → B5.
+  // → disposition client error → C1.1.
   await page.getByTestId("letter-ACME").click();
   await page.waitForURL("**/documents/**");
   await expect(page.getByTestId("download-current")).toBeVisible();
@@ -107,7 +107,7 @@ test("Phase 6: AR + bank confirmation cycle with exception → B5 and a non-repl
   await page.waitForURL("**/documents/**");
   await expect(page.locator("h1")).toContainText(/Confirmations summary/i);
 
-  // The ACME client-error difference reached B5.
+  // The ACME client-error difference reached C1.1.
   await page.goto(`${engagementUrl}/findings`);
   await expect(page.getByTestId("b5-table")).toContainText("ACME");
 });

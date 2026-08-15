@@ -136,7 +136,7 @@
     "workload": "Charge (diligences ouvertes par responsable)",
     "mandateExpiries": "Expirations de mandats",
     "portfolioRisks": "Portefeuille — risques importants",
-    "b5Exposure": "Portefeuille — exposition B5 non corrigée",
+    "b5Exposure": "Portefeuille — exposition C1.1 non corrigée",
     "exceeds": "DÉPASSE",
     "within": "Sous le seuil",
     "noMateriality": "pas de seuil approuvé",
@@ -191,7 +191,7 @@
     "phase": "Phase",
     "steps": "Diligences",
     "risks": "Risques ouverts / conclus / importants",
-    "b5": "B5 non corrigé vs seuil",
+    "b5": "C1.1 non corrigé vs seuil",
     "unsigned": "Documents en brouillon",
     "pbcOpen": "PBC en attente",
     "deadlines": "Prochaines échéances légales",
@@ -271,11 +271,11 @@
   },
   "considerations": {
     "title": "Considérations de planification",
-    "subtitle": "Les domaines conditionnels de planification (environnement de contrôle, informatique, experts, sociétés de services, audit interne) réunis en un seul écran. Chacun ne s'applique que si son déclencheur D1 est répondu Oui.",
+    "subtitle": "Les domaines conditionnels de planification (environnement de contrôle, informatique, experts, sociétés de services, audit interne) réunis en un seul écran. Chacun ne s'applique que si son déclencheur S5.1 est répondu Oui.",
     "back": "Retour à l'espace Planification",
     "applicable": "Applicable",
     "notRequired": "Non requis",
-    "notRequiredHint": "Non requis pour cette mission — « {trigger} » est répondu Non (ou sans réponse) dans le pilote de stratégie D1."
+    "notRequiredHint": "Non requis pour cette mission — « {trigger} » est répondu Non (ou sans réponse) dans le pilote de stratégie S5.1."
   },
   "tabGroups": {
     "phases": "Travaux par phase",
@@ -578,7 +578,7 @@
         "closingEquation": "Solde = ouverture + mouvements",
         "codification": "Codification SYSCOHADA",
         "unknownAccounts": "Comptes non affectés",
-        "openingTiesToPrior": "Ouverture = clôture N-1 (E370)"
+        "openingTiesToPrior": "Ouverture = clôture N-1 (E6.5)"
       },
       "journals": "Écritures d'ajustement",
       "journalDescription": "Libellé",
@@ -624,7 +624,7 @@
       "unmapped": "Comptes non affectés"
     },
     "analyticsPage": {
-      "title": "Revue analytique préliminaire (D4.3)",
+      "title": "Revue analytique préliminaire (P3.2)",
       "section": "Section",
       "closing": "Solde N",
       "prior": "Solde N-1",
@@ -656,14 +656,14 @@
     "advanceToPlanning": "Passer à la planification",
     "closePlanning": "Clore la planification (instantané et ouverture de l'exécution)",
     "gateNames": {
-      "d31_form_complete": "Liste D3.1 complète et conclusion « accepter »",
-      "d31_partner_signed": "Signature de l'associé sur D3.1",
+      "d31_form_complete": "Liste P1.1 complète et conclusion « accepter »",
+      "d31_partner_signed": "Signature de l'associé sur P1.1",
       "independence_complete": "Toutes les confirmations d'indépendance complétées",
       "independence_exceptions_disposed": "Exceptions d'indépendance traitées par un associé",
       "materiality_approved": "Seuil de signification approuvé par un associé",
-      "d61_partner_signed": "Signature de l'associé sur D6.1",
-      "d71_partner_signed": "Signature de l'associé sur D7.1",
-      "d72_partner_signed": "Signature de l'associé sur D7.2",
+      "d61_partner_signed": "Signature de l'associé sur P2.2",
+      "d71_partner_signed": "Signature de l'associé sur P5.2",
+      "d72_partner_signed": "Signature de l'associé sur S3.1",
       "significant_risks_linked": "Chaque risque important lié à au moins une diligence du programme",
       "rebuttals_approved": "Réfutations approuvées par un associé",
       "material_sections_covered": "Chaque section significative dispose d'une couverture planifiée (stand-back)",
@@ -695,7 +695,7 @@
     "letters": {
       "title": "Lettres",
       "engagement": "Générer la lettre de mission",
-      "planningTcwg": "Générer la communication de planification (C1)",
+      "planningTcwg": "Générer la communication de planification (C5.1)",
       "open": "Ouvrir"
     },
     "mandate": {
@@ -769,7 +769,7 @@
       }
     },
     "driver": {
-      "title": "D1 — Pilote de la stratégie de mission",
+      "title": "S5.1 — Pilote de la stratégie de mission",
       "form": "Formulaire",
       "status": "Statut",
       "statusValues": {
@@ -777,15 +777,15 @@
         "in_progress": "En cours",
         "complete": "Complet",
         "signed": "Signé",
-        "not_required": "Non requis (déclencheur D1 inactif)"
+        "not_required": "Non requis (déclencheur S5.1 inactif)"
       }
     },
     "risks": {
-      "potential": "D7.1 — Risques potentiels",
-      "register": "D7.2 — Registre des risques",
+      "potential": "P5.2 — Risques potentiels",
+      "register": "S3.1 — Registre des risques",
       "dismiss": "Écarter",
       "dismissRationale": "Motif d'écartement",
-      "promote": "Promouvoir en D7.2",
+      "promote": "Promouvoir en S3.1",
       "source": "Source",
       "likelihood": "Probabilité",
       "magnitude": "Ampleur",
@@ -832,7 +832,7 @@
     },
     "legal": {
       "title": "Juridique OHADA",
-      "deadlines": "F1 — Calendrier des échéances légales",
+      "deadlines": "C5.2 — Calendrier des échéances légales",
       "generateDeadlines": "Générer / actualiser le calendrier",
       "due": "Échéance",
       "daysLeft": "Jours restants",
@@ -850,7 +850,7 @@
         "mandate_expiry": "Expiration du mandat (2/6 exercices)",
         "egm_equity": "AGE capitaux propres < ½ capital (≤ 4 mois)"
       },
-      "conventions": "F2 — Registre des conventions réglementées",
+      "conventions": "C5.3 — Registre des conventions réglementées",
       "parties": "Parties",
       "interested": "Personne intéressée",
       "capacity": "Qualité",
@@ -871,8 +871,8 @@
       "addConvention": "Ajouter la convention",
       "unauthorized": "Non autorisée (art. 447)",
       "rapportSpecial": "Générer le rapport spécial",
-      "article715": "F3 — Générer le rapport article 715 au conseil",
-      "alerte": "F4 — Procédure d'alerte",
+      "article715": "C5.4 — Générer le rapport article 715 au conseil",
+      "alerte": "C5.5 — Procédure d'alerte",
       "startAlerte": "Déclencher l'alerte (demande d'explications)",
       "stage": "Étape",
       "stageDeadline": "Échéance de l'étape",
@@ -893,7 +893,7 @@
         "discontinued": "Interrompue",
         "resumed": "Reprise"
       },
-      "faits": "F5 — Faits délictueux (associés uniquement)",
+      "faits": "C5.6 — Faits délictueux (associés uniquement)",
       "revealFait": "Révéler au ministère public (art. 716)",
       "faitDescription": "Faits",
       "irregularities": "Lettre de signalement d'irrégularités",
@@ -902,9 +902,9 @@
       "toBoard": "Conseil d'administration",
       "points": "Points",
       "generateLetter": "Générer la lettre",
-      "titres": "F6 — Registres de titres nominatifs",
+      "titres": "C5.7 — Registres de titres nominatifs",
       "generateAttestation": "Générer l'attestation (art. 746-2)",
-      "equity": "F7 — Capitaux propres / moitié du capital",
+      "equity": "C5.8 — Capitaux propres / moitié du capital",
       "shareCapital": "Capital social (FCFA)",
       "saveCapital": "Enregistrer",
       "runEquityCheck": "Contrôler sur la balance finale",
@@ -912,7 +912,7 @@
       "halfCapital": "Moitié du capital",
       "equityBreach": "PERTE — procédure statutaire d'AGE déclenchée (arts. 664-669 / 371-373)",
       "equityOk": "Supérieurs à la moitié du capital social",
-      "cocac": "F8 — Coordination co-commissariat",
+      "cocac": "C5.9 — Coordination co-commissariat",
       "worksplit": "Répartition des travaux (équilibrée, tournante sur le mandat)",
       "crossreview": "Revue croisée des travaux de l'autre CAC",
       "disagreement": "Divergence à mentionner dans le rapport commun (art. 719)",
@@ -921,19 +921,19 @@
     },
     "conclusion": {
       "title": "Conclusion",
-      "gates": "Contrôles d'achèvement B1",
+      "gates": "Contrôles d'achèvement C4.1",
       "gateNames": {
         "sections_concluded": "Toutes les sections E travaillées conclues et revues ; aucune diligence ouverte",
         "risks_concluded": "Tous les risques conclus ; ajouts en cours de mission approuvés par l'associé",
         "b5_within_materiality": "Anomalies non corrigées sous le seuil de signification final",
-        "final_analytical_review": "Revue analytique finale réalisée (A1)",
+        "final_analytical_review": "Revue analytique finale réalisée (C2.1)",
         "fs_tieout_passed": "Concordance des états financiers validée (équilibre bilan + cascade SIG)",
         "disclosure_checklist": "Liste de contrôle des notes annexes SYSCOHADA (1–36) complétée",
         "subsequent_events": "Événements postérieurs revus jusqu'à la date du rapport (ISA 560)",
-        "rep_letters_generated": "Les deux lettres d'affirmation OHADA générées (B8)",
-        "b4_cleared": "Toutes les questions significatives B4 levées",
-        "b6_confirmations_closed": "Aucune circularisation en attente (B6)",
-        "partner_conclusion": "Conclusion d'ensemble de l'associé + reconfirmation d'indépendance (B1)"
+        "rep_letters_generated": "Les deux lettres d'affirmation OHADA générées (C3.1)",
+        "b4_cleared": "Toutes les questions significatives C1.2 levées",
+        "b6_confirmations_closed": "Aucune circularisation en attente (C4.3)",
+        "partner_conclusion": "Conclusion d'ensemble de l'associé + reconfirmation d'indépendance (C4.1)"
       },
       "runFinalAnalytics": "Lancer la revue analytique finale",
       "runTieout": "Lancer la concordance des états financiers",
@@ -942,17 +942,17 @@
       "allComplete": "Toutes les notes applicables complétées",
       "notes": "Notes / exceptions",
       "save": "Enregistrer",
-      "subsequentEvents": "Événements postérieurs (B7/E380)",
+      "subsequentEvents": "Événements postérieurs (C2.2/E6.6)",
       "reviewedTo": "Revus jusqu'au",
       "events": "Événements identifiés / traitement",
-      "pointsForward": "B10 — Points à reporter (exercice suivant)",
+      "pointsForward": "C6.1 — Points à reporter (exercice suivant)",
       "points": "Points",
-      "partnerConclusion": "Conclusion d'ensemble de l'associé (B1)",
+      "partnerConclusion": "Conclusion d'ensemble de l'associé (C4.1)",
       "independenceReconfirmed": "Indépendance reconfirmée",
-      "repLetters": "Lettres d'affirmation (B8 — double lettre OHADA)",
+      "repLetters": "Lettres d'affirmation (C3.1 — double lettre OHADA)",
       "affirmation": "Générer la lettre d'affirmation (pré-arrêté)",
       "complementary": "Générer la lettre complémentaire (post-arrêté)",
-      "managementLetter": "Générer la lettre de recommandations finale (C1)",
+      "managementLetter": "Générer la lettre de recommandations finale (C5.1)",
       "opinionTitle": "Opinion et rapport (ISA 700/705/706/570)",
       "materialMisstatement": "Anomalie significative non corrigée",
       "pervasive": "Caractère diffus (pervasif)",
@@ -1011,7 +1011,7 @@
       "difference": "Écart",
       "dispositions": {
         "timing": "Décalage",
-        "client_error": "Erreur client (→ B5)",
+        "client_error": "Erreur client (→ C1.1)",
         "confirmee_error": "Erreur du tiers"
       },
       "dispose": "Traiter",
@@ -1064,9 +1064,9 @@
       "matterArising": "Point relevé",
       "routeTo": "Router vers",
       "routes": {
-        "b4": "B4 — question significative",
-        "c1": "C1 — lettre de recommandations",
-        "b5": "B5 — anomalie",
+        "b4": "C1.2 — question significative",
+        "c1": "C5.1 — lettre de recommandations",
+        "b5": "C1.1 — anomalie",
         "revise": "Réviser l'approche (nouveau risque)"
       },
       "titleField": "Intitulé / description",
@@ -1095,7 +1095,7 @@
       "decisions": {
         "extend": "Étendre les tests",
         "abandon": "Abandonner l'appui",
-        "deficiency": "Consigner une déficience (C1)"
+        "deficiency": "Consigner une déficience (C5.1)"
       },
       "record": "Enregistrer",
       "conclusionTitle": "Conclusion de section",
@@ -1112,9 +1112,9 @@
     },
     "findings": {
       "title": "Constats",
-      "b4": "B4 — Questions significatives",
-      "c1": "C1 — Points de la lettre de recommandations",
-      "b5": "B5 — Récapitulatif des anomalies",
+      "b4": "C1.2 — Questions significatives",
+      "c1": "C5.1 — Points de la lettre de recommandations",
+      "b5": "C1.1 — Récapitulatif des anomalies",
       "empty": "Néant.",
       "clear": "Lever",
       "response": "Réponse / résolution",
@@ -1162,7 +1162,7 @@
       "journal-lines-required": "Une écriture nécessite au moins deux lignes.",
       "journal-not-draft": "Seules les écritures en brouillon peuvent être comptabilisées.",
       "invalid-prefix": "Le préfixe de compte doit comporter 1 à 8 chiffres.",
-      "invalid-section": "La section doit être un code E (ex. E100).",
+      "invalid-section": "La section doit être un code E (ex. E4.1).",
       "conclusion-required": "Une conclusion est requise.",
       "amount-required": "Un montant est requis pour une anomalie.",
       "trivial-confirm-required": "Sous le seuil négligeable — cochez la confirmation pour la consigner comme négligeable.",

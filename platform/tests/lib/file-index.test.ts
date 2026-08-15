@@ -9,21 +9,20 @@ describe("default audit file index", () => {
     expect(codes).not.toContain("D2");
     expect(codes).not.toContain("D5.3");
     // Their neighbours — must exist:
-    expect(codes).toContain("D1");
-    expect(codes).toContain("D3.1");
-    expect(codes).toContain("D5.2");
-    expect(codes).toContain("D5.4");
+    expect(codes).toContain("S5.1");
+    expect(codes).toContain("P1.1");
+    expect(codes).toContain("S3.2");
+    expect(codes).toContain("P5.1");
   });
 
-  it("ships the complete B, C and F sections", () => {
-    for (let i = 1; i <= 10; i += 1) expect(codes).toContain(`B${i}`);
-    expect(codes).toContain("C1");
-    for (let i = 1; i <= 8; i += 1) expect(codes).toContain(`F${i}`);
-    expect(codes).toContain("A1");
+  it("ships the complete conclusion section in the recoded scheme", () => {
+    for (const code of ["C1.1", "C1.2", "C1.3", "C2.1", "C2.2", "C3.1", "C3.2", "C4.1", "C4.2", "C4.3", "C5.1", "C6.1", "C6.2"]) {
+      expect(codes).toContain(code);
+    }
   });
 
   it("ships the standard cross-cutting E-sections", () => {
-    for (const code of ["E270", "E280", "E310", "E320", "E330", "E350", "E360", "E370", "E380", "E390"]) {
+    for (const code of ["E4.15", "E4.16", "E6.1", "E6.2", "E6.3", "E2.1", "E6.4", "E6.5", "E6.6", "E6.7"]) {
       expect(codes).toContain(code);
     }
   });
@@ -35,14 +34,15 @@ describe("default audit file index", () => {
       expect(validSections.has(entry.section)).toBe(true);
       expect(entry.titleEn.trim().length).toBeGreaterThan(0);
       expect(entry.titleFr.trim().length).toBeGreaterThan(0);
-      expect(entry.code.startsWith(entry.section)).toBe(true);
+      // codes follow the phase scheme; the section letter remains the filing container
+      expect(/^[PSEC][0-9]+.[0-9]+$/.test(entry.code)).toBe(true);
     }
   });
 
   it("marks exactly the conditional D-forms as conditional", () => {
     const conditional = DEFAULT_FILE_INDEX.filter((e) => e.conditional).map((e) => e.code);
-    // D3.4 is the predecessor auditor communication: it applies on a change of
+    // P1.2 is the predecessor auditor communication: it applies on a change of
     // auditor, so it is instantiated but kept out of the phase task counts.
-    expect(conditional.sort()).toEqual(["D3.4", "D4.5", "D4.6", "D4.7", "D4.8", "D4.9"]);
+    expect(conditional.sort()).toEqual(["P1.2", "P4.2", "P4.3", "S4.1", "S4.2", "S4.3"]);
   });
 });

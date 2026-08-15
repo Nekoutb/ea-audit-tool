@@ -1,6 +1,6 @@
 // Phase 4: execution/fieldwork. Program-step execution with conclusions and
 // evidence, findings routing (spec §8.3 — every matter arising goes to exactly
-// ONE of B4 / B5 / C1 / revise-approach with a backlink), misstatement
+// ONE of C1.2 / C1.1 / C5.1 / revise-approach with a backlink), misstatement
 // accumulation against materiality (ISA 450), control tests whose deviations
 // force a decision, the revise-approach loop (§8.4), and section conclusions
 // with the two-stage (+ partner on significant risk) review chain (§6.3).
@@ -225,7 +225,7 @@ export async function approveRiskAddition(riskId: string): Promise<void> {
   });
 }
 
-// ---- 4.6 B5 evaluation ----
+// ---- 4.6 C1.1 evaluation ----
 
 export interface MisstatementInfo {
   id: string;
@@ -337,7 +337,7 @@ export async function recordControlTest(input: {
 
     if (input.result === "deviation") {
       // extend / abandon → the affected program is flagged for extension by an
-      // auto-appended step; deficiency → routed to C1 (spec §6.2).
+      // auto-appended step; deficiency → routed to C5.1 (spec §6.2).
       if (input.deviationDecision === "extend" || input.deviationDecision === "abandon") {
         const next = await tx.query<{ v: number }>(
           "SELECT coalesce(max(seq), 0) + 10 AS v FROM program_step WHERE file_item_id = $1",

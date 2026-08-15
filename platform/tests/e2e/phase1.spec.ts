@@ -1,6 +1,6 @@
 import { expect, test, type Page } from "@playwright/test";
 
-// Phase 1 acceptance (master spec §17): create engagement → instantiate D3.1
+// Phase 1 acceptance (master spec §17): create engagement → instantiate P1.1
 // from template → open (download) → edit → close (upload) → version 2 visible →
 // sign off → locked. Plus the review-note gate on reviewer sign-off.
 
@@ -15,7 +15,7 @@ async function login(page: Page): Promise<void> {
   await page.waitForURL("**/dashboard");
 }
 
-test("full Phase 1 acceptance flow on D3.1", async ({ page }) => {
+test("full Phase 1 acceptance flow on P1.1", async ({ page }) => {
   test.setTimeout(120_000);
   await login(page);
 
@@ -39,14 +39,14 @@ test("full Phase 1 acceptance flow on D3.1", async ({ page }) => {
   await page.goto(page.url().replace(/\/team$/, ""));
 
   // The A–F index is instantiated with the methodology's gaps preserved.
-  await expect(page.getByTestId("file-item-D3.1")).toBeVisible();
-  await expect(page.getByTestId("file-item-B10")).toBeVisible();
-  await expect(page.getByTestId("file-item-F8")).toBeVisible();
+  await expect(page.getByTestId("file-item-P1.1")).toBeVisible();
+  await expect(page.getByTestId("file-item-C6.1")).toBeVisible();
+  await expect(page.getByTestId("file-item-C5.9")).toBeVisible();
   await expect(page.getByTestId("file-item-D2")).toHaveCount(0);
   await expect(page.getByTestId("file-item-D5.3")).toHaveCount(0);
 
-  // Instantiate D3.1 from its template.
-  await page.getByTestId("generate-doc-D3.1").click();
+  // Instantiate P1.1 from its template.
+  await page.getByTestId("generate-doc-P1.1").click();
   await page.waitForURL("**/documents/**");
   await expect(page.getByTestId("download-current")).toContainText("v1");
 
@@ -61,7 +61,7 @@ test("full Phase 1 acceptance flow on D3.1", async ({ page }) => {
   // "Edit and close": check out, upload the edited file → version 2.
   await page.getByTestId("checkout").click();
   await page.getByTestId("upload-file").setInputFiles({
-    name: "D3.1 edited.docx",
+    name: "P1.1 edited.docx",
     mimeType: "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
     buffer: bytes,
   });
@@ -80,7 +80,7 @@ test("full Phase 1 acceptance flow on D3.1", async ({ page }) => {
   await expect(page.getByTestId("doc-error")).toBeVisible();
 
   // Clear the note, then the reviewer sign-off locks the paper.
-  await page.locator("[data-testid^=note-response-]").fill("Filed under D3.1 narrative.");
+  await page.locator("[data-testid^=note-response-]").fill("Filed under P1.1 narrative.");
   await page.locator("[data-testid^=clear-note-]").click();
   await page.getByTestId("sign-reviewer").click();
   await expect(page.getByTestId("signed-reviewer")).toBeVisible();

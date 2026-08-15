@@ -56,8 +56,8 @@ beforeAll(async () => {
   );
   engagementId = await createEngagement({ clientId: client.rows[0].id, fiscalYear: 2025, periodEnd: "2025-12-31" });
   const items = await listFileItems(engagementId);
-  e100 = items.find((i) => i.code === "E100")!.id;
-  e110 = items.find((i) => i.code === "E110")!.id;
+  e100 = items.find((i) => i.code === "E4.1")!.id;
+  e110 = items.find((i) => i.code === "E4.2")!.id;
 
   // Materiality: overall 2M, PM 1.5M, trivial 100k.
   const version = await createMaterialityVersion(engagementId, {
@@ -120,7 +120,7 @@ describe("5.1 reproducibility", () => {
   });
 });
 
-describe("5.2/5.3 sampling + projection to B5", () => {
+describe("5.2/5.3 sampling + projection to C1.1", () => {
   it("selects reproducibly and records the run with an output document", async () => {
     const first = await runSampling({ fileItemId: e100, datasetId: arDataset, method: "random", sampleSize: 3, seed: "isa-530" });
     const second = await runSampling({ fileItemId: e100, datasetId: arDataset, method: "random", sampleSize: 3, seed: "isa-530" });
@@ -138,7 +138,7 @@ describe("5.2/5.3 sampling + projection to B5", () => {
     expect(criteria.keyItems).toBe(2); // ACME + Beta
   });
 
-  it("projects sample misstatement to the population and auto-raises B5", async () => {
+  it("projects sample misstatement to the population and auto-raises C1.1", async () => {
     const run = await runSampling({ fileItemId: e100, datasetId: arDataset, method: "random", sampleSize: 4, seed: "proj" });
     const result = await evaluateSampling(run.runId, Math.round(run.sampledValue * 0.1)); // 10% error rate
     expect(result.projected).toBeGreaterThan(100_000); // > trivial
@@ -185,8 +185,8 @@ describe("5.8 JE testing", () => {
 });
 
 describe("5.9 substantive analytics", () => {
-  it("auto-raises an unexplained variance to B5", async () => {
-    // E100 actual (41+70 grouped) = 0; expect 5,000,000 with 1,000,000 tolerance.
+  it("auto-raises an unexplained variance to C1.1", async () => {
+    // E4.1 actual (41+70 grouped) = 0; expect 5,000,000 with 1,000,000 tolerance.
     const result = await runSubstantiveAnalytic({
       fileItemId: e100, expectation: 5_000_000, tolerance: 1_000_000, basis: "Prior-year margin trend",
     });

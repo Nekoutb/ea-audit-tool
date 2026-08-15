@@ -21,9 +21,9 @@ const PROC_INTRO_EN =
 const PROC_INTRO_FR =
   "Mettre en œuvre chaque procédure et consigner le résultat : la population, l'objet du test, la base de sélection et la référence du dossier.";
 const YN_INTRO_EN =
-  "Evaluate the results of the Part A procedures against each statement. Explain each “No” in the box beneath it, including the misstatement raised in B5.";
+  "Evaluate the results of the Part A procedures against each statement. Explain each “No” in the box beneath it, including the misstatement raised in C1.1.";
 const YN_INTRO_FR =
-  "Évaluer les résultats de la partie A au regard de chaque affirmation. Expliquer chaque « Non », y compris l'anomalie portée en B5.";
+  "Évaluer les résultats de la partie A au regard de chaque affirmation. Expliquer chaque « Non », y compris l'anomalie portée en C1.1.";
 
 /** One execution paper, in the shape every task on this phase shares. */
 function mk(args: {
@@ -71,8 +71,8 @@ function mk(args: {
         titleEn: "Part C — Outcome",
         titleFr: "Partie C — Résultat",
         fields: [
-          { key: "exceptions", kind: "input", labelEn: "Exceptions identified, the misstatement raised in B5 for each, and how each was resolved", labelFr: "Exceptions relevées, anomalie portée en B5 pour chacune, et leur résolution" },
-          { key: "carried", kind: "input", labelEn: "Matters carried to B4 significant matters, or to B10 points forward", labelFr: "Points reportés en B4 (points significatifs) ou en B10 (points reportés)" },
+          { key: "exceptions", kind: "input", labelEn: "Exceptions identified, the misstatement raised in C1.1 for each, and how each was resolved", labelFr: "Exceptions relevées, anomalie portée en C1.1 pour chacune, et leur résolution" },
+          { key: "carried", kind: "input", labelEn: "Matters carried to C1.2 significant matters, or to C6.1 points forward", labelFr: "Points reportés en C1.2 (points significatifs) ou en C6.1 (points reportés)" },
         ],
       },
     ],
@@ -81,27 +81,27 @@ function mk(args: {
 
 /* ============================ significant transaction classes (E1) ======= */
 
-const E100 = mk({
+const E4_1 = mk({
   std: "ISA 315 (Revised 2019) ¶25–26 · ISA 330 ¶18–23 · ISA 505 · ISA 240 ¶26",
   ownsEn: "the revenue and receivables flow, and the evidence obtained on it",
   ownsFr: "le flux ventes et créances et les éléments probants obtenus",
   tools: ["what-can-go-wrong", "sampling", "confirmations"],
   reqEn: [
     "We obtain an understanding of the flow of transactions from initiation through to inclusion in the financial statements, and identify the points at which a misstatement could arise (ISA 315 (Revised 2019) ¶25). The walkthrough confirms that the flow operates as described.",
-    "Revenue recognition carries a presumed fraud risk unless that presumption was rebutted in D5.4 (ISA 240 ¶26). Cut-off and occurrence are the assertions most often affected.",
+    "Revenue recognition carries a presumed fraud risk unless that presumption was rebutted in P5.1 (ISA 240 ¶26). Cut-off and occurrence are the assertions most often affected.",
   ],
   reqFr: [
     "Nous prenons connaissance du flux des opérations, de leur initiation jusqu'à leur inclusion dans les états financiers, et identifions les points où une anomalie pourrait survenir (ISA 315 révisée ¶25).",
-    "La comptabilisation des produits porte une présomption de risque de fraude sauf réfutation en D5.4 (ISA 240 ¶26).",
+    "La comptabilisation des produits porte une présomption de risque de fraude sauf réfutation en P5.1 (ISA 240 ¶26).",
   ],
   procs: [
-    P("flow", "Record the critical path: how a sale is initiated, recorded, processed and reported, naming the actors, the documents, the applications and the control points.", "Consigner le chemin critique : initiation, enregistrement, traitement et restitution d'une vente, en nommant les acteurs, documents, applications et points de contrôle.", "Process narrative · inquiry of the cycle owner · D4.6", "Descriptif de processus · entretien avec le responsable du cycle · D4.6"),
+    P("flow", "Record the critical path: how a sale is initiated, recorded, processed and reported, naming the actors, the documents, the applications and the control points.", "Consigner le chemin critique : initiation, enregistrement, traitement et restitution d'une vente, en nommant les acteurs, documents, applications et points de contrôle.", "Process narrative · inquiry of the cycle owner · P4.3", "Descriptif de processus · entretien avec le responsable du cycle · P4.3"),
     P("walkthrough", "Walk one transaction through the whole flow. Inspect the evidence at each step and record any deviation from the description obtained.", "Dérouler une opération sur l'ensemble du flux. Examiner les preuves à chaque étape et consigner tout écart avec la description obtenue.", "Order · dispatch note · invoice · ledger entry · receipt", "Commande · bon de livraison · facture · écriture · encaissement"),
-    P("controls", "Where a controls-reliance strategy was set in D7.2, test the operating effectiveness of the identified controls over the period of reliance.", "Lorsque D7.2 retient l'appui sur les contrôles, tester l'efficacité du fonctionnement des contrôles identifiés sur la période concernée.", "D7.2 · control evidence · E510 for IT-dependent controls", "D7.2 · preuves de contrôle · E510 pour les contrôles dépendants de l'informatique"),
+    P("controls", "Where a controls-reliance strategy was set in S3.1, test the operating effectiveness of the identified controls over the period of reliance.", "Lorsque S3.1 retient l'appui sur les contrôles, tester l'efficacité du fonctionnement des contrôles identifiés sur la période concernée.", "S3.1 · control evidence · E1.2 for IT-dependent controls", "S3.1 · preuves de contrôle · E1.2 pour les contrôles dépendants de l'informatique"),
     P("confirm", "Circularise the receivable balances selected. Follow up non-replies with a second request, and perform alternative procedures where no reply is obtained.", "Circulariser les soldes clients sélectionnés. Relancer les non-réponses et mettre en œuvre des procédures alternatives à défaut de réponse.", "Confirmation replies · ISA 505 ¶12 · subsequent receipts", "Réponses de circularisation · ISA 505 ¶12 · encaissements postérieurs"),
     P("cutoff", "Test cut-off across the year end: trace dispatches either side of the year end to the invoice and to the period in which the revenue was recognised.", "Tester la césure autour de la clôture : rapprocher les livraisons de part et d'autre de la clôture de la facture et de la période de comptabilisation.", "Dispatch register · invoices · goods returned notes", "Registre des livraisons · factures · avoirs"),
     P("substantive", "Test the recorded revenue for occurrence and accuracy on the sample selected, agreeing each item to the contract, the dispatch evidence and the cash received.", "Tester la réalité et l'exactitude des produits comptabilisés sur l'échantillon retenu, en rapprochant chaque élément du contrat, de la preuve de livraison et de l'encaissement.", "Sampling tool · contracts · dispatch evidence · bank statements", "Outil d'échantillonnage · contrats · preuves de livraison · relevés bancaires"),
-    P("allowance", "Test the allowance for doubtful receivables: age the balance, and challenge the assumptions against subsequent receipts and the customer's circumstances.", "Tester la dépréciation des créances : établir la balance âgée et confronter les hypothèses aux encaissements postérieurs et à la situation du client.", "Aged receivables · subsequent receipts · E390", "Balance âgée · encaissements postérieurs · E390"),
+    P("allowance", "Test the allowance for doubtful receivables: age the balance, and challenge the assumptions against subsequent receipts and the customer's circumstances.", "Tester la dépréciation des créances : établir la balance âgée et confronter les hypothèses aux encaissements postérieurs et à la situation du client.", "Aged receivables · subsequent receipts · E6.7", "Balance âgée · encaissements postérieurs · E6.7"),
     P("credit_notes", "Review the credit notes issued after the year end for revenue recognised before it.", "Examiner les avoirs émis après la clôture au regard des produits comptabilisés avant celle-ci.", "Post year-end credit notes · sales ledger", "Avoirs postérieurs à la clôture · journal des ventes"),
   ],
   items: [
@@ -110,17 +110,17 @@ const E100 = mk({
     Q("confirmations", "The confirmation responses, together with the alternative procedures, cover the balance selected (procedure 4).", "Les réponses de circularisation et les procédures alternatives couvrent le solde sélectionné (procédure 4)."),
     Q("cutoff", "Revenue is recorded in the period in which the performance obligation was satisfied (procedures 5, 8).", "Les produits sont comptabilisés dans la période où l'obligation de prestation a été remplie (procédures 5, 8)."),
     Q("allowance", "The allowance for doubtful receivables is supported by the evidence obtained (procedure 7).", "La dépréciation des créances est étayée par les éléments obtenus (procédure 7)."),
-    Q("fraud", "Nothing found indicates the fraud risk in revenue recognition identified in D5.4 has materialised (procedures 5, 6, 8).", "Rien ne montre que le risque de fraude sur les produits identifié en D5.4 s'est matérialisé (procédures 5, 6, 8)."),
+    Q("fraud", "Nothing found indicates the fraud risk in revenue recognition identified in P5.1 has materialised (procedures 5, 6, 8).", "Rien ne montre que le risque de fraude sur les produits identifié en P5.1 s'est matérialisé (procédures 5, 6, 8)."),
   ],
   conclEn: [
-    "Sufficient appropriate audit evidence has been obtained over the revenue and receivables flow for the assertions identified as relevant in D7.2.",
+    "Sufficient appropriate audit evidence has been obtained over the revenue and receivables flow for the assertions identified as relevant in S3.1.",
   ],
   conclFr: [
-    "Des éléments probants suffisants et appropriés ont été obtenus sur le flux ventes et créances pour les assertions retenues en D7.2.",
+    "Des éléments probants suffisants et appropriés ont été obtenus sur le flux ventes et créances pour les assertions retenues en S3.1.",
   ],
 });
 
-const E110 = mk({
+const E4_2 = mk({
   std: "ISA 315 (Revised 2019) ¶25–26 · ISA 330 ¶18–23 · ISA 505",
   ownsEn: "the purchases and payables flow, and the evidence obtained on it",
   ownsFr: "le flux achats et fournisseurs et les éléments probants obtenus",
@@ -136,7 +136,7 @@ const E110 = mk({
   procs: [
     P("flow", "Record the critical path: how a purchase is ordered, received, recorded, approved and paid, naming the actors, the documents and the control points.", "Consigner le chemin critique : commande, réception, enregistrement, approbation et paiement, en nommant les acteurs, documents et points de contrôle.", "Process narrative · inquiry of the cycle owner", "Descriptif de processus · entretien avec le responsable du cycle"),
     P("walkthrough", "Walk one transaction through the whole flow, inspecting the evidence at each step.", "Dérouler une opération sur l'ensemble du flux en examinant les preuves à chaque étape.", "Purchase order · goods received note · invoice · payment", "Bon de commande · bon de réception · facture · paiement"),
-    P("controls", "Where a controls-reliance strategy was set in D7.2, test the operating effectiveness of the identified controls, including the three-way match and payment authorisation.", "Lorsque D7.2 retient l'appui sur les contrôles, tester leur efficacité, dont le rapprochement à trois documents et l'autorisation des paiements.", "D7.2 · control evidence · delegation of authority", "D7.2 · preuves de contrôle · délégations de pouvoirs"),
+    P("controls", "Where a controls-reliance strategy was set in S3.1, test the operating effectiveness of the identified controls, including the three-way match and payment authorisation.", "Lorsque S3.1 retient l'appui sur les contrôles, tester leur efficacité, dont le rapprochement à trois documents et l'autorisation des paiements.", "S3.1 · control evidence · delegation of authority", "S3.1 · preuves de contrôle · délégations de pouvoirs"),
     P("unrecorded", "Search for unrecorded liabilities: examine the payments made after the year end, the invoices received after it, and the goods received notes not yet matched to an invoice.", "Rechercher les dettes non comptabilisées : examiner les paiements postérieurs à la clôture, les factures reçues après celle-ci et les bons de réception non encore rapprochés d'une facture.", "Post year-end cash book · unmatched GRN report · supplier statements", "Journal de trésorerie postérieur · état des réceptions non rapprochées · relevés fournisseurs"),
     P("statements", "Reconcile the supplier statements to the recorded balances for the suppliers selected, and investigate every reconciling item.", "Rapprocher les relevés fournisseurs des soldes comptabilisés pour les fournisseurs sélectionnés et examiner chaque écart.", "Supplier statements · purchase ledger", "Relevés fournisseurs · journal des achats"),
     P("confirm", "Where statements are not available for a significant supplier, circularise the balance, including suppliers with a nil or debit balance.", "À défaut de relevé pour un fournisseur significatif, circulariser le solde, y compris les soldes nuls ou débiteurs.", "Confirmation replies · ISA 505", "Réponses de circularisation · ISA 505"),
@@ -151,14 +151,14 @@ const E110 = mk({
     Q("reconciled", "Every reconciling item between the supplier statements and the ledger has been explained (procedure 5).", "Chaque écart entre les relevés fournisseurs et le journal a été expliqué (procédure 5)."),
   ],
   conclEn: [
-    "Sufficient appropriate audit evidence has been obtained over the purchases and payables flow for the assertions identified as relevant in D7.2, including completeness.",
+    "Sufficient appropriate audit evidence has been obtained over the purchases and payables flow for the assertions identified as relevant in S3.1, including completeness.",
   ],
   conclFr: [
-    "Des éléments probants suffisants et appropriés ont été obtenus sur le flux achats et fournisseurs pour les assertions retenues en D7.2, dont l'exhaustivité.",
+    "Des éléments probants suffisants et appropriés ont été obtenus sur le flux achats et fournisseurs pour les assertions retenues en S3.1, dont l'exhaustivité.",
   ],
 });
 
-const E120 = mk({
+const E4_3 = mk({
   std: "ISA 315 (Revised 2019) ¶25–26 · ISA 330 ¶18–23 · SYSCOHADA classes 42 / 66",
   ownsEn: "the payroll flow and the evidence obtained on personnel costs",
   ownsFr: "le flux paie et les éléments probants sur les charges de personnel",
@@ -178,7 +178,7 @@ const E120 = mk({
     P("recalculate", "Recalculate the gross-to-net for the sample selected, including the statutory deductions and the employer contributions.", "Recalculer le brut au net pour l'échantillon retenu, y compris les retenues légales et les cotisations patronales.", "Payslips · CNPS and tax rate tables · contracts", "Bulletins de paie · barèmes CNPS et fiscaux · contrats"),
     P("existence", "Test the existence of the employees selected by agreeing to personnel files and to evidence of payment into a bank account in the employee's name.", "Tester l'existence des salariés sélectionnés par rapprochement des dossiers du personnel et des preuves de virement sur un compte à leur nom.", "Personnel files · bank payment listing", "Dossiers du personnel · état des virements"),
     P("liabilities", "Agree the social and tax liabilities at the year end to the declarations filed, and confirm the payment made after the year end.", "Rapprocher les dettes sociales et fiscales de clôture des déclarations déposées et vérifier le paiement postérieur.", "CNPS and tax declarations · post year-end payments", "Déclarations CNPS et fiscales · paiements postérieurs"),
-    P("directors", "Test the remuneration of the directors and of key management separately, and agree it to the authorisation and to the related party disclosure.", "Tester séparément la rémunération des dirigeants et des cadres dirigeants, et la rapprocher de l'autorisation et de l'information sur les parties liées.", "Minutes · contracts · E320", "Procès-verbaux · contrats · E320"),
+    P("directors", "Test the remuneration of the directors and of key management separately, and agree it to the authorisation and to the related party disclosure.", "Tester séparément la rémunération des dirigeants et des cadres dirigeants, et la rapprocher de l'autorisation et de l'information sur les parties liées.", "Minutes · contracts · E6.2", "Procès-verbaux · contrats · E6.2"),
   ],
   items: [
     Q("expectation", "The recorded charge agrees with the expectation built, or the difference is explained and corroborated (procedure 3).", "La charge comptabilisée concorde avec l'attente construite, ou l'écart est expliqué et corroboré (procédure 3)."),
@@ -188,29 +188,29 @@ const E120 = mk({
     Q("directors", "Directors' remuneration is authorised and is disclosed as a related party transaction (procedure 7).", "La rémunération des dirigeants est autorisée et présentée comme opération avec une partie liée (procédure 7)."),
   ],
   conclEn: [
-    "Sufficient appropriate audit evidence has been obtained over payroll and personnel costs for the assertions identified as relevant in D7.2.",
+    "Sufficient appropriate audit evidence has been obtained over payroll and personnel costs for the assertions identified as relevant in S3.1.",
   ],
   conclFr: [
-    "Des éléments probants suffisants et appropriés ont été obtenus sur la paie et les charges de personnel pour les assertions retenues en D7.2.",
+    "Des éléments probants suffisants et appropriés ont été obtenus sur la paie et les charges de personnel pour les assertions retenues en S3.1.",
   ],
 });
 
 /* ================================================= IT (E2) =============== */
 
-const E500 = mk({
+const E1_1 = mk({
   std: "ISA 315 (Revised 2019) ¶26(b)–(c) · ISA 330 ¶8–17",
   ownsEn: "the testing of the general IT controls",
   ownsFr: "les tests des contrôles informatiques généraux",
   reqEn: [
     "General IT controls support the continued effective operation of the automated controls and of the reports the entity produces. Where they do not operate effectively, an automated control cannot be relied on for the period affected, however well it is designed.",
-    "The controls tested are those identified in D4.6 as addressing the risks arising from the use of IT: access management, change management, and IT operations.",
+    "The controls tested are those identified in P4.3 as addressing the risks arising from the use of IT: access management, change management, and IT operations.",
   ],
   reqFr: [
     "Les contrôles informatiques généraux soutiennent le fonctionnement continu des contrôles automatisés et des états produits. Sans leur efficacité, un contrôle automatisé ne peut être utilisé sur la période concernée.",
-    "Les contrôles testés sont ceux identifiés en D4.6 : gestion des accès, gestion des changements et exploitation.",
+    "Les contrôles testés sont ceux identifiés en P4.3 : gestion des accès, gestion des changements et exploitation.",
   ],
   procs: [
-    P("scope", "Confirm the applications and infrastructure in scope from D4.6, and the general IT controls identified against each risk.", "Confirmer les applications et l'infrastructure du périmètre issus de D4.6 et les contrôles généraux identifiés pour chaque risque.", "D4.6 · IT inventory", "D4.6 · inventaire informatique"),
+    P("scope", "Confirm the applications and infrastructure in scope from P4.3, and the general IT controls identified against each risk.", "Confirmer les applications et l'infrastructure du périmètre issus de P4.3 et les contrôles généraux identifiés pour chaque risque.", "P4.3 · IT inventory", "P4.3 · inventaire informatique"),
     P("access_new", "Test the granting of access: for the users added in the period, inspect the approval and confirm the access granted matches what was approved.", "Tester l'attribution des accès : pour les utilisateurs créés sur l'exercice, examiner l'approbation et vérifier la conformité des droits accordés.", "Access request forms · user listing · approval evidence", "Demandes d'accès · liste des utilisateurs · preuves d'approbation"),
     P("access_leavers", "Test the removal of access: agree the leavers in the period to the date their access was disabled.", "Tester la suppression des accès : rapprocher les sorties de l'exercice de la date de désactivation des droits.", "HR leavers list · access logs · user listing", "Liste des sortants RH · journaux d'accès · liste des utilisateurs"),
     P("privileged", "Obtain the list of users with privileged or administrator access, and evaluate whether each is appropriate to that person's role.", "Obtenir la liste des utilisateurs disposant d'accès privilégiés ou administrateur et apprécier leur adéquation à la fonction exercée.", "Privileged user report · organisation chart", "État des comptes à privilèges · organigramme"),
@@ -225,30 +225,30 @@ const E500 = mk({
     Q("effective", "The general IT controls operated effectively throughout the period of intended reliance (procedures 2 to 7).", "Les contrôles informatiques généraux ont fonctionné efficacement sur toute la période d'appui envisagée (procédures 2 à 7)."),
   ],
   conclEn: [
-    "The general IT controls operated effectively throughout the period, and the automated controls and system-generated reports identified in D4.6 may be relied on.",
-    "Where a deficiency was found, its effect on the reliance placed in E510 and on the substantive procedures has been recorded and the programme revised.",
+    "The general IT controls operated effectively throughout the period, and the automated controls and system-generated reports identified in P4.3 may be relied on.",
+    "Where a deficiency was found, its effect on the reliance placed in E1.2 and on the substantive procedures has been recorded and the programme revised.",
   ],
   conclFr: [
-    "Les contrôles informatiques généraux ont fonctionné efficacement sur l'exercice, et les contrôles automatisés et états produits identifiés en D4.6 peuvent être utilisés.",
-    "Toute déficience relevée, son effet sur l'appui pris en E510 et sur les procédures de substance a été consigné et le programme révisé.",
+    "Les contrôles informatiques généraux ont fonctionné efficacement sur l'exercice, et les contrôles automatisés et états produits identifiés en P4.3 peuvent être utilisés.",
+    "Toute déficience relevée, son effet sur l'appui pris en E1.2 et sur les procédures de substance a été consigné et le programme révisé.",
   ],
 });
 
-const E510 = mk({
+const E1_2 = mk({
   std: "ISA 315 (Revised 2019) ¶26 · ISA 330 ¶8–17 · ISA 500 ¶9",
   ownsEn: "the testing of application controls and of information produced by the entity",
   ownsFr: "les tests des contrôles applicatifs et de l'information produite par l'entité",
   reqEn: [
-    "An automated control operates the same way on every transaction, so testing one operation establishes how it operated throughout — provided the general IT controls in E500 supported it for the whole period.",
+    "An automated control operates the same way on every transaction, so testing one operation establishes how it operated throughout — provided the general IT controls in E1.1 supported it for the whole period.",
     "Where we use information produced by the entity as audit evidence, we obtain evidence of its accuracy and completeness, and evaluate whether it is sufficiently precise and detailed for our purpose (ISA 500 ¶9).",
   ],
   reqFr: [
-    "Un contrôle automatisé s'applique de façon identique à chaque opération : tester une exécution établit son fonctionnement sur la période, sous réserve des contrôles généraux testés en E500.",
+    "Un contrôle automatisé s'applique de façon identique à chaque opération : tester une exécution établit son fonctionnement sur la période, sous réserve des contrôles généraux testés en E1.1.",
     "Lorsque nous utilisons une information produite par l'entité, nous obtenons des éléments sur son exactitude et son exhaustivité et apprécions sa précision (ISA 500 ¶9).",
   ],
   procs: [
-    P("identify", "Confirm from D7.2 the automated and IT-dependent controls on which reliance is planned, and the assertion each addresses.", "Confirmer à partir de D7.2 les contrôles automatisés et dépendants de l'informatique sur lesquels l'appui est prévu et l'assertion visée par chacun.", "D7.2 · D4.4 · process narratives", "D7.2 · D4.4 · descriptifs de processus"),
-    P("gitc", "Confirm that the general IT controls tested in E500 operated effectively for the whole period of reliance on each application.", "Confirmer que les contrôles généraux testés en E500 ont fonctionné efficacement sur toute la période d'appui pour chaque application.", "E500 conclusion", "Conclusion E500"),
+    P("identify", "Confirm from S3.1 the automated and IT-dependent controls on which reliance is planned, and the assertion each addresses.", "Confirmer à partir de S3.1 les contrôles automatisés et dépendants de l'informatique sur lesquels l'appui est prévu et l'assertion visée par chacun.", "S3.1 · P4.1 · process narratives", "S3.1 · P4.1 · descriptifs de processus"),
+    P("gitc", "Confirm that the general IT controls tested in E1.1 operated effectively for the whole period of reliance on each application.", "Confirmer que les contrôles généraux testés en E1.1 ont fonctionné efficacement sur toute la période d'appui pour chaque application.", "E1.1 conclusion", "Conclusion E1.1"),
     P("configuration", "Test each automated control by inspecting its configuration and by processing a transaction that should be accepted and one that should be rejected.", "Tester chaque contrôle automatisé par examen de son paramétrage et par le traitement d'une opération devant être acceptée et d'une devant être rejetée.", "System configuration · test transactions · screen evidence", "Paramétrage du système · opérations de test · copies d'écran"),
     P("manual_part", "For an IT-dependent manual control, test the manual element as well: who reviews the exception report, what they do with it, and the evidence they leave.", "Pour un contrôle manuel dépendant de l'informatique, tester aussi la partie manuelle : qui examine l'état d'exceptions, la suite donnée et la trace laissée.", "Exception reports · reviewer's evidence · inquiry", "États d'exceptions · trace de la revue · entretien"),
     P("ipe_source", "For each report used as audit evidence, establish the source of the data and the parameters used to produce it.", "Pour chaque état utilisé comme élément probant, établir la source des données et les paramètres de génération.", "Report parameters · screen evidence · IT inquiry", "Paramètres de l'état · copies d'écran · entretien informatique"),
@@ -270,7 +270,7 @@ const E510 = mk({
 
 /* ================================================= accounts (E3) ========= */
 
-const E130 = mk({
+const E4_4 = mk({
   std: "ISA 501 ¶4–8 · ISA 330 ¶18–23",
   ownsEn: "the evidence obtained on inventories",
   ownsFr: "les éléments probants obtenus sur les stocks",
@@ -307,7 +307,7 @@ const E130 = mk({
   ],
 });
 
-const E140 = mk({
+const E4_5 = mk({
   std: "ISA 330 ¶18–23 · ISA 540 (Revised) · SYSCOHADA class 2",
   ownsEn: "the evidence obtained on property, plant and equipment",
   ownsFr: "les éléments probants obtenus sur les immobilisations corporelles",
@@ -327,7 +327,7 @@ const E140 = mk({
     P("ownership", "Test ownership of the significant assets: inspect the title deeds for land and buildings and the registration documents for vehicles.", "Tester la propriété des actifs significatifs : titres fonciers pour les terrains et constructions, cartes grises pour les véhicules.", "Title deeds · vehicle registration · lease contracts", "Titres fonciers · cartes grises · contrats de location"),
     P("charges", "Identify any charge, pledge or mortgage over the assets, and confirm it is disclosed.", "Identifier toute sûreté, nantissement ou hypothèque grevant les actifs et vérifier sa mention en annexe.", "Bank confirmations · loan agreements · RCCM charges register", "Confirmations bancaires · contrats de prêt · registre des sûretés RCCM"),
     P("depreciation", "Recalculate the depreciation charge, and evaluate whether the rates and useful lives remain appropriate against the condition and expected use of the assets.", "Recalculer la dotation aux amortissements et apprécier si les taux et durées d'utilité restent appropriés au regard de l'état et de l'usage attendu.", "Register · policy note · physical inspection", "Registre · note de méthode · examen physique"),
-    P("impairment", "Identify indicators of impairment, including idle assets and assets whose output has fallen, and test any impairment recorded.", "Identifier les indices de dépréciation, dont les actifs inutilisés ou en sous-régime, et tester toute dépréciation comptabilisée.", "Inspection · management reports · E390", "Examen · rapports de gestion · E390"),
+    P("impairment", "Identify indicators of impairment, including idle assets and assets whose output has fallen, and test any impairment recorded.", "Identifier les indices de dépréciation, dont les actifs inutilisés ou en sous-régime, et tester toute dépréciation comptabilisée.", "Inspection · management reports · E6.7", "Examen · rapports de gestion · E6.7"),
   ],
   items: [
     Q("agreed", "The movement schedule agrees to the general ledger and to the prior period file (procedure 1).", "Le tableau de mouvements concorde avec le grand livre et le dossier antérieur (procédure 1)."),
@@ -336,14 +336,14 @@ const E140 = mk({
     Q("depreciation", "The depreciation rates and useful lives remain appropriate (procedure 7).", "Les taux et durées d'amortissement restent appropriés (procédure 7)."),
   ],
   conclEn: [
-    "Sufficient appropriate audit evidence has been obtained over property, plant and equipment for the assertions identified as relevant in D7.2.",
+    "Sufficient appropriate audit evidence has been obtained over property, plant and equipment for the assertions identified as relevant in S3.1.",
   ],
   conclFr: [
-    "Des éléments probants suffisants et appropriés ont été obtenus sur les immobilisations corporelles pour les assertions retenues en D7.2.",
+    "Des éléments probants suffisants et appropriés ont été obtenus sur les immobilisations corporelles pour les assertions retenues en S3.1.",
   ],
 });
 
-const E150 = mk({
+const E4_6 = mk({
   std: "ISA 540 (Revised) · ISA 330 ¶18–23 · IAS 36 / IAS 38 · SYSCOHADA class 21",
   ownsEn: "the evidence obtained on intangible assets and goodwill",
   ownsFr: "les éléments probants obtenus sur les immobilisations incorporelles et le goodwill",
@@ -361,7 +361,7 @@ const E150 = mk({
     P("internally", "For internally generated intangibles, test the costs capitalised to the underlying records, and confirm that only costs incurred after the criteria were met are included.", "Pour les incorporels générés en interne, tester les coûts activés au regard des justificatifs et vérifier que seuls les coûts postérieurs au respect des critères sont inclus.", "Timesheets · project records · development plan", "Feuilles de temps · dossiers de projet · plan de développement"),
     P("amortisation", "Recalculate the amortisation charge and evaluate whether the useful lives remain appropriate.", "Recalculer la dotation aux amortissements et apprécier si les durées d'utilité restent appropriées.", "Register · policy note", "Registre · note de méthode"),
     P("cgu", "For goodwill, confirm the cash-generating units to which it has been allocated and that the allocation is consistent with the prior period.", "Pour le goodwill, confirmer les unités génératrices de trésorerie d'affectation et la cohérence de l'affectation avec l'exercice précédent.", "Management's impairment memorandum · prior file", "Note de dépréciation de la direction · dossier antérieur"),
-    P("impairment", "Test the impairment calculation: the cash flows projected, the growth rate, the discount rate, and the period covered. Compare the prior period projections against what actually happened.", "Tester le calcul de dépréciation : flux projetés, taux de croissance, taux d'actualisation et horizon. Comparer les projections antérieures aux réalisations.", "Impairment model · board-approved budget · E390", "Modèle de dépréciation · budget approuvé · E390"),
+    P("impairment", "Test the impairment calculation: the cash flows projected, the growth rate, the discount rate, and the period covered. Compare the prior period projections against what actually happened.", "Tester le calcul de dépréciation : flux projetés, taux de croissance, taux d'actualisation et horizon. Comparer les projections antérieures aux réalisations.", "Impairment model · board-approved budget · E6.7", "Modèle de dépréciation · budget approuvé · E6.7"),
     P("sensitivity", "Perform a sensitivity analysis on the significant assumptions, and evaluate whether a reasonably possible change would give rise to an impairment.", "Réaliser une analyse de sensibilité sur les hypothèses importantes et apprécier si une variation raisonnablement possible entraînerait une dépréciation.", "Impairment model · our recalculation", "Modèle de dépréciation · notre recalcul"),
   ],
   items: [
@@ -378,7 +378,7 @@ const E150 = mk({
   ],
 });
 
-const E160 = mk({
+const E4_7 = mk({
   std: "ISA 330 ¶18–23 · ISA 501 ¶10 · ISA 540 (Revised)",
   ownsEn: "the evidence obtained on investments and financial assets",
   ownsFr: "les éléments probants obtenus sur les titres et actifs financiers",
@@ -396,7 +396,7 @@ const E160 = mk({
     P("inspect", "Where the entity holds the certificates itself, inspect them and confirm they are in the entity's name.", "Lorsque l'entité détient elle-même les titres, les examiner et vérifier qu'ils sont à son nom.", "Share certificates · custody records", "Certificats de titres · registre de dépôt"),
     P("additions", "Test the acquisitions and disposals of the period to the contract note and to the bank, and recalculate the gain or loss on disposal.", "Tester les acquisitions et cessions de l'exercice au regard de l'avis d'opéré et de la banque, et recalculer le résultat de cession.", "Contract notes · bank statements · board minutes", "Avis d'opéré · relevés bancaires · procès-verbaux"),
     P("classification", "Test the classification of each holding against the framework, and confirm the measurement basis applied follows from it.", "Tester le classement de chaque ligne au regard du référentiel et vérifier que la base d'évaluation en découle.", "Accounting policy · investment terms · framework", "Méthode comptable · caractéristiques des titres · référentiel"),
-    P("valuation", "Test the valuation: agree the quoted holdings to the market price at the year end, and test the basis of any unquoted valuation.", "Tester la valorisation : rapprocher les titres cotés du cours de clôture et tester la base de toute valorisation non cotée.", "Market data at the year end · valuation model · E390", "Cours de clôture · modèle de valorisation · E390"),
+    P("valuation", "Test the valuation: agree the quoted holdings to the market price at the year end, and test the basis of any unquoted valuation.", "Tester la valorisation : rapprocher les titres cotés du cours de clôture et tester la base de toute valorisation non cotée.", "Market data at the year end · valuation model · E6.7", "Cours de clôture · modèle de valorisation · E6.7"),
     P("income", "Test the investment income recognised in the period, and confirm the receivable at the year end.", "Tester les produits financiers de l'exercice et vérifier la créance à la clôture.", "Dividend advices · interest calculations · bank", "Avis de dividende · calculs d'intérêts · banque"),
   ],
   items: [
@@ -405,14 +405,14 @@ const E160 = mk({
     Q("valuation", "The carrying amount at the year end is supported by the evidence obtained (procedure 6).", "La valeur comptable à la clôture est étayée par les éléments obtenus (procédure 6)."),
   ],
   conclEn: [
-    "Sufficient appropriate audit evidence has been obtained over investments and financial assets for the assertions identified as relevant in D7.2.",
+    "Sufficient appropriate audit evidence has been obtained over investments and financial assets for the assertions identified as relevant in S3.1.",
   ],
   conclFr: [
-    "Des éléments probants suffisants et appropriés ont été obtenus sur les titres et actifs financiers pour les assertions retenues en D7.2.",
+    "Des éléments probants suffisants et appropriés ont été obtenus sur les titres et actifs financiers pour les assertions retenues en S3.1.",
   ],
 });
 
-const E170 = mk({
+const E4_8 = mk({
   std: "ISA 330 ¶18–23 · ISA 505 · SYSCOHADA classes 5 / 16",
   ownsEn: "the evidence obtained on cash, bank balances, loans and borrowings",
   ownsFr: "les éléments probants obtenus sur la trésorerie, les emprunts et dettes financières",
@@ -450,7 +450,7 @@ const E170 = mk({
   ],
 });
 
-const E180 = mk({
+const E4_9 = mk({
   std: "ISA 330 ¶18–23 · ISA 540 (Revised) · SYSCOHADA classes 44 / 89",
   ownsEn: "the evidence obtained on current and deferred taxation",
   ownsFr: "les éléments probants obtenus sur l'impôt exigible et différé",
@@ -467,7 +467,7 @@ const E180 = mk({
     P("rate", "Recalculate the tax charge using the rate in force, and confirm the treatment of the minimum tax where it applies.", "Recalculer la charge d'impôt au taux en vigueur et vérifier le traitement de l'impôt minimum forfaitaire le cas échéant.", "Tax rates in force · computation", "Taux en vigueur · calcul"),
     P("payments", "Agree the instalments paid and the withholding tax suffered to the receipts, and reconcile the balance payable at the year end.", "Rapprocher les acomptes versés et les retenues à la source des quittances et rapprocher le solde dû à la clôture.", "Payment receipts · tax account statement", "Quittances de paiement · état de compte fiscal"),
     P("returns", "Agree the prior period charge to the return as filed, and record the effect of any assessment received since.", "Rapprocher la charge de l'exercice précédent de la déclaration déposée et consigner l'effet de tout redressement notifié depuis.", "Filed returns · assessments · correspondence", "Déclarations déposées · notifications · correspondance"),
-    P("uncertain", "Identify the uncertain tax positions, and test the provision recorded against the correspondence with the administration and any advice obtained.", "Identifier les positions fiscales incertaines et tester la provision comptabilisée au regard de la correspondance avec l'administration et des conseils obtenus.", "Tax correspondence · adviser's opinion · D5.2", "Correspondance fiscale · avis du conseil · D5.2"),
+    P("uncertain", "Identify the uncertain tax positions, and test the provision recorded against the correspondence with the administration and any advice obtained.", "Identifier les positions fiscales incertaines et tester la provision comptabilisée au regard de la correspondance avec l'administration et des conseils obtenus.", "Tax correspondence · adviser's opinion · S3.2", "Correspondance fiscale · avis du conseil · S3.2"),
     P("deferred", "Test the deferred tax: the temporary differences identified, the rate applied, and the recoverability of any deferred tax asset.", "Tester l'impôt différé : différences temporelles identifiées, taux appliqué et recouvrabilité de tout actif d'impôt différé.", "Deferred tax computation · forecasts · framework", "Calcul d'impôt différé · prévisions · référentiel"),
   ],
   items: [
@@ -484,7 +484,7 @@ const E180 = mk({
   ],
 });
 
-const E190 = mk({
+const E4_10 = mk({
   std: "ISA 330 ¶18–23 · ISA 250 (Revised) · SYSCOHADA class 443/445",
   ownsEn: "the evidence obtained on value added tax and other sales taxes",
   ownsFr: "les éléments probants obtenus sur la TVA et autres taxes sur les ventes",
@@ -501,7 +501,7 @@ const E190 = mk({
     P("input", "Reconcile the input tax reclaimed to the purchases recorded, and test a sample of the reclaims to the supplier invoices.", "Rapprocher la TVA déductible des achats comptabilisés et tester un échantillon de déductions au regard des factures fournisseurs.", "VAT returns · purchase invoices", "Déclarations de TVA · factures d'achat"),
     P("balance", "Agree the balance at the year end to the return for the final period, and confirm the payment or repayment after the year end.", "Rapprocher le solde de clôture de la déclaration de la dernière période et vérifier le paiement ou le remboursement postérieur.", "Final return · post year-end bank statements", "Dernière déclaration · relevés bancaires postérieurs"),
     P("rates", "Test that the correct rate has been applied to each category of supply, including exempt and zero-rated supplies.", "Vérifier l'application du taux correct à chaque catégorie d'opérations, y compris exonérées et à taux zéro.", "Tax code · invoices · product listing", "Code général des impôts · factures · liste des produits"),
-    P("filings", "Confirm that every return due in the period was filed, and identify any filed late together with the penalty arising.", "Vérifier le dépôt de chaque déclaration due sur l'exercice et identifier les dépôts tardifs et les pénalités correspondantes.", "Filing receipts · tax account statement · F1", "Récépissés de dépôt · état de compte fiscal · F1"),
+    P("filings", "Confirm that every return due in the period was filed, and identify any filed late together with the penalty arising.", "Vérifier le dépôt de chaque déclaration due sur l'exercice et identifier les dépôts tardifs et les pénalités correspondantes.", "Filing receipts · tax account statement · C5.2", "Récépissés de dépôt · état de compte fiscal · C5.2"),
   ],
   items: [
     Q("reconciled", "The tax declared reconciles to the revenue and purchases recorded (procedures 1, 2).", "La taxe déclarée se rapproche des produits et achats comptabilisés (procédures 1, 2)."),
@@ -509,14 +509,14 @@ const E190 = mk({
     Q("filed", "Every return due in the period was filed on time (procedure 5). A “No” requires the penalty to be recorded.", "Chaque déclaration due a été déposée dans les délais (procédure 5). Un « Non » impose la comptabilisation de la pénalité."),
   ],
   conclEn: [
-    "Sufficient appropriate audit evidence has been obtained over value added tax and other sales taxes, and any non-compliance identified has been carried to E310.",
+    "Sufficient appropriate audit evidence has been obtained over value added tax and other sales taxes, and any non-compliance identified has been carried to E6.1.",
   ],
   conclFr: [
-    "Des éléments probants suffisants et appropriés ont été obtenus sur la TVA et taxes assimilées, et toute non-conformité relevée est reportée en E310.",
+    "Des éléments probants suffisants et appropriés ont été obtenus sur la TVA et taxes assimilées, et toute non-conformité relevée est reportée en E6.1.",
   ],
 });
 
-const E200 = mk({
+const E4_11 = mk({
   std: "ISA 540 (Revised) · ISA 501 ¶9–12 · IAS 19 / IAS 37 · SYSCOHADA classes 15 / 19",
   ownsEn: "the evidence obtained on provisions and employee benefits",
   ownsFr: "les éléments probants obtenus sur les provisions et avantages du personnel",
@@ -531,11 +531,11 @@ const E200 = mk({
   procs: [
     P("schedule", "Obtain the movement schedule for each provision, showing the opening balance, additions, utilisations, releases and the closing balance.", "Obtenir le tableau de mouvements de chaque provision : ouverture, dotations, utilisations, reprises et clôture.", "Provision schedule · general ledger · prior file", "État des provisions · grand livre · dossier antérieur"),
     P("obligation", "For each provision, test that a present obligation exists at the year end as a result of a past event.", "Pour chaque provision, vérifier l'existence d'une obligation actuelle à la clôture résultant d'un événement passé.", "Contracts · correspondence · legal advice · minutes", "Contrats · correspondance · avis juridique · procès-verbaux"),
-    P("measurement", "Test the measurement: the assumptions used, the discount rate where the effect is material, and the arithmetic.", "Tester l'évaluation : hypothèses retenues, taux d'actualisation lorsque l'effet est significatif, et exactitude arithmétique.", "Management's calculation · E390 · actuarial report", "Calcul de la direction · E390 · rapport actuariel"),
+    P("measurement", "Test the measurement: the assumptions used, the discount rate where the effect is material, and the arithmetic.", "Tester l'évaluation : hypothèses retenues, taux d'actualisation lorsque l'effet est significatif, et exactitude arithmétique.", "Management's calculation · E6.7 · actuarial report", "Calcul de la direction · E6.7 · rapport actuariel"),
     P("releases", "Test the releases in the period, and confirm that each provision released is no longer required.", "Tester les reprises de l'exercice et vérifier que chaque provision reprise n'est plus nécessaire.", "Provision schedule · supporting correspondence", "État des provisions · correspondance justificative"),
-    P("benefits", "Test the employee benefit obligation: agree the census data given to the actuary to the payroll, and evaluate the significant actuarial assumptions.", "Tester l'engagement au titre des avantages du personnel : rapprocher les données transmises à l'actuaire de la paie et apprécier les hypothèses actuarielles importantes.", "Actuarial report · payroll data · E120", "Rapport actuariel · données de paie · E120"),
-    P("legal", "Where the provision relates to litigation, obtain the letter of inquiry response from the entity's legal advisers.", "Lorsque la provision porte sur un litige, obtenir la réponse des conseils juridiques de l'entité.", "Legal confirmation · ISA 501 ¶10 · D5.2", "Réponse du conseil juridique · ISA 501 ¶10 · D5.2"),
-    P("completeness", "Test completeness: review the minutes, the correspondence and the post year-end payments for obligations not provided for.", "Tester l'exhaustivité : examiner les procès-verbaux, la correspondance et les paiements postérieurs à la recherche d'obligations non provisionnées.", "Minutes (E360) · post year-end payments · E270", "Procès-verbaux (E360) · paiements postérieurs · E270"),
+    P("benefits", "Test the employee benefit obligation: agree the census data given to the actuary to the payroll, and evaluate the significant actuarial assumptions.", "Tester l'engagement au titre des avantages du personnel : rapprocher les données transmises à l'actuaire de la paie et apprécier les hypothèses actuarielles importantes.", "Actuarial report · payroll data · E4.3", "Rapport actuariel · données de paie · E4.3"),
+    P("legal", "Where the provision relates to litigation, obtain the letter of inquiry response from the entity's legal advisers.", "Lorsque la provision porte sur un litige, obtenir la réponse des conseils juridiques de l'entité.", "Legal confirmation · ISA 501 ¶10 · S3.2", "Réponse du conseil juridique · ISA 501 ¶10 · S3.2"),
+    P("completeness", "Test completeness: review the minutes, the correspondence and the post year-end payments for obligations not provided for.", "Tester l'exhaustivité : examiner les procès-verbaux, la correspondance et les paiements postérieurs à la recherche d'obligations non provisionnées.", "Minutes (E6.4) · post year-end payments · E4.15", "Procès-verbaux (E6.4) · paiements postérieurs · E4.15"),
   ],
   items: [
     Q("obligation", "A present obligation exists at the year end for every provision recorded (procedure 2).", "Une obligation actuelle existe à la clôture pour chaque provision comptabilisée (procédure 2)."),
@@ -551,7 +551,7 @@ const E200 = mk({
   ],
 });
 
-const E210 = mk({
+const E4_12 = mk({
   std: "ISA 330 ¶18–23 · IFRS 16 / SYSCOHADA — crédit-bail",
   ownsEn: "the evidence obtained on leases and lease-acquisition arrangements",
   ownsFr: "les éléments probants obtenus sur les contrats de location et de crédit-bail",
@@ -568,7 +568,7 @@ const E210 = mk({
     P("read", "Read the significant contracts and test the classification applied against the terms: the lease term, the transfer of title, the purchase option and the present value of the payments.", "Lire les contrats significatifs et tester le classement au regard des termes : durée, transfert de propriété, option d'achat et valeur actualisée des loyers.", "Lease contracts · accounting framework", "Contrats de location · référentiel comptable"),
     P("measure", "Recalculate the asset and the liability at inception for the contracts selected, and the charge for the period.", "Recalculer l'actif et la dette à l'origine pour les contrats retenus, ainsi que la charge de l'exercice.", "Contracts · amortisation schedule · discount rate", "Contrats · tableau d'amortissement · taux d'actualisation"),
     P("payments", "Agree the payments made in the period to the bank, and reconcile the liability movement.", "Rapprocher les loyers versés de la banque et justifier la variation de la dette.", "Bank statements · lease schedule", "Relevés bancaires · échéancier"),
-    P("completeness", "Test completeness: review the rent and hire expense accounts, the minutes and the insurance schedule for arrangements not in the register.", "Tester l'exhaustivité : examiner les comptes de loyers et locations, les procès-verbaux et les polices d'assurance à la recherche de contrats absents du registre.", "General ledger · minutes (E360) · insurance policies", "Grand livre · procès-verbaux (E360) · polices d'assurance"),
+    P("completeness", "Test completeness: review the rent and hire expense accounts, the minutes and the insurance schedule for arrangements not in the register.", "Tester l'exhaustivité : examiner les comptes de loyers et locations, les procès-verbaux et les polices d'assurance à la recherche de contrats absents du registre.", "General ledger · minutes (E6.4) · insurance policies", "Grand livre · procès-verbaux (E6.4) · polices d'assurance"),
     P("disclosure", "Test the maturity analysis of the lease liabilities disclosed.", "Tester l'échéancier des dettes de location présenté en annexe.", "Lease schedules · draft financial statements", "Échéanciers · projet d'états financiers"),
   ],
   items: [
@@ -584,7 +584,7 @@ const E210 = mk({
   ],
 });
 
-const E220 = mk({
+const E4_13 = mk({
   std: "ISA 330 ¶18–23 · SYSCOHADA classes 8 / 48",
   ownsEn: "the evidence obtained on items outside ordinary activities (HAO)",
   ownsFr: "les éléments probants obtenus sur les éléments hors activités ordinaires (HAO)",
@@ -600,7 +600,7 @@ const E220 = mk({
     P("listing", "Obtain the listing of items recorded in classes 8 and 48, and agree the total to the general ledger.", "Obtenir la liste des éléments enregistrés en classes 8 et 48 et rapprocher le total du grand livre.", "General ledger · trial balance", "Grand livre · balance"),
     P("nature", "For each item, establish its nature and test whether it falls outside the entity's ordinary activities.", "Pour chaque élément, établir sa nature et vérifier s'il se situe hors des activités ordinaires de l'entité.", "Supporting documents · inquiry of management · SYSCOHADA", "Pièces justificatives · entretien avec la direction · SYSCOHADA"),
     P("recurring", "Compare the items with those recorded as HAO in the prior periods, and challenge any that recurs.", "Comparer ces éléments à ceux classés en HAO les exercices précédents et remettre en cause tout élément récurrent.", "Prior financial statements · prior file", "États financiers antérieurs · dossier antérieur"),
-    P("reverse", "Review the operating result for items that should have been classified as HAO but were not.", "Examiner le résultat d'exploitation à la recherche d'éléments qui auraient dû être classés en HAO.", "General ledger · analytical review D4.3", "Grand livre · revue analytique D4.3"),
+    P("reverse", "Review the operating result for items that should have been classified as HAO but were not.", "Examiner le résultat d'exploitation à la recherche d'éléments qui auraient dû être classés en HAO.", "General ledger · analytical review P3.2", "Grand livre · revue analytique P3.2"),
     P("support", "Test each significant item to its supporting documentation, and confirm the amount and the period.", "Tester chaque élément significatif au regard de ses justificatifs et confirmer le montant et la période.", "Invoices · contracts · board approvals", "Factures · contrats · approbations du conseil"),
   ],
   items: [
@@ -616,7 +616,7 @@ const E220 = mk({
   ],
 });
 
-const E230 = mk({
+const E4_14 = mk({
   std: "ISA 330 ¶18–23 · SYSCOHADA — tableau des flux de trésorerie",
   ownsEn: "the tie-out of the cash flow statement",
   ownsFr: "le rapprochement du tableau des flux de trésorerie",
@@ -629,8 +629,8 @@ const E230 = mk({
     "Les opérations sans effet de trésorerie sont la source d'erreur habituelle : une acquisition réglée autrement qu'en numéraire ou un écart de conversion n'a pas sa place dans un flux.",
   ],
   procs: [
-    P("opening_closing", "Agree the opening and closing cash and cash equivalents to the balance sheet and to E170.", "Rapprocher la trésorerie d'ouverture et de clôture du bilan et de E170.", "Balance sheet · E170 · general ledger", "Bilan · E170 · grand livre"),
-    P("components", "Agree each line of the statement to the underlying movement schedule, and confirm the totals cast and cross-cast.", "Rapprocher chaque ligne du tableau du tableau de mouvements correspondant et vérifier les totaux en lignes et en colonnes.", "Movement schedules E140/E150/E170/E280 · working papers", "Tableaux de mouvements E140/E150/E170/E280 · feuilles de travail"),
+    P("opening_closing", "Agree the opening and closing cash and cash equivalents to the balance sheet and to E4.8.", "Rapprocher la trésorerie d'ouverture et de clôture du bilan et de E4.8.", "Balance sheet · E4.8 · general ledger", "Bilan · E4.8 · grand livre"),
+    P("components", "Agree each line of the statement to the underlying movement schedule, and confirm the totals cast and cross-cast.", "Rapprocher chaque ligne du tableau du tableau de mouvements correspondant et vérifier les totaux en lignes et en colonnes.", "Movement schedules E4.5/E4.6/E4.8/E4.16 · working papers", "Tableaux de mouvements E4.5/E4.6/E4.8/E4.16 · feuilles de travail"),
     P("noncash", "Identify the non-cash transactions in the period and confirm that each has been excluded from the statement and disclosed where required.", "Identifier les opérations sans effet de trésorerie de l'exercice et vérifier leur exclusion du tableau et leur mention le cas échéant.", "General ledger · minutes · movement schedules", "Grand livre · procès-verbaux · tableaux de mouvements"),
     P("classification", "Test the classification of each flow between operating, investing and financing.", "Tester le classement de chaque flux entre exploitation, investissement et financement.", "SYSCOHADA presentation rules · draft statement", "Règles de présentation SYSCOHADA · projet de tableau"),
     P("recompute", "Recompute the statement independently from the movement schedules, and reconcile any difference to the version presented.", "Recalculer le tableau de façon indépendante à partir des tableaux de mouvements et justifier tout écart avec la version présentée.", "Our recomputation · draft financial statements", "Notre recalcul · projet d'états financiers"),
@@ -648,26 +648,26 @@ const E230 = mk({
   ],
 });
 
-const E270 = mk({
+const E4_15 = mk({
   std: "ISA 501 ¶9–12 · ISA 505 · IAS 37 / SYSCOHADA — engagements hors bilan",
   ownsEn: "the evidence obtained on commitments and contingencies",
   ownsFr: "les éléments probants obtenus sur les engagements et passifs éventuels",
   reqEn: [
     "We design and perform procedures to identify litigation and claims that may give rise to a risk of material misstatement, and where such matters are identified we seek direct communication with the entity's external legal advisers (ISA 501 ¶9–10).",
-    "The risk is one of completeness. The items identified in D5.2 at the planning stage are the starting point, not the population.",
+    "The risk is one of completeness. The items identified in S3.2 at the planning stage are the starting point, not the population.",
   ],
   reqFr: [
     "Nous mettons en œuvre des procédures pour identifier les litiges et réclamations pouvant engendrer un risque d'anomalie significative et, le cas échéant, cherchons à communiquer directement avec les conseils juridiques externes (ISA 501 ¶9–10).",
-    "Le risque porte sur l'exhaustivité. Les éléments identifiés en D5.2 constituent le point de départ, non la population.",
+    "Le risque porte sur l'exhaustivité. Les éléments identifiés en S3.2 constituent le point de départ, non la population.",
   ],
   procs: [
-    P("carry", "Bring forward the items identified in D5.2 and confirm the position on each at the year end.", "Reprendre les éléments identifiés en D5.2 et confirmer leur situation à la clôture.", "D5.2 · inquiry of management", "D5.2 · entretien avec la direction"),
+    P("carry", "Bring forward the items identified in S3.2 and confirm the position on each at the year end.", "Reprendre les éléments identifiés en S3.2 et confirmer leur situation à la clôture.", "S3.2 · inquiry of management", "S3.2 · entretien avec la direction"),
     P("legal_letter", "Send the letter of inquiry to each of the entity's external legal advisers, asking for the matters they are handling, their status and their estimate of the outcome.", "Adresser la lettre de demande à chaque conseil juridique externe : affaires traitées, état d'avancement et estimation de l'issue.", "Our letter of inquiry · ISA 501 ¶10", "Notre lettre de demande · ISA 501 ¶10"),
     P("followup", "Where a reply is not received or is qualified, follow up and, where necessary, meet the adviser with management's permission.", "En cas de réponse absente ou réservée, relancer et, si nécessaire, rencontrer le conseil avec l'accord de la direction.", "Correspondence · ISA 501 ¶11", "Correspondance · ISA 501 ¶11"),
-    P("minutes", "Read the minutes of the general meetings and of the board up to the date of our report for commitments and disputes.", "Examiner les procès-verbaux d'assemblée et du conseil jusqu'à la date de notre rapport : engagements et litiges.", "Minutes (E360)", "Procès-verbaux (E360)"),
-    P("bank", "Identify from the bank confirmations the guarantees, sureties and pledges given, and agree each to the disclosure.", "Identifier dans les confirmations bancaires les garanties, cautions et nantissements donnés et les rapprocher de l'annexe.", "Bank confirmations (E170) · draft disclosures", "Confirmations bancaires (E170) · projet d'annexe"),
+    P("minutes", "Read the minutes of the general meetings and of the board up to the date of our report for commitments and disputes.", "Examiner les procès-verbaux d'assemblée et du conseil jusqu'à la date de notre rapport : engagements et litiges.", "Minutes (E6.4)", "Procès-verbaux (E6.4)"),
+    P("bank", "Identify from the bank confirmations the guarantees, sureties and pledges given, and agree each to the disclosure.", "Identifier dans les confirmations bancaires les garanties, cautions et nantissements donnés et les rapprocher de l'annexe.", "Bank confirmations (E4.8) · draft disclosures", "Confirmations bancaires (E4.8) · projet d'annexe"),
     P("contracts", "Read the significant contracts entered into in the period for capital commitments, penalty clauses and take-or-pay obligations.", "Examiner les contrats significatifs conclus sur l'exercice : engagements d'investissement, clauses pénales et obligations d'enlèvement.", "Contract file · board approvals", "Chrono des contrats · approbations du conseil"),
-    P("representation", "Obtain management's written representation that all known actual or possible litigation and claims have been disclosed to us.", "Obtenir la déclaration écrite de la direction attestant que tous les litiges connus, réels ou possibles, nous ont été communiqués.", "Representation letter (B8) · ISA 501 ¶12", "Lettre d'affirmation (B8) · ISA 501 ¶12"),
+    P("representation", "Obtain management's written representation that all known actual or possible litigation and claims have been disclosed to us.", "Obtenir la déclaration écrite de la direction attestant que tous les litiges connus, réels ou possibles, nous ont été communiqués.", "Representation letter (C3.1) · ISA 501 ¶12", "Lettre d'affirmation (C3.1) · ISA 501 ¶12"),
   ],
   items: [
     Q("legal_reply", "A reply was received from each legal adviser to whom an inquiry was sent (procedures 2, 3).", "Une réponse a été reçue de chaque conseil juridique interrogé (procédures 2, 3).", true),
@@ -683,7 +683,7 @@ const E270 = mk({
   ],
 });
 
-const E280 = mk({
+const E4_16 = mk({
   std: "ISA 330 ¶18–23 · OHADA — Acte uniforme sociétés commerciales · SYSCOHADA class 1",
   ownsEn: "the evidence obtained on equity and reserves",
   ownsFr: "les éléments probants obtenus sur les capitaux propres et réserves",
@@ -698,11 +698,11 @@ const E280 = mk({
   procs: [
     P("schedule", "Obtain the statement of changes in equity and agree the opening balances to the prior period financial statements and the closing balances to the general ledger.", "Obtenir le tableau de variation des capitaux propres et rapprocher les ouvertures des états financiers antérieurs et les clôtures du grand livre.", "Prior financial statements · general ledger", "États financiers antérieurs · grand livre"),
     P("capital", "Agree the share capital to the statutes and to the RCCM filing, and test any change in the period to the extraordinary general meeting resolution.", "Rapprocher le capital social des statuts et du dépôt RCCM, et tester toute variation de l'exercice au regard de la résolution d'assemblée générale extraordinaire.", "Statutes · RCCM extract · AGE minutes", "Statuts · extrait RCCM · procès-verbal d'AGE"),
-    P("register", "Agree the shareholdings to the register of registered securities, and cross-refer to F6.", "Rapprocher la répartition du capital du registre des titres nominatifs et renvoyer à F6.", "Share register · F6 · statutes", "Registre des titres · F6 · statuts"),
+    P("register", "Agree the shareholdings to the register of registered securities, and cross-refer to C5.7.", "Rapprocher la répartition du capital du registre des titres nominatifs et renvoyer à C5.7.", "Share register · C5.7 · statutes", "Registre des titres · C5.7 · statuts"),
     P("appropriation", "Test the appropriation of the prior period result to the ordinary general meeting resolution, including the transfer to the legal reserve.", "Tester l'affectation du résultat de l'exercice précédent au regard de la résolution d'assemblée générale ordinaire, y compris la dotation à la réserve légale.", "AGO minutes · statutes · Uniform Act", "Procès-verbal d'AGO · statuts · Acte uniforme"),
     P("legal_reserve", "Recalculate the legal reserve and confirm it has reached the level the Uniform Act and the statutes require.", "Recalculer la réserve légale et vérifier qu'elle atteint le niveau requis par l'Acte uniforme et les statuts.", "Uniform Act · statutes · general ledger", "Acte uniforme · statuts · grand livre"),
     P("dividends", "Test the dividends declared and paid to the resolution and to the bank, and confirm the withholding tax applied.", "Tester les dividendes décidés et versés au regard de la résolution et de la banque, et vérifier la retenue à la source appliquée.", "AGO minutes · bank statements · tax returns", "Procès-verbal d'AGO · relevés bancaires · déclarations fiscales"),
-    P("half_capital", "Compare net equity with half of the share capital, and cross-refer to F7 where the threshold is breached.", "Comparer les capitaux propres à la moitié du capital social et renvoyer à F7 en cas de franchissement du seuil.", "Trial balance · statutes · F7", "Balance · statuts · F7"),
+    P("half_capital", "Compare net equity with half of the share capital, and cross-refer to C5.8 where the threshold is breached.", "Comparer les capitaux propres à la moitié du capital social et renvoyer à C5.8 en cas de franchissement du seuil.", "Trial balance · statutes · C5.8", "Balance · statuts · C5.8"),
   ],
   items: [
     Q("authorised", "Every movement in equity is supported by the resolution that authorised it (procedures 2, 4, 6).", "Chaque mouvement de capitaux propres est étayé par la résolution qui l'a autorisé (procédures 2, 4, 6)."),
@@ -720,7 +720,7 @@ const E280 = mk({
 
 /* ================================================= general (E4) ========== */
 
-const E310 = mk({
+const E6_1 = mk({
   std: "ISA 250 (Revised) ¶13–29",
   ownsEn: "the consideration of laws and regulations and of any non-compliance identified",
   ownsFr: "la prise en compte des textes légaux et réglementaires et des non-conformités relevées",
@@ -733,13 +733,13 @@ const E310 = mk({
     "En cas de non-conformité relevée ou suspectée, nous en comprenons la nature et les circonstances, en évaluons l'effet et la communiquons aux responsables de la gouvernance sauf interdiction légale (ISA 250 ¶19–24).",
   ],
   procs: [
-    P("framework", "Establish the legal and regulatory framework applicable to the entity and its sector, and identify the texts with a direct effect on the financial statements.", "Établir le cadre légal et réglementaire applicable à l'entité et à son secteur et identifier les textes ayant une incidence directe sur les comptes.", "Statutes · sector regulation · OHADA Uniform Acts · D4.2", "Statuts · réglementation sectorielle · Actes uniformes OHADA · D4.2"),
+    P("framework", "Establish the legal and regulatory framework applicable to the entity and its sector, and identify the texts with a direct effect on the financial statements.", "Établir le cadre légal et réglementaire applicable à l'entité et à son secteur et identifier les textes ayant une incidence directe sur les comptes.", "Statutes · sector regulation · OHADA Uniform Acts · P3.1", "Statuts · réglementation sectorielle · Actes uniformes OHADA · P3.1"),
     P("compliance", "For each such text, obtain evidence of compliance, including the licences held and the returns filed.", "Pour chacun de ces textes, obtenir les éléments attestant du respect : agréments détenus et déclarations déposées.", "Licences · filed returns · regulator correspondence", "Agréments · déclarations déposées · correspondance du régulateur"),
     P("inquire", "Inquire of management and of those charged with governance about compliance, and about any investigation, inspection or penalty.", "S'enquérir auprès de la direction et des responsables de la gouvernance du respect des textes et de toute enquête, inspection ou sanction.", "Inquiry · minutes · correspondence", "Entretien · procès-verbaux · correspondance"),
     P("inspect", "Inspect the correspondence with the licensing and regulatory authorities.", "Examiner la correspondance avec les autorités de tutelle et de régulation.", "Regulator correspondence file", "Chrono de correspondance avec les régulateurs"),
-    P("indicators", "Remain alert to indicators of non-compliance: unexplained payments, payments to unusual destinations, unauthorised transactions and adverse media.", "Rester attentif aux indices de non-conformité : paiements inexpliqués, versements vers des destinations inhabituelles, opérations non autorisées et presse défavorable.", "General ledger · E350 · D3.1 screening", "Grand livre · E350 · criblage D3.1"),
-    P("evaluate", "Where non-compliance is identified or suspected, obtain an understanding of the act and evaluate the effect on the financial statements, including any provision or disclosure required.", "En cas de non-conformité relevée ou suspectée, en comprendre la nature et évaluer l'effet sur les comptes, y compris toute provision ou mention requise.", "Legal advice · management explanation · E200 · E270", "Avis juridique · explications de la direction · E200 · E270"),
-    P("report", "Determine whether a duty to report to an authority arises, including the révélation des faits délictueux, and cross-refer to F5.", "Déterminer s'il existe une obligation de signalement à une autorité, dont la révélation des faits délictueux, et renvoyer à F5.", "OHADA Uniform Act · professional obligations · F5", "Acte uniforme OHADA · obligations professionnelles · F5"),
+    P("indicators", "Remain alert to indicators of non-compliance: unexplained payments, payments to unusual destinations, unauthorised transactions and adverse media.", "Rester attentif aux indices de non-conformité : paiements inexpliqués, versements vers des destinations inhabituelles, opérations non autorisées et presse défavorable.", "General ledger · E2.1 · P1.1 screening", "Grand livre · E2.1 · criblage P1.1"),
+    P("evaluate", "Where non-compliance is identified or suspected, obtain an understanding of the act and evaluate the effect on the financial statements, including any provision or disclosure required.", "En cas de non-conformité relevée ou suspectée, en comprendre la nature et évaluer l'effet sur les comptes, y compris toute provision ou mention requise.", "Legal advice · management explanation · E4.11 · E4.15", "Avis juridique · explications de la direction · E4.11 · E4.15"),
+    P("report", "Determine whether a duty to report to an authority arises, including the révélation des faits délictueux, and cross-refer to C5.6.", "Déterminer s'il existe une obligation de signalement à une autorité, dont la révélation des faits délictueux, et renvoyer à C5.6.", "OHADA Uniform Act · professional obligations · C5.6", "Acte uniforme OHADA · obligations professionnelles · C5.6"),
   ],
   items: [
     Q("direct", "Evidence of compliance has been obtained for every law with a direct effect on material amounts and disclosures (procedure 2).", "Des éléments de conformité ont été obtenus pour chaque texte ayant une incidence directe sur des montants et informations significatifs (procédure 2)."),
@@ -755,7 +755,7 @@ const E310 = mk({
   ],
 });
 
-const E320 = mk({
+const E6_2 = mk({
   std: "ISA 550 ¶18–26",
   ownsEn: "the testing of related party relationships and transactions",
   ownsFr: "les tests des relations et opérations avec les parties liées",
@@ -768,13 +768,13 @@ const E320 = mk({
     "Lorsque la direction affirme qu'une opération a été conclue à des conditions de marché, nous obtenons des éléments suffisants à l'appui (ISA 550 ¶24).",
   ],
   procs: [
-    P("register", "Bring forward the related party register from D5.6 and confirm it remains complete at the year end.", "Reprendre le registre des parties liées de D5.6 et confirmer son exhaustivité à la clôture.", "D5.6 · inquiry of management", "D5.6 · entretien avec la direction"),
-    P("search", "Search the ledger, the bank statements and the minutes for transactions with the parties on the register, and for names not on it.", "Rechercher dans le grand livre, les relevés bancaires et les procès-verbaux les opérations avec les parties du registre et les noms absents de celui-ci.", "General ledger · bank statements · minutes (E360)", "Grand livre · relevés bancaires · procès-verbaux (E360)"),
+    P("register", "Bring forward the related party register from S3.4 and confirm it remains complete at the year end.", "Reprendre le registre des parties liées de S3.4 et confirmer son exhaustivité à la clôture.", "S3.4 · inquiry of management", "S3.4 · entretien avec la direction"),
+    P("search", "Search the ledger, the bank statements and the minutes for transactions with the parties on the register, and for names not on it.", "Rechercher dans le grand livre, les relevés bancaires et les procès-verbaux les opérations avec les parties du registre et les noms absents de celui-ci.", "General ledger · bank statements · minutes (E6.4)", "Grand livre · relevés bancaires · procès-verbaux (E6.4)"),
     P("contracts", "For each significant transaction, inspect the contract and test the amount, the terms and the authorisation.", "Pour chaque opération significative, examiner le contrat et tester le montant, les conditions et l'autorisation.", "Contracts · board minutes · invoices", "Contrats · procès-verbaux du conseil · factures"),
     P("outside", "For each transaction outside the normal course of business, evaluate whether the business rationale suggests fraudulent reporting or concealment.", "Pour chaque opération hors du cours normal des affaires, apprécier si la justification économique suggère une fraude ou une dissimulation.", "ISA 550 ¶23 · contracts · inquiry", "ISA 550 ¶23 · contrats · entretien"),
     P("arms_length", "Where management asserts arm's length terms, obtain evidence for that assertion by comparing with transactions with unrelated parties or with independent market data.", "Lorsque la direction invoque des conditions de marché, obtenir les éléments correspondants par comparaison avec des opérations avec des tiers ou des données de marché indépendantes.", "Comparable transactions · market data · ISA 550 ¶24", "Opérations comparables · données de marché · ISA 550 ¶24"),
     P("balances", "Confirm the balances outstanding with each related party at the year end, and test their recoverability.", "Confirmer les soldes réciproques avec chaque partie liée à la clôture et tester leur recouvrabilité.", "Confirmations · post year-end settlements", "Confirmations · règlements postérieurs"),
-    P("disclosure", "Test the related party disclosure in the draft financial statements against the register and the transactions tested, and against the conventions réglementées in F2.", "Tester l'information sur les parties liées du projet d'états financiers au regard du registre, des opérations testées et des conventions réglementées de F2.", "Draft financial statements · F2 · framework", "Projet d'états financiers · F2 · référentiel"),
+    P("disclosure", "Test the related party disclosure in the draft financial statements against the register and the transactions tested, and against the conventions réglementées in C5.3.", "Tester l'information sur les parties liées du projet d'états financiers au regard du registre, des opérations testées et des conventions réglementées de C5.3.", "Draft financial statements · C5.3 · framework", "Projet d'états financiers · C5.3 · référentiel"),
   ],
   items: [
     Q("complete", "The search identified no related party or transaction that management had not disclosed (procedure 2).", "La recherche n'a révélé aucune partie liée ni opération non communiquée par la direction (procédure 2)."),
@@ -791,7 +791,7 @@ const E320 = mk({
   ],
 });
 
-const E330 = mk({
+const E6_3 = mk({
   std: "ISA 570 (Revised) ¶12–20",
   ownsEn: "the going concern evaluation and the evidence obtained on it",
   ownsFr: "l'appréciation de la continuité d'exploitation et les éléments probants obtenus",
@@ -804,11 +804,11 @@ const E330 = mk({
     "Lorsque des événements ou conditions peuvent jeter un doute important, nous obtenons des éléments suffisants pour déterminer s'il existe une incertitude significative, y compris la faisabilité des plans de la direction (ISA 570 ¶16).",
   ],
   procs: [
-    P("carry", "Bring forward the events and conditions identified in D5.5 and confirm the position on each.", "Reprendre les événements et conditions identifiés en D5.5 et confirmer leur situation.", "D5.5 · inquiry of management", "D5.5 · entretien avec la direction"),
+    P("carry", "Bring forward the events and conditions identified in S3.3 and confirm the position on each.", "Reprendre les événements et conditions identifiés en S3.3 et confirmer leur situation.", "S3.3 · inquiry of management", "S3.3 · entretien avec la direction"),
     P("assessment", "Obtain management's assessment. Confirm the period it covers extends at least twelve months from the date of the financial statements.", "Obtenir l'évaluation de la direction et vérifier qu'elle couvre au moins douze mois à compter de la date des états financiers.", "Management's assessment · board approval", "Évaluation de la direction · approbation du conseil"),
     P("forecast", "Test the cash flow forecast underlying the assessment: the reliability of the data, the assumptions applied, and the arithmetic.", "Tester les prévisions de trésorerie sous-jacentes : fiabilité des données, hypothèses retenues et exactitude arithmétique.", "Cash flow forecast · budget · management accounts", "Prévisions de trésorerie · budget · situations intermédiaires"),
     P("history", "Compare the prior period forecasts with what actually happened, and evaluate the reliability of management's forecasting.", "Comparer les prévisions de l'exercice précédent aux réalisations et apprécier la fiabilité des prévisions de la direction.", "Prior forecasts · actual results", "Prévisions antérieures · réalisations"),
-    P("facilities", "Confirm the borrowing facilities available: the amount, the expiry, the covenants and whether they are committed.", "Confirmer les concours bancaires disponibles : montant, échéance, covenants et caractère confirmé.", "Bank confirmations (E170) · facility letters", "Confirmations bancaires (E170) · lettres d'autorisation"),
+    P("facilities", "Confirm the borrowing facilities available: the amount, the expiry, the covenants and whether they are committed.", "Confirmer les concours bancaires disponibles : montant, échéance, covenants et caractère confirmé.", "Bank confirmations (E4.8) · facility letters", "Confirmations bancaires (E4.8) · lettres d'autorisation"),
     P("plans", "Evaluate management's plans for future action, and obtain evidence that each plan is feasible and that the outcome improves the situation.", "Apprécier les plans d'action de la direction et obtenir les éléments attestant de leur faisabilité et de leur effet favorable.", "Board minutes · signed agreements · shareholder support", "Procès-verbaux · accords signés · soutien des actionnaires"),
     P("support", "Where the entity relies on support from a shareholder or a group company, obtain written confirmation of that support and evaluate the supporter's ability to provide it.", "Lorsque l'entité s'appuie sur le soutien d'un actionnaire ou d'une société du groupe, obtenir la confirmation écrite de ce soutien et apprécier la capacité du garant à l'apporter.", "Letter of support · supporter's financial statements", "Lettre de soutien · états financiers du garant"),
     P("disclosure", "Where a material uncertainty exists, test the adequacy of the disclosure of the events and conditions and of management's plans.", "En cas d'incertitude significative, tester le caractère approprié de l'information relative aux événements, conditions et plans de la direction.", "Draft financial statements · ISA 570 ¶19", "Projet d'états financiers · ISA 570 ¶19"),
@@ -822,15 +822,15 @@ const E330 = mk({
   ],
   conclEn: [
     "The use of the going concern basis of accounting is appropriate.",
-    "The effect of our conclusion on the auditor's report has been determined and recorded in C1.",
+    "The effect of our conclusion on the auditor's report has been determined and recorded in C5.1.",
   ],
   conclFr: [
     "L'application du principe de continuité d'exploitation est appropriée.",
-    "L'effet de notre conclusion sur le rapport a été déterminé et consigné en C1.",
+    "L'effet de notre conclusion sur le rapport a été déterminé et consigné en C5.1.",
   ],
 });
 
-const E360 = mk({
+const E6_4 = mk({
   std: "ISA 250 (Revised) ¶15 · ISA 500 · OHADA — Acte uniforme sociétés commerciales",
   ownsEn: "the reading of the minutes and the statutory records",
   ownsFr: "l'examen des procès-verbaux et des registres statutaires",
@@ -846,9 +846,9 @@ const E360 = mk({
     P("completeness", "Establish that the minutes obtained are complete: compare the meetings held with the requirements of the statutes and confirm the numbering of the minutes is unbroken.", "Établir l'exhaustivité des procès-verbaux : comparer les réunions tenues aux exigences statutaires et vérifier la continuité de leur numérotation.", "Statutes · minute book · inquiry of the secretary", "Statuts · registre des procès-verbaux · entretien avec le secrétaire"),
     P("read", "Read the minutes of the general meetings, the board and any committee for the period and up to the date of our report.", "Examiner les procès-verbaux des assemblées, du conseil et des comités sur l'exercice et jusqu'à la date de notre rapport.", "Minute book · committee papers", "Registre des procès-verbaux · dossiers des comités"),
     P("extract", "Extract every decision with an accounting or disclosure consequence, and cross-refer each to the working paper that deals with it.", "Relever chaque décision ayant une conséquence comptable ou d'information et la renvoyer à la feuille de travail concernée.", "Our extract schedule · related working papers", "Notre relevé · feuilles de travail concernées"),
-    P("registers", "Inspect the statutory registers: the register of registered securities, the register of attendance and the register of the board's deliberations.", "Examiner les registres statutaires : registre des titres nominatifs, feuille de présence et registre des délibérations.", "Statutory registers · F6", "Registres statutaires · F6"),
-    P("filings", "Confirm that the prior period accounts were approved within the statutory deadline and filed with the RCCM.", "Vérifier que les comptes de l'exercice précédent ont été approuvés dans le délai légal et déposés au RCCM.", "AGO minutes · RCCM filing receipt · F1", "Procès-verbal d'AGO · récépissé de dépôt RCCM · F1"),
-    P("subsequent", "Read the minutes of the meetings held after the year end for events requiring adjustment or disclosure, and carry each to E380.", "Examiner les procès-verbaux des réunions postérieures à la clôture à la recherche d'événements à ajuster ou à mentionner et les reporter en E380.", "Post year-end minutes · E380", "Procès-verbaux postérieurs · E380"),
+    P("registers", "Inspect the statutory registers: the register of registered securities, the register of attendance and the register of the board's deliberations.", "Examiner les registres statutaires : registre des titres nominatifs, feuille de présence et registre des délibérations.", "Statutory registers · C5.7", "Registres statutaires · C5.7"),
+    P("filings", "Confirm that the prior period accounts were approved within the statutory deadline and filed with the RCCM.", "Vérifier que les comptes de l'exercice précédent ont été approuvés dans le délai légal et déposés au RCCM.", "AGO minutes · RCCM filing receipt · C5.2", "Procès-verbal d'AGO · récépissé de dépôt RCCM · C5.2"),
+    P("subsequent", "Read the minutes of the meetings held after the year end for events requiring adjustment or disclosure, and carry each to E6.6.", "Examiner les procès-verbaux des réunions postérieures à la clôture à la recherche d'événements à ajuster ou à mentionner et les reporter en E6.6.", "Post year-end minutes · E6.6", "Procès-verbaux postérieurs · E6.6"),
   ],
   items: [
     Q("complete", "The minutes obtained cover every meeting held in the period and up to the date of our report (procedures 1, 2).", "Les procès-verbaux obtenus couvrent chaque réunion tenue sur l'exercice et jusqu'à la date de notre rapport (procédures 1, 2)."),
@@ -864,7 +864,7 @@ const E360 = mk({
   ],
 });
 
-const E370 = mk({
+const E6_5 = mk({
   std: "ISA 510 ¶5–10 · ISA 710 ¶7–9",
   ownsEn: "the evidence obtained on opening balances and comparatives",
   ownsFr: "les éléments probants obtenus sur les soldes d'ouverture et les comparatifs",
@@ -878,8 +878,8 @@ const E370 = mk({
   ],
   procs: [
     P("agree", "Agree the opening balances to the prior period financial statements, and confirm they reflect any adjustment made after those statements were approved.", "Rapprocher les soldes d'ouverture des états financiers antérieurs et vérifier la prise en compte de tout ajustement postérieur à leur approbation.", "Prior financial statements · prior file · general ledger", "États financiers antérieurs · dossier antérieur · grand livre"),
-    P("predecessor", "Where a predecessor auditor acted, review their file for the opening position, or perform the alternative procedures planned in D3.4.", "Lorsqu'un auditeur précédent est intervenu, examiner son dossier pour la position d'ouverture ou mettre en œuvre les procédures alternatives prévues en D3.4.", "Predecessor's working papers · D3.4", "Feuilles de travail du prédécesseur · D3.4"),
-    P("current", "Determine whether the current period procedures already provide evidence over the opening balances, such as the collection of opening receivables or the sale of opening inventory.", "Déterminer si les procédures de l'exercice fournissent déjà des éléments sur les soldes d'ouverture : encaissement des créances d'ouverture, écoulement des stocks d'ouverture.", "E100 · E130 · current period testing", "E100 · E130 · tests de l'exercice"),
+    P("predecessor", "Where a predecessor auditor acted, review their file for the opening position, or perform the alternative procedures planned in P1.2.", "Lorsqu'un auditeur précédent est intervenu, examiner son dossier pour la position d'ouverture ou mettre en œuvre les procédures alternatives prévues en P1.2.", "Predecessor's working papers · P1.2", "Feuilles de travail du prédécesseur · P1.2"),
+    P("current", "Determine whether the current period procedures already provide evidence over the opening balances, such as the collection of opening receivables or the sale of opening inventory.", "Déterminer si les procédures de l'exercice fournissent déjà des éléments sur les soldes d'ouverture : encaissement des créances d'ouverture, écoulement des stocks d'ouverture.", "E4.1 · E4.4 · current period testing", "E4.1 · E4.4 · tests de l'exercice"),
     P("specific", "For the balances not covered, perform specific procedures on the opening position, including the physical existence of assets and the confirmation of liabilities.", "Pour les soldes non couverts, mettre en œuvre des procédures spécifiques sur la position d'ouverture : existence physique des actifs et confirmation des dettes.", "Confirmations · inspection · supporting documents", "Confirmations · examen physique · pièces justificatives"),
     P("policies", "Test that the accounting policies applied to the opening balances are consistent with those applied in the current period, and that any change has been accounted for and disclosed.", "Vérifier la permanence des méthodes appliquées aux soldes d'ouverture et le traitement et la mention de tout changement.", "Prior policy note · current policy note", "Note de méthodes antérieure · note de méthodes actuelle"),
     P("comparatives", "Agree the comparative figures to the prior period financial statements, and test any restatement to its supporting analysis.", "Rapprocher les chiffres comparatifs des états financiers antérieurs et tester tout retraitement au regard de son analyse justificative.", "Prior financial statements · restatement analysis", "États financiers antérieurs · analyse du retraitement"),
@@ -898,22 +898,22 @@ const E370 = mk({
   ],
 });
 
-const E380 = mk({
+const E6_6 = mk({
   std: "ISA 560 ¶6–9",
   ownsEn: "the subsequent events procedures performed during execution",
   ownsFr: "les procédures sur les événements postérieurs mises en œuvre en exécution",
   reqEn: [
     "We perform procedures designed to obtain sufficient appropriate evidence that all events occurring between the date of the financial statements and the date of the auditor's report that require adjustment or disclosure have been identified (ISA 560 ¶6).",
-    "The procedures cover the whole period up to the date of the report. B7 records the final position at completion; this paper records the work performed during execution.",
+    "The procedures cover the whole period up to the date of the report. C2.2 records the final position at completion; this paper records the work performed during execution.",
   ],
   reqFr: [
     "Nous mettons en œuvre des procédures visant à obtenir des éléments suffisants attestant que tous les événements survenus entre la date des états financiers et celle du rapport et appelant un ajustement ou une mention ont été identifiés (ISA 560 ¶6).",
-    "Les procédures couvrent la période jusqu'à la date du rapport. B7 consigne la position finale à l'achèvement.",
+    "Les procédures couvrent la période jusqu'à la date du rapport. C2.2 consigne la position finale à l'achèvement.",
   ],
   procs: [
     P("understand", "Obtain an understanding of the procedures management has established to identify subsequent events.", "Prendre connaissance des procédures mises en place par la direction pour identifier les événements postérieurs.", "Inquiry of management · closing procedures", "Entretien avec la direction · procédures de clôture"),
     P("inquire", "Inquire of management and of those charged with governance about new commitments, borrowings, guarantees, disposals, litigation and any event affecting the assumptions used in the financial statements.", "S'enquérir auprès de la direction et des responsables de la gouvernance des nouveaux engagements, emprunts, garanties, cessions, litiges et de tout événement affectant les hypothèses retenues.", "Inquiry · ISA 560 ¶7(b)", "Entretien · ISA 560 ¶7(b)"),
-    P("minutes", "Read the minutes of the meetings held after the date of the financial statements.", "Examiner les procès-verbaux des réunions tenues après la date des états financiers.", "Post year-end minutes (E360)", "Procès-verbaux postérieurs (E360)"),
+    P("minutes", "Read the minutes of the meetings held after the date of the financial statements.", "Examiner les procès-verbaux des réunions tenues après la date des états financiers.", "Post year-end minutes (E6.4)", "Procès-verbaux postérieurs (E6.4)"),
     P("interim", "Read the entity's latest interim financial information and management accounts.", "Examiner la dernière situation intermédiaire et les états de gestion de l'entité.", "Interim accounts · management reports", "Situation intermédiaire · états de gestion"),
     P("transactions", "Review the transactions recorded after the year end for items indicating a condition that existed at the year end, including receipts, payments, credit notes and journal entries.", "Examiner les opérations enregistrées après la clôture révélant une situation existant à la clôture : encaissements, paiements, avoirs et écritures.", "Post year-end ledger · bank statements", "Grand livre postérieur · relevés bancaires"),
     P("classify", "Classify each event identified as adjusting or non-adjusting, and confirm the treatment applied in the financial statements.", "Classer chaque événement identifié en ajustant ou non ajustant et vérifier le traitement retenu dans les comptes.", "IAS 10 / SYSCOHADA · draft financial statements", "IAS 10 / SYSCOHADA · projet d'états financiers"),
@@ -921,17 +921,17 @@ const E380 = mk({
   items: [
     Q("period", "The procedures cover the whole period from the date of the financial statements to the date of this work (procedures 2 to 5).", "Les procédures couvrent toute la période depuis la date des états financiers jusqu'à la date de ces travaux (procédures 2 à 5)."),
     Q("classified", "Each event identified is classified as adjusting or non-adjusting and treated accordingly (procedure 6).", "Chaque événement identifié est classé en ajustant ou non ajustant et traité en conséquence (procédure 6).", true),
-    Q("carried", "Each event identified has been carried to B7 for the position at the date of the report (procedure 6).", "Chaque événement identifié est reporté en B7 pour la position à la date du rapport (procédure 6)."),
+    Q("carried", "Each event identified has been carried to C2.2 for the position at the date of the report (procedure 6).", "Chaque événement identifié est reporté en C2.2 pour la position à la date du rapport (procédure 6)."),
   ],
   conclEn: [
-    "The subsequent events procedures performed during execution identified every event requiring adjustment or disclosure up to the date of this work, and the position is carried to B7.",
+    "The subsequent events procedures performed during execution identified every event requiring adjustment or disclosure up to the date of this work, and the position is carried to C2.2.",
   ],
   conclFr: [
-    "Les procédures sur les événements postérieurs mises en œuvre en exécution ont identifié tout événement à ajuster ou à mentionner jusqu'à la date de ces travaux, et la position est reportée en B7.",
+    "Les procédures sur les événements postérieurs mises en œuvre en exécution ont identifié tout événement à ajuster ou à mentionner jusqu'à la date de ces travaux, et la position est reportée en C2.2.",
   ],
 });
 
-const E390 = mk({
+const E6_7 = mk({
   std: "ISA 540 (Revised) ¶21–33",
   ownsEn: "the testing of the accounting estimates",
   ownsFr: "les tests des estimations comptables",
@@ -944,13 +944,13 @@ const E390 = mk({
     "Nous examinons les jugements de la direction à la recherche d'indices de biais et apprécions si, pris ensemble, ils constituent un risque d'anomalie résultant de fraude (ISA 540 ¶32).",
   ],
   procs: [
-    P("inventory", "Bring forward the inventory of estimates and the approach set for each in D5.7.", "Reprendre l'inventaire des estimations et l'approche arrêtée pour chacune en D5.7.", "D5.7 · draft financial statements", "D5.7 · projet d'états financiers"),
+    P("inventory", "Bring forward the inventory of estimates and the approach set for each in S3.5.", "Reprendre l'inventaire des estimations et l'approche arrêtée pour chacune en S3.5.", "S3.5 · draft financial statements", "S3.5 · projet d'états financiers"),
     P("method", "Test the method applied: whether it is appropriate in the circumstances and applied consistently with the prior period, and that any change is justified.", "Tester la méthode appliquée : caractère approprié, permanence par rapport à l'exercice précédent et justification de tout changement.", "Management's calculation · policy note · prior file", "Calcul de la direction · note de méthode · dossier antérieur"),
-    P("assumptions", "Test each significant assumption for reasonableness, and for consistency with the assumptions used elsewhere in the financial statements and with the evidence obtained in the rest of the file.", "Tester le caractère raisonnable de chaque hypothèse importante et sa cohérence avec les autres hypothèses des comptes et les éléments du dossier.", "Management's support · market data · E330 · E150", "Justificatifs de la direction · données de marché · E330 · E150"),
-    P("data", "Test the data used: its relevance and reliability, and agree it to the underlying records.", "Tester les données utilisées : pertinence et fiabilité, et rapprochement des enregistrements sous-jacents.", "Source records · E510 for system reports", "Enregistrements sources · E510 pour les états système"),
-    P("approach", "Apply the approach set in D5.7: test how management made the estimate, test events up to the date of the report, or develop our own point estimate or range.", "Appliquer l'approche arrêtée en D5.7 : tester le processus de la direction, utiliser les événements jusqu'à la date du rapport, ou développer notre propre estimation ou fourchette.", "ISA 540 ¶23–29 · our independent estimate", "ISA 540 ¶23–29 · notre estimation indépendante"),
-    P("range", "Where the estimate falls outside our range, or the point estimate differs materially from management's, raise the difference as a misstatement in B5.", "Lorsque l'estimation sort de notre fourchette ou diffère significativement de la nôtre, porter l'écart en anomalie en B5.", "Our range · B5", "Notre fourchette · B5"),
-    P("bias", "Review the judgements and decisions made across the estimates for indicators of management bias, including a pattern of estimates falling at the favourable end of the range.", "Examiner les jugements portés sur l'ensemble des estimations à la recherche d'indices de biais, dont une tendance systématique vers l'extrémité favorable de la fourchette.", "ISA 540 ¶32 · all estimates tested · E350", "ISA 540 ¶32 · ensemble des estimations testées · E350"),
+    P("assumptions", "Test each significant assumption for reasonableness, and for consistency with the assumptions used elsewhere in the financial statements and with the evidence obtained in the rest of the file.", "Tester le caractère raisonnable de chaque hypothèse importante et sa cohérence avec les autres hypothèses des comptes et les éléments du dossier.", "Management's support · market data · E6.3 · E4.6", "Justificatifs de la direction · données de marché · E6.3 · E4.6"),
+    P("data", "Test the data used: its relevance and reliability, and agree it to the underlying records.", "Tester les données utilisées : pertinence et fiabilité, et rapprochement des enregistrements sous-jacents.", "Source records · E1.2 for system reports", "Enregistrements sources · E1.2 pour les états système"),
+    P("approach", "Apply the approach set in S3.5: test how management made the estimate, test events up to the date of the report, or develop our own point estimate or range.", "Appliquer l'approche arrêtée en S3.5 : tester le processus de la direction, utiliser les événements jusqu'à la date du rapport, ou développer notre propre estimation ou fourchette.", "ISA 540 ¶23–29 · our independent estimate", "ISA 540 ¶23–29 · notre estimation indépendante"),
+    P("range", "Where the estimate falls outside our range, or the point estimate differs materially from management's, raise the difference as a misstatement in C1.1.", "Lorsque l'estimation sort de notre fourchette ou diffère significativement de la nôtre, porter l'écart en anomalie en C1.1.", "Our range · C1.1", "Notre fourchette · C1.1"),
+    P("bias", "Review the judgements and decisions made across the estimates for indicators of management bias, including a pattern of estimates falling at the favourable end of the range.", "Examiner les jugements portés sur l'ensemble des estimations à la recherche d'indices de biais, dont une tendance systématique vers l'extrémité favorable de la fourchette.", "ISA 540 ¶32 · all estimates tested · E2.1", "ISA 540 ¶32 · ensemble des estimations testées · E2.1"),
     P("disclosure", "Test the disclosure of the estimation uncertainty, and whether it conveys the range of possible outcomes.", "Tester l'information relative à l'incertitude d'estimation et sa capacité à traduire l'éventail des issues possibles.", "Draft financial statements · ISA 540 ¶31", "Projet d'états financiers · ISA 540 ¶31"),
   ],
   items: [
@@ -970,7 +970,7 @@ const E390 = mk({
 
 /* ================================================= response tasks (E5) === */
 
-const E350 = mk({
+const E2_1 = mk({
   std: "ISA 240 ¶31–34, ¶36–37",
   ownsEn: "the responses to the risk of management override of controls",
   ownsFr: "les réponses au risque de contournement des contrôles par la direction",
@@ -984,12 +984,12 @@ const E350 = mk({
     "Ces procédures sont mises en œuvre sur toute mission, indépendamment de l'identification d'un risque de fraude par ailleurs.",
   ],
   procs: [
-    P("population", "Obtain the complete population of journal entries for the period, and reconcile its total movement to the general ledger to establish completeness.", "Obtenir la population complète des écritures de l'exercice et rapprocher le total de ses mouvements du grand livre pour en établir l'exhaustivité.", "Journal entry extract · general ledger · E510", "Extraction des écritures · grand livre · E510"),
+    P("population", "Obtain the complete population of journal entries for the period, and reconcile its total movement to the general ledger to establish completeness.", "Obtenir la population complète des écritures de l'exercice et rapprocher le total de ses mouvements du grand livre pour en établir l'exhaustivité.", "Journal entry extract · general ledger · E1.2", "Extraction des écritures · grand livre · E1.2"),
     P("criteria", "Set the criteria for selecting entries to test: entries posted at unusual times, by unexpected users, to unrelated accounts, with round amounts, with no narrative, or posted at or after the period end.", "Définir les critères de sélection des écritures à tester : heures inhabituelles, utilisateurs inattendus, comptes sans lien, montants ronds, absence de libellé, ou postérieures à la clôture.", "ISA 240 ¶32(a) · journal entry testing tool", "ISA 240 ¶32(a) · outil de test des écritures"),
     P("test", "Test the entries selected to the supporting documentation, and establish the business reason for each.", "Tester les écritures sélectionnées au regard des justificatifs et établir la raison économique de chacune.", "Supporting documents · inquiry of the preparer", "Pièces justificatives · entretien avec l'auteur de l'écriture"),
-    P("estimates", "Review the accounting estimates for bias, and perform a retrospective review of the significant estimates of the prior period.", "Examiner les estimations comptables à la recherche de biais et procéder à une revue rétrospective des estimations importantes de l'exercice précédent.", "E390 · D5.7 · prior financial statements", "E390 · D5.7 · états financiers antérieurs"),
-    P("unusual", "Identify the significant transactions outside the normal course of business, and evaluate whether the business rationale suggests they were entered into to misstate the financial statements or to conceal misappropriation.", "Identifier les opérations significatives hors du cours normal des affaires et apprécier si leur justification économique suggère une volonté de fausser les comptes ou de dissimuler un détournement.", "ISA 240 ¶32(c) · E320 · contracts · minutes", "ISA 240 ¶32(c) · E320 · contrats · procès-verbaux"),
-    P("consolidation", "Test the consolidation and closing adjustments, including any entry made outside the accounting system.", "Tester les écritures de consolidation et de clôture, y compris celles passées hors du système comptable.", "Closing entry schedule · spreadsheets · D4.6", "État des écritures de clôture · tableurs · D4.6"),
+    P("estimates", "Review the accounting estimates for bias, and perform a retrospective review of the significant estimates of the prior period.", "Examiner les estimations comptables à la recherche de biais et procéder à une revue rétrospective des estimations importantes de l'exercice précédent.", "E6.7 · S3.5 · prior financial statements", "E6.7 · S3.5 · états financiers antérieurs"),
+    P("unusual", "Identify the significant transactions outside the normal course of business, and evaluate whether the business rationale suggests they were entered into to misstate the financial statements or to conceal misappropriation.", "Identifier les opérations significatives hors du cours normal des affaires et apprécier si leur justification économique suggère une volonté de fausser les comptes ou de dissimuler un détournement.", "ISA 240 ¶32(c) · E6.2 · contracts · minutes", "ISA 240 ¶32(c) · E6.2 · contrats · procès-verbaux"),
+    P("consolidation", "Test the consolidation and closing adjustments, including any entry made outside the accounting system.", "Tester les écritures de consolidation et de clôture, y compris celles passées hors du système comptable.", "Closing entry schedule · spreadsheets · P4.3", "État des écritures de clôture · tableurs · P4.3"),
   ],
   items: [
     Q("complete", "The journal entry population reconciles to the general ledger (procedure 1).", "La population des écritures se rapproche du grand livre (procédure 1)."),
@@ -1007,30 +1007,30 @@ const E350 = mk({
 });
 
 export const EXECUTION_PAPERS: Record<string, PaperDef> = {
-  E100,
-  E110,
-  E120,
-  E500,
-  E510,
-  E130,
-  E140,
-  E150,
-  E160,
-  E170,
-  E180,
-  E190,
-  E200,
-  E210,
-  E220,
-  E230,
-  E270,
-  E280,
-  E310,
-  E320,
-  E330,
-  E360,
-  E370,
-  E380,
-  E390,
-  E350,
+  "E4.1": E4_1,
+  "E4.2": E4_2,
+  "E4.3": E4_3,
+  "E1.1": E1_1,
+  "E1.2": E1_2,
+  "E4.4": E4_4,
+  "E4.5": E4_5,
+  "E4.6": E4_6,
+  "E4.7": E4_7,
+  "E4.8": E4_8,
+  "E4.9": E4_9,
+  "E4.10": E4_10,
+  "E4.11": E4_11,
+  "E4.12": E4_12,
+  "E4.13": E4_13,
+  "E4.14": E4_14,
+  "E4.15": E4_15,
+  "E4.16": E4_16,
+  "E6.1": E6_1,
+  "E6.2": E6_2,
+  "E6.3": E6_3,
+  "E6.4": E6_4,
+  "E6.5": E6_5,
+  "E6.6": E6_6,
+  "E6.7": E6_7,
+  "E2.1": E2_1,
 };

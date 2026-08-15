@@ -14,7 +14,7 @@ import { rollForward } from "@/lib/tb-rollforward";
 import { approvedMateriality } from "@/lib/materiality";
 
 export interface RiskLead {
-  /** stable identity for the decision record, e.g. "fa:dso", "ls:E", "wp:D4.2:carry" */
+  /** stable identity for the decision record, e.g. "fa:dso", "ls:E", "wp:P3.1:carry" */
   key: string;
   /** the task or tool that produced it */
   source: string;
@@ -42,13 +42,13 @@ const PAPER_SOURCES: {
   category: RiskLead["suggestedCategory"];
   level: RiskLead["suggestedLevel"];
 }[] = [
-  { code: "D4.2", field: "objectives", labelEn: "Business risks from the entity's objectives and strategies", labelFr: "Risques liés aux objectifs et stratégies de l'entité", category: "business", level: "assertion" },
-  { code: "D4.2", field: "carry", labelEn: "Matters carried from the understanding of the business", labelFr: "Éléments issus de la connaissance de l'activité", category: "business", level: "assertion" },
-  { code: "D4.2", field: "gc_status", labelEn: "Going-concern events or conditions noted at planning", labelFr: "Événements ou circonstances de continuité relevés à la planification", category: "business", level: "fs" },
-  { code: "D4.3", field: "carry", labelEn: "Indicators from the preliminary analytical procedures", labelFr: "Indicateurs des procédures analytiques préliminaires", category: "error", level: "assertion" },
-  { code: "D4.4", field: "deficiencies", labelEn: "Control deficiencies identified", labelFr: "Déficiences de contrôle relevées", category: "error", level: "fs" },
-  { code: "D4.6", field: "risks", labelEn: "Risks arising from the use of IT", labelFr: "Risques liés à l'utilisation de l'informatique", category: "error", level: "assertion" },
-  { code: "D5.4", field: "factors", labelEn: "Fraud risk factors identified", labelFr: "Facteurs de risque de fraude identifiés", category: "fraud", level: "assertion" },
+  { code: "P3.1", field: "objectives", labelEn: "Business risks from the entity's objectives and strategies", labelFr: "Risques liés aux objectifs et stratégies de l'entité", category: "business", level: "assertion" },
+  { code: "P3.1", field: "carry", labelEn: "Matters carried from the understanding of the business", labelFr: "Éléments issus de la connaissance de l'activité", category: "business", level: "assertion" },
+  { code: "P3.1", field: "gc_status", labelEn: "Going-concern events or conditions noted at planning", labelFr: "Événements ou circonstances de continuité relevés à la planification", category: "business", level: "fs" },
+  { code: "P3.2", field: "carry", labelEn: "Indicators from the preliminary analytical procedures", labelFr: "Indicateurs des procédures analytiques préliminaires", category: "error", level: "assertion" },
+  { code: "P4.1", field: "deficiencies", labelEn: "Control deficiencies identified", labelFr: "Déficiences de contrôle relevées", category: "error", level: "fs" },
+  { code: "P4.3", field: "risks", labelEn: "Risks arising from the use of IT", labelFr: "Risques liés à l'utilisation de l'informatique", category: "error", level: "assertion" },
+  { code: "P5.1", field: "factors", labelEn: "Fraud risk factors identified", labelFr: "Facteurs de risque de fraude identifiés", category: "fraud", level: "assertion" },
 ];
 
 export async function riskLeads(engagementId: string): Promise<RiskLead[]> {
@@ -66,12 +66,12 @@ export async function riskLeads(engagementId: string): Promise<RiskLead[]> {
         WHERE engagement_id = $1 AND code = ANY($2::text[])`,
       [engagementId, [...new Set(PAPER_SOURCES.map((p) => `wp:${p.code}`))]],
     );
-    // D3.1's client risk rating rides with the same query set
+    // P1.1's client risk rating rides with the same query set
     const rating = await tx.query<{ value: string }>(
-      "SELECT value #>> '{}' AS value FROM form_response WHERE engagement_id = $1 AND code = 'wp:D3.1' AND field_key = 'rating'",
+      "SELECT value #>> '{}' AS value FROM form_response WHERE engagement_id = $1 AND code = 'wp:P1.1' AND field_key = 'rating'",
       [engagementId],
     );
-    return [decisions.rows, [...papers.rows, ...(rating.rows[0] ? [{ code: "wp:D3.1", field_key: "rating", value: rating.rows[0].value }] : [])]];
+    return [decisions.rows, [...papers.rows, ...(rating.rows[0] ? [{ code: "wp:P1.1", field_key: "rating", value: rating.rows[0].value }] : [])]];
   });
 
   const decisions = new Map<string, { status: "dismissed" | "promoted"; rationale?: string }>();
@@ -91,11 +91,11 @@ export async function riskLeads(engagementId: string): Promise<RiskLead[]> {
   };
 
   // 1 — acceptance information (¶15): a High client risk rating is a lead
-  const rating = paperRows.find((r) => r.code === "wp:D3.1" && r.field_key === "rating");
+  const rating = paperRows.find((r) => r.code === "wp:P1.1" && r.field_key === "rating");
   if (rating && /high|élevé/i.test(rating.value)) {
     push({
       key: "d31:rating",
-      source: "D3.1",
+      source: "P1.1",
       labelEn: "Client risk rating assessed High at acceptance",
       labelFr: "Notation du risque client Élevée à l'acceptation",
       detail: rating.value.slice(0, 300),

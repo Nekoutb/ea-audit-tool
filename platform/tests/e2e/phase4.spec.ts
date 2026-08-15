@@ -1,7 +1,7 @@
 import { expect, test, type Page } from "@playwright/test";
 
-// Phase 4 acceptance (spec §17): run execution; raise misstatements; B5 totals
-// live against materiality; revise-approach adds a dated risk to D7.2.
+// Phase 4 acceptance (spec §17): run execution; raise misstatements; C1.1 totals
+// live against materiality; revise-approach adds a dated risk to S3.1.
 
 const EMAIL = "alice@firm-a.test";
 const PASSWORD = "password";
@@ -15,7 +15,7 @@ async function login(page: Page): Promise<void> {
   await page.waitForURL("**/dashboard");
 }
 
-test("Phase 4: step execution → findings routing → B5 vs materiality → revise-approach", async ({ page }) => {
+test("Phase 4: step execution → findings routing → C1.1 vs materiality → revise-approach", async ({ page }) => {
   test.setTimeout(300_000);
   await login(page);
 
@@ -36,7 +36,7 @@ test("Phase 4: step execution → findings routing → B5 vs materiality → rev
   const engagementUrl = page.url().replace(/\/team$/, "");
   await page.goto(engagementUrl);
 
-  // Materiality (overall 1.5M / trivial 75k) so B5 verdicts are live.
+  // Materiality (overall 1.5M / trivial 75k) so C1.1 verdicts are live.
   await page.goto(`${engagementUrl}/planning`);
   await page.getByTestId("materiality-benchmark").selectOption("revenue");
   await page.getByTestId("materiality-amount").fill("150000000");
@@ -45,9 +45,9 @@ test("Phase 4: step execution → findings routing → B5 vs materiality → rev
   await page.getByTestId("create-materiality").click();
   await page.getByTestId("approve-materiality").click();
 
-  // E110 workspace: add a step and complete it with a conclusion (4.2).
+  // E4.2 workspace: add a step and complete it with a conclusion (4.2).
   await page.goto(engagementUrl);
-  await page.getByTestId("open-section-E110").click();
+  await page.getByTestId("open-section-E4.2").click();
   await page.waitForURL("**/sections/**");
   const sectionUrl = page.url();
   await page.getByTestId("custom-step-description").fill("Search for unrecorded liabilities.");
@@ -56,13 +56,13 @@ test("Phase 4: step execution → findings routing → B5 vs materiality → rev
   await page.locator("[data-testid^=complete-step-]").first().click();
   await expect(page.locator("[data-testid^=step-status-]").first()).toContainText("✓");
 
-  // Matter arising → B5 misstatement above trivial (4.4/4.5).
+  // Matter arising → C1.1 misstatement above trivial (4.4/4.5).
   await page.getByTestId("finding-route").selectOption("b5");
   await page.getByTestId("finding-title").fill("Unrecorded supplier invoice");
   await page.getByTestId("finding-amount").fill("8000000");
   await page.getByTestId("route-finding").click();
 
-  // Control deviation → deficiency → C1 (4.7).
+  // Control deviation → deficiency → C5.1 (4.7).
   await page.goto(sectionUrl);
   await page.getByTestId("control-description").fill("Three-way match control");
   await page.getByTestId("control-result").selectOption("deviation");
@@ -75,14 +75,14 @@ test("Phase 4: step execution → findings routing → B5 vs materiality → rev
   await page.getByTestId("finding-title").fill("New inventory obsolescence risk identified");
   await page.getByTestId("route-finding").click();
 
-  // Section conclusion: prepare + review (4.11) — no significant risk on E110.
+  // Section conclusion: prepare + review (4.11) — no significant risk on E4.2.
   await page.goto(sectionUrl);
   await page.getByTestId("section-conclusion").fill("Objectives achieved for payables.");
   await page.getByTestId("save-conclusion").click();
   await page.getByTestId("review-conclusion").click();
   await expect(page.getByTestId("conclusion-state")).toContainText("Objectives achieved for payables.");
 
-  // Findings tab: B5 totals vs materiality — exceeds, then correct → within (4.6).
+  // Findings tab: C1.1 totals vs materiality — exceeds, then correct → within (4.6).
   await page.goto(`${engagementUrl}/findings`);
   await page.waitForURL("**/findings");
   await expect(page.getByTestId("b5-totals")).toContainText("8 000 000");
@@ -90,7 +90,7 @@ test("Phase 4: step execution → findings routing → B5 vs materiality → rev
   await page.locator("[data-testid^=toggle-corrected-]").first().click();
   await expect(page.getByTestId("b5-verdict")).toContainText(/Within/i);
 
-  // C1 point present and clearable (4.9).
+  // C5.1 point present and clearable (4.9).
   await expect(page.getByTestId("c1-list")).toContainText("Three-way match");
   await page.locator("[data-testid^=clear-finding-]").first().click({ trial: true }).catch(() => {});
 

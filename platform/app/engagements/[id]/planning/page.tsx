@@ -31,18 +31,18 @@ import { requireTenant } from "@/lib/tenant";
 export const metadata = { title: "Planning · AuditISA" };
 
 const PLANNING_CODES = [
-  "D1", "D3.1", "D4.1", "D4.2", "D4.3", "D4.4", "D4.5", "D4.6", "D4.7", "D4.8", "D4.9",
-  "D5.1", "D5.2", "D5.4", "D5.5", "D5.6", "D5.7", "D6.1", "D7.1", "D7.2",
+  "S5.1", "P1.1", "S5.2", "P3.1", "P3.2", "P4.1", "P4.2", "P4.3", "S4.1", "S4.2", "S4.3",
+  "P6.1", "S3.2", "P5.1", "S3.3", "S3.4", "S3.5", "P2.2", "P5.2", "S3.1",
 ];
 
-// Conditional D-forms only activate when their D1 trigger question is answered
+// Conditional D-forms only activate when their S5.1 trigger question is answered
 // "yes" (spec §5.2). [Adversarial-review fix]
 const CONDITIONAL_TRIGGERS: Record<string, string> = {
-  "D4.5": "assess_control_env",
-  "D4.6": "assess_it_env",
-  "D4.7": "uses_expert",
-  "D4.8": "uses_service_org",
-  "D4.9": "has_internal_audit",
+  "P4.2": "assess_control_env",
+  "P4.3": "assess_it_env",
+  "S4.1": "uses_expert",
+  "S4.2": "uses_service_org",
+  "S4.3": "has_internal_audit",
 };
 
 async function driverStatuses(engagementId: string): Promise<Map<string, string>> {
@@ -68,7 +68,7 @@ async function driverStatuses(engagementId: string): Promise<Map<string, string>
     );
     const signedCodes = new Set(signed.rows.map((r) => r.code));
 
-    const d1 = byCode.get("D1") ?? {};
+    const d1 = byCode.get("S5.1") ?? {};
     const statuses = new Map<string, string>();
     for (const code of PLANNING_CODES) {
       const trigger = CONDITIONAL_TRIGGERS[code];
@@ -197,7 +197,7 @@ export default async function PlanningPage(props: {
       </Panel>
 
       <Panel className="mt-6">
-        <PanelHeader title={`${tp.materiality.title} (D5.1)`} />
+        <PanelHeader title={`${tp.materiality.title} (P6.1)`} />
         {versions.length > 0 ? (
           <div className="mt-3 overflow-x-auto rounded-[var(--radius-atlas-sm)] border border-line">
             <table className="w-full text-sm" data-testid="materiality-table">
@@ -278,7 +278,7 @@ export default async function PlanningPage(props: {
       </Panel>
 
       <Panel className="mt-6">
-        <PanelHeader title={`${tp.team.title} (D6.1)`} />
+        <PanelHeader title={`${tp.team.title} (P2.2)`} />
         <ul className="mt-3 flex flex-col gap-1 text-sm" data-testid="team-list">
           {team.map((member) => (
             <li key={member.id} className="flex items-center justify-between rounded-[var(--radius-atlas-sm)] border border-line bg-surface px-3 py-1.5">

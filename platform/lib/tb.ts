@@ -1,7 +1,7 @@
 // Trial-balance engine (steps 3.1–3.3, spec §10.1): import with column-mapping
 // inference (balance générale structure per SYSCOHADA art. 19 or closing-only),
 // a validation engine (balance checks, codification, unknown accounts,
-// opening-ties-to-prior feeding E370), and versioning where
+// opening-ties-to-prior feeding E6.5), and versioning where
 // FINAL = initial + posted adjusting journals, reproducibly
 // (trial_balance_version_journal keeps the applied set).
 
@@ -1038,7 +1038,7 @@ export async function addOverride(
 ): Promise<void> {
   const { tenantId, userId } = await requireTenant();
   if (!/^[0-9]{1,8}$/.test(input.accountPrefix)) throw new TbError("invalid-prefix");
-  if (!/^E[0-9]{3}$/.test(input.sectionCode)) throw new TbError("invalid-section");
+  if (!/^E[0-9]+.[0-9]+$/.test(input.sectionCode)) throw new TbError("invalid-section");
   if (!input.rationale.trim()) throw new TbError("rationale-required");
   await withTenant(tenantId, async (tx) => {
     await tx.query(

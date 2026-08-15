@@ -5,7 +5,7 @@
 
 import type { PaperDef } from "@/lib/papers/types";
 
-/* ---------------------------------------------------------------- D3.1 --- */
+/* ---------------------------------------------------------------- P1.1 --- */
 const D3_1: PaperDef = {
   std: "ISQM 1 ¶30 · ISA 220 (Revised) ¶22–24 · IESBA Code §320",
   ownsEn: "the client risk rating and the integrity conclusion",
@@ -13,13 +13,13 @@ const D3_1: PaperDef = {
   reqEn: [
     "The firm may accept or continue a client relationship only where it has obtained information about the nature and circumstances of the engagement and about the integrity and ethical values of the client, including its management, its owners and those charged with governance (ISQM 1 ¶30(a)). The engagement partner determines that the firm's acceptance procedures have been followed, and remains alert throughout for information that would have caused the firm to decline (ISA 220 (Revised) ¶22–24).",
     "The IESBA Code treats doubt over a client's integrity as a source of threats to compliance with the fundamental principles, and requires those threats to be identified and evaluated before an appointment is accepted (IESBA Code §320). Part A obtains that information from registry records, screening results, media coverage, third-party references and the predecessor auditor's response.",
-    "The reason for the change of auditor is corroborated with the predecessor auditor and is not accepted on management's account alone, particularly where the change follows a disagreement over an accounting or auditing matter or a restriction on the previous auditor's work (ISA 300 ¶13; procedures performed under D3.4).",
+    "The reason for the change of auditor is corroborated with the predecessor auditor and is not accepted on management's account alone, particularly where the change follows a disagreement over an accounting or auditing matter or a restriction on the previous auditor's work (ISA 300 ¶13; procedures performed under P1.2).",
     "For each screening performed, record the database searched, the date, the terms used and the disposition of every match. A match dismissed without a recorded reason is an unresolved matter for the purposes of the risk rating.",
   ],
   reqFr: [
     "Le cabinet ne peut accepter ou maintenir une relation client que s'il a obtenu des informations sur la nature et les circonstances de la mission ainsi que sur l'intégrité et les valeurs éthiques du client, y compris sa direction, ses propriétaires et les responsables de la gouvernance (ISQM 1 ¶30(a)).",
     "Le Code IESBA considère un doute sur l'intégrité du client comme une source de risques pour le respect des principes fondamentaux, à identifier et évaluer avant l'acceptation (Code IESBA §320).",
-    "Le motif du changement d'auditeur est corroboré auprès du prédécesseur et n'est pas retenu sur la seule déclaration de la direction (ISA 300 ¶13 ; travaux en D3.4).",
+    "Le motif du changement d'auditeur est corroboré auprès du prédécesseur et n'est pas retenu sur la seule déclaration de la direction (ISA 300 ¶13 ; travaux en P1.2).",
     "Pour chaque criblage, consigner la base consultée, la date, les termes utilisés et le traitement de chaque correspondance.",
   ],
   conclEn: [
@@ -43,7 +43,7 @@ const D3_1: PaperDef = {
           { value: "recurring", en: "Recurring engagement", fr: "Mission récurrente" },
         ] },
         { key: "auditor_change", kind: "select", labelEn: "Change of auditor?", labelFr: "Changement d'auditeur ?", options: [
-          { value: "yes", en: "Yes — predecessor communication applies (D3.4)", fr: "Oui — communication avec le prédécesseur (D3.4)" },
+          { value: "yes", en: "Yes — predecessor communication applies (P1.2)", fr: "Oui — communication avec le prédécesseur (P1.2)" },
           { value: "no", en: "No", fr: "Non" },
         ] },
       ],
@@ -63,10 +63,10 @@ const D3_1: PaperDef = {
         { key: "licences", en: "Identify the regulators and licences that apply to the entity's sector. Inspect the licences held and the most recent correspondence with each regulator.", fr: "Identifier les régulateurs et agréments applicables au secteur. Examiner les agréments détenus et la correspondance récente.", srcEn: "Licence documents · regulator correspondence · firm sector knowledge", srcFr: "Agréments · correspondance des régulateurs · connaissance sectorielle" },
         { key: "screening", en: "Screen the entity, its principal owners, directors and key management against sanctions lists, politically exposed person lists and adverse media. Record each search, with the database, date and terms used, and the disposition of every match.", fr: "Cribler l'entité, ses propriétaires, dirigeants et cadres dirigeants au regard des listes de sanctions, des listes de personnes politiquement exposées et des médias défavorables. Consigner chaque recherche et le traitement de chaque correspondance.", srcEn: "Sanctions and PEP screening service · adverse media databases", srcFr: "Service de criblage sanctions et PPE · bases de presse défavorable" },
         { key: "media", en: "Search press and internet sources for indications of fraud, litigation, insolvency or regulatory action against the entity or its principals. Record the terms and dates of the searches.", fr: "Rechercher dans la presse et sur internet des indices de fraude, litige, insolvabilité ou action réglementaire. Consigner les termes et dates.", srcEn: "Press archives · internet search", srcFr: "Archives de presse · moteurs de recherche" },
-        { key: "predecessor", en: "Communicate with the predecessor auditor on matters bearing on integrity. The communication itself is performed and filed under D3.4. Carry any integrity finding into Part B.", fr: "Communiquer avec l'auditeur précédent sur les questions touchant à l'intégrité. La communication est réalisée et classée en D3.4.", srcEn: "Written response of the predecessor auditor (D3.4)", srcFr: "Réponse écrite de l'auditeur précédent (D3.4)" },
+        { key: "predecessor", en: "Communicate with the predecessor auditor on matters bearing on integrity. The communication itself is performed and filed under P1.2. Carry any integrity finding into Part B.", fr: "Communiquer avec l'auditeur précédent sur les questions touchant à l'intégrité. La communication est réalisée et classée en P1.2.", srcEn: "Written response of the predecessor auditor (P1.2)", srcFr: "Réponse écrite de l'auditeur précédent (P1.2)" },
         { key: "refs", en: "Obtain references on the entity and its principals from their bankers or legal advisers where the circumstances warrant it.", fr: "Obtenir des références auprès des banquiers ou conseils juridiques lorsque les circonstances le justifient.", srcEn: "Banker's reference · legal adviser's reference", srcFr: "Référence bancaire · référence du conseil juridique" },
         { key: "priorfs", en: "Inspect the prior period financial statements and auditor's reports. Note any modification, going concern reference, restatement or late filing.", fr: "Examiner les états financiers et rapports d'audit antérieurs. Relever toute modification, mention de continuité, retraitement ou dépôt tardif.", srcEn: "Prior financial statements · prior auditor's reports · filing records", srcFr: "États financiers antérieurs · rapports antérieurs · dépôts" },
-        { key: "why", en: "Inquire why the auditor is being changed and what the entity expects as to scope, timing and fees. Compare the answer with the predecessor's account.", fr: "S'enquérir du motif du changement d'auditeur et des attentes en matière d'étendue, de calendrier et d'honoraires. Comparer avec la version du prédécesseur.", srcEn: "Inquiry of management · response obtained under D3.4", srcFr: "Entretien avec la direction · réponse obtenue en D3.4" },
+        { key: "why", en: "Inquire why the auditor is being changed and what the entity expects as to scope, timing and fees. Compare the answer with the predecessor's account.", fr: "S'enquérir du motif du changement d'auditeur et des attentes en matière d'étendue, de calendrier et d'honoraires. Comparer avec la version du prédécesseur.", srcEn: "Inquiry of management · response obtained under P1.2", srcFr: "Entretien avec la direction · réponse obtenue en P1.2" },
       ],
     },
     {
@@ -102,13 +102,13 @@ const D3_1: PaperDef = {
           { value: "moderate", en: "Moderate", fr: "Modérée" },
           { value: "high", en: "High", fr: "Élevée" },
         ] },
-        { key: "rating_why", kind: "input", labelEn: "Reasons for the rating, citing the Part A evidence, and its effect on the engagement: the review requirement under D3.6, the fraud risk baseline, staffing and supervision", labelFr: "Motifs de la notation, éléments de la partie A à l'appui, et effet sur la mission : exigence de revue (D3.6), base d'évaluation du risque de fraude, dotation et supervision" },
+        { key: "rating_why", kind: "input", labelEn: "Reasons for the rating, citing the Part A evidence, and its effect on the engagement: the review requirement under P1.5, the fraud risk baseline, staffing and supervision", labelFr: "Motifs de la notation, éléments de la partie A à l'appui, et effet sur la mission : exigence de revue (P1.5), base d'évaluation du risque de fraude, dotation et supervision" },
       ],
     },
   ],
 };
 
-/* ---------------------------------------------------------------- D6.1 --- */
+/* ---------------------------------------------------------------- P2.2 --- */
 const D6_1: PaperDef = {
   std: "ISA 220 (Revised) ¶25–28 · ISQM 1 ¶32 · ISA 620 ¶9–12",
   ownsEn: "the competence, capability and resources conclusion",
@@ -179,14 +179,14 @@ const D6_1: PaperDef = {
         { key: "partner_time", en: "The engagement partner has sufficient time for appropriate involvement in, and direction of, the engagement.", fr: "L'associé responsable dispose du temps suffisant pour une implication et une direction appropriées." },
         { key: "expert", en: "Any auditor's expert identified in Part A is available, and we are able to direct and evaluate that work.", fr: "Tout expert identifié en partie A est disponible, et nous pouvons diriger et évaluer ses travaux.", na: true },
         { key: "budget", en: "The time budget is consistent with the reporting deadlines, the assessed risk profile and the team assembled.", fr: "Le budget-temps est cohérent avec les échéances, le profil de risque et l'équipe constituée." },
-        { key: "eqr", en: "Where D3.6 requires an engagement quality review, an eligible reviewer is available.", fr: "Lorsque D3.6 exige une revue de qualité, un réviseur éligible est disponible.", na: true },
+        { key: "eqr", en: "Where P1.5 requires an engagement quality review, an eligible reviewer is available.", fr: "Lorsque P1.5 exige une revue de qualité, un réviseur éligible est disponible.", na: true },
         { key: "jurisdiction", en: "The team covers the language and jurisdiction requirements of the engagement, including OHADA filing obligations.", fr: "L'équipe couvre les exigences linguistiques et juridictionnelles, y compris les obligations de dépôt OHADA." },
       ],
     },
   ],
 };
 
-/* ---------------------------------------------------------------- D3.2 --- */
+/* ---------------------------------------------------------------- P2.1 --- */
 const D3_2: PaperDef = {
   std: "IESBA Code Parts 1 and 4A · ISA 220 (Revised) ¶16–21 · ISQM 1 ¶29",
   ownsEn: "the independence conclusion, and the threats and safeguards log",
@@ -284,7 +284,7 @@ const D3_2: PaperDef = {
   ],
 };
 
-/* ---------------------------------------------------------------- D3.3 --- */
+/* ---------------------------------------------------------------- P1.3 --- */
 const D3_3: PaperDef = {
   std: "ISA 210 ¶4, ¶6–8",
   ownsEn: "the preconditions conclusion and the framework selection",
@@ -346,7 +346,7 @@ const D3_3: PaperDef = {
         { key: "access_info", en: "Providing us with access to all information of which management is aware that is relevant to the preparation of the financial statements (¶6(b)(iii)a).", fr: "Nous donner accès à toutes les informations pertinentes dont elle a connaissance (¶6(b)(iii)a)." },
         { key: "additional", en: "Providing any additional information that we request for the purpose of the audit (¶6(b)(iii)b).", fr: "Nous fournir toute information complémentaire demandée pour les besoins de l'audit (¶6(b)(iii)b)." },
         { key: "access_people", en: "Providing unrestricted access to persons within the entity from whom we determine it necessary to obtain audit evidence (¶6(b)(iii)c).", fr: "Nous donner un accès sans restriction aux personnes auprès desquelles nous jugeons nécessaire d'obtenir des éléments probants (¶6(b)(iii)c)." },
-        { key: "in_letter", en: "These acknowledgements are recorded in the engagement letter (D3.5).", fr: "Ces reconnaissances figurent dans la lettre de mission (D3.5)." },
+        { key: "in_letter", en: "These acknowledgements are recorded in the engagement letter (P1.4).", fr: "Ces reconnaissances figurent dans la lettre de mission (P1.4)." },
       ],
     },
     {
@@ -364,21 +364,21 @@ const D3_3: PaperDef = {
   ],
 };
 
-/* ---------------------------------------------------------------- D3.4 --- */
+/* ---------------------------------------------------------------- P1.2 --- */
 const D3_4: PaperDef = {
   std: "ISA 300 ¶13 · IESBA Code §320 · ISA 510",
   ownsEn: "the predecessor auditor communication and the opening balances strategy",
   ownsFr: "la communication avec l'auditeur précédent et la stratégie sur les soldes d'ouverture",
   reqEn: [
     "For an initial audit engagement we perform the acceptance procedures required by ISA 220 (Revised) and communicate with the predecessor auditor where there has been a change of auditor (ISA 300 ¶13).",
-    "The IESBA Code requires a proposed accountant to determine whether there are reasons for not accepting an appointment. That determination ordinarily requires direct communication with the existing accountant to establish the facts and circumstances behind the proposed change (§320). The client's permission is required before we make contact. A refusal of permission, or a permission granted but not honoured, is itself information relevant to the acceptance decision and to the integrity evaluation in D3.1.",
+    "The IESBA Code requires a proposed accountant to determine whether there are reasons for not accepting an appointment. That determination ordinarily requires direct communication with the existing accountant to establish the facts and circumstances behind the proposed change (§320). The client's permission is required before we make contact. A refusal of permission, or a permission granted but not honoured, is itself information relevant to the acceptance decision and to the integrity evaluation in P1.1.",
     "On opening balances, the objective is to obtain sufficient appropriate audit evidence about whether they contain misstatements that materially affect the current period, and whether appropriate accounting policies have been consistently applied (ISA 510 ¶3, ¶6). We read the most recent financial statements and the predecessor's report for information relevant to opening balances (ISA 510 ¶5).",
-    "Where the prior period opinion was modified, we consider the effect on the current period (ISA 510 ¶12). Where we cannot obtain sufficient appropriate audit evidence over opening balances, we express a qualified opinion or disclaim an opinion (ISA 510 ¶10). Either outcome is foreseen here, not discovered at reporting. The detailed opening-balances work is performed in E370.",
+    "Where the prior period opinion was modified, we consider the effect on the current period (ISA 510 ¶12). Where we cannot obtain sufficient appropriate audit evidence over opening balances, we express a qualified opinion or disclaim an opinion (ISA 510 ¶10). Either outcome is foreseen here, not discovered at reporting. The detailed opening-balances work is performed in E6.5.",
   ],
   reqFr: [
     "Pour une mission initiale, nous mettons en œuvre les procédures d'acceptation et communiquons avec l'auditeur précédent en cas de changement (ISA 300 ¶13).",
     "Le Code IESBA impose de déterminer s'il existe des motifs de ne pas accepter la mission, ce qui suppose une communication directe avec le confrère en place (§320). L'autorisation du client est requise.",
-    "Sur les soldes d'ouverture, l'objectif est d'obtenir des éléments probants suffisants et appropriés (ISA 510 ¶3, ¶6). Les travaux détaillés sont réalisés en E370.",
+    "Sur les soldes d'ouverture, l'objectif est d'obtenir des éléments probants suffisants et appropriés (ISA 510 ¶3, ¶6). Les travaux détaillés sont réalisés en E6.5.",
     "Une opinion modifiée sur l'exercice précédent est prise en compte pour l'exercice courant (ISA 510 ¶12).",
   ],
   conclEn: [
@@ -393,9 +393,9 @@ const D3_4: PaperDef = {
       titleEn: "Part A — Procedures and expected sources",
       titleFr: "Partie A — Procédures et sources attendues",
       introEn:
-        "Perform each procedure and record the result. Carry any finding bearing on integrity into D3.1 Part B.",
+        "Perform each procedure and record the result. Carry any finding bearing on integrity into P1.1 Part B.",
       introFr:
-        "Mettre en œuvre chaque procédure et consigner le résultat. Reporter tout constat touchant à l'intégrité en D3.1 partie B.",
+        "Mettre en œuvre chaque procédure et consigner le résultat. Reporter tout constat touchant à l'intégrité en P1.1 partie B.",
       procs: [
         { key: "identify", en: "Establish the identity of the predecessor auditor and the periods audited.", fr: "Établir l'identité de l'auditeur précédent et les exercices audités.", srcEn: "Prior financial statements · RCCM filings · inquiry of management", srcFr: "États financiers antérieurs · dépôts RCCM · entretien avec la direction" },
         { key: "authority", en: "Obtain management's written authority to communicate with the predecessor auditor. Where authority is refused, record the refusal and its effect on acceptance.", fr: "Obtenir l'autorisation écrite de la direction pour communiquer avec l'auditeur précédent. En cas de refus, consigner ce refus et son incidence sur l'acceptation.", srcEn: "Signed authority · correspondence with management", srcFr: "Autorisation signée · correspondance avec la direction" },
@@ -403,7 +403,7 @@ const D3_4: PaperDef = {
         { key: "followup", en: "Where no reply is received within a reasonable period, follow up in writing and record the follow-up.", fr: "En l'absence de réponse dans un délai raisonnable, relancer par écrit et consigner la relance.", srcEn: "Correspondence file", srcFr: "Chrono de correspondance" },
         { key: "evaluate", en: "Read the predecessor auditor's response and evaluate its effect on acceptance and on our assessment of risk.", fr: "Lire la réponse de l'auditeur précédent et en évaluer l'incidence sur l'acceptation et sur notre évaluation des risques.", srcEn: "Predecessor auditor's written response", srcFr: "Réponse écrite de l'auditeur précédent" },
         { key: "file", en: "Request access to the predecessor auditor's file for the opening balances. Where access is granted, inspect the working papers supporting the opening position.", fr: "Demander l'accès au dossier de l'auditeur précédent pour les soldes d'ouverture. Si l'accès est accordé, examiner les feuilles de travail justifiant la position d'ouverture.", srcEn: "Predecessor's working papers · access agreement", srcFr: "Feuilles de travail du prédécesseur · convention d'accès" },
-        { key: "alternative", en: "Where access is not obtained, plan the alternative procedures on opening balances and record them in E370.", fr: "À défaut d'accès, planifier les procédures alternatives sur les soldes d'ouverture et les consigner en E370.", srcEn: "ISA 510 ¶6 · working paper E370", srcFr: "ISA 510 ¶6 · feuille de travail E370" },
+        { key: "alternative", en: "Where access is not obtained, plan the alternative procedures on opening balances and record them in E6.5.", fr: "À défaut d'accès, planifier les procédures alternatives sur les soldes d'ouverture et les consigner en E6.5.", srcEn: "ISA 510 ¶6 · working paper E6.5", srcFr: "ISA 510 ¶6 · feuille de travail E6.5" },
       ],
     },
     {
@@ -427,8 +427,8 @@ const D3_4: PaperDef = {
         { key: "answered", en: "The predecessor auditor's response addressed every matter we raised (procedures 3 to 5).", fr: "La réponse de l'auditeur précédent traite chacune des questions posées (procédures 3 à 5)." },
         { key: "nodisagreement", en: "The response discloses no disagreement over an accounting or auditing matter that remained unresolved (procedure 5).", fr: "La réponse ne fait état d'aucun désaccord comptable ou d'audit resté non résolu (procédure 5)." },
         { key: "nofraud", en: "The response discloses no fraud or non-compliance with law and regulation affecting the periods audited (procedure 5).", fr: "La réponse ne fait état d'aucune fraude ni non-conformité aux textes affectant les exercices audités (procédure 5)." },
-        { key: "consistent", en: "The reason given for the change of auditor is consistent with management's account (procedure 5; D3.1 procedure 10).", fr: "Le motif du changement d'auditeur concorde avec la version de la direction (procédure 5 ; D3.1 procédure 10)." },
-        { key: "integrity", en: "Nothing in the response bears adversely on the integrity of management (procedure 5). Any finding is carried into D3.1 Part B.", fr: "Rien dans la réponse ne met en cause l'intégrité de la direction (procédure 5). Tout constat est reporté en D3.1 partie B." },
+        { key: "consistent", en: "The reason given for the change of auditor is consistent with management's account (procedure 5; P1.1 procedure 10).", fr: "Le motif du changement d'auditeur concorde avec la version de la direction (procédure 5 ; P1.1 procédure 10)." },
+        { key: "integrity", en: "Nothing in the response bears adversely on the integrity of management (procedure 5). Any finding is carried into P1.1 Part B.", fr: "Rien dans la réponse ne met en cause l'intégrité de la direction (procédure 5). Tout constat est reporté en P1.1 partie B." },
         { key: "papers", en: "Access to the predecessor auditor's working papers on the opening balances was obtained (procedure 6).", fr: "L'accès aux feuilles de travail du prédécesseur sur les soldes d'ouverture a été obtenu (procédure 6).", na: true },
       ],
     },
@@ -436,8 +436,8 @@ const D3_4: PaperDef = {
       kind: "fields",
       titleEn: "Part D — Opening balances strategy",
       titleFr: "Partie D — Stratégie sur les soldes d'ouverture",
-      introEn: "Select the strategy for obtaining sufficient appropriate audit evidence that the opening balances contain no misstatement materially affecting the current period. The work itself is performed in E370.",
-      introFr: "Choisir la stratégie d'obtention des éléments probants sur les soldes d'ouverture. Les travaux sont réalisés en E370.",
+      introEn: "Select the strategy for obtaining sufficient appropriate audit evidence that the opening balances contain no misstatement materially affecting the current period. The work itself is performed in E6.5.",
+      introFr: "Choisir la stratégie d'obtention des éléments probants sur les soldes d'ouverture. Les travaux sont réalisés en E6.5.",
       fields: [
         { key: "strategy", kind: "input", labelEn: "Strategy selected: review of the predecessor's working papers, evidence arising from current period procedures, or specific procedures on opening balances", labelFr: "Stratégie retenue : revue des dossiers du prédécesseur, éléments issus des procédures de l'exercice, ou procédures spécifiques" },
         { key: "prior_mod", kind: "input", labelEn: "Any modification to the prior period opinion relevant to the current period, and its effect", labelFr: "Toute modification de l'opinion antérieure pertinente pour l'exercice, et son effet" },
@@ -446,7 +446,7 @@ const D3_4: PaperDef = {
   ],
 };
 
-/* ---------------------------------------------------------------- D3.5 --- */
+/* ---------------------------------------------------------------- P1.4 --- */
 const D3_5: PaperDef = {
   std: "ISA 210 ¶9–13, ¶A29",
   ownsEn: "the agreed terms of the engagement",
@@ -481,7 +481,7 @@ const D3_5: PaperDef = {
       procs: [
         { key: "draft", en: "Prepare the engagement letter covering the objective and scope of the audit, our responsibilities, management's responsibilities, the applicable financial reporting framework, and the expected form and content of our report.", fr: "Établir la lettre de mission couvrant l'objectif et l'étendue de l'audit, nos responsabilités, celles de la direction, le référentiel comptable applicable, ainsi que la forme et le contenu attendus de notre rapport.", srcEn: "Firm template · ISA 210 ¶10", srcFr: "Modèle du cabinet · ISA 210 ¶10" },
         { key: "statutory", en: "Include the elements required by law or by the entity's statutes for a statutory appointment, including the term of the mandate.", fr: "Inclure les éléments requis par la loi ou les statuts au titre d'un mandat légal, y compris sa durée.", srcEn: "OHADA Uniform Act · statutes · appointment resolution", srcFr: "Acte uniforme OHADA · statuts · résolution de nomination" },
-        { key: "terms", en: "Agree the fee basis, the timetable, and the involvement of any auditor's expert, component auditor or internal audit function.", fr: "Convenir de la base des honoraires, du calendrier, et de l'intervention de tout expert de l'auditeur, auditeur de composant ou service d'audit interne.", srcEn: "Budget · agreed timetable · D6.1", srcFr: "Budget · calendrier convenu · D6.1" },
+        { key: "terms", en: "Agree the fee basis, the timetable, and the involvement of any auditor's expert, component auditor or internal audit function.", fr: "Convenir de la base des honoraires, du calendrier, et de l'intervention de tout expert de l'auditeur, auditeur de composant ou service d'audit interne.", srcEn: "Budget · agreed timetable · P2.2", srcFr: "Budget · calendrier convenu · P2.2" },
         { key: "sign", en: "Obtain the signature of the person with authority to bind the entity. Record the name, position and dates in Part C.", fr: "Obtenir la signature de la personne habilitée à engager l'entité. Consigner son nom, sa fonction et les dates en partie C.", srcEn: "Signed letter · appointment resolution", srcFr: "Lettre signée · résolution de nomination" },
         { key: "recurring", en: "For a recurring engagement, assess whether the circumstances require the terms to be revised, and whether the entity needs to be reminded of the existing terms. Record the assessment in Part C.", fr: "Pour une mission récurrente, apprécier si les circonstances imposent de réviser les termes et s'il y a lieu de rappeler à l'entité les termes en vigueur. Consigner l'appréciation en partie C.", srcEn: "Prior engagement letter · ISA 210 ¶13", srcFr: "Lettre de mission antérieure · ISA 210 ¶13" },
         { key: "filed", en: "File the signed letter before fieldwork begins. Where fieldwork has begun without it, record the reason and the date the letter was obtained.", fr: "Classer la lettre signée avant le début des travaux. Si les travaux ont commencé sans elle, consigner le motif et la date d'obtention.", srcEn: "Engagement file", srcFr: "Dossier de mission" },
@@ -496,7 +496,7 @@ const D3_5: PaperDef = {
       items: [
         { key: "objective", en: "The objective and scope of the audit of the financial statements (¶10(a)).", fr: "L'objectif et l'étendue de l'audit des états financiers (¶10(a))." },
         { key: "auditor_resp", en: "The responsibilities of the auditor (¶10(b)).", fr: "Les responsabilités de l'auditeur (¶10(b))." },
-        { key: "mgmt_resp", en: "The responsibilities of management, including the acknowledgements recorded in D3.3 Part B (¶10(c)).", fr: "Les responsabilités de la direction, y compris les reconnaissances de D3.3 partie B (¶10(c))." },
+        { key: "mgmt_resp", en: "The responsibilities of management, including the acknowledgements recorded in P1.3 Part B (¶10(c)).", fr: "Les responsabilités de la direction, y compris les reconnaissances de P1.3 partie B (¶10(c))." },
         { key: "framework", en: "Identification of the applicable financial reporting framework (¶10(d)).", fr: "L'identification du référentiel comptable applicable (¶10(d))." },
         { key: "report_form", en: "Reference to the expected form and content of our reports, and a statement that circumstances may require a report to differ from that form (¶10(e)).", fr: "La référence à la forme attendue des rapports, et la mention que les circonstances peuvent l'affecter (¶10(e))." },
         { key: "fees", en: "The basis on which fees are charged and the billing arrangements.", fr: "La base de facturation des honoraires et les modalités de règlement." },
@@ -515,7 +515,7 @@ const D3_5: PaperDef = {
   ],
 };
 
-/* ---------------------------------------------------------------- D3.6 --- */
+/* ---------------------------------------------------------------- P1.5 --- */
 const D3_6: PaperDef = {
   std: "ISQM 1 ¶34(f) · ISQM 2 ¶19–25 · ISA 220 (Revised) ¶36",
   ownsEn: "whether the engagement requires a quality review, and the reviewer appointed",
@@ -524,13 +524,13 @@ const D3_6: PaperDef = {
     "The firm's system of quality management provides for an engagement quality review in three cases (ISQM 1 ¶34(f)). The first is an audit of the financial statements of a listed entity. The second is an engagement for which a review is required by law or regulation. The third is any other engagement for which the firm determines that a review is an appropriate response to the assessed quality risks.",
     "The determination is made before the engagement begins. The reviewer is appointed early enough to review the significant judgements as they are made, and performs the review at appropriate points during the engagement (ISQM 2 ¶21–25).",
     "The reviewer must be eligible: competent, with appropriate authority and time, objective in fact and appearance, and not a member of the engagement team. A person who served as the engagement partner may not act as reviewer until a cooling-off period of two years, or longer where required, has elapsed (ISQM 2 ¶19–20).",
-    "Where a review is required, the auditor's report may not be dated until the reviewer has notified the engagement partner that the review is complete (ISA 220 (Revised) ¶36; ISQM 2 ¶26). The reviewer's conclusion is recorded in B2.",
+    "Where a review is required, the auditor's report may not be dated until the reviewer has notified the engagement partner that the review is complete (ISA 220 (Revised) ¶36; ISQM 2 ¶26). The reviewer's conclusion is recorded in C4.2.",
   ],
   reqFr: [
     "Le système de gestion de la qualité prévoit une revue de qualité dans trois cas (ISQM 1 ¶34(f)) : entité cotée, exigence légale, ou décision du cabinet au regard des risques qualité évalués.",
     "La détermination intervient avant le début de la mission ; le réviseur est désigné assez tôt pour examiner les jugements importants au fur et à mesure (ISQM 2 ¶21–25).",
     "Le réviseur doit être éligible : compétent, disposant de l'autorité et du temps, objectif, extérieur à l'équipe. Un délai de viduité de deux ans s'applique à l'ancien associé responsable (ISQM 2 ¶19–20).",
-    "Le rapport ne peut être daté avant la notification d'achèvement de la revue (ISA 220 (Révisée) ¶36). La conclusion du réviseur est consignée en B2.",
+    "Le rapport ne peut être daté avant la notification d'achèvement de la revue (ISA 220 (Révisée) ¶36). La conclusion du réviseur est consignée en C4.2.",
   ],
   conclEn: [
     "The requirement for an engagement quality review has been determined and, where a review is required, an eligible reviewer has been appointed.",
@@ -550,9 +550,9 @@ const D3_6: PaperDef = {
       procs: [
         { key: "listed", en: "Determine whether the entity is listed on a securities exchange.", fr: "Déterminer si l'entité est cotée sur un marché de valeurs mobilières.", srcEn: "Listing records · statutes", srcFr: "Registre de cotation · statuts" },
         { key: "law", en: "Determine whether law or regulation requires a quality review for this class of entity.", fr: "Déterminer si la loi ou la réglementation impose une revue de qualité pour cette catégorie d'entité.", srcEn: "Applicable law · regulator requirements", srcFr: "Textes applicables · exigences du régulateur" },
-        { key: "policy", en: "Apply the firm's own criteria for a review, taking account of the client risk rating recorded in D3.1 and the significance of the judgements expected.", fr: "Appliquer les critères propres au cabinet, en tenant compte de la notation du risque client consignée en D3.1 et de l'importance des jugements attendus.", srcEn: "Firm policy · D3.1 Part C", srcFr: "Politique du cabinet · D3.1 partie C" },
+        { key: "policy", en: "Apply the firm's own criteria for a review, taking account of the client risk rating recorded in P1.1 and the significance of the judgements expected.", fr: "Appliquer les critères propres au cabinet, en tenant compte de la notation du risque client consignée en P1.1 et de l'importance des jugements attendus.", srcEn: "Firm policy · P1.1 Part C", srcFr: "Politique du cabinet · P1.1 partie C" },
         { key: "appoint", en: "Where a review is required, appoint a reviewer who is not a member of the engagement team, who has the competence and authority for the role, and who has not served as engagement partner on this engagement within the last two periods.", fr: "Lorsqu'une revue est requise, désigner un responsable qui n'est pas membre de l'équipe, qui dispose de la compétence et de l'autorité nécessaires, et qui n'a pas été associé responsable de la mission au cours des deux exercices précédents.", srcEn: "Firm partner records · rotation register", srcFr: "Dossiers des associés · registre de rotation" },
-        { key: "indep", en: "Confirm the reviewer's independence of the entity and record the confirmation.", fr: "Confirmer l'indépendance du responsable de la revue vis-à-vis de l'entité et consigner cette confirmation.", srcEn: "Reviewer's declaration · D3.2", srcFr: "Déclaration du responsable de la revue · D3.2" },
+        { key: "indep", en: "Confirm the reviewer's independence of the entity and record the confirmation.", fr: "Confirmer l'indépendance du responsable de la revue vis-à-vis de l'entité et consigner cette confirmation.", srcEn: "Reviewer's declaration · P2.1", srcFr: "Déclaration du responsable de la revue · P2.1" },
         { key: "timing", en: "Record the points in the engagement at which the review will take place, and confirm that our report will not be dated before the review is complete.", fr: "Consigner les moments de la mission où la revue interviendra et confirmer que notre rapport ne sera pas daté avant son achèvement.", srcEn: "Agreed timetable · ISQM 2 ¶25", srcFr: "Calendrier convenu · ISQM 2 ¶25" },
       ],
     },
@@ -566,7 +566,7 @@ const D3_6: PaperDef = {
         { key: "listed", en: "The entity is a listed entity (ISQM 1 ¶34(f)(i)).", fr: "L'entité est cotée (ISQM 1 ¶34(f)(i))." },
         { key: "law", en: "A review is required by law or regulation (ISQM 1 ¶34(f)(ii)).", fr: "Une revue est exigée par la loi ou la réglementation (ISQM 1 ¶34(f)(ii))." },
         { key: "pie", en: "The entity has public interest characteristics, such as being a regulated financial institution, having a significant public profile, or having lenders that rely on covenant compliance (ISQM 1 ¶34(f)(iii)).", fr: "L'entité présente des caractéristiques d'intérêt public : établissement financier réglementé, notoriété significative, ou prêteurs dépendant du respect de covenants (ISQM 1 ¶34(f)(iii))." },
-        { key: "high_risk", en: "The client risk rating recorded in D3.1 Part C is High.", fr: "La notation du risque client en D3.1 partie C est Élevée." },
+        { key: "high_risk", en: "The client risk rating recorded in P1.1 Part C is High.", fr: "La notation du risque client en P1.1 partie C est Élevée." },
         { key: "first_year", en: "This is the first period the firm audits the entity.", fr: "Il s'agit du premier exercice audité par le cabinet." },
         { key: "complexity", en: "The engagement is expected to involve unusual complexity or significant judgements: complex estimates, structured or unusual transactions, or doubt over going concern.", fr: "La mission devrait comporter une complexité inhabituelle ou des jugements importants : estimations complexes, opérations structurées ou inhabituelles, ou doute sur la continuité d'exploitation." },
         { key: "capital", en: "The entity is preparing a capital-markets transaction, or the financial statements are expected to be used in one.", fr: "L'entité prépare une opération sur les marchés de capitaux, ou les états financiers devraient y être utilisés." },
@@ -589,7 +589,7 @@ const D3_6: PaperDef = {
   ],
 };
 
-/* ---------------------------------------------------------------- D6.2 --- */
+/* ---------------------------------------------------------------- P2.3 --- */
 // The scope of the audit when the entity is more than one place: branches,
 // subsidiaries, sites whose figures reach the financial statements. Scoped to
 // complex engagements — a single-site SARL never sees it.
@@ -622,8 +622,8 @@ const D6_2: PaperDef = {
       introFr: "Mettre en œuvre chaque procédure et consigner le résultat avec la référence des éléments classés.",
       procs: [
         { key: "map", en: "List every component whose financial information reaches the financial statements: branches, subsidiaries, sites, divisions. Record for each its location, its activity, and the balances or flows it contributes.", fr: "Recenser chaque composant dont l'information financière alimente les états financiers : succursales, filiales, sites, divisions. Consigner pour chacun sa localisation, son activité et les soldes ou flux qu'il apporte.", srcEn: "Group structure · consolidation schedules · management reports", srcFr: "Organigramme du groupe · tableaux de consolidation · rapports de gestion" },
-        { key: "significance", en: "Determine which components are significant, by their share of the entity's totals or by the risks they carry, and record the threshold or reasoning applied.", fr: "Déterminer les composants importants, par leur part dans les totaux de l'entité ou par les risques qu'ils portent, et consigner le seuil ou le raisonnement appliqué.", srcEn: "Consolidation schedules vs materiality (D5.1)", srcFr: "Tableaux de consolidation vs seuil (D5.1)" },
-        { key: "work", en: "Set the work to be performed at each component: an audit of its financial information, specified procedures on particular balances, or analytical procedures at the aggregated level — and record why that response fits the component's significance and risk.", fr: "Arrêter les travaux à réaliser sur chaque composant : audit de son information financière, procédures spécifiées sur des soldes déterminés, ou procédures analytiques au niveau agrégé — et consigner pourquoi cette réponse correspond à son importance et à son risque.", srcEn: "Component risk profile · D7.2", srcFr: "Profil de risque du composant · D7.2" },
+        { key: "significance", en: "Determine which components are significant, by their share of the entity's totals or by the risks they carry, and record the threshold or reasoning applied.", fr: "Déterminer les composants importants, par leur part dans les totaux de l'entité ou par les risques qu'ils portent, et consigner le seuil ou le raisonnement appliqué.", srcEn: "Consolidation schedules vs materiality (P6.1)", srcFr: "Tableaux de consolidation vs seuil (P6.1)" },
+        { key: "work", en: "Set the work to be performed at each component: an audit of its financial information, specified procedures on particular balances, or analytical procedures at the aggregated level — and record why that response fits the component's significance and risk.", fr: "Arrêter les travaux à réaliser sur chaque composant : audit de son information financière, procédures spécifiées sur des soldes déterminés, ou procédures analytiques au niveau agrégé — et consigner pourquoi cette réponse correspond à son importance et à son risque.", srcEn: "Component risk profile · S3.1", srcFr: "Profil de risque du composant · S3.1" },
         { key: "auditors", en: "Where a component auditor is involved, record who they are, evaluate their competence and independence, and set how their work will be directed, supervised and reviewed, including the materiality allocated to them.", fr: "Lorsqu'un auditeur de composant intervient, consigner son identité, apprécier sa compétence et son indépendance, et fixer comment ses travaux seront dirigés, supervisés et revus, y compris le seuil qui lui est alloué.", srcEn: "Component auditor confirmations · group instructions", srcFr: "Confirmations de l'auditeur de composant · instructions du groupe" },
         { key: "access", en: "Confirm access to the components' records and people, including any restriction from a different jurisdiction, and record how a restriction is overcome or its effect on the opinion.", fr: "Confirmer l'accès aux livres et aux personnes des composants, y compris toute restriction tenant à une autre juridiction, et consigner comment une restriction est levée ou son incidence sur l'opinion.", srcEn: "Engagement letter · correspondence with component management", srcFr: "Lettre de mission · correspondance avec la direction du composant" },
       ],
@@ -644,12 +644,12 @@ const D6_2: PaperDef = {
 };
 
 export const ACCEPTANCE_PAPERS: Record<string, PaperDef> = {
-  "D6.2": D6_2,
-  "D3.1": D3_1,
-  "D6.1": D6_1,
-  "D3.2": D3_2,
-  "D3.3": D3_3,
-  "D3.4": D3_4,
-  "D3.5": D3_5,
-  "D3.6": D3_6,
+  "P2.3": D6_2,
+  "P1.1": D3_1,
+  "P2.2": D6_1,
+  "P2.1": D3_2,
+  "P1.3": D3_3,
+  "P1.2": D3_4,
+  "P1.4": D3_5,
+  "P1.5": D3_6,
 };

@@ -1,4 +1,4 @@
-// D6.1 job administration (spec §4.4): team assignment (with the EQR
+// P2.2 job administration (spec §4.4): team assignment (with the EQR
 // independence rule), hours-by-grade budget, and the PBC request list.
 
 import { randomBytes } from "node:crypto";

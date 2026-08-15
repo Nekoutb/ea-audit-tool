@@ -100,7 +100,7 @@ describe("statutory date arithmetic", () => {
   });
 });
 
-describe("8.1 F1 deadlines calendar", () => {
+describe("8.1 C5.2 deadlines calendar", () => {
   it("generates the statutory deadlines from period-end / AGM / mandate", async () => {
     const deadlines = await generateDeadlines(saEngagement);
     const byKey = new Map(deadlines.map((deadline) => [deadline.key, deadline]));
@@ -131,7 +131,7 @@ describe("8.1 F1 deadlines calendar", () => {
   });
 });
 
-describe("8.2/8.3 F2 conventions + rapport spécial", () => {
+describe("8.2/8.3 C5.3 conventions + rapport spécial", () => {
   it("flags an SA convention without board authorization (art. 447)", async () => {
     await addConvention(saEngagement, {
       parties: "Legal SA / Immo SCI",
@@ -166,19 +166,19 @@ describe("8.2/8.3 F2 conventions + rapport spécial", () => {
     expect(conventions[0].unauthorized).toBe(false);
   });
 
-  it("builds the rapport spécial from the register as a docx under F2", async () => {
+  it("builds the rapport spécial from the register as a docx under C5.3", async () => {
     const documentId = await generateRapportSpecial(saEngagement);
     expect(await docIsZip(documentId)).toBe(true);
     const doc = await admin.query<{ kind: string; code: string }>(
       `SELECT d.kind, fi.code FROM document d JOIN file_item fi ON fi.id = d.file_item_id WHERE d.id = $1`,
       [documentId],
     );
-    expect(doc.rows[0]).toEqual({ kind: "report", code: "F2" });
+    expect(doc.rows[0]).toEqual({ kind: "report", code: "C5.3" });
   });
 });
 
-describe("8.4 F3 article 715 report", () => {
-  it("pulls B5 adjustments and C1 points from live engagement data", async () => {
+describe("8.4 C5.4 article 715 report", () => {
+  it("pulls C1.1 adjustments and C5.1 points from live engagement data", async () => {
     await admin.query(
       `INSERT INTO misstatement (tenant_id, engagement_id, description, amount, mtype)
        VALUES ($1, $2, 'Provision clients sous-évaluée', 5000000, 'judgmental')`,
@@ -195,11 +195,11 @@ describe("8.4 F3 article 715 report", () => {
       "SELECT fi.code FROM document d JOIN file_item fi ON fi.id = d.file_item_id WHERE d.id = $1",
       [documentId],
     );
-    expect(doc.rows[0].code).toBe("F3");
+    expect(doc.rows[0].code).toBe("C5.4");
   });
 });
 
-describe("8.5 F4 procédure d'alerte", () => {
+describe("8.5 C5.5 procédure d'alerte", () => {
   it("walks the non-SA flow: request → reply → court → rapport → AG → closed", async () => {
     await startAlerte(sarlEngagement, "Trésorerie insuffisante pour 3 mois d'exploitation.");
     let state = await getAlerte(sarlEngagement);
@@ -223,10 +223,10 @@ describe("8.5 F4 procédure d'alerte", () => {
     expect(state?.stage).toBe("closed");
     expect(state?.events.length).toBeGreaterThanOrEqual(6);
 
-    // Letters were filed under F4 along the way.
+    // Letters were filed under C5.5 along the way.
     const letters = await admin.query(
       `SELECT 1 FROM document d JOIN file_item fi ON fi.id = d.file_item_id
-        WHERE fi.engagement_id = $1 AND fi.code = 'F4'`,
+        WHERE fi.engagement_id = $1 AND fi.code = 'C5.5'`,
       [sarlEngagement],
     );
     expect(letters.rows.length).toBeGreaterThanOrEqual(3);
@@ -254,7 +254,7 @@ describe("8.5 F4 procédure d'alerte", () => {
   });
 });
 
-describe("8.6 F5 faits délictueux (partner-only)", () => {
+describe("8.6 C5.6 faits délictueux (partner-only)", () => {
   it("reveals to the ministère public and logs confidentially", async () => {
     const documentId = await revealFait(saEngagement, "Détournement présumé de recettes en espèces.");
     expect(await docIsZip(documentId)).toBe(true);
@@ -271,8 +271,8 @@ describe("8.6 F5 faits délictueux (partner-only)", () => {
   });
 });
 
-describe("8.7 F6 attestation + F7 equity monitoring", () => {
-  it("generates the titres nominatifs attestation under F6", async () => {
+describe("8.7 C5.7 attestation + C5.8 equity monitoring", () => {
+  it("generates the titres nominatifs attestation under C5.7", async () => {
     const documentId = await generateTitresAttestation(saEngagement);
     expect(await docIsZip(documentId)).toBe(true);
   });
@@ -309,7 +309,7 @@ describe("8.7 F6 attestation + F7 equity monitoring", () => {
   });
 });
 
-describe("8.8 F8 co-CAC joint report", () => {
+describe("8.8 C5.9 co-CAC joint report", () => {
   it("issues the joint report with the art. 719 disagreement disclosure", async () => {
     await admin.query("UPDATE client SET co_cac = true WHERE id = $1", [saClient]);
     await recordCompletion(saEngagement, "f8_worksplit", { text: "Cycles A-C cabinet 1; D-F cabinet 2.", confirmed: true });

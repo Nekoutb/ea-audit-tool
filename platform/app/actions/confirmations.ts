@@ -58,7 +58,7 @@ export async function selectConfirmationsAction(
 
 export async function addManualAction(engagementId: string, formData: FormData): Promise<void> {
   await guarded(pagePath(engagementId), async () => {
-    // A1 positive/negative designation with the ISA 505.15 gate: designating a
+    // C2.1 positive/negative designation with the ISA 505.15 gate: designating a
     // negative confirmation requires all four conditions to be affirmed.
     const method = (formData.get("method") === "negative" ? "negative" : "positive") as ConfirmationMethod;
     const rationale: Partial<Record<NegativeConditionKey, boolean>> = {};
@@ -112,7 +112,7 @@ export async function disposeAction(engagementId: string, id: string, formData: 
   );
 }
 
-/** A1 non-response escalation: close without reply or alternative — the page
+/** C2.1 non-response escalation: close without reply or alternative — the page
  * derives the "possible scope limitation — ISA 705" chip from this state. */
 export async function noResponseAction(engagementId: string, id: string): Promise<void> {
   await guarded(pagePath(engagementId), () => closeNoResponse(id));

@@ -1,7 +1,7 @@
-// Phase 8: OHADA legal module (spec §12) — F1 statutory deadlines calendar,
-// F2 conventions réglementées + rapport spécial, F3 article 715 report,
-// F5 faits délictueux + signalement letters, F6 titres attestation,
-// F7 equity < ½ share-capital monitoring. Article numbers follow the OHADA
+// Phase 8: OHADA legal module (spec §12) — C5.2 statutory deadlines calendar,
+// C5.3 conventions réglementées + rapport spécial, C5.4 article 715 report,
+// C5.6 faits délictueux + signalement letters, C5.7 titres attestation,
+// C5.8 equity < ½ share-capital monitoring. Article numbers follow the OHADA
 // practice guide; verify against the current revised AUSCGIE before relying
 // on them in production (spec §12 caveat).
 
@@ -102,7 +102,7 @@ const h = (text: string): Paragraph =>
 const title = (text: string): Paragraph =>
   new Paragraph({ heading: HeadingLevel.TITLE, children: [new TextRun(text)] });
 
-// ---- F1: statutory deadlines calendar (spec §12.1) ----
+// ---- C5.2: statutory deadlines calendar (spec §12.1) ----
 
 export interface DeadlineInfo {
   key: string;
@@ -141,7 +141,7 @@ async function loadLegalContext(tx: PoolClient, engagementId: string): Promise<E
 }
 
 /**
- * (Re)generate the F1 calendar from period-end / AGM / report dates. Upserts
+ * (Re)generate the C5.2 calendar from period-end / AGM / report dates. Upserts
  * by key so regeneration follows date changes without losing done-marks.
  */
 export async function generateDeadlines(engagementId: string): Promise<DeadlineInfo[]> {
@@ -238,7 +238,7 @@ export async function escalateOverdue(engagementId: string): Promise<number> {
   return overdue.length;
 }
 
-// ---- F2: conventions réglementées register + rapport spécial (spec §12.2) ----
+// ---- C5.3: conventions réglementées register + rapport spécial (spec §12.2) ----
 
 export const CONVENTION_CAPACITIES = [
   "director", "gerant", "shareholder10", "president", "dirigeant", "controlling",
@@ -393,14 +393,14 @@ export async function generateRapportSpecial(engagementId: string): Promise<stri
 
     const content = await Packer.toBuffer(new Document({ sections: [{ children }] }));
     return fileUnderCode(tx, {
-      tenantId, userId, engagementId, code: "F2",
+      tenantId, userId, engagementId, code: "C5.3",
       title: `Rapport spécial conventions — ${e.fiscal_year}`,
       kind: "report", content, note: "legal:rapport-special",
     });
   });
 }
 
-// ---- F3: article 715 report to the board (spec §12.3) ----
+// ---- C5.4: article 715 report to the board (spec §12.3) ----
 
 export async function generateArticle715Report(engagementId: string): Promise<string> {
   const { tenantId, userId } = await requireTenant();
@@ -481,14 +481,14 @@ export async function generateArticle715Report(engagementId: string): Promise<st
 
     const content = await Packer.toBuffer(new Document({ sections: [{ children }] }));
     return fileUnderCode(tx, {
-      tenantId, userId, engagementId, code: "F3",
+      tenantId, userId, engagementId, code: "C5.4",
       title: `Rapport art. 715 — ${e.fiscal_year}`,
       kind: "report", content, note: "legal:art715",
     });
   });
 }
 
-// ---- F5: révélation des faits délictueux + signalement (spec §12.5.6) ----
+// ---- C5.6: révélation des faits délictueux + signalement (spec §12.5.6) ----
 
 export interface FaitInfo {
   id: string;
@@ -518,7 +518,7 @@ export async function revealFait(engagementId: string, description: string): Pro
     ];
     const content = await Packer.toBuffer(new Document({ sections: [{ children }] }));
     const documentId = await fileUnderCode(tx, {
-      tenantId, userId, engagementId, code: "F5",
+      tenantId, userId, engagementId, code: "C5.6",
       title: `Révélation faits délictueux — ${e.fiscal_year}`,
       kind: "letter", content, note: "legal:fait-delictueux",
     });
@@ -572,14 +572,14 @@ export async function generateIrregularitiesLetter(
     ];
     const content = await Packer.toBuffer(new Document({ sections: [{ children }] }));
     return fileUnderCode(tx, {
-      tenantId, userId, engagementId, code: "F5",
+      tenantId, userId, engagementId, code: "C5.6",
       title: target === "ag" ? `Signalement AG — ${e.fiscal_year}` : `Signalement conseil — ${e.fiscal_year}`,
       kind: "letter", content, note: `legal:irregularites-${target}`,
     });
   });
 }
 
-// ---- F6: attestation registres de titres nominatifs (art. 746-2) ----
+// ---- C5.7: attestation registres de titres nominatifs (art. 746-2) ----
 
 export async function generateTitresAttestation(engagementId: string): Promise<string> {
   const { tenantId, userId } = await requireTenant();
@@ -605,14 +605,14 @@ export async function generateTitresAttestation(engagementId: string): Promise<s
     ];
     const content = await Packer.toBuffer(new Document({ sections: [{ children }] }));
     return fileUnderCode(tx, {
-      tenantId, userId, engagementId, code: "F6",
+      tenantId, userId, engagementId, code: "C5.7",
       title: `Attestation titres nominatifs — ${e.fiscal_year}`,
       kind: "report", content, note: "legal:titres-attestation",
     });
   });
 }
 
-// ---- F7: equity < half of share capital (spec §12.5.9) ----
+// ---- C5.8: equity < half of share capital (spec §12.5.9) ----
 
 export interface EquityCheck {
   equity: number;
@@ -677,14 +677,14 @@ export async function equityCheck(engagementId: string): Promise<EquityCheck> {
         userId: partner.user_id,
         kind: "equity-breach",
         title: "Capitaux propres < ½ capital social",
-        body: `Equity ${check.equity} vs half capital ${check.halfCapital} — statutory EGM workflow raised (F7).`,
+        body: `Equity ${check.equity} vs half capital ${check.halfCapital} — statutory EGM workflow raised (C5.8).`,
       });
     }
   }
   return check;
 }
 
-/** Client share capital used by the F7 monitor. */
+/** Client share capital used by the C5.8 monitor. */
 export async function setShareCapital(engagementId: string, amount: number): Promise<void> {
   const { tenantId } = await requireTenant();
   if (!Number.isFinite(amount) || amount <= 0) throw new LegalError("invalid-amount");

@@ -49,7 +49,7 @@ export async function raiseAnalyticsRiskAction(
 ): Promise<void> {
   const path = `/engagements/${engagementId}/analytics`;
   await guarded(path, () =>
-    raisePotentialRisk(engagementId, String(formData.get("description") ?? ""), "D4.3"),
+    raisePotentialRisk(engagementId, String(formData.get("description") ?? ""), "P3.2"),
   );
 }
 

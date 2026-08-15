@@ -23,24 +23,24 @@ export const LEAD_CYCLES: Record<string, LeadCycle> = {
 
 /** E-section code → lead letter. Codes not listed fall back to G. */
 const LETTER_OF: Record<string, string> = {
-  E100: "R", // Revenue & Receivables
-  E110: "P", // Purchases & Payables
-  E120: "Z", // Payroll & Personnel Costs
-  E130: "I", // Inventories
-  E140: "F", // Property, Plant & Equipment
-  E150: "F", // Intangibles & Goodwill
-  E160: "B", // Investments & Financial Assets
-  E170: "B", // Cash & Bank / Loans & Borrowings
-  E180: "X", // Taxation
-  E190: "X", // VAT / Sales Taxes
-  E200: "Q", // Provisions & Employee Benefits
-  E210: "F", // Leases
-  E220: "Q", // HAO Items
-  E230: "Q", // Cash Flow Statement Tie-out
-  E270: "Q", // Commitments & Contingencies
-  E280: "Q", // Equity & Reserves
-  E310: "G", E320: "G", E330: "G", E350: "G", E360: "G", E370: "G", E380: "G", E390: "G",
-  E500: "G", E510: "G", // IT overlay
+  "E4.1": "R", // Revenue & Receivables
+  "E4.2": "P", // Purchases & Payables
+  "E4.3": "Z", // Payroll & Personnel Costs
+  "E4.4": "I", // Inventories
+  "E4.5": "F", // Property, Plant & Equipment
+  "E4.6": "F", // Intangibles & Goodwill
+  "E4.7": "B", // Investments & Financial Assets
+  "E4.8": "B", // Cash & Bank / Loans & Borrowings
+  "E4.9": "X", // Taxation
+  "E4.10": "X", // VAT / Sales Taxes
+  "E4.11": "Q", // Provisions & Employee Benefits
+  "E4.12": "F", // Leases
+  "E4.13": "Q", // HAO Items
+  "E4.14": "Q", // Cash Flow Statement Tie-out
+  "E4.15": "Q", // Commitments & Contingencies
+  "E4.16": "Q", // Equity & Reserves
+  "E6.1": "G", "E6.2": "G", "E6.3": "G", "E2.1": "G", "E6.4": "G", "E6.5": "G", "E6.6": "G", "E6.7": "G",
+  "E1.1": "G", "E1.2": "G", // IT overlay
 };
 
 export function leadLetter(sectionCode: string): string {

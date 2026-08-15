@@ -1,12 +1,12 @@
 // Phase-transition gates (spec §19.2: "Gates, not guidance" — where the
 // methodology says must, the tool BLOCKS with a clear explanation).
 //
-// acceptance → planning:  D3.1 form complete & concluded "accept", partner
-//                         sign-off on the D3.1 working paper, an independence
+// acceptance → planning:  P1.1 form complete & concluded "accept", partner
+//                         sign-off on the P1.1 working paper, an independence
 //                         campaign launched with every confirmation completed
 //                         and exceptions disposed.
-// planning → execution:   materiality approved; partner sign-offs on D6.1,
-//                         D7.1, D7.2; every significant risk linked to ≥1
+// planning → execution:   materiality approved; partner sign-offs on P2.2,
+//                         P5.2, S3.1; every significant risk linked to ≥1
 //                         program step (or validly rebutted with partner
 //                         approval); every material E-section has planned
 //                         coverage (stand-back). Closing takes a snapshot.
@@ -42,7 +42,7 @@ async function formValues(
 /**
  * Active (non-voided) partner sign-off on the WORKING PAPER of a file-index
  * code. kind='workpaper' matters: letters filed under the same index (e.g. the
- * engagement letter under D3.1) must not satisfy the gate.
+ * engagement letter under P1.1) must not satisfy the gate.
  */
 async function partnerSigned(
   tx: PoolClient,
@@ -63,10 +63,10 @@ async function partnerSigned(
 }
 
 async function acceptanceGatesTx(tx: PoolClient, engagementId: string): Promise<GateResult[]> {
-  const d31 = await formValues(tx, engagementId, "D3.1");
-  const formComplete = isFormComplete(FORM_DEFINITIONS["D3.1"], d31);
+  const d31 = await formValues(tx, engagementId, "P1.1");
+  const formComplete = isFormComplete(FORM_DEFINITIONS["P1.1"], d31);
   const concludedAccept = d31.conclusion === "accept";
-  const signed = await partnerSigned(tx, engagementId, "D3.1");
+  const signed = await partnerSigned(tx, engagementId, "P1.1");
 
   const independence = await tx.query<{ total: string; open: string; undisposed: string }>(
     `SELECT
@@ -98,7 +98,7 @@ async function planningCloseGatesTx(tx: PoolClient, engagementId: string): Promi
   );
 
   const gateDocs: GateResult[] = [];
-  for (const code of ["D6.1", "D7.1", "D7.2"]) {
+  for (const code of ["P2.2", "P5.2", "S3.1"]) {
     gateDocs.push({
       key: `${code.toLowerCase().replace(".", "")}_partner_signed`,
       ok: await partnerSigned(tx, engagementId, code),

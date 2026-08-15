@@ -1,4 +1,4 @@
-// P6.2 — significant accounts and disclosures (D5.8): every lead-schedule
+// P6.2 — significant accounts and disclosures (P6.2): every lead-schedule
 // index with its closing balance, the volume of general-ledger lines behind
 // it, and its significance. Anything above tolerable error is significant by
 // default; overriding that either way needs a written justification.
@@ -110,19 +110,19 @@ export async function significantAccounts(engagementId: string): Promise<Signifi
       }
     }
 
-    // recorded decisions live with the paper's answers (code "wp:D5.8");
-    // specific materiality per index rides with the materiality paper (wp:D5.1)
+    // recorded decisions live with the paper's answers (code "wp:P6.2");
+    // specific materiality per index rides with the materiality paper (wp:P6.1)
     const saved = await tx.query<{ code: string; field_key: string; value: string }>(
       `SELECT code, field_key, value #>> '{}' AS value
-         FROM form_response WHERE engagement_id = $1 AND code IN ('wp:D5.8', 'wp:D5.1')`,
+         FROM form_response WHERE engagement_id = $1 AND code IN ('wp:P6.2', 'wp:P6.1')`,
       [engagementId],
     );
     const decisions = new Map(
-      saved.rows.filter((r) => r.code === "wp:D5.8").map((r) => [r.field_key, r.value]),
+      saved.rows.filter((r) => r.code === "wp:P6.2").map((r) => [r.field_key, r.value]),
     );
     const specific = new Map<string, number>();
     for (const r of saved.rows) {
-      if (r.code !== "wp:D5.1" || !r.field_key.startsWith("sm_")) continue;
+      if (r.code !== "wp:P6.1" || !r.field_key.startsWith("sm_")) continue;
       const amount = Number(r.value.replace(/[^\d.-]/g, ""));
       if (Number.isFinite(amount) && amount > 0) specific.set(r.field_key.slice(3), amount);
     }
@@ -187,7 +187,7 @@ export async function specificThresholds(engagementId: string): Promise<Map<stri
     const r = await tx.query<{ field_key: string; value: string }>(
       `SELECT field_key, value #>> '{}' AS value
          FROM form_response
-        WHERE engagement_id = $1 AND code = 'wp:D5.1' AND field_key LIKE 'sm\\_%'`,
+        WHERE engagement_id = $1 AND code = 'wp:P6.1' AND field_key LIKE 'sm\\_%'`,
       [engagementId],
     );
     const out = new Map<string, number>();
@@ -204,7 +204,7 @@ const ASSERTION_CODES = new Set(["C", "E", "A", "V", "P"]);
 /**
  * Persist one index's significance decision, its justification, the relevant
  * assertions, and — when given — its specific materiality (stored with the
- * D5.1 paper, since the threshold belongs to materiality, not to scoping).
+ * P6.1 paper, since the threshold belongs to materiality, not to scoping).
  */
 export async function saveSignificance(
   engagementId: string,
@@ -226,13 +226,13 @@ export async function saveSignificance(
       const amount = Number(cleaned);
       if (cleaned === "" || !Number.isFinite(amount) || amount <= 0) {
         await tx.query(
-          "DELETE FROM form_response WHERE engagement_id = $1 AND code = 'wp:D5.1' AND field_key = $2",
+          "DELETE FROM form_response WHERE engagement_id = $1 AND code = 'wp:P6.1' AND field_key = $2",
           [engagementId, `sm_${index}`],
         );
       } else {
         await tx.query(
           `INSERT INTO form_response (tenant_id, engagement_id, code, field_key, value, updated_by)
-           VALUES ($1, $2, 'wp:D5.1', $3, to_jsonb($4::text), $5)
+           VALUES ($1, $2, 'wp:P6.1', $3, to_jsonb($4::text), $5)
            ON CONFLICT (engagement_id, code, field_key)
            DO UPDATE SET value = EXCLUDED.value, updated_by = EXCLUDED.updated_by, updated_at = now()`,
           [tenantId, engagementId, `sm_${index}`, String(Math.round(amount)), userId],
@@ -247,14 +247,14 @@ export async function saveSignificance(
     for (const [key, value] of pairs) {
       if (value === "") {
         await tx.query(
-          "DELETE FROM form_response WHERE engagement_id = $1 AND code = 'wp:D5.8' AND field_key = $2",
+          "DELETE FROM form_response WHERE engagement_id = $1 AND code = 'wp:P6.2' AND field_key = $2",
           [engagementId, key],
         );
         continue;
       }
       await tx.query(
         `INSERT INTO form_response (tenant_id, engagement_id, code, field_key, value, updated_by)
-         VALUES ($1, $2, 'wp:D5.8', $3, to_jsonb($4::text), $5)
+         VALUES ($1, $2, 'wp:P6.2', $3, to_jsonb($4::text), $5)
          ON CONFLICT (engagement_id, code, field_key)
          DO UPDATE SET value = EXCLUDED.value, updated_by = EXCLUDED.updated_by, updated_at = now()`,
         [tenantId, engagementId, key, value, userId],

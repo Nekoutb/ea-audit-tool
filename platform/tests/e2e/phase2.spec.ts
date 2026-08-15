@@ -1,7 +1,7 @@
 import { expect, test, type Page } from "@playwright/test";
 
 // Phase 2 acceptance (master spec §17): complete a full planning phase on the
-// demo client; a significant risk on revenue appears in the E100 header;
+// demo client; a significant risk on revenue appears in the E4.1 header;
 // planning cannot close with an unlinked significant risk or an uncovered
 // material FSLI.
 
@@ -49,11 +49,11 @@ test("full Phase 2 acceptance → planning → gates → close", async ({ page }
   const engagementUrl = page.url().replace(/\/team$/, "");
   await page.goto(engagementUrl);
 
-  // --- Acceptance: D3.1 structured form ---
+  // --- Acceptance: P1.1 structured form ---
   await page.goto(`${engagementUrl}/acceptance`);
   await page.waitForURL("**/acceptance");
   await page.getByTestId("open-d31-form").click();
-  await page.waitForURL("**/forms/D3.1");
+  await page.waitForURL("**/forms/P1.1");
   await page.getByTestId("field-engagement_type").selectOption("new");
   for (const key of ["integrity_ok", "competence_ok", "conflicts_ok", "aml_ok", "independence_ok"]) {
     await page.getByTestId(`field-${key}`).selectOption("yes");
@@ -79,12 +79,12 @@ test("full Phase 2 acceptance → planning → gates → close", async ({ page }
   await page.getByTestId("disposition-input").fill("Interest divested; safeguards applied.");
   await page.getByTestId("dispose-exception").click();
 
-  // Blocked until D3.1 carries a partner sign-off.
+  // Blocked until P1.1 carries a partner sign-off.
   await page.getByTestId("advance-to-planning").click();
   await expect(page.getByTestId("planning-error")).toBeVisible();
 
-  // Partner sign-off on the D3.1 working paper, then advance.
-  await partnerSignCode(page, engagementUrl, "D3.1");
+  // Partner sign-off on the P1.1 working paper, then advance.
+  await partnerSignCode(page, engagementUrl, "P1.1");
   await page.goto(engagementUrl);
   await page.goto(`${engagementUrl}/acceptance`);
   await page.getByTestId("advance-to-planning").click();
@@ -102,8 +102,8 @@ test("full Phase 2 acceptance → planning → gates → close", async ({ page }
   await page.getByTestId("approve-materiality").click();
   await expect(page.getByTestId("materiality-status-1")).toContainText(/Approved/i);
 
-  // Mark E110 material with no coverage → stand-back must block.
-  await page.getByTestId("toggle-material-E110").click();
+  // Mark E4.2 material with no coverage → stand-back must block.
+  await page.getByTestId("toggle-material-E4.2").click();
 
   // Close attempt: blocked, failed gates listed (unlinked significant risk,
   // uncovered material section, unsigned gate documents).
@@ -112,9 +112,9 @@ test("full Phase 2 acceptance → planning → gates → close", async ({ page }
   await expect(page.getByTestId("planning-error")).toContainText(/significant risk/i);
   await expect(page.getByTestId("planning-error")).toContainText(/material section/i);
 
-  // --- E100: the seeded significant revenue risk appears in the section header ---
+  // --- E4.1: the seeded significant revenue risk appears in the section header ---
   await page.goto(engagementUrl);
-  await page.getByTestId("open-section-E100").click();
+  await page.getByTestId("open-section-E4.1").click();
   await page.waitForURL("**/sections/**");
   await expect(page.getByTestId("section-risks")).toContainText(/revenue recognition/i);
   await expect(page.getByTestId("section-risks")).toContainText(/Significant/i);
@@ -123,22 +123,22 @@ test("full Phase 2 acceptance → planning → gates → close", async ({ page }
   await page.getByTestId("generate-program").click();
   await expect(page.getByTestId("program-table")).toContainText(/EXTENDED/i);
 
-  // --- E350: program links the management-override risk ---
+  // --- E2.1: program links the management-override risk ---
   await page.goto(engagementUrl);
-  await page.getByTestId("open-section-E350").click();
+  await page.getByTestId("open-section-E2.1").click();
   await page.waitForURL("**/sections/**");
   await page.getByTestId("generate-program").click();
   await expect(page.getByTestId("program-table")).toBeVisible();
 
-  // --- E110 (material): add substantive coverage ---
+  // --- E4.2 (material): add substantive coverage ---
   await page.goto(engagementUrl);
-  await page.getByTestId("open-section-E110").click();
+  await page.getByTestId("open-section-E4.2").click();
   await page.waitForURL("**/sections/**");
   await page.getByTestId("custom-step-description").fill("Substantive coverage for purchases & payables.");
   await page.getByTestId("add-custom-step").click();
 
   // --- Partner sign-offs on the gate documents ---
-  for (const code of ["D6.1", "D7.1", "D7.2"]) {
+  for (const code of ["P2.2", "P5.2", "S3.1"]) {
     await partnerSignCode(page, engagementUrl, code);
   }
 

@@ -103,7 +103,7 @@ describe("presumed risks (spec §3)", () => {
     expect(types).toEqual(["mgmt_override", "revenue_fraud"]);
     expect(risks.every((r) => r.significant)).toBe(true);
     const override = risks.find((r) => r.presumedType === "mgmt_override");
-    expect(override?.sections.map((s) => s.code)).toContain("E350");
+    expect(override?.sections.map((s) => s.code)).toContain("E2.1");
   });
 
   it("blocks downgrading management override", async () => {
@@ -124,16 +124,16 @@ describe("presumed risks (spec §3)", () => {
 
 describe("form framework", () => {
   it("saves and reloads structured fields", async () => {
-    await saveForm(engagementId, "D4.2", { ownership_governance: "Family-owned SA", business_model: "Trading" });
-    const { values } = await loadForm(engagementId, "D4.2");
+    await saveForm(engagementId, "P3.1", { ownership_governance: "Family-owned SA", business_model: "Trading" });
+    const { values } = await loadForm(engagementId, "P3.1");
     expect(values.ownership_governance).toBe("Family-owned SA");
   });
 
-  it("enforces the D4.4 D&I inquiry+inspection rule", async () => {
+  it("enforces the P4.1 D&I inquiry+inspection rule", async () => {
     await expect(
-      saveForm(engagementId, "D4.4", { control_environment: "ok", di_controls: "JE controls", di_inquiry: true, di_inspection: false }),
+      saveForm(engagementId, "P4.1", { control_environment: "ok", di_controls: "JE controls", di_inquiry: true, di_inspection: false }),
     ).rejects.toThrow("di-both-required");
-    await saveForm(engagementId, "D4.4", { control_environment: "ok", di_controls: "JE controls", di_inquiry: true, di_inspection: true });
+    await saveForm(engagementId, "P4.1", { control_environment: "ok", di_controls: "JE controls", di_inquiry: true, di_inspection: true });
   });
 });
 
@@ -161,7 +161,7 @@ describe("acceptance gates → planning (2.2, 2.3, 2.4)", () => {
     const status = await submitConfirmation(mine.token, { financial_interest: true }, "Planner");
     expect(status).toBe("exception");
 
-    // The signed confirmation is archived into D3.1 as an artifact (spec §4.2).
+    // The signed confirmation is archived into P1.1 as an artifact (spec §4.2).
     const archived = await admin.query<{ kind: string }>(
       "SELECT kind FROM document WHERE engagement_id = $1 AND title LIKE 'Independence confirmation%'",
       [engagementId],
@@ -178,8 +178,8 @@ describe("acceptance gates → planning (2.2, 2.3, 2.4)", () => {
     expect(gates.find((g) => g.key === "independence_exceptions_disposed")?.ok).toBe(true);
   });
 
-  it("passes after D3.1 completion + partner sign-off, then advances", async () => {
-    await saveForm(engagementId, "D3.1", {
+  it("passes after P1.1 completion + partner sign-off, then advances", async () => {
+    await saveForm(engagementId, "P1.1", {
       engagement_type: "new",
       integrity_ok: true,
       competence_ok: true,
@@ -189,7 +189,7 @@ describe("acceptance gates → planning (2.2, 2.3, 2.4)", () => {
       risk_rating: "moderate",
       conclusion: "accept",
     });
-    await signAsPartner("D3.1");
+    await signAsPartner("P1.1");
     const gates = await acceptanceGates(engagementId);
     expect(gates.every((g) => g.ok)).toBe(true);
     await advanceToPlanning(engagementId);
@@ -209,11 +209,11 @@ describe("EQR independence (2.7)", () => {
 
 describe("program tailoring (2.14)", () => {
   it("generates library steps + risk extensions auto-linked to the significant risk", async () => {
-    const generated = await generateProgram(itemId("E100"), "en");
+    const generated = await generateProgram(itemId("E4.1"), "en");
     expect(generated).toBeGreaterThan(0);
-    const steps = await listProgramSteps(itemId("E100"));
+    const steps = await listProgramSteps(itemId("E4.1"));
     expect(steps.some((s) => s.source === "risk_extension")).toBe(true);
-    const coverage = await sectionCoverage(itemId("E100"));
+    const coverage = await sectionCoverage(itemId("E4.1"));
     const revenue = coverage.find((c) => c.riskDescription.includes("revenue"));
     expect(revenue?.linkedSteps).toBeGreaterThan(0);
   });
@@ -224,7 +224,7 @@ describe("planning-close gates (2.9, 2.10, 2.13)", () => {
     await expect(closePlanning(engagementId)).rejects.toThrow(GateError);
     const gates = await planningCloseGates(engagementId);
     expect(gates.find((g) => g.key === "materiality_approved")?.ok).toBe(false);
-    // mgmt_override (E350) has no program yet → unlinked significant risk.
+    // mgmt_override (E2.1) has no program yet → unlinked significant risk.
     expect(gates.find((g) => g.key === "significant_risks_linked")?.ok).toBe(false);
   });
 
@@ -243,15 +243,15 @@ describe("planning-close gates (2.9, 2.10, 2.13)", () => {
   });
 
   it("stand-back: an uncovered material section blocks close", async () => {
-    await setSectionMaterial(itemId("E110"), true);
+    await setSectionMaterial(itemId("E4.2"), true);
     const gates = await planningCloseGates(engagementId);
     expect(gates.find((g) => g.key === "material_sections_covered")?.ok).toBe(false);
   });
 
   it("closes once every gate passes, snapshots, and opens execution", async () => {
-    await generateProgram(itemId("E350"), "en"); // links mgmt_override
-    await addCustomStep(itemId("E110"), "Substantive coverage for purchases.", ["C", "A"]);
-    for (const code of ["D6.1", "D7.1", "D7.2"]) await signAsPartner(code);
+    await generateProgram(itemId("E2.1"), "en"); // links mgmt_override
+    await addCustomStep(itemId("E4.2"), "Substantive coverage for purchases.", ["C", "A"]);
+    for (const code of ["P2.2", "P5.2", "S3.1"]) await signAsPartner(code);
 
     const gates = await planningCloseGates(engagementId);
     expect(gates.every((g) => g.ok)).toBe(true);
@@ -303,9 +303,9 @@ describe("planning-close gates (2.9, 2.10, 2.13)", () => {
   });
 });
 
-describe("D7.1 promote race (review fix)", () => {
+describe("P5.2 promote race (review fix)", () => {
   it("a potential risk can only be promoted once", async () => {
-    await raisePotentialRisk(engagementId, "Cut-off risk near year end", "D4.3");
+    await raisePotentialRisk(engagementId, "Cut-off risk near year end", "P3.2");
     const open = (await listPotentialRisks(engagementId)).find((p) => p.status === "open")!;
     await promotePotentialRisk(open.id);
     await expect(promotePotentialRisk(open.id)).rejects.toThrow("not-found");
@@ -313,17 +313,17 @@ describe("D7.1 promote race (review fix)", () => {
 });
 
 describe("letter/working-paper collision (review fix)", () => {
-  it("letters under D3.1 neither hijack the working paper nor satisfy the partner gate", async () => {
+  it("letters under P1.1 neither hijack the working paper nor satisfy the partner gate", async () => {
     const fresh = await createEngagement({ clientId, fiscalYear: 2027, periodEnd: "2027-12-31" });
     const letterId = await generateLetter(fresh, "engagement", "en");
 
     // The working paper is a NEW document, not the letter.
     const freshItems = await listFileItems(fresh);
-    const d31 = freshItems.find((i) => i.code === "D3.1")!;
+    const d31 = freshItems.find((i) => i.code === "P1.1")!;
     const workpaperId = await generateDocument(d31.id, "en");
     expect(workpaperId).not.toBe(letterId);
 
-    // Partner-signing the LETTER does not satisfy the D3.1 gate...
+    // Partner-signing the LETTER does not satisfy the P1.1 gate...
     await signDocument(letterId, "preparer");
     await signDocument(letterId, "partner");
     let gates = await acceptanceGates(fresh);
@@ -347,13 +347,13 @@ describe("rollforward (2.11)", () => {
     const copied = await carryForwardFromPriorYear(nextYear);
     expect(copied).toBeGreaterThan(0);
 
-    const { values, carried } = await loadForm(nextYear, "D4.2");
+    const { values, carried } = await loadForm(nextYear, "P3.1");
     expect(values.ownership_governance).toBe("Family-owned SA");
     expect(carried.has("ownership_governance")).toBe(true);
 
     // Editing confirms (clears the carried flag).
-    await saveForm(nextYear, "D4.2", { ownership_governance: "Family-owned SA (confirmed 2026)" });
-    const after = await loadForm(nextYear, "D4.2");
+    await saveForm(nextYear, "P3.1", { ownership_governance: "Family-owned SA (confirmed 2026)" });
+    const after = await loadForm(nextYear, "P3.1");
     expect(after.carried.has("ownership_governance")).toBe(false);
 
     const parties = await admin.query<{ carried_forward: boolean }>(

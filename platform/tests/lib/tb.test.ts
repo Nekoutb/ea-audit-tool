@@ -97,12 +97,12 @@ describe("validation engine (3.2)", () => {
     expect(versions.find((v) => v.versionNo === result.versionNo)?.isCurrent).toBe(false);
   });
 
-  it("flags codification, unknown accounts and opening-tie exceptions (E370)", async () => {
+  it("flags codification, unknown accounts and opening-tie exceptions (E6.5)", async () => {
     const result = await importTrialBalance(
       engagementId,
       "tb-2025.csv",
       csv([
-        // opening 60,000,000 ≠ prior closing 50,000,000 -> E370 exception
+        // opening 60,000,000 ≠ prior closing 50,000,000 -> E6.5 exception
         "411000;Clients;60000000;0;20000000;0",
         "701000;Ventes;0;60000000;0;25000000",
         "601000;Achats;0;0;5000000;0",
@@ -156,11 +156,11 @@ describe("adjusting journals + versions (3.3)", () => {
 describe("grouping seed + client overrides (3.5/3.6)", () => {
   it("uses the corrected Appendix A mapping (66 = payroll, not finance)", async () => {
     const sections = await sectionBalances(priorEngagement);
-    expect(sections.get("E100")?.rows.map((r) => r.accountCode)).toContain("701000");
+    expect(sections.get("E4.1")?.rows.map((r) => r.accountCode)).toContain("701000");
     const rule = await admin.query<{ section_code: string; label_fr: string }>(
       "SELECT section_code, label_fr FROM syscohada_grouping_rule WHERE account_prefix = '66'",
     );
-    expect(rule.rows[0].section_code).toBe("E120");
+    expect(rule.rows[0].section_code).toBe("E4.3");
     expect(rule.rows[0].label_fr).toBe("Charges de personnel");
   });
 
@@ -168,11 +168,11 @@ describe("grouping seed + client overrides (3.5/3.6)", () => {
     await addOverride(clientId, {
       matchType: "prefix",
       accountPrefix: "601",
-      sectionCode: "E130",
+      sectionCode: "E4.4",
       rationale: "Client books direct materials under purchases.",
     });
     const sections = await sectionBalances(priorEngagement);
-    expect(sections.get("E130")?.rows.map((r) => r.accountCode)).toContain("601000");
-    expect(sections.get("E110")?.rows.map((r) => r.accountCode) ?? []).not.toContain("601000");
+    expect(sections.get("E4.4")?.rows.map((r) => r.accountCode)).toContain("601000");
+    expect(sections.get("E4.2")?.rows.map((r) => r.accountCode) ?? []).not.toContain("601000");
   });
 });

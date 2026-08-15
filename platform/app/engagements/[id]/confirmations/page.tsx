@@ -48,7 +48,7 @@ export default async function ConfirmationsPage(props: {
   const engagement = await getEngagement(id);
   if (!engagement) notFound();
 
-  // A1 additions are localized inline (EN/FR) — no messages/*.json edits.
+  // C2.1 additions are localized inline (EN/FR) — no messages/*.json edits.
   const fr = locale === "fr";
   const subjectLabels: Record<ConfirmationSubject, string> = fr
     ? { bank: "Banque", receivable: "Créances", payable: "Fournisseurs", inventory_third_party: "Stocks chez tiers", legal: "Juridique", lender: "Prêteurs" }

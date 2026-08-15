@@ -17,7 +17,7 @@ export const metadata = { title: "Materiality · AuditISA" };
  * The Materiality tool: trial-balance bases, one Generate, the current
  * thresholds in bold with their amounts, and partner approval. No version
  * management — generating again replaces the display; the justification lives
- * on the D5.1 working paper.
+ * on the P6.1 working paper.
  */
 export default async function MaterialityPage(props: {
   params: Promise<{ id: string }>;

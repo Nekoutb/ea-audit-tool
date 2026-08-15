@@ -18,20 +18,20 @@ export const metadata = { title: "Planning considerations · AuditISA" };
 
 // The five one-field conditional planning forms, merged into one screen
 // (UI audit S1). Keep the trigger map in sync with planning/page.tsx.
-const CONSIDERATION_CODES = ["D4.5", "D4.6", "D4.7", "D4.8", "D4.9"] as const;
+const CONSIDERATION_CODES = ["P4.2", "P4.3", "S4.1", "S4.2", "S4.3"] as const;
 const CONDITIONAL_TRIGGERS: Record<string, string> = {
-  "D4.5": "assess_control_env",
-  "D4.6": "assess_it_env",
-  "D4.7": "uses_expert",
-  "D4.8": "uses_service_org",
-  "D4.9": "has_internal_audit",
+  "P4.2": "assess_control_env",
+  "P4.3": "assess_it_env",
+  "S4.1": "uses_expert",
+  "S4.2": "uses_service_org",
+  "S4.3": "has_internal_audit",
 };
 
 async function d1Triggers(engagementId: string): Promise<Record<string, unknown>> {
   const { tenantId } = await requireTenant();
   return withTenant(tenantId, async (tx) => {
     const r = await tx.query<{ field_key: string; value: unknown }>(
-      "SELECT field_key, value FROM form_response WHERE engagement_id = $1 AND code = 'D1'",
+      "SELECT field_key, value FROM form_response WHERE engagement_id = $1 AND code = 'S5.1'",
       [engagementId],
     );
     return Object.fromEntries(r.rows.map((row) => [row.field_key, row.value]));
@@ -60,7 +60,7 @@ export default async function ConsiderationsPage(props: {
   ]);
   const valuesByCode = Object.fromEntries(CONSIDERATION_CODES.map((code, i) => [code, loaded[i].values]));
 
-  const d1Fields = FORM_DEFINITIONS["D1"]?.fields ?? [];
+  const d1Fields = FORM_DEFINITIONS["S5.1"]?.fields ?? [];
   const triggerLabel = (code: string) => {
     const key = CONDITIONAL_TRIGGERS[code];
     const field = d1Fields.find((f) => f.key === key);

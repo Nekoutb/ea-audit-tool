@@ -216,11 +216,11 @@ export function subIndexFor(account: string): string | null {
  * never chosen by the user: the index IS the lead schedule.
  */
 export const INDEX_SECTION: Record<string, string> = {
-  T: "E280", Q: "E170", P1: "E200", P2: "E200", P3: "E180", P4: "E180",
-  L: "E150", K: "E140", J: "E160", F: "E130", N: "E110", E: "E100",
-  O1: "E180", O2: "E180", O4: "E180", I1: "E320", I2: "E320",
-  G2: "E180", G3: "E180", C: "E170",
-  UA: "E100", UB2: "E100", UC: "E170", U1: "E220",
-  VA1: "E110", VA2: "E130", VB: "E120", VO: "E190", VD1: "E110",
-  VD2: "E140", VD3: "E200", VD4: "E110", VD5: "E170", V1: "E220",
+  T: "E4.16", Q: "E4.8", P1: "E4.11", P2: "E4.11", P3: "E4.9", P4: "E4.9",
+  L: "E4.6", K: "E4.5", J: "E4.7", F: "E4.4", N: "E4.2", E: "E4.1",
+  O1: "E4.9", O2: "E4.9", O4: "E4.9", I1: "E6.2", I2: "E6.2",
+  G2: "E4.9", G3: "E4.9", C: "E4.8",
+  UA: "E4.1", UB2: "E4.1", UC: "E4.8", U1: "E4.13",
+  VA1: "E4.2", VA2: "E4.4", VB: "E4.3", VO: "E4.10", VD1: "E4.2",
+  VD2: "E4.5", VD3: "E4.11", VD4: "E4.2", VD5: "E4.8", V1: "E4.13",
 };

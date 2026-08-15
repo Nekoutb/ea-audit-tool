@@ -199,7 +199,7 @@ export interface TieoutResult {
 /**
  * Run the tie-out. `clientFs` is an optional CSV (ref;amount) of the client's
  * draft FS — recomputed lines are diffed against it; differences above the
- * trivial threshold are exceptions (spec §10.4 → A1).
+ * trivial threshold are exceptions (spec §10.4 → C2.1).
  */
 export async function runFsTieout(
   engagementId: string,

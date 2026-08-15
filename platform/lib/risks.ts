@@ -1,5 +1,5 @@
-// Risk register (spec §5.3 — the linkage core): D7.1 potential risks are raised
-// from any planning form, then dismissed with rationale or promoted to D7.2.
+// Risk register (spec §5.3 — the linkage core): P5.2 potential risks are raised
+// from any planning form, then dismissed with rationale or promoted to S3.1.
 // Two presumed risks are auto-seeded per engagement (spec §3).
 
 import type { PoolClient } from "pg";
@@ -69,7 +69,7 @@ export function inherentRating(likelihood: RiskRating, magnitude: RiskRating): R
 /**
  * Seed the two presumed ISA 240 risks. Called inside createEngagement's
  * transaction: revenue-fraud (rebuttable, partner sign-off required) mapped to
- * E100; management override (NOT rebuttable) mapped to E350.
+ * E4.1; management override (NOT rebuttable) mapped to E2.1.
  */
 export async function seedPresumedRisks(
   tx: PoolClient,
@@ -77,7 +77,7 @@ export async function seedPresumedRisks(
   engagementId: string,
 ): Promise<void> {
   const sections = await tx.query<{ id: string; code: string }>(
-    "SELECT id, code FROM file_item WHERE engagement_id = $1 AND code IN ('E100', 'E350')",
+    "SELECT id, code FROM file_item WHERE engagement_id = $1 AND code IN ('E4.1', 'E2.1')",
     [engagementId],
   );
   const byCode = new Map(sections.rows.map((row) => [row.code, row.id]));
@@ -86,13 +86,13 @@ export async function seedPresumedRisks(
     {
       description: "Presumed fraud risk in revenue recognition (ISA 240)",
       presumed: "revenue_fraud",
-      section: byCode.get("E100"),
+      section: byCode.get("E4.1"),
       assertions: ["E", "A"],
     },
     {
       description: "Management override of controls (ISA 240)",
       presumed: "mgmt_override",
-      section: byCode.get("E350"),
+      section: byCode.get("E2.1"),
       assertions: ["C", "E", "A"],
     },
   ] as const;
@@ -160,7 +160,7 @@ export async function listPotentialRisks(engagementId: string): Promise<Potentia
   });
 }
 
-/** D7.1 decision: dismiss with documented rationale, or promote into D7.2. */
+/** P5.2 decision: dismiss with documented rationale, or promote into S3.1. */
 export async function dismissPotentialRisk(id: string, rationale: string): Promise<void> {
   const { tenantId, userId } = await requireTenant();
   if (!rationale.trim()) throw new Error("rationale-required");
@@ -191,7 +191,7 @@ export async function promotePotentialRisk(id: string): Promise<string> {
     const risk = await tx.query<{ id: string }>(
       `INSERT INTO risk (tenant_id, engagement_id, description, source, created_by)
        VALUES ($1, $2, $3, $4, $5) RETURNING id`,
-      [tenantId, row.engagement_id, row.description, `D7.1 (${row.source_code})`, userId],
+      [tenantId, row.engagement_id, row.description, `P5.2 (${row.source_code})`, userId],
     );
     return risk.rows[0].id;
   });

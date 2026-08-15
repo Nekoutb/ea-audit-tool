@@ -156,7 +156,7 @@ export default async function FindingsPage(props: {
                         <span className="inline-flex items-center gap-2">
                           {!item.corrected ? (
                             <Link
-                              href={`/engagements/${id}/data?jdesc=${encodeURIComponent(`[B5] ${item.description}`.slice(0, 120))}&jamount=${Math.abs(item.amount)}#journal`}
+                              href={`/engagements/${id}/data?jdesc=${encodeURIComponent(`[C1.1] ${item.description}`.slice(0, 120))}&jamount=${Math.abs(item.amount)}#journal`}
                               className="text-xs font-medium text-emerald-700 hover:underline dark:text-emerald-400"
                               data-testid={`propose-adjustment-${item.id}`}
                             >

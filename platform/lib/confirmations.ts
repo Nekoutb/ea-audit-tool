@@ -1,7 +1,7 @@
 // Phase 6: third-party circularisations (ISA 505, spec §11.3).
 // Selection from imported datasets with preset criteria, bilingual letter
 // generation per confirmation type, dispatch with unique reply tokens and
-// reminders, reply evaluation (difference → disposition; client error → B5),
+// reminders, reply evaluation (difference → disposition; client error → C1.1),
 // alternative procedures for non-replies, and an auto-produced summary
 // working paper (coverage %, results).
 
@@ -374,7 +374,7 @@ export async function recordReply(id: string, confirmedAmount: number): Promise<
   });
 }
 
-/** Exception disposition: client error raises the difference into B5. */
+/** Exception disposition: client error raises the difference into C1.1. */
 export async function disposeReply(
   id: string,
   disposition: "timing" | "client_error" | "confirmee_error",

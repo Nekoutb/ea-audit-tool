@@ -56,8 +56,8 @@ beforeAll(async () => {
   );
   engagementId = await createEngagement({ clientId: client.rows[0].id, fiscalYear: 2025, periodEnd: "2025-12-31" });
   const items = await listFileItems(engagementId);
-  e100 = items.find((i) => i.code === "E100")!.id;
-  e110 = items.find((i) => i.code === "E110")!.id;
+  e100 = items.find((i) => i.code === "E4.1")!.id;
+  e110 = items.find((i) => i.code === "E4.2")!.id;
   await assignTeamMember(engagementId, USER, "partner");
   const version = await createMaterialityVersion(engagementId, {
     benchmark: "revenue",
@@ -90,15 +90,15 @@ describe("program-step execution + evidence (4.2/4.3)", () => {
 });
 
 describe("findings routing (4.4/4.5) — one destination each", () => {
-  it("routes to B4 and C1 with origin backlinks", async () => {
+  it("routes to C1.2 and C5.1 with origin backlinks", async () => {
     await routeFinding({ engagementId, fileItemId: e100, route: "b4", title: "Revenue cut-off issue" });
     await routeFinding({ engagementId, fileItemId: e110, route: "c1", title: "Weak PO approval" });
     const findings = await listFindings(engagementId);
-    expect(findings.find((f) => f.route === "b4")?.sectionCode).toBe("E100");
-    expect(findings.find((f) => f.route === "c1")?.sectionCode).toBe("E110");
+    expect(findings.find((f) => f.route === "b4")?.sectionCode).toBe("E4.1");
+    expect(findings.find((f) => f.route === "c1")?.sectionCode).toBe("E4.2");
   });
 
-  it("refuses a below-trivial B5 without the confirmation, then logs it as trivial", async () => {
+  it("refuses a below-trivial C1.1 without the confirmation, then logs it as trivial", async () => {
     await expect(
       routeFinding({ engagementId, route: "b5", title: "Tiny diff", amount: 100_000 }),
     ).rejects.toThrow("trivial-confirm-required");
@@ -136,7 +136,7 @@ describe("control tests (4.7) — deviation forces a decision", () => {
     ).rejects.toThrow("deviation-decision-required");
   });
 
-  it("extend appends an extension step; deficiency routes to C1", async () => {
+  it("extend appends an extension step; deficiency routes to C5.1", async () => {
     const before = (await listProgramSteps(e110)).length;
     await recordControlTest({
       engagementId, fileItemId: e110, description: "3-way match", result: "deviation", deviationDecision: "extend",
@@ -162,7 +162,7 @@ describe("revise-approach (4.10)", () => {
     const risks = await listRisks(engagementId);
     const added = risks.find((r) => r.addedAfterPlanning)!;
     expect(added.additionApproved).toBe(false);
-    expect(added.sections.map((s) => s.code)).toContain("E100");
+    expect(added.sections.map((s) => s.code)).toContain("E4.1");
 
     await approveRiskAddition(added.id);
     const after = (await listRisks(engagementId)).find((r) => r.id === added.id)!;
@@ -175,7 +175,7 @@ describe("revise-approach (4.10)", () => {
 
 describe("section conclusion + review chain (4.11)", () => {
   it("prepares, reviews, and requires partner on significant-risk sections", async () => {
-    // E100 carries the presumed significant revenue risk → partner required.
+    // E4.1 carries the presumed significant revenue risk → partner required.
     await saveSectionConclusion(e100, "Objectives achieved; revenue fairly stated.", true);
     const conclusion = (await import("@/lib/execution")).getSectionConclusion;
     let state = await conclusion(e100);

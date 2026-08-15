@@ -508,8 +508,8 @@ export default async function RisksPage(props: {
       </div>
 
       <p className="mt-6 text-sm text-muted">
-        <Link href={`/engagements/${id}/forms/D7.1`} className="text-emerald-700 hover:underline dark:text-emerald-400">
-          D7.1
+        <Link href={`/engagements/${id}/forms/P5.2`} className="text-emerald-700 hover:underline dark:text-emerald-400">
+          P5.2
         </Link>
       </p>
     </main>

@@ -190,7 +190,7 @@ async function confirmationArtifact(
 
 /**
  * Submit + e-sign a confirmation. Any "yes" → exception (partner disposition
- * required). The signed confirmation is archived into D3.1 as a Word artifact
+ * required). The signed confirmation is archived into P1.1 as a Word artifact
  * (spec §4.2). [Adversarial-review fix]
  */
 export async function submitConfirmation(
@@ -213,10 +213,10 @@ export async function submitConfirmation(
     );
     if (updated.rowCount === 0) throw new Error("not-found");
 
-    // Archive into D3.1 (kind='letter' so it never collides with the working paper).
+    // Archive into P1.1 (kind='letter' so it never collides with the working paper).
     const engagementId = updated.rows[0].engagement_id;
     const item = await tx.query<{ id: string }>(
-      "SELECT id FROM file_item WHERE engagement_id = $1 AND code = 'D3.1'",
+      "SELECT id FROM file_item WHERE engagement_id = $1 AND code = 'P1.1'",
       [engagementId],
     );
     if (item.rows[0]) {

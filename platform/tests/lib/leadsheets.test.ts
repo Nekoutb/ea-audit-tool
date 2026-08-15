@@ -29,9 +29,9 @@ let e100ItemId: string;
 type TbFixture = Record<string, [number, number, number, number]>;
 
 const CURRENT_TB: TbFixture = {
-  "411000": [0, 0, 80_000_000, 0], // AR (41 -> E100)
-  "701000": [0, 0, 0, 150_000_000], // revenue (70 -> E100), closing -150M
-  "601000": [0, 0, 30_000_000, 0], // purchases (60 -> E110)
+  "411000": [0, 0, 80_000_000, 0], // AR (41 -> E4.1)
+  "701000": [0, 0, 0, 150_000_000], // revenue (70 -> E4.1), closing -150M
+  "601000": [0, 0, 30_000_000, 0], // purchases (60 -> E4.2)
   "661000": [0, 0, 20_000_000, 0], // payroll prefix 66
   "999999": [0, 0, 5_000_000, 0], // no grouping rule -> unmapped
 };
@@ -89,7 +89,7 @@ beforeAll(async () => {
   await seedTb(priorEngagement, PRIOR_TB, "2024-12-31");
   await seedTb(currentEngagement, CURRENT_TB, "2025-12-31");
   const item = await admin.query<{ id: string }>(
-    "SELECT id FROM file_item WHERE engagement_id = $1 AND code = 'E100'",
+    "SELECT id FROM file_item WHERE engagement_id = $1 AND code = 'E4.1'",
     [currentEngagement],
   );
   e100ItemId = item.rows[0].id;
@@ -103,17 +103,17 @@ afterAll(async () => {
 
 describe("grouping resolution (pure)", () => {
   const global = [
-    { prefix: "41", sectionCode: "E100", exact: false, priority: 10 },
-    { prefix: "4", sectionCode: "E220", exact: false, priority: 0 },
+    { prefix: "41", sectionCode: "E4.1", exact: false, priority: 10 },
+    { prefix: "4", sectionCode: "E4.13", exact: false, priority: 0 },
   ];
-  const overrides = [{ prefix: "411", sectionCode: "E320", exact: false, priority: 100 }];
+  const overrides = [{ prefix: "411", sectionCode: "E6.2", exact: false, priority: 100 }];
 
   it("longest prefix wins within a rule set", () => {
-    expect(resolveSection("411000", [], global)).toBe("E100");
-    expect(resolveSection("450000", [], global)).toBe("E220");
+    expect(resolveSection("411000", [], global)).toBe("E4.1");
+    expect(resolveSection("450000", [], global)).toBe("E4.13");
   });
   it("client overrides beat global rules", () => {
-    expect(resolveSection("411000", overrides, global)).toBe("E320");
+    expect(resolveSection("411000", overrides, global)).toBe("E6.2");
   });
   it("returns null when nothing matches", () => {
     expect(resolveSection("999999", overrides, global)).toBeNull();
@@ -145,7 +145,7 @@ describe("sub-ledger datasets (3.4)", () => {
 describe("section balances + lead schedules (3.7/3.8)", () => {
   it("groups the TB by section with prior-year comparatives and unmapped report", async () => {
     const sections = await sectionBalances(currentEngagement);
-    const e100 = sections.get("E100")!;
+    const e100 = sections.get("E4.1")!;
     expect(e100.rows.map((r) => r.accountCode)).toEqual(["411000", "701000"]);
     expect(e100.total).toBe(80_000_000 - 150_000_000);
     expect(e100.priorTotal).toBe(50_000_000 - 70_000_000);
@@ -244,7 +244,7 @@ describe("preliminary analytical review (3.9)", () => {
     expect(review.hasPrior).toBe(true);
     expect(review.performanceMateriality).toBe(1_125_000);
 
-    const e100 = review.lines.find((line) => line.sectionCode === "E100")!;
+    const e100 = review.lines.find((line) => line.sectionCode === "E4.1")!;
     // movement = (80M-150M) - (50M-70M) = -50M -> flagged (>|PM|)
     expect(e100.movement).toBe(-50_000_000);
     expect(e100.flagged).toBe(true);

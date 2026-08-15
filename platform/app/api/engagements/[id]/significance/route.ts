@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { saveSignificance } from "@/lib/significant-accounts";
 
 /**
- * Record one lead schedule's significance decision (P6.2 / D5.8): status,
+ * Record one lead schedule's significance decision (P6.2 / P6.2): status,
  * justification, relevant assertions, and any specific materiality amount.
  */
 export async function POST(request: Request, context: { params: Promise<{ id: string }> }) {

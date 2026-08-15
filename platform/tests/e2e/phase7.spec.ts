@@ -2,7 +2,7 @@ import { expect, test, type Page } from "@playwright/test";
 
 // Phase 7 acceptance (spec §17): completion gates block issuance → satisfy
 // every gate through the UI → issue the OHADA statutory report → archive
-// (immutable) → rollforward to N+1 carrying the B10 points.
+// (immutable) → rollforward to N+1 carrying the C6.1 points.
 
 const EMAIL = "alice@firm-a.test";
 const PASSWORD = "password";
@@ -71,8 +71,8 @@ test("Phase 7: gates block → complete file → issue report → archive → ro
   await page.getByTestId("tb-upload").click();
   await expect(page.getByTestId("tb-import-status")).toContainText("valid");
 
-  // --- Acceptance: D3.1 form + independence campaign (clean) + advance ---
-  await page.goto(`${engagementUrl}/forms/D3.1`);
+  // --- Acceptance: P1.1 form + independence campaign (clean) + advance ---
+  await page.goto(`${engagementUrl}/forms/P1.1`);
   await page.getByTestId("field-engagement_type").selectOption("new");
   for (const key of ["integrity_ok", "competence_ok", "conflicts_ok", "aml_ok", "independence_ok"]) {
     await page.getByTestId(`field-${key}`).selectOption("yes");
@@ -90,7 +90,7 @@ test("Phase 7: gates block → complete file → issue report → archive → ro
   await page.getByTestId("submit-confirmation").click();
   await expect(page.getByTestId("confirmation-done")).toBeVisible();
 
-  await partnerSignCode(page, engagementUrl, "D3.1");
+  await partnerSignCode(page, engagementUrl, "P1.1");
   await page.goto(`${engagementUrl}/acceptance`);
   await page.getByTestId("advance-to-planning").click();
   await page.waitForURL("**/acceptance");
@@ -105,14 +105,14 @@ test("Phase 7: gates block → complete file → issue report → archive → ro
   await page.getByTestId("create-materiality").click();
   await page.getByTestId("approve-materiality").click();
 
-  for (const section of ["E100", "E350"]) {
+  for (const section of ["E4.1", "E2.1"]) {
     await page.goto(engagementUrl);
     await page.getByTestId(`open-section-${section}`).click();
     await page.waitForURL("**/sections/**");
     await page.getByTestId("generate-program").click();
     await expect(page.getByTestId("program-table")).toBeVisible();
   }
-  for (const code of ["D6.1", "D7.1", "D7.2"]) {
+  for (const code of ["P2.2", "P5.2", "S3.1"]) {
     await partnerSignCode(page, engagementUrl, code);
   }
   await page.goto(`${engagementUrl}/planning`);
@@ -121,7 +121,7 @@ test("Phase 7: gates block → complete file → issue report → archive → ro
   await expect(page.getByTestId("planning-error")).toHaveCount(0);
 
   // --- Fieldwork: complete every program step, conclude + review each section ---
-  for (const section of ["E100", "E350"]) {
+  for (const section of ["E4.1", "E2.1"]) {
     await page.goto(engagementUrl);
     await page.getByTestId(`open-section-${section}`).click();
     await page.waitForURL("**/sections/**");
@@ -163,7 +163,7 @@ test("Phase 7: gates block → complete file → issue report → archive → ro
   await page.getByTestId("run-tieout").click();
   await expect(page.getByTestId("gate-fs_tieout_passed")).toContainText("✓");
 
-  // Disclosure checklist, subsequent events, B10 points, partner conclusion.
+  // Disclosure checklist, subsequent events, C6.1 points, partner conclusion.
   // Each save re-renders the panel, so wait for its gate before the next fill —
   // otherwise the fill lands on the pre-render DOM and is discarded.
   await page.getByTestId("disclosure-complete").check();
@@ -186,7 +186,7 @@ test("Phase 7: gates block → complete file → issue report → archive → ro
   await page.getByTestId("save-partner-conclusion").click();
   await expect(page.getByTestId("gate-partner_conclusion")).toContainText("✓");
 
-  // OHADA double representation letters (B8) + final management letter.
+  // OHADA double representation letters (C3.1) + final management letter.
   await page.getByTestId("gen-affirmation").click();
   await page.waitForURL("**/documents/**");
   await expect(page.locator("h1")).toContainText(/Affirmation/i);

@@ -1,5 +1,5 @@
 // Letter generation (spec §4.3, §5.4): engagement letter (ISA 210 + OHADA
-// mandate wording, co-CAC variant) and the C1 planning communication to TCWG.
+// mandate wording, co-CAC variant) and the C5.1 planning communication to TCWG.
 // Letters are stored as documents (kind='letter') under the relevant file item.
 
 import { Document, HeadingLevel, Packer, Paragraph, TextRun } from "docx";
@@ -19,11 +19,11 @@ export type LetterKind =
 
 /** File-index destination per letter kind. */
 const LETTER_CODES: Record<LetterKind, string> = {
-  engagement: "D3.1",
-  planning_tcwg: "C1",
-  rep_affirmation: "B8",
-  rep_complementary: "B8",
-  management_letter: "C1",
+  engagement: "P1.1",
+  planning_tcwg: "C5.1",
+  rep_affirmation: "C3.1",
+  rep_complementary: "C3.1",
+  management_letter: "C5.1",
 };
 
 interface LetterFields {
@@ -34,7 +34,7 @@ interface LetterFields {
   coCac: boolean;
   mandateType: "statutes" | "ago" | null;
   mandateStartYear: number | null;
-  /** management_letter only: the C1 points to include. */
+  /** management_letter only: the C5.1 points to include. */
   c1Points?: string[];
 }
 
@@ -181,7 +181,7 @@ async function buildLetter(
 
 /**
  * Generate a letter as a versioned document under its file item (engagement
- * letter → D3.1; planning TCWG letter → C1). Regenerating creates a new version.
+ * letter → P1.1; planning TCWG letter → C5.1). Regenerating creates a new version.
  */
 export async function generateLetter(
   engagementId: string,
@@ -217,7 +217,7 @@ export async function generateLetter(
     if (!item.rows[0]) throw new Error("not-found");
     const fileItemId = item.rows[0].id;
 
-    // Management letter pulls the C1 control-deficiency points (spec §8.3).
+    // Management letter pulls the C5.1 control-deficiency points (spec §8.3).
     let c1Points: string[] | undefined;
     if (kind === "management_letter") {
       const findings = await tx.query<{ title: string; detail: string | null }>(

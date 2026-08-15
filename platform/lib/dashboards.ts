@@ -247,12 +247,12 @@ export async function portfolioActions(): Promise<PortfolioAction[]> {
                           JOIN document d ON d.file_item_id = fi.id AND d.kind = 'workpaper'
                           JOIN signoff s ON s.document_id = d.id
                            AND s.role = 'preparer' AND s.voided_at IS NULL
-                         WHERE fi.engagement_id = e.id AND fi.code = 'D3.1')
+                         WHERE fi.engagement_id = e.id AND fi.code = 'P1.1')
             AND NOT EXISTS (SELECT 1 FROM file_item fi
                           JOIN document d ON d.file_item_id = fi.id AND d.kind = 'workpaper'
                           JOIN signoff s ON s.document_id = d.id
                            AND s.role = 'partner' AND s.voided_at IS NULL
-                         WHERE fi.engagement_id = e.id AND fi.code = 'D3.1')
+                         WHERE fi.engagement_id = e.id AND fi.code = 'P1.1')
           LIMIT 6`,
       ),
     ]);

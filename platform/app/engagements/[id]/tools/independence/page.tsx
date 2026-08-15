@@ -51,7 +51,7 @@ export default async function IndependencePage(props: { params: Promise<{ id: st
       <Panel className="mt-4" id="independence">
         <PanelHeader
           title={fr ? "Déclarations de l'équipe" : "Team declarations"}
-          hint={fr ? "Alimente D3.2 et B2" : "Feeds D3.2 and B2"}
+          hint={fr ? "Alimente P2.1 et C4.2" : "Feeds P2.1 and C4.2"}
           right={
             canManage ? (
               <form action={launchCampaignAction.bind(null, id)}>

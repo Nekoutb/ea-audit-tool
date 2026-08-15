@@ -398,8 +398,8 @@ export function PaperWizard({
             testId="wp-key-findings"
             placeholder={
               fr
-                ? "Constats importants du travail effectué — repris en B4/B5 le cas échéant"
-                : "Significant findings from the work performed — routed to B4/B5 where applicable"
+                ? "Constats importants du travail effectué — repris en C1.2/C1.1 le cas échéant"
+                : "Significant findings from the work performed — routed to C1.2/C1.1 where applicable"
             }
             className="h-[96px] w-full resize-none overflow-y-auto rounded-[var(--radius-atlas-sm)] bg-[color:var(--wp-input)] px-2.5 py-1.5 text-[13.2px] font-normal normal-case tracking-normal text-ink outline-none placeholder:text-muted focus:ring-2 focus:ring-emerald-600/25"
           />

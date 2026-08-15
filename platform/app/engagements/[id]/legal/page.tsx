@@ -77,7 +77,7 @@ export default async function LegalPage(props: {
       <EngagementTabs engagementId={id} locale={locale} active="legal" />
       <ErrorBanner error={error} locale={locale} />
 
-      {/* F1 deadlines */}
+      {/* C5.2 deadlines */}
       <section className={card}>
         <div className="flex items-center justify-between">
           <h2 className={heading}>{tl.deadlines}</h2>
@@ -124,7 +124,7 @@ export default async function LegalPage(props: {
         ) : null}
       </section>
 
-      {/* F2 conventions */}
+      {/* C5.3 conventions */}
       <section className={card}>
         <div className="flex items-center justify-between">
           <h2 className={heading}>{tl.conventions}</h2>
@@ -205,7 +205,7 @@ export default async function LegalPage(props: {
         ) : null}
       </section>
 
-      {/* F3 art. 715 + F6 attestation */}
+      {/* C5.4 art. 715 + C5.7 attestation */}
       <section className={card}>
         <div className="flex flex-wrap gap-2">
           <form action={article715Action.bind(null, id)}>
@@ -221,7 +221,7 @@ export default async function LegalPage(props: {
         </div>
       </section>
 
-      {/* F4 alerte */}
+      {/* C5.5 alerte */}
       <section className={card}>
         <h2 className={heading}>{tl.alerte}</h2>
         {alerte === null ? (
@@ -280,7 +280,7 @@ export default async function LegalPage(props: {
         )}
       </section>
 
-      {/* F5 faits délictueux (partner only) */}
+      {/* C5.6 faits délictueux (partner only) */}
       {isPartner ? (
         <section className={card}>
           <h2 className={heading}>{tl.faits}</h2>
@@ -324,7 +324,7 @@ export default async function LegalPage(props: {
         </section>
       ) : null}
 
-      {/* F7 equity */}
+      {/* C5.8 equity */}
       <section className={card}>
         <h2 className={heading}>{tl.equity}</h2>
         <div className="mt-3 flex flex-wrap items-end gap-2">
@@ -350,7 +350,7 @@ export default async function LegalPage(props: {
         ) : null}
       </section>
 
-      {/* F8 co-CAC */}
+      {/* C5.9 co-CAC */}
       <section className={card}>
         <h2 className={heading}>{tl.cocac}</h2>
         <div className="mt-3 grid grid-cols-1 gap-4 lg:grid-cols-3">

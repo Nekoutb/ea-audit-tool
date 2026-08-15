@@ -119,7 +119,7 @@ export async function carryForwardAction(engagementId: string): Promise<void> {
 }
 
 export async function addRelatedPartyAction(engagementId: string, formData: FormData): Promise<void> {
-  const path = `/engagements/${engagementId}/forms/D5.6`;
+  const path = `/engagements/${engagementId}/forms/S3.4`;
   const name = String(formData.get("name") ?? "").trim();
   const relationship = String(formData.get("relationship") ?? "").trim();
   await guarded(path, async () => {
@@ -136,7 +136,7 @@ export async function addRelatedPartyAction(engagementId: string, formData: Form
 }
 
 export async function addEstimateAction(engagementId: string, formData: FormData): Promise<void> {
-  const path = `/engagements/${engagementId}/forms/D5.7`;
+  const path = `/engagements/${engagementId}/forms/S3.5`;
   const nature = String(formData.get("nature") ?? "").trim();
   await guarded(path, async () => {
     if (!nature) throw new Error("fields-required");
@@ -334,7 +334,7 @@ export async function createMaterialityAction(engagementId: string, formData: Fo
       benchmark: String(formData.get("benchmark") ?? "revenue") as Benchmark,
       benchmarkAmount: numberOr("benchmarkAmount", NaN),
       percentage: numberOr("percentage", NaN),
-      justification: String(formData.get("justification") || "Documented in D5.1") || "Documented in D5.1",
+      justification: String(formData.get("justification") || "Documented in P6.1") || "Documented in P6.1",
       performancePct: numberOr("performancePct", 75),
       performanceJustification: String(formData.get("performanceJustification") ?? "") || undefined,
       trivialPct: numberOr("trivialPct", 5),

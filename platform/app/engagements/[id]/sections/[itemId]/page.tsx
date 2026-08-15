@@ -96,16 +96,16 @@ export default async function SectionPage(props: {
   const isExecution = phaseKey === "execution";
   const paperValues = await loadPaper(id, section.code);
   const attachments = await listAttachments(itemId);
-  // The Independence task (D3.2) embeds the campaign. Rendering it also runs
+  // The Independence task (P2.1) embeds the campaign. Rendering it also runs
   // the 24-hour reminder sweep — idempotent per day, so simply working the
   // file keeps reminders flowing without a separate scheduler.
-  const isIndependenceTask = section.code === "D3.2";
-  // Tool-filled values for the blue auto fields: D5.1 shows the approved
+  const isIndependenceTask = section.code === "P2.1";
+  // Tool-filled values for the blue auto fields: P6.1 shows the approved
   // (or latest) materiality version computed from the trial-balance basis.
   const autoValues: Record<string, string> = {};
   // only PARTNER-APPROVED thresholds reach the working paper
   let approvedM: Awaited<ReturnType<typeof approvedMateriality>> = null;
-  if (section.code === "D5.1") {
+  if (section.code === "P6.1") {
     approvedM = await approvedMateriality(id);
     const m = approvedM;
     if (m) {
@@ -149,11 +149,11 @@ export default async function SectionPage(props: {
     }
   }
   const taskNotes = await listTaskNotes(itemId);
-  // P6.2 (D5.8): the significance grid drives the task itself
+  // P6.2 (P6.2): the significance grid drives the task itself
 
-  const sigAccounts = section.code === "D5.8" ? await significantAccounts(id) : null;
+  const sigAccounts = section.code === "P6.2" ? await significantAccounts(id) : null;
   // P7 — the planning review & approval summary takes over the centre column
-  const ras = section.code === "D9.1" ? await planningRas(id) : null;
+  const ras = section.code === "P7.2" ? await planningRas(id) : null;
   // Appendix 1 rows: the engagement team by seniority, then three free rows
   // for specialists brought in from outside the core team.
   const rasTeam = ras
@@ -174,12 +174,12 @@ export default async function SectionPage(props: {
   const userRole = isRole(session.user.role) ? session.user.role : null;
   const taskInfo = await taskForItem(id, section.code);
   const CROSS_LINKS: Record<string, string[]> = {
-    "D3.1": ["D3.4", "D3.2"], "D3.2": ["D3.1", "D3.6"], "D3.4": ["D3.1", "E370"],
-    "D3.6": ["D3.2", "B2"], "D5.1": ["B5", "D7.2"], "D5.2": ["E270"],
-    "D5.4": ["E350", "E100"], "D5.5": ["E330", "B7"], "D5.6": ["E320"], "D5.7": ["E390"],
-    "D7.2": ["D5.4", "E500"], "B5": ["D5.1", "B4"], "B7": ["E380", "E330", "C1"],
-    "B8": ["B5", "E270"], "B9": ["E100", "E170"], "B2": ["D3.6", "C1"], "C1": ["B5", "B7", "B2"],
-    "B1": ["B6", "B10"], "B4": ["B5", "B3"], "F2": ["E320"], "F7": ["E280", "E330"],
+    "P1.1": ["P1.2", "P2.1"], "P2.1": ["P1.1", "P1.5"], "P1.2": ["P1.1", "E6.5"],
+    "P1.5": ["P2.1", "C4.2"], "P6.1": ["C1.1", "S3.1"], "S3.2": ["E4.15"],
+    "P5.1": ["E2.1", "E4.1"], "S3.3": ["E6.3", "C2.2"], "S3.4": ["E6.2"], "S3.5": ["E6.7"],
+    "S3.1": ["P5.1", "E1.1"], "C1.1": ["P6.1", "C1.2"], "C2.2": ["E6.6", "E6.3", "C5.1"],
+    "C3.1": ["C1.1", "E4.15"], "C3.2": ["E4.1", "E4.8"], "C4.2": ["P1.5", "C5.1"], "C5.1": ["C1.1", "C2.2", "C4.2"],
+    "C4.1": ["C4.3", "C6.1"], "C1.2": ["C1.1", "C1.3"], "C5.3": ["E6.2"], "C5.8": ["E4.16", "E6.3"],
   };
   let linkedTasks: { code: string; title: string; href: string }[] = [];
   if (phaseKey !== "execution") {

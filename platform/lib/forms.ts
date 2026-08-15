@@ -27,8 +27,8 @@ export interface FormDefinition {
 const YES_NO_RATING = ["low", "moderate", "high"] as const;
 
 export const FORM_DEFINITIONS: Record<string, FormDefinition> = {
-  "D3.1": {
-    code: "D3.1",
+  "P1.1": {
+    code: "P1.1",
     fields: [
       { key: "engagement_type", type: "select", options: ["new", "continuing"], required: true, labelEn: "Engagement type", labelFr: "Type de mission" },
       { key: "integrity_ok", type: "boolean", required: true, labelEn: "Client integrity assessed satisfactory", labelFr: "Intégrité du client jugée satisfaisante" },
@@ -41,24 +41,24 @@ export const FORM_DEFINITIONS: Record<string, FormDefinition> = {
       { key: "conclusion", type: "select", options: ["accept", "decline"], required: true, labelEn: "Partner conclusion", labelFr: "Conclusion de l'associé" },
     ],
   },
-  D1: {
-    code: "D1",
+  "S5.1": {
+    code: "S5.1",
     fields: [
-      { key: "uses_expert", type: "boolean", labelEn: "Expert used (triggers D4.7)", labelFr: "Recours à un expert (déclenche D4.7)" },
-      { key: "uses_service_org", type: "boolean", labelEn: "Service organisation used (triggers D4.8)", labelFr: "Recours à une société de services (déclenche D4.8)" },
-      { key: "has_internal_audit", type: "boolean", labelEn: "Internal audit function (triggers D4.9)", labelFr: "Fonction d'audit interne (déclenche D4.9)" },
-      { key: "assess_control_env", type: "boolean", labelEn: "Detailed control-environment assessment (triggers D4.5)", labelFr: "Évaluation détaillée de l'environnement de contrôle (déclenche D4.5)" },
-      { key: "assess_it_env", type: "boolean", labelEn: "IT environment assessment (triggers D4.6)", labelFr: "Évaluation de l'environnement informatique (déclenche D4.6)" },
+      { key: "uses_expert", type: "boolean", labelEn: "Expert used (triggers S4.1)", labelFr: "Recours à un expert (déclenche S4.1)" },
+      { key: "uses_service_org", type: "boolean", labelEn: "Service organisation used (triggers S4.2)", labelFr: "Recours à une société de services (déclenche S4.2)" },
+      { key: "has_internal_audit", type: "boolean", labelEn: "Internal audit function (triggers S4.3)", labelFr: "Fonction d'audit interne (déclenche S4.3)" },
+      { key: "assess_control_env", type: "boolean", labelEn: "Detailed control-environment assessment (triggers P4.2)", labelFr: "Évaluation détaillée de l'environnement de contrôle (déclenche P4.2)" },
+      { key: "assess_it_env", type: "boolean", labelEn: "IT environment assessment (triggers P4.3)", labelFr: "Évaluation de l'environnement informatique (déclenche P4.3)" },
     ],
   },
-  "D4.1": {
-    code: "D4.1",
+  "S5.2": {
+    code: "S5.2",
     fields: [
       { key: "key_directives", type: "text", required: true, labelEn: "Partner's key directives for the engagement", labelFr: "Directives clés de l'associé pour la mission" },
     ],
   },
-  "D4.2": {
-    code: "D4.2",
+  "P3.1": {
+    code: "P3.1",
     rollsForward: true,
     fields: [
       { key: "ownership_governance", type: "text", required: true, labelEn: "Ownership & governance", labelFr: "Actionnariat et gouvernance" },
@@ -71,15 +71,15 @@ export const FORM_DEFINITIONS: Record<string, FormDefinition> = {
       { key: "significant_changes", type: "text", labelEn: "Significant changes since last year", labelFr: "Changements significatifs depuis l'exercice précédent" },
     ],
   },
-  "D4.3": {
-    code: "D4.3",
+  "P3.2": {
+    code: "P3.2",
     fields: [
       { key: "variances_reviewed", type: "boolean", required: true, labelEn: "Preliminary analytical variances reviewed", labelFr: "Variations analytiques préliminaires revues" },
       { key: "key_variances", type: "text", labelEn: "Key variances noted (auto-computed from TB in Phase 3)", labelFr: "Principales variations relevées (calcul auto depuis la balance en phase 3)" },
     ],
   },
-  "D4.4": {
-    code: "D4.4",
+  "P4.1": {
+    code: "P4.1",
     rollsForward: true,
     fields: [
       { key: "control_environment", type: "text", required: true, labelEn: "Control environment", labelFr: "Environnement de contrôle" },
@@ -92,41 +92,41 @@ export const FORM_DEFINITIONS: Record<string, FormDefinition> = {
       { key: "di_inspection", type: "boolean", labelEn: "D&I: inspection performed", labelFr: "C/MŒ : inspection réalisée" },
     ],
   },
-  "D4.5": { code: "D4.5", fields: [{ key: "assessment", type: "text", labelEn: "Control environment assessment", labelFr: "Évaluation de l'environnement de contrôle" }] },
-  "D4.6": {
-    code: "D4.6",
+  "P4.2": { code: "P4.2", fields: [{ key: "assessment", type: "text", labelEn: "Control environment assessment", labelFr: "Évaluation de l'environnement de contrôle" }] },
+  "P4.3": {
+    code: "P4.3",
     rollsForward: true,
     fields: [{ key: "it_environment", type: "text", labelEn: "IT environment & computerized-accounting requirements (SYSCOHADA art. 22)", labelFr: "Environnement informatique et exigences de comptabilité informatisée (art. 22)" }],
   },
-  "D4.7": { code: "D4.7", fields: [{ key: "expert_details", type: "text", labelEn: "Expert used, competence & objectivity", labelFr: "Expert utilisé, compétence et objectivité" }] },
-  "D4.8": { code: "D4.8", fields: [{ key: "service_org_details", type: "text", labelEn: "Service organisations & reports obtained", labelFr: "Sociétés de services et rapports obtenus" }] },
-  "D4.9": { code: "D4.9", fields: [{ key: "internal_audit_details", type: "text", labelEn: "Internal audit function & planned use", labelFr: "Fonction d'audit interne et utilisation prévue" }] },
-  "D5.2": {
-    code: "D5.2",
+  "S4.1": { code: "S4.1", fields: [{ key: "expert_details", type: "text", labelEn: "Expert used, competence & objectivity", labelFr: "Expert utilisé, compétence et objectivité" }] },
+  "S4.2": { code: "S4.2", fields: [{ key: "service_org_details", type: "text", labelEn: "Service organisations & reports obtained", labelFr: "Sociétés de services et rapports obtenus" }] },
+  "S4.3": { code: "S4.3", fields: [{ key: "internal_audit_details", type: "text", labelEn: "Internal audit function & planned use", labelFr: "Fonction d'audit interne et utilisation prévue" }] },
+  "S3.2": {
+    code: "S3.2",
     fields: [
       { key: "commitments", type: "text", labelEn: "Commitments identified", labelFr: "Engagements identifiés" },
       { key: "litigation_register", type: "text", labelEn: "Litigation / claims register", labelFr: "Registre des litiges" },
     ],
   },
-  "D5.4": {
-    code: "D5.4",
+  "P5.1": {
+    code: "P5.1",
     fields: [
       { key: "fraud_triangle", type: "text", required: true, labelEn: "Fraud triangle assessment (incentives, opportunity, rationalisation)", labelFr: "Analyse du triangle de la fraude" },
       { key: "mgmt_inquiries", type: "text", required: true, labelEn: "Inquiries of management", labelFr: "Entretiens avec la direction" },
       { key: "tcwg_inquiries", type: "text", labelEn: "Inquiries of those charged with governance", labelFr: "Entretiens avec les organes de gouvernance" },
     ],
   },
-  "D5.5": {
-    code: "D5.5",
+  "S3.3": {
+    code: "S3.3",
     fields: [
       { key: "gc_indicators", type: "boolean", required: true, labelEn: "Going-concern doubt indicators present", labelFr: "Indicateurs de doute sur la continuité présents" },
       { key: "gc_details", type: "text", labelEn: "Details (flags procédure d'alerte module when indicators exist)", labelFr: "Détails (déclenche le module procédure d'alerte si indicateurs)" },
     ],
   },
-  "D5.6": { code: "D5.6", rollsForward: true, fields: [{ key: "rp_notes", type: "text", labelEn: "Related-party notes (register below)", labelFr: "Notes parties liées (registre ci-dessous)" }] },
-  "D5.7": { code: "D5.7", fields: [{ key: "estimates_notes", type: "text", labelEn: "Estimates notes (inventory below)", labelFr: "Notes estimations (inventaire ci-dessous)" }] },
-  "D7.1": {
-    code: "D7.1",
+  "S3.4": { code: "S3.4", rollsForward: true, fields: [{ key: "rp_notes", type: "text", labelEn: "Related-party notes (register below)", labelFr: "Notes parties liées (registre ci-dessous)" }] },
+  "S3.5": { code: "S3.5", fields: [{ key: "estimates_notes", type: "text", labelEn: "Estimates notes (inventory below)", labelFr: "Notes estimations (inventaire ci-dessous)" }] },
+  "P5.2": {
+    code: "P5.2",
     fields: [
       { key: "attendees", type: "text", required: true, labelEn: "Attendees (one-person engagements: partner self-review)", labelFr: "Participants (mission à une personne : auto-revue de l'associé)" },
       { key: "discussion_date", type: "date", required: true, labelEn: "Discussion date", labelFr: "Date de la discussion" },
@@ -167,9 +167,9 @@ export async function saveForm(
   const definition = FORM_DEFINITIONS[code];
   if (!definition) throw new Error(`unknown form: ${code}`);
 
-  // D4.4 rule (spec §5.2): documenting D&I controls requires BOTH inquiry and
+  // P4.1 rule (spec §5.2): documenting D&I controls requires BOTH inquiry and
   // inspection to be recorded.
-  if (code === "D4.4") {
+  if (code === "P4.1") {
     const di = String(values.di_controls ?? "").trim();
     if (di && !(values.di_inquiry === true && values.di_inspection === true)) {
       throw new Error("di-both-required");

@@ -1,6 +1,6 @@
 // Phase 8 (8.5): procédure d'alerte state machine (spec §12.4) — legal-form
 // aware (non-SA arts. 150-152; SA/SAS arts. 153-156), a letter generated and
-// a deadline timer set at each transition. E330/ISA 570 linkage: activeAlerte
+// a deadline timer set at each transition. E6.3/ISA 570 linkage: activeAlerte
 // feeds the going-concern conclusion and the report's material-uncertainty
 // paragraph.
 
@@ -126,7 +126,7 @@ export async function startAlerte(engagementId: string, note: string): Promise<s
     const letter = await buildStageLetter(branding, info.rows[0].client_name, info.rows[0].fiscal_year, "request_sent", note);
     const documentId = letter
       ? await fileUnderCode(tx, {
-          tenantId, userId, engagementId, code: "F4",
+          tenantId, userId, engagementId, code: "C5.5",
           title: `Alerte — demande d'explications (${info.rows[0].fiscal_year})`,
           kind: "letter", content: letter, note: "alerte:request_sent",
         })
@@ -194,7 +194,7 @@ export async function advanceAlerte(
     const letter = await buildStageLetter(branding, row.client_name, row.fiscal_year, toStage, note);
     const documentId = letter
       ? await fileUnderCode(tx, {
-          tenantId, userId, engagementId: row.engagement_id, code: "F4",
+          tenantId, userId, engagementId: row.engagement_id, code: "C5.5",
           title: `Alerte — ${toStage} (${row.fiscal_year})`,
           kind: toStage === "rapport_special" ? "report" : "letter",
           content: letter, note: `alerte:${toStage}`,
@@ -268,7 +268,7 @@ export async function getAlerte(engagementId: string): Promise<AlerteState | nul
   });
 }
 
-/** E330/report linkage: an alerte still open means going-concern doubt. */
+/** E6.3/report linkage: an alerte still open means going-concern doubt. */
 export async function activeAlerte(engagementId: string): Promise<boolean> {
   const { tenantId } = await requireTenant();
   return withTenant(tenantId, async (tx) => {

@@ -1,4 +1,4 @@
-// The Conclusion working papers, including the OHADA statutory set (F1–F8).
+// The Conclusion working papers, including the OHADA statutory set (C5.2–C5.9).
 // Same structure as the other phases: numbered procedures that say what to do
 // and where the information comes from, an evaluation of what those procedures
 // produced, and a conclusion the preparer answers.
@@ -72,7 +72,7 @@ function mk(args: {
       titleEn: "Part C — Outcome",
       titleFr: "Partie C — Résultat",
       fields: [
-        { key: "matters", kind: "input", labelEn: "Matters arising, and where each is carried: B4 significant matters, B5 misstatements, or B10 points forward", labelFr: "Points relevés et leur report : B4 points significatifs, B5 anomalies, ou B10 points reportés" },
+        { key: "matters", kind: "input", labelEn: "Matters arising, and where each is carried: C1.2 significant matters, C1.1 misstatements, or C6.1 points forward", labelFr: "Points relevés et leur report : C1.2 points significatifs, C1.1 anomalies, ou C6.1 points reportés" },
         { key: "effect", kind: "input", labelEn: "Effect on the auditor's report, if any", labelFr: "Incidence éventuelle sur le rapport de l'auditeur" },
       ],
     });
@@ -80,9 +80,9 @@ function mk(args: {
   return def;
 }
 
-/* ================================ financial statements & completion (C1) = */
+/* ================================ financial statements & completion (C5.1) = */
 
-const A1 = mk({
+const C2_1 = mk({
   std: "ISA 700 (Revised) ¶12–15 · ISA 330 ¶25–27 · SYSCOHADA — états financiers",
   ownsEn: "the financial statements as presented, and their agreement to the audited record",
   ownsFr: "les états financiers présentés et leur concordance avec le dossier audité",
@@ -95,13 +95,13 @@ const A1 = mk({
     "L'appréciation porte sur la présentation, la structure et le contenu des états et des notes, et sur la traduction fidèle des opérations sous-jacentes.",
   ],
   procs: [
-    P("analytics", "Perform final analytical procedures at the financial statement level, and evaluate whether the statements as a whole are consistent with our understanding of the entity.", "Mettre en œuvre des procédures analytiques finales au niveau des états financiers et apprécier leur cohérence d'ensemble avec notre connaissance de l'entité.", "Final trial balance · prior financial statements · D4.3 expectations · ISA 520 ¶6", "Balance définitive · états financiers antérieurs · attentes D4.3 · ISA 520 ¶6"),
+    P("analytics", "Perform final analytical procedures at the financial statement level, and evaluate whether the statements as a whole are consistent with our understanding of the entity.", "Mettre en œuvre des procédures analytiques finales au niveau des états financiers et apprécier leur cohérence d'ensemble avec notre connaissance de l'entité.", "Final trial balance · prior financial statements · P3.2 expectations · ISA 520 ¶6", "Balance définitive · états financiers antérieurs · attentes P3.2 · ISA 520 ¶6"),
     P("tieout", "Agree every figure in the primary statements to the final trial balance as adjusted, and confirm the statements cast and cross-cast.", "Rapprocher chaque montant des états de synthèse de la balance définitive ajustée et vérifier les totaux en lignes et en colonnes.", "Final trial balance · adjustment schedule · lead schedules", "Balance définitive · état des ajustements · feuilles maîtresses"),
     P("notes", "Agree every figure in the notes to the primary statements and to the supporting working paper.", "Rapprocher chaque montant des notes des états de synthèse et de la feuille de travail correspondante.", "Draft notes · working papers", "Projet de notes · feuilles de travail"),
-    P("adjustments", "Confirm that every adjustment agreed with management in B5 has been posted, and that none has been posted that was not agreed.", "Vérifier que chaque ajustement convenu avec la direction en B5 a été comptabilisé et qu'aucun autre ne l'a été.", "B5 · final trial balance · journal entries", "B5 · balance définitive · écritures"),
+    P("adjustments", "Confirm that every adjustment agreed with management in C1.1 has been posted, and that none has been posted that was not agreed.", "Vérifier que chaque ajustement convenu avec la direction en C1.1 a été comptabilisé et qu'aucun autre ne l'a été.", "C1.1 · final trial balance · journal entries", "C1.1 · balance définitive · écritures"),
     P("presentation", "Test the presentation, structure and content of the statements against the framework, including the format prescribed by SYSCOHADA where it applies.", "Tester la présentation, la structure et le contenu des états au regard du référentiel, y compris le format SYSCOHADA le cas échéant.", "SYSCOHADA / IFRS presentation requirements", "Exigences de présentation SYSCOHADA / IFRS"),
     P("disclosure", "Complete the disclosure checklist for the framework, and test each disclosure the entity is required to make.", "Renseigner la liste de contrôle des informations à fournir et tester chaque mention obligatoire.", "Disclosure checklist · framework · draft statements", "Liste de contrôle · référentiel · projet d'états"),
-    P("comparatives", "Agree the comparative figures to the prior period financial statements, and cross-refer to E370.", "Rapprocher les chiffres comparatifs des états financiers antérieurs et renvoyer à E370.", "Prior financial statements · E370", "États financiers antérieurs · E370"),
+    P("comparatives", "Agree the comparative figures to the prior period financial statements, and cross-refer to E6.5.", "Rapprocher les chiffres comparatifs des états financiers antérieurs et renvoyer à E6.5.", "Prior financial statements · E6.5", "États financiers antérieurs · E6.5"),
     P("consistency", "Read the other information issued with the financial statements, including the management report, and identify any material inconsistency with the statements or with our knowledge.", "Examiner les autres informations diffusées avec les états financiers, dont le rapport de gestion, et relever toute incohérence significative.", "Management report · ISA 720 (Revised)", "Rapport de gestion · ISA 720 révisée"),
     P("terminology", "Confirm the terminology used, including the title of each statement and the description of the framework.", "Vérifier la terminologie employée, dont l'intitulé de chaque état et la désignation du référentiel.", "Framework · draft statements", "Référentiel · projet d'états"),
   ],
@@ -119,7 +119,7 @@ const A1 = mk({
   ],
 });
 
-const B1 = mk({
+const C4_1 = mk({
   std: "ISA 220 (Revised) ¶29–35 · ISA 230 ¶14–16 · ISA 330 ¶26",
   ownsEn: "the confirmation that the file is complete and the work is done",
   ownsFr: "la confirmation de l'exhaustivité du dossier et de l'achèvement des travaux",
@@ -134,17 +134,17 @@ const B1 = mk({
   procs: [
     P("programme", "Confirm that every planned procedure in the audit programme has been performed, or that the reason for not performing it is recorded and approved.", "Vérifier que chaque procédure prévue au programme a été mise en œuvre, ou que le motif de sa non-réalisation est consigné et approuvé.", "Audit programme · task list · partner approval", "Programme de travail · liste des tâches · approbation de l'associé"),
     P("signoffs", "Confirm that every working paper carries a preparer sign-off and, where required, a reviewer sign-off.", "Vérifier que chaque feuille de travail porte la signature du préparateur et, le cas échéant, du réviseur.", "Sign-off register · task list", "Registre des signatures · liste des tâches"),
-    P("outstanding", "Confirm that every point in B6 has been cleared, or that the reason a point remains open is recorded and does not prevent the report from being issued.", "Vérifier que chaque point de B6 est levé, ou que le motif de son maintien est consigné et n'empêche pas l'émission du rapport.", "B6 points outstanding", "B6 points en suspens"),
-    P("misstatements", "Confirm that the misstatements in B5 have been evaluated and that the effect on the opinion is determined.", "Vérifier que les anomalies de B5 ont été évaluées et que leur incidence sur l'opinion est déterminée.", "B5 · C1", "B5 · C1"),
-    P("consultation", "Confirm that every matter on which consultation was required has been consulted on, and that the conclusion reached has been implemented.", "Vérifier que chaque point appelant une consultation en a fait l'objet et que la conclusion a été mise en œuvre.", "B3 consultation record · firm policy", "B3 registre des consultations · politique du cabinet"),
-    P("eqr", "Where an engagement quality review is required, confirm it has been completed and that the reviewer has raised no unresolved matter.", "Lorsqu'une revue de qualité est requise, vérifier son achèvement et l'absence de point non résolu soulevé par le responsable.", "B2 · ISQM 2 ¶25 · D3.6", "B2 · ISQM 2 ¶25 · D3.6"),
+    P("outstanding", "Confirm that every point in C4.3 has been cleared, or that the reason a point remains open is recorded and does not prevent the report from being issued.", "Vérifier que chaque point de C4.3 est levé, ou que le motif de son maintien est consigné et n'empêche pas l'émission du rapport.", "C4.3 points outstanding", "C4.3 points en suspens"),
+    P("misstatements", "Confirm that the misstatements in C1.1 have been evaluated and that the effect on the opinion is determined.", "Vérifier que les anomalies de C1.1 ont été évaluées et que leur incidence sur l'opinion est déterminée.", "C1.1 · C5.1", "C1.1 · C5.1"),
+    P("consultation", "Confirm that every matter on which consultation was required has been consulted on, and that the conclusion reached has been implemented.", "Vérifier que chaque point appelant une consultation en a fait l'objet et que la conclusion a été mise en œuvre.", "C1.3 consultation record · firm policy", "C1.3 registre des consultations · politique du cabinet"),
+    P("eqr", "Where an engagement quality review is required, confirm it has been completed and that the reviewer has raised no unresolved matter.", "Lorsqu'une revue de qualité est requise, vérifier son achèvement et l'absence de point non résolu soulevé par le responsable.", "C4.2 · ISQM 2 ¶25 · P1.5", "C4.2 · ISQM 2 ¶25 · P1.5"),
     P("evidence", "Confirm that the evidence obtained supports each conclusion in the file, and that no conclusion rests on a procedure that was not performed.", "Vérifier que les éléments obtenus étayent chaque conclusion du dossier et qu'aucune conclusion ne repose sur une procédure non réalisée.", "Working papers · partner review notes", "Feuilles de travail · notes de revue de l'associé"),
     P("assembly", "Record the date by which the final file is to be assembled, and the retention period that applies.", "Consigner la date d'achèvement de la constitution du dossier définitif et la durée de conservation applicable.", "ISA 230 ¶14 · firm policy", "ISA 230 ¶14 · politique du cabinet"),
   ],
   items: [
     Q("performed", "Every planned procedure has been performed or its omission is approved (procedure 1).", "Chaque procédure prévue a été réalisée ou son omission est approuvée (procédure 1)."),
     Q("signed", "Every working paper is signed off by its preparer and, where required, its reviewer (procedure 2).", "Chaque feuille de travail est signée par son préparateur et, le cas échéant, par son réviseur (procédure 2)."),
-    Q("cleared", "Every point in B6 has been cleared (procedure 3).", "Chaque point de B6 a été levé (procédure 3)."),
+    Q("cleared", "Every point in C4.3 has been cleared (procedure 3).", "Chaque point de C4.3 a été levé (procédure 3)."),
     Q("eqr", "Where required, the engagement quality review is complete and no matter remains unresolved (procedure 6).", "Lorsqu'elle est requise, la revue de qualité est achevée et aucun point ne reste non résolu (procédure 6).", true),
     Q("sufficient", "Sufficient appropriate audit evidence has been obtained to support the opinion (procedure 7).", "Des éléments probants suffisants et appropriés ont été obtenus pour étayer l'opinion (procédure 7)."),
   ],
@@ -157,7 +157,7 @@ const B1 = mk({
   outcome: false,
 });
 
-const B6 = mk({
+const C4_3 = mk({
   std: "ISA 220 (Revised) ¶30–33 · ISA 230 ¶8",
   ownsEn: "the points outstanding and their clearance before the report is dated",
   ownsFr: "les points en suspens et leur levée avant la date du rapport",
@@ -171,10 +171,10 @@ const B6 = mk({
   ],
   procs: [
     P("collect", "Collect the points outstanding from every working paper and from the review notes, and record the working paper each relates to.", "Recenser les points en suspens de chaque feuille de travail et des notes de revue, et consigner la feuille concernée.", "Working papers · review notes · task list", "Feuilles de travail · notes de revue · liste des tâches"),
-    P("assign", "Assign each point to a person and set the date by which it is required, having regard to the reporting deadline.", "Affecter chaque point à une personne et fixer l'échéance au regard de la date de reporting.", "Team page · timetable · F1", "Page Équipe · calendrier · F1"),
+    P("assign", "Assign each point to a person and set the date by which it is required, having regard to the reporting deadline.", "Affecter chaque point à une personne et fixer l'échéance au regard de la date de reporting.", "Team page · timetable · C5.2", "Page Équipe · calendrier · C5.2"),
     P("chase", "Follow up the points not cleared by their date, and escalate to the engagement partner those that put the deadline at risk.", "Relancer les points non levés à l'échéance et remonter à l'associé responsable ceux qui compromettent le calendrier.", "Follow-up record · partner communication", "Suivi des relances · communication à l'associé"),
     P("clear", "Clear each point by filing the evidence that resolves it, and cross-refer the clearance to the working paper.", "Lever chaque point en classant l'élément qui le résout et le renvoyer à la feuille de travail concernée.", "Supporting evidence · working papers", "Éléments justificatifs · feuilles de travail"),
-    P("remaining", "For any point still open at the date of the report, record why it does not prevent the opinion from being expressed, or carry it to C1 as a limitation.", "Pour tout point encore ouvert à la date du rapport, consigner pourquoi il n'empêche pas l'expression de l'opinion, ou le reporter en C1 comme limitation.", "Partner approval · C1", "Approbation de l'associé · C1"),
+    P("remaining", "For any point still open at the date of the report, record why it does not prevent the opinion from being expressed, or carry it to C5.1 as a limitation.", "Pour tout point encore ouvert à la date du rapport, consigner pourquoi il n'empêche pas l'expression de l'opinion, ou le reporter en C5.1 comme limitation.", "Partner approval · C5.1", "Approbation de l'associé · C5.1"),
   ],
   items: [
     Q("collected", "Every point raised in the file or in the review notes is on this list (procedure 1).", "Chaque point soulevé au dossier ou en note de revue figure sur cette liste (procédure 1)."),
@@ -190,25 +190,25 @@ const B6 = mk({
   outcome: false,
 });
 
-const B10 = mk({
+const C6_1 = mk({
   std: "ISA 300 ¶12 · ISA 230 ¶8",
   ownsEn: "the matters to be carried into the next engagement",
   ownsFr: "les points à reporter sur la mission suivante",
   reqEn: [
     "Points forward record what the next engagement needs to know: the matters that took longer than expected, the deficiencies not yet remediated, the balances whose evidence was hard to obtain, and the judgements that will need revisiting.",
-    "The record is made at completion, while the reasons are known, and is read when the next engagement's strategy is set in D1.",
+    "The record is made at completion, while the reasons are known, and is read when the next engagement's strategy is set in S5.1.",
   ],
   reqFr: [
     "Les points reportés consignent ce que la mission suivante doit savoir : travaux plus longs que prévu, déficiences non corrigées, soldes dont les éléments ont été difficiles à obtenir, et jugements à réexaminer.",
-    "Le relevé est établi à l'achèvement, pendant que les motifs sont connus, et lu lors de l'établissement de la stratégie suivante en D1.",
+    "Le relevé est établi à l'achèvement, pendant que les motifs sont connus, et lu lors de l'établissement de la stratégie suivante en S5.1.",
   ],
   procs: [
-    P("deficiencies", "Record the control deficiencies communicated to the entity that have not been remediated, and the effect each will have on next period's strategy.", "Consigner les déficiences de contrôle communiquées et non corrigées, et leur effet sur la stratégie de l'exercice suivant.", "B2 · management letter · D4.4", "B2 · lettre de recommandations · D4.4"),
-    P("uncorrected", "Record the uncorrected misstatements carried forward and their effect on the opening balances of the next period.", "Consigner les anomalies non corrigées reportées et leur effet sur les soldes d'ouverture suivants.", "B5 · E370", "B5 · E370"),
+    P("deficiencies", "Record the control deficiencies communicated to the entity that have not been remediated, and the effect each will have on next period's strategy.", "Consigner les déficiences de contrôle communiquées et non corrigées, et leur effet sur la stratégie de l'exercice suivant.", "C4.2 · management letter · P4.1", "C4.2 · lettre de recommandations · P4.1"),
+    P("uncorrected", "Record the uncorrected misstatements carried forward and their effect on the opening balances of the next period.", "Consigner les anomalies non corrigées reportées et leur effet sur les soldes d'ouverture suivants.", "C1.1 · E6.5", "C1.1 · E6.5"),
     P("difficulties", "Record the areas where evidence was difficult to obtain, and what would make it easier next period.", "Consigner les zones où les éléments ont été difficiles à obtenir et ce qui les rendrait plus accessibles.", "Working papers · team debrief", "Feuilles de travail · débriefing d'équipe"),
-    P("budget", "Compare the time taken by area with the budget, and record where the budget needs to change.", "Comparer les temps passés par zone au budget et consigner les ajustements nécessaires.", "Time records · budget · D6.1", "Temps passés · budget · D6.1"),
-    P("judgements", "Record the significant judgements that will need revisiting, including the estimates whose outcome is not yet known.", "Consigner les jugements importants à réexaminer, dont les estimations dont l'issue n'est pas encore connue.", "B4 · E390 · D5.7", "B4 · E390 · D5.7"),
-    P("statutory", "Record the statutory matters carried forward, including any deadline missed and any procedure engaged under the Uniform Act.", "Consigner les points statutaires reportés, dont toute échéance manquée et toute procédure engagée au titre de l'Acte uniforme.", "F1 · F4 · F7", "F1 · F4 · F7"),
+    P("budget", "Compare the time taken by area with the budget, and record where the budget needs to change.", "Comparer les temps passés par zone au budget et consigner les ajustements nécessaires.", "Time records · budget · P2.2", "Temps passés · budget · P2.2"),
+    P("judgements", "Record the significant judgements that will need revisiting, including the estimates whose outcome is not yet known.", "Consigner les jugements importants à réexaminer, dont les estimations dont l'issue n'est pas encore connue.", "C1.2 · E6.7 · S3.5", "C1.2 · E6.7 · S3.5"),
+    P("statutory", "Record the statutory matters carried forward, including any deadline missed and any procedure engaged under the Uniform Act.", "Consigner les points statutaires reportés, dont toute échéance manquée et toute procédure engagée au titre de l'Acte uniforme.", "C5.2 · C5.5 · C5.8", "C5.2 · C5.5 · C5.8"),
   ],
   items: [
     Q("recorded", "Every matter the next engagement needs to know is recorded here (procedures 1 to 6).", "Chaque point utile à la mission suivante est consigné ici (procédures 1 à 6)."),
@@ -225,7 +225,7 @@ const B10 = mk({
 
 /* ============================= misstatements & significant matters (C2) == */
 
-const B5 = mk({
+const C1_1 = mk({
   std: "ISA 450 ¶5–15",
   ownsEn: "the misstatement schedule and its evaluation",
   ownsFr: "le récapitulatif des anomalies et son évaluation",
@@ -238,20 +238,20 @@ const B5 = mk({
     "Nous apprécions si les anomalies non corrigées sont significatives, isolément ou cumulées, en tenant compte de leur montant, de leur nature et des circonstances, ainsi que de celles des exercices antérieurs (ISA 450 ¶11).",
   ],
   procs: [
-    P("accumulate", "Accumulate every misstatement identified above the clearly trivial threshold, showing the account, the amount, the assertion and the working paper it came from.", "Cumuler chaque anomalie relevée au-delà du seuil négligeable, en indiquant le compte, le montant, l'assertion et la feuille de travail d'origine.", "Working papers · D5.1 clearly trivial threshold", "Feuilles de travail · seuil négligeable D5.1"),
+    P("accumulate", "Accumulate every misstatement identified above the clearly trivial threshold, showing the account, the amount, the assertion and the working paper it came from.", "Cumuler chaque anomalie relevée au-delà du seuil négligeable, en indiquant le compte, le montant, l'assertion et la feuille de travail d'origine.", "Working papers · P6.1 clearly trivial threshold", "Feuilles de travail · seuil négligeable P6.1"),
     P("classify", "Classify each misstatement as factual, judgemental or projected, and show the projection basis for each projected item.", "Classer chaque anomalie en avérée, résultant d'un jugement ou extrapolée, et indiquer la base d'extrapolation.", "Sampling results · ISA 530 ¶14", "Résultats d'échantillonnage · ISA 530 ¶14"),
     P("communicate", "Communicate the misstatements to management on a timely basis and request that each be corrected.", "Communiquer les anomalies à la direction en temps utile et demander leur correction.", "Communication to management · ISA 450 ¶8", "Communication à la direction · ISA 450 ¶8"),
     P("reasons", "Where management declines to correct a misstatement, obtain and record its reasons, and take them into account in evaluating the financial statements.", "Lorsque la direction refuse de corriger, obtenir et consigner ses motifs et en tenir compte dans l'appréciation des états financiers.", "Management's explanation · ISA 450 ¶9", "Explications de la direction · ISA 450 ¶9"),
-    P("reassess", "Reassess whether materiality remains appropriate against the entity's actual results, and revise it where required.", "Réexaminer le caractère approprié du seuil au regard des résultats effectifs et le réviser si nécessaire.", "D5.1 · final trial balance · ISA 450 ¶10", "D5.1 · balance définitive · ISA 450 ¶10"),
-    P("aggregate", "Evaluate the uncorrected misstatements individually and in aggregate against materiality, including the effect of those relating to prior periods.", "Évaluer les anomalies non corrigées isolément et cumulées au regard du seuil, y compris l'effet de celles des exercices antérieurs.", "Prior period B5 · current schedule", "B5 de l'exercice précédent · récapitulatif courant"),
-    P("nature", "Evaluate each uncorrected misstatement by nature as well as by size: the effect on a covenant, on a loss becoming a profit, on remuneration, on a related party disclosure, or on a trend.", "Apprécier chaque anomalie non corrigée par sa nature autant que par son montant : effet sur un covenant, passage d'une perte à un bénéfice, rémunération, information sur les parties liées ou tendance.", "ISA 450 ¶A16–A23 · loan agreements · E170", "ISA 450 ¶A16–A23 · contrats de prêt · E170"),
+    P("reassess", "Reassess whether materiality remains appropriate against the entity's actual results, and revise it where required.", "Réexaminer le caractère approprié du seuil au regard des résultats effectifs et le réviser si nécessaire.", "P6.1 · final trial balance · ISA 450 ¶10", "P6.1 · balance définitive · ISA 450 ¶10"),
+    P("aggregate", "Evaluate the uncorrected misstatements individually and in aggregate against materiality, including the effect of those relating to prior periods.", "Évaluer les anomalies non corrigées isolément et cumulées au regard du seuil, y compris l'effet de celles des exercices antérieurs.", "Prior period C1.1 · current schedule", "C1.1 de l'exercice précédent · récapitulatif courant"),
+    P("nature", "Evaluate each uncorrected misstatement by nature as well as by size: the effect on a covenant, on a loss becoming a profit, on remuneration, on a related party disclosure, or on a trend.", "Apprécier chaque anomalie non corrigée par sa nature autant que par son montant : effet sur un covenant, passage d'une perte à un bénéfice, rémunération, information sur les parties liées ou tendance.", "ISA 450 ¶A16–A23 · loan agreements · E4.8", "ISA 450 ¶A16–A23 · contrats de prêt · E4.8"),
     P("tcwg", "Communicate the uncorrected misstatements to those charged with governance, identifying them individually and explaining their effect on the opinion.", "Communiquer les anomalies non corrigées aux responsables de la gouvernance, en les identifiant individuellement et en expliquant leur effet sur l'opinion.", "ISA 450 ¶12 · governance communication", "ISA 450 ¶12 · communication à la gouvernance"),
-    P("representation", "Request the written representation that management believes the effect of the uncorrected misstatements is immaterial, with the schedule attached.", "Demander la déclaration écrite selon laquelle la direction estime l'effet des anomalies non corrigées non significatif, récapitulatif joint.", "B8 · ISA 450 ¶14", "B8 · ISA 450 ¶14"),
+    P("representation", "Request the written representation that management believes the effect of the uncorrected misstatements is immaterial, with the schedule attached.", "Demander la déclaration écrite selon laquelle la direction estime l'effet des anomalies non corrigées non significatif, récapitulatif joint.", "C3.1 · ISA 450 ¶14", "C3.1 · ISA 450 ¶14"),
   ],
   items: [
     Q("accumulated", "Every misstatement above the clearly trivial threshold has been accumulated (procedure 1).", "Chaque anomalie dépassant le seuil négligeable a été cumulée (procédure 1)."),
     Q("reassessed", "Materiality has been reassessed against the entity's actual results (procedure 5).", "Le seuil a été réexaminé au regard des résultats effectifs (procédure 5)."),
-    Q("immaterial", "The uncorrected misstatements are immaterial individually and in aggregate (procedures 6, 7). A “No” requires the effect on the opinion to be determined in C1.", "Les anomalies non corrigées sont non significatives isolément et cumulées (procédures 6, 7). Un « Non » impose de déterminer l'effet sur l'opinion en C1."),
+    Q("immaterial", "The uncorrected misstatements are immaterial individually and in aggregate (procedures 6, 7). A “No” requires the effect on the opinion to be determined in C5.1.", "Les anomalies non corrigées sont non significatives isolément et cumulées (procédures 6, 7). Un « Non » impose de déterminer l'effet sur l'opinion en C5.1."),
     Q("nature", "No uncorrected misstatement is material by nature notwithstanding its size (procedure 7).", "Aucune anomalie non corrigée n'est significative par nature malgré son montant (procédure 7)."),
     Q("communicated", "The uncorrected misstatements have been communicated to those charged with governance (procedure 8).", "Les anomalies non corrigées ont été communiquées aux responsables de la gouvernance (procédure 8)."),
   ],
@@ -263,7 +263,7 @@ const B5 = mk({
   ],
 });
 
-const B4 = mk({
+const C1_2 = mk({
   std: "ISA 230 ¶8(c), ¶10 · ISA 260 (Revised) ¶16 · ISA 701",
   ownsEn: "the significant matters, the conclusions reached and how each was resolved",
   ownsFr: "les points significatifs, les conclusions retenues et leur résolution",
@@ -276,12 +276,12 @@ const B4 = mk({
     "Lorsque des questions clés de l'audit doivent figurer dans le rapport, elles sont retenues parmi les points communiqués à la gouvernance, comme ayant requis l'attention la plus importante (ISA 701 ¶9–10).",
   ],
   procs: [
-    P("collect", "Collect the significant matters from the file: the areas of significant risk, the significant judgements, the difficulties encountered and the disagreements with management.", "Recenser les points significatifs du dossier : zones de risque important, jugements importants, difficultés rencontrées et désaccords avec la direction.", "Working papers · D7.2 · review notes", "Feuilles de travail · D7.2 · notes de revue"),
-    P("conclusion", "For each matter, record the conclusion reached and the evidence and reasoning that support it.", "Pour chaque point, consigner la conclusion retenue et les éléments et raisonnements qui l'étayent.", "Working papers · consultation record B3", "Feuilles de travail · registre des consultations B3"),
-    P("judgements", "Record the significant professional judgements made, including the alternatives considered and why the position taken was adopted.", "Consigner les jugements professionnels importants, y compris les options envisagées et le motif du choix retenu.", "Working papers · B3 · partner review", "Feuilles de travail · B3 · revue de l'associé"),
-    P("disagreements", "Record any disagreement with management and how it was resolved, including any matter escalated within the firm.", "Consigner tout désaccord avec la direction et sa résolution, y compris les points remontés au sein du cabinet.", "Correspondence · B3 · firm policy", "Correspondance · B3 · politique du cabinet"),
+    P("collect", "Collect the significant matters from the file: the areas of significant risk, the significant judgements, the difficulties encountered and the disagreements with management.", "Recenser les points significatifs du dossier : zones de risque important, jugements importants, difficultés rencontrées et désaccords avec la direction.", "Working papers · S3.1 · review notes", "Feuilles de travail · S3.1 · notes de revue"),
+    P("conclusion", "For each matter, record the conclusion reached and the evidence and reasoning that support it.", "Pour chaque point, consigner la conclusion retenue et les éléments et raisonnements qui l'étayent.", "Working papers · consultation record C1.3", "Feuilles de travail · registre des consultations C1.3"),
+    P("judgements", "Record the significant professional judgements made, including the alternatives considered and why the position taken was adopted.", "Consigner les jugements professionnels importants, y compris les options envisagées et le motif du choix retenu.", "Working papers · C1.3 · partner review", "Feuilles de travail · C1.3 · revue de l'associé"),
+    P("disagreements", "Record any disagreement with management and how it was resolved, including any matter escalated within the firm.", "Consigner tout désaccord avec la direction et sa résolution, y compris les points remontés au sein du cabinet.", "Correspondence · C1.3 · firm policy", "Correspondance · C1.3 · politique du cabinet"),
     P("communicate", "Communicate the significant findings to those charged with governance, including our views on the qualitative aspects of the entity's accounting practices.", "Communiquer les constats significatifs aux responsables de la gouvernance, y compris notre appréciation des aspects qualitatifs des pratiques comptables.", "ISA 260 (Revised) ¶16 · governance communication", "ISA 260 révisée ¶16 · communication à la gouvernance"),
-    P("kam", "Where key audit matters apply, select them from the matters communicated to those charged with governance and draft the description of each.", "Lorsque des questions clés s'appliquent, les sélectionner parmi les points communiqués à la gouvernance et rédiger la description de chacune.", "ISA 701 ¶9–13 · C1", "ISA 701 ¶9–13 · C1"),
+    P("kam", "Where key audit matters apply, select them from the matters communicated to those charged with governance and draft the description of each.", "Lorsque des questions clés s'appliquent, les sélectionner parmi les points communiqués à la gouvernance et rédiger la description de chacune.", "ISA 701 ¶9–13 · C5.1", "ISA 701 ¶9–13 · C5.1"),
   ],
   items: [
     Q("collected", "Every significant matter arising during the audit is recorded here (procedure 1).", "Chaque point significatif relevé au cours de l'audit est consigné ici (procédure 1)."),
@@ -297,7 +297,7 @@ const B4 = mk({
   ],
 });
 
-const B3 = mk({
+const C1_3 = mk({
   std: "ISQM 1 ¶31 · ISA 220 (Revised) ¶35 · ISA 230 ¶8",
   ownsEn: "the consultations undertaken and the conclusions implemented",
   ownsFr: "les consultations menées et les conclusions mises en œuvre",
@@ -310,7 +310,7 @@ const B3 = mk({
     "La documentation consigne la question, la personne consultée, les informations fournies et la conclusion retenue.",
   ],
   procs: [
-    P("identify", "Identify the matters requiring consultation under the firm's policy, including those anticipated in D4.1.", "Identifier les questions appelant une consultation selon la politique du cabinet, y compris celles anticipées en D4.1.", "Firm consultation policy · D4.1 · B4", "Politique de consultation · D4.1 · B4"),
+    P("identify", "Identify the matters requiring consultation under the firm's policy, including those anticipated in S5.2.", "Identifier les questions appelant une consultation selon la politique du cabinet, y compris celles anticipées en S5.2.", "Firm consultation policy · S5.2 · C1.2", "Politique de consultation · S5.2 · C1.2"),
     P("consult", "Consult a person with the appropriate knowledge and experience, and record their name, their role and the date.", "Consulter une personne disposant des connaissances et de l'expérience appropriées et consigner son nom, sa fonction et la date.", "Consultation note · firm technical function", "Note de consultation · service technique du cabinet"),
     P("information", "Record the information provided to the person consulted, and confirm it was complete and accurate.", "Consigner les informations fournies à la personne consultée et vérifier leur exhaustivité et leur exactitude.", "Consultation note · supporting working papers", "Note de consultation · feuilles de travail justificatives"),
     P("conclusion", "Record the conclusion reached and agree it with the person consulted.", "Consigner la conclusion retenue et la faire valider par la personne consultée.", "Consultation note countersigned", "Note de consultation contresignée"),
@@ -334,7 +334,7 @@ const B3 = mk({
 
 /* =============================== subsequent events & going concern (C3) == */
 
-const B7 = mk({
+const C2_2 = mk({
   std: "ISA 560 ¶6–17 · ISA 570 (Revised) ¶21–24",
   ownsEn: "the subsequent events and going concern conclusions at completion",
   ownsFr: "les conclusions sur les événements postérieurs et la continuité à l'achèvement",
@@ -347,13 +347,13 @@ const B7 = mk({
     "La conclusion sur la continuité détermine le caractère approprié de la base comptable et l'existence d'une incertitude significative (ISA 570 révisée ¶21–24).",
   ],
   procs: [
-    P("extend", "Extend the procedures performed in E380 to the date of the auditor's report, and record the date to which they extend.", "Prolonger les procédures de E380 jusqu'à la date du rapport et consigner la date de fin de couverture.", "E380 · inquiry · post year-end records", "E380 · entretien · enregistrements postérieurs"),
+    P("extend", "Extend the procedures performed in E6.6 to the date of the auditor's report, and record the date to which they extend.", "Prolonger les procédures de E6.6 jusqu'à la date du rapport et consigner la date de fin de couverture.", "E6.6 · inquiry · post year-end records", "E6.6 · entretien · enregistrements postérieurs"),
     P("inquire", "Inquire of management and of those charged with governance immediately before the report is dated about any event since the last inquiry.", "S'enquérir auprès de la direction et de la gouvernance, juste avant la date du rapport, de tout événement survenu depuis le dernier entretien.", "Final inquiry note · ISA 560 ¶7(b)", "Note d'entretien final · ISA 560 ¶7(b)"),
-    P("minutes", "Read the minutes of any meeting held since the last reading, up to the date of the report.", "Examiner les procès-verbaux des réunions tenues depuis le dernier examen, jusqu'à la date du rapport.", "Post year-end minutes (E360)", "Procès-verbaux postérieurs (E360)"),
+    P("minutes", "Read the minutes of any meeting held since the last reading, up to the date of the report.", "Examiner les procès-verbaux des réunions tenues depuis le dernier examen, jusqu'à la date du rapport.", "Post year-end minutes (E6.4)", "Procès-verbaux postérieurs (E6.4)"),
     P("classify", "Classify each event identified as adjusting or non-adjusting, and confirm the treatment or disclosure in the financial statements.", "Classer chaque événement identifié en ajustant ou non ajustant et vérifier son traitement ou sa mention.", "IAS 10 / SYSCOHADA · draft financial statements", "IAS 10 / SYSCOHADA · projet d'états financiers"),
-    P("gc_conclude", "Conclude on going concern from the work in E330: whether the basis of accounting is appropriate and whether a material uncertainty exists.", "Conclure sur la continuité à partir des travaux de E330 : caractère approprié de la base comptable et existence d'une incertitude significative.", "E330 · management's assessment · ISA 570 ¶21", "E330 · évaluation de la direction · ISA 570 ¶21"),
+    P("gc_conclude", "Conclude on going concern from the work in E6.3: whether the basis of accounting is appropriate and whether a material uncertainty exists.", "Conclure sur la continuité à partir des travaux de E6.3 : caractère approprié de la base comptable et existence d'une incertitude significative.", "E6.3 · management's assessment · ISA 570 ¶21", "E6.3 · évaluation de la direction · ISA 570 ¶21"),
     P("gc_disclosure", "Where a material uncertainty exists, confirm the financial statements adequately disclose the events and conditions and state that a material uncertainty exists.", "En cas d'incertitude significative, vérifier que les états financiers décrivent de façon appropriée les événements et conditions et mentionnent l'existence de cette incertitude.", "Draft financial statements · ISA 570 ¶22", "Projet d'états financiers · ISA 570 ¶22"),
-    P("representation", "Obtain the written representation covering subsequent events and management's plans for future action on going concern.", "Obtenir la déclaration écrite couvrant les événements postérieurs et les plans d'action de la direction sur la continuité.", "B8 · ISA 570 ¶16(e)", "B8 · ISA 570 ¶16(e)"),
+    P("representation", "Obtain the written representation covering subsequent events and management's plans for future action on going concern.", "Obtenir la déclaration écrite couvrant les événements postérieurs et les plans d'action de la direction sur la continuité.", "C3.1 · ISA 570 ¶16(e)", "C3.1 · ISA 570 ¶16(e)"),
   ],
   items: [
     Q("to_date", "The procedures extend to the date of the auditor's report (procedures 1 to 3).", "Les procédures couvrent la période jusqu'à la date du rapport (procédures 1 à 3)."),
@@ -363,17 +363,17 @@ const B7 = mk({
   ],
   conclEn: [
     "The subsequent events procedures extend to the date of the auditor's report and every event identified has been adjusted or disclosed as required.",
-    "The conclusions on going concern and their effect on the auditor's report have been determined and carried to C1.",
+    "The conclusions on going concern and their effect on the auditor's report have been determined and carried to C5.1.",
   ],
   conclFr: [
     "Les procédures sur les événements postérieurs couvrent la période jusqu'à la date du rapport et chaque événement relevé a été ajusté ou mentionné.",
-    "Les conclusions sur la continuité et leur effet sur le rapport ont été déterminés et reportés en C1.",
+    "Les conclusions sur la continuité et leur effet sur le rapport ont été déterminés et reportés en C5.1.",
   ],
 });
 
 /* ================================ representations & confirmations (C4) === */
 
-const B8 = mk({
+const C3_1 = mk({
   std: "ISA 580 ¶6–20",
   ownsEn: "the written representations obtained",
   ownsFr: "les déclarations écrites obtenues",
@@ -387,11 +387,11 @@ const B8 = mk({
   ],
   procs: [
     P("schedule", "List the representations required: those under ISA 580 and those required by each other ISA applicable to this engagement.", "Recenser les déclarations requises : celles de l'ISA 580 et celles imposées par chaque autre norme applicable.", "ISA 580 ¶10–11 · ISA-by-ISA checklist", "ISA 580 ¶10–11 · liste par norme"),
-    P("specific", "Add the representations specific to this engagement, including those on uncorrected misstatements, litigation and claims, related parties, going concern and subsequent events.", "Ajouter les déclarations propres à la mission : anomalies non corrigées, litiges, parties liées, continuité et événements postérieurs.", "B5 · E270 · E320 · E330 · B7", "B5 · E270 · E320 · E330 · B7"),
+    P("specific", "Add the representations specific to this engagement, including those on uncorrected misstatements, litigation and claims, related parties, going concern and subsequent events.", "Ajouter les déclarations propres à la mission : anomalies non corrigées, litiges, parties liées, continuité et événements postérieurs.", "C1.1 · E4.15 · E6.2 · E6.3 · C2.2", "C1.1 · E4.15 · E6.2 · E6.3 · C2.2"),
     P("signatories", "Identify the persons with responsibility for the financial statements and appropriate knowledge of the matters covered, and address the letter to them.", "Identifier les personnes responsables des états financiers et disposant de la connaissance appropriée, et leur adresser la lettre.", "Statutes · delegation of authority · minutes", "Statuts · délégations de pouvoirs · procès-verbaux"),
     P("date", "Obtain the signed letter dated as near as practicable to, and not after, the date of the auditor's report.", "Obtenir la lettre signée à une date aussi proche que possible de celle du rapport, sans lui être postérieure.", "Signed representation letter", "Lettre d'affirmation signée"),
     P("consistency", "Compare the representations with the other evidence obtained, and resolve any inconsistency.", "Comparer les déclarations aux autres éléments obtenus et résoudre toute incohérence.", "Working papers · ISA 580 ¶17", "Feuilles de travail · ISA 580 ¶17"),
-    P("refusal", "Where a requested representation is not provided, discuss the matter with those charged with governance and evaluate the effect on the opinion.", "En cas de refus d'une déclaration demandée, en discuter avec les responsables de la gouvernance et évaluer l'effet sur l'opinion.", "ISA 580 ¶19–20 · C1", "ISA 580 ¶19–20 · C1"),
+    P("refusal", "Where a requested representation is not provided, discuss the matter with those charged with governance and evaluate the effect on the opinion.", "En cas de refus d'une déclaration demandée, en discuter avec les responsables de la gouvernance et évaluer l'effet sur l'opinion.", "ISA 580 ¶19–20 · C5.1", "ISA 580 ¶19–20 · C5.1"),
   ],
   items: [
     Q("complete", "Every representation required by the ISAs applicable to this engagement has been requested (procedures 1, 2).", "Chaque déclaration requise par les normes applicables a été demandée (procédures 1, 2)."),
@@ -407,7 +407,7 @@ const B8 = mk({
   ],
 });
 
-const B9 = mk({
+const C3_2 = mk({
   std: "ISA 505 ¶7–16",
   ownsEn: "the external confirmation process and its results",
   ownsFr: "la procédure de circularisation et ses résultats",
@@ -421,11 +421,11 @@ const B9 = mk({
     "En cas de refus de la direction, nous en examinons les motifs, en apprécions la validité et mettons en œuvre des procédures alternatives. Si le refus est infondé, nous en informons la gouvernance et en évaluons l'effet sur l'opinion (ISA 505 ¶8–9).",
   ],
   procs: [
-    P("scope", "Establish the confirmations to be sent across the engagement: banks, receivables, payables, legal advisers, inventory held by third parties and lenders.", "Établir les circularisations à adresser sur l'ensemble de la mission : banques, clients, fournisseurs, conseils juridiques, stocks détenus par des tiers et prêteurs.", "E100 · E110 · E130 · E160 · E170 · E270", "E100 · E110 · E130 · E160 · E170 · E270"),
+    P("scope", "Establish the confirmations to be sent across the engagement: banks, receivables, payables, legal advisers, inventory held by third parties and lenders.", "Établir les circularisations à adresser sur l'ensemble de la mission : banques, clients, fournisseurs, conseils juridiques, stocks détenus par des tiers et prêteurs.", "E4.1 · E4.2 · E4.4 · E4.7 · E4.8 · E4.15", "E4.1 · E4.2 · E4.4 · E4.7 · E4.8 · E4.15"),
     P("control", "Send each request ourselves, with our own address for the reply, and record the date sent.", "Adresser chaque demande nous-mêmes, avec notre propre adresse de réponse, et consigner la date d'envoi.", "Confirmation register · our correspondence", "Registre des circularisations · notre correspondance"),
     P("addresses", "Verify the address of each confirming party independently of the list provided by the entity.", "Vérifier l'adresse de chaque tiers indépendamment de la liste fournie par l'entité.", "Independent directory · contracts · bank documentation", "Annuaire indépendant · contrats · documentation bancaire"),
     P("track", "Track the replies received, and send a second request where no reply is received within the period set.", "Suivre les réponses reçues et adresser une relance en l'absence de réponse dans le délai fixé.", "Confirmation register · reminder correspondence", "Registre des circularisations · relances"),
-    P("exceptions", "Investigate every difference between the reply and the recorded amount, and raise a misstatement in B5 where the difference is a misstatement.", "Investiguer chaque écart entre la réponse et le montant comptabilisé et porter une anomalie en B5 le cas échéant.", "Replies · ledger · B5", "Réponses · grand livre · B5"),
+    P("exceptions", "Investigate every difference between the reply and the recorded amount, and raise a misstatement in C1.1 where the difference is a misstatement.", "Investiguer chaque écart entre la réponse et le montant comptabilisé et porter une anomalie en C1.1 le cas échéant.", "Replies · ledger · C1.1", "Réponses · grand livre · C1.1"),
     P("alternatives", "Where no reply is obtained, perform alternative procedures and record why they provide the evidence the confirmation would have.", "À défaut de réponse, mettre en œuvre des procédures alternatives et consigner en quoi elles apportent l'élément attendu.", "ISA 505 ¶12 · subsequent receipts · shipping documents", "ISA 505 ¶12 · encaissements postérieurs · documents d'expédition"),
     P("reliability", "Where there is doubt about the reliability of a reply, obtain further evidence, including verifying the source and the authority of the respondent.", "En cas de doute sur la fiabilité d'une réponse, obtenir des éléments complémentaires, dont la vérification de la source et de la qualité du répondant.", "ISA 505 ¶10–11 · direct contact with the party", "ISA 505 ¶10–11 · contact direct avec le tiers"),
     P("refusal", "Record any refusal by management to permit a confirmation, the reasons given, and our evaluation of them.", "Consigner tout refus de la direction d'autoriser une circularisation, les motifs invoqués et notre appréciation.", "ISA 505 ¶8–9 · correspondence", "ISA 505 ¶8–9 · correspondance"),
@@ -446,7 +446,7 @@ const B9 = mk({
 
 /* ================================== quality & governance (C5) ============ */
 
-const B2 = mk({
+const C4_2 = mk({
   std: "ISQM 2 ¶19–26 · ISA 220 (Revised) ¶36 · ISA 260 (Revised) · ISA 265",
   ownsEn: "the engagement quality review and the communications to those charged with governance",
   ownsFr: "la revue de qualité de la mission et les communications à la gouvernance",
@@ -459,14 +459,14 @@ const B2 = mk({
     "Nous communiquons à la gouvernance nos responsabilités, l'étendue et le calendrier prévus, les constats significatifs et notre indépendance (ISA 260 révisée ¶14–17). Les déficiences significatives du contrôle interne sont communiquées par écrit (ISA 265 ¶9).",
   ],
   procs: [
-    P("required", "Confirm from D3.6 whether an engagement quality review is required, and the identity of the reviewer appointed.", "Confirmer à partir de D3.6 si une revue de qualité est requise et l'identité du responsable désigné.", "D3.6 · firm records", "D3.6 · dossiers du cabinet"),
-    P("scope", "Provide the reviewer with the significant judgements, the significant risks and the conclusions reached, and record what was provided.", "Mettre à disposition du responsable les jugements importants, les risques importants et les conclusions retenues, et consigner ce qui a été fourni.", "B4 · D7.2 · working papers", "B4 · D7.2 · feuilles de travail"),
+    P("required", "Confirm from P1.5 whether an engagement quality review is required, and the identity of the reviewer appointed.", "Confirmer à partir de P1.5 si une revue de qualité est requise et l'identité du responsable désigné.", "P1.5 · firm records", "P1.5 · dossiers du cabinet"),
+    P("scope", "Provide the reviewer with the significant judgements, the significant risks and the conclusions reached, and record what was provided.", "Mettre à disposition du responsable les jugements importants, les risques importants et les conclusions retenues, et consigner ce qui a été fourni.", "C1.2 · S3.1 · working papers", "C1.2 · S3.1 · feuilles de travail"),
     P("review", "Record the reviewer's evaluation, the matters raised, the responses given, and confirm each has been resolved.", "Consigner l'évaluation du responsable, les points soulevés, les réponses apportées et vérifier leur résolution.", "Reviewer's notes · our responses", "Notes du responsable · nos réponses"),
     P("completion", "Confirm the review is complete and record its date, which must not be later than the date of the auditor's report.", "Confirmer l'achèvement de la revue et consigner sa date, qui ne peut être postérieure à celle du rapport.", "ISQM 2 ¶25 · reviewer's confirmation", "ISQM 2 ¶25 · confirmation du responsable"),
     P("planning_comm", "Confirm the planning communication to those charged with governance was made, covering our responsibilities and the planned scope and timing.", "Vérifier que la communication de planification à la gouvernance a été faite, couvrant nos responsabilités et l'étendue et le calendrier prévus.", "ISA 260 (Revised) ¶14–15 · correspondence", "ISA 260 révisée ¶14–15 · correspondance"),
-    P("findings_comm", "Communicate the significant findings, including our views on the qualitative aspects of the accounting practices and any significant difficulty encountered.", "Communiquer les constats significatifs, y compris notre appréciation des aspects qualitatifs des pratiques comptables et toute difficulté importante rencontrée.", "ISA 260 ¶16 · B4 · governance letter", "ISA 260 ¶16 · B4 · lettre à la gouvernance"),
-    P("independence", "Confirm our independence to those charged with governance in writing, listing the relationships and the safeguards applied.", "Confirmer par écrit notre indépendance à la gouvernance, en listant les relations et les sauvegardes appliquées.", "D3.2 · ISA 260 ¶17 · independence letter", "D3.2 · ISA 260 ¶17 · lettre d'indépendance"),
-    P("deficiencies", "Communicate the significant deficiencies in internal control in writing, describing each and explaining its potential effect.", "Communiquer par écrit les déficiences significatives du contrôle interne, en décrivant chacune et son effet potentiel.", "ISA 265 ¶9 · D4.4 · management letter", "ISA 265 ¶9 · D4.4 · lettre de recommandations"),
+    P("findings_comm", "Communicate the significant findings, including our views on the qualitative aspects of the accounting practices and any significant difficulty encountered.", "Communiquer les constats significatifs, y compris notre appréciation des aspects qualitatifs des pratiques comptables et toute difficulté importante rencontrée.", "ISA 260 ¶16 · C1.2 · governance letter", "ISA 260 ¶16 · C1.2 · lettre à la gouvernance"),
+    P("independence", "Confirm our independence to those charged with governance in writing, listing the relationships and the safeguards applied.", "Confirmer par écrit notre indépendance à la gouvernance, en listant les relations et les sauvegardes appliquées.", "P2.1 · ISA 260 ¶17 · independence letter", "P2.1 · ISA 260 ¶17 · lettre d'indépendance"),
+    P("deficiencies", "Communicate the significant deficiencies in internal control in writing, describing each and explaining its potential effect.", "Communiquer par écrit les déficiences significatives du contrôle interne, en décrivant chacune et son effet potentiel.", "ISA 265 ¶9 · P4.1 · management letter", "ISA 265 ¶9 · P4.1 · lettre de recommandations"),
   ],
   items: [
     Q("complete", "Where required, the engagement quality review is complete and dated no later than the auditor's report (procedures 3, 4).", "Lorsqu'elle est requise, la revue de qualité est achevée et datée au plus tard à la date du rapport (procédures 3, 4).", true),
@@ -486,7 +486,7 @@ const B2 = mk({
   outcome: false,
 });
 
-const C1 = mk({
+const C5_1 = mk({
   std: "ISA 700 (Revised) · ISA 701 · ISA 705 (Revised) · ISA 706 (Revised) · ISA 710 · ISA 720 (Revised)",
   ownsEn: "the opinion and the auditor's report",
   ownsFr: "l'opinion et le rapport de l'auditeur",
@@ -499,23 +499,23 @@ const C1 = mk({
     "En cas d'anomalie significative ou d'impossibilité d'obtenir des éléments suffisants, nous modifions l'opinion, entre opinion avec réserve, défavorable ou impossibilité d'exprimer une opinion, selon le caractère diffus du point (ISA 705 révisée ¶7–10).",
   ],
   procs: [
-    P("evidence", "Confirm from B1 that sufficient appropriate audit evidence has been obtained and that the file supports every conclusion.", "Confirmer à partir de B1 que des éléments probants suffisants et appropriés ont été obtenus et que le dossier étaye chaque conclusion.", "B1 · partner review", "B1 · revue de l'associé"),
-    P("misstatements", "Determine the effect of the uncorrected misstatements in B5 on the opinion, individually and in aggregate.", "Déterminer l'effet des anomalies non corrigées de B5 sur l'opinion, isolément et cumulées.", "B5 · D5.1 materiality", "B5 · seuil D5.1"),
-    P("opinion", "Determine the opinion. Where it is modified, establish whether the matter is material but not pervasive, or material and pervasive, and select the form of modification accordingly.", "Déterminer l'opinion. En cas de modification, établir si le point est significatif sans être diffus, ou significatif et diffus, et retenir la forme correspondante.", "ISA 705 (Revised) ¶7–10 · B5 · B4", "ISA 705 révisée ¶7–10 · B5 · B4"),
+    P("evidence", "Confirm from C4.1 that sufficient appropriate audit evidence has been obtained and that the file supports every conclusion.", "Confirmer à partir de C4.1 que des éléments probants suffisants et appropriés ont été obtenus et que le dossier étaye chaque conclusion.", "C4.1 · partner review", "C4.1 · revue de l'associé"),
+    P("misstatements", "Determine the effect of the uncorrected misstatements in C1.1 on the opinion, individually and in aggregate.", "Déterminer l'effet des anomalies non corrigées de C1.1 sur l'opinion, isolément et cumulées.", "C1.1 · P6.1 materiality", "C1.1 · seuil P6.1"),
+    P("opinion", "Determine the opinion. Where it is modified, establish whether the matter is material but not pervasive, or material and pervasive, and select the form of modification accordingly.", "Déterminer l'opinion. En cas de modification, établir si le point est significatif sans être diffus, ou significatif et diffus, et retenir la forme correspondante.", "ISA 705 (Revised) ¶7–10 · C1.1 · C1.2", "ISA 705 révisée ¶7–10 · C1.1 · C1.2"),
     P("components", "Confirm each component required by ISA 700 (Revised) is present in the drafted report, in the order and with the headings the standard requires.", "Vérifier la présence de chaque composante requise par l'ISA 700 révisée dans le projet de rapport, dans l'ordre et avec les intitulés prescrits.", "ISA 700 (Revised) ¶21–49 · report component checklist", "ISA 700 révisée ¶21–49 · liste des composantes"),
-    P("going_concern", "Where a material uncertainty related to going concern exists, include the separate section required and confirm it refers to the note in the financial statements.", "En cas d'incertitude significative liée à la continuité, inclure la section distincte requise et vérifier son renvoi à la note des états financiers.", "B7 · E330 · ISA 570 (Revised) ¶22", "B7 · E330 · ISA 570 révisée ¶22"),
-    P("kam", "Where key audit matters apply, include the description of each drafted in B4, explaining why the matter was of most significance and how it was addressed.", "Lorsque des questions clés s'appliquent, inclure la description rédigée en B4, en expliquant l'importance du point et la façon dont il a été traité.", "B4 · ISA 701 ¶13", "B4 · ISA 701 ¶13"),
+    P("going_concern", "Where a material uncertainty related to going concern exists, include the separate section required and confirm it refers to the note in the financial statements.", "En cas d'incertitude significative liée à la continuité, inclure la section distincte requise et vérifier son renvoi à la note des états financiers.", "C2.2 · E6.3 · ISA 570 (Revised) ¶22", "C2.2 · E6.3 · ISA 570 révisée ¶22"),
+    P("kam", "Where key audit matters apply, include the description of each drafted in C1.2, explaining why the matter was of most significance and how it was addressed.", "Lorsque des questions clés s'appliquent, inclure la description rédigée en C1.2, en expliquant l'importance du point et la façon dont il a été traité.", "C1.2 · ISA 701 ¶13", "C1.2 · ISA 701 ¶13"),
     P("emphasis", "Determine whether an emphasis of matter or other matter paragraph is required, and confirm it does not substitute for a modification or a required disclosure.", "Déterminer si un paragraphe d'observation ou sur d'autres points est requis et vérifier qu'il ne se substitue pas à une modification ou à une information requise.", "ISA 706 (Revised) ¶8–10", "ISA 706 révisée ¶8–10"),
-    P("other_info", "Include the other information section, stating what was read and whether a material inconsistency was identified.", "Inclure la section sur les autres informations, en indiquant ce qui a été examiné et si une incohérence significative a été relevée.", "A1 · ISA 720 (Revised) ¶21–24", "A1 · ISA 720 révisée ¶21–24"),
-    P("statutory", "Include the report on other legal and regulatory requirements required of a commissaire aux comptes, and cross-refer to the statutory papers F1 to F8.", "Inclure le rapport sur les autres obligations légales et réglementaires incombant au commissaire aux comptes et renvoyer aux feuilles statutaires F1 à F8.", "OHADA Uniform Act · F1–F8", "Acte uniforme OHADA · F1–F8"),
-    P("date", "Date the report no earlier than the date on which sufficient appropriate evidence was obtained, including the approval of the financial statements by those with authority.", "Dater le rapport au plus tôt à la date d'obtention des éléments suffisants, y compris l'approbation des états financiers par l'organe compétent.", "ISA 700 (Revised) ¶49 · approval minutes · B8", "ISA 700 révisée ¶49 · procès-verbal d'approbation · B8"),
+    P("other_info", "Include the other information section, stating what was read and whether a material inconsistency was identified.", "Inclure la section sur les autres informations, en indiquant ce qui a été examiné et si une incohérence significative a été relevée.", "C2.1 · ISA 720 (Revised) ¶21–24", "C2.1 · ISA 720 révisée ¶21–24"),
+    P("statutory", "Include the report on other legal and regulatory requirements required of a commissaire aux comptes, and cross-refer to the statutory papers C5.2 to C5.9.", "Inclure le rapport sur les autres obligations légales et réglementaires incombant au commissaire aux comptes et renvoyer aux feuilles statutaires C5.2 à C5.9.", "OHADA Uniform Act · C5.2–C5.9", "Acte uniforme OHADA · C5.2–C5.9"),
+    P("date", "Date the report no earlier than the date on which sufficient appropriate evidence was obtained, including the approval of the financial statements by those with authority.", "Dater le rapport au plus tôt à la date d'obtention des éléments suffisants, y compris l'approbation des états financiers par l'organe compétent.", "ISA 700 (Revised) ¶49 · approval minutes · C3.1", "ISA 700 révisée ¶49 · procès-verbal d'approbation · C3.1"),
   ],
   items: [
     Q("sufficient", "Sufficient appropriate audit evidence has been obtained to support the opinion (procedure 1).", "Des éléments probants suffisants et appropriés ont été obtenus pour étayer l'opinion (procédure 1)."),
     Q("unmodified", "The opinion is unmodified (procedures 2, 3). A “No” requires the basis for modification to be drafted and the form justified.", "L'opinion n'est pas modifiée (procédures 2, 3). Un « Non » impose de rédiger le fondement de la modification et d'en justifier la forme."),
     Q("components", "Every component required by ISA 700 (Revised) is present (procedure 4).", "Chaque composante requise par l'ISA 700 révisée est présente (procédure 4)."),
     Q("dated", "The report is dated no earlier than the date the financial statements were approved by those with authority (procedure 10).", "Le rapport n'est pas daté antérieurement à l'approbation des états financiers par l'organe compétent (procédure 10)."),
-    Q("eqr", "Where an engagement quality review is required, it was complete before the report was dated (B2).", "Lorsqu'une revue de qualité est requise, elle était achevée avant la date du rapport (B2).", true),
+    Q("eqr", "Where an engagement quality review is required, it was complete before the report was dated (C4.2).", "Lorsqu'une revue de qualité est requise, elle était achevée avant la date du rapport (C4.2).", true),
   ],
   conclEn: [
     "The opinion recorded here is supported by the evidence in the file, and the report as drafted complies with the ISAs and with the requirements applicable to a statutory appointment.",
@@ -527,7 +527,7 @@ const C1 = mk({
 
 /* ================================ legal & statutory, OHADA (C6) ========== */
 
-const F1 = mk({
+const C5_2 = mk({
   std: "OHADA — Acte uniforme relatif au droit des sociétés commerciales et du GIE",
   ownsEn: "the statutory deadlines and whether each was met",
   ownsFr: "les échéances légales et leur respect",
@@ -541,11 +541,11 @@ const F1 = mk({
   ],
   procs: [
     P("calendar", "Establish the statutory calendar for the period: the date the accounts must be drawn up, the date of the general meeting, and the filing deadline.", "Établir le calendrier légal de l'exercice : date d'arrêté des comptes, date de l'assemblée générale et échéance de dépôt.", "Uniform Act · statutes · financial year end", "Acte uniforme · statuts · date de clôture"),
-    P("board", "Confirm the date the board drew up the accounts, and compare it with the deadline.", "Confirmer la date d'arrêté des comptes par le conseil et la comparer à l'échéance.", "Board minutes (E360) · signed accounts", "Procès-verbal du conseil (E360) · comptes signés"),
+    P("board", "Confirm the date the board drew up the accounts, and compare it with the deadline.", "Confirmer la date d'arrêté des comptes par le conseil et la comparer à l'échéance.", "Board minutes (E6.4) · signed accounts", "Procès-verbal du conseil (E6.4) · comptes signés"),
     P("notice", "Confirm the notice period given for the general meeting and that the documents required were made available to the shareholders.", "Vérifier le délai de convocation de l'assemblée et la mise à disposition des documents requis aux associés.", "Convening notice · shareholder correspondence", "Avis de convocation · correspondance aux associés"),
-    P("report_dates", "Record the dates by which our own reports are due, including the general report and the special report on conventions réglementées.", "Consigner les dates auxquelles nos propres rapports sont dus, dont le rapport général et le rapport spécial sur les conventions réglementées.", "Uniform Act · F2 · engagement timetable", "Acte uniforme · F2 · calendrier de mission"),
+    P("report_dates", "Record the dates by which our own reports are due, including the general report and the special report on conventions réglementées.", "Consigner les dates auxquelles nos propres rapports sont dus, dont le rapport général et le rapport spécial sur les conventions réglementées.", "Uniform Act · C5.3 · engagement timetable", "Acte uniforme · C5.3 · calendrier de mission"),
     P("filing", "Confirm the prior period accounts were filed with the RCCM within the deadline, and obtain the filing receipt.", "Vérifier le dépôt des comptes de l'exercice précédent au RCCM dans le délai et obtenir le récépissé.", "RCCM filing receipt · prior period accounts", "Récépissé de dépôt RCCM · comptes antérieurs"),
-    P("breaches", "Record each deadline missed, the reason, and whether it is to be reported to the general meeting.", "Consigner chaque échéance manquée, son motif et son éventuel signalement à l'assemblée.", "Our observation schedule · C1", "Notre relevé d'observations · C1"),
+    P("breaches", "Record each deadline missed, the reason, and whether it is to be reported to the general meeting.", "Consigner chaque échéance manquée, son motif et son éventuel signalement à l'assemblée.", "Our observation schedule · C5.1", "Notre relevé d'observations · C5.1"),
   ],
   items: [
     Q("drawn_up", "The accounts were drawn up by the board within the statutory deadline (procedure 2).", "Les comptes ont été arrêtés par le conseil dans le délai légal (procédure 2)."),
@@ -560,7 +560,7 @@ const F1 = mk({
   ],
 });
 
-const F2 = mk({
+const C5_3 = mk({
   std: "OHADA — Acte uniforme sociétés commerciales, conventions réglementées · ISA 550",
   ownsEn: "the register of regulated agreements and the special report",
   ownsFr: "le registre des conventions réglementées et le rapport spécial",
@@ -574,9 +574,9 @@ const F2 = mk({
   ],
   procs: [
     P("notify", "Obtain from the directors the list of agreements they are required to notify, and the date of each notification.", "Obtenir des dirigeants la liste des conventions qu'ils sont tenus de communiquer et la date de chaque communication.", "Directors' notifications · board minutes", "Communications des dirigeants · procès-verbaux du conseil"),
-    P("search", "Search independently for agreements not notified, using the related party register, the minutes and the ledger.", "Rechercher de façon indépendante les conventions non communiquées, à partir du registre des parties liées, des procès-verbaux et du grand livre.", "D5.6 · E320 · minutes (E360) · general ledger", "D5.6 · E320 · procès-verbaux (E360) · grand livre"),
+    P("search", "Search independently for agreements not notified, using the related party register, the minutes and the ledger.", "Rechercher de façon indépendante les conventions non communiquées, à partir du registre des parties liées, des procès-verbaux et du grand livre.", "S3.4 · E6.2 · minutes (E6.4) · general ledger", "S3.4 · E6.2 · procès-verbaux (E6.4) · grand livre"),
     P("authorisation", "For each agreement, confirm the prior authorisation of the board and that the interested person did not take part in the vote.", "Pour chaque convention, vérifier l'autorisation préalable du conseil et l'abstention de la personne intéressée lors du vote.", "Board minutes · attendance register", "Procès-verbaux du conseil · feuille de présence"),
-    P("terms", "Obtain the terms of each agreement: the parties, the object, the price, the duration, and the amounts recorded in the period.", "Obtenir les conditions de chaque convention : parties, objet, prix, durée et montants comptabilisés sur l'exercice.", "Agreements · general ledger · E320", "Conventions · grand livre · E320"),
+    P("terms", "Obtain the terms of each agreement: the parties, the object, the price, the duration, and the amounts recorded in the period.", "Obtenir les conditions de chaque convention : parties, objet, prix, durée et montants comptabilisés sur l'exercice.", "Agreements · general ledger · E6.2", "Conventions · grand livre · E6.2"),
     P("continuing", "Identify the agreements authorised in prior periods that continued in force during this one, and confirm each is included in the report.", "Identifier les conventions autorisées lors d'exercices antérieurs et poursuivies sur celui-ci, et vérifier leur inclusion dans le rapport.", "Prior special reports · agreements", "Rapports spéciaux antérieurs · conventions"),
     P("draft", "Draft the special report describing each agreement, the persons concerned, the terms and the reason it was entered into.", "Rédiger le rapport spécial décrivant chaque convention, les personnes concernées, les conditions et le motif de sa conclusion.", "Our special report · Uniform Act", "Notre rapport spécial · Acte uniforme"),
     P("unauthorised", "Where an agreement was entered into without the prior authorisation required, record it and report it to the general meeting.", "Lorsqu'une convention a été conclue sans l'autorisation préalable requise, la consigner et la signaler à l'assemblée.", "Uniform Act · our special report", "Acte uniforme · notre rapport spécial"),
@@ -595,7 +595,7 @@ const F2 = mk({
   ],
 });
 
-const F3 = mk({
+const C5_4 = mk({
   std: "OHADA — Acte uniforme sociétés commerciales, article 715",
   ownsEn: "the report of our observations to the board",
   ownsFr: "le rapport de nos observations au conseil",
@@ -608,11 +608,11 @@ const F3 = mk({
     "Ce rapport est écrit, afin que le conseil dispose de ces éléments avant la présentation des comptes à l'assemblée.",
   ],
   procs: [
-    P("verifications", "Record the verifications carried out and the items of the financial statements examined.", "Consigner les contrôles effectués et les postes des états financiers examinés.", "Audit programme · working papers · B1", "Programme de travail · feuilles de travail · B1"),
-    P("irregularities", "List the irregularities and inaccuracies identified, and cross-refer each to the working paper that records it.", "Recenser les irrégularités et inexactitudes relevées et les renvoyer à la feuille de travail correspondante.", "B5 · B4 · E310 · working papers", "B5 · B4 · E310 · feuilles de travail"),
-    P("comparison", "Set out the conclusions drawn from the observations on the results of the period compared with the prior period.", "Exposer les conclusions tirées des observations sur les résultats de l'exercice comparés au précédent.", "A1 · analytical review · prior financial statements", "A1 · revue analytique · états financiers antérieurs"),
-    P("changes", "Record any change in presentation or in accounting method, and its effect.", "Consigner tout changement de présentation ou de méthode comptable et son incidence.", "D4.2 · A1 · policy note", "D4.2 · A1 · note de méthodes"),
-    P("send", "Send the report to the board and record the date it was sent and the meeting at which it was considered.", "Adresser le rapport au conseil et consigner sa date d'envoi et la réunion au cours de laquelle il a été examiné.", "Our report · board minutes (E360)", "Notre rapport · procès-verbal du conseil (E360)"),
+    P("verifications", "Record the verifications carried out and the items of the financial statements examined.", "Consigner les contrôles effectués et les postes des états financiers examinés.", "Audit programme · working papers · C4.1", "Programme de travail · feuilles de travail · C4.1"),
+    P("irregularities", "List the irregularities and inaccuracies identified, and cross-refer each to the working paper that records it.", "Recenser les irrégularités et inexactitudes relevées et les renvoyer à la feuille de travail correspondante.", "C1.1 · C1.2 · E6.1 · working papers", "C1.1 · C1.2 · E6.1 · feuilles de travail"),
+    P("comparison", "Set out the conclusions drawn from the observations on the results of the period compared with the prior period.", "Exposer les conclusions tirées des observations sur les résultats de l'exercice comparés au précédent.", "C2.1 · analytical review · prior financial statements", "C2.1 · revue analytique · états financiers antérieurs"),
+    P("changes", "Record any change in presentation or in accounting method, and its effect.", "Consigner tout changement de présentation ou de méthode comptable et son incidence.", "P3.1 · C2.1 · policy note", "P3.1 · C2.1 · note de méthodes"),
+    P("send", "Send the report to the board and record the date it was sent and the meeting at which it was considered.", "Adresser le rapport au conseil et consigner sa date d'envoi et la réunion au cours de laquelle il a été examiné.", "Our report · board minutes (E6.4)", "Notre rapport · procès-verbal du conseil (E6.4)"),
   ],
   items: [
     Q("complete", "The report covers the verifications carried out and every irregularity and inaccuracy identified (procedures 1, 2).", "Le rapport couvre les contrôles effectués et chaque irrégularité et inexactitude relevée (procédures 1, 2)."),
@@ -627,7 +627,7 @@ const F3 = mk({
   ],
 });
 
-const F4 = mk({
+const C5_5 = mk({
   std: "OHADA — Acte uniforme sociétés commerciales, procédure d'alerte",
   ownsEn: "the alert procedure file and the position at each stage",
   ownsFr: "le dossier de la procédure d'alerte et la situation à chaque étape",
@@ -640,18 +640,18 @@ const F4 = mk({
     "Le dossier consigne les faits relevés, la date d'engagement de chaque étape, la réponse reçue et la décision prise à l'issue de chacune.",
   ],
   procs: [
-    P("facts", "Record the facts identified that are of a nature to compromise the continuity of the undertaking, and the evidence for each.", "Consigner les faits relevés de nature à compromettre la continuité de l'exploitation et les éléments qui les établissent.", "E330 · D5.5 · F7 · working papers", "E330 · D5.5 · F7 · feuilles de travail"),
-    P("assess", "Assess whether the facts require the procedure to be engaged, and record the basis for that decision.", "Apprécier si ces faits imposent l'engagement de la procédure et consigner le fondement de cette décision.", "Uniform Act · consultation record B3", "Acte uniforme · registre des consultations B3"),
+    P("facts", "Record the facts identified that are of a nature to compromise the continuity of the undertaking, and the evidence for each.", "Consigner les faits relevés de nature à compromettre la continuité de l'exploitation et les éléments qui les établissent.", "E6.3 · S3.3 · C5.8 · working papers", "E6.3 · S3.3 · C5.8 · feuilles de travail"),
+    P("assess", "Assess whether the facts require the procedure to be engaged, and record the basis for that decision.", "Apprécier si ces faits imposent l'engagement de la procédure et consigner le fondement de cette décision.", "Uniform Act · consultation record C1.3", "Acte uniforme · registre des consultations C1.3"),
     P("stage1", "Where the procedure is engaged, write to the chief executive requesting an explanation, and record the date sent and the deadline for reply.", "Lorsque la procédure est engagée, écrire au dirigeant pour demander des explications et consigner la date d'envoi et le délai de réponse.", "Our letter · acknowledgement of receipt", "Notre lettre · accusé de réception"),
     P("response", "Record the response received, evaluate whether it addresses the facts, and record the decision to close the procedure or to move to the next stage.", "Consigner la réponse reçue, apprécier si elle traite les faits relevés et consigner la décision de clore la procédure ou de passer à l'étape suivante.", "Response received · our evaluation", "Réponse reçue · notre appréciation"),
     P("stage2", "Where the response is not satisfactory or is not received, invite the board to deliberate on the facts and record the outcome.", "Si la réponse est insatisfaisante ou absente, inviter le conseil à délibérer sur les faits et consigner l'issue.", "Our letter to the board · board minutes", "Notre lettre au conseil · procès-verbal du conseil"),
     P("stage3", "Where the matter remains unresolved, prepare the report to the general meeting and record the date it is to be presented.", "Si la situation demeure non résolue, préparer le rapport à l'assemblée générale et consigner la date de sa présentation.", "Our report · convening notice", "Notre rapport · avis de convocation"),
-    P("interaction", "Record the interaction between the procedure and our audit report, including the effect on the going concern section.", "Consigner l'articulation entre la procédure et notre rapport d'audit, dont l'effet sur la section relative à la continuité.", "E330 · B7 · C1", "E330 · B7 · C1"),
+    P("interaction", "Record the interaction between the procedure and our audit report, including the effect on the going concern section.", "Consigner l'articulation entre la procédure et notre rapport d'audit, dont l'effet sur la section relative à la continuité.", "E6.3 · C2.2 · C5.1", "E6.3 · C2.2 · C5.1"),
   ],
   items: [
     Q("not_engaged", "No fact of a nature to compromise the continuity of the undertaking was identified, so the procedure is not engaged (procedures 1, 2).", "Aucun fait de nature à compromettre la continuité n'a été relevé ; la procédure n'est pas engagée (procédures 1, 2)."),
     Q("deadlines", "Where engaged, each stage was carried out within the deadline the Uniform Act sets (procedures 3 to 6).", "Lorsqu'elle est engagée, chaque étape a été menée dans le délai fixé par l'Acte uniforme (procédures 3 à 6).", true),
-    Q("consistent", "The position taken in the procedure is consistent with the going concern conclusion in B7 (procedure 7).", "La position retenue dans la procédure concorde avec la conclusion sur la continuité en B7 (procédure 7).", true),
+    Q("consistent", "The position taken in the procedure is consistent with the going concern conclusion in C2.2 (procedure 7).", "La position retenue dans la procédure concorde avec la conclusion sur la continuité en C2.2 (procédure 7).", true),
   ],
   conclEn: [
     "The facts identified have been assessed against the requirement to engage the alert procedure, and the position at each stage engaged is recorded.",
@@ -661,7 +661,7 @@ const F4 = mk({
   ],
 });
 
-const F5 = mk({
+const C5_6 = mk({
   std: "OHADA — révélation des faits délictueux · ISA 250 (Revised) ¶28–29",
   ownsEn: "the assessment of whether facts require disclosure to the public prosecutor",
   ownsFr: "l'appréciation de l'obligation de révélation des faits délictueux",
@@ -674,9 +674,9 @@ const F5 = mk({
     "L'appréciation consigne les faits, leur qualification ou non en infraction, les avis obtenus, et la décision prise avec sa date.",
   ],
   procs: [
-    P("facts", "Record the facts identified during the engagement that may constitute a criminal offence, and the evidence for each.", "Consigner les faits relevés au cours de la mission susceptibles de constituer une infraction et les éléments qui les établissent.", "E310 · E350 · B4 · working papers", "E310 · E350 · B4 · feuilles de travail"),
+    P("facts", "Record the facts identified during the engagement that may constitute a criminal offence, and the evidence for each.", "Consigner les faits relevés au cours de la mission susceptibles de constituer une infraction et les éléments qui les établissent.", "E6.1 · E2.1 · C1.2 · working papers", "E6.1 · E2.1 · C1.2 · feuilles de travail"),
     P("characterise", "Assess whether the facts are capable of being characterised as an offence, distinguishing an irregularity from a criminal act.", "Apprécier si les faits sont susceptibles de recevoir une qualification pénale, en distinguant l'irrégularité de l'acte délictueux.", "Applicable criminal law · legal advice", "Textes pénaux applicables · avis juridique"),
-    P("advice", "Obtain legal advice where the characterisation is not clear, and record the advice and its author.", "Obtenir un avis juridique lorsque la qualification n'est pas évidente et consigner cet avis et son auteur.", "Legal opinion · B3 consultation record", "Avis juridique · registre des consultations B3"),
+    P("advice", "Obtain legal advice where the characterisation is not clear, and record the advice and its author.", "Obtenir un avis juridique lorsque la qualification n'est pas évidente et consigner cet avis et son auteur.", "Legal opinion · C1.3 consultation record", "Avis juridique · registre des consultations C1.3"),
     P("materiality", "Record that the obligation does not depend on the amount involved being material to the financial statements.", "Consigner que l'obligation ne dépend pas du caractère significatif du montant en cause pour les états financiers.", "Professional obligations · Uniform Act", "Obligations professionnelles · Acte uniforme"),
     P("decision", "Record the decision to disclose or not to disclose, the reasons, the date, and the partner who took it.", "Consigner la décision de révéler ou non, ses motifs, sa date et l'associé qui l'a prise.", "Partner decision note", "Note de décision de l'associé"),
     P("disclosure", "Where disclosure is required, make it to the public prosecutor and retain the evidence of the filing.", "Lorsque la révélation est requise, l'adresser au procureur de la République et conserver la preuve de l'envoi.", "Our letter · proof of filing", "Notre lettre · preuve de dépôt"),
@@ -696,7 +696,7 @@ const F5 = mk({
   ],
 });
 
-const F6 = mk({
+const C5_7 = mk({
   std: "OHADA — Acte uniforme sociétés commerciales, registre des titres nominatifs",
   ownsEn: "the attestation on the register of registered securities",
   ownsFr: "l'attestation sur le registre des titres nominatifs",
@@ -710,10 +710,10 @@ const F6 = mk({
   ],
   procs: [
     P("exists", "Inspect the register and confirm it is kept in the form the Uniform Act requires, and that its pages are numbered and unbroken.", "Examiner le registre et vérifier sa tenue dans la forme requise par l'Acte uniforme, avec une pagination continue.", "Register of registered securities", "Registre des titres nominatifs"),
-    P("agree", "Agree the total number of securities recorded to the share capital in the financial statements and to the statutes.", "Rapprocher le nombre total de titres inscrits du capital figurant dans les états financiers et des statuts.", "Register · statutes · E280", "Registre · statuts · E280"),
+    P("agree", "Agree the total number of securities recorded to the share capital in the financial statements and to the statutes.", "Rapprocher le nombre total de titres inscrits du capital figurant dans les états financiers et des statuts.", "Register · statutes · E4.16", "Registre · statuts · E4.16"),
     P("movements", "Test the transfers recorded in the period to the transfer documents and to the board approval where the statutes require it.", "Tester les mouvements de l'exercice au regard des ordres de mouvement et de l'agrément du conseil lorsque les statuts l'exigent.", "Transfer orders · board minutes", "Ordres de mouvement · procès-verbaux du conseil"),
-    P("holders", "Agree the holders recorded to the list used to convene the general meeting, and to the related party register.", "Rapprocher les titulaires inscrits de la liste ayant servi à convoquer l'assemblée et du registre des parties liées.", "Convening list · D5.6 · E320", "Liste de convocation · D5.6 · E320"),
-    P("pledges", "Identify any pledge or restriction recorded against the securities, and confirm it is disclosed.", "Identifier tout nantissement ou restriction inscrit sur les titres et vérifier sa mention.", "Register · loan agreements · E170", "Registre · contrats de prêt · E170"),
+    P("holders", "Agree the holders recorded to the list used to convene the general meeting, and to the related party register.", "Rapprocher les titulaires inscrits de la liste ayant servi à convoquer l'assemblée et du registre des parties liées.", "Convening list · S3.4 · E6.2", "Liste de convocation · S3.4 · E6.2"),
+    P("pledges", "Identify any pledge or restriction recorded against the securities, and confirm it is disclosed.", "Identifier tout nantissement ou restriction inscrit sur les titres et vérifier sa mention.", "Register · loan agreements · E4.8", "Registre · contrats de prêt · E4.8"),
     P("attest", "Issue the attestation, and record its date and the person to whom it was given.", "Établir l'attestation et consigner sa date et son destinataire.", "Our attestation", "Notre attestation"),
   ],
   items: [
@@ -729,25 +729,25 @@ const F6 = mk({
   ],
 });
 
-const F7 = mk({
+const C5_8 = mk({
   std: "OHADA — Acte uniforme sociétés commerciales, article 664 · ISA 570 (Revised)",
   ownsEn: "the monitoring of net equity against half of the share capital",
   ownsFr: "le suivi des capitaux propres au regard de la moitié du capital social",
   reqEn: [
     "Where the net equity of the company falls below half of its share capital as a result of losses, the directors must convene an extraordinary general meeting to decide whether to dissolve the company or to continue, and to regularise the position within the period the Uniform Act allows.",
-    "The position is a matter for our report, and bears on the going concern assessment in E330 and on whether the alert procedure in F4 is engaged.",
+    "The position is a matter for our report, and bears on the going concern assessment in E6.3 and on whether the alert procedure in C5.5 is engaged.",
   ],
   reqFr: [
     "Lorsque les capitaux propres deviennent inférieurs à la moitié du capital social du fait de pertes, les dirigeants doivent convoquer une assemblée générale extraordinaire pour décider de la dissolution ou de la poursuite de l'activité, et régulariser dans le délai prévu par l'Acte uniforme.",
-    "Cette situation relève de notre rapport et influe sur l'appréciation de la continuité en E330 et sur l'engagement éventuel de la procédure d'alerte en F4.",
+    "Cette situation relève de notre rapport et influe sur l'appréciation de la continuité en E6.3 et sur l'engagement éventuel de la procédure d'alerte en C5.5.",
   ],
   procs: [
-    P("compute", "Compute net equity from the audited balance sheet and compare it with half of the share capital.", "Calculer les capitaux propres à partir du bilan audité et les comparer à la moitié du capital social.", "A1 · E280 · statutes", "A1 · E280 · statuts"),
+    P("compute", "Compute net equity from the audited balance sheet and compare it with half of the share capital.", "Calculer les capitaux propres à partir du bilan audité et les comparer à la moitié du capital social.", "C2.1 · E4.16 · statutes", "C2.1 · E4.16 · statuts"),
     P("prior", "Establish whether the threshold was already breached at the prior period end, and what was decided then.", "Établir si le seuil était déjà franchi à la clôture précédente et la décision alors prise.", "Prior financial statements · prior AGE minutes", "États financiers antérieurs · procès-verbal d'AGE antérieur"),
     P("meeting", "Where the threshold is breached, confirm the extraordinary general meeting was convened within the period the Uniform Act allows, and obtain the resolution.", "En cas de franchissement, vérifier la convocation de l'assemblée générale extraordinaire dans le délai prévu et obtenir la résolution.", "AGE minutes · convening notice · Uniform Act", "Procès-verbal d'AGE · avis de convocation · Acte uniforme"),
     P("publication", "Confirm the decision was published and filed with the RCCM as required.", "Vérifier la publication et le dépôt de la décision au RCCM comme requis.", "Publication evidence · RCCM filing receipt", "Preuve de publication · récépissé RCCM"),
-    P("regularisation", "Where continuation was decided, establish the deadline for regularising the position and the plan to reach it.", "Lorsque la poursuite a été décidée, établir l'échéance de régularisation et le plan pour y parvenir.", "AGE resolution · management's plan · E330", "Résolution d'AGE · plan de la direction · E330"),
-    P("effect", "Record the effect on the going concern assessment and on our report, and whether the alert procedure is engaged.", "Consigner l'effet sur l'appréciation de la continuité et sur notre rapport, et l'engagement éventuel de la procédure d'alerte.", "E330 · B7 · F4 · C1", "E330 · B7 · F4 · C1"),
+    P("regularisation", "Where continuation was decided, establish the deadline for regularising the position and the plan to reach it.", "Lorsque la poursuite a été décidée, établir l'échéance de régularisation et le plan pour y parvenir.", "AGE resolution · management's plan · E6.3", "Résolution d'AGE · plan de la direction · E6.3"),
+    P("effect", "Record the effect on the going concern assessment and on our report, and whether the alert procedure is engaged.", "Consigner l'effet sur l'appréciation de la continuité et sur notre rapport, et l'engagement éventuel de la procédure d'alerte.", "E6.3 · C2.2 · C5.5 · C5.1", "E6.3 · C2.2 · C5.5 · C5.1"),
   ],
   items: [
     Q("above", "Net equity exceeds half of the share capital, so article 664 is not engaged (procedure 1).", "Les capitaux propres excèdent la moitié du capital social ; l'article 664 n'est pas applicable (procédure 1)."),
@@ -763,7 +763,7 @@ const F7 = mk({
   ],
 });
 
-const F8 = mk({
+const C5_9 = mk({
   std: "OHADA — Acte uniforme sociétés commerciales, co-commissariat · ISA 220 (Revised)",
   ownsEn: "the coordination with the joint auditor and the division of the work",
   ownsFr: "la coordination avec le co-commissaire aux comptes et la répartition des travaux",
@@ -776,12 +776,12 @@ const F8 = mk({
     "La répartition des travaux est convenue lors de la planification, et la revue croisée est effectuée avant la signature du rapport.",
   ],
   procs: [
-    P("appointment", "Confirm the appointment of both auditors, the term of each mandate, and that both are eligible and independent.", "Vérifier la nomination des deux commissaires, la durée de chaque mandat et l'éligibilité et l'indépendance de chacun.", "AGO minutes · statutes · D3.2", "Procès-verbal d'AGO · statuts · D3.2"),
+    P("appointment", "Confirm the appointment of both auditors, the term of each mandate, and that both are eligible and independent.", "Vérifier la nomination des deux commissaires, la durée de chaque mandat et l'éligibilité et l'indépendance de chacun.", "AGO minutes · statutes · P2.1", "Procès-verbal d'AGO · statuts · P2.1"),
     P("division", "Agree the division of the work in writing, by cycle and by location, and record what each auditor will perform.", "Convenir par écrit de la répartition des travaux, par cycle et par implantation, et consigner les travaux de chacun.", "Signed division of work · engagement timetable", "Répartition signée · calendrier de mission"),
-    P("common", "Agree the matters to be performed jointly, including materiality, the risk assessment and the conclusion on the opinion.", "Convenir des travaux menés conjointement : seuil de signification, évaluation des risques et conclusion sur l'opinion.", "Joint planning memorandum · D5.1 · D7.2", "Note de planification conjointe · D5.1 · D7.2"),
+    P("common", "Agree the matters to be performed jointly, including materiality, the risk assessment and the conclusion on the opinion.", "Convenir des travaux menés conjointement : seuil de signification, évaluation des risques et conclusion sur l'opinion.", "Joint planning memorandum · P6.1 · S3.1", "Note de planification conjointe · P6.1 · S3.1"),
     P("cross_review", "Perform the cross-review of the other auditor's work on the cycles they covered, and record the extent of the review and the matters raised.", "Effectuer la revue croisée des travaux de l'autre commissaire sur les cycles qu'il a couverts et consigner l'étendue de la revue et les points soulevés.", "Other auditor's working papers · our review notes", "Feuilles de travail de l'autre commissaire · nos notes de revue"),
-    P("differences", "Record any difference of view on a significant matter and how it was resolved before the report was signed.", "Consigner toute divergence d'appréciation sur un point significatif et sa résolution avant la signature du rapport.", "Joint meeting minutes · B3 · B4", "Comptes rendus de réunion conjointe · B3 · B4"),
-    P("report", "Agree the terms of the single report, including any modification, and confirm both auditors sign it.", "Convenir des termes du rapport unique, y compris toute modification, et vérifier la signature des deux commissaires.", "Draft report · C1", "Projet de rapport · C1"),
+    P("differences", "Record any difference of view on a significant matter and how it was resolved before the report was signed.", "Consigner toute divergence d'appréciation sur un point significatif et sa résolution avant la signature du rapport.", "Joint meeting minutes · C1.3 · C1.2", "Comptes rendus de réunion conjointe · C1.3 · C1.2"),
+    P("report", "Agree the terms of the single report, including any modification, and confirm both auditors sign it.", "Convenir des termes du rapport unique, y compris toute modification, et vérifier la signature des deux commissaires.", "Draft report · C5.1", "Projet de rapport · C5.1"),
   ],
   items: [
     Q("written", "The division of the work was agreed in writing before the work began (procedure 2).", "La répartition des travaux a été convenue par écrit avant le début des travaux (procédure 2)."),
@@ -798,24 +798,24 @@ const F8 = mk({
 });
 
 export const CONCLUSION_PAPERS: Record<string, PaperDef> = {
-  A1,
-  B1,
-  B6,
-  B10,
-  B5,
-  B4,
-  B3,
-  B7,
-  B8,
-  B9,
-  B2,
-  C1,
-  F1,
-  F2,
-  F3,
-  F4,
-  F5,
-  F6,
-  F7,
-  F8,
+  "C2.1": C2_1,
+  "C4.1": C4_1,
+  "C4.3": C4_3,
+  "C6.1": C6_1,
+  "C1.1": C1_1,
+  "C1.2": C1_2,
+  "C1.3": C1_3,
+  "C2.2": C2_2,
+  "C3.1": C3_1,
+  "C3.2": C3_2,
+  "C4.2": C4_2,
+  "C5.1": C5_1,
+  "C5.2": C5_2,
+  "C5.3": C5_3,
+  "C5.4": C5_4,
+  "C5.5": C5_5,
+  "C5.6": C5_6,
+  "C5.7": C5_7,
+  "C5.8": C5_8,
+  "C5.9": C5_9,
 };

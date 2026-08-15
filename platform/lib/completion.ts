@@ -1,4 +1,4 @@
-// Phase 7: completion (B1) gates, report issuance, the 60-day assembly clock,
+// Phase 7: completion (C4.1) gates, report issuance, the 60-day assembly clock,
 // the immutable archive, and rollforward (spec §7, §8.6, §9.6). Gates BLOCK
 // (spec §19.2): the report cannot be issued until every gate passes.
 
@@ -65,7 +65,7 @@ async function recordExists(tx: PoolClient, engagementId: string, key: string): 
   );
 }
 
-/** B1 completion gates (spec §7, items 1–13 mapped to computable checks). */
+/** C4.1 completion gates (spec §7, items 1–13 mapped to computable checks). */
 async function completionGatesTx(tx: PoolClient, engagementId: string): Promise<GateResult[]> {
   // 1. Every E-section with program steps has a REVIEWED conclusion.
   const unconcluded = await count(
@@ -98,7 +98,7 @@ async function completionGatesTx(tx: PoolClient, engagementId: string): Promise<
       WHERE engagement_id = $1 AND added_after_planning AND addition_approved_by IS NULL`,
     [engagementId],
   );
-  // 3. B5: no uncorrected misstatements above FINAL materiality.
+  // 3. C1.1: no uncorrected misstatements above FINAL materiality.
   const materiality = await tx.query<{ overall: string }>(
     `SELECT overall::text FROM materiality
       WHERE engagement_id = $1 AND status = 'approved'
@@ -113,25 +113,25 @@ async function completionGatesTx(tx: PoolClient, engagementId: string): Promise<
   const b5Ok =
     materiality.rows[0] !== undefined &&
     Math.abs(Number(uncorrected.rows[0]?.total ?? 0)) <= Number(materiality.rows[0].overall);
-  // 10. B4 all cleared.
+  // 10. C1.2 all cleared.
   const openB4 = await count(
     tx,
     "SELECT count(*)::text AS n FROM finding WHERE engagement_id = $1 AND route = 'b4' AND status = 'open'",
     [engagementId],
   );
-  // 11. B6: no confirmations still outstanding.
+  // 11. C4.3: no confirmations still outstanding.
   const outstandingConfirmations = await count(
     tx,
     `SELECT count(*)::text AS n FROM confirmation
       WHERE engagement_id = $1 AND status IN ('prepared', 'approved', 'sent')`,
     [engagementId],
   );
-  // 9. OHADA two-letter representation layering generated under B8.
+  // 9. OHADA two-letter representation layering generated under C3.1.
   const repLetters = await count(
     tx,
     `SELECT count(DISTINCT d.title)::text AS n
        FROM document d JOIN file_item fi ON fi.id = d.file_item_id
-      WHERE fi.engagement_id = $1 AND fi.code = 'B8' AND d.kind = 'letter'`,
+      WHERE fi.engagement_id = $1 AND fi.code = 'C3.1' AND d.kind = 'letter'`,
     [engagementId],
   );
 
@@ -275,7 +275,7 @@ export async function ensureNotArchived(tx: PoolClient, engagementId: string): P
 
 /**
  * 7.12 Rollforward N → N+1 (spec §8.6): new engagement + carried-forward
- * understanding/related parties + B10 points forward injected.
+ * understanding/related parties + C6.1 points forward injected.
  */
 export async function rollforward(engagementId: string, newYear: number): Promise<string> {
   const { tenantId, userId } = await requireTenant();
@@ -299,7 +299,7 @@ export async function rollforward(engagementId: string, newYear: number): Promis
   });
   await carryForwardFromPriorYear(newEngagementId);
 
-  // B10 points forward → injected into the new file (spec §8.6).
+  // C6.1 points forward → injected into the new file (spec §8.6).
   const points = await getCompletionRecord(engagementId, "points_forward");
   if (points) {
     await withTenant(tenantId, async (tx) => {

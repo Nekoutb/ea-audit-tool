@@ -77,7 +77,7 @@ describe("engagement file index instantiation", () => {
   it("instantiates the full default index on engagement creation", async () => {
     const items = await listFileItems(engagementId);
     expect(items).toHaveLength(DEFAULT_FILE_INDEX.length);
-    const d31 = items.find((item) => item.code === "D3.1");
+    const d31 = items.find((item) => item.code === "P1.1");
     expect(d31).toBeDefined();
     expect(items.find((item) => item.code === "D2")).toBeUndefined();
     d31ItemId = d31!.id;
@@ -85,13 +85,13 @@ describe("engagement file index instantiation", () => {
 });
 
 describe("document lifecycle", () => {
-  it("generates D3.1 from its template as version 1", async () => {
+  it("generates P1.1 from its template as version 1", async () => {
     documentId = await generateDocument(d31ItemId, "en");
     const document = await getDocument(documentId);
     expect(document?.currentVersion).toBe(1);
     expect(document?.status).toBe("draft");
     const versions = await listVersions(documentId);
-    expect(versions[0].note).toBe("template:D3.1-acceptance@1");
+    expect(versions[0].note).toBe("template:P1.1-acceptance@1");
     // Idempotent: generating again returns the same document.
     expect(await generateDocument(d31ItemId, "en")).toBe(documentId);
   });

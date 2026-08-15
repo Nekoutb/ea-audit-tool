@@ -88,10 +88,10 @@ export default async function AcceptancePage(props: {
       <ErrorBanner error={error} failed={failed} locale={locale} />
 
       <Panel className={sectionClass}>
-        <h2 className={heading}>D3.1</h2>
+        <h2 className={heading}>P1.1</h2>
         <div className="mt-2 flex flex-wrap gap-3">
-          <Link href={`/engagements/${id}/forms/D3.1`} className={btn} data-testid="open-d31-form">
-            {tp.openForm} (D3.1)
+          <Link href={`/engagements/${id}/forms/P1.1`} className={btn} data-testid="open-d31-form">
+            {tp.openForm} (P1.1)
           </Link>
         </div>
       </Panel>

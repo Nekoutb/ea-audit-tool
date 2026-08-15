@@ -60,7 +60,7 @@ beforeAll(async () => {
     [TENANT],
   );
   engagementId = await createEngagement({ clientId: client.rows[0].id, fiscalYear: 2025, periodEnd: "2025-12-31" });
-  e100 = (await listFileItems(engagementId)).find((item) => item.code === "E100")!.id;
+  e100 = (await listFileItems(engagementId)).find((item) => item.code === "E4.1")!.id;
   const version = await createMaterialityVersion(engagementId, {
     benchmark: "revenue", benchmarkAmount: 200_000_000, percentage: 1,
     justification: "Test.", performancePct: 75, trivialPct: 5,
@@ -118,7 +118,7 @@ describe("6.2–6.4 letters + lifecycle", () => {
 });
 
 describe("6.6 reply evaluation + disposition", () => {
-  it("zero difference reconciles; a difference is an exception; client error → B5", async () => {
+  it("zero difference reconciles; a difference is an exception; client error → C1.1", async () => {
     const list = await listConfirmationsFor(engagementId);
     const acme = byParty(list, "ACME"); // sent
     const reply = await recordReply(acme.id, 4_200_000); // book 5,000,000

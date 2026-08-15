@@ -1,7 +1,7 @@
-// Preliminary analytical review (D4.3 / ISA 315, step 3.9): auto-computed
+// Preliminary analytical review (P3.2 / ISA 315, step 3.9): auto-computed
 // variance of the current TB against prior year, grouped by E-section, with
 // threshold flags against performance materiality and a small class-based
-// ratio set. Every flagged line can raise a potential risk into D7.1.
+// ratio set. Every flagged line can raise a potential risk into P5.2.
 // Ratios use SYSCOHADA class prefixes directly (Appendix A) so they do not
 // depend on the grouping library's labels.
 

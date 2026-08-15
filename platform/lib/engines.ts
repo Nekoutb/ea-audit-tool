@@ -1,7 +1,7 @@
 // Phase 5 automation engines (spec §11). Every run records inputs (dataset),
 // parameters, user and results — full reproducibility — and produces an Excel
 // working-paper output indexed under the section. Exceptions route into the
-// findings system; projected misstatements land in B5 automatically.
+// findings system; projected misstatements land in C1.1 automatically.
 
 import { createHash, createHmac } from "node:crypto";
 import ExcelJS from "exceljs";
@@ -321,7 +321,7 @@ export async function runSampling(input: {
   });
 }
 
-/** 5.3: evaluate sample results — projected misstatement auto-raised to B5. */
+/** 5.3: evaluate sample results — projected misstatement auto-raised to C1.1. */
 export async function evaluateSampling(
   runId: string,
   misstatementFound: number,

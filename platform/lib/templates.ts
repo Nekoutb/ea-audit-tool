@@ -37,7 +37,7 @@ const GENERIC: WorkpaperTemplate = {
 };
 
 const D31: WorkpaperTemplate = {
-  id: "D3.1-acceptance",
+  id: "P1.1-acceptance",
   version: 1,
   purpose: {
     en: "Document the firm's acceptance or continuance decision for this engagement (ISA 220, ISQM 1, IESBA Code). The engagement cannot move to planning until the partner signs the acceptance conclusion.",
@@ -68,7 +68,7 @@ const D31: WorkpaperTemplate = {
 };
 
 const E500_ITGC: WorkpaperTemplate = {
-  id: "E500-itgc",
+  id: "E1.1-itgc",
   version: 1,
   purpose: {
     en: "Test the design and operating effectiveness of general IT controls (ITGCs) over the systems relevant to financial reporting, to support reliance on automated controls and system-generated reports (ISA 315 (Revised 2019) Appendices 5–6, ISA 330).",
@@ -97,7 +97,7 @@ const E500_ITGC: WorkpaperTemplate = {
 };
 
 const E510_APP_CONTROLS: WorkpaperTemplate = {
-  id: "E510-application-controls",
+  id: "E1.2-application-controls",
   version: 1,
   purpose: {
     en: "Test the key automated application controls, interface controls and IT-dependent manual controls (including system-generated reports) on which the audit strategy places reliance (ISA 330).",
@@ -106,7 +106,7 @@ const E510_APP_CONTROLS: WorkpaperTemplate = {
   items: {
     en: [
       "Identify the automated controls and key system-generated reports relied upon, per significant transaction class (E1) and account section (E3).",
-      "For each automated control, test the configuration/parameters and one instance of operation (benchmarking is permitted only where ITGCs (E500) are effective).",
+      "For each automated control, test the configuration/parameters and one instance of operation (benchmarking is permitted only where ITGCs (E1.1) are effective).",
       "Test the completeness and accuracy of key system-generated reports used as audit evidence or within management's controls.",
       "Test interface controls over data transfers between in-scope systems (completeness, accuracy, error handling).",
       "Evaluate exceptions: reassess control risk and extend substantive procedures where reliance is not supported.",
@@ -114,7 +114,7 @@ const E510_APP_CONTROLS: WorkpaperTemplate = {
     ],
     fr: [
       "Identifier les contrôles automatisés et les états clés générés par les systèmes sur lesquels l'audit s'appuie, par flux significatif (E1) et par section de comptes (E3).",
-      "Pour chaque contrôle automatisé, tester le paramétrage et une occurrence de fonctionnement (l'approche « benchmark » n'est admise que si les CGI (E500) sont efficaces).",
+      "Pour chaque contrôle automatisé, tester le paramétrage et une occurrence de fonctionnement (l'approche « benchmark » n'est admise que si les CGI (E1.1) sont efficaces).",
       "Tester l'exhaustivité et l'exactitude des états clés générés par les systèmes utilisés comme éléments probants ou dans les contrôles de la direction.",
       "Tester les contrôles d'interfaces sur les transferts de données entre systèmes du périmètre (exhaustivité, exactitude, traitement des rejets).",
       "Évaluer les exceptions : réapprécier le risque lié aux contrôles et étendre les procédures de corroboration si la confiance n'est pas justifiée.",
@@ -124,9 +124,9 @@ const E510_APP_CONTROLS: WorkpaperTemplate = {
 };
 
 const TEMPLATES: Record<string, WorkpaperTemplate> = {
-  "D3.1": D31,
-  E500: E500_ITGC,
-  E510: E510_APP_CONTROLS,
+  "P1.1": D31,
+  "E1.1": E500_ITGC,
+  "E1.2": E510_APP_CONTROLS,
 };
 
 /** Resolve the template for a file-index code (falls back to the generic form). */

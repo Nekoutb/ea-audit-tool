@@ -35,7 +35,7 @@ async function guarded(path: string, fn: () => Promise<string | void>): Promise<
 
 const pagePath = (engagementId: string): string => `/engagements/${engagementId}/conclusion`;
 
-/** 7.3 Final analytical review on final figures, snapshotted into B1. */
+/** 7.3 Final analytical review on final figures, snapshotted into C4.1. */
 export async function finalAnalyticsAction(engagementId: string): Promise<void> {
   await guarded(pagePath(engagementId), async () => {
     const review = await analyticalReview(engagementId);

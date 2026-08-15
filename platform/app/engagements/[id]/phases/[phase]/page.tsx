@@ -91,9 +91,9 @@ export default async function PhaseTasksPage(props: {
       ? `/documents/${task.documentId}`
       : FORM_DEFINITIONS[task.code]
         ? `/engagements/${id}/forms/${task.code}`
-        : task.code === "D5.1"
+        : task.code === "P6.1"
           ? `/engagements/${id}/planning`
-          : task.code === "D7.2"
+          : task.code === "S3.1"
             ? `/engagements/${id}/risks`
             : task.section === "F"
               ? `/engagements/${id}/legal`

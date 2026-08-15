@@ -212,7 +212,7 @@ export async function createEngagement(input: {
     if (!deferred) {
       await instantiateFileIndex(tx, tenantId, engagementId, complexity);
       // Spec §3: two presumed ISA 240 risks are auto-seeded on every
-      // engagement. They attach to the E100/E350 items, so under deferred
+      // engagement. They attach to the E4.1/E2.1 items, so under deferred
       // scoping the seeding happens at classification instead.
       await seedPresumedRisks(tx, tenantId, engagementId);
     }
@@ -263,7 +263,7 @@ export async function applyComplexity(
         [tenantId, engagementId, entry.code, entry.section, entry.titleEn, entry.titleFr, sortOrder, entry.conditional ?? false],
       );
     }
-    // The presumed ISA 240 risks attach to E100/E350, which exist from here.
+    // The presumed ISA 240 risks attach to E4.1/E2.1, which exist from here.
     const seeded = await tx.query(
       "SELECT 1 FROM risk WHERE engagement_id = $1 AND presumed_type IS NOT NULL LIMIT 1",
       [engagementId],

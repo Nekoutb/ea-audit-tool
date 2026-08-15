@@ -173,7 +173,7 @@ describe("7.1/7.10 completion gates block issuance", () => {
 });
 
 describe("7.10 OHADA statutory report", () => {
-  it("files the FR report under A1 as kind='report' (docx)", async () => {
+  it("files the FR report under C2.1 as kind='report' (docx)", async () => {
     const documentId = await generateAuditReport({
       engagementId,
       opinion: "unmodified",
@@ -211,7 +211,7 @@ describe("7.11/7.12 archive immutability + rollforward", () => {
     await expect(archiveEngagement(engagementId)).rejects.toThrow("already-archived");
   });
 
-  it("rolls forward to N+1 carrying the B10 points", async () => {
+  it("rolls forward to N+1 carrying the C6.1 points", async () => {
     await expect(rollforward(engagementId, 2025)).rejects.toThrow("invalid-year");
     const newId = await rollforward(engagementId, 2026);
     const engagement = await admin.query<{ fiscal_year: number; period_end: string }>(

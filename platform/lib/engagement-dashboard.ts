@@ -71,7 +71,7 @@ export interface PhaseProgress {
 export function phaseOfTask(section: string, code: string): DashboardPhase {
   if (section === "E") return "execution";
   if (section === "A" || section === "B" || section === "C" || section === "F") return "conclusion";
-  if (["D3.1", "D1", "D4.1", "D6.1", "D7.1"].includes(code)) return "acceptance";
+  if (["P1.1", "S5.1", "S5.2", "P2.2", "P5.2"].includes(code)) return "acceptance";
   return "planning";
 }
 
@@ -79,7 +79,7 @@ export function phaseOfTask(section: string, code: string): DashboardPhase {
 const BUCKET_CASE = `CASE
   WHEN fi.section = 'E' THEN 'execution'
   WHEN fi.section IN ('A', 'B', 'C', 'F') THEN 'conclusion'
-  WHEN fi.code IN ('D3.1', 'D1', 'D4.1', 'D6.1', 'D7.1') THEN 'acceptance'
+  WHEN fi.code IN ('P1.1', 'S5.1', 'S5.2', 'P2.2', 'P5.2') THEN 'acceptance'
   ELSE 'planning'
 END`;
 
@@ -294,8 +294,8 @@ export interface AttentionItem {
 }
 
 /**
- * The "requires your attention" queue: open findings (routed B4/C1), uncorrected
- * misstatements (B5), unconcluded significant risks, unsigned working papers and
+ * The "requires your attention" queue: open findings (routed C1.2/C5.1), uncorrected
+ * misstatements (C1.1), unconcluded significant risks, unsigned working papers and
  * outstanding PBC items — most recent first.
  */
 export async function engagementAttention(
@@ -355,7 +355,7 @@ export async function engagementAttention(
     }
     for (const m of misstatements.rows) {
       items.push({
-        code: "B5",
+        code: "C1.1",
         title: m.description,
         meta: `Uncorrected · XAF ${Number(m.amount).toLocaleString("fr-FR")}`,
         tone: "warn",
@@ -363,7 +363,7 @@ export async function engagementAttention(
       });
     }
     for (const r of risks.rows) {
-      items.push({ code: "D7.2", title: r.description, meta: "Significant risk", tone: "rose", ageDays: Number(r.age) });
+      items.push({ code: "S3.1", title: r.description, meta: "Significant risk", tone: "rose", ageDays: Number(r.age) });
     }
     for (const d of docs.rows) {
       items.push({
@@ -603,7 +603,7 @@ export async function dashboardStats(
 
 /**
  * One task by engagement + internal code — regardless of the conditional flag
- * (conditional items D4.7–D4.9 still have task pages and sign-offs even though
+ * (conditional items S4.1–S4.3 still have task pages and sign-offs even though
  * they are excluded from roll-ups until instantiated as applicable).
  */
 export async function taskForItem(engagementId: string, code: string): Promise<PhaseTask | null> {

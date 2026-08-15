@@ -10,7 +10,7 @@ import { getLocale } from "@/lib/locale";
 export const metadata = { title: "Sampling · AuditISA" };
 
 /** Cycle tasks that carry the sampling engine. */
-const SAMPLING_CODES = ["E100", "E110", "E120", "E130", "E140", "E170"];
+const SAMPLING_CODES = ["E4.1", "E4.2", "E4.3", "E4.4", "E4.5", "E4.8"];
 
 /**
  * The Sampling screen: sizes are computed, never typed — MUS from confidence
