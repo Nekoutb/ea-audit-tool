@@ -115,6 +115,8 @@ export default async function PlanningPage(props: {
     listFileItems(id),
   ]);
   const eSections = items.filter((item) => item.section === "E");
+  // Strategy driver rows open the working paper; the map resolves code -> item.
+  const itemIdOf = new Map(items.map((item) => [item.code, item.id]));
   const materialFlags = await (async () => {
     const { tenantId } = await requireTenant();
     return withTenant(tenantId, async (tx) => {
@@ -175,12 +177,14 @@ export default async function PlanningPage(props: {
                       </span>
                     </td>
                     <td className="px-4 py-2 text-right">
-                      {FORM_DEFINITIONS[code] && status !== "not_required" ? (
+                      {itemIdOf.has(code) || (FORM_DEFINITIONS[code] && status !== "not_required") ? (
                         <Link
                           href={
-                            CONDITIONAL_TRIGGERS[code]
-                              ? `/engagements/${id}/considerations#${encodeURIComponent(code)}`
-                              : `/engagements/${id}/forms/${encodeURIComponent(code)}`
+                            itemIdOf.has(code)
+                              ? `/engagements/${id}/sections/${itemIdOf.get(code)}`
+                              : CONDITIONAL_TRIGGERS[code]
+                                ? `/engagements/${id}/considerations#${encodeURIComponent(code)}`
+                                : `/engagements/${id}/forms/${encodeURIComponent(code)}`
                           }
                           className="inline-flex min-h-[32px] items-center font-medium text-emerald-700 hover:underline dark:text-emerald-400"
                         >

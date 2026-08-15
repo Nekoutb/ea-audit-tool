@@ -119,7 +119,12 @@ export async function carryForwardAction(engagementId: string): Promise<void> {
 }
 
 export async function addRelatedPartyAction(engagementId: string, formData: FormData): Promise<void> {
-  const path = `/engagements/${engagementId}/forms/S3.4`;
+  // The register is embedded on the working-paper screen as well as the legacy
+  // form; returnTo brings each screen back to itself.
+  const returnTo = String(formData.get("returnTo") ?? "");
+  const path = returnTo.startsWith(`/engagements/${engagementId}/`)
+    ? returnTo
+    : `/engagements/${engagementId}/forms/S3.4`;
   const name = String(formData.get("name") ?? "").trim();
   const relationship = String(formData.get("relationship") ?? "").trim();
   await guarded(path, async () => {
@@ -136,7 +141,10 @@ export async function addRelatedPartyAction(engagementId: string, formData: Form
 }
 
 export async function addEstimateAction(engagementId: string, formData: FormData): Promise<void> {
-  const path = `/engagements/${engagementId}/forms/S3.5`;
+  const returnTo = String(formData.get("returnTo") ?? "");
+  const path = returnTo.startsWith(`/engagements/${engagementId}/`)
+    ? returnTo
+    : `/engagements/${engagementId}/forms/S3.5`;
   const nature = String(formData.get("nature") ?? "").trim();
   await guarded(path, async () => {
     if (!nature) throw new Error("fields-required");

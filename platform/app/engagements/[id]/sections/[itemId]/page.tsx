@@ -28,6 +28,13 @@ import { SECTION_A, SECTION_B, SECTION_C, SIGNATURE_ROLES, planningRas } from "@
 import { atLeast, isRole } from "@/lib/rbac";
 import { listTaskNotes } from "@/lib/task-notes";
 import { significantAccounts, specificThresholds } from "@/lib/significant-accounts";
+import { craRows } from "@/lib/cra";
+import { listEstimates, listRelatedParties } from "@/lib/registers";
+import { EstimatesRegister, RelatedPartyRegister } from "@/components/PlanningRegisters";
+import { TriggerPanel } from "@/components/TriggerPanel";
+import { FORM_DEFINITIONS, loadForm } from "@/lib/forms";
+import { listRisks } from "@/lib/risks";
+import { CraMatrix } from "@/components/CraMatrix";
 import { SubmitButton } from "@/components/SubmitButton";
 import { TaskAttachments } from "@/components/TaskAttachments";
 import { WorkingPaper } from "@/components/WorkingPaper";
@@ -115,6 +122,15 @@ export default async function SectionPage(props: {
       if (sm.size > 0) autoValues.benchmark += ` · ${sm.size} specific threshold${sm.size > 1 ? "s" : ""} (P6.2)`;
     }
   }
+  if (section.code === "S5.1") {
+    const [m, risks] = await Promise.all([approvedMateriality(id), listRisks(id)]);
+    const live = risks.filter((r) => !r.rebutted);
+    const sig = live.filter((r) => r.significant).length;
+    const n = (x: number) => new Intl.NumberFormat("fr-FR").format(x);
+    autoValues.context = m
+      ? `${m.benchmark} · PM ${n(m.overall)} · TE ${n(m.performance)} FCFA · ${live.length} risk(s), ${sig} significant`
+      : `Materiality not approved yet · ${live.length} risk(s), ${sig} significant`;
+  }
   let campaign: Awaited<ReturnType<typeof listConfirmations>> = [];
   let campaignTeam: Awaited<ReturnType<typeof listEngagementTeam>> = [];
   if (isIndependenceTask) {
@@ -152,6 +168,14 @@ export default async function SectionPage(props: {
   // P6.2 (P6.2): the significance grid drives the task itself
 
   const sigAccounts = section.code === "P6.2" ? await significantAccounts(id) : null;
+  // S3.1 — the combined risk assessment matrix rides on top of the paper
+  const craView = section.code === "S3.1" ? await craRows(id) : null;
+  // S3.4/S3.5 — the planning sub-registers ride with the paper
+  const relatedParties = section.code === "S3.4" ? await listRelatedParties(id) : null;
+  const estimates = section.code === "S3.5" ? await listEstimates(id) : null;
+  // S5.1/S3.3 — legacy scoping triggers surfaced on the working paper
+  const triggerDef = section.code === "S5.1" || section.code === "S3.3" ? FORM_DEFINITIONS[section.code] : null;
+  const triggerValues = triggerDef ? (await loadForm(id, section.code)).values : {};
   // P7 — the planning review & approval summary takes over the centre column
   const ras = section.code === "P7.2" ? await planningRas(id) : null;
   // Appendix 1 rows: the engagement team by seniority, then three free rows
@@ -178,6 +202,9 @@ export default async function SectionPage(props: {
     "P1.5": ["P2.1", "C4.2"], "P6.1": ["C1.1", "S3.1"], "S3.2": ["E4.15"],
     "P5.1": ["E2.1", "E4.1"], "S3.3": ["E6.3", "C2.2"], "S3.4": ["E6.2"], "S3.5": ["E6.7"],
     "S3.1": ["P5.1", "E1.1"], "C1.1": ["P6.1", "C1.2"], "C2.2": ["E6.6", "E6.3", "C5.1"],
+    "S1.1": ["P6.2", "S1.2"], "S1.2": ["S1.3", "E1.1"], "S1.3": ["S1.2", "E1.1"], "S1.4": ["E2.1", "C2.1"],
+    "S2.1": ["S2.2", "E1.1"], "S2.2": ["E1.1", "S3.1"], "S4.1": ["P2.2"], "S4.2": ["P4.3"], "S4.3": ["E1.1"],
+    "S5.1": ["P7.2", "P6.1", "S3.1"], "S5.2": ["P7.2", "S5.1"],
     "C3.1": ["C1.1", "E4.15"], "C3.2": ["E4.1", "E4.8"], "C4.2": ["P1.5", "C5.1"], "C5.1": ["C1.1", "C2.2", "C4.2"],
     "C4.1": ["C4.3", "C6.1"], "C1.2": ["C1.1", "C1.3"], "C5.3": ["E6.2"], "C5.8": ["E4.16", "E6.3"],
   };
@@ -364,6 +391,32 @@ export default async function SectionPage(props: {
             {sigAccounts ? (
               <div className="mb-2 min-h-0 overflow-auto" data-testid="wp-sig-accounts">
                 <SignificantAccounts engagementId={id} view={sigAccounts} locale={isFr ? "fr" : "en"} />
+              </div>
+            ) : null}
+            {craView ? (
+              <div className="mb-2 min-h-0 max-h-[45%] overflow-auto" data-testid="wp-cra-matrix">
+                <div className="mb-1 flex items-baseline justify-between">
+                  <span className="text-[11px] font-extrabold uppercase tracking-[0.07em] text-muted">
+                    {isFr ? "Matrice d'évaluation combinée" : "Combined risk assessment matrix"}
+                  </span>
+                  <Link href={`/engagements/${id}/cra`} className="text-[11px] font-semibold text-emerald-700 hover:underline dark:text-emerald-400">
+                    {isFr ? "Plein écran →" : "Full screen →"}
+                  </Link>
+                </div>
+                <CraMatrix engagementId={id} rows={craView} locale={isFr ? "fr" : "en"} compact />
+              </div>
+            ) : null}
+            {triggerDef ? (
+              <TriggerPanel engagementId={id} definition={triggerDef} values={triggerValues} returnTo={`/engagements/${id}/sections/${itemId}`} locale={isFr ? "fr" : "en"} />
+            ) : null}
+            {relatedParties ? (
+              <div className="mb-2 min-h-0 max-h-[45%] overflow-auto" data-testid="wp-related-parties">
+                <RelatedPartyRegister engagementId={id} rows={relatedParties} returnTo={`/engagements/${id}/sections/${itemId}`} locale={isFr ? "fr" : "en"} carriedForwardLabel={t.planning.carriedForward ?? "Carried forward"} title={isFr ? "Registre des parties liées" : "Related-party register"} />
+              </div>
+            ) : null}
+            {estimates ? (
+              <div className="mb-2 min-h-0 max-h-[45%] overflow-auto" data-testid="wp-estimates">
+                <EstimatesRegister engagementId={id} rows={estimates} returnTo={`/engagements/${id}/sections/${itemId}`} locale={isFr ? "fr" : "en"} title={isFr ? "Inventaire des estimations" : "Estimates inventory"} />
               </div>
             ) : null}
             {approvedM ? (

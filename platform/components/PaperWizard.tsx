@@ -47,7 +47,7 @@ type StepItem = (
   | { kind: "field"; field: PaperField }
   | { kind: "proc"; key: string; text: string; src: string; index: number }
   | { kind: "yn"; key: string; whyKey: string; text: string; na?: boolean; index: number }
-) & { sectionTitle?: string };
+) & { sectionTitle?: string; sectionIntro?: string };
 
 function buildItems(def: PaperDef, fr: boolean): StepItem[] {
   const items: StepItem[] = [];
@@ -65,7 +65,10 @@ function buildItems(def: PaperDef, fr: boolean): StepItem[] {
         items.push({ kind: "yn", key: it.key, whyKey: ynWhyKey(it.key), text: fr ? it.fr : it.en, na: it.na, index: i + 1 }),
       );
     }
-    if (items.length > before) items[before].sectionTitle = title;
+    if (items.length > before) {
+      items[before].sectionTitle = title;
+      items[before].sectionIntro = fr ? s.introFr : s.introEn;
+    }
   });
   (def.fields ?? []).forEach((field) => items.push({ kind: "field", field }));
   return items;
@@ -211,9 +214,14 @@ export function PaperWizard({
   // every later page.
   const renderItem = (item: StepItem) => {
             const header = item.sectionTitle ? (
-              <p className="mb-0.5 mt-1 text-[10.5px] font-extrabold uppercase tracking-[0.07em] text-emerald-700 dark:text-emerald-400">
-                {item.sectionTitle}
-              </p>
+              <div className="mb-1 mt-1">
+                <p className="text-[10.5px] font-extrabold uppercase tracking-[0.07em] text-emerald-700 dark:text-emerald-400">
+                  {item.sectionTitle}
+                </p>
+                {item.sectionIntro ? (
+                  <p className="mt-0.5 text-[10.5px] leading-snug text-muted">{item.sectionIntro}</p>
+                ) : null}
+              </div>
             ) : null;
             if (item.kind === "field") {
               const f = item.field;

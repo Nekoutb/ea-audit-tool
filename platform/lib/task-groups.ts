@@ -55,7 +55,7 @@ export const TASK_GROUPS: TaskGroupDef[] = [
   // ---- Strategy & Risk Assessment ----
   { id: "s1", code: "S1", section: "strategy", titleEn: "SCOTs, Flows & Walkthroughs", titleFr: "SCOT, flux & cheminements", members: ["S1.1", "S1.2", "S1.3", "S1.4"] },
   { id: "s2", code: "S2", section: "strategy", titleEn: "Controls Strategy", titleFr: "Stratégie de contrôles", members: ["S2.1", "S2.2"] },
-  { id: "s3", code: "S3", section: "strategy", titleEn: "Combined Risk Assessment", titleFr: "Évaluation combinée des risques", members: ["S3.1", "S3.2", "S3.3", "S3.4", "S3.5"] },
+  { id: "s3", code: "S3", section: "strategy", titleEn: "Combined Risk Assessment & Specific Risks", titleFr: "Évaluation combinée & risques spécifiques", members: ["S3.1", "S3.2", "S3.3", "S3.4", "S3.5"] },
   { id: "s4", code: "S4", section: "strategy", titleEn: "Use of Others' Work", titleFr: "Travaux de tiers", members: ["S4.1", "S4.2", "S4.3"] },
   { id: "s5", code: "S5", section: "strategy", titleEn: "Audit Strategies Memorandum", titleFr: "Mémorandum de stratégie d'audit", members: ["S5.1", "S5.2"] },
 
@@ -67,7 +67,7 @@ export const TASK_GROUPS: TaskGroupDef[] = [
   { id: "e6", code: "E6", section: "execution", titleEn: "Standards Responses & Reassessment", titleFr: "Réponses normatives & réévaluation", members: ["E6.1", "E6.2", "E6.3", "E6.4", "E6.5", "E6.6", "E6.7", "E6.8"] },
 
   // ---- Conclusion & Reporting ----
-  { id: "c1", code: "C5.1", section: "conclusion", titleEn: "Summary of Audit Differences", titleFr: "Récapitulatif des écarts d'audit", members: ["C1.1", "C1.2", "C1.3"] },
+  { id: "c1", code: "C1", section: "conclusion", titleEn: "Summary of Audit Differences", titleFr: "Récapitulatif des écarts d'audit", members: ["C1.1", "C1.2", "C1.3"] },
   { id: "c2", code: "C2", section: "conclusion", titleEn: "Final Financial Statement Review", titleFr: "Revue finale des états financiers", members: ["C2.1", "C2.2"] },
   { id: "c3", code: "C3", section: "conclusion", titleEn: "Representations", titleFr: "Déclarations", members: ["C3.1", "C3.2"] },
   { id: "c4", code: "C4", section: "conclusion", titleEn: "Review & Approval", titleFr: "Revue & approbation", members: ["C4.1", "C4.2", "C4.3"] },

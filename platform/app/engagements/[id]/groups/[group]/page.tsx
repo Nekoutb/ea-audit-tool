@@ -19,7 +19,6 @@ import {
 } from "@/lib/engagement-dashboard";
 import { getEngagement } from "@/lib/engagements";
 import { shortTitle } from "@/lib/file-index";
-import { FORM_DEFINITIONS } from "@/lib/forms";
 import { getMessages } from "@/lib/i18n";
 import { getLocale } from "@/lib/locale";
 import { canReview } from "@/lib/rbac";
@@ -75,7 +74,12 @@ export default async function GroupTasksPage(props: {
   const reviewedCount = tasks.filter((task) => task.status === "reviewed").length;
 
   // Section deadline as the default; per-task due dates win.
-  const sectionPhase = g.section === "strategy" ? ("planning" as const) : g.section === "execution" ? ("execution" as const) : ("conclusion" as const);
+  const sectionPhase =
+    g.section === "acceptance" || g.section === "strategy"
+      ? ("planning" as const)
+      : g.section === "execution"
+        ? ("execution" as const)
+        : ("conclusion" as const);
   const deadlineIso = phaseDeadline(engagement.periodEnd, sectionPhase);
   const deadlineDate = fmtDate(deadlineIso, locale);
   const now = new Date();

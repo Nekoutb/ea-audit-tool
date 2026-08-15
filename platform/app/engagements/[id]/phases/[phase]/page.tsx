@@ -87,7 +87,11 @@ export default async function PhaseTasksPage(props: {
   const reviewerIni = reviewerName ? initials(reviewerName) : "";
 
   const rows: PhaseRowData[] = tasks.map((task) => {
-    const href = task.documentId
+    // Strategy tasks live on the working-paper screen — the legacy form and
+    // document branches no longer apply to them.
+    const href = task.code.startsWith("S")
+      ? `/engagements/${id}/sections/${task.id}`
+      : task.documentId
       ? `/documents/${task.documentId}`
       : FORM_DEFINITIONS[task.code]
         ? `/engagements/${id}/forms/${task.code}`

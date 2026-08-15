@@ -66,6 +66,8 @@ function applyFilter(tasks: PhaseTask[], filter: Filter, userId: string): PhaseT
 
 /** Same destination branching as the group task rows. */
 function taskHref(engagementId: string, task: PhaseTask): string {
+  // Strategy tasks always open their working paper.
+  if (task.code.startsWith("S")) return `/engagements/${engagementId}/sections/${task.id}`;
   return task.documentId
     ? `/documents/${task.documentId}`
     : FORM_DEFINITIONS[task.code]

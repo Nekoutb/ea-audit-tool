@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
 import { auth } from "@/auth";
 import { saveFormAction } from "@/app/actions/planning";
@@ -7,7 +8,7 @@ import { NavLink } from "@/components/NavLink";
 import { SubmitButton } from "@/components/SubmitButton";
 import { Chip, Panel, btnPrimary } from "@/components/ui/atlas";
 import { withTenant } from "@/lib/db";
-import { getEngagement } from "@/lib/engagements";
+import { getEngagement, listFileItems } from "@/lib/engagements";
 import { shortTitle } from "@/lib/file-index";
 import { fieldLabel, FORM_DEFINITIONS, loadForm } from "@/lib/forms";
 import { getMessages } from "@/lib/i18n";
@@ -27,7 +28,7 @@ const CONDITIONAL_TRIGGERS: Record<string, string> = {
   "S4.3": "has_internal_audit",
 };
 
-async function d1Triggers(engagementId: string): Promise<Record<string, unknown>> {
+async function d1Triggers(engagementId: string): Promise<Record<string, unknown>> {
   const { tenantId } = await requireTenant();
   return withTenant(tenantId, async (tx) => {
     const r = await tx.query<{ field_key: string; value: unknown }>(
@@ -58,6 +59,8 @@ export default async function ConsiderationsPage(props: {
     d1Triggers(id),
     ...CONSIDERATION_CODES.map((code) => loadForm(id, code)),
   ]);
+  const fileItems = await listFileItems(id);
+  const itemIdOf = new Map(fileItems.map((item) => [item.code, item.id]));
   const valuesByCode = Object.fromEntries(CONSIDERATION_CODES.map((code, i) => [code, loaded[i].values]));
 
   const d1Fields = FORM_DEFINITIONS["S5.1"]?.fields ?? [];
@@ -104,7 +107,14 @@ export default async function ConsiderationsPage(props: {
                 </span>
                 <span className="text-[15px] font-bold text-ink">{shortTitle(code, locale, code)}</span>
               </div>
-              {active ? <Chip tone="warn">{tc.applicable}</Chip> : <Chip tone="muted">{tc.notRequired}</Chip>}
+              <span className="flex items-center gap-2">
+                {itemIdOf.has(code) ? (
+                  <Link href={`/engagements/${id}/sections/${itemIdOf.get(code)}`} className="text-[12.5px] font-semibold text-emerald-700 hover:underline dark:text-emerald-400" data-testid={`wp-link-${code}`}>
+                    {locale === "fr" ? "Ouvrir le dossier de travail →" : "Open working paper →"}
+                  </Link>
+                ) : null}
+                {active ? <Chip tone="warn">{tc.applicable}</Chip> : <Chip tone="muted">{tc.notRequired}</Chip>}
+              </span>
             </div>
             {active ? (
               <form action={saveFormAction.bind(null, id, code)} className="mt-4 flex flex-col gap-3">

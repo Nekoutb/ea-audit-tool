@@ -21,6 +21,8 @@ import {
   taskForItem,
 } from "@/lib/engagement-dashboard";
 import { getEngagement } from "@/lib/engagements";
+import { listEstimates, listRelatedParties } from "@/lib/registers";
+import { EstimatesRegister, RelatedPartyRegister } from "@/components/PlanningRegisters";
 import { shortTitle } from "@/lib/file-index";
 import { fieldLabel, FORM_DEFINITIONS, loadForm } from "@/lib/forms";
 import { listReviewNotes, listVersions, type ReviewNoteInfo, type VersionInfo } from "@/lib/documents";
@@ -37,29 +39,10 @@ export async function generateMetadata(props: { params: Promise<{ code: string }
 }
 
 async function subRegisters(engagementId: string, code: string) {
-  if (code !== "S3.4" && code !== "S3.5") return { parties: [], estimates: [] };
-  const { tenantId } = await requireTenant();
-  return withTenant(tenantId, async (tx) => {
-    const parties =
-      code === "S3.4"
-        ? (
-            await tx.query<{ id: string; name: string; relationship: string; notes: string | null; carried_forward: boolean }>(
-              "SELECT id, name, relationship, notes, carried_forward FROM related_party WHERE engagement_id = $1 ORDER BY name",
-              [engagementId],
-            )
-          ).rows
-        : [];
-    const estimates =
-      code === "S3.5"
-        ? (
-            await tx.query<{ id: string; nature: string; method: string | null; uncertainty: string | null }>(
-              "SELECT id, nature, method, uncertainty FROM accounting_estimate WHERE engagement_id = $1 ORDER BY created_at",
-              [engagementId],
-            )
-          ).rows
-        : [];
-    return { parties, estimates };
-  });
+  // shared with the working-paper screens that embed the same registers
+  const parties = code === "S3.4" ? await listRelatedParties(engagementId) : [];
+  const estimates = code === "S3.5" ? await listEstimates(engagementId) : [];
+  return { parties, estimates };
 }
 
 export default async function FormPage(props: {
@@ -444,54 +427,11 @@ export default async function FormPage(props: {
       </Panel>
 
       {code === "S3.4" ? (
-        <Panel>
-          <PanelHeader title={`${t.fileIndex.title} — S3.4`} />
-          <ul className="mt-4 flex flex-col gap-2 text-sm" data-testid="related-parties">
-            {registers.parties.map((party) => (
-              <li
-                key={party.id}
-                className="flex flex-wrap items-center gap-x-1.5 rounded-[var(--radius-atlas-sm)] border border-line bg-surface-2 px-3 py-2 text-ink-soft"
-              >
-                <span className="font-medium text-ink">{party.name}</span> — {party.relationship}
-                {party.notes ? ` · ${party.notes}` : ""}
-                {party.carried_forward ? <Chip tone="warn">{tp.carriedForward}</Chip> : null}
-              </li>
-            ))}
-          </ul>
-          <form action={addRelatedPartyAction.bind(null, id)} className="mt-4 flex flex-wrap items-end gap-3">
-            <input name="name" placeholder="Nom / Name" aria-label="Nom / Name" required className={input} data-testid="rp-name" />
-            <input name="relationship" placeholder="Relation" aria-label="Relation" required className={input} data-testid="rp-relationship" />
-            <input name="notes" placeholder="Notes" aria-label="Notes" className={input} />
-            <button type="submit" className={btnGhost} data-testid="rp-add">
-              +
-            </button>
-          </form>
-        </Panel>
+        <RelatedPartyRegister engagementId={id} rows={registers.parties} locale={locale} carriedForwardLabel={tp.carriedForward} title={`${t.fileIndex.title} — S3.4`} />
       ) : null}
 
       {code === "S3.5" ? (
-        <Panel>
-          <ul className="flex flex-col gap-2 text-sm" data-testid="estimates">
-            {registers.estimates.map((estimate) => (
-              <li
-                key={estimate.id}
-                className="rounded-[var(--radius-atlas-sm)] border border-line bg-surface-2 px-3 py-2 text-ink-soft"
-              >
-                <span className="font-medium text-ink">{estimate.nature}</span>
-                {estimate.method ? ` — ${estimate.method}` : ""}
-                {estimate.uncertainty ? ` · ${estimate.uncertainty}` : ""}
-              </li>
-            ))}
-          </ul>
-          <form action={addEstimateAction.bind(null, id)} className="mt-4 flex flex-wrap items-end gap-3">
-            <input name="nature" placeholder="Nature" aria-label="Nature" required className={input} />
-            <input name="method" placeholder="Méthode / Method" aria-label="Méthode / Method" className={input} />
-            <input name="uncertainty" placeholder="Incertitude / Uncertainty" aria-label="Incertitude / Uncertainty" className={input} />
-            <button type="submit" className={btnGhost}>
-              +
-            </button>
-          </form>
-        </Panel>
+        <EstimatesRegister engagementId={id} rows={registers.estimates} locale={locale} />
       ) : null}
 
       <section className="rounded-[var(--radius-atlas)] border border-line bg-[var(--color-warn-soft)] p-5 shadow-[var(--shadow-atlas)]">
