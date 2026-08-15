@@ -43,6 +43,12 @@ export interface Risk {
   status: RiskStatus;
   /** the deck's risk taxonomy: where the risk comes from */
   category: "business" | "fraud" | "error" | null;
+  /** ISA 315 ¶31(a): which inherent risk factors drive the risk */
+  inherentFactors: string[];
+  /** ISA 315 ¶30: the pervasive effect, for FS-level risks */
+  fsNote: string | null;
+  /** lead-schedule indexes the risk lands on, with the assertions it threatens */
+  indexLinks: { indexCode: string; assertions: string[] }[];
   presumedType: "revenue_fraud" | "mgmt_override" | null;
   rebutted: boolean;
   addedAfterPlanning: boolean;
@@ -206,6 +212,9 @@ export async function listRisks(engagementId: string): Promise<Risk[]> {
       controls_reliance: boolean;
       status: RiskStatus;
       category: Risk["category"];
+      inherent_factors: string[] | null;
+      fs_note: string | null;
+      index_links: string | null;
       presumed_type: Risk["presumedType"];
       rebutted: boolean;
       added_after_planning: boolean;
@@ -215,6 +224,9 @@ export async function listRisks(engagementId: string): Promise<Risk[]> {
     }>(
       `SELECT r.id, r.description, r.source, r.level, r.likelihood, r.magnitude, r.significant,
               r.substantive_alone_insufficient, r.controls_reliance, r.status, r.category, r.presumed_type,
+              r.inherent_factors, r.fs_note,
+              (SELECT json_agg(json_build_object('indexCode', li.index_code, 'assertions', li.assertions) ORDER BY li.index_code)
+                 FROM risk_lead_index li WHERE li.risk_id = r.id)::text AS index_links,
               r.rebutted, r.added_after_planning, r.addition_approved_by,
               (SELECT json_agg(json_build_object(
                  'fileItemId', fi.id, 'code', fi.code, 'titleEn', fi.title_en,
@@ -240,6 +252,9 @@ export async function listRisks(engagementId: string): Promise<Risk[]> {
       controlsReliance: row.controls_reliance,
       status: row.status,
       category: row.category,
+      inherentFactors: row.inherent_factors ?? [],
+      fsNote: row.fs_note,
+      indexLinks: row.index_links ? (JSON.parse(row.index_links) as Risk["indexLinks"]) : [],
       presumedType: row.presumed_type,
       rebutted: row.rebutted,
       addedAfterPlanning: row.added_after_planning,
@@ -262,6 +277,8 @@ export async function updateRisk(
     controlsReliance?: boolean;
     status?: RiskStatus;
     category?: "business" | "fraud" | "error" | null;
+    inherentFactors?: string[];
+    fsNote?: string;
   },
 ): Promise<void> {
   const { tenantId } = await requireTenant();
@@ -288,7 +305,9 @@ export async function updateRisk(
          substantive_alone_insufficient = coalesce($7, substantive_alone_insufficient),
          controls_reliance = coalesce($8, controls_reliance),
          status = coalesce($9, status),
-         category = CASE WHEN $10::boolean THEN $11 ELSE category END
+         category = CASE WHEN $10::boolean THEN $11 ELSE category END,
+         inherent_factors = coalesce($12, inherent_factors),
+         fs_note = coalesce($13, fs_note)
        WHERE id = $1`,
       [
         riskId,
@@ -302,11 +321,60 @@ export async function updateRisk(
         patch.status ?? null,
         patch.category !== undefined,
         patch.category ?? null,
+        patch.inherentFactors ?? null,
+        patch.fsNote ?? null,
       ],
     );
   });
 }
 
+/** Link a risk to a lead-schedule index with the assertions it threatens. */
+export async function linkRiskToIndex(
+  riskId: string,
+  indexCode: string,
+  assertions: string[],
+): Promise<void> {
+  const { tenantId } = await requireTenant();
+  if (!/^[A-Z0-9]{1,4}$/.test(indexCode)) throw new Error("invalid-index");
+  const clean = assertions.filter((a) => ["C", "E", "A", "V", "P"].includes(a));
+  await withTenant(tenantId, async (tx) => {
+    await tx.query(
+      `INSERT INTO risk_lead_index (tenant_id, risk_id, index_code, assertions)
+       VALUES ($1, $2, $3, $4)
+       ON CONFLICT (risk_id, index_code) DO UPDATE SET assertions = EXCLUDED.assertions`,
+      [tenantId, riskId, indexCode, clean],
+    );
+  });
+}
+
+export async function unlinkRiskFromIndex(riskId: string, indexCode: string): Promise<void> {
+  const { tenantId } = await requireTenant();
+  await withTenant(tenantId, async (tx) => {
+    await tx.query("DELETE FROM risk_lead_index WHERE risk_id = $1 AND index_code = $2", [riskId, indexCode]);
+  });
+}
+
+/** Every index a live risk lands on, with the union of threatened assertions. */
+export async function riskDerivedAssertions(
+  engagementId: string,
+): Promise<Map<string, Set<string>>> {
+  const { tenantId } = await requireTenant();
+  return withTenant(tenantId, async (tx) => {
+    const r = await tx.query<{ index_code: string; assertions: string[] }>(
+      `SELECT li.index_code, li.assertions
+         FROM risk_lead_index li JOIN risk rk ON rk.id = li.risk_id
+        WHERE rk.engagement_id = $1 AND rk.rebutted = false`,
+      [engagementId],
+    );
+    const out = new Map<string, Set<string>>();
+    for (const row of r.rows) {
+      const set = out.get(row.index_code) ?? new Set<string>();
+      for (const a of row.assertions) set.add(a);
+      out.set(row.index_code, set);
+    }
+    return out;
+  });
+}
 /** Rebut the presumed revenue-fraud risk — requires justification + partner. */
 export async function rebutRevenueFraudRisk(riskId: string, justification: string): Promise<void> {
   const { tenantId, userId, role } = await requireTenant();

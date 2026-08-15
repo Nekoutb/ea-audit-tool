@@ -141,7 +141,6 @@ const D6_1: PaperDef = {
       introFr:
         "Mettre en œuvre chaque procédure et consigner le résultat : ce qui a été obtenu, auprès de qui ou de quelle source, et la référence du dossier.",
       procs: [
-        { key: "profile", en: "Obtain the engagement profile: sector, applicable financial reporting framework, reporting deadline, and whether components or a group are involved. Record it in Part B.", fr: "Obtenir le profil de la mission : secteur, référentiel comptable applicable, échéance de reporting, et existence de composants ou d'un groupe. Le consigner en partie B.", srcEn: "Engagement record · prior year file · signed proposal", srcFr: "Dossier de mission · dossier de l'exercice précédent · proposition signée" },
         { key: "partner", en: "Inquire of the engagement partner about their availability across the reporting period and about competing commitments.", fr: "S'enquérir auprès de l'associé responsable de sa disponibilité sur la période et de ses engagements concurrents.", srcEn: "Inquiry of the engagement partner · firm resource plan", srcFr: "Entretien avec l'associé responsable · plan de charge du cabinet" },
         { key: "sector", en: "Compare the proposed team's sector experience against the entity's sector. Record each member's grade, the relevant engagements performed and the years worked in the sector.", fr: "Comparer l'expérience sectorielle de l'équipe proposée au secteur de l'entité. Consigner le grade de chaque membre, les missions pertinentes réalisées et l'ancienneté dans le secteur.", srcEn: "Team page · staff records · prior engagement files", srcFr: "Page Équipe · dossiers du personnel · dossiers de missions antérieures" },
         { key: "framework", en: "Determine whether the team has applied the entity's financial reporting framework before, and record where that experience was obtained.", fr: "Déterminer si l'équipe a déjà appliqué le référentiel comptable de l'entité et consigner où cette expérience a été acquise.", srcEn: "Staff records · prior files · training records", srcFr: "Dossiers du personnel · dossiers antérieurs · registre de formation" },
@@ -157,9 +156,10 @@ const D6_1: PaperDef = {
       kind: "fields",
       titleEn: "Part B — Engagement profile",
       titleFr: "Partie B — Profil de la mission",
-      introEn: "Record the following from the engagement record and from discussion with the engagement partner.",
-      introFr: "Consigner les éléments suivants à partir du dossier et de l'échange avec l'associé responsable.",
+      introEn: "Record the engagement profile here, from the engagement record, the prior year file and discussion with the engagement partner.",
+      introFr: "Consigner ici le profil de la mission, à partir du dossier, du dossier de l'exercice précédent et de l'échange avec l'associé responsable.",
       fields: [
+        { key: "sector", kind: "input", labelEn: "Sector and nature of the entity's activities, and whether components or a group are involved", labelFr: "Secteur et nature des activités de l'entité, et existence de composants ou d'un groupe" },
         { key: "framework", kind: "input", labelEn: "Applicable financial reporting framework, and whether the entity is listed", labelFr: "Référentiel comptable applicable, et cotation éventuelle de l'entité" },
         { key: "deadlines", kind: "input", labelEn: "Reporting deadlines and other key dates", labelFr: "Échéances de reporting et autres dates clés" },
         { key: "scope", kind: "input", labelEn: "Locations and components within the scope of the audit", labelFr: "Implantations et composants inclus dans le périmètre" },
@@ -171,9 +171,9 @@ const D6_1: PaperDef = {
       titleEn: "Part C — Evaluation of capability",
       titleFr: "Partie C — Évaluation de la capacité",
       introEn:
-        "Set the team up in the engagement's team management before completing this part. Evaluate each statement against the profile in Part A and the team assembled. Explain each “No” in the box beneath it.",
+        "Set the team up in the engagement's team management before completing this part. Evaluate each statement against the profile in Part B and the team assembled. Explain each “No” in the box beneath it.",
       introFr:
-        "Constituer l'équipe dans la gestion d'équipe de la mission avant de compléter cette partie. Évaluer chaque affirmation au regard du profil et de l'équipe constituée.",
+        "Constituer l'équipe dans la gestion d'équipe de la mission avant de compléter cette partie. Évaluer chaque affirmation au regard du profil (partie B) et de l'équipe constituée.",
       items: [
         { key: "industry", en: "The team has appropriate knowledge of the industry and experience of the applicable financial reporting framework.", fr: "L'équipe possède une connaissance appropriée du secteur et l'expérience du référentiel applicable." },
         { key: "partner_time", en: "The engagement partner has sufficient time for appropriate involvement in, and direction of, the engagement.", fr: "L'associé responsable dispose du temps suffisant pour une implication et une direction appropriées." },

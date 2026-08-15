@@ -11,7 +11,8 @@ import { INDEPENDENCE_QUESTIONS } from "@/lib/independence";
 import { generateLetter, type LetterKind } from "@/lib/letters";
 import { approveMateriality, createMaterialityVersion, type Benchmark } from "@/lib/materiality";
 import { addCustomStep, generateProgram } from "@/lib/programs";
-import { dismissPotentialRisk, linkRiskToStep, mapRiskToSection, promotePotentialRisk, raisePotentialRisk, rebutRevenueFraudRisk, updateRisk, type Assertion, type RiskRating, type RiskStatus } from "@/lib/risks";
+import { dismissPotentialRisk, linkRiskToIndex, linkRiskToStep, mapRiskToSection, promotePotentialRisk, raisePotentialRisk, rebutRevenueFraudRisk, unlinkRiskFromIndex, updateRisk, type Assertion, type RiskRating, type RiskStatus } from "@/lib/risks";
+import { decideLead } from "@/lib/risk-leads";
 import { canReview } from "@/lib/rbac";
 import { savePaper } from "@/lib/working-papers";
 import { addPbcItem, assignTask, assignTeamMember, removeTeamMember, setBudgetLine, setPbcStatus, type PbcItem, type TeamRole } from "@/lib/team";
@@ -396,6 +397,11 @@ export async function updateRiskAction(engagementId: string, riskId: string, for
         const value = String(raw);
         return value === "business" || value === "fraud" || value === "error" ? value : null;
       })(),
+      // factor checkboxes only update when their marker field travelled with the form
+      inherentFactors: formData.has("factors_present")
+        ? formData.getAll("factors").map(String).filter((f) => ["complexity", "subjectivity", "change", "uncertainty", "bias"].includes(f))
+        : undefined,
+      fsNote: formData.has("fsNote") ? String(formData.get("fsNote") ?? "") : undefined,
     }),
   );
 }
@@ -480,4 +486,43 @@ export async function savePaperAction(
   await guarded(`/engagements/${engagementId}/sections/${itemId}`, () =>
     savePaper(engagementId, code, values),
   );
+}
+
+/** Risk Console: decide a computed lead — promote into the register or dismiss. */
+export async function decideLeadAction(engagementId: string, leadKey: string, formData: FormData): Promise<void> {
+  const path = `/engagements/${engagementId}/risks`;
+  const action = String(formData.get("leadAction") ?? "");
+  await guarded(path, async () => {
+    if (action === "dismiss") {
+      await decideLead(engagementId, leadKey, {
+        action: "dismiss",
+        rationale: String(formData.get("rationale") ?? ""),
+      });
+      return;
+    }
+    const category = String(formData.get("category") ?? "business");
+    const level = String(formData.get("level") ?? "assertion");
+    await decideLead(engagementId, leadKey, {
+      action: "promote",
+      description: String(formData.get("description") ?? ""),
+      category: category === "fraud" || category === "error" ? category : "business",
+      level: level === "fs" ? "fs" : "assertion",
+      source: String(formData.get("source") ?? "Console"),
+      index: formData.get("index") ? String(formData.get("index")) : undefined,
+      managementMissed: formData.get("managementMissed") ? String(formData.get("managementMissed")) : undefined,
+    });
+  });
+}
+
+/** Risk Console: link a risk to a lead-schedule index with threatened assertions. */
+export async function linkRiskIndexAction(engagementId: string, riskId: string, formData: FormData): Promise<void> {
+  const path = `/engagements/${engagementId}/risks`;
+  const indexCode = String(formData.get("indexCode") ?? "");
+  const assertions = formData.getAll("linkAssertions").map(String);
+  await guarded(path, () => linkRiskToIndex(riskId, indexCode, assertions));
+}
+
+export async function unlinkRiskIndexAction(engagementId: string, riskId: string, indexCode: string): Promise<void> {
+  const path = `/engagements/${engagementId}/risks`;
+  await guarded(path, () => unlinkRiskFromIndex(riskId, indexCode));
 }

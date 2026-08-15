@@ -154,7 +154,13 @@ export function SignificantAccounts({
               const needsWhy = row.status !== row.defaultStatus && row.justification.trim() === "";
               return (
                 <tr key={row.index} data-testid={`sa-row-${row.index}`}>
-                  <td className={`${GRID_CELL} font-mono font-bold`}>{row.index}</td>
+                  <td
+                    className={`${GRID_CELL} font-mono font-bold`}
+                    title={row.hasRisk ? (fr ? "Un risque du registre est lié à cet indice — significatif par définition (ISA 315 ¶12(k))" : "A register risk is linked to this index — significant by definition (ISA 315 ¶12(k))") : undefined}
+                  >
+                    {row.index}
+                    {row.hasRisk ? <span className="ml-0.5 text-amber-600" aria-hidden>●</span> : null}
+                  </td>
                   <td className={`${GRID_CELL} overflow-hidden text-ellipsis`} title={`${row.accountType} · ${row.accountClass}`}>
                     {row.label}
                   </td>
@@ -185,18 +191,22 @@ export function SignificantAccounts({
                   <td className={`${GRID_CELL} p-0`}>
                     <span className="flex items-center gap-[2px] px-1" data-testid={`sa-assert-${row.index}`}>
                       {ASSERTION_CODES.map((code) => {
-                        const active = row.assertions.includes(code);
+                        const manual = row.assertions.includes(code);
+                        const fromRisk = row.riskAssertions.includes(code);
+                        const active = manual || fromRisk;
                         return (
                           <button
                             key={code}
                             type="button"
                             data-testid={`sa-assert-${row.index}-${code}`}
                             data-active={String(active)}
+                            data-from-risk={String(fromRisk)}
                             title={
-                              { C: fr ? "Exhaustivité" : "Completeness", E: fr ? "Existence" : "Existence", A: fr ? "Exactitude" : "Accuracy", V: fr ? "Valorisation" : "Valuation", P: fr ? "Présentation" : "Presentation" }[code]
+                              ({ C: fr ? "Exhaustivité" : "Completeness", E: fr ? "Existence" : "Existence", A: fr ? "Exactitude" : "Accuracy", V: fr ? "Valorisation" : "Valuation", P: fr ? "Présentation" : "Presentation" }[code] ?? code) +
+                              (fromRisk ? (fr ? " — issue d'un risque lié (console des risques)" : " — derived from a linked risk (Risk Console)") : "")
                             }
                             onClick={() => {
-                              const next = active
+                              const next = manual
                                 ? row.assertions.filter((a) => a !== code)
                                 : [...row.assertions, code];
                               setRows((rs) => rs.map((r) => (r.index === row.index ? { ...r, assertions: next } : r)));
@@ -206,7 +216,7 @@ export function SignificantAccounts({
                               active
                                 ? "bg-emerald-700 text-white"
                                 : "border border-line text-muted hover:border-emerald-600"
-                            }`}
+                            } ${fromRisk ? "ring-1 ring-amber-500 ring-offset-1" : ""}`}
                           >
                             {code}
                           </button>

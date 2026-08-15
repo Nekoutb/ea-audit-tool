@@ -7,6 +7,7 @@ import { withTenant } from "@/lib/db";
 import { requireTenant } from "@/lib/tenant";
 import { LEAD_INDEXES, leadIndexFor } from "@/lib/lead-classes";
 import { approvedMateriality } from "@/lib/materiality";
+import { riskDerivedAssertions } from "@/lib/risks";
 
 export interface SignificantAccountRow {
   index: string;
@@ -29,6 +30,10 @@ export interface SignificantAccountRow {
   justification: string;
   /** relevant assertions recorded for the index, e.g. ["C","E","V"] */
   assertions: string[];
+  /** assertions derived from risks linked to this index in the Risk Console */
+  riskAssertions: string[];
+  /** a live risk is linked to this index — significance is suggested regardless of size */
+  hasRisk: boolean;
 }
 
 export interface SignificantAccountsView {
@@ -47,6 +52,8 @@ export async function significantAccounts(engagementId: string): Promise<Signifi
   const { tenantId } = await requireTenant();
   const materiality = await approvedMateriality(engagementId);
   const tolerableError = materiality?.performance ?? null;
+  // assertions the Risk Console derives per index (¶12(h): relevant = has an identified RMM)
+  const derived = await riskDerivedAssertions(engagementId);
 
   return withTenant(tenantId, async (tx) => {
     const meta = await tx.query<{ client_id: string }>(
@@ -135,7 +142,11 @@ export async function significantAccounts(engagementId: string): Promise<Signifi
       const specificTe = specific.get(def.code) ?? null;
       const threshold = specificTe ?? tolerableError;
       const aboveTe = threshold !== null && Math.abs(closing) > threshold;
-      const defaultStatus: SignificantAccountRow["defaultStatus"] = aboveTe ? "significant" : "not_significant";
+      // ¶12(k): an index carrying an identified risk is significant regardless of size
+      const riskSet = derived.get(def.code);
+      const hasRisk = riskSet !== undefined;
+      const defaultStatus: SignificantAccountRow["defaultStatus"] =
+        aboveTe || hasRisk ? "significant" : "not_significant";
       const recorded = decisions.get(KEY(def.code));
       const status = recorded === "significant" || recorded === "not_significant" ? recorded : defaultStatus;
       const savedAssertions = decisions.get(`${KEY(def.code)}_a`) ?? "";
@@ -153,6 +164,8 @@ export async function significantAccounts(engagementId: string): Promise<Signifi
         overridden: status !== defaultStatus,
         justification: decisions.get(`${KEY(def.code)}_x`) ?? "",
         assertions: savedAssertions === "" ? [] : savedAssertions.split(","),
+        riskAssertions: riskSet ? [...riskSet] : [],
+        hasRisk,
       });
     }
 
