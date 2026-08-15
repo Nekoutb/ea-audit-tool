@@ -263,9 +263,17 @@ export default async function SectionPage(props: {
 
         <div className="flex flex-wrap items-center gap-x-4 gap-y-2 rounded-[var(--radius-atlas)] border border-glass-border bg-surface px-4 py-2.5 shadow-atlas-sm backdrop-blur-xl">
           <Link
-            href={`/engagements/${id}/dashboard`}
+            href={group ? `/engagements/${id}/groups/${group.id}` : `/engagements/${id}/dashboard`}
             className="grid h-7 w-7 flex-shrink-0 place-items-center rounded-full text-[15px] font-bold text-ink-soft transition hover:bg-surface-2 hover:text-ink"
-            title={fr ? "Retour au tableau de bord" : "Back to dashboard"}
+            title={
+              group
+                ? fr
+                  ? `Retour à ${group.titleFr}`
+                  : `Back to ${group.titleEn}`
+                : fr
+                  ? "Retour au tableau de bord"
+                  : "Back to dashboard"
+            }
             aria-label={fr ? "Retour" : "Back"}
             data-testid="wp-back-dashboard"
           >

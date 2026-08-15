@@ -92,7 +92,11 @@ for (const g of TASK_GROUPS) {
 
 /** The group a task belongs to, or null for codes outside the framework. */
 export function groupOfTask(code: string): TaskGroupDef | null {
-  return GROUP_OF[code] ?? null;
+  if (GROUP_OF[code]) return GROUP_OF[code];
+  // The recoded scheme embeds the group in the task code (P6.2 → group P6),
+  // so any code the member lists miss still resolves to its group.
+  const prefix = code.split(".")[0];
+  return TASK_GROUPS.find((g) => g.code === prefix) ?? null;
 }
 
 /** Display code for an internal code; falls back to the internal code. */
