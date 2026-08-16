@@ -121,6 +121,9 @@ export function DatasetAnalyzer({
   const router = useRouter();
   const fileRef = useRef<HTMLInputElement>(null);
   const [kind, setKind] = useState<SubLedgerKind>(fixedKind ?? "ar_open_items");
+  // GL mirrors the trial balance: a pre-audit and a post-audit ledger, and a
+  // new upload replaces the previous one of the chosen timing.
+  const [timing, setTiming] = useState<"pre_audit" | "post_audit">("pre_audit");
   const [preview, setPreview] = useState<{ headers: string[]; headerSamples: Record<string, string[]>; rowCount: number } | null>(null);
   const [mapping, setMapping] = useState<Record<string, string>>({});
   const [error, setError] = useState<string | null>(null);
@@ -152,6 +155,7 @@ export function DatasetAnalyzer({
     setPending("ingest");
     const form = new FormData();
     form.set("kind", kind);
+    form.set("timing", timing);
     form.set("file", file);
     form.set("mapping", JSON.stringify(mapping));
     const response = await fetch(`/api/engagements/${engagementId}/subledgers`, { method: "POST", body: form });
@@ -187,6 +191,17 @@ export function DatasetAnalyzer({
             ))}
           </select>
         )}
+        {kind === "journal_entries" ? (
+          <select
+            value={timing}
+            onChange={(e) => setTiming(e.target.value as "pre_audit" | "post_audit")}
+            className="rounded-[var(--radius-atlas-sm)] border border-line-strong bg-surface px-3 py-2 text-sm text-ink outline-none focus:border-emerald-600"
+            data-testid="dataset-timing"
+          >
+            <option value="pre_audit">{fr ? "Grand livre pré-audit" : "Pre-audit GL"}</option>
+            <option value="post_audit">{fr ? "Grand livre post-audit" : "Post-audit GL"}</option>
+          </select>
+        ) : null}
         <input
           ref={fileRef}
           type="file"

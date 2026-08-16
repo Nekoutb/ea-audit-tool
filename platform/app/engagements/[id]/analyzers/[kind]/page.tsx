@@ -80,7 +80,14 @@ export default async function AnalyzerPage(props: {
             <table className="w-full text-sm" data-testid="analyzer-datasets">
               <tbody>
                 {datasets.map((dataset) => (
-                  <tr key={dataset.id} className="border-t border-line first:border-t-0 hover:bg-surface-2">
+                  <tr key={dataset.id} className="border-t border-line first:border-t-0 hover:bg-surface-2" data-testid={`dataset-${dataset.timing}`}>
+                    {kind === "journal_entries" ? (
+                      <td className="px-4 py-2">
+                        <span className={`rounded-full px-2 py-0.5 text-[11px] font-bold ${dataset.timing === "pre_audit" ? "bg-emerald-50 text-emerald-800 dark:bg-emerald-950/40 dark:text-emerald-300" : "bg-[var(--color-warn-soft)] text-warn"}`}>
+                          {dataset.timing === "pre_audit" ? (fr ? "Pré-audit" : "Pre-audit") : fr ? "Post-audit" : "Post-audit"}
+                        </span>
+                      </td>
+                    ) : null}
                     <td className="px-4 py-2 font-medium text-ink">{dataset.sourceFilename}</td>
                     <td className="px-4 py-2 text-ink-soft tnum">
                       {dataset.rowCount} {fr ? "lignes" : "rows"}

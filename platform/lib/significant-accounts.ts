@@ -91,7 +91,7 @@ export async function significantAccounts(engagementId: string): Promise<Signifi
     const gl = await tx.query<{ id: string; mapping: Record<string, string> | null }>(
       `SELECT id, mapping FROM sub_ledger_dataset
         WHERE engagement_id = $1 AND kind = 'journal_entries'
-        ORDER BY created_at DESC LIMIT 1`,
+        ORDER BY (timing = 'pre_audit') DESC, created_at DESC LIMIT 1`,
       [engagementId],
     );
     const mapping = gl.rows[0]?.mapping;

@@ -160,7 +160,7 @@ export async function financialAnalysis(engagementId: string): Promise<Financial
     const gl = await tx.query<{ mapping: Record<string, string> | null; id: string }>(
       `SELECT id, mapping FROM sub_ledger_dataset
         WHERE engagement_id = $1 AND kind = 'journal_entries'
-        ORDER BY created_at DESC LIMIT 1`,
+        ORDER BY (timing = 'pre_audit') DESC, created_at DESC LIMIT 1`,
       [engagementId],
     );
     let sales3m: number | null = null;

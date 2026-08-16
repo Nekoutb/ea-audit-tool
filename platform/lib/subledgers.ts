@@ -131,9 +131,12 @@ export function detectAmountColumn(table: ParsedTable): string | null {
   return best && best.score >= Math.max(1, table.rows.length / 2) ? best.header : null;
 }
 
+export type DatasetTiming = "pre_audit" | "post_audit";
+
 export interface DatasetSummary {
   id: string;
   kind: SubLedgerKind;
+  timing: DatasetTiming;
   name: string;
   sourceFilename: string;
   rowCount: number;
@@ -148,6 +151,7 @@ export async function createDataset(
   filename: string,
   buffer: Buffer,
   mapping?: Record<string, string>,
+  timing: DatasetTiming = "pre_audit",
 ): Promise<string> {
   const { tenantId, userId } = await requireTenant();
   const table = await parseTabularFile(filename, buffer);
@@ -157,13 +161,20 @@ export async function createDataset(
 
   return withTenant(tenantId, async (tx) => {
     let total: number | null = null;
+    // TB semantics: one dataset per kind and timing — a new upload replaces the
+    // previous one (rows cascade; engine runs keep their summaries, dataset_id
+    // nulls out). No accumulating list of superseded files.
+    await tx.query(
+      "DELETE FROM sub_ledger_dataset WHERE engagement_id = $1 AND kind = $2 AND timing = $3",
+      [engagementId, kind, timing],
+    );
     const dataset = await tx.query<{ id: string }>(
       `INSERT INTO sub_ledger_dataset
-         (tenant_id, engagement_id, kind, name, source_filename, source_sha256,
+         (tenant_id, engagement_id, kind, timing, name, source_filename, source_sha256,
           row_count, amount_column, mapping, created_by)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
        RETURNING id`,
-      [tenantId, engagementId, kind, filename.replace(/\.[^.]+$/, ""), filename, sha256, table.rows.length, amountColumn, mapping ? JSON.stringify(mapping) : null, userId],
+      [tenantId, engagementId, kind, timing, filename.replace(/\.[^.]+$/, ""), filename, sha256, table.rows.length, amountColumn, mapping ? JSON.stringify(mapping) : null, userId],
     );
     const datasetId = dataset.rows[0].id;
     let rowNo = 0;
@@ -209,6 +220,7 @@ export async function listDatasets(engagementId: string): Promise<DatasetSummary
     const result = await tx.query<{
       id: string;
       kind: SubLedgerKind;
+      timing: DatasetTiming;
       name: string;
       source_filename: string;
       row_count: number;
@@ -216,7 +228,7 @@ export async function listDatasets(engagementId: string): Promise<DatasetSummary
       amount_column: string | null;
       created_at: string;
     }>(
-      `SELECT id, kind, name, source_filename, row_count, total_amount::text,
+      `SELECT id, kind, timing, name, source_filename, row_count, total_amount::text,
               amount_column, to_char(created_at, 'YYYY-MM-DD HH24:MI') AS created_at
          FROM sub_ledger_dataset
         WHERE engagement_id = $1
@@ -226,6 +238,7 @@ export async function listDatasets(engagementId: string): Promise<DatasetSummary
     return result.rows.map((row) => ({
       id: row.id,
       kind: row.kind,
+      timing: row.timing,
       name: row.name,
       sourceFilename: row.source_filename,
       rowCount: row.row_count,

@@ -986,7 +986,7 @@ export default async function SectionPage(props: {
                 <select name="datasetId" required className={input} data-testid="sampling-dataset">
                   {datasets.map((dataset) => (
                     <option key={dataset.id} value={dataset.id}>
-                      {dataset.name}
+                      {dataset.kind === "journal_entries" ? `${dataset.name} (${dataset.timing === "pre_audit" ? "pre-audit" : "post-audit"})` : dataset.name}
                     </option>
                   ))}
                 </select>
@@ -1059,7 +1059,7 @@ export default async function SectionPage(props: {
                 <select name="datasetId" required className={input} data-testid="recon-dataset">
                   {datasets.map((dataset) => (
                     <option key={dataset.id} value={dataset.id}>
-                      {dataset.name}
+                      {dataset.kind === "journal_entries" ? `${dataset.name} (${dataset.timing === "pre_audit" ? "pre-audit" : "post-audit"})` : dataset.name}
                     </option>
                   ))}
                 </select>
@@ -1077,7 +1077,7 @@ export default async function SectionPage(props: {
                 <select name="datasetId" required className={input} data-testid="je-dataset">
                   {datasets.map((dataset) => (
                     <option key={dataset.id} value={dataset.id}>
-                      {dataset.name}
+                      {dataset.kind === "journal_entries" ? `${dataset.name} (${dataset.timing === "pre_audit" ? "pre-audit" : "post-audit"})` : dataset.name}
                     </option>
                   ))}
                 </select>
