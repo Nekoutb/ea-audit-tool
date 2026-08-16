@@ -4,6 +4,7 @@
 
 import { withTenant } from "@/lib/db";
 import { requireTenant } from "@/lib/tenant";
+import { INDEX_SECTION } from "@/lib/lead-classes";
 
 export interface CraRow {
   id: string;
@@ -17,12 +18,16 @@ export interface CraRow {
   steps_total: number;
   steps_done: number;
   controls: number;
+  /** SCOT Studio: SCOTs whose lead indexes feed this account (distinct names — `wcgw`/`controls` above are the legacy tallies) */
+  scots: number;
+  /** controls selected for testing across those SCOTs */
+  scot_controls: number;
 }
 
 export async function craRows(engagementId: string): Promise<CraRow[]> {
   const { tenantId } = await requireTenant();
   return withTenant(tenantId, async (tx) => {
-    const result = await tx.query<CraRow>(
+    const result = await tx.query<Omit<CraRow, "scots" | "scot_controls">>(
       `SELECT fi.id, fi.code, fi.title_en, fi.title_fr, fi.material,
               r.significant, r.risks_count, r.wcgw,
               ps.steps_total, ps.steps_done,
@@ -51,6 +56,34 @@ export async function craRows(engagementId: string): Promise<CraRow[]> {
         ORDER BY fi.sort_order`,
       [engagementId],
     );
-    return result.rows;
+
+    // SCOT Studio write-back: each SCOT reaches the matrix through its lead
+    // indexes (INDEX_SECTION maps index code → task code). A SCOT linked to two
+    // indexes of the same account still counts once.
+    const scotLinks = await tx.query<{ index_code: string; scot_id: string; sel: number }>(
+      `SELECT si.index_code, s.id AS scot_id,
+              (SELECT count(*) FROM scot_control c
+                WHERE c.scot_id = s.id AND c.selected_for_testing)::int AS sel
+         FROM scot s
+         JOIN scot_index si ON si.scot_id = s.id
+        WHERE s.engagement_id = $1`,
+      [engagementId],
+    );
+    const byTask = new Map<string, Map<string, number>>();
+    for (const link of scotLinks.rows) {
+      const taskCode = INDEX_SECTION[link.index_code];
+      if (!taskCode) continue;
+      const bucket = byTask.get(taskCode) ?? new Map<string, number>();
+      bucket.set(link.scot_id, link.sel);
+      byTask.set(taskCode, bucket);
+    }
+    return result.rows.map((row) => {
+      const bucket = byTask.get(row.code);
+      return {
+        ...row,
+        scots: bucket?.size ?? 0,
+        scot_controls: bucket ? [...bucket.values()].reduce((a, b) => a + b, 0) : 0,
+      };
+    });
   });
 }

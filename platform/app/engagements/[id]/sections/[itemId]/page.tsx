@@ -30,6 +30,9 @@ import { listTaskNotes } from "@/lib/task-notes";
 import { significantAccounts, specificThresholds } from "@/lib/significant-accounts";
 import { craRows } from "@/lib/cra";
 import { listEstimates, listRelatedParties } from "@/lib/registers";
+import { scotStudio, scotSummary } from "@/lib/scots";
+import { ScotRegister } from "@/components/ScotRegister";
+import { WcgwBuilder } from "@/components/WcgwBuilder";
 import { EstimatesRegister, RelatedPartyRegister } from "@/components/PlanningRegisters";
 import { TriggerPanel } from "@/components/TriggerPanel";
 import { FORM_DEFINITIONS, loadForm } from "@/lib/forms";
@@ -176,6 +179,15 @@ export default async function SectionPage(props: {
   // S5.1/S3.3 — legacy scoping triggers surfaced on the working paper
   const triggerDef = section.code === "S5.1" || section.code === "S3.3" ? FORM_DEFINITIONS[section.code] : null;
   const triggerValues = triggerDef ? (await loadForm(id, section.code)).values : {};
+  // S1.x/S2.x + E1.1 — the SCOT Studio rides on the working papers: register
+  // on S1.1, WCGW/controls builder on S1.2, selection on S2.1, test design on
+  // S2.2, and the results view + control link on E1.1's execution page.
+  const SCOT_MODES: Record<string, "wcgw" | "select" | "design" | "results"> = {
+    "S1.2": "wcgw", "S2.1": "select", "S2.2": "design", "E1.1": "results",
+  };
+  const scotView =
+    section.code === "S1.1" || section.code in SCOT_MODES ? await scotStudio(id) : null;
+  if (scotView) autoValues.context = scotSummary(scotView);
   // P7 — the planning review & approval summary takes over the centre column
   const ras = section.code === "P7.2" ? await planningRas(id) : null;
   // Appendix 1 rows: the engagement team by seniority, then three free rows
@@ -408,6 +420,21 @@ export default async function SectionPage(props: {
             ) : null}
             {triggerDef ? (
               <TriggerPanel engagementId={id} definition={triggerDef} values={triggerValues} returnTo={`/engagements/${id}/sections/${itemId}`} locale={isFr ? "fr" : "en"} />
+            ) : null}
+            {scotView && section.code === "S1.1" ? (
+              <div className="mb-2 min-h-0 max-h-[55%] overflow-auto" data-testid="wp-scot-register">
+                <ScotRegister
+                  engagementId={id}
+                  view={scotView}
+                  team={team.map((m) => ({ userId: m.userId, userName: m.userName }))}
+                  locale={isFr ? "fr" : "en"}
+                />
+              </div>
+            ) : null}
+            {scotView && section.code in SCOT_MODES ? (
+              <div className="mb-2 min-h-0 max-h-[55%] overflow-auto" data-testid="wp-wcgw-builder">
+                <WcgwBuilder engagementId={id} view={scotView} mode={SCOT_MODES[section.code]} locale={isFr ? "fr" : "en"} />
+              </div>
             ) : null}
             {relatedParties ? (
               <div className="mb-2 min-h-0 max-h-[45%] overflow-auto" data-testid="wp-related-parties">
@@ -852,6 +879,11 @@ export default async function SectionPage(props: {
       {isExecution || controlTests.length > 0 ? (
         <Panel className="mt-6">
           <PanelHeader title={te.controls} />
+          {scotView ? (
+            <div className="mt-3" data-testid="wp-scot-results">
+              <WcgwBuilder engagementId={id} view={scotView} mode="results" locale={fr ? "fr" : "en"} />
+            </div>
+          ) : null}
           <ul className="mt-2 flex flex-col gap-1 text-sm" data-testid="control-tests">
             {controlTests.map((test) => (
               <li key={test.id} className="rounded-[var(--radius-atlas-sm)] border border-line px-3 py-1.5">
@@ -871,6 +903,23 @@ export default async function SectionPage(props: {
             className="mt-3 flex flex-wrap items-end gap-2"
           >
             <input name="description" required placeholder={te.controlDescription} className={`${input} w-72`} data-testid="control-description" />
+            {scotView ? (
+              <label className="flex flex-col text-xs text-muted">
+                {fr ? "Contrôle (SCOT)" : "Control (SCOT)"}
+                <select name="scotControlId" className={input} data-testid="control-scot-link">
+                  <option value="">—</option>
+                  {scotView.scots.flatMap((s) =>
+                    s.controls
+                      .filter((c) => c.selectedForTesting)
+                      .map((c) => (
+                        <option key={c.id} value={c.id}>
+                          {s.name} · {c.name}
+                        </option>
+                      )),
+                  )}
+                </select>
+              </label>
+            ) : null}
             <label className="flex flex-col text-xs text-muted">
               {te.result}
               <select name="result" className={input} data-testid="control-result">

@@ -34,6 +34,8 @@ export interface SignificantAccountRow {
   riskAssertions: string[];
   /** a live risk is linked to this index — significance is suggested regardless of size */
   hasRisk: boolean;
+  /** a SCOT covers this index (S1.1 register) — the flow of transactions is identified */
+  hasScot: boolean;
 }
 
 export interface SignificantAccountsView {
@@ -110,6 +112,15 @@ export async function significantAccounts(engagementId: string): Promise<Signifi
       }
     }
 
+    // SCOT coverage per index (S1.1 register write-back)
+    const scotIdx = await tx.query<{ index_code: string }>(
+      `SELECT DISTINCT si.index_code
+         FROM scot_index si JOIN scot s ON s.id = si.scot_id
+        WHERE s.engagement_id = $1`,
+      [engagementId],
+    );
+    const scotCovered = new Set(scotIdx.rows.map((r) => r.index_code));
+
     // recorded decisions live with the paper's answers (code "wp:P6.2");
     // specific materiality per index rides with the materiality paper (wp:P6.1)
     const saved = await tx.query<{ code: string; field_key: string; value: string }>(
@@ -166,6 +177,7 @@ export async function significantAccounts(engagementId: string): Promise<Signifi
         assertions: savedAssertions === "" ? [] : savedAssertions.split(","),
         riskAssertions: riskSet ? [...riskSet] : [],
         hasRisk,
+        hasScot: scotCovered.has(def.code),
       });
     }
 

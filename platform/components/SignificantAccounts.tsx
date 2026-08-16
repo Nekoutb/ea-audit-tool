@@ -160,6 +160,16 @@ export function SignificantAccounts({
                   >
                     {row.index}
                     {row.hasRisk ? <span className="ml-0.5 text-amber-600" aria-hidden>●</span> : null}
+                    {row.hasScot ? (
+                      <span
+                        className="ml-0.5 text-emerald-600"
+                        title={fr ? "Un SCOT couvre cet indice (registre S1.1)" : "A SCOT covers this index (S1.1 register)"}
+                        data-testid={`sa-scot-${row.index}`}
+                        aria-hidden
+                      >
+                        ◆
+                      </span>
+                    ) : null}
                   </td>
                   <td className={`${GRID_CELL} overflow-hidden text-ellipsis`} title={`${row.accountType} · ${row.accountClass}`}>
                     {row.label}

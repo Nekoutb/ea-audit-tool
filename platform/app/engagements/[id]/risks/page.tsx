@@ -107,6 +107,11 @@ export default async function RisksPage(props: {
   const sigOrphans = (sigView?.rows ?? []).filter(
     (row) => row.status === "significant" && !row.hasRisk && !row.aboveTe && row.justification.trim() === "",
   ).length;
+  // SCOT Studio write-back: a significant account whose flow of transactions
+  // has no SCOT on the S1.1 register is unmapped territory (ISA 315 ¶25).
+  const scotUncovered = (sigView?.rows ?? []).filter(
+    (row) => row.status === "significant" && !row.hasScot,
+  ).length;
 
   const input =
     "rounded-[var(--radius-atlas-sm)] border border-line-strong bg-surface px-2 py-1 text-sm text-ink outline-none focus:border-emerald-600 focus:ring-2 focus:ring-emerald-600/20";
@@ -143,6 +148,7 @@ export default async function RisksPage(props: {
           {chip(unlinked, "All risks linked", "Tous les risques reliés", "risk(s) not linked to an index", "risque(s) non relié(s) à un indice", "cov-unlinked")}
           {chip(unresponded, "Responses planned", "Réponses planifiées", "significant risk(s) without a planned response", "risque(s) important(s) sans réponse", "cov-unresponded")}
           {chip(sigOrphans, "Significance grounded", "Significativité fondée", "significant index(es) with no risk and no justification", "indice(s) significatif(s) sans risque ni justification", "cov-orphans")}
+          {chip(scotUncovered, "SCOTs cover significant accounts", "Les SCOT couvrent les comptes significatifs", "significant account(s) without a SCOT", "compte(s) significatif(s) sans SCOT", "cov-noscot")}
         </span>
         <span className="ml-auto"><Spectrum risks={risks} fr={fr} /></span>
       </div>

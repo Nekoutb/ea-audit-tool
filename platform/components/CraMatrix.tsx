@@ -140,6 +140,15 @@ export function CraMatrix({
                 </td>
                 <td className={td}>{row.wcgw > 0 ? row.wcgw : <span className="text-muted">0</span>}</td>
                 <td className={td}>
+                  {row.scots > 0 ? (
+                    <span
+                      className="mr-1 rounded bg-emerald-50 px-1 py-[0.5px] text-[10px] font-bold text-emerald-800 dark:bg-emerald-950/40 dark:text-emerald-300"
+                      title={locale === "fr" ? "SCOT couvrant ce compte (S1.1)" : "SCOTs covering this account (S1.1)"}
+                      data-testid={`cra-scots-${row.code}`}
+                    >
+                      {row.scots}S
+                    </span>
+                  ) : null}
                   {noSteps ? (
                     <span className="font-bold text-rose" title={l.noSteps}>
                       0
@@ -155,6 +164,14 @@ export function CraMatrix({
                   <span className="text-muted">/{row.steps_total}</span>
                 </td>
                 <td className={`${td} text-right`}>
+                  {row.scot_controls > 0 ? (
+                    <span
+                      className="mr-1 text-[10.5px] text-muted"
+                      title={locale === "fr" ? "Contrôles SCOT sélectionnés pour test (S2.1)" : "SCOT controls selected for testing (S2.1)"}
+                    >
+                      {row.scot_controls} sel ·
+                    </span>
+                  ) : null}
                   {row.controls > 0 ? row.controls : <span className="text-muted">0</span>}
                 </td>
               </tr>

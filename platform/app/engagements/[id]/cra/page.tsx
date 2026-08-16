@@ -3,8 +3,9 @@ import { auth } from "@/auth";
 import { AppNav } from "@/components/AppNav";
 import { CraMatrix, CRA_LABELS } from "@/components/CraMatrix";
 import { NavLink } from "@/components/NavLink";
-import { Panel, PanelHeader } from "@/components/ui/atlas";
+import { Chip, Panel, PanelHeader } from "@/components/ui/atlas";
 import { craRows } from "@/lib/cra";
+import { listScots } from "@/lib/scots";
 import { getEngagement } from "@/lib/engagements";
 import { getMessages } from "@/lib/i18n";
 import { getLocale } from "@/lib/locale";
@@ -24,8 +25,9 @@ export default async function CraPage(props: { params: Promise<{ id: string }> }
   const engagement = await getEngagement(id);
   if (!engagement) notFound();
 
-  const rows = await craRows(id);
+  const [rows, scots] = await Promise.all([craRows(id), listScots(id)]);
   const significantCount = rows.filter((row) => row.significant).length;
+  const fr = locale === "fr";
 
   return (
     <main className="flex min-h-screen w-full flex-col gap-4 px-6 py-8">
@@ -70,6 +72,78 @@ export default async function CraPage(props: { params: Promise<{ id: string }> }
         </div>
         <CraMatrix engagementId={id} rows={rows} locale={locale} />
       </Panel>
+
+      {/* SCOT Studio rollup — the same file summarised by process rather than
+          by account: each SCOT with its WCGW/control/testing state. */}
+      {scots.length > 0 ? (
+        <Panel flush className="flex flex-col" data-testid="cra-by-process">
+          <div className="border-b border-line px-5 py-3.5">
+            <PanelHeader
+              title={fr ? "Par processus (SCOT)" : "By process (SCOTs)"}
+              right={<span className="text-xs font-semibold text-muted tnum">{scots.length}</span>}
+            />
+          </div>
+          <div className="overflow-x-auto">
+            <table className="w-full min-w-[720px]">
+              <thead>
+                <tr>
+                  {[
+                    fr ? "SCOT" : "SCOT",
+                    fr ? "Type" : "Type",
+                    fr ? "Comptes" : "Accounts",
+                    fr ? "Stratégie" : "Strategy",
+                    "WCGW",
+                    fr ? "Contrôles" : "Controls",
+                    fr ? "Sélectionnés" : "Selected",
+                    fr ? "Fonctionnement" : "Operating",
+                    fr ? "Assigné à" : "Assigned to",
+                  ].map((h) => (
+                    <th key={h} className="border-b border-line bg-surface-2 px-5 py-3 text-left text-[10px] font-extrabold uppercase tracking-[0.07em] text-muted">
+                      {h}
+                    </th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody>
+                {scots.map((scot) => {
+                  const selected = scot.controls.filter((c) => c.selectedForTesting);
+                  const exceptions = selected.some((c) => c.operating === "exceptions");
+                  const tested = selected.filter((c) => c.operating !== null).length;
+                  return (
+                    <tr key={scot.id} className="hover:bg-surface-2" data-testid={`process-${scot.name.replace(/[^A-Za-z0-9]/g, "_")}`}>
+                      <td className="border-t border-line px-5 py-3 text-[13px] font-semibold text-ink">{scot.name}</td>
+                      <td className="border-t border-line px-5 py-3 text-[12px] text-ink-soft">
+                        {scot.transactionType === "routine" ? (fr ? "Routinier" : "Routine") : scot.transactionType === "non_routine" ? (fr ? "Non routinier" : "Non-routine") : "Estimation"}
+                      </td>
+                      <td className="border-t border-line px-5 py-3 font-mono text-[11.5px] text-emerald-800 dark:text-emerald-300">
+                        {scot.indexes.map((i) => i.indexCode).join(", ") || "—"}
+                      </td>
+                      <td className="border-t border-line px-5 py-3 text-[12px] text-ink-soft">
+                        {scot.strategy === "controls" ? (fr ? "Contrôles" : "Controls") : fr ? "Substantif" : "Substantive"}
+                      </td>
+                      <td className="border-t border-line px-5 py-3 text-[13px] text-ink-soft tnum">{scot.wcgws.length}</td>
+                      <td className="border-t border-line px-5 py-3 text-[13px] text-ink-soft tnum">{scot.controls.length}</td>
+                      <td className="border-t border-line px-5 py-3 text-[13px] text-ink-soft tnum">{selected.length}</td>
+                      <td className="border-t border-line px-5 py-3">
+                        {selected.length === 0 ? (
+                          <Chip tone="muted">—</Chip>
+                        ) : exceptions ? (
+                          <Chip tone="rose">{fr ? "Exceptions" : "Exceptions"}</Chip>
+                        ) : tested === selected.length ? (
+                          <Chip tone="good">{fr ? "Efficace" : "Effective"}</Chip>
+                        ) : (
+                          <Chip tone="warn">{`${tested}/${selected.length}`}</Chip>
+                        )}
+                      </td>
+                      <td className="border-t border-line px-5 py-3 text-[12px] text-ink-soft">{scot.assigneeName ?? "—"}</td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+        </Panel>
+      ) : null}
     </main>
   );
 }

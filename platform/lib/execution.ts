@@ -321,6 +321,8 @@ export async function recordControlTest(input: {
   result: "effective" | "deviation";
   deviationDecision?: "extend" | "abandon" | "deficiency";
   note?: string;
+  /** links the test to a SCOT Studio control — its operating conclusion derives from these rows */
+  scotControlId?: string;
 }): Promise<void> {
   const { tenantId, userId } = await requireTenant();
   if (!input.description.trim()) throw new ExecutionError("description-required");
@@ -330,9 +332,9 @@ export async function recordControlTest(input: {
   await withTenant(tenantId, async (tx) => {
     await tx.query(
       `INSERT INTO control_test
-         (tenant_id, engagement_id, file_item_id, description, result, deviation_decision, note, created_by)
-       VALUES ($1,$2,$3,$4,$5,$6,$7,$8)`,
-      [tenantId, input.engagementId, input.fileItemId, input.description, input.result, input.deviationDecision ?? null, input.note ?? null, userId],
+         (tenant_id, engagement_id, file_item_id, description, result, deviation_decision, note, scot_control_id, created_by)
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9)`,
+      [tenantId, input.engagementId, input.fileItemId, input.description, input.result, input.deviationDecision ?? null, input.note ?? null, input.scotControlId ?? null, userId],
     );
 
     if (input.result === "deviation") {

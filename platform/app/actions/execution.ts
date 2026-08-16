@@ -91,6 +91,7 @@ export async function recordControlTestAction(
       deviationDecision: (String(formData.get("deviationDecision") ?? "") || undefined) as
         | "extend" | "abandon" | "deficiency" | undefined,
       note: String(formData.get("note") ?? "") || undefined,
+      scotControlId: String(formData.get("scotControlId") ?? "") || undefined,
     }),
   );
 }
