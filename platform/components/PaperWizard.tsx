@@ -125,6 +125,8 @@ export function PaperWizard({
   locale,
   action,
   readOnly,
+  embed,
+  embedTitle,
 }: {
   code: string;
   def: PaperDef;
@@ -133,6 +135,9 @@ export function PaperWizard({
   locale: "en" | "fr";
   action: (formData: FormData) => void;
   readOnly?: boolean;
+  /** replaces page 0 entirely (no conclusion / key findings) — the questionnaire starts on page 2 */
+  embed?: React.ReactNode;
+  embedTitle?: string;
 }) {
   const fr = locale === "fr";
   const items = useMemo(() => buildItems(def, fr), [def, fr]);
@@ -153,8 +158,9 @@ export function PaperWizard({
   const conclCount = ((fr ? def.conclFr : def.conclEn) ?? []).length;
   const steps = useMemo(() => {
     // page 1 opens with the conclusion + key findings, then the questions
-    // flow straight beneath — no page is left mostly empty.
-    const preludeCost = conclCount * 62 + 150;
+    // flow straight beneath — no page is left mostly empty. An embed claims
+    // the whole first page for itself: the questionnaire starts on page 2.
+    const preludeCost = embed ? areaH + 1 : conclCount * 62 + 150;
     const out: StepItem[][] = [];
     let page: StepItem[] = [];
     let used = preludeCost;
@@ -170,7 +176,7 @@ export function PaperWizard({
     }
     out.push(page);
     return out;
-  }, [items, areaH, conclCount]);
+  }, [items, areaH, conclCount, embed]);
   const [step, setStep] = useState(0);
   // Tell the guidance rail which items are on screen (practical tips follow the page).
   useLayoutEffect(() => {
@@ -340,9 +346,11 @@ export function PaperWizard({
       <div className="flex items-center justify-between gap-2 border-b border-line pb-2">
         <span className="text-[11.5px] font-bold uppercase tracking-[0.07em] text-muted">
           {step === 0
-            ? fr
-              ? "Conclusion & constats clés"
-              : "Conclusion & key findings"
+            ? embed
+              ? (embedTitle ?? (fr ? "Travaux" : "Work"))
+              : fr
+                ? "Conclusion & constats clés"
+                : "Conclusion & key findings"
             : fr
               ? "Questionnaire"
               : "Questionnaire"}
@@ -376,7 +384,12 @@ export function PaperWizard({
 
       {/* the measuring shell: all steps render inside; its height drives packing */}
       <div ref={areaRef} className="relative min-h-0 flex-1 overflow-hidden">
-      {/* step 0: overall conclusion + key findings */}
+      {/* step 0: the embed when one is given, else conclusion + key findings */}
+      {embed ? (
+        <div hidden={step !== 0} className="absolute inset-0 mt-2 overflow-y-auto overflow-x-hidden" data-testid="wp-embed">
+          {embed}
+        </div>
+      ) : (
       <div hidden={step !== 0} className="absolute inset-0 mt-2 flex flex-col gap-1.5 overflow-y-auto overflow-x-hidden">
         {concl.map((c, i) => (
           <div key={i} className="rounded-[var(--radius-atlas-sm)] border border-line px-3 py-2">
@@ -414,6 +427,7 @@ export function PaperWizard({
         </label>
         {(steps[0] ?? []).map(renderItem)}
       </div>
+      )}
 
       {/* pages beyond the first */}
       {steps.slice(1).map((pageItems, si) => (

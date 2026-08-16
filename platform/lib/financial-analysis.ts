@@ -1,9 +1,11 @@
-// Financial Analysis: the ratio battery computed twice from the pre-audit
-// trial balance — Current Y from closing balances, Prior Y from the TB's
-// opening balances — with DSO and DPO drawing the last three months of sales
-// and purchases from the ingested general ledger (current year only).
-// Sign convention: balances are debit-positive, so credit-natured aggregates
-// (equity, liabilities, revenue) are negated.
+// Financial Analysis: the ratio battery computed twice — Current Y from the
+// working TB's closing balances; Prior Y from the PRIOR YEAR TB's closing
+// balances when one is uploaded (it carries the prior P&L, which opening
+// balances cannot under SYSCOHADA where classes 6/7 reset at year start),
+// falling back to the working TB's opening balances otherwise. DSO and DPO
+// draw the last three months of sales and purchases from the ingested general
+// ledger (current year only). Sign convention: balances are debit-positive,
+// so credit-natured aggregates (equity, liabilities, revenue) are negated.
 
 import { withTenant } from "@/lib/db";
 import { requireTenant } from "@/lib/tenant";
@@ -152,7 +154,21 @@ export async function financialAnalysis(engagementId: string): Promise<Financial
     );
     if (tb.rows.length === 0) return null;
     const currentB = aggregate(tb.rows.map((r) => ({ account: r.account_code, value: Number(r.closing) })));
-    const priorB = aggregate(tb.rows.map((r) => ({ account: r.account_code, value: Number(r.opening) })));
+
+    // the prior-year TB's closing balances beat the working TB's openings
+    const priorTb = await tx.query<{ account_code: string; closing: string }>(
+      `SELECT r.account_code,
+              (r.opening_debit - r.opening_credit + r.debit - r.credit)::text AS closing
+         FROM trial_balance tb
+         JOIN trial_balance_version v ON v.trial_balance_id = tb.id AND v.timing = 'prior_year'
+         JOIN trial_balance_row r ON r.version_id = v.id
+        WHERE tb.engagement_id = $1`,
+      [engagementId],
+    );
+    const priorB =
+      priorTb.rows.length > 0
+        ? aggregate(priorTb.rows.map((r) => ({ account: r.account_code, value: Number(r.closing) })))
+        : aggregate(tb.rows.map((r) => ({ account: r.account_code, value: Number(r.opening) })));
     const cur = ratioSet(currentB);
     const pri = ratioSet(priorB);
 

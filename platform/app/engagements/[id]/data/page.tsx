@@ -36,7 +36,7 @@ export default async function DataPage(props: {
   const engagement = await getEngagement(id);
   if (!engagement) notFound();
   const [timings, roll] = await Promise.all([listTbTimings(id), rollForward(id)]);
-  const slotOf = (timing: "pre_audit" | "post_audit") => timings.find((x) => x.timing === timing);
+  const slotOf = (timing: "pre_audit" | "post_audit" | "prior_year") => timings.find((x) => x.timing === timing);
 
   return (
     <main className="min-h-screen w-full px-6 py-6">
@@ -60,15 +60,19 @@ export default async function DataPage(props: {
       <Panel className="mt-4">
         <TbAnalyzer engagementId={id} locale={fr ? "fr" : "en"} messages={t.planning} />
 
-        {/* the two TB slots — one file each, replaced on re-upload */}
-        <div className="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-2" data-testid="tb-timings">
-          {(["pre_audit", "post_audit"] as const).map((timing) => {
+        {/* the three TB slots — one file each, replaced on re-upload */}
+        <div className="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-3" data-testid="tb-timings">
+          {(["pre_audit", "post_audit", "prior_year"] as const).map((timing) => {
             const slot = slotOf(timing);
             return (
               <div key={timing} className="rounded-[var(--radius-atlas-sm)] border border-line bg-surface-2/50 px-4 py-3" data-testid={`tb-slot-${timing}`}>
                 <div className="flex items-center justify-between gap-2">
                   <span className="text-[11px] font-extrabold uppercase tracking-[0.07em] text-muted">
-                    {timing === "pre_audit" ? (fr ? "TB pré-audit" : "Pre-audit TB") : (fr ? "TB post-audit" : "Post-audit TB")}
+                    {timing === "pre_audit"
+                      ? (fr ? "TB pré-audit" : "Pre-audit TB")
+                      : timing === "post_audit"
+                        ? (fr ? "TB post-audit" : "Post-audit TB")
+                        : fr ? "TB exercice précédent" : "Prior year TB"}
                   </span>
                   {slot ? (
                     <Chip tone={slot.status === "valid" ? "good" : slot.status === "invalid" ? "rose" : "warn"}>

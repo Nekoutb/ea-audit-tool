@@ -431,7 +431,7 @@ export default async function SectionPage(props: {
                 />
               </div>
             ) : null}
-            {scotView && section.code in SCOT_MODES ? (
+            {scotView && section.code in SCOT_MODES && section.code !== "S1.2" ? (
               <div className="mb-2 min-h-0 max-h-[55%] overflow-auto" data-testid="wp-wcgw-builder">
                 <WcgwBuilder engagementId={id} view={scotView} mode={SCOT_MODES[section.code]} locale={isFr ? "fr" : "en"} />
               </div>
@@ -481,6 +481,14 @@ export default async function SectionPage(props: {
               autoValues={autoValues}
               locale={fr ? "fr" : "en"}
               action={savePaperAction.bind(null, id, itemId, section.code)}
+              embed={
+                // S1.2: the SCOT/WCGW/controls table IS the work — it owns the
+                // whole first page; Part A's questions follow on the next pages.
+                scotView && section.code === "S1.2" ? (
+                  <WcgwBuilder engagementId={id} view={scotView} mode="wcgw" locale={isFr ? "fr" : "en"} />
+                ) : undefined
+              }
+              embedTitle={fr ? "Flux, WCGW & contrôles" : "Flows, WCGWs & controls"}
             />
             )}
           </section>

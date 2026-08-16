@@ -71,7 +71,7 @@ export function TbAnalyzer({
   const router = useRouter();
   const fileRef = useRef<HTMLInputElement>(null);
   const [preview, setPreview] = useState<Preview | null>(null);
-  const [timing, setTiming] = useState<"pre_audit" | "post_audit">("pre_audit");
+  const [timing, setTiming] = useState<"pre_audit" | "post_audit" | "prior_year">("pre_audit");
   const [mapping, setMapping] = useState<Partial<Record<TbColumn, string>>>({});
   const [indexMap, setIndexMap] = useState<Record<string, string>>({});
   const [error, setError] = useState<string | null>(null);
@@ -129,7 +129,11 @@ export function TbAnalyzer({
       setError(messages.errors[code] ?? String(body.error));
       return;
     }
-    setStatus(`${timing === "pre_audit" ? (fr ? "TB pré-audit" : "Pre-audit TB") : (fr ? "TB post-audit" : "Post-audit TB")}: ${body.status}`);
+    const timingLabel =
+      timing === "pre_audit" ? (fr ? "TB pré-audit" : "Pre-audit TB")
+      : timing === "post_audit" ? (fr ? "TB post-audit" : "Post-audit TB")
+      : fr ? "TB exercice précédent" : "Prior year TB";
+    setStatus(`${timingLabel}: ${body.status}`);
     setPreview(null);
     router.refresh();
   }
@@ -143,12 +147,13 @@ export function TbAnalyzer({
       <div className="flex flex-wrap items-center gap-3">
         <select
           value={timing}
-          onChange={(e) => setTiming(e.target.value as "pre_audit" | "post_audit")}
+          onChange={(e) => setTiming(e.target.value as "pre_audit" | "post_audit" | "prior_year")}
           data-testid="tb-timing"
           className="rounded-[var(--radius-atlas-sm)] border border-line-strong bg-surface px-3 py-1.5 text-sm text-ink outline-none focus:border-emerald-600"
         >
           <option value="pre_audit">{fr ? "TB pré-audit" : "Pre-audit TB"}</option>
           <option value="post_audit">{fr ? "TB post-audit" : "Post-audit TB"}</option>
+          <option value="prior_year">{fr ? "TB exercice précédent" : "Prior year TB"}</option>
         </select>
         <input
           ref={fileRef}

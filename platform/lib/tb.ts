@@ -245,7 +245,7 @@ export interface TbImportResult {
 }
 
 /** 3.1: import a TB file as the next version (kind 'initial'), validate, activate. */
-export type TbTiming = "pre_audit" | "post_audit";
+export type TbTiming = "pre_audit" | "post_audit" | "prior_year";
 
 export async function importTrialBalance(
   engagementId: string,
@@ -399,7 +399,7 @@ export interface TbTimingSlot {
   summary: TbValidationSummary | null;
 }
 
-/** The two TB slots (Pre-audit / Post-audit) — at most one each. */
+/** The TB slots (Pre-audit / Post-audit / Prior year) — at most one each. */
 export async function listTbTimings(engagementId: string): Promise<TbTimingSlot[]> {
   const { tenantId } = await requireTenant();
   return withTenant(tenantId, async (tx) => {
