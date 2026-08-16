@@ -53,6 +53,24 @@ function parseCsv(text: string): ParsedTable {
   return { headers, rows };
 }
 
+/**
+ * Excel cells are not always scalars: formulas carry `{ result }`, styled text
+ * arrives as `{ richText: [...] }`, hyperlinks as `{ text, hyperlink }`, and
+ * error cells as `{ error }`. Left unwrapped they stringify to
+ * "[object Object]" in previews and never parse as numbers.
+ */
+function cellScalar(value: unknown): unknown {
+  if (value === null || value === undefined || typeof value !== "object") return value;
+  if (value instanceof Date) return value.toISOString().slice(0, 10);
+  if ("richText" in value) {
+    return (value as { richText: { text: string }[] }).richText.map((r) => r.text).join("");
+  }
+  if ("result" in value) return cellScalar((value as { result: unknown }).result);
+  if ("text" in value) return cellScalar((value as { text: unknown }).text);
+  if ("error" in value) return null;
+  return value;
+}
+
 async function parseXlsx(buffer: Buffer): Promise<ParsedTable> {
   const workbook = new ExcelJS.Workbook();
   await workbook.xlsx.load(buffer as unknown as ArrayBuffer);
@@ -61,19 +79,14 @@ async function parseXlsx(buffer: Buffer): Promise<ParsedTable> {
   const headerRow = sheet.getRow(1);
   const headers: string[] = [];
   headerRow.eachCell({ includeEmpty: true }, (cell, col) => {
-    headers[col - 1] = String(cell.value ?? `col_${col}`).trim() || `col_${col}`;
+    headers[col - 1] = String(cellScalar(cell.value) ?? `col_${col}`).trim() || `col_${col}`;
   });
   const rows: Record<string, unknown>[] = [];
   sheet.eachRow((row, rowNumber) => {
     if (rowNumber === 1) return;
     const record: Record<string, unknown> = {};
     headers.forEach((header, index) => {
-      const cell = row.getCell(index + 1);
-      const value = cell.value;
-      record[header] =
-        value !== null && typeof value === "object" && "result" in value
-          ? (value as { result: unknown }).result
-          : value;
+      record[header] = cellScalar(row.getCell(index + 1).value);
     });
     if (Object.values(record).some((v) => v !== null && v !== undefined && String(v).trim() !== "")) {
       rows.push(record);

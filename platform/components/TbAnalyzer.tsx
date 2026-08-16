@@ -26,7 +26,8 @@ interface Preview {
 
 // The four columns the user confirms. Debit/credit-style files are still
 // detected server-side: when a concept is covered by variant columns the row
-// says which, instead of asking for a pick.
+// shows one editable select per variant, so a wrong detection is a two-click
+// fix — never a locked label.
 const CONCEPTS: {
   key: TbColumn;
   en: string;
@@ -38,6 +39,22 @@ const CONCEPTS: {
   { key: "opening", en: "Opening balance", fr: "Solde d'ouverture", variants: ["openingDebit", "openingCredit"] },
   { key: "closing", en: "Closing balance", fr: "Solde de clôture", variants: ["closingDebit", "closingCredit", "debit", "credit"] },
 ];
+
+const VARIANT_LABELS: Partial<Record<TbColumn, { en: string; fr: string }>> = {
+  openingDebit: { en: "Opening debit", fr: "Débit d'ouverture" },
+  openingCredit: { en: "Opening credit", fr: "Crédit d'ouverture" },
+  closingDebit: { en: "Closing debit", fr: "Débit de clôture" },
+  closingCredit: { en: "Closing credit", fr: "Crédit de clôture" },
+  debit: { en: "Movement debit", fr: "Mouvement débit" },
+  credit: { en: "Movement credit", fr: "Mouvement crédit" },
+};
+
+// debit ↔ credit partners: a lone detected side always offers the other
+const VARIANT_PAIR: Partial<Record<TbColumn, TbColumn>> = {
+  openingDebit: "openingCredit", openingCredit: "openingDebit",
+  closingDebit: "closingCredit", closingCredit: "closingDebit",
+  debit: "credit", credit: "debit",
+};
 
 const fmt = (n: number) => new Intl.NumberFormat("fr-FR").format(n);
 
@@ -188,8 +205,51 @@ export function TbAnalyzer({
                         </td>
                         <td className="px-3 py-1.5">
                           {!mapping[concept.key] && coveredBy.length > 0 ? (
-                            <span className="text-[11.5px] text-emerald-700 dark:text-emerald-400" data-testid={`tb-col-${concept.key}`}>
-                              {(fr ? "détecté : " : "detected: ") + coveredBy.map((v) => mapping[v]).join(" / ")}
+                            <span className="flex flex-col gap-1" data-testid={`tb-col-${concept.key}`}>
+                              {concept.variants
+                                .filter((v) => mapping[v] || (VARIANT_PAIR[v] && mapping[VARIANT_PAIR[v]!]))
+                                .map((v) => (
+                                  <label key={v} className="flex items-center gap-1.5">
+                                    <span className="w-[96px] flex-shrink-0 text-[10.5px] text-emerald-700 dark:text-emerald-400">
+                                      {fr ? VARIANT_LABELS[v]?.fr : VARIANT_LABELS[v]?.en}
+                                    </span>
+                                    <select
+                                      className={select}
+                                      value={mapping[v] ?? ""}
+                                      data-testid={`tb-col-${v}`}
+                                      onChange={(e) => {
+                                        const next = { ...mapping };
+                                        if (e.target.value) next[v] = e.target.value; else delete next[v];
+                                        setMapping(next);
+                                        analyze(next);
+                                      }}
+                                    >
+                                      <option value="">—</option>
+                                      {preview.headers.map((h) => (
+                                        <option key={h} value={h}>{h}</option>
+                                      ))}
+                                    </select>
+                                  </label>
+                                ))}
+                              <select
+                                className={`${select} text-muted`}
+                                value=""
+                                data-testid={`tb-single-${concept.key}`}
+                                title={fr ? "Remplacer la paire débit/crédit par une seule colonne de solde" : "Replace the debit/credit pair with a single balance column"}
+                                onChange={(e) => {
+                                  if (!e.target.value) return;
+                                  const next = { ...mapping };
+                                  next[concept.key] = e.target.value;
+                                  for (const v of concept.variants) delete next[v];
+                                  setMapping(next);
+                                  analyze(next);
+                                }}
+                              >
+                                <option value="">{fr ? "… ou une seule colonne" : "… or use a single column"}</option>
+                                {preview.headers.map((h) => (
+                                  <option key={h} value={h}>{h}</option>
+                                ))}
+                              </select>
                             </span>
                           ) : (
                             <select
