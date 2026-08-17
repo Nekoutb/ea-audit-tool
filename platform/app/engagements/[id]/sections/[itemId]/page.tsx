@@ -30,10 +30,11 @@ import { listTaskNotes } from "@/lib/task-notes";
 import { significantAccounts, specificThresholds } from "@/lib/significant-accounts";
 import { craRows } from "@/lib/cra";
 import { listEstimates, listRelatedParties } from "@/lib/registers";
-import { scotStudio, scotSummary, walkthroughValues } from "@/lib/scots";
+import { fscpValues, scotStudio, scotSummary, walkthroughValues } from "@/lib/scots";
 import { ScotRegister } from "@/components/ScotRegister";
 import { WcgwBuilder } from "@/components/WcgwBuilder";
 import { WalkthroughBoard } from "@/components/WalkthroughBoard";
+import { FscpForm } from "@/components/FscpForm";
 import { EstimatesRegister, RelatedPartyRegister } from "@/components/PlanningRegisters";
 import { TriggerPanel } from "@/components/TriggerPanel";
 import { FORM_DEFINITIONS, loadForm } from "@/lib/forms";
@@ -194,6 +195,8 @@ export default async function SectionPage(props: {
       : null;
   if (scotView) autoValues.context = scotSummary(scotView);
   const wtValues = scotView && section.code === "S1.3" ? await walkthroughValues(id) : null;
+  // S1.4 — the close process form (one per engagement, code 'fscp')
+  const fscpVals = section.code === "S1.4" ? await fscpValues(id) : null;
   // P7 — the planning review & approval summary takes over the centre column
   const ras = section.code === "P7.2" ? await planningRas(id) : null;
   // Appendix 1 rows: the engagement team by seniority, then three free rows
@@ -491,6 +494,8 @@ export default async function SectionPage(props: {
                   <WcgwBuilder engagementId={id} view={scotView} mode="wcgw" locale={isFr ? "fr" : "en"} />
                 ) : scotView && wtValues && section.code === "S1.3" ? (
                   <WalkthroughBoard engagementId={id} view={scotView} values={wtValues} locale={isFr ? "fr" : "en"} />
+                ) : fscpVals ? (
+                  <FscpForm engagementId={id} values={fscpVals} locale={isFr ? "fr" : "en"} />
                 ) : undefined
               }
               embedTitle={
@@ -498,7 +503,9 @@ export default async function SectionPage(props: {
                   ? fr ? "Registre des SCOT" : "SCOT register"
                   : section.code === "S1.3"
                     ? fr ? "Cheminements par SCOT" : "Walkthroughs by SCOT"
-                    : fr ? "Flux, WCGW & contrôles" : "Flows, WCGWs & controls"
+                    : section.code === "S1.4"
+                      ? fr ? "Processus de clôture" : "The close process"
+                      : fr ? "Flux, WCGW & contrôles" : "Flows, WCGWs & controls"
               }
             />
             )}

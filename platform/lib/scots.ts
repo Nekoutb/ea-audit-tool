@@ -259,6 +259,44 @@ export async function saveWalkthrough(
   });
 }
 
+// ------------------------------------------------------------------- FSCP --
+
+// S1.4: the financial statement close process is ONE process per engagement —
+// a separate non-routine class of transactions in its own right. Its
+// structured answers live in form_response under the fixed code 'fscp'.
+
+export async function fscpValues(engagementId: string): Promise<Record<string, string>> {
+  const { tenantId } = await requireTenant();
+  return withTenant(tenantId, async (tx) => {
+    const r = await tx.query<{ field_key: string; value: string }>(
+      "SELECT field_key, value #>> '{}' AS value FROM form_response WHERE engagement_id = $1 AND code = 'fscp'",
+      [engagementId],
+    );
+    return Object.fromEntries(r.rows.map((row) => [row.field_key, row.value]));
+  });
+}
+
+export async function saveFscp(engagementId: string, key: string, value: string): Promise<void> {
+  const { tenantId, userId } = await requireTenant();
+  if (!WT_KEY.test(key)) throw new Error("invalid-key");
+  await withTenant(tenantId, async (tx) => {
+    if (value.trim() === "") {
+      await tx.query(
+        "DELETE FROM form_response WHERE engagement_id = $1 AND code = 'fscp' AND field_key = $2",
+        [engagementId, key],
+      );
+      return;
+    }
+    await tx.query(
+      `INSERT INTO form_response (tenant_id, engagement_id, code, field_key, value, updated_by)
+       VALUES ($1, $2, 'fscp', $3, to_jsonb($4::text), $5)
+       ON CONFLICT (engagement_id, code, field_key)
+       DO UPDATE SET value = EXCLUDED.value, updated_by = EXCLUDED.updated_by, updated_at = now()`,
+      [tenantId, engagementId, key, value, userId],
+    );
+  });
+}
+
 // ---------------------------------------------------------------- mutations --
 
 const TYPES: TransactionType[] = ["routine", "non_routine", "estimation"];

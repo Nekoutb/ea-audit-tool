@@ -8,6 +8,7 @@ import {
   deleteScot,
   deleteWcgw,
   linkScotIndex,
+  saveFscp,
   saveWalkthrough,
   toggleWcgwControl,
   unlinkScotIndex,
@@ -75,6 +76,9 @@ export async function POST(request: Request, context: { params: Promise<{ id: st
         break;
       case "saveWalkthrough":
         await saveWalkthrough(id, String(body.scotId), String(body.key), String(body.value ?? ""));
+        break;
+      case "saveFscp":
+        await saveFscp(id, String(body.key), String(body.value ?? ""));
         break;
       default:
         return NextResponse.json({ error: "invalid-op" }, { status: 400 });

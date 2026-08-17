@@ -6,18 +6,22 @@
 
 import { useRouter } from "next/navigation";
 import { useState } from "react";
-import { GRID_CELL, GRID_HEAD } from "@/components/ui/grid";
+import { GRID_HEAD } from "@/components/ui/grid";
 import { LEAD_INDEXES } from "@/lib/lead-classes";
 import type { ScotStudioView } from "@/lib/scots";
 
+// The register owns the whole page on S1.1, so its rows breathe more than the
+// shared Excel-grid convention — roughly half again taller, with larger type.
+const CELL = "border border-[color:var(--line-strong,#c9c9c9)] px-2.5 py-2 text-[12.5px] whitespace-nowrap";
+
 const COLS = [
-  { width: "170px" }, // name
-  { width: "104px" }, // type
-  { width: "150px" }, // indexes
-  { width: "120px" }, // applications
-  { width: "96px" },  // strategy
-  { width: "130px" }, // assignee
-  { width: "40px" },  // delete
+  { width: "190px" }, // name
+  { width: "112px" }, // type
+  { width: "160px" }, // indexes
+  { width: "130px" }, // applications
+  { width: "104px" }, // strategy
+  { width: "140px" }, // assignee
+  { width: "44px" },  // delete
 ];
 
 export function ScotRegister({
@@ -91,31 +95,31 @@ export function ScotRegister({
           <colgroup>{COLS.map((c, i) => <col key={i} style={c} />)}</colgroup>
           <thead>
             <tr className={GRID_HEAD}>
-              <th className={`${GRID_CELL} text-left`}>{fr ? "SCOT" : "SCOT"}</th>
-              <th className={`${GRID_CELL} text-left`}>{fr ? "Type" : "Type"}</th>
-              <th className={`${GRID_CELL} text-left`}>{fr ? "Comptes (indices)" : "Accounts (indexes)"}</th>
-              <th className={`${GRID_CELL} text-left`}>{fr ? "Applications" : "Applications"}</th>
-              <th className={`${GRID_CELL} text-left`}>{fr ? "Stratégie" : "Strategy"}</th>
-              <th className={`${GRID_CELL} text-left`}>{fr ? "Assigné à" : "Assigned to"}</th>
-              <th className={GRID_CELL} />
+              <th className={`${CELL} text-left`}>{fr ? "SCOT" : "SCOT"}</th>
+              <th className={`${CELL} text-left`}>{fr ? "Type" : "Type"}</th>
+              <th className={`${CELL} text-left`}>{fr ? "Comptes (indices)" : "Accounts (indexes)"}</th>
+              <th className={`${CELL} text-left`}>{fr ? "Applications" : "Applications"}</th>
+              <th className={`${CELL} text-left`}>{fr ? "Stratégie" : "Strategy"}</th>
+              <th className={`${CELL} text-left`}>{fr ? "Assigné à" : "Assigned to"}</th>
+              <th className={CELL} />
             </tr>
           </thead>
           <tbody>
             {view.scots.map((scot) => (
               <tr key={scot.id} data-testid={`scot-row-${scot.name.replace(/[^A-Za-z0-9]/g, "_")}`}>
-                <td className={`${GRID_CELL} whitespace-normal font-semibold`}>{scot.name}</td>
-                <td className={`${GRID_CELL} p-0`}>
+                <td className={`${CELL} whitespace-normal font-semibold`}>{scot.name}</td>
+                <td className={`${CELL} p-0`}>
                   <select
                     defaultValue={scot.transactionType}
                     onChange={(e) => void op({ op: "updateScot", scotId: scot.id, transactionType: e.target.value })}
-                    className="w-full bg-transparent px-1 py-0.5 text-[10.6px] outline-none"
+                    className="w-full bg-transparent px-2 py-1.5 text-[12px] outline-none"
                   >
                     <option value="routine">{typeLabel("routine")}</option>
                     <option value="non_routine">{typeLabel("non_routine")}</option>
                     <option value="estimation">{typeLabel("estimation")}</option>
                   </select>
                 </td>
-                <td className={`${GRID_CELL} whitespace-normal`}>
+                <td className={`${CELL} whitespace-normal`}>
                   <span className="flex flex-wrap items-center gap-1">
                     {scot.indexes.map((link) => (
                       <button
@@ -123,7 +127,7 @@ export function ScotRegister({
                         type="button"
                         title={fr ? "Cliquer pour délier" : "Click to unlink"}
                         onClick={() => void op({ op: "unlinkIndex", scotId: scot.id, indexCode: link.indexCode })}
-                        className="rounded-full bg-[var(--color-accent-soft,#e8f3ee)] px-1.5 py-[1px] font-mono text-[9.5px] font-bold text-emerald-800 hover:bg-[var(--color-rose-soft)] hover:text-rose dark:bg-emerald-950/40 dark:text-emerald-300"
+                        className="rounded-full bg-[var(--color-accent-soft,#e8f3ee)] px-2 py-0.5 font-mono text-[11px] font-bold text-emerald-800 hover:bg-[var(--color-rose-soft)] hover:text-rose dark:bg-emerald-950/40 dark:text-emerald-300"
                         data-testid={`scot-link-${scot.id.slice(0, 6)}-${link.indexCode}`}
                       >
                         {link.indexCode}
@@ -132,7 +136,7 @@ export function ScotRegister({
                     <select
                       value=""
                       onChange={(e) => { if (e.target.value) void op({ op: "linkIndex", scotId: scot.id, indexCode: e.target.value, assertions: [] }); }}
-                      className="bg-transparent text-[9.5px] text-muted outline-none"
+                      className="bg-transparent text-[11.5px] text-muted outline-none"
                       data-testid={`scot-addlink-${scot.id.slice(0, 6)}`}
                     >
                       <option value="">＋</option>
@@ -142,37 +146,37 @@ export function ScotRegister({
                     </select>
                   </span>
                 </td>
-                <td className={`${GRID_CELL} p-0`}>
+                <td className={`${CELL} p-0`}>
                   <input
                     defaultValue={scot.applications ?? ""}
                     placeholder="Sage, Excel…"
                     onBlur={(e) => { if (e.target.value !== (scot.applications ?? "")) void op({ op: "updateScot", scotId: scot.id, applications: e.target.value }); }}
-                    className="w-full bg-[var(--color-warn-soft)] px-1 py-0.5 text-[10.6px] text-ink outline-none"
+                    className="w-full bg-[var(--color-warn-soft)] px-2 py-1.5 text-[12px] text-ink outline-none"
                   />
                 </td>
-                <td className={`${GRID_CELL} p-0`}>
+                <td className={`${CELL} p-0`}>
                   <select
                     defaultValue={scot.strategy}
                     onChange={(e) => void op({ op: "updateScot", scotId: scot.id, strategy: e.target.value })}
-                    className="w-full bg-transparent px-1 py-0.5 text-[10.6px] outline-none"
+                    className="w-full bg-transparent px-2 py-1.5 text-[12px] outline-none"
                     data-testid={`scot-strategy-${scot.id.slice(0, 6)}`}
                   >
                     <option value="controls">{fr ? "Contrôles" : "Controls"}</option>
                     <option value="substantive">{fr ? "Substantif" : "Substantive"}</option>
                   </select>
                 </td>
-                <td className={`${GRID_CELL} p-0`}>
+                <td className={`${CELL} p-0`}>
                   <select
                     defaultValue={scot.assigneeUserId ?? ""}
                     onChange={(e) => void op({ op: "assignScot", scotId: scot.id, userId: e.target.value || null })}
-                    className="w-full bg-transparent px-1 py-0.5 text-[10.6px] outline-none"
+                    className="w-full bg-transparent px-2 py-1.5 text-[12px] outline-none"
                     data-testid={`scot-assign-${scot.id.slice(0, 6)}`}
                   >
                     <option value="">{fr ? "— non assigné" : "— unassigned"}</option>
                     {team.map((m) => <option key={m.userId} value={m.userId}>{m.userName}</option>)}
                   </select>
                 </td>
-                <td className={`${GRID_CELL} text-center`}>
+                <td className={`${CELL} text-center`}>
                   <button
                     type="button"
                     title={fr ? "Supprimer le SCOT" : "Delete SCOT"}
