@@ -88,7 +88,8 @@ export async function launchCampaign(
         sendEmail({
           to: email.rows[0].email,
           subject: "Independence confirmation required",
-          body: `Complete your confirmation: /independence/${token}`,
+          body: `Complete your confirmation: /independence/${token}\n\nOr simply REPLY to this email with "I CONFIRM my independence" — your reply is logged in the engagement file with its timestamp.`,
+          tag: `IND-${token}`,
         });
       }
     }
@@ -282,7 +283,8 @@ export async function sendReminder(confirmationId: string): Promise<void> {
     sendEmail({
       to: target.email,
       subject: "Reminder: independence confirmation outstanding",
-      body: `Complete your confirmation: /independence/${target.token}`,
+      body: `Complete your confirmation: /independence/${target.token}\n\nOr simply REPLY to this email with "I CONFIRM my independence" — your reply is logged with its timestamp.`,
+      tag: `IND-${target.token}`,
     });
     await createNotification({
       tenantId,
@@ -321,7 +323,8 @@ export async function sendDueReminders(engagementId: string): Promise<number> {
     sendEmail({
       to: row.email,
       subject: "Reminder: independence confirmation outstanding",
-      body: `Your independence confirmation is still outstanding. Complete it: /independence/${row.token}`,
+      body: `Your independence confirmation is still outstanding. Complete it: /independence/${row.token}\n\nOr simply REPLY to this email with "I CONFIRM my independence" — your reply is logged with its timestamp.`,
+      tag: `IND-${row.token}`,
     });
     await createNotification({
       tenantId,

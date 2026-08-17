@@ -124,7 +124,7 @@ export async function addRelatedPartyAction(engagementId: string, formData: Form
   const returnTo = String(formData.get("returnTo") ?? "");
   const path = returnTo.startsWith(`/engagements/${engagementId}/`)
     ? returnTo
-    : `/engagements/${engagementId}/forms/S3.4`;
+    : `/engagements/${engagementId}/forms/S4.3`;
   const name = String(formData.get("name") ?? "").trim();
   const relationship = String(formData.get("relationship") ?? "").trim();
   await guarded(path, async () => {
@@ -144,7 +144,7 @@ export async function addEstimateAction(engagementId: string, formData: FormData
   const returnTo = String(formData.get("returnTo") ?? "");
   const path = returnTo.startsWith(`/engagements/${engagementId}/`)
     ? returnTo
-    : `/engagements/${engagementId}/forms/S3.5`;
+    : `/engagements/${engagementId}/forms/S4.4`;
   const nature = String(formData.get("nature") ?? "").trim();
   await guarded(path, async () => {
     if (!nature) throw new Error("fields-required");

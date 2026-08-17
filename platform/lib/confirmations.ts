@@ -319,8 +319,12 @@ export async function sendConfirmation(id: string): Promise<void> {
     if (row.party_email) {
       sendEmail({
         to: row.party_email,
-        subject: "Confirmation request / Demande de confirmation",
-        body: `Reply reference: ${row.reply_token}`,
+        subject: `Confirmation request / Demande de confirmation — ${row.party_name}`,
+        body:
+          `Please REPLY directly to this email, stating your balance with our client (or "we agree" / "conforme" if the stated balance is correct, "we disagree" with the correct amount otherwise). ` +
+          `Your reply is read and reconciled to the recorded balance automatically.\n\n` +
+          `Merci de RÉPONDRE directement à ce courriel en indiquant votre solde (ou « conforme » si le solde indiqué est exact).\n\nReply reference: ${row.reply_token}`,
+        tag: `CONF-${row.reply_token}`,
       });
     }
   });

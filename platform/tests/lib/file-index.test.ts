@@ -9,9 +9,9 @@ describe("default audit file index", () => {
     expect(codes).not.toContain("D2");
     expect(codes).not.toContain("D5.3");
     // Their neighbours — must exist:
-    expect(codes).toContain("S5.1");
+    expect(codes).toContain("S6.1");
     expect(codes).toContain("P1.1");
-    expect(codes).toContain("S3.2");
+    expect(codes).toContain("S4.1");
     expect(codes).toContain("P5.1");
   });
 
@@ -43,6 +43,6 @@ describe("default audit file index", () => {
     const conditional = DEFAULT_FILE_INDEX.filter((e) => e.conditional).map((e) => e.code);
     // P1.2 is the predecessor auditor communication: it applies on a change of
     // auditor, so it is instantiated but kept out of the phase task counts.
-    expect(conditional.sort()).toEqual(["P1.2", "P4.2", "P4.3", "S4.1", "S4.2", "S4.3"]);
+    expect(conditional.sort()).toEqual(["P1.2", "P4.2", "P4.3", "S5.1", "S5.2", "S5.3"]);
   });
 });

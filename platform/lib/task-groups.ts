@@ -55,9 +55,10 @@ export const TASK_GROUPS: TaskGroupDef[] = [
   // ---- Strategy & Risk Assessment ----
   { id: "s1", code: "S1", section: "strategy", titleEn: "SCOTs, Flows & Walkthroughs", titleFr: "SCOT, flux & cheminements", members: ["S1.1", "S1.2", "S1.3", "S1.4"] },
   { id: "s2", code: "S2", section: "strategy", titleEn: "Controls Strategy", titleFr: "Stratégie de contrôles", members: ["S2.1", "S2.2"] },
-  { id: "s3", code: "S3", section: "strategy", titleEn: "Combined Risk Assessment & Specific Risks", titleFr: "Évaluation combinée & risques spécifiques", members: ["S3.1", "S3.2", "S3.3", "S3.4", "S3.5"] },
-  { id: "s4", code: "S4", section: "strategy", titleEn: "Use of Others' Work", titleFr: "Travaux de tiers", members: ["S4.1", "S4.2", "S4.3"] },
-  { id: "s5", code: "S5", section: "strategy", titleEn: "Audit Strategies Memorandum", titleFr: "Mémorandum de stratégie d'audit", members: ["S5.1", "S5.2"] },
+  { id: "s3", code: "S3", section: "strategy", titleEn: "Combined Risk Assessment", titleFr: "Évaluation combinée des risques", members: ["S3.1"] },
+  { id: "s4", code: "S4", section: "strategy", titleEn: "Specific Risk Areas", titleFr: "Zones de risque spécifiques", members: ["S4.1", "S4.2", "S4.3", "S4.4"] },
+  { id: "s5", code: "S5", section: "strategy", titleEn: "Use of Others' Work", titleFr: "Travaux de tiers", members: ["S5.1", "S5.2", "S5.3"] },
+  { id: "s6", code: "S6", section: "strategy", titleEn: "Audit Strategies Memorandum", titleFr: "Mémorandum de stratégie d'audit", members: ["S6.1", "S6.2"] },
 
   // ---- Execution ----
   { id: "e1", code: "E1", section: "execution", titleEn: "Tests of Controls & Updates", titleFr: "Tests de contrôles & mises à jour", members: ["E1.1", "E1.2", "E1.3"] },

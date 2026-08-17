@@ -1,4 +1,4 @@
-import type { DefaultSession } from "next-auth";
+﻿import type { DefaultSession } from "next-auth";
 import type { Locale } from "@/lib/i18n";
 import type { Role } from "@/lib/rbac";
 
@@ -11,6 +11,8 @@ declare module "next-auth" {
       locale: Locale;
       /** Set only for role 'client_user' — the client the portal user belongs to. */
       clientId: string | null;
+      /** Platform operator (cross-firm admin console). */
+      isSuper: boolean;
     } & DefaultSession["user"];
   }
 
@@ -19,6 +21,7 @@ declare module "next-auth" {
     role?: Role;
     locale?: Locale;
     clientId?: string | null;
+    isSuper?: boolean;
   }
 }
 
@@ -29,5 +32,6 @@ declare module "next-auth/jwt" {
     role?: Role;
     locale?: Locale;
     clientId?: string | null;
+    isSuper?: boolean;
   }
 }

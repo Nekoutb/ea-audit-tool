@@ -301,6 +301,182 @@ export async function saveFscp(engagementId: string, key: string, value: string)
   });
 }
 
+// ------------------------------------------------- tests of details sampling --
+
+export type TodCra = "minimal" | "low" | "low_sr" | "moderate" | "high" | "high_sr";
+export type TodAssurance = "little" | "some" | "corroborative" | "persuasive";
+
+// The audit risk tables: the multiple applied to the base sample size
+// (population excluding key items ÷ TE) per CRA × assurance from other
+// substantive procedures × key-item coverage (columns 0/10/30/50/70/90/100%).
+// null = no representative sample required at that combination.
+const ART_COLS = [0, 10, 30, 50, 70, 90, 100];
+const N = null;
+const ART_MUS: Record<TodCra, Record<TodAssurance, (number | null)[]>> = {
+  minimal:  { little: [0.5, 0.4, 0.1, N, N, N, N], some: [0.2, 0.1, N, N, N, N, N], corroborative: [N, N, N, N, N, N, N], persuasive: [N, N, N, N, N, N, N] },
+  low:      { little: [1.0, 0.9, 0.7, 0.3, N, N, N], some: [0.7, 0.6, 0.4, N, N, N, N], corroborative: [0.3, 0.2, N, N, N, N, N], persuasive: [N, N, N, N, N, N, N] },
+  low_sr:   { little: [1.4, 1.3, 1.0, 0.7, 0.2, N, N], some: [1.1, 1.0, 0.7, 0.4, N, N, N], corroborative: [0.7, 0.6, 0.3, N, N, N, N], persuasive: [N, N, N, N, N, N, N] },
+  moderate: { little: [2.1, 2.0, 1.7, 1.4, 0.9, N, N], some: [1.8, 1.7, 1.4, 1.1, 0.6, N, N], corroborative: [1.4, 1.3, 1.0, 0.7, 0.2, N, N], persuasive: [N, N, N, N, N, N, N] },
+  high:     { little: [2.6, 2.5, 2.3, 1.9, 1.4, 0.3, N], some: [2.4, 2.2, 2.0, 1.7, 1.1, N, N], corroborative: [1.9, 1.8, 1.6, 1.3, 0.7, N, N], persuasive: [0.3, 0.2, N, N, N, N, N] },
+  high_sr:  { little: [3.0, 2.9, 2.6, 2.3, 1.8, 0.7, N], some: [2.7, 2.6, 2.4, 2.0, 1.5, 0.4, N], corroborative: [2.3, 2.2, 1.9, 1.6, 1.1, N, N], persuasive: [0.7, 0.6, 0.3, N, N, N, N] },
+};
+
+interface GlLine {
+  ref: string;
+  account: string;
+  amount: number;
+}
+
+async function glLines(
+  tx: { query: <T>(sql: string, params?: unknown[]) => Promise<{ rows: T[] }> },
+  engagementId: string,
+  prefix: string,
+): Promise<GlLine[] | "no-gl" | "no-mapping"> {
+  const gl = await tx.query<{ id: string; mapping: Record<string, string> | null }>(
+    `SELECT id, mapping FROM sub_ledger_dataset
+      WHERE engagement_id = $1 AND kind = 'journal_entries'
+      ORDER BY (timing = 'pre_audit') DESC, created_at DESC LIMIT 1`,
+    [engagementId],
+  );
+  if (!gl.rows[0]) return "no-gl";
+  const mapping = gl.rows[0].mapping;
+  if (!mapping?.account || !mapping.amount) return "no-mapping";
+  const rows = await tx.query<{ data: Record<string, unknown> }>(
+    "SELECT data FROM sub_ledger_row WHERE dataset_id = $1",
+    [gl.rows[0].id],
+  );
+  const clean = prefix.replace(/[^0-9]/g, "");
+  const out: GlLine[] = [];
+  for (const { data } of rows.rows) {
+    const account = String(data[mapping.account] ?? "").trim();
+    if (clean && !account.startsWith(clean)) continue;
+    const n = Number(String(data[mapping.amount] ?? "").replace(/[\s  ]/g, "").replace(/,(?=\d{1,2}$)/, ".").replace(/,/g, ""));
+    if (!Number.isFinite(n) || n === 0) continue;
+    out.push({
+      ref: String(data[mapping.jeNumber ?? ""] ?? "").trim() || account,
+      account,
+      amount: Math.abs(n),
+    });
+  }
+  return out;
+}
+
+/** The accounts the ToD dropdown offers: GL 3-digit prefixes by value. */
+export async function listGlAccounts(
+  engagementId: string,
+): Promise<{ prefix: string; label: string; total: number; lines: number }[]> {
+  const { tenantId } = await requireTenant();
+  return withTenant(tenantId, async (tx) => {
+    const lines = await glLines(tx, engagementId, "");
+    if (typeof lines === "string") return [];
+    const byPrefix = new Map<string, { total: number; lines: number; sample: string }>();
+    for (const l of lines) {
+      const p = l.account.slice(0, 3);
+      if (!/^[0-9]{3}$/.test(p)) continue;
+      const cur = byPrefix.get(p) ?? { total: 0, lines: 0, sample: l.account };
+      cur.total += l.amount;
+      cur.lines += 1;
+      byPrefix.set(p, cur);
+    }
+    return [...byPrefix.entries()]
+      .sort((a, b) => b[1].total - a[1].total)
+      .slice(0, 40)
+      .map(([prefix, v]) => ({ prefix, label: prefix, total: Math.round(v.total), lines: v.lines }));
+  });
+}
+
+/**
+ * Tests-of-details sampling plan: base sample = (population − key items) ÷ TE,
+ * multiplied by the MUS audit-risk-table factor for the CRA, the assurance
+ * from other substantive procedures and the achieved key-item coverage.
+ * Key items default to lines ≥ TE (examined in full). Selection is systematic
+ * (MUS) over the remaining population with a random start.
+ */
+export async function todPreview(
+  engagementId: string,
+  prefix: string,
+  cra: TodCra,
+  assurance: TodAssurance,
+  thresholdInput?: number,
+): Promise<
+  | {
+      ok: true;
+      populationValue: number;
+      populationCount: number;
+      te: number;
+      threshold: number;
+      keyItemCount: number;
+      keyItemValue: number;
+      coveragePct: number;
+      baseSize: number;
+      factor: number | null;
+      sampleSize: number;
+      interval: number | null;
+      items: { ref: string; account: string; amount: number; kind: "key" | "sample" }[];
+    }
+  | { ok: false; error: "no-gl" | "no-mapping" | "empty-population" | "no-materiality" }
+> {
+  const { tenantId } = await requireTenant();
+  const { approvedMateriality } = await import("@/lib/materiality");
+  const m = await approvedMateriality(engagementId);
+  if (!m) return { ok: false, error: "no-materiality" };
+  const te = m.performance;
+  return withTenant(tenantId, async (tx) => {
+    const lines = await glLines(tx, engagementId, prefix);
+    if (typeof lines === "string") return { ok: false, error: lines };
+    if (lines.length === 0) return { ok: false, error: "empty-population" };
+
+    const populationValue = lines.reduce((s, l) => s + l.amount, 0);
+    const threshold = thresholdInput && thresholdInput > 0 ? Math.round(thresholdInput) : te;
+    const keyItems = lines.filter((l) => l.amount >= threshold);
+    const rest = lines.filter((l) => l.amount < threshold);
+    const keyItemValue = keyItems.reduce((s, l) => s + l.amount, 0);
+    const remaining = populationValue - keyItemValue;
+    const coveragePct = populationValue > 0 ? (keyItemValue / populationValue) * 100 : 0;
+    // nearest coverage column at or below the achieved coverage (conservative)
+    let col = 0;
+    for (let i = 0; i < ART_COLS.length; i += 1) if (coveragePct >= ART_COLS[i]) col = i;
+    const factor = ART_MUS[cra][assurance][col];
+    const baseSize = te > 0 ? remaining / te : 0;
+    const sampleSize = factor === null ? 0 : Math.ceil(baseSize * factor);
+    const interval = sampleSize > 0 ? Math.round(remaining / sampleSize) : null;
+
+    // systematic (MUS) selection over the remaining population, random start
+    const selected: GlLine[] = [];
+    if (interval && sampleSize > 0) {
+      const start = Math.floor(Math.random() * interval) + 1;
+      let cumulative = 0;
+      let nextHook = start;
+      for (const l of rest) {
+        cumulative += l.amount;
+        while (cumulative >= nextHook && selected.length < sampleSize) {
+          selected.push(l);
+          nextHook += interval;
+        }
+        if (selected.length >= sampleSize) break;
+      }
+    }
+    return {
+      ok: true,
+      populationValue: Math.round(populationValue),
+      populationCount: lines.length,
+      te,
+      threshold,
+      keyItemCount: keyItems.length,
+      keyItemValue: Math.round(keyItemValue),
+      coveragePct: Math.round(coveragePct * 10) / 10,
+      baseSize: Math.round(baseSize * 10) / 10,
+      factor,
+      sampleSize,
+      interval,
+      items: [
+        ...keyItems.slice(0, 30).map((l) => ({ ...l, amount: Math.round(l.amount), kind: "key" as const })),
+        ...selected.slice(0, 60).map((l) => ({ ...l, amount: Math.round(l.amount), kind: "sample" as const })),
+      ],
+    };
+  });
+}
+
 // ---------------------------------------------------------------- mutations --
 
 const TYPES: TransactionType[] = ["routine", "non_routine", "estimation"];

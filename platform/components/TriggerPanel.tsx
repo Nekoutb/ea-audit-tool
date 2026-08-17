@@ -1,6 +1,6 @@
 // The scoping triggers that used to live only on the legacy form screens:
-// S5.1's five yes/no drivers (experts / service organisations / internal audit
-// / control environment / IT) and S3.3's going-concern indicator flag. The
+// S6.1's five yes/no drivers (experts / service organisations / internal audit
+// / control environment / IT) and S4.2's going-concern indicator flag. The
 // panel writes the SAME legacy form keys through saveFormAction, so the
 // planning driver table and the considerations screen read on unchanged.
 

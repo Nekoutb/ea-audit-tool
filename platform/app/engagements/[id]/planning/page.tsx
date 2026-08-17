@@ -31,18 +31,18 @@ import { requireTenant } from "@/lib/tenant";
 export const metadata = { title: "Planning · AuditISA" };
 
 const PLANNING_CODES = [
-  "S5.1", "P1.1", "S5.2", "P3.1", "P3.2", "P4.1", "P4.2", "P4.3", "S4.1", "S4.2", "S4.3",
-  "P6.1", "S3.2", "P5.1", "S3.3", "S3.4", "S3.5", "P2.2", "P5.2", "S3.1",
+  "S6.1", "P1.1", "S6.2", "P3.1", "P3.2", "P4.1", "P4.2", "P4.3", "S5.1", "S5.2", "S5.3",
+  "P6.1", "S4.1", "P5.1", "S4.2", "S4.3", "S4.4", "P2.2", "P5.2", "S3.1",
 ];
 
-// Conditional D-forms only activate when their S5.1 trigger question is answered
+// Conditional D-forms only activate when their S6.1 trigger question is answered
 // "yes" (spec §5.2). [Adversarial-review fix]
 const CONDITIONAL_TRIGGERS: Record<string, string> = {
   "P4.2": "assess_control_env",
   "P4.3": "assess_it_env",
-  "S4.1": "uses_expert",
-  "S4.2": "uses_service_org",
-  "S4.3": "has_internal_audit",
+  "S5.1": "uses_expert",
+  "S5.2": "uses_service_org",
+  "S5.3": "has_internal_audit",
 };
 
 async function driverStatuses(engagementId: string): Promise<Map<string, string>> {
@@ -68,7 +68,7 @@ async function driverStatuses(engagementId: string): Promise<Map<string, string>
     );
     const signedCodes = new Set(signed.rows.map((r) => r.code));
 
-    const d1 = byCode.get("S5.1") ?? {};
+    const d1 = byCode.get("S6.1") ?? {};
     const statuses = new Map<string, string>();
     for (const code of PLANNING_CODES) {
       const trigger = CONDITIONAL_TRIGGERS[code];

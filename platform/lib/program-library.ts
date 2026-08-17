@@ -82,7 +82,7 @@ export const PROGRAM_LIBRARY: Record<string, LibraryStep[]> = {
     S("Tie the TFT to the underlying balance movements; control ZH = trésorerie actif − passif.", "Rapprocher le TFT des variations de bilan ; contrôle ZH = trésorerie actif − passif.", ["A", "P"]),
   ],
   "E4.15": [
-    S("Update the commitments & contingencies assessment received from S3.2; obtain legal letters.", "Mettre à jour l'évaluation des engagements et passifs éventuels (reçue de S3.2) ; obtenir les lettres d'avocats.", ["C", "V", "P"]),
+    S("Update the commitments & contingencies assessment received from S4.1; obtain legal letters.", "Mettre à jour l'évaluation des engagements et passifs éventuels (reçue de S4.1) ; obtenir les lettres d'avocats.", ["C", "V", "P"]),
   ],
   "E4.16": [
     S("Agree share capital and reserves to statutory records; test movements and appropriations.", "Rapprocher capital et réserves des registres légaux ; tester mouvements et affectations.", ["E", "A", "P"]),
@@ -112,7 +112,7 @@ export const PROGRAM_LIBRARY: Record<string, LibraryStep[]> = {
     S("Review subsequent events up to the report date (ISA 560).", "Revoir les événements postérieurs jusqu'à la date du rapport (ISA 560).", ["C", "V", "P"]),
   ],
   "E6.7": [
-    S("For each estimate in the S3.5 inventory: test method, data and assumptions (ISA 540).", "Pour chaque estimation de l'inventaire S3.5 : tester méthode, données et hypothèses (ISA 540).", ["V"]),
+    S("For each estimate in the S4.4 inventory: test method, data and assumptions (ISA 540).", "Pour chaque estimation de l'inventaire S4.4 : tester méthode, données et hypothèses (ISA 540).", ["V"]),
   ],
 };
 

@@ -71,7 +71,7 @@ export interface PhaseProgress {
 export function phaseOfTask(section: string, code: string): DashboardPhase {
   if (section === "E") return "execution";
   if (section === "A" || section === "B" || section === "C" || section === "F") return "conclusion";
-  if (["P1.1", "S5.1", "S5.2", "P2.2", "P5.2"].includes(code)) return "acceptance";
+  if (["P1.1", "S6.1", "S6.2", "P2.2", "P5.2"].includes(code)) return "acceptance";
   return "planning";
 }
 
@@ -79,7 +79,7 @@ export function phaseOfTask(section: string, code: string): DashboardPhase {
 const BUCKET_CASE = `CASE
   WHEN fi.section = 'E' THEN 'execution'
   WHEN fi.section IN ('A', 'B', 'C', 'F') THEN 'conclusion'
-  WHEN fi.code IN ('P1.1', 'S5.1', 'S5.2', 'P2.2', 'P5.2') THEN 'acceptance'
+  WHEN fi.code IN ('P1.1', 'S6.1', 'S6.2', 'P2.2', 'P5.2') THEN 'acceptance'
   ELSE 'planning'
 END`;
 
@@ -603,7 +603,7 @@ export async function dashboardStats(
 
 /**
  * One task by engagement + internal code — regardless of the conditional flag
- * (conditional items S4.1–S4.3 still have task pages and sign-offs even though
+ * (conditional items S5.1–S5.3 still have task pages and sign-offs even though
  * they are excluded from roll-ups until instantiated as applicable).
  */
 export async function taskForItem(engagementId: string, code: string): Promise<PhaseTask | null> {

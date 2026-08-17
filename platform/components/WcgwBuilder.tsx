@@ -146,6 +146,10 @@ export function WcgwBuilder({
   );
   const [accordion, setAccordion] = useState<string | null>(view.scots[0]?.id ?? null);
   const [error, setError] = useState<string | null>(null);
+  // S2.1: selections stage locally and commit on Save
+  const [staged, setStaged] = useState<Record<string, boolean>>({});
+  const [saving, setSaving] = useState(false);
+  const [savedFlash, setSavedFlash] = useState(false);
 
   async function op(body: Record<string, unknown>) {
     setError(null);
@@ -381,10 +385,32 @@ export function WcgwBuilder({
         return { scot, c, assertions: ASSERTION_CODES.filter((a) => covered.has(a)) };
       }),
     );
+    const isChecked = (id: string, current: boolean) => staged[id] ?? current;
+    const dirty = rows.filter(({ c }) => (staged[c.id] ?? c.selectedForTesting) !== c.selectedForTesting);
+    const saveSelections = async () => {
+      setSaving(true);
+      let ok = true;
+      for (const { c } of dirty) {
+        ok = (await op({ op: "updateControl", controlId: c.id, selectedForTesting: staged[c.id] })) && ok;
+      }
+      setSaving(false);
+      if (ok) { setStaged({}); setSavedFlash(true); setTimeout(() => setSavedFlash(false), 3000); }
+    };
     const td = "border-t border-line px-2.5 py-2 align-top text-[12px]";
     return (
       <div className="flex flex-col gap-2" data-testid="wcgw-builder-select">
-        {header}
+        <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
+          {header}
+          <button
+            type="button"
+            onClick={saveSelections}
+            disabled={dirty.length === 0 || saving}
+            className="ml-auto rounded-[var(--radius-atlas-sm)] bg-emerald-700 px-3.5 py-1.5 text-[12.5px] font-semibold text-white hover:bg-emerald-800 disabled:opacity-40"
+            data-testid="select-save"
+          >
+            {saving ? "…" : dirty.length > 0 ? (fr ? `Enregistrer (${dirty.length})` : `Save changes (${dirty.length})`) : savedFlash ? (fr ? "Enregistré ✓" : "Saved ✓") : fr ? "Enregistrer" : "Save changes"}
+          </button>
+        </div>
         {rows.length === 0 ? (
           <p className="text-[12px] text-muted">{fr ? "Aucun contrôle défini — voir S1.2." : "No controls defined — see S1.2."}</p>
         ) : (
@@ -414,7 +440,7 @@ export function WcgwBuilder({
               </thead>
               <tbody>
                 {rows.map(({ scot, c, assertions }) => (
-                  <tr key={c.id} className={c.selectedForTesting ? "bg-emerald-50/60 dark:bg-emerald-950/20" : ""} data-testid={`select-row-${slug(c.name.slice(0, 20))}`}>
+                  <tr key={c.id} className={isChecked(c.id, c.selectedForTesting) ? "bg-emerald-50/60 dark:bg-emerald-950/20" : ""} data-testid={`select-row-${slug(c.name.slice(0, 20))}`}>
                     <td className={`${td} whitespace-normal font-medium text-ink`}>{c.name}</td>
                     <td className={`${td} whitespace-normal text-ink-soft`}>{scot.name}</td>
                     <td className={`${td} font-mono text-[10.5px] font-bold text-emerald-800 dark:text-emerald-300`}>{assertions.join("") || "—"}</td>
@@ -425,8 +451,8 @@ export function WcgwBuilder({
                     <td className={`${td} text-center`}>
                       <input
                         type="checkbox"
-                        defaultChecked={c.selectedForTesting}
-                        onChange={(e) => void op({ op: "updateControl", controlId: c.id, selectedForTesting: e.target.checked })}
+                        checked={isChecked(c.id, c.selectedForTesting)}
+                        onChange={(e) => setStaged((s) => ({ ...s, [c.id]: e.target.checked }))}
                         data-testid={`control-select-${slug(c.name)}`}
                         className="h-4 w-4 accent-emerald-700"
                       />
@@ -471,7 +497,9 @@ export function WcgwBuilder({
                 defaultValue={c.testDesign ?? ""}
                 placeholder={fr ? "Nature, calendrier et étendue du test…" : "Nature, timing and extent of the test…"}
                 onBlur={(e) => { if (e.target.value !== (c.testDesign ?? "")) void op({ op: "updateControl", controlId: c.id, testDesign: e.target.value }); }}
-                className="mt-1.5 w-full resize-none rounded-[var(--radius-atlas-xs)] bg-[color:var(--wp-input)] px-2.5 py-1.5 text-[12px] text-ink outline-none placeholder:text-muted focus:ring-1 focus:ring-emerald-600/40"
+                onInput={(e) => { const el = e.currentTarget; el.style.height = "auto"; el.style.height = `${el.scrollHeight}px`; }}
+                ref={(el) => { if (el && el.value) { el.style.height = "auto"; el.style.height = `${el.scrollHeight}px`; } }}
+                className="mt-1.5 w-full resize-none overflow-hidden rounded-[var(--radius-atlas-xs)] bg-[color:var(--wp-input)] px-2.5 py-1.5 text-[12px] text-ink outline-none placeholder:text-muted focus:ring-1 focus:ring-emerald-600/40"
                 data-testid={`control-design-${slug(c.name)}`}
               />
             </div>

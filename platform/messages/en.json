@@ -271,11 +271,11 @@
   },
   "considerations": {
     "title": "Planning considerations",
-    "subtitle": "The conditional planning areas (control environment, IT, experts, service organisations, internal audit) in one place. Each applies only when its S5.1 trigger is answered Yes.",
+    "subtitle": "The conditional planning areas (control environment, IT, experts, service organisations, internal audit) in one place. Each applies only when its S6.1 trigger is answered Yes.",
     "back": "Back to Planning workspace",
     "applicable": "Applicable",
     "notRequired": "Not required",
-    "notRequiredHint": "Not required for this engagement — \"{trigger}\" is answered No (or unanswered) in the S5.1 strategy driver."
+    "notRequiredHint": "Not required for this engagement — \"{trigger}\" is answered No (or unanswered) in the S6.1 strategy driver."
   },
   "tabGroups": {
     "phases": "Phase work",
@@ -769,7 +769,7 @@
       }
     },
     "driver": {
-      "title": "S5.1 — Engagement strategy driver",
+      "title": "S6.1 — Engagement strategy driver",
       "form": "Form",
       "status": "Status",
       "statusValues": {
@@ -777,7 +777,7 @@
         "in_progress": "In progress",
         "complete": "Complete",
         "signed": "Signed",
-        "not_required": "Not required (S5.1 trigger off)"
+        "not_required": "Not required (S6.1 trigger off)"
       }
     },
     "risks": {

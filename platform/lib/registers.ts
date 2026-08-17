@@ -1,5 +1,5 @@
-// The two planning sub-registers: related parties (S3.4, ISA 550) and
-// accounting estimates (S3.5, ISA 540). Shared by the legacy form page and the
+// The two planning sub-registers: related parties (S4.3, ISA 550) and
+// accounting estimates (S4.4, ISA 540). Shared by the legacy form page and the
 // working-paper screens that embed them.
 
 import { withTenant } from "@/lib/db";

@@ -127,7 +127,7 @@ export default async function SectionPage(props: {
       if (sm.size > 0) autoValues.benchmark += ` · ${sm.size} specific threshold${sm.size > 1 ? "s" : ""} (P6.2)`;
     }
   }
-  if (section.code === "S5.1") {
+  if (section.code === "S6.1") {
     const [m, risks] = await Promise.all([approvedMateriality(id), listRisks(id)]);
     const live = risks.filter((r) => !r.rebutted);
     const sig = live.filter((r) => r.significant).length;
@@ -175,11 +175,11 @@ export default async function SectionPage(props: {
   const sigAccounts = section.code === "P6.2" ? await significantAccounts(id) : null;
   // S3.1 — the combined risk assessment matrix rides on top of the paper
   const craView = section.code === "S3.1" ? await craRows(id) : null;
-  // S3.4/S3.5 — the planning sub-registers ride with the paper
-  const relatedParties = section.code === "S3.4" ? await listRelatedParties(id) : null;
-  const estimates = section.code === "S3.5" ? await listEstimates(id) : null;
-  // S5.1/S3.3 — legacy scoping triggers surfaced on the working paper
-  const triggerDef = section.code === "S5.1" || section.code === "S3.3" ? FORM_DEFINITIONS[section.code] : null;
+  // S4.3/S4.4 — the planning sub-registers ride with the paper
+  const relatedParties = section.code === "S4.3" ? await listRelatedParties(id) : null;
+  const estimates = section.code === "S4.4" ? await listEstimates(id) : null;
+  // S6.1/S4.2 — legacy scoping triggers surfaced on the working paper
+  const triggerDef = section.code === "S6.1" || section.code === "S4.2" ? FORM_DEFINITIONS[section.code] : null;
   const triggerValues = triggerDef ? (await loadForm(id, section.code)).values : {};
   // S1.x/S2.x + E1.1 — the SCOT Studio rides on the working papers: register
   // on S1.1, WCGW/controls builder on S1.2, walkthroughs on S1.3, selection on
@@ -220,12 +220,12 @@ export default async function SectionPage(props: {
   const taskInfo = await taskForItem(id, section.code);
   const CROSS_LINKS: Record<string, string[]> = {
     "P1.1": ["P1.2", "P2.1"], "P2.1": ["P1.1", "P1.5"], "P1.2": ["P1.1", "E6.5"],
-    "P1.5": ["P2.1", "C4.2"], "P6.1": ["C1.1", "S3.1"], "S3.2": ["E4.15"],
-    "P5.1": ["E2.1", "E4.1"], "S3.3": ["E6.3", "C2.2"], "S3.4": ["E6.2"], "S3.5": ["E6.7"],
+    "P1.5": ["P2.1", "C4.2"], "P6.1": ["C1.1", "S3.1"], "S4.1": ["E4.15"],
+    "P5.1": ["E2.1", "E4.1"], "S4.2": ["E6.3", "C2.2"], "S4.3": ["E6.2"], "S4.4": ["E6.7"],
     "S3.1": ["P5.1", "E1.1"], "C1.1": ["P6.1", "C1.2"], "C2.2": ["E6.6", "E6.3", "C5.1"],
     "S1.1": ["P6.2", "S1.2"], "S1.2": ["S1.3", "E1.1"], "S1.3": ["S1.2", "E1.1"], "S1.4": ["E2.1", "C2.1"],
-    "S2.1": ["S2.2", "E1.1"], "S2.2": ["E1.1", "S3.1"], "S4.1": ["P2.2"], "S4.2": ["P4.3"], "S4.3": ["E1.1"],
-    "S5.1": ["P7.2", "P6.1", "S3.1"], "S5.2": ["P7.2", "S5.1"],
+    "S2.1": ["S2.2", "E1.1"], "S2.2": ["E1.1", "S3.1"], "S5.1": ["P2.2"], "S5.2": ["P4.3"], "S5.3": ["E1.1"],
+    "S6.1": ["P7.2", "P6.1", "S3.1"], "S6.2": ["P7.2", "S6.1"],
     "C3.1": ["C1.1", "E4.15"], "C3.2": ["E4.1", "E4.8"], "C4.2": ["P1.5", "C5.1"], "C5.1": ["C1.1", "C2.2", "C4.2"],
     "C4.1": ["C4.3", "C6.1"], "C1.2": ["C1.1", "C1.3"], "C5.3": ["E6.2"], "C5.8": ["E4.16", "E6.3"],
   };

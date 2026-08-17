@@ -40,8 +40,8 @@ export async function generateMetadata(props: { params: Promise<{ code: string }
 
 async function subRegisters(engagementId: string, code: string) {
   // shared with the working-paper screens that embed the same registers
-  const parties = code === "S3.4" ? await listRelatedParties(engagementId) : [];
-  const estimates = code === "S3.5" ? await listEstimates(engagementId) : [];
+  const parties = code === "S4.3" ? await listRelatedParties(engagementId) : [];
+  const estimates = code === "S4.4" ? await listEstimates(engagementId) : [];
   return { parties, estimates };
 }
 
@@ -426,11 +426,11 @@ export default async function FormPage(props: {
         )}
       </Panel>
 
-      {code === "S3.4" ? (
-        <RelatedPartyRegister engagementId={id} rows={registers.parties} locale={locale} carriedForwardLabel={tp.carriedForward} title={`${t.fileIndex.title} — S3.4`} />
+      {code === "S4.3" ? (
+        <RelatedPartyRegister engagementId={id} rows={registers.parties} locale={locale} carriedForwardLabel={tp.carriedForward} title={`${t.fileIndex.title} — S4.3`} />
       ) : null}
 
-      {code === "S3.5" ? (
+      {code === "S4.4" ? (
         <EstimatesRegister engagementId={id} rows={registers.estimates} locale={locale} />
       ) : null}
 

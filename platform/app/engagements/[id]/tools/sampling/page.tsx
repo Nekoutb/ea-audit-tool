@@ -7,7 +7,7 @@ import { Panel, PanelHeader } from "@/components/ui/atlas";
 import { engagementTasks } from "@/lib/engagement-dashboard";
 import { getEngagement } from "@/lib/engagements";
 import { getLocale } from "@/lib/locale";
-import { listScots } from "@/lib/scots";
+import { listGlAccounts, listScots } from "@/lib/scots";
 
 export const metadata = { title: "Sampling · AuditISA" };
 
@@ -28,16 +28,35 @@ export default async function SamplingPage(props: { params: Promise<{ id: string
   const fr = locale === "fr";
   const engagement = await getEngagement(id);
   if (!engagement) notFound();
-  const [tasks, scots] = await Promise.all([engagementTasks(id), listScots(id)]);
+  const [tasks, scots, glAccounts] = await Promise.all([engagementTasks(id), listScots(id), listGlAccounts(id)]);
   const rows = SAMPLING_CODES.map((code) => tasks.find((x) => x.code === code)).filter(
     (x): x is NonNullable<typeof x> => Boolean(x),
   );
-  // the purpose list: every control selected for testing on S2.1
-  const purposes = scots.flatMap((s) =>
+  // the purpose list: every control selected for testing on S2.1, with the
+  // attributes the frequency table needs — and whether it is the ONLY selected
+  // control covering one of its assertions (larger minimum sample).
+  const selectedAll = scots.flatMap((s) =>
     s.controls
       .filter((c) => c.selectedForTesting)
-      .map((c) => ({ controlId: c.id, controlName: c.name, scotName: s.name, sampleSize: c.sampleSize })),
+      .map((c) => {
+        const covered = new Set<string>();
+        for (const w of s.wcgws) if (c.wcgwIds.includes(w.id)) for (const a of w.assertions) covered.add(a);
+        return { scot: s, c, assertions: [...covered] };
+      }),
   );
+  const assertionCounts = new Map<string, number>();
+  for (const row of selectedAll)
+    for (const a of row.assertions) assertionCounts.set(a, (assertionCounts.get(a) ?? 0) + 1);
+  const purposes = selectedAll.map(({ scot, c, assertions }) => ({
+    controlId: c.id,
+    controlName: c.name,
+    scotName: scot.name,
+    sampleSize: c.sampleSize,
+    frequency: c.frequency,
+    controlType: c.controlType,
+    assertions,
+    sole: assertions.some((a) => (assertionCounts.get(a) ?? 0) === 1),
+  }));
 
   return (
     <main className="min-h-screen w-full px-6 py-6">
@@ -63,7 +82,7 @@ export default async function SamplingPage(props: { params: Promise<{ id: string
           hint={fr ? "assigné directement à la conception du test (S2.2)" : "assigned straight onto the test design (S2.2)"}
         />
         <div className="mt-3">
-          <SamplingStudio engagementId={id} purposes={purposes} locale={fr ? "fr" : "en"} />
+          <SamplingStudio engagementId={id} purposes={purposes} glAccounts={glAccounts} locale={fr ? "fr" : "en"} />
         </div>
       </Panel>
 

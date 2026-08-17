@@ -11,6 +11,9 @@ import {
   musPreview,
   saveFscp,
   saveWalkthrough,
+  todPreview,
+  type TodAssurance,
+  type TodCra,
   toggleWcgwControl,
   unlinkScotIndex,
   updateControl,
@@ -81,6 +84,20 @@ export async function POST(request: Request, context: { params: Promise<{ id: st
       case "saveFscp":
         await saveFscp(id, String(body.key), String(body.value ?? ""));
         break;
+      case "todPreview": {
+        const CRAS = ["minimal", "low", "low_sr", "moderate", "high", "high_sr"];
+        const ASSUR = ["little", "some", "corroborative", "persuasive"];
+        const cra = CRAS.includes(String(body.cra)) ? (String(body.cra) as TodCra) : "low";
+        const assurance = ASSUR.includes(String(body.assurance)) ? (String(body.assurance) as TodAssurance) : "little";
+        const preview = await todPreview(
+          id,
+          String(body.prefix ?? ""),
+          cra,
+          assurance,
+          body.threshold ? Number(body.threshold) : undefined,
+        );
+        return NextResponse.json(preview);
+      }
       case "musPreview": {
         const preview = await musPreview(
           id,

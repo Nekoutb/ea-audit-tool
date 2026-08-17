@@ -1,4 +1,4 @@
-// The S3.4 related-parties register and S3.5 estimates inventory, rendered on
+// The S4.3 related-parties register and S4.4 estimates inventory, rendered on
 // the legacy form page and embedded on the working-paper screens. The add
 // forms post the existing planning actions with a returnTo so each screen
 // lands back on itself.

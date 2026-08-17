@@ -271,11 +271,11 @@
   },
   "considerations": {
     "title": "Considérations de planification",
-    "subtitle": "Les domaines conditionnels de planification (environnement de contrôle, informatique, experts, sociétés de services, audit interne) réunis en un seul écran. Chacun ne s'applique que si son déclencheur S5.1 est répondu Oui.",
+    "subtitle": "Les domaines conditionnels de planification (environnement de contrôle, informatique, experts, sociétés de services, audit interne) réunis en un seul écran. Chacun ne s'applique que si son déclencheur S6.1 est répondu Oui.",
     "back": "Retour à l'espace Planification",
     "applicable": "Applicable",
     "notRequired": "Non requis",
-    "notRequiredHint": "Non requis pour cette mission — « {trigger} » est répondu Non (ou sans réponse) dans le pilote de stratégie S5.1."
+    "notRequiredHint": "Non requis pour cette mission — « {trigger} » est répondu Non (ou sans réponse) dans le pilote de stratégie S6.1."
   },
   "tabGroups": {
     "phases": "Travaux par phase",
@@ -769,7 +769,7 @@
       }
     },
     "driver": {
-      "title": "S5.1 — Pilote de la stratégie de mission",
+      "title": "S6.1 — Pilote de la stratégie de mission",
       "form": "Formulaire",
       "status": "Statut",
       "statusValues": {
@@ -777,7 +777,7 @@
         "in_progress": "En cours",
         "complete": "Complet",
         "signed": "Signé",
-        "not_required": "Non requis (déclencheur S5.1 inactif)"
+        "not_required": "Non requis (déclencheur S6.1 inactif)"
       }
     },
     "risks": {

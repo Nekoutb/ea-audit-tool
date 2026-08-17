@@ -1,6 +1,6 @@
 // The default audit file index (master spec §3), instantiated per engagement.
 // The numbering gaps are INTENTIONAL and follow the methodology's convention:
-// there is no D2 and no D5.3; S5.1 jumps to P1.1. Do not "normalize" them.
+// there is no D2 and no D5.3; S6.1 jumps to P1.1. Do not "normalize" them.
 
 export type Section = "A" | "B" | "C" | "D" | "E" | "F";
 
@@ -55,7 +55,7 @@ export const DEFAULT_FILE_INDEX: readonly FileIndexEntry[] = [
   },
 
   // D — Acceptance & Planning (no D2; no D5.3 — intentional gaps)
-  { code: "S5.1", section: "D", titleEn: "Prepare Audit Strategies Memorandum", titleFr: "Préparer le mémorandum de stratégie d'audit" },
+  { code: "S6.1", section: "D", titleEn: "Prepare Audit Strategies Memorandum", titleFr: "Préparer le mémorandum de stratégie d'audit" },
   { code: "P1.1", section: "D", titleEn: "Consider Client Acceptance / Continuance Results", titleFr: "Examiner l'acceptation / le maintien du client" },
   // P2.1–P1.5 complete the acceptance phase: the ISA 210 / ISQM requirements
   // that previously had no working paper of their own.
@@ -64,21 +64,21 @@ export const DEFAULT_FILE_INDEX: readonly FileIndexEntry[] = [
   { code: "P1.2", section: "D", titleEn: "Predecessor Auditor Communication (ISA 300 / IESBA §320)", titleFr: "Communication avec l'auditeur précédent (ISA 300 / IESBA §320)", conditional: true },
   { code: "P1.4", section: "D", titleEn: "Engagement Letter (ISA 210)", titleFr: "Lettre de mission (ISA 210)" },
   { code: "P1.5", section: "D", titleEn: "Engagement Quality Review Determination (ISQM 1/2)", titleFr: "Détermination de la revue de qualité (ISQM 1/2)" },
-  { code: "S5.2", section: "D", titleEn: "Direction from the Engagement Partner", titleFr: "Directives de l'associé responsable de la mission" },
+  { code: "S6.2", section: "D", titleEn: "Direction from the Engagement Partner", titleFr: "Directives de l'associé responsable de la mission" },
   { code: "P3.1", section: "D", titleEn: "Understand the Business — the Entity, its Environment and the Applicable Framework (ISA 315)", titleFr: "Connaissance de l'entité, de son environnement et du référentiel comptable applicable (ISA 315)" },
   { code: "P3.2", section: "D", titleEn: "Analytical Risk Assessment Procedures", titleFr: "Procédures analytiques d'évaluation des risques" },
   { code: "P4.1", section: "D", titleEn: "Assess Internal Control at the Entity Level", titleFr: "Évaluer le contrôle interne au niveau de l'entité" },
   { code: "P4.2", section: "D", titleEn: "Control Environment Assessment", titleFr: "Évaluation de l'environnement de contrôle", conditional: true },
   { code: "P4.3", section: "D", titleEn: "Understand the IT Environment and Determine IT Involvement", titleFr: "Comprendre l'environnement informatique et déterminer l'implication IT", conditional: true },
-  { code: "S4.1", section: "D", titleEn: "Reliance on Experts (ISA 620)", titleFr: "Utilisation des travaux d'un expert (ISA 620)", conditional: true },
-  { code: "S4.2", section: "D", titleEn: "Service Organisations (ISA 402)", titleFr: "Sociétés de services (ISA 402)", conditional: true },
-  { code: "S4.3", section: "D", titleEn: "Internal Audit (ISA 610)", titleFr: "Audit interne (ISA 610)", conditional: true },
+  { code: "S5.1", section: "D", titleEn: "Reliance on Experts (ISA 620)", titleFr: "Utilisation des travaux d'un expert (ISA 620)", conditional: true },
+  { code: "S5.2", section: "D", titleEn: "Service Organisations (ISA 402)", titleFr: "Sociétés de services (ISA 402)", conditional: true },
+  { code: "S5.3", section: "D", titleEn: "Internal Audit (ISA 610)", titleFr: "Audit interne (ISA 610)", conditional: true },
   { code: "P6.1", section: "D", titleEn: "Determine Materiality — PM, TE and SAD Nominal Amount (ISA 320)", titleFr: "Déterminer le seuil de signification — PM, TE et seuil SAD (ISA 320)" },
-  { code: "S3.2", section: "D", titleEn: "Commitments & Contingencies", titleFr: "Engagements et passifs éventuels" },
+  { code: "S4.1", section: "D", titleEn: "Commitments & Contingencies", titleFr: "Engagements et passifs éventuels" },
   { code: "P5.1", section: "D", titleEn: "Identify Fraud Risks and Determine Responses (ISA 240)", titleFr: "Identifier les risques de fraude et déterminer les réponses (ISA 240)" },
-  { code: "S3.3", section: "D", titleEn: "Going Concern — Preliminary (ISA 570)", titleFr: "Continuité d'exploitation — préliminaire (ISA 570)" },
-  { code: "S3.4", section: "D", titleEn: "Related Parties (ISA 550)", titleFr: "Parties liées (ISA 550)" },
-  { code: "S3.5", section: "D", titleEn: "Accounting Estimates — Planning (ISA 540)", titleFr: "Estimations comptables — planification (ISA 540)" },
+  { code: "S4.2", section: "D", titleEn: "Going Concern — Preliminary (ISA 570)", titleFr: "Continuité d'exploitation — préliminaire (ISA 570)" },
+  { code: "S4.3", section: "D", titleEn: "Related Parties (ISA 550)", titleFr: "Parties liées (ISA 550)" },
+  { code: "S4.4", section: "D", titleEn: "Accounting Estimates — Planning (ISA 540)", titleFr: "Estimations comptables — planification (ISA 540)" },
   { code: "P6.2", section: "D", titleEn: "Identify Significant Accounts, Disclosures and Relevant Assertions", titleFr: "Identifier les comptes significatifs, informations à fournir et assertions pertinentes", tier: "core" },
   { code: "S1.1", section: "D", titleEn: "Identify Significant Classes of Transactions and Related Applications", titleFr: "Identifier les catégories significatives de transactions et applications associées" },
   { code: "S1.2", section: "D", titleEn: "Understand Flows of Transactions, WCGWs and Controls", titleFr: "Comprendre les flux de transactions, les WCGW et les contrôles" },
@@ -161,28 +161,28 @@ const SHORT_TITLES: Record<string, { en: string; fr: string }> = {
   "C6.1": { en: "Points Forward (next year)", fr: "Points à reporter (N+1)" },
   "C6.2": { en: "Documentation & Archive", fr: "Documentation & archivage" },
   "C5.1": { en: "Client Communications (ISA 260)", fr: "Communications client (ISA 260)" },
-  "S5.1": { en: "Audit Strategies Memorandum", fr: "Mémorandum de stratégie" },
+  "S6.1": { en: "Audit Strategies Memorandum", fr: "Mémorandum de stratégie" },
   "P1.1": { en: "Client Acceptance / Continuance", fr: "Acceptation / maintien du client" },
   "P2.1": { en: "Independence & Ethics", fr: "Indépendance & éthique" },
   "P1.3": { en: "Preconditions (ISA 210)", fr: "Conditions préalables (ISA 210)" },
   "P1.2": { en: "Predecessor Auditor", fr: "Auditeur précédent" },
   "P1.4": { en: "Engagement Letter", fr: "Lettre de mission" },
   "P1.5": { en: "EQR Determination", fr: "Détermination revue qualité" },
-  "S5.2": { en: "Partner Direction", fr: "Directives de l'associé" },
+  "S6.2": { en: "Partner Direction", fr: "Directives de l'associé" },
   "P3.1": { en: "Understand the Business (ISA 315)", fr: "Comprendre l'activité (ISA 315)" },
   "P3.2": { en: "Analytical Risk Procedures", fr: "Procédures analytiques de risque" },
   "P4.1": { en: "Entity-Level Internal Control", fr: "Contrôle interne de l'entité" },
   "P4.2": { en: "Control Environment", fr: "Environnement de contrôle" },
   "P4.3": { en: "IT Environment & IT Involvement", fr: "Environnement & implication IT" },
-  "S4.1": { en: "Reliance on Experts (ISA 620)", fr: "Recours à un expert (ISA 620)" },
-  "S4.2": { en: "Service Organisations (ISA 402)", fr: "Sociétés de services (ISA 402)" },
-  "S4.3": { en: "Internal Audit (ISA 610)", fr: "Audit interne (ISA 610)" },
+  "S5.1": { en: "Reliance on Experts (ISA 620)", fr: "Recours à un expert (ISA 620)" },
+  "S5.2": { en: "Service Organisations (ISA 402)", fr: "Sociétés de services (ISA 402)" },
+  "S5.3": { en: "Internal Audit (ISA 610)", fr: "Audit interne (ISA 610)" },
   "P6.1": { en: "Materiality — PM, TE, SAD (ISA 320)", fr: "Seuil — PM, TE, SAD (ISA 320)" },
-  "S3.2": { en: "Commitments & Contingencies", fr: "Engagements et passifs éventuels" },
+  "S4.1": { en: "Commitments & Contingencies", fr: "Engagements et passifs éventuels" },
   "P5.1": { en: "Fraud Risks & Responses (ISA 240)", fr: "Risques de fraude & réponses (ISA 240)" },
-  "S3.3": { en: "Going Concern — Prelim (ISA 570)", fr: "Continuité — préliminaire (ISA 570)" },
-  "S3.4": { en: "Related Parties (ISA 550)", fr: "Parties liées (ISA 550)" },
-  "S3.5": { en: "Estimates — Planning (ISA 540)", fr: "Estimations — planification (ISA 540)" },
+  "S4.2": { en: "Going Concern — Prelim (ISA 570)", fr: "Continuité — préliminaire (ISA 570)" },
+  "S4.3": { en: "Related Parties (ISA 550)", fr: "Parties liées (ISA 550)" },
+  "S4.4": { en: "Estimates — Planning (ISA 540)", fr: "Estimations — planification (ISA 540)" },
   "P6.2": { en: "Significant Accounts & Assertions", fr: "Comptes significatifs & assertions" },
   "S1.1": { en: "SCOTs & Related Applications", fr: "SCOT & applications associées" },
   "S1.2": { en: "Flows, WCGWs & Controls", fr: "Flux, WCGW & contrôles" },
@@ -258,8 +258,8 @@ const CORE_CODES = new Set([
   "C5.1",
   // Acceptance applies to every engagement whatever its complexity, so the
   // whole D3 family is core. P1.2 stays conditional (initial engagements only).
-  "S5.1", "P1.1", "P2.1", "P1.3", "P1.2", "P1.4", "P1.5",
-  "S5.2", "P3.1", "P3.2", "P6.1", "P5.1", "S3.3", "P5.2", "S3.1",
+  "S6.1", "P1.1", "P2.1", "P1.3", "P1.2", "P1.4", "P1.5",
+  "S6.2", "P3.1", "P3.2", "P6.1", "P5.1", "S4.2", "P5.2", "S3.1",
   "E4.1", "E4.2", "E4.3", "E4.8", "E4.9", "E6.3", "E6.4", "E6.5", "E6.6",
   "C5.2",
 ]);

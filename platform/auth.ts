@@ -11,6 +11,7 @@ interface UserRow {
   name: string | null;
   password_hash: string;
   preferred_language: string;
+  is_super: boolean;
 }
 
 interface MembershipRow {
@@ -37,7 +38,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
         if (!email || !password) return null;
 
         const userResult = await pool.query<UserRow>(
-          "SELECT id, email, name, password_hash, preferred_language FROM app_user WHERE lower(email) = $1",
+          "SELECT id, email, name, password_hash, preferred_language, coalesce(is_super, false) AS is_super FROM app_user WHERE lower(email) = $1",
           [email],
         );
         const user = userResult.rows[0];
@@ -66,6 +67,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
           role: membership.role,
           locale,
           clientId: membership.client_id,
+          isSuper: user.is_super,
         };
       },
     }),
@@ -78,6 +80,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
         token.role = user.role;
         token.locale = user.locale;
         token.clientId = user.clientId ?? null;
+        token.isSuper = user.isSuper ?? false;
       }
       return token;
     },
@@ -88,6 +91,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
         session.user.role = token.role as Role;
         session.user.locale = token.locale as Locale;
         session.user.clientId = (token.clientId as string | null) ?? null;
+        session.user.isSuper = (token.isSuper as boolean | undefined) ?? false;
       }
       return session;
     },
