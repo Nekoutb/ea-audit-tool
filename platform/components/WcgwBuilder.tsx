@@ -70,7 +70,7 @@ function ScotFooter({
             className={`h-[17px] w-[17px] rounded-[3px] text-[9.5px] font-bold ${assertions.includes(a) ? "bg-emerald-700 text-white" : "border border-line text-muted"}`}
           >{a}</button>
         ))}
-        <button type="button" onClick={addWcgw} className="rounded-[var(--radius-atlas-xs)] bg-emerald-700 px-2 py-1 text-[11px] font-semibold text-white hover:bg-emerald-800" data-testid={`wcgw-add-${slug(scot.name)}`}>＋ WCGW</button>
+        <button type="button" onClick={addWcgw} className="ml-auto inline-flex w-[104px] justify-center rounded-[var(--radius-atlas-xs)] bg-emerald-700 px-2 py-1 text-[11px] font-semibold text-white hover:bg-emerald-800" data-testid={`wcgw-add-${slug(scot.name)}`}>＋ WCGW</button>
       </div>
       <div className="flex flex-wrap items-center gap-1.5">
         <input
@@ -78,7 +78,7 @@ function ScotFooter({
           onChange={(e) => setCtrl((c) => ({ ...c, name: e.target.value }))}
           onKeyDown={enter(addControl)}
           placeholder={fr ? "Nouveau contrôle" : "New control"}
-          className="min-w-[150px] rounded-[var(--radius-atlas-xs)] border border-line-strong bg-surface px-2 py-1 text-[11.5px] outline-none focus:border-emerald-600"
+          className="min-w-[150px] flex-1 rounded-[var(--radius-atlas-xs)] border border-line-strong bg-surface px-2 py-1 text-[11.5px] outline-none focus:border-emerald-600"
           data-testid={`control-new-${slug(scot.name)}`}
         />
         <input
@@ -102,7 +102,7 @@ function ScotFooter({
           <option value="prevent">{fr ? "Prévention" : "Prevent"}</option>
           <option value="detect">{fr ? "Détection" : "Detect"}</option>
         </select>
-        <button type="button" onClick={addControl} className="rounded-[var(--radius-atlas-xs)] bg-emerald-700 px-2 py-1 text-[11px] font-semibold text-white hover:bg-emerald-800" data-testid={`control-add-${slug(scot.name)}`}>＋ {fr ? "contrôle" : "control"}</button>
+        <button type="button" onClick={addControl} className="ml-auto inline-flex w-[104px] justify-center rounded-[var(--radius-atlas-xs)] bg-emerald-700 px-2 py-1 text-[11px] font-semibold text-white hover:bg-emerald-800" data-testid={`control-add-${slug(scot.name)}`}>＋ {fr ? "contrôle" : "control"}</button>
       </div>
       {uncovered.length > 0 ? (
         <p className="flex flex-wrap items-center gap-1.5 text-[10.5px] text-muted" data-testid={`uncovered-controls-${slug(scot.name)}`}>

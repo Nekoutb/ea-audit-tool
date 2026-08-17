@@ -8,6 +8,7 @@ import {
   deleteScot,
   deleteWcgw,
   linkScotIndex,
+  saveWalkthrough,
   toggleWcgwControl,
   unlinkScotIndex,
   updateControl,
@@ -71,6 +72,9 @@ export async function POST(request: Request, context: { params: Promise<{ id: st
         break;
       case "deleteControl":
         await deleteControl(String(body.controlId));
+        break;
+      case "saveWalkthrough":
+        await saveWalkthrough(id, String(body.scotId), String(body.key), String(body.value ?? ""));
         break;
       default:
         return NextResponse.json({ error: "invalid-op" }, { status: 400 });

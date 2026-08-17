@@ -30,9 +30,10 @@ import { listTaskNotes } from "@/lib/task-notes";
 import { significantAccounts, specificThresholds } from "@/lib/significant-accounts";
 import { craRows } from "@/lib/cra";
 import { listEstimates, listRelatedParties } from "@/lib/registers";
-import { scotStudio, scotSummary } from "@/lib/scots";
+import { scotStudio, scotSummary, walkthroughValues } from "@/lib/scots";
 import { ScotRegister } from "@/components/ScotRegister";
 import { WcgwBuilder } from "@/components/WcgwBuilder";
+import { WalkthroughBoard } from "@/components/WalkthroughBoard";
 import { EstimatesRegister, RelatedPartyRegister } from "@/components/PlanningRegisters";
 import { TriggerPanel } from "@/components/TriggerPanel";
 import { FORM_DEFINITIONS, loadForm } from "@/lib/forms";
@@ -180,14 +181,19 @@ export default async function SectionPage(props: {
   const triggerDef = section.code === "S5.1" || section.code === "S3.3" ? FORM_DEFINITIONS[section.code] : null;
   const triggerValues = triggerDef ? (await loadForm(id, section.code)).values : {};
   // S1.x/S2.x + E1.1 — the SCOT Studio rides on the working papers: register
-  // on S1.1, WCGW/controls builder on S1.2, selection on S2.1, test design on
-  // S2.2, and the results view + control link on E1.1's execution page.
+  // on S1.1, WCGW/controls builder on S1.2, walkthroughs on S1.3, selection on
+  // S2.1, test design on S2.2, and the results view + control link on E1.1's
+  // execution page. S1.1/S1.2/S1.3 own the whole first page via the wizard's
+  // embed slot; S2.x keep the compact strip above the paper.
   const SCOT_MODES: Record<string, "wcgw" | "select" | "design" | "results"> = {
     "S1.2": "wcgw", "S2.1": "select", "S2.2": "design", "E1.1": "results",
   };
   const scotView =
-    section.code === "S1.1" || section.code in SCOT_MODES ? await scotStudio(id) : null;
+    section.code === "S1.1" || section.code === "S1.3" || section.code in SCOT_MODES
+      ? await scotStudio(id)
+      : null;
   if (scotView) autoValues.context = scotSummary(scotView);
+  const wtValues = scotView && section.code === "S1.3" ? await walkthroughValues(id) : null;
   // P7 — the planning review & approval summary takes over the centre column
   const ras = section.code === "P7.2" ? await planningRas(id) : null;
   // Appendix 1 rows: the engagement team by seniority, then three free rows
@@ -421,16 +427,6 @@ export default async function SectionPage(props: {
             {triggerDef ? (
               <TriggerPanel engagementId={id} definition={triggerDef} values={triggerValues} returnTo={`/engagements/${id}/sections/${itemId}`} locale={isFr ? "fr" : "en"} />
             ) : null}
-            {scotView && section.code === "S1.1" ? (
-              <div className="mb-2 min-h-0 max-h-[55%] overflow-auto" data-testid="wp-scot-register">
-                <ScotRegister
-                  engagementId={id}
-                  view={scotView}
-                  team={team.map((m) => ({ userId: m.userId, userName: m.userName }))}
-                  locale={isFr ? "fr" : "en"}
-                />
-              </div>
-            ) : null}
             {scotView && section.code in SCOT_MODES && section.code !== "S1.2" ? (
               <div className="mb-2 min-h-0 max-h-[55%] overflow-auto" data-testid="wp-wcgw-builder">
                 <WcgwBuilder engagementId={id} view={scotView} mode={SCOT_MODES[section.code]} locale={isFr ? "fr" : "en"} />
@@ -482,13 +478,28 @@ export default async function SectionPage(props: {
               locale={fr ? "fr" : "en"}
               action={savePaperAction.bind(null, id, itemId, section.code)}
               embed={
-                // S1.2: the SCOT/WCGW/controls table IS the work — it owns the
-                // whole first page; Part A's questions follow on the next pages.
-                scotView && section.code === "S1.2" ? (
+                // S1.1/S1.2/S1.3: the structured work owns the whole first
+                // page; Part A's questions follow on the next pages.
+                scotView && section.code === "S1.1" ? (
+                  <ScotRegister
+                    engagementId={id}
+                    view={scotView}
+                    team={team.map((m) => ({ userId: m.userId, userName: m.userName }))}
+                    locale={isFr ? "fr" : "en"}
+                  />
+                ) : scotView && section.code === "S1.2" ? (
                   <WcgwBuilder engagementId={id} view={scotView} mode="wcgw" locale={isFr ? "fr" : "en"} />
+                ) : scotView && wtValues && section.code === "S1.3" ? (
+                  <WalkthroughBoard engagementId={id} view={scotView} values={wtValues} locale={isFr ? "fr" : "en"} />
                 ) : undefined
               }
-              embedTitle={fr ? "Flux, WCGW & contrôles" : "Flows, WCGWs & controls"}
+              embedTitle={
+                section.code === "S1.1"
+                  ? fr ? "Registre des SCOT" : "SCOT register"
+                  : section.code === "S1.3"
+                    ? fr ? "Cheminements par SCOT" : "Walkthroughs by SCOT"
+                    : fr ? "Flux, WCGW & contrôles" : "Flows, WCGWs & controls"
+              }
             />
             )}
           </section>

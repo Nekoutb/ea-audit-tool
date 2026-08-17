@@ -35,6 +35,10 @@ export function ScotRegister({
   const router = useRouter();
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  // The register renders inside the working paper's <form> on S1.1, so the
+  // create row is plain inputs — a nested <form> would be dropped by the HTML
+  // parser and break hydration.
+  const [draft, setDraft] = useState({ name: "", transactionType: "routine", strategy: "substantive", applications: "" });
 
   async function op(body: Record<string, unknown>) {
     setBusy(true);
@@ -56,6 +60,12 @@ export function ScotRegister({
 
   const typeLabel = (t: string) =>
     t === "routine" ? (fr ? "Routinier" : "Routine") : t === "non_routine" ? (fr ? "Non routinier" : "Non-routine") : fr ? "Estimation" : "Estimation";
+
+  async function create() {
+    if (!draft.name.trim()) return;
+    const ok = await op({ op: "createScot", ...draft });
+    if (ok) setDraft({ name: "", transactionType: "routine", strategy: "substantive", applications: "" });
+  }
 
   return (
     <div className="flex flex-col gap-1.5" data-testid="scot-register">
@@ -176,36 +186,34 @@ export function ScotRegister({
         </table>
       </div>
 
-      <form
-        className="flex flex-wrap items-end gap-2"
-        onSubmit={(e) => {
-          e.preventDefault();
-          const f = e.currentTarget;
-          const data = new FormData(f);
-          void op({
-            op: "createScot",
-            name: String(data.get("name") ?? ""),
-            transactionType: String(data.get("transactionType") ?? "routine"),
-            strategy: String(data.get("strategy") ?? "substantive"),
-            applications: String(data.get("applications") ?? ""),
-          }).then((ok) => { if (ok) f.reset(); });
-        }}
-      >
-        <input name="name" required placeholder={fr ? "Nouveau SCOT (ex. Ventes & encaissements)" : "New SCOT (e.g. Sales & cash receipts)"} className="rounded-[var(--radius-atlas-sm)] border border-line-strong bg-surface px-2 py-1 text-[12px] text-ink outline-none focus:border-emerald-600" data-testid="scot-new-name" />
-        <select name="transactionType" className="rounded-[var(--radius-atlas-sm)] border border-line-strong bg-surface px-2 py-1 text-[12px]" defaultValue="routine">
+      <div className="flex flex-wrap items-end gap-2">
+        <input
+          value={draft.name}
+          onChange={(e) => setDraft((d) => ({ ...d, name: e.target.value }))}
+          onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); void create(); } }}
+          placeholder={fr ? "Nouveau SCOT (ex. Ventes & encaissements)" : "New SCOT (e.g. Sales & cash receipts)"}
+          className="rounded-[var(--radius-atlas-sm)] border border-line-strong bg-surface px-2 py-1 text-[12px] text-ink outline-none focus:border-emerald-600"
+          data-testid="scot-new-name"
+        />
+        <select value={draft.transactionType} onChange={(e) => setDraft((d) => ({ ...d, transactionType: e.target.value }))} className="rounded-[var(--radius-atlas-sm)] border border-line-strong bg-surface px-2 py-1 text-[12px]">
           <option value="routine">{typeLabel("routine")}</option>
           <option value="non_routine">{typeLabel("non_routine")}</option>
           <option value="estimation">{typeLabel("estimation")}</option>
         </select>
-        <select name="strategy" className="rounded-[var(--radius-atlas-sm)] border border-line-strong bg-surface px-2 py-1 text-[12px]" defaultValue="substantive">
+        <select value={draft.strategy} onChange={(e) => setDraft((d) => ({ ...d, strategy: e.target.value }))} className="rounded-[var(--radius-atlas-sm)] border border-line-strong bg-surface px-2 py-1 text-[12px]">
           <option value="controls">{fr ? "Contrôles" : "Controls"}</option>
           <option value="substantive">{fr ? "Substantif" : "Substantive"}</option>
         </select>
-        <input name="applications" placeholder={fr ? "Applications" : "Applications"} className="rounded-[var(--radius-atlas-sm)] border border-line-strong bg-surface px-2 py-1 text-[12px] text-ink outline-none" />
-        <button type="submit" disabled={busy} className="rounded-[var(--radius-atlas-sm)] bg-emerald-700 px-2.5 py-1 text-[12px] font-semibold text-white hover:bg-emerald-800 disabled:opacity-50" data-testid="scot-add">
+        <input
+          value={draft.applications}
+          onChange={(e) => setDraft((d) => ({ ...d, applications: e.target.value }))}
+          placeholder={fr ? "Applications" : "Applications"}
+          className="rounded-[var(--radius-atlas-sm)] border border-line-strong bg-surface px-2 py-1 text-[12px] text-ink outline-none"
+        />
+        <button type="button" onClick={() => void create()} disabled={busy} className="rounded-[var(--radius-atlas-sm)] bg-emerald-700 px-2.5 py-1 text-[12px] font-semibold text-white hover:bg-emerald-800 disabled:opacity-50" data-testid="scot-add">
           {fr ? "+ Créer" : "+ Create"}
         </button>
-      </form>
+      </div>
     </div>
   );
 }

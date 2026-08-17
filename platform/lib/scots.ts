@@ -201,6 +201,64 @@ export function scotSummary(view: ScotStudioView): string {
   return `${view.scots.length} SCOT(s) · ${wcgws} WCGW(s) · ${controls} control(s) · ${selected} selected for testing`;
 }
 
+// ------------------------------------------------------------ walkthroughs --
+
+// S1.3: each SCOT carries an "Understand the SCOT & Walkthrough" form. The
+// answers are key-value rows in form_response under code `wt:<scot_id>` —
+// tenant- and engagement-scoped like every paper answer, and free to evolve
+// with the firm's standard form without migrations.
+
+const WT_KEY = /^[a-z_]{1,40}$/;
+
+export async function walkthroughValues(
+  engagementId: string,
+): Promise<Record<string, Record<string, string>>> {
+  const { tenantId } = await requireTenant();
+  return withTenant(tenantId, async (tx) => {
+    const r = await tx.query<{ code: string; field_key: string; value: string }>(
+      `SELECT code, field_key, value #>> '{}' AS value
+         FROM form_response
+        WHERE engagement_id = $1 AND code LIKE 'wt:%'`,
+      [engagementId],
+    );
+    const out: Record<string, Record<string, string>> = {};
+    for (const row of r.rows) {
+      const scotId = row.code.slice(3);
+      (out[scotId] ??= {})[row.field_key] = row.value;
+    }
+    return out;
+  });
+}
+
+export async function saveWalkthrough(
+  engagementId: string,
+  scotId: string,
+  key: string,
+  value: string,
+): Promise<void> {
+  const { tenantId, userId } = await requireTenant();
+  if (!WT_KEY.test(key)) throw new Error("invalid-key");
+  await withTenant(tenantId, async (tx) => {
+    // the scot must belong to this engagement — never trust the id pair blindly
+    const owner = await tx.query("SELECT 1 FROM scot WHERE id = $1 AND engagement_id = $2", [scotId, engagementId]);
+    if (!owner.rows[0]) throw new Error("not-found");
+    if (value.trim() === "") {
+      await tx.query(
+        "DELETE FROM form_response WHERE engagement_id = $1 AND code = $2 AND field_key = $3",
+        [engagementId, `wt:${scotId}`, key],
+      );
+      return;
+    }
+    await tx.query(
+      `INSERT INTO form_response (tenant_id, engagement_id, code, field_key, value, updated_by)
+       VALUES ($1, $2, $3, $4, to_jsonb($5::text), $6)
+       ON CONFLICT (engagement_id, code, field_key)
+       DO UPDATE SET value = EXCLUDED.value, updated_by = EXCLUDED.updated_by, updated_at = now()`,
+      [tenantId, engagementId, `wt:${scotId}`, key, value, userId],
+    );
+  });
+}
+
 // ---------------------------------------------------------------- mutations --
 
 const TYPES: TransactionType[] = ["routine", "non_routine", "estimation"];
