@@ -105,10 +105,10 @@ const SECTION_B: WtField[] = [
   },
   {
     key: "wt_design",
-    en: "The flow and controls operate as described — design confirmed",
-    fr: "Le flux et les contrôles fonctionnent comme décrits — conception confirmée",
-    guideEn: "ISA 315 ¶26(a): the walkthrough corroborates the understanding of the flow and the design of the identified controls.",
-    guideFr: "ISA 315 ¶26(a) : le cheminement corrobore la compréhension du flux et la conception des contrôles identifiés.",
+    en: "Conclusion — the controls over this SCOT are effectively DESIGNED",
+    fr: "Conclusion — les contrôles de ce SCOT sont efficacement CONÇUS",
+    guideEn: "ISA 315 ¶26(a): the walkthrough corroborates the flow as described and shows the identified controls, as designed, capable of preventing or detecting the WCGWs they answer.",
+    guideFr: "ISA 315 ¶26(a) : le cheminement corrobore le flux décrit et montre que les contrôles identifiés, tels que conçus, peuvent prévenir ou détecter les WCGW qu'ils couvrent.",
     kind: "yn",
   },
   {

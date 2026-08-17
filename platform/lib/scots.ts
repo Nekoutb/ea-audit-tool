@@ -26,6 +26,9 @@ export interface ScotControl {
   designEval: "effective" | "ineffective" | null;
   implemented: boolean | null;
   operatingNotes: string | null;
+  /** assigned by the sampling tool (random / MUS) — never typed by hand */
+  sampleSize: number | null;
+  sampleNote: string | null;
   /** derived from linked control_test rows — null until a test is recorded */
   operating: "effective" | "exceptions" | null;
   testsCount: number;
@@ -98,6 +101,7 @@ export async function listScots(engagementId: string): Promise<Scot[]> {
                        'selectedForTesting', c.selected_for_testing, 'testDesign', c.test_design,
                        'designEval', c.design_eval, 'implemented', c.implemented,
                        'operatingNotes', c.operating_notes,
+                       'sampleSize', c.sample_size, 'sampleNote', c.sample_note,
                        'operating', tst.operating, 'testsCount', tst.tests_count,
                        'wcgwIds', coalesce((SELECT json_agg(wc.wcgw_id) FROM wcgw_control wc WHERE wc.control_id = c.id), '[]'::json))
                        ORDER BY c.created_at)
@@ -455,6 +459,8 @@ export async function updateControl(
     designEval?: "effective" | "ineffective" | "";
     implemented?: boolean | null;
     operatingNotes?: string;
+    sampleSize?: number;
+    sampleNote?: string;
   },
 ): Promise<void> {
   const { tenantId } = await requireTenant();
@@ -465,7 +471,9 @@ export async function updateControl(
          test_design = coalesce($3, test_design),
          design_eval = CASE WHEN $4 = '' THEN NULL WHEN $4 IN ('effective','ineffective') THEN $4 ELSE design_eval END,
          implemented = CASE WHEN $5::boolean IS NOT NULL THEN $5 ELSE implemented END,
-         operating_notes = coalesce($6, operating_notes)
+         operating_notes = coalesce($6, operating_notes),
+         sample_size = coalesce($7, sample_size),
+         sample_note = coalesce($8, sample_note)
        WHERE id = $1`,
       [
         controlId,
@@ -474,8 +482,65 @@ export async function updateControl(
         patch.designEval ?? null,
         patch.implemented ?? null,
         patch.operatingNotes ?? null,
+        Number.isFinite(patch.sampleSize) ? Math.max(1, Math.round(patch.sampleSize as number)) : null,
+        patch.sampleNote ?? null,
       ],
     );
+  });
+}
+
+/**
+ * MUS preview for the sampling tool: the population is the pre-audit general
+ * ledger filtered by account prefix; the interval defaults to TE/3 (high
+ * assurance); items at or above the interval form the top stratum, examined
+ * in full. Size = top stratum + ceil(remaining value / interval).
+ */
+export async function musPreview(
+  engagementId: string,
+  prefix: string,
+  intervalInput?: number,
+): Promise<
+  | { ok: true; populationValue: number; populationCount: number; interval: number; topStratum: number; sampleSize: number }
+  | { ok: false; error: "no-gl" | "no-mapping" | "empty-population" }
+> {
+  const { tenantId } = await requireTenant();
+  const { approvedMateriality } = await import("@/lib/materiality");
+  const m = await approvedMateriality(engagementId);
+  return withTenant(tenantId, async (tx) => {
+    const gl = await tx.query<{ id: string; mapping: Record<string, string> | null }>(
+      `SELECT id, mapping FROM sub_ledger_dataset
+        WHERE engagement_id = $1 AND kind = 'journal_entries'
+        ORDER BY (timing = 'pre_audit') DESC, created_at DESC LIMIT 1`,
+      [engagementId],
+    );
+    if (!gl.rows[0]) return { ok: false, error: "no-gl" };
+    const mapping = gl.rows[0].mapping;
+    if (!mapping?.account || !mapping.amount) return { ok: false, error: "no-mapping" };
+    const rows = await tx.query<{ data: Record<string, unknown> }>(
+      "SELECT data FROM sub_ledger_row WHERE dataset_id = $1",
+      [gl.rows[0].id],
+    );
+    const clean = prefix.replace(/[^0-9]/g, "");
+    let populationValue = 0;
+    let populationCount = 0;
+    const amounts: number[] = [];
+    for (const { data } of rows.rows) {
+      const account = String(data[mapping.account] ?? "").trim();
+      if (clean && !account.startsWith(clean)) continue;
+      const n = Number(String(data[mapping.amount] ?? "").replace(/[\s  ]/g, "").replace(/,(?=\d{1,2}$)/, ".").replace(/,/g, ""));
+      if (!Number.isFinite(n) || n === 0) continue;
+      const abs = Math.abs(n);
+      populationValue += abs;
+      populationCount += 1;
+      amounts.push(abs);
+    }
+    if (populationCount === 0) return { ok: false, error: "empty-population" };
+    const defaultInterval = m ? Math.max(1, Math.round(m.performance / 3)) : Math.max(1, Math.round(populationValue / 25));
+    const interval = intervalInput && intervalInput > 0 ? Math.round(intervalInput) : defaultInterval;
+    const topStratum = amounts.filter((a) => a >= interval).length;
+    const remaining = amounts.filter((a) => a < interval).reduce((s, a) => s + a, 0);
+    const sampleSize = topStratum + Math.ceil(remaining / interval);
+    return { ok: true, populationValue: Math.round(populationValue), populationCount, interval, topStratum, sampleSize };
   });
 }
 

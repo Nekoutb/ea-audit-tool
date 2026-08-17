@@ -8,6 +8,7 @@ import {
   deleteScot,
   deleteWcgw,
   linkScotIndex,
+  musPreview,
   saveFscp,
   saveWalkthrough,
   toggleWcgwControl,
@@ -80,6 +81,14 @@ export async function POST(request: Request, context: { params: Promise<{ id: st
       case "saveFscp":
         await saveFscp(id, String(body.key), String(body.value ?? ""));
         break;
+      case "musPreview": {
+        const preview = await musPreview(
+          id,
+          String(body.prefix ?? ""),
+          body.interval ? Number(body.interval) : undefined,
+        );
+        return NextResponse.json(preview);
+      }
       default:
         return NextResponse.json({ error: "invalid-op" }, { status: 400 });
     }

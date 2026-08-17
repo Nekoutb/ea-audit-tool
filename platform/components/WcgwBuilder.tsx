@@ -1,26 +1,43 @@
 "use client";
 
 // The WCGW & controls builder, in four modes along the phase:
-//   wcgw    (S1.2) — one clear table: SCOT | what can go wrong | controls
-//                    covering it. Everything on one page; controls are always
-//                    visible under the WCGW they answer, and controls not yet
-//                    covering a WCGW sit in the SCOT's footer row.
-//   select  (S2.1) — the selected-for-testing decision, with the ¶33 warnings
-//   design  (S2.2) — nature/timing/extent per selected control
+//   wcgw    (S1.2) — per-SCOT collapsible groups: WCGW | controls table, a tidy
+//                    controls register per SCOT, and add-rows. Roll a SCOT up
+//                    or down with its chevron to focus without scrolling.
+//   select  (S2.1) — ONE flat table of every control with its attributes,
+//                    assertions covered and SCOT; tick to select for testing.
+//   design  (S2.2) — a card per selected control: the test design in the
+//                    yellow box, and the sample size ASSIGNED by the sampling
+//                    tool (never typed here).
 //   results (E1.1) — design eval + implementation + derived operating conclusion;
 //                    the operating verdict comes from control_test rows, never stored
 // Structural changes refresh the server view; field edits save on blur.
 
 import { Fragment, useState } from "react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import type { Scot, ScotStudioView } from "@/lib/scots";
 
 const ASSERTION_CODES = ["C", "E", "A", "V", "P"] as const;
+export const CONTROL_FREQUENCIES = [
+  { value: "daily", en: "Daily", fr: "Quotidien" },
+  { value: "weekly", en: "Weekly", fr: "Hebdomadaire" },
+  { value: "monthly", en: "Monthly", fr: "Mensuel" },
+  { value: "quarterly", en: "Quarterly", fr: "Trimestriel" },
+  { value: "semi_annually", en: "Semi-annually", fr: "Semestriel" },
+  { value: "annually", en: "Annually", fr: "Annuel" },
+] as const;
 const slug = (s: string) => s.replace(/[^A-Za-z0-9]/g, "_");
+const freqLabel = (v: string | null, fr: boolean) => {
+  const f = CONTROL_FREQUENCIES.find((x) => x.value === v);
+  return f ? (fr ? f.fr : f.en) : v ?? "—";
+};
+const typeShort = (t: string, fr: boolean) =>
+  t === "manual" ? (fr ? "Manuel" : "Manual") : t === "it_dependent" ? (fr ? "Dépendant IT" : "IT-dependent") : fr ? "Automatisé" : "Automated";
 
-// The S1.2 table renders INSIDE the PaperWizard's <form> (it owns page 1), so
-// it must not contain <form> elements of its own — nested forms are dropped by
-// the HTML parser and break hydration. The footer is plain inputs + buttons.
+// The S1.2 group renders INSIDE the PaperWizard's <form>, so no <form>
+// elements of our own — nested forms are dropped by the HTML parser and break
+// hydration. Plain inputs + buttons throughout.
 function ScotFooter({
   scot,
   fr,
@@ -32,8 +49,7 @@ function ScotFooter({
 }) {
   const [wcgwText, setWcgwText] = useState("");
   const [assertions, setAssertions] = useState<string[]>([]);
-  const [ctrl, setCtrl] = useState({ name: "", owner: "", ctype: "manual", freq: "", objective: "prevent" });
-  const uncovered = scot.controls.filter((c) => c.wcgwIds.length === 0);
+  const [ctrl, setCtrl] = useState({ name: "", owner: "", ctype: "manual", freq: "monthly", objective: "prevent" });
 
   const addWcgw = () => {
     if (!wcgwText.trim()) return;
@@ -44,82 +60,70 @@ function ScotFooter({
   const addControl = () => {
     if (!ctrl.name.trim()) return;
     void op({ op: "addControl", scotId: scot.id, name: ctrl.name, owner: ctrl.owner, controlType: ctrl.ctype, frequency: ctrl.freq, objective: ctrl.objective }).then((ok) => {
-      if (ok) setCtrl({ name: "", owner: "", ctype: "manual", freq: "", objective: "prevent" });
+      if (ok) setCtrl({ name: "", owner: "", ctype: "manual", freq: "monthly", objective: "prevent" });
     });
   };
   const enter = (fn: () => void) => (e: React.KeyboardEvent) => {
     if (e.key === "Enter") { e.preventDefault(); fn(); }
   };
+  const box = "rounded-[var(--radius-atlas-xs)] border border-line-strong bg-surface px-2 py-1 text-[11.5px] outline-none focus:border-emerald-600";
 
   return (
     <div className="flex flex-col gap-1.5">
-      <div className="flex flex-wrap items-center gap-1.5">
-        <input
-          value={wcgwText}
-          onChange={(e) => setWcgwText(e.target.value)}
-          onKeyDown={enter(addWcgw)}
-          placeholder={fr ? "Nouveau WCGW — que peut-il mal se passer ?" : "New WCGW — what can go wrong?"}
-          className="min-w-[200px] flex-1 rounded-[var(--radius-atlas-xs)] border border-line-strong bg-surface px-2 py-1 text-[11.5px] outline-none focus:border-emerald-600"
-          data-testid={`wcgw-new-${slug(scot.name)}`}
-        />
-        {ASSERTION_CODES.map((a) => (
-          <button
-            key={a}
-            type="button"
-            onClick={() => setAssertions((s) => (s.includes(a) ? s.filter((x) => x !== a) : [...s, a]))}
-            className={`h-[17px] w-[17px] rounded-[3px] text-[9.5px] font-bold ${assertions.includes(a) ? "bg-emerald-700 text-white" : "border border-line text-muted"}`}
-          >{a}</button>
-        ))}
-        <button type="button" onClick={addWcgw} className="ml-auto inline-flex w-[104px] justify-center rounded-[var(--radius-atlas-xs)] bg-emerald-700 px-2 py-1 text-[11px] font-semibold text-white hover:bg-emerald-800" data-testid={`wcgw-add-${slug(scot.name)}`}>＋ WCGW</button>
-      </div>
-      <div className="flex flex-wrap items-center gap-1.5">
-        <input
-          value={ctrl.name}
-          onChange={(e) => setCtrl((c) => ({ ...c, name: e.target.value }))}
-          onKeyDown={enter(addControl)}
-          placeholder={fr ? "Nouveau contrôle" : "New control"}
-          className="min-w-[150px] flex-1 rounded-[var(--radius-atlas-xs)] border border-line-strong bg-surface px-2 py-1 text-[11.5px] outline-none focus:border-emerald-600"
-          data-testid={`control-new-${slug(scot.name)}`}
-        />
-        <input
-          value={ctrl.owner}
-          onChange={(e) => setCtrl((c) => ({ ...c, owner: e.target.value }))}
-          placeholder={fr ? "Qui l'exécute" : "Performed by"}
-          className="w-[110px] rounded-[var(--radius-atlas-xs)] border border-line-strong bg-surface px-2 py-1 text-[11.5px] outline-none"
-        />
-        <select value={ctrl.ctype} onChange={(e) => setCtrl((c) => ({ ...c, ctype: e.target.value }))} className="rounded-[var(--radius-atlas-xs)] border border-line-strong bg-surface px-1.5 py-1 text-[11px]">
-          <option value="manual">{fr ? "Manuel" : "Manual"}</option>
-          <option value="it_dependent">{fr ? "Manuel dépendant IT" : "IT-dependent"}</option>
-          <option value="automated">{fr ? "Automatisé" : "Automated"}</option>
-        </select>
-        <input
-          value={ctrl.freq}
-          onChange={(e) => setCtrl((c) => ({ ...c, freq: e.target.value }))}
-          placeholder={fr ? "Fréquence" : "Frequency"}
-          className="w-[85px] rounded-[var(--radius-atlas-xs)] border border-line-strong bg-surface px-2 py-1 text-[11.5px] outline-none"
-        />
-        <select value={ctrl.objective} onChange={(e) => setCtrl((c) => ({ ...c, objective: e.target.value }))} className="rounded-[var(--radius-atlas-xs)] border border-line-strong bg-surface px-1.5 py-1 text-[11px]">
-          <option value="prevent">{fr ? "Prévention" : "Prevent"}</option>
-          <option value="detect">{fr ? "Détection" : "Detect"}</option>
-        </select>
-        <button type="button" onClick={addControl} className="ml-auto inline-flex w-[104px] justify-center rounded-[var(--radius-atlas-xs)] bg-emerald-700 px-2 py-1 text-[11px] font-semibold text-white hover:bg-emerald-800" data-testid={`control-add-${slug(scot.name)}`}>＋ {fr ? "contrôle" : "control"}</button>
-      </div>
-      {uncovered.length > 0 ? (
-        <p className="flex flex-wrap items-center gap-1.5 text-[10.5px] text-muted" data-testid={`uncovered-controls-${slug(scot.name)}`}>
-          {fr ? "Contrôles sans WCGW (lier depuis une ligne « ＋ lier ») :" : "Controls not covering a WCGW yet (link them from a row's ＋ link):"}
-          {uncovered.map((c) => (
-            <span key={c.id} className="inline-flex items-center gap-1 rounded-full border border-line-strong px-2 py-[1px] font-semibold text-ink-soft">
-              {c.name}
-              <button
-                type="button"
-                title={fr ? "Supprimer le contrôle" : "Delete control"}
-                onClick={() => { if (confirm(fr ? "Supprimer ce contrôle ?" : "Delete this control?")) void op({ op: "deleteControl", controlId: c.id }); }}
-                className="text-muted hover:text-rose"
-              >×</button>
-            </span>
+      <div className="grid grid-cols-[1fr_92px] items-center gap-1.5">
+        <div className="flex flex-wrap items-center gap-1.5">
+          <input
+            value={wcgwText}
+            onChange={(e) => setWcgwText(e.target.value)}
+            onKeyDown={enter(addWcgw)}
+            placeholder={fr ? "Nouveau WCGW — que peut-il mal se passer ?" : "New WCGW — what can go wrong?"}
+            className={`${box} min-w-[200px] flex-1`}
+            data-testid={`wcgw-new-${slug(scot.name)}`}
+          />
+          {ASSERTION_CODES.map((a) => (
+            <button
+              key={a}
+              type="button"
+              onClick={() => setAssertions((s) => (s.includes(a) ? s.filter((x) => x !== a) : [...s, a]))}
+              className={`h-[18px] w-[18px] rounded-[3px] text-[9.5px] font-bold ${assertions.includes(a) ? "bg-emerald-700 text-white" : "border border-line text-muted"}`}
+            >{a}</button>
           ))}
-        </p>
-      ) : null}
+        </div>
+        <button type="button" onClick={addWcgw} className="rounded-[var(--radius-atlas-xs)] bg-emerald-700 px-2 py-1 text-[11px] font-semibold text-white hover:bg-emerald-800" data-testid={`wcgw-add-${slug(scot.name)}`}>＋ WCGW</button>
+      </div>
+      <div className="grid grid-cols-[1fr_92px] items-center gap-1.5">
+        <div className="flex flex-wrap items-center gap-1.5">
+          <input
+            value={ctrl.name}
+            onChange={(e) => setCtrl((c) => ({ ...c, name: e.target.value }))}
+            onKeyDown={enter(addControl)}
+            placeholder={fr ? "Nouveau contrôle" : "New control"}
+            className={`${box} min-w-[150px] flex-1`}
+            data-testid={`control-new-${slug(scot.name)}`}
+          />
+          <input
+            value={ctrl.owner}
+            onChange={(e) => setCtrl((c) => ({ ...c, owner: e.target.value }))}
+            placeholder={fr ? "Qui l'exécute" : "Performed by"}
+            className={`${box} w-[110px]`}
+          />
+          <select value={ctrl.ctype} onChange={(e) => setCtrl((c) => ({ ...c, ctype: e.target.value }))} className={`${box} py-[5px]`}>
+            <option value="manual">{fr ? "Manuel" : "Manual"}</option>
+            <option value="it_dependent">{fr ? "Manuel dépendant IT" : "IT-dependent"}</option>
+            <option value="automated">{fr ? "Automatisé" : "Automated"}</option>
+          </select>
+          <select value={ctrl.freq} onChange={(e) => setCtrl((c) => ({ ...c, freq: e.target.value }))} className={`${box} py-[5px]`} data-testid={`control-freq-${slug(scot.name)}`}>
+            {CONTROL_FREQUENCIES.map((f) => (
+              <option key={f.value} value={f.value}>{fr ? f.fr : f.en}</option>
+            ))}
+          </select>
+          <select value={ctrl.objective} onChange={(e) => setCtrl((c) => ({ ...c, objective: e.target.value }))} className={`${box} py-[5px]`}>
+            <option value="prevent">{fr ? "Prévention" : "Prevent"}</option>
+            <option value="detect">{fr ? "Détection" : "Detect"}</option>
+          </select>
+        </div>
+        <button type="button" onClick={addControl} className="rounded-[var(--radius-atlas-xs)] bg-emerald-700 px-2 py-1 text-[11px] font-semibold text-white hover:bg-emerald-800" data-testid={`control-add-${slug(scot.name)}`}>＋ {fr ? "Contrôle" : "Control"}</button>
+      </div>
     </div>
   );
 }
@@ -137,7 +141,10 @@ export function WcgwBuilder({
 }) {
   const fr = locale === "fr";
   const router = useRouter();
-  const [open, setOpen] = useState<string | null>(view.scots[0]?.id ?? null);
+  const [open, setOpen] = useState<Record<string, boolean>>(() =>
+    Object.fromEntries(view.scots.map((s, i) => [s.id, i === 0])),
+  );
+  const [accordion, setAccordion] = useState<string | null>(view.scots[0]?.id ?? null);
   const [error, setError] = useState<string | null>(null);
 
   async function op(body: Record<string, unknown>) {
@@ -181,58 +188,75 @@ export function WcgwBuilder({
           ¶33: {view.para33Violations.length} {fr ? "indice(s) « substantif seul insuffisant » sans contrôle sélectionné" : "substantive-alone-insufficient index(es) with no selected control"}
         </span>
       ) : null}
+      {mode === "design" ? (
+        <Link
+          href={`/engagements/${engagementId}/tools/sampling`}
+          className="rounded-full border border-emerald-600/50 px-2 py-0.5 text-[10.5px] font-bold text-emerald-700 hover:bg-emerald-50 dark:text-emerald-400 dark:hover:bg-emerald-950/40"
+          data-testid="design-sampling-link"
+        >
+          {fr ? "Outil d'échantillonnage →" : "Sampling tool →"}
+        </Link>
+      ) : null}
       {error ? <span className="text-[11px] font-semibold text-rose">{error}</span> : null}
     </div>
   );
 
-  // ------------------------------------------------- S1.2 — the flow table --
+  // ------------------------------------------- S1.2 — collapsible SCOT groups --
   if (mode === "wcgw") {
-    const td = "border-t border-line px-2.5 py-1.5 align-top";
+    const td = "border-t border-line px-2.5 py-2 align-top text-[12px]";
     return (
       <div className="flex flex-col gap-2" data-testid="wcgw-builder-wcgw">
         {header}
-        <div className="overflow-x-auto rounded-[var(--radius-atlas-sm)] border border-line">
-          <table className="w-full table-fixed text-[12px]" data-testid="scot-wcgw-table">
-            <colgroup>
-              <col style={{ width: "18%" }} />
-              <col style={{ width: "42%" }} />
-              <col style={{ width: "40%" }} />
-            </colgroup>
-            <thead>
-              <tr className="bg-surface-2 text-left text-[10px] font-extrabold uppercase tracking-[0.07em] text-muted">
-                <th className="px-2.5 py-1.5">SCOT</th>
-                <th className="px-2.5 py-1.5">{fr ? "Qu'est-ce qui peut mal tourner (WCGW)" : "What can go wrong (WCGW)"}</th>
-                <th className="px-2.5 py-1.5">{fr ? "Contrôles couvrant ce WCGW" : "Controls covering it"}</th>
-              </tr>
-            </thead>
-            <tbody>
-              {view.scots.map((scot) => {
-                const byId = new Map(scot.controls.map((c) => [c.id, c]));
-                const rows: (typeof scot.wcgws[number] | null)[] = scot.wcgws.length > 0 ? scot.wcgws : [null];
-                const span = rows.length + 1;
-                return (
-                  <Fragment key={scot.id}>
-                    {rows.map((w, j) => (
-                      <tr key={w?.id ?? "empty"} data-testid={w ? `wcgw-row-${slug(w.description.slice(0, 24))}` : undefined}>
-                        {j === 0 ? (
-                          <td rowSpan={span} className="border-t-2 border-line-strong px-2.5 py-1.5 align-top">
-                            <p className="text-[12.5px] font-bold leading-snug text-ink">{scot.name}</p>
-                            <p className="mt-0.5 text-[10.5px] text-muted">
-                              {scot.transactionType === "routine" ? (fr ? "Routinier" : "Routine") : scot.transactionType === "non_routine" ? (fr ? "Non routinier" : "Non-routine") : "Estimation"}
-                              {scot.indexes.length > 0 ? (
-                                <span className="ml-1 font-mono text-emerald-800 dark:text-emerald-300">
-                                  {scot.indexes.map((i) => i.indexCode).join(", ")}
-                                </span>
-                              ) : null}
-                            </p>
-                            <p className="mt-0.5 text-[10.5px] text-muted tnum">
-                              {scot.wcgws.length} WCGW · {scot.controls.length} {fr ? "contrôle(s)" : "control(s)"}
-                            </p>
+        {view.scots.map((scot) => {
+          const byId = new Map(scot.controls.map((c) => [c.id, c]));
+          const isOpen = open[scot.id] ?? false;
+          return (
+            <div key={scot.id} className="rounded-[var(--radius-atlas-sm)] border border-line" data-testid={`scot-group-${slug(scot.name)}`}>
+              <button
+                type="button"
+                onClick={() => setOpen((s) => ({ ...s, [scot.id]: !isOpen }))}
+                className="flex w-full items-center gap-2.5 px-3 py-2 text-left hover:bg-surface-2"
+                data-testid={`scot-toggle-${slug(scot.name)}`}
+              >
+                <span className="text-[13px] font-bold text-ink">{scot.name}</span>
+                <span className="font-mono text-[10px] text-emerald-800 dark:text-emerald-300">
+                  {scot.indexes.map((i) => i.indexCode).join(", ")}
+                </span>
+                <span className="text-[10.5px] text-muted tnum">
+                  {scot.wcgws.length} WCGW · {scot.controls.length} {fr ? "contrôle(s)" : "control(s)"}
+                </span>
+                {scot.wcgws.some((w) => w.controlIds.length === 0) ? (
+                  <span className="rounded-full bg-[var(--color-warn-soft)] px-1.5 py-[1px] text-[9.5px] font-bold text-warn">
+                    {fr ? "WCGW ouverts" : "open WCGWs"}
+                  </span>
+                ) : null}
+                <span className="ml-auto text-[13px] text-muted">{isOpen ? "▾" : "▸"}</span>
+              </button>
+
+              {isOpen ? (
+                <div className="border-t border-line">
+                  <table className="w-full table-fixed text-[12px]">
+                    <colgroup>
+                      <col style={{ width: "52%" }} />
+                      <col style={{ width: "48%" }} />
+                    </colgroup>
+                    <thead>
+                      <tr className="bg-surface-2 text-left text-[10px] font-extrabold uppercase tracking-[0.07em] text-muted">
+                        <th className="px-2.5 py-1.5">{fr ? "Qu'est-ce qui peut mal tourner (WCGW)" : "What can go wrong (WCGW)"}</th>
+                        <th className="px-2.5 py-1.5">{fr ? "Contrôles couvrant ce WCGW" : "Controls covering it"}</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {scot.wcgws.length === 0 ? (
+                        <tr>
+                          <td colSpan={2} className={`${td} italic text-muted`}>
+                            {fr ? "Aucun WCGW sur ce SCOT — ajouter ci-dessous." : "No WCGW on this SCOT yet — add one below."}
                           </td>
-                        ) : null}
-                        {w ? (
-                          <>
-                            <td className={`${td} ${j === 0 ? "border-t-2 border-line-strong" : ""} ${w.controlIds.length === 0 ? "bg-[var(--color-warn-soft)]" : ""}`}>
+                        </tr>
+                      ) : (
+                        scot.wcgws.map((w) => (
+                          <tr key={w.id} data-testid={`wcgw-row-${slug(w.description.slice(0, 24))}`}>
+                            <td className={`${td} ${w.controlIds.length === 0 ? "bg-[var(--color-warn-soft)]" : ""}`}>
                               <div className="flex items-start gap-1.5">
                                 <p className="min-w-0 flex-1 leading-snug text-ink">{w.description}</p>
                                 <span className="font-mono text-[9.5px] font-bold text-emerald-800 dark:text-emerald-300">[{w.assertions.join("") || "—"}]</span>
@@ -244,7 +268,7 @@ export function WcgwBuilder({
                                 >×</button>
                               </div>
                             </td>
-                            <td className={`${td} ${j === 0 ? "border-t-2 border-line-strong" : ""}`}>
+                            <td className={td}>
                               <span className="flex flex-wrap items-center gap-1">
                                 {w.controlIds.map((cid) => {
                                   const c = byId.get(cid);
@@ -253,7 +277,7 @@ export function WcgwBuilder({
                                     <button
                                       key={cid}
                                       type="button"
-                                      title={`${c.owner ?? "—"} · ${c.controlType.replace("_", "-")} · ${c.frequency ?? "—"} · ${c.objective}${fr ? " — cliquer pour délier" : " — click to unlink"}`}
+                                      title={`${c.owner ?? "—"} · ${typeShort(c.controlType, fr)} · ${freqLabel(c.frequency, fr)} · ${c.objective}${fr ? " — cliquer pour délier" : " — click to unlink"}`}
                                       onClick={() => void op({ op: "toggleLink", wcgwId: w.id, controlId: cid, linked: false })}
                                       className="rounded-full bg-emerald-700 px-2 py-[1.5px] text-[10.5px] font-semibold text-white hover:bg-rose-700"
                                       data-testid={`wcgw-ctrl-${slug(c.name.slice(0, 20))}`}
@@ -281,49 +305,200 @@ export function WcgwBuilder({
                                 ) : null}
                               </span>
                             </td>
-                          </>
-                        ) : (
-                          <td colSpan={2} className={`${td} border-t-2 border-line-strong italic text-muted`}>
-                            {fr ? "Aucun WCGW sur ce SCOT — ajouter ci-dessous." : "No WCGW on this SCOT yet — add one below."}
-                          </td>
-                        )}
-                      </tr>
-                    ))}
-                    {/* the SCOT's footer: add WCGW, add control, and the controls not yet covering a WCGW */}
-                    <tr className="bg-surface-2/40">
-                      <td colSpan={2} className="border-t border-line px-2.5 py-2">
-                        <ScotFooter scot={scot} fr={fr} op={op} />
-                      </td>
-                    </tr>
-                  </Fragment>
-                );
-              })}
-            </tbody>
-          </table>
-        </div>
+                          </tr>
+                        ))
+                      )}
+                    </tbody>
+                  </table>
+
+                  {/* the SCOT's controls register — every control, tidy */}
+                  {scot.controls.length > 0 ? (
+                    <div className="border-t border-line px-2.5 py-2">
+                      <p className="mb-1 text-[10px] font-extrabold uppercase tracking-[0.07em] text-muted">
+                        {fr ? "Contrôles de ce SCOT" : "Controls of this SCOT"}
+                      </p>
+                      <table className="w-full table-fixed text-[11.5px]" data-testid={`controls-register-${slug(scot.name)}`}>
+                        <colgroup>
+                          <col style={{ width: "32%" }} />
+                          <col style={{ width: "18%" }} />
+                          <col style={{ width: "16%" }} />
+                          <col style={{ width: "14%" }} />
+                          <col style={{ width: "12%" }} />
+                          <col style={{ width: "8%" }} />
+                        </colgroup>
+                        <thead>
+                          <tr className="text-left text-[9.5px] font-extrabold uppercase tracking-[0.07em] text-muted">
+                            <th className="px-1.5 py-1">{fr ? "Contrôle" : "Control"}</th>
+                            <th className="px-1.5 py-1">{fr ? "Exécuté par" : "Performed by"}</th>
+                            <th className="px-1.5 py-1">{fr ? "Nature" : "Nature"}</th>
+                            <th className="px-1.5 py-1">{fr ? "Fréquence" : "Frequency"}</th>
+                            <th className="px-1.5 py-1">{fr ? "Objectif" : "Objective"}</th>
+                            <th className="px-1.5 py-1 text-right">{fr ? "WCGW" : "WCGWs"}</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {scot.controls.map((c) => (
+                            <tr key={c.id} className="border-t border-line" data-testid={`control-row-${slug(c.name.slice(0, 20))}`}>
+                              <td className="px-1.5 py-1 font-medium text-ink">{c.name}</td>
+                              <td className="px-1.5 py-1 text-ink-soft">{c.owner ?? "—"}</td>
+                              <td className="px-1.5 py-1 text-ink-soft">{typeShort(c.controlType, fr)}</td>
+                              <td className="px-1.5 py-1 text-ink-soft">{freqLabel(c.frequency, fr)}</td>
+                              <td className="px-1.5 py-1 text-ink-soft">{c.objective === "prevent" ? (fr ? "Prévention" : "Prevent") : fr ? "Détection" : "Detect"}</td>
+                              <td className="px-1.5 py-1 text-right">
+                                <span className={`tnum ${c.wcgwIds.length === 0 ? "font-bold text-warn" : "text-ink-soft"}`}>{c.wcgwIds.length}</span>
+                                <button
+                                  type="button"
+                                  title={fr ? "Supprimer le contrôle" : "Delete control"}
+                                  onClick={() => { if (confirm(fr ? "Supprimer ce contrôle ?" : "Delete this control?")) void op({ op: "deleteControl", controlId: c.id }); }}
+                                  className="ml-2 text-muted hover:text-rose"
+                                >×</button>
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  ) : null}
+
+                  <div className="border-t border-line bg-surface-2/40 px-2.5 py-2">
+                    <ScotFooter scot={scot} fr={fr} op={op} />
+                  </div>
+                </div>
+              ) : null}
+            </div>
+          );
+        })}
       </div>
     );
   }
 
-  // ------------------------------- S2.1 / S2.2 / E1.1 — per-SCOT accordions --
+  // ------------------------------------------------ S2.1 — the selection table --
+  if (mode === "select") {
+    const rows = view.scots.flatMap((scot) =>
+      scot.controls.map((c) => {
+        const covered = new Set<string>();
+        for (const w of scot.wcgws) if (c.wcgwIds.includes(w.id)) for (const a of w.assertions) covered.add(a);
+        return { scot, c, assertions: ASSERTION_CODES.filter((a) => covered.has(a)) };
+      }),
+    );
+    const td = "border-t border-line px-2.5 py-2 align-top text-[12px]";
+    return (
+      <div className="flex flex-col gap-2" data-testid="wcgw-builder-select">
+        {header}
+        {rows.length === 0 ? (
+          <p className="text-[12px] text-muted">{fr ? "Aucun contrôle défini — voir S1.2." : "No controls defined — see S1.2."}</p>
+        ) : (
+          <div className="overflow-x-auto rounded-[var(--radius-atlas-sm)] border border-line">
+            <table className="w-full table-fixed text-[12px]" data-testid="select-table">
+              <colgroup>
+                <col style={{ width: "24%" }} />
+                <col style={{ width: "16%" }} />
+                <col style={{ width: "11%" }} />
+                <col style={{ width: "12%" }} />
+                <col style={{ width: "11%" }} />
+                <col style={{ width: "9%" }} />
+                <col style={{ width: "10%" }} />
+                <col style={{ width: "7%" }} />
+              </colgroup>
+              <thead>
+                <tr className="bg-surface-2 text-left text-[10px] font-extrabold uppercase tracking-[0.07em] text-muted">
+                  <th className="px-2.5 py-1.5">{fr ? "Contrôle" : "Control"}</th>
+                  <th className="px-2.5 py-1.5">SCOT</th>
+                  <th className="px-2.5 py-1.5">{fr ? "Assertions" : "Assertions"}</th>
+                  <th className="px-2.5 py-1.5">{fr ? "Exécuté par" : "Owner"}</th>
+                  <th className="px-2.5 py-1.5">{fr ? "Fréquence" : "Frequency"}</th>
+                  <th className="px-2.5 py-1.5">{fr ? "Nature" : "Nature"}</th>
+                  <th className="px-2.5 py-1.5">{fr ? "Objectif" : "Objective"}</th>
+                  <th className="px-2.5 py-1.5 text-center">{fr ? "Tester" : "Test"}</th>
+                </tr>
+              </thead>
+              <tbody>
+                {rows.map(({ scot, c, assertions }) => (
+                  <tr key={c.id} className={c.selectedForTesting ? "bg-emerald-50/60 dark:bg-emerald-950/20" : ""} data-testid={`select-row-${slug(c.name.slice(0, 20))}`}>
+                    <td className={`${td} whitespace-normal font-medium text-ink`}>{c.name}</td>
+                    <td className={`${td} whitespace-normal text-ink-soft`}>{scot.name}</td>
+                    <td className={`${td} font-mono text-[10.5px] font-bold text-emerald-800 dark:text-emerald-300`}>{assertions.join("") || "—"}</td>
+                    <td className={`${td} text-ink-soft`}>{c.owner ?? "—"}</td>
+                    <td className={`${td} text-ink-soft`}>{freqLabel(c.frequency, fr)}</td>
+                    <td className={`${td} text-ink-soft`}>{typeShort(c.controlType, fr)}</td>
+                    <td className={`${td} text-ink-soft`}>{c.objective === "prevent" ? (fr ? "Prévention" : "Prevent") : fr ? "Détection" : "Detect"}</td>
+                    <td className={`${td} text-center`}>
+                      <input
+                        type="checkbox"
+                        defaultChecked={c.selectedForTesting}
+                        onChange={(e) => void op({ op: "updateControl", controlId: c.id, selectedForTesting: e.target.checked })}
+                        data-testid={`control-select-${slug(c.name)}`}
+                        className="h-4 w-4 accent-emerald-700"
+                      />
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </div>
+    );
+  }
+
+  // ------------------------------------------------ S2.2 — design cards --
+  if (mode === "design") {
+    const selected = view.scots.flatMap((scot) => scot.controls.filter((c) => c.selectedForTesting).map((c) => ({ scot, c })));
+    return (
+      <div className="flex flex-col gap-2" data-testid="wcgw-builder-design">
+        {header}
+        {selected.length === 0 ? (
+          <p className="text-[12px] text-muted">{fr ? "Aucun contrôle sélectionné — voir S2.1." : "No controls selected — see S2.1."}</p>
+        ) : (
+          selected.map(({ scot, c }) => (
+            <div key={c.id} className="rounded-[var(--radius-atlas-sm)] border border-line px-3 py-2" data-testid={`design-card-${slug(c.name.slice(0, 20))}`}>
+              <div className="flex flex-wrap items-center gap-2">
+                <span className="text-[12.5px] font-bold text-ink">{c.name}</span>
+                <span className="text-[10.5px] text-muted">{scot.name} · {c.owner ?? "—"} · {typeShort(c.controlType, fr)} · {freqLabel(c.frequency, fr)} · {c.objective}</span>
+                <span
+                  className={`ml-auto rounded-full px-2 py-[1px] text-[10.5px] font-bold ${c.sampleSize ? "bg-emerald-50 text-emerald-800 dark:bg-emerald-950/40 dark:text-emerald-300" : "bg-[var(--color-warn-soft)] text-warn"}`}
+                  title={c.sampleNote ?? undefined}
+                  data-testid={`design-sample-${slug(c.name.slice(0, 20))}`}
+                >
+                  {c.sampleSize
+                    ? `${fr ? "Échantillon" : "Sample"}: ${c.sampleSize}`
+                    : fr ? "Échantillon à déterminer — outil d'échantillonnage" : "Sample to determine — use the Sampling tool"}
+                </span>
+              </div>
+              {c.sampleNote ? <p className="mt-0.5 text-[10.5px] text-muted">{c.sampleNote}</p> : null}
+              <textarea
+                rows={2}
+                defaultValue={c.testDesign ?? ""}
+                placeholder={fr ? "Nature, calendrier et étendue du test…" : "Nature, timing and extent of the test…"}
+                onBlur={(e) => { if (e.target.value !== (c.testDesign ?? "")) void op({ op: "updateControl", controlId: c.id, testDesign: e.target.value }); }}
+                className="mt-1.5 w-full resize-none rounded-[var(--radius-atlas-xs)] bg-[color:var(--wp-input)] px-2.5 py-1.5 text-[12px] text-ink outline-none placeholder:text-muted focus:ring-1 focus:ring-emerald-600/40"
+                data-testid={`control-design-${slug(c.name)}`}
+              />
+            </div>
+          ))
+        )}
+      </div>
+    );
+  }
+
+  // ------------------------------------------------ E1.1 — results accordion --
   return (
-    <div className="flex flex-col gap-2" data-testid={`wcgw-builder-${mode}`}>
+    <div className="flex flex-col gap-2" data-testid="wcgw-builder-results">
       {header}
       {view.scots.map((scot) => {
-        const isOpen = open === scot.id;
-        const relevantControls = scot.controls.filter((c) => mode === "select" || c.selectedForTesting);
+        const isOpen = accordion === scot.id;
+        const relevantControls = scot.controls.filter((c) => c.selectedForTesting);
         return (
           <div key={scot.id} className="rounded-[var(--radius-atlas-sm)] border border-line">
             <button
               type="button"
-              onClick={() => setOpen(isOpen ? null : scot.id)}
+              onClick={() => setAccordion(isOpen ? null : scot.id)}
               className="flex w-full items-center gap-2 px-2.5 py-1.5 text-left hover:bg-surface-2"
               data-testid={`wcgw-scot-${slug(scot.name)}`}
             >
               <span className="text-[12.5px] font-bold text-ink">{scot.name}</span>
               <span className="text-[10.5px] text-muted tnum">
-                {scot.wcgws.length} WCGW · {scot.controls.length} {fr ? "contrôle(s)" : "control(s)"}
-                {` · ${scot.controls.filter((c) => c.selectedForTesting).length} ${fr ? "sélectionné(s)" : "selected"}`}
+                {relevantControls.length} {fr ? "sélectionné(s)" : "selected"}
               </span>
               <span className="ml-auto text-muted">{isOpen ? "▾" : "▸"}</span>
             </button>
@@ -332,93 +507,67 @@ export function WcgwBuilder({
               <div className="border-t border-line px-2.5 py-2">
                 <div className="flex flex-col gap-1.5">
                   {relevantControls.length === 0 ? (
-                    <p className="text-[11.5px] text-muted">{mode === "design" || mode === "results" ? (fr ? "Aucun contrôle sélectionné sur ce SCOT." : "No controls selected on this SCOT.") : fr ? "Aucun contrôle défini — S1.2." : "No controls defined — see S1.2."}</p>
+                    <p className="text-[11.5px] text-muted">{fr ? "Aucun contrôle sélectionné sur ce SCOT." : "No controls selected on this SCOT."}</p>
                   ) : null}
                   {relevantControls.map((c) => (
                     <div key={c.id} className="rounded-[var(--radius-atlas-xs)] border border-line px-2 py-1.5">
                       <div className="flex flex-wrap items-center gap-2">
                         <span className="text-[12px] font-semibold text-ink">{c.name}</span>
-                        <span className="text-[10.5px] text-muted">{c.owner ?? "—"} · {c.controlType.replace("_", "-")} · {c.frequency ?? "—"} · {c.objective}</span>
-                        {mode === "select" ? (
-                          <label className="ml-auto flex items-center gap-1 text-[11px] font-semibold text-ink-soft">
-                            <input
-                              type="checkbox"
-                              defaultChecked={c.selectedForTesting}
-                              onChange={(e) => void op({ op: "updateControl", controlId: c.id, selectedForTesting: e.target.checked })}
-                              data-testid={`control-select-${slug(c.name)}`}
-                            />
-                            {fr ? "Tester" : "Test"}
-                          </label>
-                        ) : mode === "results" ? (
-                          <span
-                            className={`ml-auto rounded-full px-2 py-[1px] text-[10px] font-bold ${
-                              c.operating === "effective"
-                                ? "bg-emerald-50 text-emerald-800 dark:bg-emerald-950/40 dark:text-emerald-300"
-                                : c.operating === "exceptions"
-                                  ? "bg-[var(--color-rose-soft)] text-rose"
-                                  : "bg-surface-2 text-muted"
-                            }`}
-                            title={fr ? "Conclusion opératoire dérivée des tests enregistrés" : "Operating conclusion derived from recorded tests"}
-                            data-testid={`control-operating-${slug(c.name)}`}
-                          >
-                            {c.operating === "effective"
-                              ? (fr ? "Efficace" : "Effective")
+                        <span className="text-[10.5px] text-muted">{c.owner ?? "—"} · {typeShort(c.controlType, fr)} · {freqLabel(c.frequency, fr)} · {c.objective}</span>
+                        <span
+                          className={`ml-auto rounded-full px-2 py-[1px] text-[10px] font-bold ${
+                            c.operating === "effective"
+                              ? "bg-emerald-50 text-emerald-800 dark:bg-emerald-950/40 dark:text-emerald-300"
                               : c.operating === "exceptions"
-                                ? "Exceptions"
-                                : fr ? "Aucun test" : "No tests yet"}
-                            {c.testsCount > 0 ? ` · ${c.testsCount}` : ""}
-                          </span>
-                        ) : (
-                          <span className="ml-auto text-[10px] font-bold uppercase tracking-wide text-muted">{c.selectedForTesting ? (fr ? "sélectionné" : "selected") : ""}</span>
-                        )}
+                                ? "bg-[var(--color-rose-soft)] text-rose"
+                                : "bg-surface-2 text-muted"
+                          }`}
+                          title={fr ? "Conclusion opératoire dérivée des tests enregistrés" : "Operating conclusion derived from recorded tests"}
+                          data-testid={`control-operating-${slug(c.name)}`}
+                        >
+                          {c.operating === "effective"
+                            ? (fr ? "Efficace" : "Effective")
+                            : c.operating === "exceptions"
+                              ? "Exceptions"
+                              : fr ? "Aucun test" : "No tests yet"}
+                          {c.testsCount > 0 ? ` · ${c.testsCount}` : ""}
+                        </span>
                       </div>
-                      {mode === "results" ? (
-                        <div className="mt-1.5 flex flex-wrap items-center gap-x-3 gap-y-1.5">
-                          {c.testDesign ? <p className="w-full text-[10.5px] italic leading-snug text-muted">{c.testDesign}</p> : null}
-                          <label className="flex items-center gap-1 text-[10.5px] text-muted">
-                            {fr ? "Conception" : "Design"}
-                            <select
-                              defaultValue={c.designEval ?? ""}
-                              onChange={(e) => void op({ op: "updateControl", controlId: c.id, designEval: e.target.value })}
-                              className="rounded-[var(--radius-atlas-xs)] border border-line-strong bg-surface px-1.5 py-0.5 text-[10.5px] text-ink outline-none"
-                              data-testid={`control-designeval-${slug(c.name)}`}
-                            >
-                              <option value="">—</option>
-                              <option value="effective">{fr ? "Efficace" : "Effective"}</option>
-                              <option value="ineffective">{fr ? "Inefficace" : "Ineffective"}</option>
-                            </select>
-                          </label>
-                          <label className="flex items-center gap-1 text-[10.5px] text-muted">
-                            {fr ? "Mise en œuvre" : "Implemented"}
-                            <select
-                              defaultValue={c.implemented === null ? "" : c.implemented ? "yes" : "no"}
-                              onChange={(e) => { if (e.target.value) void op({ op: "updateControl", controlId: c.id, implemented: e.target.value === "yes" }); }}
-                              className="rounded-[var(--radius-atlas-xs)] border border-line-strong bg-surface px-1.5 py-0.5 text-[10.5px] text-ink outline-none"
-                              data-testid={`control-implemented-${slug(c.name)}`}
-                            >
-                              <option value="">—</option>
-                              <option value="yes">{fr ? "Oui" : "Yes"}</option>
-                              <option value="no">{fr ? "Non" : "No"}</option>
-                            </select>
-                          </label>
-                          <input
-                            defaultValue={c.operatingNotes ?? ""}
-                            placeholder={fr ? "Notes sur le fonctionnement…" : "Operating notes…"}
-                            onBlur={(e) => { if (e.target.value !== (c.operatingNotes ?? "")) void op({ op: "updateControl", controlId: c.id, operatingNotes: e.target.value }); }}
-                            className="min-w-[180px] flex-1 rounded-[var(--radius-atlas-xs)] bg-[var(--color-warn-soft)] px-2 py-1 text-[10.5px] text-ink outline-none focus:ring-1 focus:ring-emerald-600/40"
-                          />
-                        </div>
-                      ) : null}
-                      {mode === "design" ? (
-                        <textarea
-                          rows={2}
-                          defaultValue={c.testDesign ?? ""}
-                          placeholder={fr ? "Nature, calendrier et étendue du test…" : "Nature, timing and extent of the test…"}
-                          onBlur={(e) => { if (e.target.value !== (c.testDesign ?? "")) void op({ op: "updateControl", controlId: c.id, testDesign: e.target.value }); }}
-                          className="mt-1 w-full resize-none rounded-[var(--radius-atlas-xs)] bg-[var(--color-warn-soft)] px-2 py-1 text-[11.5px] text-ink outline-none focus:ring-1 focus:ring-emerald-600/40"
-                          data-testid={`control-design-${slug(c.name)}`}
+                      <div className="mt-1.5 flex flex-wrap items-center gap-x-3 gap-y-1.5">
+                        {c.testDesign ? <p className="w-full text-[10.5px] italic leading-snug text-muted">{c.testDesign}{c.sampleSize ? ` — ${fr ? "échantillon" : "sample"}: ${c.sampleSize}` : ""}</p> : null}
+                        <label className="flex items-center gap-1 text-[10.5px] text-muted">
+                          {fr ? "Conception" : "Design"}
+                          <select
+                            defaultValue={c.designEval ?? ""}
+                            onChange={(e) => void op({ op: "updateControl", controlId: c.id, designEval: e.target.value })}
+                            className="rounded-[var(--radius-atlas-xs)] border border-line-strong bg-surface px-1.5 py-0.5 text-[10.5px] text-ink outline-none"
+                            data-testid={`control-designeval-${slug(c.name)}`}
+                          >
+                            <option value="">—</option>
+                            <option value="effective">{fr ? "Efficace" : "Effective"}</option>
+                            <option value="ineffective">{fr ? "Inefficace" : "Ineffective"}</option>
+                          </select>
+                        </label>
+                        <label className="flex items-center gap-1 text-[10.5px] text-muted">
+                          {fr ? "Mise en œuvre" : "Implemented"}
+                          <select
+                            defaultValue={c.implemented === null ? "" : c.implemented ? "yes" : "no"}
+                            onChange={(e) => { if (e.target.value) void op({ op: "updateControl", controlId: c.id, implemented: e.target.value === "yes" }); }}
+                            className="rounded-[var(--radius-atlas-xs)] border border-line-strong bg-surface px-1.5 py-0.5 text-[10.5px] text-ink outline-none"
+                            data-testid={`control-implemented-${slug(c.name)}`}
+                          >
+                            <option value="">—</option>
+                            <option value="yes">{fr ? "Oui" : "Yes"}</option>
+                            <option value="no">{fr ? "Non" : "No"}</option>
+                          </select>
+                        </label>
+                        <input
+                          defaultValue={c.operatingNotes ?? ""}
+                          placeholder={fr ? "Notes sur le fonctionnement…" : "Operating notes…"}
+                          onBlur={(e) => { if (e.target.value !== (c.operatingNotes ?? "")) void op({ op: "updateControl", controlId: c.id, operatingNotes: e.target.value }); }}
+                          className="min-w-[180px] flex-1 rounded-[var(--radius-atlas-xs)] bg-[var(--color-warn-soft)] px-2 py-1 text-[10.5px] text-ink outline-none focus:ring-1 focus:ring-emerald-600/40"
                         />
-                      ) : null}
+                      </div>
                     </div>
                   ))}
                 </div>

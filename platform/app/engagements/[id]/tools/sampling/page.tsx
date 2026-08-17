@@ -2,10 +2,12 @@ import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
 import { auth } from "@/auth";
 import { AppNav } from "@/components/AppNav";
-import { Panel } from "@/components/ui/atlas";
+import { SamplingStudio } from "@/components/SamplingStudio";
+import { Panel, PanelHeader } from "@/components/ui/atlas";
 import { engagementTasks } from "@/lib/engagement-dashboard";
 import { getEngagement } from "@/lib/engagements";
 import { getLocale } from "@/lib/locale";
+import { listScots } from "@/lib/scots";
 
 export const metadata = { title: "Sampling · AuditISA" };
 
@@ -26,9 +28,15 @@ export default async function SamplingPage(props: { params: Promise<{ id: string
   const fr = locale === "fr";
   const engagement = await getEngagement(id);
   if (!engagement) notFound();
-  const tasks = await engagementTasks(id);
+  const [tasks, scots] = await Promise.all([engagementTasks(id), listScots(id)]);
   const rows = SAMPLING_CODES.map((code) => tasks.find((x) => x.code === code)).filter(
     (x): x is NonNullable<typeof x> => Boolean(x),
+  );
+  // the purpose list: every control selected for testing on S2.1
+  const purposes = scots.flatMap((s) =>
+    s.controls
+      .filter((c) => c.selectedForTesting)
+      .map((c) => ({ controlId: c.id, controlName: c.name, scotName: s.name, sampleSize: c.sampleSize })),
   );
 
   return (
@@ -50,10 +58,20 @@ export default async function SamplingPage(props: { params: Promise<{ id: string
       </div>
 
       <Panel className="mt-4">
+        <PanelHeader
+          title={fr ? "Tests de contrôles — déterminer l'échantillon" : "Tests of controls — determine the sample"}
+          hint={fr ? "assigné directement à la conception du test (S2.2)" : "assigned straight onto the test design (S2.2)"}
+        />
+        <div className="mt-3">
+          <SamplingStudio engagementId={id} purposes={purposes} locale={fr ? "fr" : "en"} />
+        </div>
+      </Panel>
+
+      <Panel className="mt-4">
         <p className="text-[13px] text-ink-soft">
           {fr
-            ? "Les tailles d'échantillon sont calculées, jamais saisies : sondage MUS à partir de la confiance et de l'anomalie tolérable, tests par attributs selon la fréquence du contrôle. Les sondages se lancent depuis la tâche de cycle concernée — ci-dessous."
-            : "Sample sizes are computed, never typed: MUS from confidence and tolerable misstatement, attribute tests from control frequency. Runs launch from the cycle task concerned — below."}
+            ? "Sondages substantifs sur les cycles : les tailles sont calculées, jamais saisies — MUS à partir de la confiance et de l'anomalie tolérable. Ils se lancent depuis la tâche de cycle concernée — ci-dessous."
+            : "Substantive sampling on the cycles: sizes are computed, never typed — MUS from confidence and tolerable misstatement. Runs launch from the cycle task concerned — below."}
         </p>
         <ul className="mt-3 divide-y divide-line" data-testid="sampling-tasks">
           {rows.map((task) => (

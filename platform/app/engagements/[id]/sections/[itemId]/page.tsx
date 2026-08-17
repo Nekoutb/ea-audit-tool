@@ -430,11 +430,6 @@ export default async function SectionPage(props: {
             {triggerDef ? (
               <TriggerPanel engagementId={id} definition={triggerDef} values={triggerValues} returnTo={`/engagements/${id}/sections/${itemId}`} locale={isFr ? "fr" : "en"} />
             ) : null}
-            {scotView && section.code in SCOT_MODES && section.code !== "S1.2" ? (
-              <div className="mb-2 min-h-0 max-h-[55%] overflow-auto" data-testid="wp-wcgw-builder">
-                <WcgwBuilder engagementId={id} view={scotView} mode={SCOT_MODES[section.code]} locale={isFr ? "fr" : "en"} />
-              </div>
-            ) : null}
             {relatedParties ? (
               <div className="mb-2 min-h-0 max-h-[45%] overflow-auto" data-testid="wp-related-parties">
                 <RelatedPartyRegister engagementId={id} rows={relatedParties} returnTo={`/engagements/${id}/sections/${itemId}`} locale={isFr ? "fr" : "en"} carriedForwardLabel={t.planning.carriedForward ?? "Carried forward"} title={isFr ? "Registre des parties liées" : "Related-party register"} />
@@ -481,8 +476,8 @@ export default async function SectionPage(props: {
               locale={fr ? "fr" : "en"}
               action={savePaperAction.bind(null, id, itemId, section.code)}
               embed={
-                // S1.1/S1.2/S1.3: the structured work owns the whole first
-                // page; Part A's questions follow on the next pages.
+                // The structured work owns the whole first page. On S1.2,
+                // S1.3, S2.1 and S2.2 it IS the paper (embedOnly).
                 scotView && section.code === "S1.1" ? (
                   <ScotRegister
                     engagementId={id}
@@ -490,14 +485,15 @@ export default async function SectionPage(props: {
                     team={team.map((m) => ({ userId: m.userId, userName: m.userName }))}
                     locale={isFr ? "fr" : "en"}
                   />
-                ) : scotView && section.code === "S1.2" ? (
-                  <WcgwBuilder engagementId={id} view={scotView} mode="wcgw" locale={isFr ? "fr" : "en"} />
                 ) : scotView && wtValues && section.code === "S1.3" ? (
                   <WalkthroughBoard engagementId={id} view={scotView} values={wtValues} locale={isFr ? "fr" : "en"} />
+                ) : scotView && section.code in SCOT_MODES && section.code !== "E1.1" ? (
+                  <WcgwBuilder engagementId={id} view={scotView} mode={SCOT_MODES[section.code]} locale={isFr ? "fr" : "en"} />
                 ) : fscpVals ? (
                   <FscpForm engagementId={id} values={fscpVals} locale={isFr ? "fr" : "en"} />
                 ) : undefined
               }
+              embedOnly={["S1.2", "S1.3", "S2.1", "S2.2"].includes(section.code)}
               embedTitle={
                 section.code === "S1.1"
                   ? fr ? "Registre des SCOT" : "SCOT register"
@@ -505,7 +501,11 @@ export default async function SectionPage(props: {
                     ? fr ? "Cheminements par SCOT" : "Walkthroughs by SCOT"
                     : section.code === "S1.4"
                       ? fr ? "Processus de clôture" : "The close process"
-                      : fr ? "Flux, WCGW & contrôles" : "Flows, WCGWs & controls"
+                      : section.code === "S2.1"
+                        ? fr ? "Sélection des contrôles à tester" : "Select controls to test"
+                        : section.code === "S2.2"
+                          ? fr ? "Conception des tests de contrôles" : "Design tests of controls"
+                          : fr ? "Flux, WCGW & contrôles" : "Flows, WCGWs & controls"
               }
             />
             )}
@@ -518,7 +518,15 @@ export default async function SectionPage(props: {
                 {fr ? "Tâches liées" : "Linked tasks"}
               </h2>
               <ul className="mt-1.5 flex min-h-0 flex-col overflow-hidden">
-                {linkedTasks.length === 0 ? (
+                {section.code === "S2.2" ? (
+                  <li>
+                    <Link href={`/engagements/${id}/tools/sampling`} className="flex items-baseline gap-1.5 rounded-[var(--radius-atlas-xs)] px-1.5 py-1 text-[12.3px] font-semibold text-emerald-700 transition hover:bg-surface-2 dark:text-emerald-400" data-testid="linked-sampling-tool">
+                      <span className="font-mono text-[10.5px] text-muted">TL</span>
+                      <span className="min-w-0 flex-1 truncate">{fr ? "Outil d'échantillonnage — déterminer l'échantillon" : "Sampling tool — determine the sample"}</span>
+                    </Link>
+                  </li>
+                ) : null}
+                {linkedTasks.length === 0 && section.code !== "S2.2" ? (
                   <li className="text-[12px] text-muted">—</li>
                 ) : (
                   linkedTasks.map((l) => (

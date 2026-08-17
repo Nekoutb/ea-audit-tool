@@ -127,6 +127,7 @@ export function PaperWizard({
   readOnly,
   embed,
   embedTitle,
+  embedOnly,
 }: {
   code: string;
   def: PaperDef;
@@ -138,6 +139,8 @@ export function PaperWizard({
   /** replaces page 0 entirely (no conclusion / key findings) — the questionnaire starts on page 2 */
   embed?: React.ReactNode;
   embedTitle?: string;
+  /** the embed IS the whole paper: no questionnaire pages, no paper save button */
+  embedOnly?: boolean;
 }) {
   const fr = locale === "fr";
   const items = useMemo(() => buildItems(def, fr), [def, fr]);
@@ -188,7 +191,8 @@ export function PaperWizard({
   useLayoutEffect(() => {
     setStep((s) => Math.min(s, Math.max(0, steps.length - 1)));
   }, [steps.length]);
-  const total = Math.max(1, steps.length); // page 0 opens with conclusion & key findings
+  const soloEmbed = Boolean(embed && embedOnly);
+  const total = soloEmbed ? 1 : Math.max(1, steps.length); // page 0 opens with conclusion & key findings
   const concl = (fr ? def.conclFr : def.conclEn) ?? [];
 
   // Answers that gate the yellow boxes: yn questions and the conclusions.
@@ -355,6 +359,7 @@ export function PaperWizard({
               ? "Questionnaire"
               : "Questionnaire"}
         </span>
+        {soloEmbed ? null : (
         <span className="flex items-center gap-1.5">
           <span className="text-[11.5px] text-muted tnum" data-testid="wp-step">
             {step + 1}/{total}
@@ -380,6 +385,7 @@ export function PaperWizard({
             ›
           </button>
         </span>
+        )}
       </div>
 
       {/* the measuring shell: all steps render inside; its height drives packing */}
@@ -430,7 +436,7 @@ export function PaperWizard({
       )}
 
       {/* pages beyond the first */}
-      {steps.slice(1).map((pageItems, si) => (
+      {soloEmbed ? null : steps.slice(1).map((pageItems, si) => (
         <div key={si} hidden={step !== si + 1} className="absolute inset-0 mt-2 flex flex-col gap-1.5 overflow-y-auto overflow-x-hidden">
           {pageItems.map(renderItem)}
         </div>
@@ -438,7 +444,7 @@ export function PaperWizard({
 
       </div>
 
-      {readOnly ? null : (
+      {readOnly || soloEmbed ? null : (
         <div className="mt-auto flex justify-end border-t border-line pt-2">
           <SubmitButton
             testId={`wp-save-${code}`}
