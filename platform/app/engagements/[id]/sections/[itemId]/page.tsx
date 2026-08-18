@@ -28,7 +28,10 @@ import { SECTION_A, SECTION_B, SECTION_C, SIGNATURE_ROLES, planningRas } from "@
 import { atLeast, isRole } from "@/lib/rbac";
 import { listTaskNotes } from "@/lib/task-notes";
 import { significantAccounts, specificThresholds } from "@/lib/significant-accounts";
-import { craRows } from "@/lib/cra";
+import { craBoard, craRollupByIndex } from "@/lib/cra";
+import { craTone, todLabel, type CraLevel } from "@/lib/cra-model";
+import { dspView } from "@/lib/design-procedures";
+import { DesignProceduresBoard } from "@/components/DesignProceduresBoard";
 import { listEstimates, listRelatedParties } from "@/lib/registers";
 import { fscpValues, scotStudio, scotSummary, walkthroughValues } from "@/lib/scots";
 import { indexesForTask, pspResults } from "@/lib/psp";
@@ -42,7 +45,7 @@ import { EstimatesRegister, RelatedPartyRegister } from "@/components/PlanningRe
 import { TriggerPanel } from "@/components/TriggerPanel";
 import { FORM_DEFINITIONS, loadForm } from "@/lib/forms";
 import { listRisks } from "@/lib/risks";
-import { CraMatrix } from "@/components/CraMatrix";
+import { CraBoard } from "@/components/CraBoard";
 import { SubmitButton } from "@/components/SubmitButton";
 import { TaskAttachments } from "@/components/TaskAttachments";
 import { WorkingPaper } from "@/components/WorkingPaper";
@@ -176,8 +179,10 @@ export default async function SectionPage(props: {
   // P6.2 (P6.2): the significance grid drives the task itself
 
   const sigAccounts = section.code === "P6.2" ? await significantAccounts(id) : null;
-  // S3.1 — the combined risk assessment matrix rides on top of the paper
-  const craView = section.code === "S3.1" ? await craRows(id) : null;
+  // S3.1 — the combined risk assessment matrix IS the first page of the paper
+  const craView = section.code === "S3.1" ? await craBoard(id) : null;
+  // S5.5 — the substantive-procedures design board rides the same way
+  const dspV = section.code === "S5.5" ? await dspView(id) : null;
   // S4.3/S4.4 — the planning sub-registers ride with the paper
   const relatedParties = section.code === "S4.3" ? await listRelatedParties(id) : null;
   const estimates = section.code === "S4.4" ? await listEstimates(id) : null;
@@ -204,6 +209,11 @@ export default async function SectionPage(props: {
   const isAccountTask = section.code.startsWith("E4.");
   // ONE index per account task — its letter is the working paper's identity
   const accountIndex = isAccountTask ? (indexesForTask(section.code)[0] ?? null) : null;
+  // the account's CRA from the S3.1 matrix, shown beside the title
+  const accountCra =
+    isAccountTask && accountIndex
+      ? ((await craRollupByIndex(id).catch((): Record<string, never> => ({})))[accountIndex] ?? null)
+      : null;
   const accountInIndex =
     isAccountTask && accountIndex
       ? (await apLeadSchedules(id)).some((s) => s.def.code === accountIndex)
@@ -334,6 +344,13 @@ export default async function SectionPage(props: {
           <h1 className="min-w-0 flex-1 truncate text-[20px] font-semibold leading-tight tracking-[-0.02em] text-ink">
             {locale === "fr" ? section.title_fr : section.title_en}
           </h1>
+          {accountCra ? (
+            <Link href={`/engagements/${id}/cra`} title={fr ? "Évaluation combinée des risques (S3.1)" : "Combined risk assessment (S3.1)"} data-testid="wp-account-cra">
+              <Chip tone={craTone(accountCra.replace("_sr", "") as CraLevel)}>
+                {(fr ? "ECR : " : "CRA: ") + todLabel(accountCra, fr ? "fr" : "en")}
+              </Chip>
+            </Link>
+          ) : null}
           <span className="flex items-center gap-1.5 text-[12px] text-muted">
             {fr ? "Assigné à" : "Assigned to"}
             {canAssign ? (
@@ -518,19 +535,6 @@ export default async function SectionPage(props: {
                 <SignificantAccounts engagementId={id} view={sigAccounts} locale={isFr ? "fr" : "en"} />
               </div>
             ) : null}
-            {craView ? (
-              <div className="mb-2 min-h-0 max-h-[45%] overflow-auto" data-testid="wp-cra-matrix">
-                <div className="mb-1 flex items-baseline justify-between">
-                  <span className="text-[11px] font-extrabold uppercase tracking-[0.07em] text-muted">
-                    {isFr ? "Matrice d'évaluation combinée" : "Combined risk assessment matrix"}
-                  </span>
-                  <Link href={`/engagements/${id}/cra`} className="text-[11px] font-semibold text-emerald-700 hover:underline dark:text-emerald-400">
-                    {isFr ? "Plein écran →" : "Full screen →"}
-                  </Link>
-                </div>
-                <CraMatrix engagementId={id} rows={craView} locale={isFr ? "fr" : "en"} compact />
-              </div>
-            ) : null}
             {triggerDef ? (
               <TriggerPanel engagementId={id} definition={triggerDef} values={triggerValues} returnTo={`/engagements/${id}/sections/${itemId}`} locale={isFr ? "fr" : "en"} />
             ) : null}
@@ -595,6 +599,10 @@ export default async function SectionPage(props: {
                   <WcgwBuilder engagementId={id} view={scotView} mode={SCOT_MODES[section.code]} locale={isFr ? "fr" : "en"} />
                 ) : fscpVals ? (
                   <FscpForm engagementId={id} values={fscpVals} locale={isFr ? "fr" : "en"} />
+                ) : craView ? (
+                  <CraBoard engagementId={id} view={craView} locale={isFr ? "fr" : "en"} />
+                ) : dspV ? (
+                  <DesignProceduresBoard engagementId={id} view={dspV} locale={isFr ? "fr" : "en"} />
                 ) : undefined
               }
               embedOnly={["S1.2", "S1.3", "S2.1", "S2.2"].includes(section.code)}
@@ -609,7 +617,11 @@ export default async function SectionPage(props: {
                         ? fr ? "Sélection des contrôles à tester" : "Select controls to test"
                         : section.code === "S2.2"
                           ? fr ? "Conception des tests de contrôles" : "Design tests of controls"
-                          : fr ? "Flux, WCGW & contrôles" : "Flows, WCGWs & controls"
+                          : section.code === "S3.1"
+                            ? fr ? "Matrice d'évaluation combinée des risques" : "Combined risk assessment matrix"
+                            : section.code === "S5.5"
+                              ? fr ? "Conception des procédures substantives" : "Design substantive procedures"
+                              : fr ? "Flux, WCGW & contrôles" : "Flows, WCGWs & controls"
               }
             />
             )}
@@ -622,7 +634,7 @@ export default async function SectionPage(props: {
                 {fr ? "Tâches liées" : "Linked tasks"}
               </h2>
               <ul className="mt-1.5 flex min-h-0 flex-col overflow-hidden">
-                {section.code === "S2.2" ? (
+                {["S2.2", "S2.4", "S5.5"].includes(section.code) ? (
                   <li>
                     <Link href={`/engagements/${id}/tools/sampling`} className="flex items-baseline gap-1.5 rounded-[var(--radius-atlas-xs)] px-1.5 py-1 text-[12.3px] font-semibold text-emerald-700 transition hover:bg-surface-2 dark:text-emerald-400" data-testid="linked-sampling-tool">
                       <span className="font-mono text-[10.5px] text-muted">TL</span>

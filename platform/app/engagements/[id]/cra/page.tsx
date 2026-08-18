@@ -1,10 +1,10 @@
 import { notFound, redirect } from "next/navigation";
 import { auth } from "@/auth";
 import { AppNav } from "@/components/AppNav";
-import { CraMatrix, CRA_LABELS } from "@/components/CraMatrix";
+import { CraBoard } from "@/components/CraBoard";
 import { NavLink } from "@/components/NavLink";
 import { Chip, Panel, PanelHeader } from "@/components/ui/atlas";
-import { craRows } from "@/lib/cra";
+import { craBoard } from "@/lib/cra";
 import { listScots } from "@/lib/scots";
 import { getEngagement } from "@/lib/engagements";
 import { getMessages } from "@/lib/i18n";
@@ -12,7 +12,8 @@ import { getLocale } from "@/lib/locale";
 
 export const metadata = { title: "CRA · AuditISA" };
 
-/** Read-only CRA matrix (EY-Canvas-style structure): one row per E-section. */
+/** The Combined Risk Assessment matrix, full screen: IR × CR per relevant
+    assertion of each significant account, plus the SCOT rollup. */
 export default async function CraPage(props: { params: Promise<{ id: string }> }) {
   const session = await auth();
   if (!session?.user) redirect("/login");
@@ -20,14 +21,21 @@ export default async function CraPage(props: { params: Promise<{ id: string }> }
   const { id } = await props.params;
   const locale = await getLocale();
   const t = getMessages(locale);
-  const l = CRA_LABELS[locale];
+  const fr = locale === "fr";
+  const l = {
+    title: fr ? "Évaluation combinée des risques" : "Combined Risk Assessment",
+    subtitle: fr
+      ? "Risque inhérent × risque lié au contrôle, par assertion pertinente de chaque compte significatif"
+      : "Inherent risk × control risk, per relevant assertion of each significant account",
+    significant: fr ? "Risques importants" : "Significant risks",
+    account: fr ? "Comptes significatifs" : "Significant accounts",
+  };
 
   const engagement = await getEngagement(id);
   if (!engagement) notFound();
 
-  const [rows, scots] = await Promise.all([craRows(id), listScots(id)]);
-  const significantCount = rows.filter((row) => row.significant).length;
-  const fr = locale === "fr";
+  const [view, scots] = await Promise.all([craBoard(id), listScots(id)]);
+  const significantCount = view.rows.filter((row) => row.cells.some((c) => c.relevant && c.significant)).length;
 
   return (
     <main className="flex min-h-screen w-full flex-col gap-4 px-6 py-8">
@@ -58,7 +66,7 @@ export default async function CraPage(props: { params: Promise<{ id: string }> }
           <div className="text-[10.5px] font-bold uppercase tracking-[0.08em] text-muted">{l.significant}</div>
           <div className="text-[28px] font-extrabold leading-tight tracking-[-0.03em] text-rose tnum">
             {significantCount}
-            <span className="text-muted">/{rows.length}</span>
+            <span className="text-muted">/{view.rows.length}</span>
           </div>
         </div>
       </div>
@@ -66,11 +74,13 @@ export default async function CraPage(props: { params: Promise<{ id: string }> }
       <Panel flush className="flex flex-col">
         <div className="border-b border-line px-5 py-3.5">
           <PanelHeader
-            title={l.cols.account}
-            right={<span className="text-xs font-semibold text-muted tnum">{rows.length}</span>}
+            title={l.account}
+            right={<span className="text-xs font-semibold text-muted tnum">{view.rows.length}</span>}
           />
         </div>
-        <CraMatrix engagementId={id} rows={rows} locale={locale} />
+        <div className="px-4 py-3">
+          <CraBoard engagementId={id} view={view} locale={locale} />
+        </div>
       </Panel>
 
       {/* SCOT Studio rollup — the same file summarised by process rather than

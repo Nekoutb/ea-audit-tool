@@ -13,8 +13,10 @@
 //       audit-risk-table factor (CRA × assurance × key-item coverage); the
 //       sample is drawn systematically (MUS) and revealed item by item.
 
-import { useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
+import { leadIndexFor } from "@/lib/lead-classes";
+import { todLabel, type CraTod } from "@/lib/cra-model";
 
 export interface SamplingPurpose {
   controlId: string;
@@ -94,12 +96,15 @@ export function SamplingStudio({
   engagementId,
   purposes,
   glAccounts,
+  craByIndex,
   s22Href,
   locale,
 }: {
   engagementId: string;
   purposes: SamplingPurpose[];
   glAccounts: GlAccountOption[];
+  /** S3.1 roll-up: lead index → CRA in sampling vocabulary (minimal…high_sr) */
+  craByIndex?: Record<string, string>;
   /** the S2.2 design screen — clicking a control's description returns there */
   s22Href?: string;
   locale: "en" | "fr";
@@ -113,6 +118,18 @@ export function SamplingStudio({
   // tests of details state
   const [prefix, setPrefix] = useState(glAccounts[0]?.prefix ?? "");
   const [cra, setCra] = useState("low");
+
+  // S3.1 write-through: when the account changes, the matrix's roll-up for its
+  // lead index becomes the CRA default (still overridable by hand)
+  const s31 = useMemo(() => {
+    if (!craByIndex || !prefix) return null;
+    const idx = leadIndexFor(prefix);
+    const v = idx ? craByIndex[idx] : undefined;
+    return v ? { index: idx as string, value: v } : null;
+  }, [craByIndex, prefix]);
+  useEffect(() => {
+    if (s31) setCra(s31.value);
+  }, [s31]);
   const [assurance, setAssurance] = useState("little");
   const [threshold, setThreshold] = useState("");
   const [todPending, setTodPending] = useState(false);
@@ -318,6 +335,11 @@ export function SamplingStudio({
             <select value={cra} onChange={(e) => setCra(e.target.value)} className={input} data-testid="tod-cra">
               {CRAS.map((c) => <option key={c.value} value={c.value}>{fr ? c.fr : c.en}</option>)}
             </select>
+            {s31 ? (
+              <span className="text-[10px] font-semibold text-emerald-700 dark:text-emerald-400" data-testid="tod-cra-s31">
+                {fr ? `S3.1 (${s31.index}) : ${todLabel(s31.value as CraTod, "fr")}` : `From S3.1 (${s31.index}): ${todLabel(s31.value as CraTod, "en")}`}
+              </span>
+            ) : null}
           </label>
           <label className="flex flex-col gap-0.5 text-[11px] text-muted">
             {fr ? "Assurance des autres procédures" : "Assurance from other procedures"}

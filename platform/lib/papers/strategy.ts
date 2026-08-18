@@ -908,12 +908,14 @@ const D7_2: PaperDef = {
     "We design and implement overall responses to the assessed risks at financial statement level, and further audit procedures whose nature, timing and extent are based on and responsive to the assessed risks at assertion level (ISA 330 ¶5–6). For every significant risk, substantive procedures include tests of details (ISA 330 ¶21).",
     "Inherent risk is assessed on a spectrum, by weighing together the likelihood that a misstatement occurs and the magnitude it would have if it did (ISA 315 (Revised 2019) ¶31, A208). The inherent risk factors — complexity, subjectivity, change, uncertainty and susceptibility to management bias or fraud — determine where on that spectrum each risk sits. A risk assessed close to the upper end of the spectrum is a significant risk by definition (ISA 315 ¶12(l), ¶32), and that classification carries mandatory consequences: substantive procedures that include tests of details (ISA 330 ¶21) and, where reliance on controls is planned, tests of operating effectiveness in the current period (ISA 330 ¶15).",
     "Inherent risk and control risk are assessed separately (ISA 315 (Revised 2019) ¶34). Control risk may be assessed below the maximum only where we plan to test the operating effectiveness of controls; where no such reliance is planned, the assessment of control risk is such that the assessment of the risk of material misstatement is the same as the assessment of inherent risk (ISA 315 ¶34). The combined assessment then drives the mix of further procedures under ISA 330 ¶7: the higher the assessed risk, the more persuasive the evidence required — larger samples, more reliable externally sourced evidence, and work moved to or after the period end rather than an interim date.",
+    "The matrix records both assessments per relevant assertion of each significant account and combines them into four levels: lower inherent risk with controls reliance is minimal; lower without reliance is moderate; higher with reliance is low; higher without reliance is high. A significant risk adds no fifth level — it overlays special audit considerations on the level reached, and always demands a test of details among the responses (ISA 330 ¶21). The level per account flows to the sampling tool, to the S5.5 design and to the E4 workpapers; the control-risk column listens to the controls selected in S2.1, their results in E1.1 and the ITGC conclusion in S2.5.",
   ],
   reqFr: [
     "Nous identifions et évaluons les risques d'anomalies significatives au niveau des états financiers et des assertions (ISA 315 révisée ¶28). Le risque inhérent et le risque lié au contrôle sont évalués séparément (ISA 315 ¶34).",
     "Nous concevons des réponses globales et des procédures complémentaires dont la nature, le calendrier et l'étendue répondent aux risques évalués (ISA 330 ¶5–6). Pour chaque risque important, les procédures de substance comprennent des tests de détail (ISA 330 ¶21).",
     "Le risque inhérent s'apprécie sur un spectre, en pesant ensemble la probabilité qu'une anomalie survienne et son ampleur si elle survenait (ISA 315 (Révisée 2019) ¶31, A208). Les facteurs de risque inhérent — complexité, subjectivité, changement, incertitude et propension au biais de la direction ou à la fraude — déterminent où chaque risque se situe sur ce spectre. Un risque évalué près du haut du spectre est par définition un risque important (ISA 315 ¶12(l), ¶32), et cette qualification emporte des conséquences obligatoires : des procédures substantives comportant des tests de détail (ISA 330 ¶21) et, si un appui sur les contrôles est prévu, des tests d'efficacité du fonctionnement sur la période en cours (ISA 330 ¶15).",
     "Le risque inhérent et le risque lié au contrôle sont évalués séparément (ISA 315 (Révisée 2019) ¶34). Le risque lié au contrôle ne peut être évalué en dessous du maximum que si nous prévoyons de tester l'efficacité du fonctionnement des contrôles ; à défaut, l'évaluation du risque d'anomalies significatives est la même que celle du risque inhérent (ISA 315 ¶34). L'évaluation combinée commande ensuite le dosage des procédures complémentaires selon ISA 330 ¶7 : plus le risque évalué est élevé, plus les éléments probants doivent être convaincants — échantillons plus larges, éléments d'origine externe plus fiables, travaux déplacés à la clôture ou après plutôt qu'à une date intercalaire.",
+    "La matrice consigne les deux évaluations par assertion pertinente de chaque compte significatif et les combine en quatre niveaux : risque inhérent faible avec appui sur les contrôles donne minimal ; faible sans appui donne modéré ; élevé avec appui donne faible ; élevé sans appui donne élevé. Un risque important n'ajoute aucun cinquième niveau — il superpose des diligences particulières au niveau atteint, et impose toujours un test de détail parmi les réponses (ISA 330 ¶21). Le niveau par compte alimente l'outil d'échantillonnage, la conception S5.5 et les papiers E4 ; la colonne du risque lié au contrôle écoute les contrôles retenus en S2.1, leurs résultats en E1.1 et la conclusion ITGC de S2.5.",
   ],
   conclEn: [
     "Every assessed risk has a planned response recorded against it, and every significant risk has a test of details among its responses.",
@@ -1048,7 +1050,329 @@ const D4_2: PaperDef = {
   ],
 };
 
+/* ---------------------------------------------------------------- S2.3 --- */
+const D8_1: PaperDef = {
+  std: "ISA 315 (Revised 2019) ¶25–26(b)–(c), Appendix 5–6",
+  ownsEn: "the understanding of the IT environment, the risks arising from IT and the general IT controls",
+  ownsFr: "la compréhension de l'environnement informatique, des risques liés à l'informatique et des contrôles généraux informatiques",
+  reqEn: [
+    "We identify the IT applications and the other aspects of the IT environment that are subject to risks arising from the use of IT: those that support the significant classes of transactions, the automated or IT-dependent controls we may rely on, and the reports and other information the entity produces that our procedures use (ISA 315 (Revised 2019) ¶26(b), Appendix 5).",
+    "For each relevant application we identify the risks arising from the use of IT and the general IT controls that address them (ISA 315 ¶26(c)). The risks divide into three families of IT-personnel activity: managing changes to programs, configurations and reports; managing access to applications, databases, operating systems and networks; and managing IT operations — job scheduling, backups and recovery (Appendix 6).",
+    "Access management is foundational: authentication, security settings and the administration of access rights condition whether the change and operations processes can be relied on at all — a developer who can reach production defeats the change process regardless of how changes are approved.",
+    "The depth of the work follows the complexity of the environment: a single packaged application with vendor-managed changes needs far less than chained systems posting automatically to the general ledger. The layers below the application — database, operating system, network — enter the scope only so far as a risk at that layer can lead to a misstatement, direct data changes by administrators being the usual reason.",
+  ],
+  reqFr: [
+    "Nous identifions les applications informatiques et les autres aspects de l'environnement informatique exposés à des risques liés à l'utilisation de l'informatique : ceux qui portent les flux significatifs, les contrôles automatisés ou dépendants de l'informatique sur lesquels nous pourrions nous appuyer, et les états produits par l'entité que nos procédures utilisent (ISA 315 (Révisée 2019) ¶26(b), annexe 5).",
+    "Pour chaque application pertinente, nous identifions les risques liés à l'utilisation de l'informatique et les contrôles généraux informatiques qui y répondent (ISA 315 ¶26(c)). Les risques se répartissent en trois familles d'activités du personnel informatique : gérer les changements de programmes, de configurations et d'états ; gérer les accès aux applications, bases de données, systèmes d'exploitation et réseaux ; et gérer l'exploitation — ordonnancement des traitements, sauvegardes et reprise (annexe 6).",
+    "La gestion des accès est fondatrice : l'authentification, les paramètres de sécurité et l'administration des droits conditionnent l'appui sur les processus de changement et d'exploitation — un développeur qui atteint la production ruine le processus de changement, quelle que soit l'approbation des changements.",
+    "La profondeur des travaux suit la complexité de l'environnement : un progiciel unique aux changements gérés par l'éditeur exige bien moins que des systèmes chaînés déversant automatiquement au grand livre. Les couches sous l'application — base de données, système d'exploitation, réseau — n'entrent dans le périmètre que si un risque à cette couche peut conduire à une anomalie, les modifications directes de données par les administrateurs étant la raison habituelle.",
+  ],
+  conclEn: [
+    "Every relevant application has an IT strategy recorded, and every applicable risk arising from IT is matched to an identified general IT control or routed to a substantive response.",
+  ],
+  conclFr: [
+    "Chaque application pertinente dispose d'une stratégie informatique consignée, et chaque risque applicable lié à l'informatique est rattaché à un contrôle général identifié ou orienté vers une réponse substantive.",
+  ],
+  sections: [
+    {
+      kind: "proc",
+      titleEn: "Part A — Procedures and expected sources",
+      titleFr: "Partie A — Procédures et sources attendues",
+      introEn: PROC_INTRO_EN,
+      introFr: PROC_INTRO_FR,
+      procs: [
+        P("apps", "Identify the relevant IT applications: those supporting the SCOTs, the automated or IT-dependent controls, and the reports our procedures rely on.", "Identifier les applications pertinentes : celles portant les SCOT, les contrôles automatisés ou dépendants de l'informatique, et les états sur lesquels nos procédures s'appuient.", "S1.1 SCOT register · S1.2 controls · P4.3", "Registre des SCOT S1.1 · contrôles S1.2 · P4.3",
+          "Walk the S1.1 register application column and the S1.2 controls: every application named there is a candidate. Add the payroll package and whatever produces the reports you test from (aged balances, inventory listings). For each, note what it does, who the vendor is, and whether it posts to the general ledger automatically.",
+          "Parcourir la colonne applications du registre S1.1 et les contrôles S1.2 : chaque application nommée est candidate. Ajouter le logiciel de paie et ce qui produit les états testés (balances âgées, états de stocks). Pour chacune, noter ce qu'elle fait, l'éditeur, et si elle déverse automatiquement au grand livre."),
+        P("strategy", "Set the IT strategy per application: rely on the IT processes (test ITGCs or test the process activity substantively), test the automated controls directly, or stay fully substantive.", "Arrêter la stratégie informatique par application : appui sur les processus (tester les ITGC ou tester l'activité de façon substantive), tester directement les contrôles automatisés, ou rester pleinement substantif.", "S2.1 controls selection · SCOT strategies", "Sélection des contrôles S2.1 · stratégies des SCOT",
+          "Reliance on IT processes is only worth planning where S2.1 selects automated or IT-dependent controls, or where reports are used heavily. With one packaged application and mostly manual controls — the common OHADA case — direct testing of the few automated controls plus substantive testing of the reports is usually cheaper than ITGC work. Record the choice and the reason per application.",
+          "L'appui sur les processus informatiques ne vaut d'être planifié que si S2.1 retient des contrôles automatisés ou dépendants de l'informatique, ou si les états sont fortement utilisés. Avec un progiciel unique et des contrôles surtout manuels — le cas OHADA courant — tester directement les quelques contrôles automatisés et valider les états de façon substantive coûte souvent moins que les travaux ITGC. Consigner le choix et le motif par application."),
+        P("processes", "For each in-scope application, determine which IT processes are relevant — manage change, manage access, manage IT operations — and at which layers (application, database, operating system, network).", "Pour chaque application retenue, déterminer les processus informatiques pertinents — gestion des changements, des accès, de l'exploitation — et à quelles couches (application, base de données, système d'exploitation, réseau).", "IT organigram · inquiry of the IT manager", "Organigramme informatique · entretien avec le responsable informatique",
+          "Access applies everywhere; change applies wherever programs, configurations or report logic can be altered; operations matters where jobs, interfaces or backups condition the accounts. Go below the application layer only where administrators can change data directly — ask who holds database access and what they can do with it.",
+          "Les accès s'appliquent partout ; les changements partout où programmes, configurations ou logique d'états peuvent être modifiés ; l'exploitation là où traitements, interfaces ou sauvegardes conditionnent les comptes. Ne descendre sous la couche applicative que si des administrateurs peuvent modifier les données directement — demander qui détient l'accès base de données et ce qu'il permet."),
+        P("risks", "Identify the risks arising from IT that actually apply, in each family: untested or inappropriate changes, unsecured production, weak authentication, wrong or stale access rights, segregation conflicts, unresolved job failures, data loss.", "Identifier les risques liés à l'informatique réellement applicables, par famille : changements non testés ou inappropriés, production non verrouillée, authentification faible, droits d'accès erronés ou périmés, conflits de séparation, incidents de traitement non résolus, perte de données.", "Inquiry · system settings · prior-year file", "Entretiens · paramètres système · dossier N-1",
+          "Not every catalogue risk applies: an entity that cannot modify its vendor package has no in-house development risk, but still has access and operations exposure. Write only the risks that are real here, one line each, so the ITGC identification that follows has an anchor.",
+          "Tout risque du catalogue ne s'applique pas : une entité qui ne peut modifier son progiciel n'a pas de risque de développement interne, mais garde l'exposition accès et exploitation. N'écrire que les risques réels ici, une ligne chacun, pour ancrer l'identification des ITGC qui suit."),
+        P("ddc", "Assess the risk of direct data changes: who can edit data outside the application, how often it happens, and through what discipline.", "Apprécier le risque de modifications directes des données : qui peut modifier les données hors application, à quelle fréquence, et selon quelle discipline.", "Inquiry of the DBA · change log", "Entretien avec l'administrateur · journal des modifications",
+          "Ask the administrator when data was last corrected in the database and why. Routine direct corrections are a red flag: they demand a request-approval-verification discipline and a log reviewed by someone who cannot make the changes.",
+          "Demander à l'administrateur quand des données ont été corrigées en base pour la dernière fois et pourquoi. Des corrections directes routinières sont un signal d'alerte : elles exigent une discipline demande-approbation-vérification et un journal revu par quelqu'un qui ne peut pas faire ces modifications."),
+        P("itgcs", "Identify the general IT controls addressing each applicable risk, with the performer, the frequency and the layer covered, and evaluate their design and implementation.", "Identifier les contrôles généraux répondant à chaque risque applicable, avec l'exécutant, la fréquence et la couche couverte, et évaluer leur conception et leur mise en œuvre.", "Policies · system settings · walkthrough", "Politiques · paramètres système · cheminement",
+          "Typical anchors: changes tested and approved by someone other than the developer before production; production and migration tools closed to developers; password settings and default accounts dealt with; access granted on approval, removed on departure, reviewed periodically; privileged accounts listed and monitored; backups running and job failures chased. ITGCs are performed by IT personnel — controls performed by business users belong in S1.2.",
+          "Ancrages types : changements testés et approuvés par un autre que le développeur avant la production ; production et outils de migration fermés aux développeurs ; paramètres de mots de passe et comptes par défaut traités ; accès accordés sur approbation, retirés au départ, revus périodiquement ; comptes privilégiés listés et surveillés ; sauvegardes opérantes et incidents de traitement suivis. Les ITGC sont exécutés par le personnel informatique — les contrôles des utilisateurs métier relèvent de S1.2."),
+        P("walkthrough", "Confirm the understanding by walkthrough: trace one change request and one access request end to end, and observe the segregation the process claims.", "Confirmer la compréhension par cheminement : suivre une demande de changement et une demande d'accès de bout en bout, et observer la séparation des tâches annoncée.", "Change ticket · access request · observation", "Ticket de changement · demande d'accès · observation",
+          "Pick a real change from the period and follow it: request, test evidence, approval, move to production, and who did each step. Same for one access grant. Where one person did two incompatible steps, the risk is live — record it and expect the evaluation in S2.5 to feel it.",
+          "Prendre un changement réel de la période et le suivre : demande, preuve de test, approbation, passage en production, et qui a fait chaque étape. Idem pour un octroi d'accès. Si une personne a fait deux étapes incompatibles, le risque est réel — le consigner et s'attendre à ce que l'évaluation S2.5 s'en ressente."),
+        P("common", "Where several applications share one IT process, assess whether it is genuinely common — same people, same policies, same supervision, same technology — so its testing can be aggregated.", "Lorsque plusieurs applications partagent un processus, apprécier s'il est réellement commun — mêmes personnes, mêmes politiques, même supervision, même technologie — pour agréger les tests.", "IT organigram · policies", "Organigramme informatique · politiques",
+          "One IT team running one access procedure across all applications is one population to test, not five. But confirm it the first year with a walkthrough per application; commonality asserted is not commonality demonstrated.",
+          "Une équipe informatique appliquant une même procédure d'accès à toutes les applications, c'est une population à tester, pas cinq. Mais le confirmer la première année par un cheminement par application ; une communauté affirmée n'est pas démontrée."),
+      ],
+    },
+    {
+      kind: "fields",
+      titleEn: "Part B — Registers",
+      titleFr: "Partie B — Registres",
+      fields: [
+        { key: "apps_register", kind: "input", labelEn: "Relevant applications: name, role, vendor, GL posting, layers in scope, IT strategy chosen and why", labelFr: "Applications pertinentes : nom, rôle, éditeur, déversement GL, couches retenues, stratégie choisie et motif" },
+        { key: "risk_register", kind: "input", labelEn: "Applicable risks arising from IT, by process family, with the ITGC (or substantive route) answering each", labelFr: "Risques applicables liés à l'informatique, par famille de processus, avec l'ITGC (ou la voie substantive) répondant à chacun" },
+        { key: "ddc_assessment", kind: "input", labelEn: "Direct-data-change assessment: who, how often, under what discipline", labelFr: "Appréciation des modifications directes : qui, à quelle fréquence, selon quelle discipline" },
+      ],
+    },
+    {
+      kind: "yn",
+      titleEn: "Part C — Evaluation",
+      titleFr: "Partie C — Évaluation",
+      introEn: YN_INTRO_EN,
+      introFr: YN_INTRO_FR,
+      items: [
+        { key: "apps", en: "Every application supporting a SCOT, a selected control or a report we rely on carries a recorded IT strategy (procedures 1, 2).", fr: "Chaque application portant un SCOT, un contrôle retenu ou un état utilisé porte une stratégie informatique consignée (procédures 1, 2)." },
+        { key: "risks", en: "Every applicable risk arising from IT is matched to an identified ITGC or routed to a substantive response (procedures 4, 6).", fr: "Chaque risque applicable lié à l'informatique est rattaché à un ITGC identifié ou orienté vers une réponse substantive (procédures 4, 6)." },
+        { key: "access", en: "The dependency of the change and operations processes on access management has been considered (procedure 3).", fr: "La dépendance des processus de changement et d'exploitation à la gestion des accès a été prise en compte (procédure 3)." },
+        { key: "walkthrough", en: "The understanding was confirmed by walkthrough, including the segregation of duties observed (procedure 7).", fr: "La compréhension a été confirmée par cheminement, y compris la séparation des tâches observée (procédure 7)." },
+        { key: "common", en: "Commonality of shared processes was demonstrated, not assumed (procedure 8).", fr: "La communauté des processus partagés a été démontrée, non présumée (procédure 8).", na: true },
+      ],
+    },
+  ],
+};
+
+/* ---------------------------------------------------------------- S2.4 --- */
+const D8_2: PaperDef = {
+  std: "ISA 330 ¶8–11 · ISA 315 (Revised 2019) ¶26(c)",
+  ownsEn: "the design and execution of the tests of general IT controls",
+  ownsFr: "la conception et l'exécution des tests des contrôles généraux informatiques",
+  reqEn: [
+    "Where the strategy relies on IT processes, we test the operating effectiveness of the general IT controls that address the identified risks, covering the whole period of intended reliance (ISA 330 ¶8–9). Every applicable risk needs at least one tested ITGC; an ITGC already judged badly designed is not tested — its risk is answered another way.",
+    "The nature of the tests combines inquiry with inspection, observation or reperformance — inquiry alone is never sufficient (ISA 330 ¶10, ISA 500). The extent follows the control's frequency using the same discipline as the sampling tool's tests-of-controls table; the timing must leave no untested stub of the reliance period, and interim testing carries an update obligation at the period end.",
+    "Populations must be complete before anything is selected from them: a change list or access-grant list produced by the system is validated for completeness and accuracy before sampling from it — a list assembled by hand from memory is not a population (ISA 500 ¶9).",
+    "Exceptions are investigated for nature and cause: systematic or random, error or intention — an exception that appears intentional escalates beyond the engagement team. Deficiencies found are carried to S2.5 for evaluation and to the deficiency communications (ISA 265).",
+  ],
+  reqFr: [
+    "Lorsque la stratégie s'appuie sur les processus informatiques, nous testons l'efficacité du fonctionnement des contrôles généraux répondant aux risques identifiés, sur toute la période d'appui prévue (ISA 330 ¶8–9). Chaque risque applicable exige au moins un ITGC testé ; un ITGC déjà jugé mal conçu n'est pas testé — son risque est traité autrement.",
+    "La nature des tests combine l'entretien avec l'inspection, l'observation ou la réexécution — l'entretien seul ne suffit jamais (ISA 330 ¶10, ISA 500). L'étendue suit la fréquence du contrôle selon la même discipline que la table tests-de-contrôles de l'outil d'échantillonnage ; le calendrier ne doit laisser aucun tronçon non testé de la période d'appui, et un test intercalaire emporte une obligation d'actualisation à la clôture.",
+    "Les populations sont complètes avant toute sélection : une liste de changements ou d'octrois d'accès produite par le système est validée en exhaustivité et exactitude avant d'y échantillonner — une liste reconstituée de mémoire n'est pas une population (ISA 500 ¶9).",
+    "Les exceptions sont investiguées quant à leur nature et leur cause : systématique ou fortuite, erreur ou intention — une exception qui paraît intentionnelle est remontée au-delà de l'équipe. Les déficiences relevées passent en S2.5 pour évaluation et dans les communications sur les déficiences (ISA 265).",
+  ],
+  conclEn: [
+    "Every applicable risk arising from IT has a tested ITGC (or a recorded substantive response), the tests cover the reliance period, and every exception is investigated and evaluated.",
+  ],
+  conclFr: [
+    "Chaque risque applicable lié à l'informatique a un ITGC testé (ou une réponse substantive consignée), les tests couvrent la période d'appui, et chaque exception est investiguée et évaluée.",
+  ],
+  tools: ["sampling"],
+  sections: [
+    {
+      kind: "proc",
+      titleEn: "Part A — Procedures and expected sources",
+      titleFr: "Partie A — Procédures et sources attendues",
+      introEn: PROC_INTRO_EN,
+      introFr: PROC_INTRO_FR,
+      procs: [
+        P("select", "Select the ITGCs to test so that every applicable risk in each in-scope process is covered; skip any ITGC already evaluated as badly designed.", "Sélectionner les ITGC à tester de sorte que chaque risque applicable de chaque processus retenu soit couvert ; écarter tout ITGC déjà jugé mal conçu.", "S2.3 risk register", "Registre des risques S2.3",
+          "Work risk by risk from the S2.3 register, not control by control: the question is never 'which controls shall we test' but 'is every risk answered'. A risk with no testable ITGC goes back to S2.3 for a substantive route or forward to S2.5 as a deficiency.",
+          "Travailler risque par risque depuis le registre S2.3, pas contrôle par contrôle : la question n'est jamais « quels contrôles tester » mais « chaque risque est-il couvert ». Un risque sans ITGC testable retourne en S2.3 pour une voie substantive ou passe en S2.5 comme déficience."),
+        P("design", "Design each test: nature (inquiry always combined with inspection, observation or reperformance), timing (cover the whole reliance period) and extent (per the control's frequency, sized by the sampling tool).", "Concevoir chaque test : nature (entretien toujours combiné à l'inspection, l'observation ou la réexécution), calendrier (couvrir toute la période d'appui) et étendue (selon la fréquence du contrôle, dimensionnée par l'outil d'échantillonnage).", "Sampling tool — tests of controls", "Outil d'échantillonnage — tests de contrôles",
+          "A recurring ITGC (change approvals, access grants) samples like any manual control: use the tests-of-controls section of the sampling tool with the population of occurrences. A configuration (password settings, a lock on production) is inspected as it stands — and re-inspected during the period if nothing controls who can change it.",
+          "Un ITGC récurrent (approbations de changements, octrois d'accès) s'échantillonne comme tout contrôle manuel : utiliser la section tests de contrôles de l'outil d'échantillonnage avec la population d'occurrences. Une configuration (paramètres de mots de passe, verrouillage de la production) s'inspecte en l'état — et se réinspecte en cours de période si rien ne contrôle qui peut la modifier."),
+        P("population", "Validate every population before selecting from it: system-produced, complete and accurate — probe gaps in change logs and reconcile access lists to the system itself.", "Valider chaque population avant d'y sélectionner : produite par le système, exhaustive et exacte — sonder les trous des journaux de changements et rapprocher les listes d'accès du système lui-même.", "System-generated lists · log settings", "Listes produites par le système · paramètres de journalisation",
+          "Ask how the list was produced and by whom; a list the IT manager typed is not evidence. For a change log, check the logging was on all period and covers the components that matter. For access, pull the list from the system screens, not from HR.",
+          "Demander comment la liste a été produite et par qui ; une liste saisie par le responsable informatique n'est pas une preuve. Pour un journal de changements, vérifier que la journalisation était active toute la période et couvre les composants utiles. Pour les accès, tirer la liste des écrans du système, pas des RH."),
+        P("execute", "Execute the tests, and investigate every exception for nature and cause: systematic or random, error or intention; escalate any exception that appears intentional.", "Exécuter les tests et investiguer chaque exception quant à sa nature et sa cause : systématique ou fortuite, erreur ou intention ; remonter toute exception paraissant intentionnelle.", "Test evidence · inquiry", "Éléments de test · entretiens",
+          "One unapproved change can be a Friday-evening emergency or a developer's habit — the response differs entirely. Chase the cause before counting the failure; a systematic cause fails the control for the period regardless of how few items show it.",
+          "Un changement non approuvé peut être une urgence du vendredi soir ou une habitude du développeur — la réponse diffère du tout au tout. Établir la cause avant de compter l'échec ; une cause systématique fait échouer le contrôle pour la période, quel que soit le nombre d'occurrences visibles."),
+        P("update", "Where tests ran at an interim date, update to the period end: inquire into changes, observe the settings again, and extend the tests over the stub period as needed.", "Lorsque les tests ont été réalisés en intercalaire, actualiser à la clôture : s'enquérir des changements, réobserver les paramètres, et étendre les tests sur la période restante si nécessaire.", "Post-interim change list · settings", "Liste des changements post-intercalaires · paramètres",
+          "The longer the stub, the less inquiry alone can carry it — beyond six months, plan real re-testing, not a conversation. A process change mid-period may mean walking through both the before and the after states.",
+          "Plus le tronçon restant est long, moins l'entretien seul peut le porter — au-delà de six mois, prévoir de vrais tests, pas une conversation. Un changement de processus en cours de période peut imposer un cheminement de l'état avant et de l'état après."),
+        P("deficiencies", "Record every deficiency found, and carry each to the S2.5 evaluation and to the deficiency communications.", "Consigner chaque déficience relevée et la reporter dans l'évaluation S2.5 et dans les communications sur les déficiences.", "S2.5 · C5.1 (ISA 265)", "S2.5 · C5.1 (ISA 265)"),
+      ],
+    },
+    {
+      kind: "fields",
+      titleEn: "Part B — Registers",
+      titleFr: "Partie B — Registres",
+      fields: [
+        { key: "tests_register", kind: "input", labelEn: "Tests performed: ITGC, risk covered, nature, period covered, population and its validation, sample size, result", labelFr: "Tests réalisés : ITGC, risque couvert, nature, période couverte, population et sa validation, taille d'échantillon, résultat" },
+        { key: "exceptions_register", kind: "input", labelEn: "Exceptions: description, cause, systematic or random, response, effect on the evaluation", labelFr: "Exceptions : description, cause, systématique ou fortuite, réponse, effet sur l'évaluation" },
+      ],
+    },
+    {
+      kind: "yn",
+      titleEn: "Part C — Evaluation",
+      titleFr: "Partie C — Évaluation",
+      introEn: YN_INTRO_EN,
+      introFr: YN_INTRO_FR,
+      items: [
+        { key: "coverage", en: "Every applicable risk in every in-scope process has at least one tested ITGC or a recorded substantive response (procedure 1).", fr: "Chaque risque applicable de chaque processus retenu a au moins un ITGC testé ou une réponse substantive consignée (procédure 1)." },
+        { key: "nature", en: "No test rests on inquiry alone (procedure 2).", fr: "Aucun test ne repose sur le seul entretien (procédure 2)." },
+        { key: "populations", en: "Every population selected from was validated as system-produced, complete and accurate (procedure 3).", fr: "Chaque population utilisée a été validée comme produite par le système, exhaustive et exacte (procédure 3)." },
+        { key: "period", en: "The tests cover the whole reliance period, including the post-interim stub (procedures 2, 5).", fr: "Les tests couvrent toute la période d'appui, y compris le tronçon post-intercalaire (procédures 2, 5)." },
+        { key: "exceptions", en: "Every exception is investigated to a cause and reflected in S2.5 (procedures 4, 6).", fr: "Chaque exception est investiguée jusqu'à sa cause et reflétée en S2.5 (procédures 4, 6).", na: true },
+      ],
+    },
+  ],
+};
+
+/* ---------------------------------------------------------------- S2.5 --- */
+const D8_3: PaperDef = {
+  std: "ISA 330 ¶16–17 · ISA 265 · ISA 315 (Revised 2019) ¶34",
+  ownsEn: "the evaluation of the general IT controls and its effect on the controls-reliance strategy",
+  ownsFr: "l'évaluation des contrôles généraux informatiques et son effet sur la stratégie d'appui sur les contrôles",
+  reqEn: [
+    "We evaluate each tested ITGC as effective or ineffective for the period: a control deficient for any part of the reliance period is ineffective for that period, whatever was later remediated (ISA 330 ¶16–17).",
+    "The ITGC evaluations roll up: per IT process per application the process is effective (its ITGCs operated), reliable (its risks were answered by substantive procedures on the process activity), or ineffective; and per application the processes aggregate to support or not support the automated functioning of the application controls and the reports. Where the aggregate does not support, an automated control cannot be relied on with a test of one, and reports lose their presumption of integrity.",
+    "An ineffective ITGC is answered down a ladder: a compensating ITGC covering the same risk; substantive procedures over the process activity; compensating controls inside the affected SCOTs — the orphaned risks becoming WCGWs in S1.2; direct testing of the automated controls through the period; and, last, no reliance — the control risk assessment flips to not-rely in the S3.1 matrix and the substantive procedures expand (ISA 315 ¶34).",
+    "Deficiencies in ITGCs are evaluated for severity and communicated: significant deficiencies in writing to those charged with governance (ISA 265 ¶9–10).",
+  ],
+  reqFr: [
+    "Nous évaluons chaque ITGC testé comme efficace ou inefficace pour la période : un contrôle déficient sur une partie quelconque de la période d'appui est inefficace pour cette période, quelles que soient les corrections ultérieures (ISA 330 ¶16–17).",
+    "Les évaluations se consolident : par processus et par application, le processus est efficace (ses ITGC ont fonctionné), fiable (ses risques ont été couverts par des procédures substantives sur l'activité du processus), ou inefficace ; et par application, les processus s'agrègent en soutient ou ne soutient pas le fonctionnement automatisé des contrôles applicatifs et des états. Sans soutien, un contrôle automatisé ne peut être testé par un test unique, et les états perdent leur présomption d'intégrité.",
+    "Un ITGC inefficace se traite par paliers : un ITGC compensatoire couvrant le même risque ; des procédures substantives sur l'activité du processus ; des contrôles compensatoires dans les SCOT concernés — les risques orphelins devenant des WCGW en S1.2 ; le test direct des contrôles automatisés sur la période ; et, en dernier lieu, l'absence d'appui — le risque lié au contrôle bascule à « sans appui » dans la matrice S3.1 et les procédures substantives s'étendent (ISA 315 ¶34).",
+    "Les déficiences des ITGC sont évaluées en gravité et communiquées : les déficiences significatives par écrit aux personnes constituant le gouvernement d'entreprise (ISA 265 ¶9–10).",
+  ],
+  conclEn: [
+    "Every tested ITGC carries an evaluation, every ineffective one carries a response from the ladder, and the S3.1 control-risk assessments reflect the aggregate conclusion recorded below.",
+  ],
+  conclFr: [
+    "Chaque ITGC testé porte une évaluation, chaque ITGC inefficace porte une réponse par paliers, et les évaluations du risque lié au contrôle en S3.1 reflètent la conclusion d'ensemble consignée ci-dessous.",
+  ],
+  sections: [
+    {
+      kind: "proc",
+      titleEn: "Part A — Procedures and expected sources",
+      titleFr: "Partie A — Procédures et sources attendues",
+      introEn: PROC_INTRO_EN,
+      introFr: PROC_INTRO_FR,
+      procs: [
+        P("controls", "Conclude on each tested ITGC: effective or ineffective for the period — deficient for part of the period means ineffective, later remediation notwithstanding.", "Conclure sur chaque ITGC testé : efficace ou inefficace pour la période — déficient sur une partie de la période signifie inefficace, nonobstant toute correction ultérieure.", "S2.4 tests and exceptions", "Tests et exceptions S2.4",
+          "A design-ineffective, unimplemented or untested ITGC is ineffective by definition. A sound control that simply had no occasion to operate in the period can still be evaluated effective — say why.",
+          "Un ITGC mal conçu, non mis en œuvre ou non testé est inefficace par définition. Un contrôle sain qui n'a simplement pas eu l'occasion de fonctionner dans la période peut rester évalué efficace — dire pourquoi."),
+        P("process", "Roll up per IT process per application: effective, reliable (risks answered substantively), or ineffective; a judgment that a process survives a failed ITGC is recorded with its rationale.", "Consolider par processus et par application : efficace, fiable (risques couverts par voie substantive), ou inefficace ; le jugement qu'un processus survit à un ITGC défaillant est consigné avec son fondement.", "Procedure 1 conclusions", "Conclusions de la procédure 1"),
+        P("aggregate", "Aggregate per application: do the process conclusions support the automated functioning of the application controls and the reports? Record the conclusion in the field below — the S3.1 matrix reads it.", "Agréger par application : les conclusions par processus soutiennent-elles le fonctionnement automatisé des contrôles applicatifs et des états ? Consigner la conclusion dans le champ ci-dessous — la matrice S3.1 la lit.", "Procedure 2 conclusions · S3.1", "Conclusions de la procédure 2 · S3.1",
+          "Support unlocks the test of one for automated controls and the light-touch validation of reports. Not-support means the automated controls are tested directly through the period or not relied on at all — and the reports are validated substantively each time they are used. One ineffective process does not always sink the aggregate: if the failure's cause cannot touch a given control, say so and keep it — in writing.",
+          "« Soutient » ouvre le test unique pour les contrôles automatisés et la validation allégée des états. « Ne soutient pas » signifie tester les contrôles automatisés directement sur la période ou y renoncer — et valider les états de façon substantive à chaque usage. Un processus inefficace ne coule pas toujours l'agrégat : si la cause de l'échec ne peut atteindre un contrôle donné, le dire et le conserver — par écrit."),
+        P("ladder", "For each ineffective ITGC, work the response ladder: compensating ITGC, substantive procedures on the process activity, compensating SCOT controls (write the orphaned risks into S1.2 as WCGWs), direct testing, or no reliance.", "Pour chaque ITGC inefficace, dérouler les paliers de réponse : ITGC compensatoire, procédures substantives sur l'activité du processus, contrôles compensatoires dans les SCOT (inscrire les risques orphelins en S1.2 comme WCGW), test direct, ou absence d'appui.", "S1.2 · S2.3 register", "S1.2 · registre S2.3",
+          "Entities rarely have SCOT-level activities that verify processing accuracy or data security, so when ITGCs fail, expect the honest answer to be direct testing or no reliance more often than a convenient compensating control.",
+          "Les entités ont rarement des activités au niveau des SCOT vérifiant l'exactitude des traitements ou la sécurité des données ; quand les ITGC échouent, la réponse honnête est plus souvent le test direct ou l'absence d'appui qu'un contrôle compensatoire providentiel."),
+        P("cra", "Where the conclusion is not-support, revisit the control-risk assessments in the S3.1 matrix for the assertions the affected controls carried, and expand the substantive design in S5.5 accordingly.", "Lorsque la conclusion est « ne soutient pas », revoir les évaluations du risque lié au contrôle dans la matrice S3.1 pour les assertions portées par les contrôles concernés, et étendre la conception substantive en S5.5 en conséquence.", "S3.1 matrix · S5.5", "Matrice S3.1 · S5.5"),
+        P("communicate", "Evaluate each deficiency's severity and communicate: significant deficiencies in writing to those charged with governance, others to management.", "Évaluer la gravité de chaque déficience et communiquer : les déficiences significatives par écrit au gouvernement d'entreprise, les autres à la direction.", "ISA 265 · C5.1", "ISA 265 · C5.1"),
+      ],
+    },
+    {
+      kind: "fields",
+      titleEn: "Part B — Conclusion and registers",
+      titleFr: "Partie B — Conclusion et registres",
+      fields: [
+        {
+          key: "itgc_state",
+          kind: "select",
+          labelEn: "Aggregate conclusion — do the IT processes support reliance on automated controls and reports? (read by the S3.1 matrix)",
+          labelFr: "Conclusion d'ensemble — les processus informatiques soutiennent-ils l'appui sur les contrôles automatisés et les états ? (lue par la matrice S3.1)",
+          options: [
+            { value: "support", en: "Support — processes effective or reliable", fr: "Soutiennent — processus efficaces ou fiables" },
+            { value: "mixed", en: "Mixed — support differs by application", fr: "Mitigé — le soutien diffère selon l'application" },
+            { value: "not_support", en: "Do not support — reliance on automated controls unavailable", fr: "Ne soutiennent pas — appui sur les contrôles automatisés indisponible" },
+          ],
+        },
+        { key: "evaluations_register", kind: "input", labelEn: "Evaluations: each tested ITGC, its process roll-up per application, and the aggregate per application", labelFr: "Évaluations : chaque ITGC testé, la consolidation par processus et par application, et l'agrégat par application" },
+        { key: "responses_register", kind: "input", labelEn: "Responses to ineffective ITGCs: the rung chosen, the work done, the residual conclusion", labelFr: "Réponses aux ITGC inefficaces : le palier retenu, les travaux réalisés, la conclusion résiduelle" },
+        { key: "deficiencies", kind: "input", labelEn: "Deficiencies: severity, and where each was communicated", labelFr: "Déficiences : gravité et destinataire de chaque communication" },
+      ],
+    },
+    {
+      kind: "yn",
+      titleEn: "Part C — Evaluation",
+      titleFr: "Partie C — Évaluation",
+      introEn: YN_INTRO_EN,
+      introFr: YN_INTRO_FR,
+      items: [
+        { key: "evaluated", en: "Every tested ITGC carries an effective/ineffective evaluation for the whole period (procedure 1).", fr: "Chaque ITGC testé porte une évaluation efficace/inefficace pour toute la période (procédure 1)." },
+        { key: "responded", en: "Every ineffective ITGC carries a response from the ladder, with rationale (procedure 4).", fr: "Chaque ITGC inefficace porte une réponse par paliers, avec fondement (procédure 4).", na: true },
+        { key: "wcgw", en: "Risks orphaned by an ineffective process were written into the affected SCOTs as WCGWs (procedure 4).", fr: "Les risques rendus orphelins par un processus inefficace ont été inscrits dans les SCOT concernés comme WCGW (procédure 4).", na: true },
+        { key: "cra", en: "The S3.1 control-risk assessments reflect the aggregate conclusion (procedure 5).", fr: "Les évaluations du risque lié au contrôle en S3.1 reflètent la conclusion d'ensemble (procédure 5)." },
+        { key: "communicated", en: "Deficiencies were evaluated for severity and communicated to the right level (procedure 6).", fr: "Les déficiences ont été évaluées en gravité et communiquées au bon niveau (procédure 6).", na: true },
+      ],
+    },
+  ],
+};
+
+/* ---------------------------------------------------------------- S5.5 --- */
+const D9_1: PaperDef = {
+  std: "ISA 330 ¶6–7, ¶18, ¶21–22 · ISA 520 ¶5 · ISA 240 ¶29(c)",
+  ownsEn: "the design of the substantive procedures per significant account",
+  ownsFr: "la conception des procédures substantives par compte significatif",
+  tools: ["sampling"],
+  reqEn: [
+    "Irrespective of the assessed risks, we design and perform substantive procedures for each material class of transactions, account balance and disclosure (ISA 330 ¶18): a baseline of primary substantive procedures per relevant assertion exists on every audit, because risk assessment is judgmental and controls have inherent limits. The combined risk assessment never removes the baseline — it sets its nature, timing and extent (ISA 330 ¶6–7).",
+    "The higher the CRA, the more persuasive the evidence: analytics disaggregate further and rest on tested data, key-item thresholds fall so more items are examined, representative samples grow, and the work moves toward the period end. At minimal CRA the procedures corroborate an expectation of no misstatement; without controls reliance they must be able to detect and quantify one.",
+    "Substantive analytical procedures suit large, predictable volumes and require a robust expectation built before looking at the recorded amount, with the reliability of the underlying data established (ISA 520 ¶5). Tests of details carry the assertions analytics cannot, and completeness exposures — unrecorded liabilities, cut-off — need procedures aimed at understatement, not a sample of what was recorded.",
+    "Where procedures run at an interim date, rollforward procedures bridge to the period end, their extent growing with the stub; the allowable interim window shrinks as the CRA rises. For every significant risk the substantive response includes a test of details designed to be specifically responsive (ISA 330 ¶21), and an element of unpredictability enters the programme (ISA 240 ¶29(c)).",
+  ],
+  reqFr: [
+    "Quels que soient les risques évalués, nous concevons et réalisons des procédures substantives pour chaque flux, solde et information significatifs (ISA 330 ¶18) : un socle de procédures substantives primaires par assertion pertinente existe sur toute mission, parce que l'évaluation des risques relève du jugement et que les contrôles ont des limites inhérentes. L'évaluation combinée ne retire jamais le socle — elle en règle la nature, le calendrier et l'étendue (ISA 330 ¶6–7).",
+    "Plus l'ECR est élevé, plus les éléments probants doivent convaincre : les analytiques se désagrègent davantage et reposent sur des données testées, les seuils d'éléments clés baissent pour examiner plus d'éléments, les échantillons représentatifs grossissent, et les travaux se rapprochent de la clôture. À un ECR minimal, les procédures corroborent l'attente d'absence d'anomalie ; sans appui sur les contrôles, elles doivent pouvoir détecter et chiffrer une anomalie.",
+    "Les procédures analytiques substantives conviennent aux volumes importants et prévisibles et exigent une attente robuste construite avant de regarder le montant comptabilisé, la fiabilité des données sous-jacentes étant établie (ISA 520 ¶5). Les tests de détail portent les assertions que les analytiques ne peuvent porter, et les expositions d'exhaustivité — passifs non comptabilisés, séparation des exercices — appellent des procédures visant la sous-évaluation, pas un échantillon de ce qui a été enregistré.",
+    "Lorsque des travaux sont réalisés en intercalaire, des procédures de liaison couvrent jusqu'à la clôture, leur étendue croissant avec le tronçon restant ; la fenêtre intercalaire admissible rétrécit quand l'ECR monte. Pour chaque risque important, la réponse substantive comprend un test de détail conçu pour y répondre spécifiquement (ISA 330 ¶21), et une part d'imprévisibilité entre au programme (ISA 240 ¶29(c)).",
+  ],
+  conclEn: [
+    "Every significant account carries a designed nature, timing and extent consistent with its CRA, and every significant risk has a specifically responsive test of details among the designed procedures.",
+    "Where the primary procedures leave a gap — higher inherent risk, a no-reliance assertion, an unaddressed WCGW — other substantive procedures are designed to close it.",
+  ],
+  conclFr: [
+    "Chaque compte significatif porte une nature, un calendrier et une étendue conçus en cohérence avec son ECR, et chaque risque important dispose d'un test de détail spécifiquement conçu parmi les procédures prévues.",
+    "Lorsque le socle laisse un vide — risque inhérent élevé, assertion sans appui, WCGW non couvert — d'autres procédures substantives sont conçues pour le combler.",
+  ],
+  sections: [
+    {
+      kind: "proc",
+      titleEn: "Part A — Procedures and expected sources",
+      titleFr: "Partie A — Procédures et sources attendues",
+      introEn: PROC_INTRO_EN,
+      introFr: PROC_INTRO_FR,
+      procs: [
+        P("cra", "Pull the CRA per relevant assertion of each significant account from the S3.1 matrix, together with the reasons behind the inherent-risk call — the label alone does not design a procedure.", "Reprendre l'ECR par assertion pertinente de chaque compte significatif depuis la matrice S3.1, avec les motifs de la cotation du risque inhérent — l'étiquette seule ne conçoit pas une procédure.", "S3.1 CRA matrix", "Matrice ECR S3.1"),
+        P("baseline", "Confirm the primary-procedure baseline per account from the library; where a primary procedure is inapplicable, record why and where the assertion's evidence will come from instead.", "Confirmer le socle de procédures primaires par compte depuis la bibliothèque ; si une procédure primaire est inapplicable, consigner pourquoi et d'où viendront les éléments probants de l'assertion.", "E4 workpapers · procedure library", "Papiers E4 · bibliothèque de procédures",
+          "The design board lists the library count per account and whether the E4 workpaper has generated them. An omitted primary procedure needs a written rationale — 'no receivables confirmations' is a documented decision, never a silence.",
+          "Le tableau de conception affiche le nombre de procédures de la bibliothèque par compte et si le papier E4 les a générées. Une procédure primaire omise exige un motif écrit — « pas de circularisation clients » est une décision documentée, jamais un silence."),
+        P("nature", "Set the nature per account: the SAP/ToD mix that fits the CRA and the account's substance — analytics disaggregated and data-tested where no controls reliance exists, details where precision is needed.", "Arrêter la nature par compte : le dosage analytiques/tests de détail cohérent avec l'ECR et la substance du compte — analytiques désagrégées et données testées sans appui sur les contrôles, détails là où la précision s'impose.", "Design board below · S3.1", "Tableau de conception ci-dessous · S3.1"),
+        P("timing", "Set the timing within the CRA's window: interim up to ~6 months at minimal, ~3 months at low, at or near the period end at moderate and high — every interim choice pairs with designed rollforward and interim cut-off procedures.", "Arrêter le calendrier dans la fenêtre de l'ECR : intercalaire jusqu'à ~6 mois à minimal, ~3 mois à faible, à la clôture ou près de la clôture à modéré et élevé — tout choix intercalaire s'accompagne de procédures de liaison et de séparation à la date intercalaire.", "Design board · client closing calendar", "Tableau de conception · calendrier de clôture du client"),
+        P("extent", "Set the extent: key-item thresholds per the CRA ranges (tighter on the liability and expense side), and representative samples sized by the sampling tool over the population net of key items.", "Arrêter l'étendue : seuils d'éléments clés selon les fourchettes de l'ECR (plus serrés côté passif et charges), et échantillons représentatifs dimensionnés par l'outil sur la population nette des éléments clés.", "Sampling tool — tests of details", "Outil d'échantillonnage — tests de détail",
+          "Deliberately sweep into the key items the unusual, the near-date, the related-party and the aged — the threshold is a floor for judgment, not a substitute for it.",
+          "Faire entrer délibérément dans les éléments clés l'inhabituel, le proche de la clôture, les parties liées et l'ancien — le seuil est un plancher pour le jugement, pas son substitut."),
+        P("understatement", "For accounts whose exposure is understatement — payables, expenses, provisions — design procedures aimed at what is missing: the unrecorded-liability search, cut-off work, subsequent payments.", "Pour les comptes exposés à la sous-évaluation — fournisseurs, charges, provisions — concevoir des procédures visant ce qui manque : recherche de passifs non comptabilisés, séparation des exercices, paiements postérieurs.", "E4 payables/provisions programmes", "Programmes E4 fournisseurs/provisions"),
+        P("osp", "Design other substantive procedures wherever the baseline leaves a gap: higher inherent risk, a significant risk (a specifically responsive test of details is mandatory), a WCGW no primary procedure covers, or a no-reliance assertion.", "Concevoir d'autres procédures substantives partout où le socle laisse un vide : risque inhérent élevé, risque important (un test de détail spécifiquement conçu est obligatoire), WCGW non couvert par le socle, ou assertion sans appui.", "S3.1 · risk register · E4 (+ Add substantive procedures)", "S3.1 · registre des risques · E4 (+ Ajouter des procédures substantives)"),
+        P("unpredictability", "Build an element of unpredictability into the design: an unannounced timing shift, selections below the usual thresholds, a location or account not visited before.", "Intégrer une part d'imprévisibilité à la conception : décalage de calendrier non annoncé, sélections sous les seuils habituels, site ou compte jamais visité.", "ISA 240 ¶29(c) · S3.1 overall responses", "ISA 240 ¶29(c) · réponses globales S3.1"),
+      ],
+    },
+    {
+      kind: "fields",
+      titleEn: "Part B — Design record",
+      titleFr: "Partie B — Dossier de conception",
+      fields: [
+        { key: "omitted", kind: "input", labelEn: "Primary procedures not performed, with the rationale and the alternative source of evidence for each", labelFr: "Procédures primaires non réalisées, avec le motif et la source alternative d'éléments probants pour chacune" },
+        { key: "unpredictability", kind: "input", labelEn: "The unpredictability element designed into the programme", labelFr: "La part d'imprévisibilité intégrée au programme" },
+        { key: "interim", kind: "input", labelEn: "Where interim timing is chosen: the rollforward and interim cut-off design", labelFr: "En cas de calendrier intercalaire : la conception des travaux de liaison et de séparation" },
+      ],
+    },
+    {
+      kind: "yn",
+      titleEn: "Part C — Evaluation",
+      titleFr: "Partie C — Évaluation",
+      introEn: YN_INTRO_EN,
+      introFr: YN_INTRO_FR,
+      items: [
+        { key: "baseline", en: "Every significant account keeps its primary-procedure baseline, or carries a written rationale and alternative where one is omitted (procedure 2).", fr: "Chaque compte significatif conserve son socle de procédures primaires, ou porte un motif écrit et une alternative en cas d'omission (procédure 2)." },
+        { key: "consistent", en: "The designed nature, timing and extent of each account are consistent with its CRA (procedures 3–5).", fr: "La nature, le calendrier et l'étendue conçus pour chaque compte sont cohérents avec son ECR (procédures 3–5)." },
+        { key: "sig_risks", en: "Every significant risk has a specifically responsive test of details among the designed procedures (procedure 7).", fr: "Chaque risque important dispose d'un test de détail spécifiquement conçu parmi les procédures prévues (procédure 7)." },
+        { key: "understatement", en: "Understatement exposures are answered by procedures aimed at what is missing, not only at what is recorded (procedure 6).", fr: "Les expositions à la sous-évaluation sont traitées par des procédures visant ce qui manque, pas seulement ce qui est enregistré (procédure 6)." },
+        { key: "interim", en: "Every interim choice pairs with designed rollforward and interim cut-off procedures (procedure 4).", fr: "Tout choix intercalaire s'accompagne de travaux de liaison et de séparation conçus (procédure 4).", na: true },
+      ],
+    },
+  ],
+};
+
 export const STRATEGY_PAPERS: Record<string, PaperDef> = {
+  "S2.3": D8_1,
+  "S2.4": D8_2,
+  "S2.5": D8_3,
+  "S5.5": D9_1,
   "S6.1": S5_1,
   "S6.2": D4_1,
   "P5.2": D7_1,
