@@ -639,6 +639,8 @@ export default async function SectionPage(props: {
         </div>
       ) : null}
 
+      {/* account tasks: the tabbed workpaper IS the paper — no questionnaire block */}
+      {isAccountTask ? null : (
       <WorkingPaper
         code={section.code}
         def={paperDef}
@@ -647,6 +649,7 @@ export default async function SectionPage(props: {
         locale={locale}
         action={savePaperAction.bind(null, id, itemId, section.code)}
       />
+      )}
 
       {/* files of the task: upload · download · versions · edit-locally watcher */}
       <TaskAttachments fileItemId={itemId} initial={attachments} locale={locale === "fr" ? "fr" : "en"} />
