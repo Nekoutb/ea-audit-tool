@@ -181,7 +181,7 @@ export function AccountWorkpaper({
                           <td className={`${td} whitespace-normal leading-snug`}>{text}</td>
                           <td className={`${td} font-mono text-[10px] font-bold`}>{s.assertions.join("")}</td>
                           <td className={`${td} p-0 align-top`}>
-                            <textarea
+                            <textarea spellCheck={false}
                               rows={1}
                               defaultValue={v}
                               placeholder={fr ? "Travail effectué, résultat, réf. dossier…" : "Work done, result, file ref…"}

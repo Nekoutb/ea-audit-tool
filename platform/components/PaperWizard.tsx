@@ -98,7 +98,7 @@ function Amber({
   testId?: string;
 }) {
   return (
-    <textarea
+    <textarea spellCheck={false}
       name={name}
       rows={1}
       defaultValue={defaultValue}

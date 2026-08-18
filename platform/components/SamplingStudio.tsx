@@ -138,10 +138,25 @@ export function SamplingStudio({
     const pop = Number((populations[p.controlId] ?? "").replace(/[\s  ]/g, "")) || null;
     const suggestion = tocSuggested(p.controlType, p.frequency, pop, p.sole, fr);
     if (!suggestion || "needPopulation" in suggestion) return;
-    const note = `${fr ? "Test de contrôles" : "Test of controls"} — ${suggestion.rule}${pop ? ` · ${fr ? "population" : "population"} ${n(pop)}` : ""}`;
+    // random selection: with the population known, draw the actual occurrence
+    // numbers (1..population) without bias and disclose them
+    let drawn: number[] = [];
+    if (pop && pop > 0 && p.controlType === "manual") {
+      const size = Math.min(suggestion.size, pop);
+      const picked = new Set<number>();
+      while (picked.size < size) picked.add(1 + Math.floor(Math.random() * pop));
+      drawn = [...picked].sort((a, b) => a - b);
+    }
+    const note =
+      `${fr ? "Test de contrôles" : "Test of controls"} — ${suggestion.rule}` +
+      (pop ? ` · ${fr ? "population" : "population"} ${n(pop)}` : "") +
+      (drawn.length > 0 ? ` · ${fr ? "éléments tirés au hasard" : "randomly drawn items"}: ${drawn.join(", ")}` : "");
     const r = await op({ op: "updateControl", controlId: p.controlId, sampleSize: suggestion.size, sampleNote: note });
     if (r) {
-      setDone(`${fr ? "Échantillon de" : "Sample of"} ${suggestion.size} ${fr ? "assigné à" : "assigned to"} « ${p.controlName} » — ${fr ? "visible sur S2.2" : "now on S2.2"}.`);
+      setDone(
+        `${fr ? "Échantillon de" : "Sample of"} ${suggestion.size} ${fr ? "assigné à" : "assigned to"} « ${p.controlName} » — ${fr ? "visible sur S2.2" : "now on S2.2"}.` +
+        (drawn.length > 0 ? ` ${fr ? "Éléments" : "Items"}: ${drawn.join(", ")}.` : ` ${fr ? "Saisir la population pour tirer les éléments au hasard." : "Enter the population to draw the items at random."}`),
+      );
       router.refresh();
     }
   }

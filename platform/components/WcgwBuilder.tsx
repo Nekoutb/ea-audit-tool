@@ -389,12 +389,26 @@ export function WcgwBuilder({
     const dirty = rows.filter(({ c }) => (staged[c.id] ?? c.selectedForTesting) !== c.selectedForTesting);
     const saveSelections = async () => {
       setSaving(true);
+      setError(null);
+      // direct fetches — ONE refresh at the end, and staged stays in place so
+      // the checkboxes never flip back while the server view catches up
       let ok = true;
       for (const { c } of dirty) {
-        ok = (await op({ op: "updateControl", controlId: c.id, selectedForTesting: staged[c.id] })) && ok;
+        const r = await fetch(`/api/engagements/${engagementId}/scots`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ op: "updateControl", controlId: c.id, selectedForTesting: staged[c.id] }),
+        }).catch(() => null);
+        if (!r?.ok) ok = false;
       }
       setSaving(false);
-      if (ok) { setStaged({}); setSavedFlash(true); setTimeout(() => setSavedFlash(false), 3000); }
+      if (ok) {
+        setSavedFlash(true);
+        setTimeout(() => setSavedFlash(false), 3000);
+        router.refresh();
+      } else {
+        setError(fr ? "Échec de l'enregistrement." : "Save failed.");
+      }
     };
     const td = "border-t border-line px-2.5 py-2 align-top text-[12px]";
     return (
@@ -492,7 +506,7 @@ export function WcgwBuilder({
                 </span>
               </div>
               {c.sampleNote ? <p className="mt-0.5 text-[10.5px] text-muted">{c.sampleNote}</p> : null}
-              <textarea
+              <textarea spellCheck={false}
                 rows={2}
                 defaultValue={c.testDesign ?? ""}
                 placeholder={fr ? "Nature, calendrier et étendue du test…" : "Nature, timing and extent of the test…"}

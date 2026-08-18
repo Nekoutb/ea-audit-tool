@@ -191,7 +191,7 @@ export function WalkthroughBoard({
           ) : null}
         </div>
         {f.kind !== "yn" ? (
-          <textarea
+          <textarea spellCheck={false}
             rows={2}
             defaultValue={v}
             placeholder={fr ? "Réponse suite aux entretiens avec la direction…" : "Answer following the inquiries of management…"}
