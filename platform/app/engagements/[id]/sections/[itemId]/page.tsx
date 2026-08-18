@@ -30,8 +30,10 @@ import { listTaskNotes } from "@/lib/task-notes";
 import { significantAccounts, specificThresholds } from "@/lib/significant-accounts";
 import { craBoard, craRollupByIndex } from "@/lib/cra";
 import { craTone, todLabel, type CraLevel } from "@/lib/cra-model";
-import { dspView } from "@/lib/design-procedures";
+import { dspView, s55ItemId } from "@/lib/design-procedures";
 import { DesignProceduresBoard } from "@/components/DesignProceduresBoard";
+import { itAppsView } from "@/lib/itgc";
+import { ItAppsBoard } from "@/components/ItAppsBoard";
 import { listEstimates, listRelatedParties } from "@/lib/registers";
 import { fscpValues, scotStudio, scotSummary, walkthroughValues } from "@/lib/scots";
 import { indexesForTask, pspResults } from "@/lib/psp";
@@ -183,6 +185,8 @@ export default async function SectionPage(props: {
   const craView = section.code === "S3.1" ? await craBoard(id) : null;
   // S5.5 — the substantive-procedures design board rides the same way
   const dspV = section.code === "S5.5" ? await dspView(id) : null;
+  // S2.3 — the IT-applications register (editable); S2.5 reads the same record
+  const itApps = section.code === "S2.3" || section.code === "S2.5" ? await itAppsView(id) : null;
   // S4.3/S4.4 — the planning sub-registers ride with the paper
   const relatedParties = section.code === "S4.3" ? await listRelatedParties(id) : null;
   const estimates = section.code === "S4.4" ? await listEstimates(id) : null;
@@ -214,6 +218,8 @@ export default async function SectionPage(props: {
     isAccountTask && accountIndex
       ? ((await craRollupByIndex(id).catch((): Record<string, never> => ({})))[accountIndex] ?? null)
       : null;
+  // the design the paper executes — the return path to S5.5
+  const designItemId = isAccountTask ? await s55ItemId(id).catch(() => null) : null;
   const accountInIndex =
     isAccountTask && accountIndex
       ? (await apLeadSchedules(id)).some((s) => s.def.code === accountIndex)
@@ -349,6 +355,16 @@ export default async function SectionPage(props: {
               <Chip tone={craTone(accountCra.replace("_sr", "") as CraLevel)}>
                 {(fr ? "ECR : " : "CRA: ") + todLabel(accountCra, fr ? "fr" : "en")}
               </Chip>
+            </Link>
+          ) : null}
+          {designItemId ? (
+            <Link
+              href={`/engagements/${id}/sections/${designItemId}`}
+              className="rounded-[var(--radius-atlas-sm)] border border-line-strong px-2 py-1 text-[11.5px] font-semibold text-ink-soft transition hover:bg-surface-2 hover:text-ink"
+              title={fr ? "Retour à la conception des procédures substantives" : "Back to the substantive-procedures design"}
+              data-testid="wp-back-design"
+            >
+              ← {fr ? "Conception (S5.5)" : "Design (S5.5)"}
             </Link>
           ) : null}
           <span className="flex items-center gap-1.5 text-[12px] text-muted">
@@ -603,6 +619,8 @@ export default async function SectionPage(props: {
                   <CraBoard engagementId={id} view={craView} locale={isFr ? "fr" : "en"} />
                 ) : dspV ? (
                   <DesignProceduresBoard engagementId={id} view={dspV} locale={isFr ? "fr" : "en"} />
+                ) : itApps ? (
+                  <ItAppsBoard engagementId={id} view={itApps} locale={isFr ? "fr" : "en"} readOnly={section.code === "S2.5"} />
                 ) : undefined
               }
               embedOnly={["S1.2", "S1.3", "S2.1", "S2.2"].includes(section.code)}
@@ -621,7 +639,11 @@ export default async function SectionPage(props: {
                             ? fr ? "Matrice d'évaluation combinée des risques" : "Combined risk assessment matrix"
                             : section.code === "S5.5"
                               ? fr ? "Conception des procédures substantives" : "Design substantive procedures"
-                              : fr ? "Flux, WCGW & contrôles" : "Flows, WCGWs & controls"
+                              : section.code === "S2.3"
+                                ? fr ? "Applications IT & stratégie par application" : "IT applications & the strategy per application"
+                                : section.code === "S2.5"
+                                  ? fr ? "Décisions S2.3 — évaluer contre ce tableau" : "S2.3 decisions — evaluate against this record"
+                                  : fr ? "Flux, WCGW & contrôles" : "Flows, WCGWs & controls"
               }
             />
             )}

@@ -1,15 +1,16 @@
 "use client";
 
-// The Combined Risk Assessment matrix (S3.1): account rows that roll out into
-// a per-assertion grid where inherent risk and control risk are assessed
-// separately and combine into the level that calibrates the substantive
-// response. Suggestions come from the risk register (IR) and from SCOT
-// Studio + S2.5 (CR); recorded values always win.
+// The Combined Risk Assessment matrix (S3.1): one flat table — LEAD · assertion
+// · IH · CR · CRA. Only the relevant assertions selected at the P6.2
+// significant-accounts determination appear, ordered by priority (significant
+// and fraud risks first). IH and CR are assessed separately per assertion
+// (ISA 315 ¶34) and combine into the level; a significant risk overlays
+// special audit considerations, never a fifth level.
 
 import { useState } from "react";
 import Link from "next/link";
 import type { CraAccountRow, CraBoardView, CraCell } from "@/lib/cra";
-import { craOf, craTone, toTod, todLabel, worstTod, type CraCr, type CraIr, type CraLevel, type CraTod } from "@/lib/cra-model";
+import { craOf, craTone, toTod, todLabel, type CraCr, type CraIr, type CraLevel } from "@/lib/cra-model";
 import { Chip } from "@/components/ui/atlas";
 
 const ASSERTION_LABELS: Record<string, { en: string; fr: string }> = {
@@ -19,6 +20,19 @@ const ASSERTION_LABELS: Record<string, { en: string; fr: string }> = {
   V: { en: "Valuation", fr: "Évaluation" },
   P: { en: "Presentation / disclosure", fr: "Présentation / information" },
 };
+
+const ORDER = ["C", "E", "A", "V", "P"];
+
+/** Priority order inside a row: significant risks, then fraud, then risk-linked, then the rest. */
+function priorityCells(row: CraAccountRow): CraCell[] {
+  return row.cells
+    .filter((c) => c.relevant)
+    .sort((a, b) => {
+      const score = (c: CraCell) => (c.significant ? 0 : c.fraud ? 1 : c.riskCount > 0 ? 2 : 3);
+      const d = score(a) - score(b);
+      return d !== 0 ? d : ORDER.indexOf(a.assertion) - ORDER.indexOf(b.assertion);
+    });
+}
 
 function cellState(c: CraCell): { ir: CraIr; cr: CraCr; recorded: boolean } {
   return { ir: c.ir ?? c.suggestedIr, cr: c.cr ?? c.suggestedCr, recorded: c.ir !== null && c.cr !== null };
@@ -51,10 +65,9 @@ export function CraBoard({
 }) {
   const fr = locale === "fr";
   const [rows, setRows] = useState(view.rows);
-  const [open, setOpen] = useState<string | null>(null);
+  const [openBasis, setOpenBasis] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
 
-  const n = (x: number) => new Intl.NumberFormat("fr-FR").format(Math.round(x));
   const label = "text-[10px] font-extrabold uppercase tracking-[0.07em] text-muted";
   const select = "rounded-[var(--radius-atlas-sm)] border border-line-strong bg-surface px-1.5 py-1 text-[12px] text-ink outline-none focus:border-emerald-600";
   const basisInput = "w-full rounded-[var(--radius-atlas-sm)] border border-line bg-[color:var(--wp-input)] px-2 py-1 text-[11.5px] text-ink outline-none placeholder:text-muted focus:border-emerald-600";
@@ -79,16 +92,6 @@ export function CraBoard({
     );
   }
 
-  const rowTod = (row: CraAccountRow): CraTod | null =>
-    worstTod(
-      row.cells
-        .filter((c) => c.relevant)
-        .map((c) => {
-          const { ir, cr } = cellState(c);
-          return toTod(craOf(ir, cr), c.significant);
-        }),
-    );
-
   if (rows.length === 0) {
     return (
       <div className="px-3 py-6 text-center text-[12.5px] text-muted" data-testid="cra-empty">
@@ -110,8 +113,8 @@ export function CraBoard({
         <span className="text-[11px] text-ink-soft">
           <b>{fr ? "Matrice" : "Matrix"}:</b>{" "}
           {fr
-            ? "RI faible + appui = Minimal · RI faible sans appui = Modéré · RI élevé + appui = Faible · RI élevé sans appui = Élevé"
-            : "Lower IR + rely = Minimal · Lower IR + not rely = Moderate · Higher IR + rely = Low · Higher IR + not rely = High"}
+            ? "RI faible + appui = Minimal · RI faible sans appui = Modéré · RI élevé + appui = Faible · RI élevé sans appui = Élevé · un risque important/fraude superpose des diligences particulières (+SR)"
+            : "Lower IH + rely = Minimal · Lower IH + not rely = Moderate · Higher IH + rely = Low · Higher IH + not rely = High · a significant/fraud risk overlays special audit considerations (+SR)"}
         </span>
         <span data-testid="cra-itgc">
           {view.itgcState === "support" ? (
@@ -136,144 +139,128 @@ export function CraBoard({
 
       {error ? <p className="text-[12px] font-semibold text-rose">{error}</p> : null}
 
-      {rows.map((row) => {
-        const isOpen = open === row.indexCode;
-        const worst = rowTod(row);
-        return (
-          <div key={row.indexCode} className="rounded-[var(--radius-atlas-sm)] border border-line bg-surface">
-            <button
-              type="button"
-              onClick={() => setOpen(isOpen ? null : row.indexCode)}
-              className="flex w-full items-center gap-2.5 px-3 py-2 text-left hover:bg-surface-2"
-              data-testid={`cra-row-${row.indexCode}`}
-            >
-              <span className="font-mono text-[11.5px] font-extrabold text-emerald-700/70 tnum dark:text-emerald-400/70">{row.indexCode}</span>
-              <span className="min-w-0 flex-1 truncate text-[12.8px] font-semibold text-ink">{row.label}</span>
-              {row.closing !== 0 ? <span className="text-[11px] text-muted tnum">{n(row.closing)}</span> : null}
-              <span className="hidden items-center gap-1.5 sm:flex">
-                {row.scots > 0 ? <Chip tone="muted">{row.scots} SCOT</Chip> : null}
-                {row.controlsSelected > 0 ? (
-                  <Chip tone="muted">{row.controlsSelected} {fr ? "ctrl" : "ctrl"}</Chip>
-                ) : null}
-              </span>
-              {worst ? <Chip tone={craTone(worst.replace("_sr", "") as CraLevel)}>{todLabel(worst, fr ? "fr" : "en")}</Chip> : null}
-              <span className="text-[11px] text-muted">{isOpen ? "▾" : "▸"}</span>
-            </button>
+      <div className="overflow-x-auto">
+        <table className="w-full min-w-[720px]">
+          <thead>
+            <tr>
+              <th className={`${label} px-2 py-1.5 text-left`}>{fr ? "Indice" : "Lead"}</th>
+              <th className={`${label} px-2 py-1.5 text-left`}>{fr ? "Assertion" : "Assertion"}</th>
+              <th className={`${label} px-2 py-1.5 text-left`} title={fr ? "Risque inhérent" : "Inherent risk"}>IH</th>
+              <th className={`${label} px-2 py-1.5 text-left`} title={fr ? "Risque lié au contrôle" : "Control risk"}>CR</th>
+              <th className={`${label} px-2 py-1.5 text-left`} title={fr ? "Évaluation combinée des risques" : "Combined risk assessment"}>CRA</th>
+            </tr>
+          </thead>
+          <tbody>
+            {rows.map((row) => {
+              const cells = priorityCells(row);
+              return cells.map((cell, i) => {
+                const basisKey = `${row.indexCode}|${cell.assertion}`;
+                const basisOpen = openBasis === basisKey;
+                return (
+                  <tr
+                    key={basisKey}
+                    className={`align-middle ${i === 0 ? "border-t-2 border-line-strong" : "border-t border-line"}`}
+                    data-testid={i === 0 ? `cra-row-${row.indexCode}` : undefined}
+                  >
+                    {i === 0 ? (
+                      <td className="px-2 py-1.5 align-top" rowSpan={cells.length}>
+                        <div className="flex flex-col gap-0.5">
+                          <span className="font-mono text-[12px] font-extrabold text-emerald-700/80 tnum dark:text-emerald-400/80">{row.indexCode}</span>
+                          <span className="max-w-[180px] text-[12px] font-semibold leading-tight text-ink">{row.label}</span>
+                          {row.taskItemId ? (
+                            <Link
+                              href={`/engagements/${engagementId}/sections/${row.taskItemId}`}
+                              className="text-[10.5px] font-semibold text-emerald-700 hover:underline dark:text-emerald-400"
+                            >
+                              {fr ? `Papier ${row.taskCode}` : `${row.taskCode} paper`}
+                            </Link>
+                          ) : null}
+                        </div>
+                      </td>
+                    ) : null}
+                    <td className="px-2 py-1.5">
+                      <span className="text-[12.5px] font-bold text-ink">{cell.assertion}</span>
+                      <span className="ml-1.5 text-[11px] text-muted">{fr ? ASSERTION_LABELS[cell.assertion].fr : ASSERTION_LABELS[cell.assertion].en}</span>
+                      {cell.significant ? <span className="ml-1.5"><Chip tone="rose">{fr ? "Risque important" : "Significant risk"}</Chip></span> : null}
+                      {cell.fraud ? <span className="ml-1"><Chip tone="rose">{fr ? "Fraude" : "Fraud"}</Chip></span> : null}
+                    </td>
+                    <td className="px-2 py-1.5">
+                      <select
+                        value={cell.ir ?? ""}
+                        onChange={(e) => { const v = e.target.value as CraIr | ""; patchCell(row.indexCode, cell.assertion, { ir: v === "" ? null : v }); void save(row.indexCode, cell.assertion, { ir: v }); }}
+                        className={select}
+                        title={cell.riskCount > 0 ? (fr ? `${cell.riskCount} risque(s) au registre` : `${cell.riskCount} risk(s) in the register`) : (fr ? "Aucun risque rattaché" : "No risk linked")}
+                        data-testid={`cra-ir-${row.indexCode}-${cell.assertion}`}
+                      >
+                        <option value="">{fr ? `sugg. ${cell.suggestedIr === "higher" ? "Élevé" : "Faible"}` : `sugg. ${cell.suggestedIr === "higher" ? "Higher" : "Lower"}`}</option>
+                        <option value="lower">{fr ? "Faible" : "Lower"}</option>
+                        <option value="higher">{fr ? "Élevé" : "Higher"}</option>
+                      </select>
+                    </td>
+                    <td className="px-2 py-1.5">
+                      <select
+                        value={cell.cr ?? ""}
+                        onChange={(e) => { const v = e.target.value as CraCr | ""; patchCell(row.indexCode, cell.assertion, { cr: v === "" ? null : v }); void save(row.indexCode, cell.assertion, { cr: v }); }}
+                        className={select}
+                        title={
+                          cell.controlsCovering === 0
+                            ? fr ? "Aucun contrôle sélectionné (S2.1)" : "No control selected for testing (S2.1)"
+                            : cell.controlsFailed > 0
+                              ? fr ? `${cell.controlsFailed} contrôle(s) en échec (E1.1)` : `${cell.controlsFailed} control(s) failed (E1.1)`
+                              : fr ? `${cell.controlsEffective}/${cell.controlsCovering} contrôles efficaces (E1.1)` : `${cell.controlsEffective}/${cell.controlsCovering} controls effective (E1.1)`
+                        }
+                        data-testid={`cra-cr-${row.indexCode}-${cell.assertion}`}
+                      >
+                        <option value="">{fr ? `sugg. ${cell.suggestedCr === "rely" ? "Appui" : "Sans appui"}` : `sugg. ${cell.suggestedCr === "rely" ? "Rely" : "Not rely"}`}</option>
+                        <option value="rely">{fr ? "Appui" : "Rely"}</option>
+                        <option value="not_rely">{fr ? "Sans appui" : "Not rely"}</option>
+                      </select>
+                    </td>
+                    <td className="px-2 py-1.5">
+                      <div className="flex items-center gap-1.5">
+                        <CraChip cell={cell} fr={fr} />
+                        <button
+                          type="button"
+                          onClick={() => setOpenBasis(basisOpen ? null : basisKey)}
+                          className="text-[10.5px] font-semibold text-muted hover:text-ink"
+                          title={fr ? "Fondement des cotations" : "Basis for the assessments"}
+                          data-testid={`cra-basis-toggle-${row.indexCode}-${cell.assertion}`}
+                        >
+                          {basisOpen ? "▾" : "✎"}
+                        </button>
+                      </div>
+                      {basisOpen ? (
+                        <div className="mt-1 flex w-56 flex-col gap-1">
+                          <input
+                            defaultValue={cell.irBasis}
+                            placeholder={fr ? "Fondement RI…" : "IH basis…"}
+                            onBlur={(e) => { if (e.target.value !== cell.irBasis) { patchCell(row.indexCode, cell.assertion, { irBasis: e.target.value }); void save(row.indexCode, cell.assertion, { irBasis: e.target.value }); } }}
+                            className={basisInput}
+                            data-testid={`cra-irb-${row.indexCode}-${cell.assertion}`}
+                          />
+                          <input
+                            defaultValue={cell.crBasis}
+                            placeholder={fr ? "Fondement RC…" : "CR basis…"}
+                            onBlur={(e) => { if (e.target.value !== cell.crBasis) { patchCell(row.indexCode, cell.assertion, { crBasis: e.target.value }); void save(row.indexCode, cell.assertion, { crBasis: e.target.value }); } }}
+                            className={basisInput}
+                            data-testid={`cra-crb-${row.indexCode}-${cell.assertion}`}
+                          />
+                        </div>
+                      ) : null}
+                    </td>
+                  </tr>
+                );
+              });
+            })}
+          </tbody>
+        </table>
+      </div>
 
-            {isOpen ? (
-              <div className="overflow-x-auto border-t border-line px-3 py-2" data-testid={`cra-detail-${row.indexCode}`}>
-                <table className="w-full min-w-[760px]">
-                  <thead>
-                    <tr>
-                      <th className={`${label} px-1.5 py-1 text-left`}>{fr ? "Pertinente" : "Relevant"}</th>
-                      <th className={`${label} px-1.5 py-1 text-left`}>{fr ? "Assertion" : "Assertion"}</th>
-                      <th className={`${label} px-1.5 py-1 text-left`}>{fr ? "Risque inhérent" : "Inherent risk"}</th>
-                      <th className={`${label} px-1.5 py-1 text-left`}>{fr ? "Risque lié au contrôle" : "Control risk"}</th>
-                      <th className={`${label} px-1.5 py-1 text-left`}>{fr ? "ECR" : "CRA"}</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {row.cells.map((cell) => {
-                      const crHint =
-                        cell.controlsCovering === 0
-                          ? fr ? "aucun contrôle sélectionné (S2.1)" : "no control selected for testing (S2.1)"
-                          : cell.controlsFailed > 0
-                            ? fr ? `${cell.controlsFailed} contrôle(s) en échec (E1.1)` : `${cell.controlsFailed} control(s) failed (E1.1)`
-                            : cell.controlsEffective > 0
-                              ? fr ? `${cell.controlsEffective}/${cell.controlsCovering} contrôles efficaces (E1.1)` : `${cell.controlsEffective}/${cell.controlsCovering} controls effective (E1.1)`
-                              : fr ? `${cell.controlsCovering} contrôle(s) sélectionné(s), tests non exécutés` : `${cell.controlsCovering} control(s) selected, tests not yet executed`;
-                      return (
-                        <tr key={cell.assertion} className={`border-t border-line align-top ${cell.relevant ? "" : "opacity-45"}`}>
-                          <td className="px-1.5 py-1.5">
-                            <input
-                              type="checkbox"
-                              checked={cell.relevant}
-                              onChange={(e) => { patchCell(row.indexCode, cell.assertion, { relevant: e.target.checked }); void save(row.indexCode, cell.assertion, { relevant: e.target.checked }); }}
-                              className="h-4 w-4 accent-emerald-700"
-                              data-testid={`cra-rel-${row.indexCode}-${cell.assertion}`}
-                            />
-                          </td>
-                          <td className="px-1.5 py-1.5">
-                            <span className="text-[12px] font-semibold text-ink">{cell.assertion}</span>
-                            <span className="ml-1 text-[11px] text-muted">{fr ? ASSERTION_LABELS[cell.assertion].fr : ASSERTION_LABELS[cell.assertion].en}</span>
-                            {cell.significant ? <Chip tone="rose">{fr ? "Risque important" : "Significant risk"}</Chip> : null}
-                          </td>
-                          <td className="px-1.5 py-1.5">
-                            <div className="flex flex-col gap-1">
-                              <select
-                                value={cell.ir ?? ""}
-                                onChange={(e) => { const v = e.target.value as CraIr | ""; patchCell(row.indexCode, cell.assertion, { ir: v === "" ? null : v }); void save(row.indexCode, cell.assertion, { ir: v }); }}
-                                className={select}
-                                disabled={!cell.relevant}
-                                data-testid={`cra-ir-${row.indexCode}-${cell.assertion}`}
-                              >
-                                <option value="">{fr ? `— sugg. ${cell.suggestedIr === "higher" ? "élevé" : "faible"}` : `— sugg. ${cell.suggestedIr}`}</option>
-                                <option value="lower">{fr ? "Faible" : "Lower"}</option>
-                                <option value="higher">{fr ? "Élevé" : "Higher"}</option>
-                              </select>
-                              <span className="text-[10.5px] text-muted">
-                                {cell.riskCount > 0
-                                  ? fr ? `${cell.riskCount} risque(s) au registre` : `${cell.riskCount} risk(s) in the register`
-                                  : fr ? "aucun risque rattaché" : "no risk linked"}
-                              </span>
-                              <input
-                                defaultValue={cell.irBasis}
-                                placeholder={fr ? "Fondement (une phrase)…" : "Basis (one sentence)…"}
-                                onBlur={(e) => { if (e.target.value !== cell.irBasis) { patchCell(row.indexCode, cell.assertion, { irBasis: e.target.value }); void save(row.indexCode, cell.assertion, { irBasis: e.target.value }); } }}
-                                className={basisInput}
-                                disabled={!cell.relevant}
-                                data-testid={`cra-irb-${row.indexCode}-${cell.assertion}`}
-                              />
-                            </div>
-                          </td>
-                          <td className="px-1.5 py-1.5">
-                            <div className="flex flex-col gap-1">
-                              <select
-                                value={cell.cr ?? ""}
-                                onChange={(e) => { const v = e.target.value as CraCr | ""; patchCell(row.indexCode, cell.assertion, { cr: v === "" ? null : v }); void save(row.indexCode, cell.assertion, { cr: v }); }}
-                                className={select}
-                                disabled={!cell.relevant}
-                                data-testid={`cra-cr-${row.indexCode}-${cell.assertion}`}
-                              >
-                                <option value="">{fr ? `— sugg. ${cell.suggestedCr === "rely" ? "appui" : "sans appui"}` : `— sugg. ${cell.suggestedCr === "rely" ? "rely" : "not rely"}`}</option>
-                                <option value="rely">{fr ? "Appui sur les contrôles" : "Rely on controls"}</option>
-                                <option value="not_rely">{fr ? "Sans appui" : "Not rely"}</option>
-                              </select>
-                              <span className="text-[10.5px] text-muted">{crHint}</span>
-                              <input
-                                defaultValue={cell.crBasis}
-                                placeholder={fr ? "Fondement…" : "Basis…"}
-                                onBlur={(e) => { if (e.target.value !== cell.crBasis) { patchCell(row.indexCode, cell.assertion, { crBasis: e.target.value }); void save(row.indexCode, cell.assertion, { crBasis: e.target.value }); } }}
-                                className={basisInput}
-                                disabled={!cell.relevant}
-                                data-testid={`cra-crb-${row.indexCode}-${cell.assertion}`}
-                              />
-                            </div>
-                          </td>
-                          <td className="px-1.5 py-1.5">{cell.relevant ? <CraChip cell={cell} fr={fr} /> : <span className="text-[11px] text-muted">—</span>}</td>
-                        </tr>
-                      );
-                    })}
-                  </tbody>
-                </table>
-                <p className="mt-1.5 text-[10.5px] text-muted">
-                  {fr
-                    ? "L'appui sur les contrôles suppose des tests d'efficacité (S2.2 · E1.1). Un risque important impose un test de détail parmi les procédures (voir S5.5 et le papier E4)."
-                    : "Relying on controls requires operating-effectiveness tests (S2.2 · E1.1). A significant risk requires a test of details among the responses (see S5.5 and the E4 paper)."}
-                  {row.taskItemId ? (
-                    <>
-                      {" · "}
-                      <Link href={`/engagements/${engagementId}/sections/${row.taskItemId}`} className="font-semibold text-emerald-700 hover:underline dark:text-emerald-400">
-                        {fr ? `Papier ${row.taskCode}` : `${row.taskCode} workpaper`}
-                      </Link>
-                    </>
-                  ) : null}
-                </p>
-              </div>
-            ) : null}
-          </div>
-        );
-      })}
+      <p className="text-[10.5px] text-muted">
+        {fr
+          ? "Seules les assertions pertinentes retenues lors de la détermination des comptes significatifs (P6.2) apparaissent — les risques importants et de fraude en tête. L'appui sur les contrôles suppose des tests d'efficacité (S2.2 · E1.1) ; un risque important impose un test de détail parmi les réponses (S5.5 · papier E4)."
+          : "Only the relevant assertions selected at the significant-accounts determination (P6.2) appear — significant and fraud risks first. Relying on controls requires operating-effectiveness tests (S2.2 · E1.1); a significant risk requires a test of details among the responses (S5.5 · E4 paper)."}
+      </p>
     </div>
   );
 }

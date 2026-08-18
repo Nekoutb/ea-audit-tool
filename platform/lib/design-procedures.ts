@@ -13,6 +13,13 @@ import { pspFor } from "@/lib/psp";
 export const DSP_FIELDS = ["nature", "timing", "extent", "osp"] as const;
 export type DspField = (typeof DSP_FIELDS)[number];
 
+/**
+ * Storage keys: `<index>_<field>` for the account level (osp), and
+ * `<index>_<assertion>_<field>` for the per-assertion design — procedures are
+ * designed per relevant assertion against that assertion's CRA (ISA 330 ¶6–7).
+ */
+const FIELD_KEY = /^(?:[CEAVP]_)?(nature|timing|extent|osp)$/;
+
 export interface DspRow {
   indexCode: string;
   label: string;
@@ -29,7 +36,8 @@ export interface DspRow {
   done: number;
   /** an OSP is required: a significant risk, or no controls reliance on a relevant assertion */
   ospRequired: boolean;
-  values: Record<DspField, string>;
+  /** every stored key for this index, without the `<index>_` prefix (e.g. "osp", "E_nature") */
+  values: Record<string, string>;
 }
 
 export interface DspView {
@@ -73,7 +81,9 @@ export async function dspView(engagementId: string): Promise<DspView> {
         return { assertion: c.assertion, tod: toTod(craOf(ir, cr), c.significant), significant: c.significant, notRely: cr === "not_rely" };
       });
     const st = row.taskCode ? stepsByCode.get(row.taskCode) : undefined;
-    const v = (f: DspField) => values.get(`${row.indexCode}_${f}`) ?? "";
+    const prefix = `${row.indexCode}_`;
+    const rowValues: Record<string, string> = {};
+    for (const [k, val] of values) if (k.startsWith(prefix)) rowValues[k.slice(prefix.length)] = val;
     return {
       indexCode: row.indexCode,
       label: row.label,
@@ -86,16 +96,28 @@ export async function dspView(engagementId: string): Promise<DspView> {
       generated: st?.total ?? 0,
       done: st?.done ?? 0,
       ospRequired: cells.some((c) => c.significant || c.notRely),
-      values: { nature: v("nature"), timing: v("timing"), extent: v("extent"), osp: v("osp") },
+      values: rowValues,
     };
   });
 
   return { rows, itgcState: board.itgcState };
 }
 
-/** Persist one design field of one account. */
+/** The S5.5 file item of an engagement — the E4 papers link back to the design. */
+export async function s55ItemId(engagementId: string): Promise<string | null> {
+  const { tenantId } = await requireTenant();
+  return withTenant(tenantId, async (tx) => {
+    const r = await tx.query<{ id: string }>(
+      "SELECT id FROM file_item WHERE engagement_id = $1 AND code = 'S5.5' LIMIT 1",
+      [engagementId],
+    );
+    return r.rows[0]?.id ?? null;
+  });
+}
+
+/** Persist one design field — account-level (`osp`) or per-assertion (`E_nature`). */
 export async function saveDsp(engagementId: string, indexCode: string, field: string, value: string): Promise<void> {
-  if (!(DSP_FIELDS as readonly string[]).includes(field)) throw new Error("invalid-field");
+  if (!FIELD_KEY.test(field)) throw new Error("invalid-field");
   if (!/^[A-Z][A-Z0-9]{0,2}$/.test(indexCode)) throw new Error("invalid-index");
   const { tenantId, userId } = await requireTenant();
   await withTenant(tenantId, async (tx) => {

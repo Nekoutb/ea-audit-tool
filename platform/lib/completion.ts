@@ -224,12 +224,55 @@ export function assemblyDeadline(reportDate: string): string {
 }
 
 /**
+ * Archive gates (ISA 230 ¶14–16): what must hold before the file locks —
+ * report issued, no half-reviewed paper, review notes cleared, and the C6.2
+ * assembly checklist concluded. The 60-day window is shown, not enforced: a
+ * late file must still be archivable.
+ */
+export async function archiveGates(engagementId: string): Promise<GateResult[]> {
+  const { tenantId } = await requireTenant();
+  const { paperFor, paperComplete, loadPaper } = await import("@/lib/working-papers");
+  const c62 = paperComplete(paperFor("C6.2"), await loadPaper(engagementId, "C6.2"));
+  return withTenant(tenantId, async (tx) => {
+    const reportDate = await tx.query<{ report_date: string | null }>(
+      "SELECT report_date::text FROM engagement WHERE id = $1",
+      [engagementId],
+    );
+    // every paper a preparer signed must also carry its review sign-off
+    const halfReviewed = await count(
+      tx,
+      `SELECT count(*)::text AS n FROM document d
+        WHERE d.engagement_id = $1
+          AND EXISTS (SELECT 1 FROM signoff s WHERE s.document_id = d.id AND s.role = 'preparer' AND s.voided_at IS NULL)
+          AND NOT EXISTS (SELECT 1 FROM signoff s WHERE s.document_id = d.id AND s.role IN ('reviewer', 'partner') AND s.voided_at IS NULL)`,
+      [engagementId],
+    );
+    const openNotes = await count(
+      tx,
+      `SELECT count(*)::text AS n FROM review_note rn
+         JOIN document d ON d.id = rn.document_id
+        WHERE d.engagement_id = $1 AND rn.status = 'open'`,
+      [engagementId],
+    );
+    return [
+      { key: "report_issued", ok: reportDate.rows[0]?.report_date != null },
+      { key: "reviews_complete", ok: halfReviewed === 0 },
+      { key: "review_notes_cleared", ok: openNotes === 0 },
+      { key: "c62_checklist", ok: c62 },
+    ];
+  });
+}
+
+/**
  * Archive: snapshot the whole file (structured data as JSON) and lock it.
  * Post-archive modifications are impossible (guards in the document layer).
  */
 export async function archiveEngagement(engagementId: string): Promise<void> {
   const { tenantId, userId, role } = await requireTenant();
   if (!canPartnerSignoff(role)) throw new CompletionError("forbidden");
+  const gates = await archiveGates(engagementId);
+  const failedGates = gates.filter((gate) => !gate.ok).map((gate) => gate.key);
+  if (failedGates.length > 0) throw new CompletionGateError(failedGates);
   await withTenant(tenantId, async (tx) => {
     const engagement = await tx.query<{ report_date: string | null; archived_at: string | null }>(
       "SELECT report_date::text, archived_at::text FROM engagement WHERE id = $1 FOR UPDATE",

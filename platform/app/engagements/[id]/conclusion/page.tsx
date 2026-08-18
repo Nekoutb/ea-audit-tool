@@ -18,6 +18,7 @@ import { ErrorBanner, GatesPanel } from "@/components/GatesPanel";
 import { Panel } from "@/components/ui/atlas";
 import { getClient } from "@/lib/clients";
 import {
+  archiveGates,
   assemblyDeadline,
   completionGates,
   getCompletionRecord,
@@ -45,8 +46,9 @@ export default async function ConclusionPage(props: {
 
   const engagement = await getEngagement(id);
   if (!engagement) notFound();
-  const [gates, state, disclosure, subsequent, points, partner, client] = await Promise.all([
+  const [gates, archGates, state, disclosure, subsequent, points, partner, client] = await Promise.all([
     completionGates(id),
+    archiveGates(id),
     getConclusionState(id),
     getCompletionRecord(id, "disclosure_checklist"),
     getCompletionRecord(id, "subsequent_events"),
@@ -247,11 +249,31 @@ export default async function ConclusionPage(props: {
               {tc.assembly}: <strong data-testid="assembly-deadline" className="tnum">{assemblyDeadline(state.reportDate)}</strong>
             </p>
             {!state.archivedAt ? (
-              <form action={archiveAction.bind(null, id)} className="mt-3">
-                <button type="submit" className={primary} data-testid="archive-file">
-                  {tc.archive}
-                </button>
-              </form>
+              <>
+                {/* ISA 230 archive gates: what must hold before the file locks */}
+                <ul className="mt-3 flex flex-col gap-1" data-testid="archive-gates">
+                  {archGates.map((g) => {
+                    const labels: Record<string, { en: string; fr: string }> = {
+                      report_issued: { en: "Report issued", fr: "Rapport émis" },
+                      reviews_complete: { en: "Every prepared paper carries its review sign-off", fr: "Chaque papier préparé porte sa signature de revue" },
+                      review_notes_cleared: { en: "Review notes cleared", fr: "Notes de revue levées" },
+                      c62_checklist: { en: "C6.2 assembly & archive checklist concluded", fr: "Liste C6.2 d'assemblage & archivage conclue" },
+                    };
+                    const l = labels[g.key] ?? { en: g.key, fr: g.key };
+                    return (
+                      <li key={g.key} className="flex items-center gap-2 text-xs" data-testid={`archive-gate-${g.key}`}>
+                        <span className={g.ok ? "font-bold text-good" : "font-bold text-rose"}>{g.ok ? "✓" : "✗"}</span>
+                        <span className={g.ok ? "text-ink-soft" : "text-ink"}>{locale === "fr" ? l.fr : l.en}</span>
+                      </li>
+                    );
+                  })}
+                </ul>
+                <form action={archiveAction.bind(null, id)} className="mt-3">
+                  <button type="submit" className={primary} data-testid="archive-file">
+                    {tc.archive}
+                  </button>
+                </form>
+              </>
             ) : (
               <form action={rollforwardAction.bind(null, id)} className="mt-3 flex items-end gap-2">
                 <label className={label}>

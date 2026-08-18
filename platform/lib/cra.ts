@@ -37,6 +37,8 @@ export interface CraCell {
   suggestedCr: CraCr;
   riskCount: number;
   significant: boolean;
+  /** a fraud risk (assessed or presumed under ISA 240) sits on this assertion */
+  fraud: boolean;
   controlsCovering: number;
   controlsEffective: number;
   controlsFailed: number;
@@ -72,8 +74,9 @@ export async function craBoard(engagementId: string): Promise<CraBoardView> {
 
   // risks per index+assertion, and the saved assessments
   const { riskLinks, saved, taskItems } = await withTenant(tenantId, async (tx) => {
-    const riskLinks = await tx.query<{ index_code: string; assertions: string[]; significant: boolean }>(
-      `SELECT li.index_code, li.assertions, rk.significant
+    const riskLinks = await tx.query<{ index_code: string; assertions: string[]; significant: boolean; fraud: boolean }>(
+      `SELECT li.index_code, li.assertions, rk.significant,
+              (rk.category = 'fraud' OR rk.presumed_type IS NOT NULL) AS fraud
          FROM risk_lead_index li
          JOIN risk rk ON rk.id = li.risk_id AND rk.rebutted = false
         WHERE rk.engagement_id = $1`,
@@ -95,14 +98,15 @@ export async function craBoard(engagementId: string): Promise<CraBoardView> {
 
   const itemByCode = new Map(taskItems.map((t) => [t.code, t.id]));
 
-  // per index: risk assertions and significance
-  const riskByIndex = new Map<string, Map<string, { count: number; significant: boolean }>>();
+  // per index: risk assertions, significance and the fraud overlay
+  const riskByIndex = new Map<string, Map<string, { count: number; significant: boolean; fraud: boolean }>>();
   for (const link of riskLinks) {
     const bucket = riskByIndex.get(link.index_code) ?? new Map();
     for (const a of link.assertions) {
-      const cur = bucket.get(a) ?? { count: 0, significant: false };
+      const cur = bucket.get(a) ?? { count: 0, significant: false, fraud: false };
       cur.count += 1;
       cur.significant = cur.significant || link.significant;
+      cur.fraud = cur.fraud || link.fraud;
       bucket.set(a, cur);
     }
     riskByIndex.set(link.index_code, bucket);
@@ -168,6 +172,7 @@ export async function craBoard(engagementId: string): Promise<CraBoardView> {
         suggestedCr,
         riskCount: risk?.count ?? 0,
         significant: risk?.significant ?? false,
+        fraud: risk?.fraud ?? false,
         controlsCovering: cov?.covering ?? 0,
         controlsEffective: cov?.effective ?? 0,
         controlsFailed: cov?.failed ?? 0,

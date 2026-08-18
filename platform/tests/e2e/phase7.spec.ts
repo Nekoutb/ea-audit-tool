@@ -231,7 +231,29 @@ test("Phase 7: gates block → complete file → issue report → archive → ro
   await expect(page.getByTestId("report-issued")).toContainText("unmodified");
   await expect(page.getByTestId("assembly-deadline")).toContainText("2026-05-30");
 
-  // Archive → immutable; the rollforward form appears.
+  // C6.2 assembly & archive checklist — an archive gate since the DOCARC
+  // build: fill every page of the paper (conclusions, procedures, evaluation,
+  // outcome) and save, then the archive gates all show green.
+  await page.goto(`${engagementUrl}/groups/c6`);
+  await page.locator('tr[role="link"]', { hasText: "C6.2" }).first().click();
+  await page.waitForURL("**/sections/**");
+  for (let s = 0; s < 8; s++) {
+    for (const radio of await page.locator('form[data-testid="wp-form-C6.2"] [data-testid$="-yes"]:visible').all()) {
+      await radio.click();
+    }
+    for (const area of await page.locator('form[data-testid="wp-form-C6.2"] textarea:visible').all()) {
+      await area.fill("Done — see the archive record.");
+    }
+    const next = page.getByTestId("wp-next");
+    if (await next.isEnabled()) await next.click();
+    else break;
+  }
+  await page.getByTestId("wp-save-C6.2").click();
+  await page.waitForLoadState("networkidle");
+
+  // Archive → gates green → immutable; the rollforward form appears.
+  await page.goto(`${engagementUrl}/conclusion`);
+  await expect(page.getByTestId("archive-gates")).not.toContainText("✗");
   await page.getByTestId("archive-file").click();
   await expect(page.getByTestId("archived-banner")).toBeVisible();
 

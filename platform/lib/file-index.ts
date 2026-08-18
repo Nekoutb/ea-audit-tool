@@ -50,8 +50,8 @@ export const DEFAULT_FILE_INDEX: readonly FileIndexEntry[] = [
   {
     code: "C5.1",
     section: "C",
-    titleEn: "Client Communications — Those Charged with Governance and Management (ISA 260/265)",
-    titleFr: "Communications avec les responsables de la gouvernance et la direction (ISA 260/265)",
+    titleEn: "Communications — Governance & Management (ISA 260/265)",
+    titleFr: "Communications — gouvernance & direction (ISA 260/265)",
   },
 
   // D — Acceptance & Planning (no D2; no D5.3 — intentional gaps)
@@ -187,7 +187,7 @@ const SHORT_TITLES: Record<string, { en: string; fr: string }> = {
   "C3.2": { en: "External Confirmation Letter", fr: "Lettre de confirmation externe" },
   "C6.1": { en: "Points Forward (next year)", fr: "Points à reporter (N+1)" },
   "C6.2": { en: "Documentation & Archive", fr: "Documentation & archivage" },
-  "C5.1": { en: "Client Communications (ISA 260)", fr: "Communications client (ISA 260)" },
+  "C5.1": { en: "Communications (ISA 260)", fr: "Communications (ISA 260)" },
   "S6.1": { en: "Audit Strategies Memorandum", fr: "Mémorandum de stratégie" },
   "P1.1": { en: "Client Acceptance / Continuance", fr: "Acceptation / maintien du client" },
   "P2.1": { en: "Independence & Ethics", fr: "Indépendance & éthique" },

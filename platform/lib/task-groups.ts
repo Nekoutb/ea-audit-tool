@@ -73,7 +73,7 @@ export const TASK_GROUPS: TaskGroupDef[] = [
   { id: "c2", code: "C2", section: "conclusion", titleEn: "Final Financial Statement Review", titleFr: "Revue finale des états financiers", members: ["C2.1", "C2.2"] },
   { id: "c3", code: "C3", section: "conclusion", titleEn: "Representations", titleFr: "Déclarations", members: ["C3.1", "C3.2"] },
   { id: "c4", code: "C4", section: "conclusion", titleEn: "Review & Approval", titleFr: "Revue & approbation", members: ["C4.1", "C4.2", "C4.3"] },
-  { id: "c5", code: "C5", section: "conclusion", titleEn: "Client Communications & Statutory Reports", titleFr: "Communications client & rapports légaux", members: ["C5.1", "C5.2", "C5.3", "C5.4", "C5.5", "C5.6", "C5.7", "C5.8", "C5.9"] },
+  { id: "c5", code: "C5", section: "conclusion", titleEn: "Communications & Statutory Reports", titleFr: "Communications & rapports légaux", members: ["C5.1", "C5.2", "C5.3", "C5.4", "C5.5", "C5.6", "C5.7", "C5.8", "C5.9"] },
   { id: "c6", code: "C6", section: "conclusion", titleEn: "Documentation & Archive", titleFr: "Documentation & archivage", members: ["C6.1", "C6.2"] },
 ];
 
