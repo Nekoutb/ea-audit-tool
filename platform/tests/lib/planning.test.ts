@@ -103,7 +103,7 @@ describe("presumed risks (spec §3)", () => {
     expect(types).toEqual(["mgmt_override", "revenue_fraud"]);
     expect(risks.every((r) => r.significant)).toBe(true);
     const override = risks.find((r) => r.presumedType === "mgmt_override");
-    expect(override?.sections.map((s) => s.code)).toContain("E2.1");
+    expect(override?.sections.map((s) => s.code)).toContain("E3.1");
   });
 
   it("blocks downgrading management override", async () => {
@@ -209,11 +209,11 @@ describe("EQR independence (2.7)", () => {
 
 describe("program tailoring (2.14)", () => {
   it("generates library steps + risk extensions auto-linked to the significant risk", async () => {
-    const generated = await generateProgram(itemId("E4.1"), "en");
+    const generated = await generateProgram(itemId("E4.20"), "en");
     expect(generated).toBeGreaterThan(0);
-    const steps = await listProgramSteps(itemId("E4.1"));
+    const steps = await listProgramSteps(itemId("E4.20"));
     expect(steps.some((s) => s.source === "risk_extension")).toBe(true);
-    const coverage = await sectionCoverage(itemId("E4.1"));
+    const coverage = await sectionCoverage(itemId("E4.20"));
     const revenue = coverage.find((c) => c.riskDescription.includes("revenue"));
     expect(revenue?.linkedSteps).toBeGreaterThan(0);
   });
@@ -224,7 +224,7 @@ describe("planning-close gates (2.9, 2.10, 2.13)", () => {
     await expect(closePlanning(engagementId)).rejects.toThrow(GateError);
     const gates = await planningCloseGates(engagementId);
     expect(gates.find((g) => g.key === "materiality_approved")?.ok).toBe(false);
-    // mgmt_override (E2.1) has no program yet → unlinked significant risk.
+    // mgmt_override (E3.1) has no program yet → unlinked significant risk.
     expect(gates.find((g) => g.key === "significant_risks_linked")?.ok).toBe(false);
   });
 
@@ -249,7 +249,7 @@ describe("planning-close gates (2.9, 2.10, 2.13)", () => {
   });
 
   it("closes once every gate passes, snapshots, and opens execution", async () => {
-    await generateProgram(itemId("E2.1"), "en"); // links mgmt_override
+    await generateProgram(itemId("E3.1"), "en"); // links mgmt_override
     await addCustomStep(itemId("E4.2"), "Substantive coverage for purchases.", ["C", "A"]);
     for (const code of ["P2.2", "P5.2", "S3.1"]) await signAsPartner(code);
 

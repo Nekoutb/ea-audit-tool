@@ -17,7 +17,7 @@ const S = (descEn: string, descFr: string, assertions: Assertion[]): LibraryStep
 });
 
 export const PROGRAM_LIBRARY: Record<string, LibraryStep[]> = {
-  "E4.1": [
+  "E4.20": [
     S("Agree revenue per the TB to the lead schedule and prior year; investigate significant variances.", "Rapprocher le chiffre d'affaires de la balance au tableau de synthèse et à N-1 ; analyser les écarts significatifs.", ["C", "A"]),
     S("Perform cut-off testing on sales around period end.", "Tester la séparation des exercices sur les ventes autour de la clôture.", ["A", "E"]),
     S("Circularise a sample of trade receivables (positive confirmations).", "Circulariser un échantillon de clients (confirmations positives).", ["E", "V"]),
@@ -97,7 +97,7 @@ export const PROGRAM_LIBRARY: Record<string, LibraryStep[]> = {
   "E6.3": [
     S("Evaluate going concern over ≥ 12 months; link to procédure d'alerte state (ISA 570).", "Évaluer la continuité d'exploitation sur ≥ 12 mois ; lien avec la procédure d'alerte (ISA 570).", ["V", "P"]),
   ],
-  "E2.1": [
+  "E3.1": [
     S("Test journal entries with unpredictable selection criteria (period-end, round amounts, unusual users/accounts).", "Tester les écritures avec des critères imprévisibles (clôture, montants ronds, utilisateurs/comptes inhabituels).", ["C", "E", "A"]),
     S("Review accounting estimates for management bias (retrospective review).", "Revoir les estimations comptables pour détecter un biais de la direction (revue rétrospective).", ["V"]),
     S("Evaluate significant transactions outside the normal course of business.", "Évaluer les transactions significatives hors du cours normal des affaires.", ["E", "P"]),

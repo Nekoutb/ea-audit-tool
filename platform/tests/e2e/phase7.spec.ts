@@ -107,7 +107,7 @@ test("Phase 7: gates block → complete file → issue report → archive → ro
 
   // E4 accounts run on substantive procedures now (no generated program);
   // the program generator remains on the standards-response tasks.
-  for (const section of ["E2.1"]) {
+  for (const section of ["E3.1"]) {
     await page.goto(engagementUrl);
     await page.getByTestId(`open-section-${section}`).click();
     await page.waitForURL("**/sections/**");
@@ -132,7 +132,7 @@ test("Phase 7: gates block → complete file → issue report → archive → ro
   await expect(page.getByTestId("planning-error")).toHaveCount(0);
 
   // --- Fieldwork: complete every program step, conclude + review each section ---
-  for (const section of ["E4.1", "E2.1"]) {
+  for (const section of ["E4.1", "E3.1"]) {
     await page.goto(engagementUrl);
     await page.getByTestId(`open-section-${section}`).click();
     await page.waitForURL("**/sections/**");
@@ -157,7 +157,6 @@ test("Phase 7: gates block → complete file → issue report → archive → ro
   await page.waitForURL("**/sections/**");
   await page.getByTestId("psp-row-OSP-1").click();
   await page.locator("[data-testid^=psp-done-]").check();
-  await page.getByTestId("psp-back").click();
   await page.getByTestId("section-conclusion").fill("Objectives achieved.");
   await page.getByTestId("save-conclusion").click();
   await page.getByTestId("review-conclusion").click();

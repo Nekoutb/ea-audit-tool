@@ -69,7 +69,7 @@ export function inherentRating(likelihood: RiskRating, magnitude: RiskRating): R
 /**
  * Seed the two presumed ISA 240 risks. Called inside createEngagement's
  * transaction: revenue-fraud (rebuttable, partner sign-off required) mapped to
- * E4.1; management override (NOT rebuttable) mapped to E2.1.
+ * E4.1; management override (NOT rebuttable) mapped to E3.1.
  */
 export async function seedPresumedRisks(
   tx: PoolClient,
@@ -77,7 +77,7 @@ export async function seedPresumedRisks(
   engagementId: string,
 ): Promise<void> {
   const sections = await tx.query<{ id: string; code: string }>(
-    "SELECT id, code FROM file_item WHERE engagement_id = $1 AND code IN ('E4.20', 'E2.1')",
+    "SELECT id, code FROM file_item WHERE engagement_id = $1 AND code IN ('E4.20', 'E3.1')",
     [engagementId],
   );
   const byCode = new Map(sections.rows.map((row) => [row.code, row.id]));
@@ -92,7 +92,7 @@ export async function seedPresumedRisks(
     {
       description: "Management override of controls (ISA 240)",
       presumed: "mgmt_override",
-      section: byCode.get("E2.1"),
+      section: byCode.get("E3.1"),
       assertions: ["C", "E", "A"],
     },
   ] as const;

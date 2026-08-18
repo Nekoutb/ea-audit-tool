@@ -25,7 +25,7 @@ const TILES: {
   feeds: string[];
   href: (id: string) => string;
 }[] = [
-  { id: "data-analytics", nameEn: "Data Analytics", nameFr: "Analyse de données", descEn: "Trial balance, general ledger, AR, AP, inventory and analytical procedures", descFr: "Balance, grand livre, clients, fournisseurs, stocks et procédures analytiques", feeds: ["P6.1", "P6.2", "E2.1"], href: (id) => `/engagements/${id}/tools/data-analytics` },
+  { id: "data-analytics", nameEn: "Data Analytics", nameFr: "Analyse de données", descEn: "Trial balance, general ledger, AR, AP, inventory and analytical procedures", descFr: "Balance, grand livre, clients, fournisseurs, stocks et procédures analytiques", feeds: ["P6.1", "P6.2", "E3.1"], href: (id) => `/engagements/${id}/tools/data-analytics` },
   { id: "lead-schedule", nameEn: "Lead Schedule", nameFr: "Feuilles maîtresses", descEn: "Index-named schedules with sub-totals and variances; extract to Excel, one tab per index", descFr: "Feuilles par indice avec sous-totaux et écarts ; extraction Excel, un onglet par indice", feeds: ["S4.1", "C2.1"], href: (id) => `/engagements/${id}/tools/lead-schedule` },
   { id: "review-notes", nameEn: "Review Notes", nameFr: "Notes de revue", descEn: "Every note raised on the file: section, owner, state and resolution time", descFr: "Toutes les notes du dossier : section, responsable, état et délai de résolution", feeds: ["C4.1", "C4.3"], href: (id) => `/engagements/${id}/tools/review-notes` },
   { id: "forms", nameEn: "Forms", nameFr: "Formulaires", descEn: "Every standard form in the file, grouped by phase", descFr: "Tous les formulaires du dossier, par phase", feeds: ["P1.1", "C4.1"], href: (id) => `/engagements/${id}/tools/forms` },

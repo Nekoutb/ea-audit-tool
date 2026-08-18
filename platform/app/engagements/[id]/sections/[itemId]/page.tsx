@@ -233,9 +233,9 @@ export default async function SectionPage(props: {
   const CROSS_LINKS: Record<string, string[]> = {
     "P1.1": ["P1.2", "P2.1"], "P2.1": ["P1.1", "P1.5"], "P1.2": ["P1.1", "E6.5"],
     "P1.5": ["P2.1", "C4.2"], "P6.1": ["C1.1", "S3.1"], "S4.1": ["E4.15"],
-    "P5.1": ["E2.1", "E4.1"], "S4.2": ["E6.3", "C2.2"], "S4.3": ["E6.2"], "S4.4": ["E6.7"],
+    "P5.1": ["E3.1", "E4.1"], "S4.2": ["E6.3", "C2.2"], "S4.3": ["E6.2"], "S4.4": ["E6.7"],
     "S3.1": ["P5.1", "E1.1"], "C1.1": ["P6.1", "C1.2"], "C2.2": ["E6.6", "E6.3", "C5.1"],
-    "S1.1": ["P6.2", "S1.2"], "S1.2": ["S1.3", "E1.1"], "S1.3": ["S1.2", "E1.1"], "S1.4": ["E2.1", "C2.1"],
+    "S1.1": ["P6.2", "S1.2"], "S1.2": ["S1.3", "E1.1"], "S1.3": ["S1.2", "E1.1"], "S1.4": ["E3.1", "C2.1"],
     "S2.1": ["S2.2", "E1.1"], "S2.2": ["E1.1", "S3.1"], "S5.1": ["P2.2"], "S5.2": ["P4.3"], "S5.3": ["E1.1"],
     "S6.1": ["P7.2", "P6.1", "S3.1"], "S6.2": ["P7.2", "S6.1"],
     "C3.1": ["C1.1", "E4.15"], "C3.2": ["E4.1", "E4.8"], "C4.2": ["P1.5", "C5.1"], "C5.1": ["C1.1", "C2.2", "C4.2"],
@@ -410,7 +410,7 @@ export default async function SectionPage(props: {
   //    Execution tasks keep the legacy page below (their tools stay untouched).
   if (phaseKey !== "execution") {
     return (
-      <main className="flex h-screen w-full flex-col gap-3 overflow-hidden px-6 py-4" data-testid="wp-screen">
+      <main className="flex min-h-screen w-full flex-col gap-3 px-4 py-4 xl:h-screen xl:overflow-hidden xl:px-6" data-testid="wp-screen">
         <AppNav locale={locale} current={{ id, label: engagement.name ?? engagement.clientName }} />
 
         <div className="flex flex-wrap items-center gap-x-4 gap-y-2 rounded-[var(--radius-atlas)] border border-glass-border bg-surface px-4 py-2.5 shadow-atlas-sm backdrop-blur-xl">
@@ -488,9 +488,9 @@ export default async function SectionPage(props: {
 
         <ErrorBanner error={error} locale={locale} />
 
-        <div className="grid min-h-0 flex-1 grid-cols-[25fr_50fr_25fr] gap-3 overflow-hidden">
-          <div className="flex min-h-0 flex-col gap-3 overflow-hidden">
-          <section className="flex max-h-[50%] min-h-0 flex-col overflow-hidden rounded-[var(--radius-atlas)] border border-glass-border bg-surface px-4 py-3 shadow-atlas-sm backdrop-blur-xl" data-testid="wp-guidance">
+        <div className="grid min-h-0 flex-1 grid-cols-1 gap-3 xl:grid-cols-[25fr_50fr_25fr] xl:overflow-hidden">
+          <div className="flex min-h-0 flex-col gap-3 xl:overflow-hidden">
+          <section className="flex min-h-0 flex-col overflow-hidden rounded-[var(--radius-atlas)] border border-glass-border bg-surface px-4 py-3 shadow-atlas-sm backdrop-blur-xl xl:max-h-[50%]" data-testid="wp-guidance">
             <h2 className="text-[11px] font-extrabold uppercase tracking-[0.07em] text-muted">Guidance</h2>
             <p className="mt-1 text-[10.5px] font-semibold text-emerald-700 dark:text-emerald-400">{paperDef.std}</p>
             <ul className="mt-2 flex min-h-0 flex-col gap-1.5 overflow-y-auto">
@@ -512,7 +512,7 @@ export default async function SectionPage(props: {
           />
           </div>
 
-          <section className="flex min-h-0 flex-col overflow-hidden rounded-[var(--radius-atlas)] border border-glass-border bg-surface px-4 py-3 shadow-atlas backdrop-blur-xl">
+          <section className="flex min-h-[520px] min-w-0 flex-col overflow-hidden rounded-[var(--radius-atlas)] border border-glass-border bg-surface px-4 py-3 shadow-atlas backdrop-blur-xl xl:min-h-0">
             {sigAccounts ? (
               <div className="mb-2 min-h-0 overflow-auto" data-testid="wp-sig-accounts">
                 <SignificantAccounts engagementId={id} view={sigAccounts} locale={isFr ? "fr" : "en"} />
@@ -615,7 +615,7 @@ export default async function SectionPage(props: {
             )}
           </section>
 
-          <section className="flex min-h-0 flex-col gap-3 overflow-hidden">
+          <section className="flex min-h-0 flex-col gap-3 xl:overflow-hidden">
             <TaskAttachments fileItemId={itemId} initial={attachments} locale={fr ? "fr" : "en"} compact />
             <div className="flex min-h-0 flex-1 flex-col overflow-hidden rounded-[var(--radius-atlas)] border border-glass-border bg-surface px-4 py-3 shadow-atlas-sm backdrop-blur-xl" data-testid="wp-linked">
               <h2 className="text-[11px] font-extrabold uppercase tracking-[0.07em] text-muted">

@@ -22,7 +22,7 @@ describe("default audit file index", () => {
   });
 
   it("ships the standard cross-cutting E-sections", () => {
-    for (const code of ["E4.15", "E4.16", "E6.1", "E6.2", "E6.3", "E2.1", "E6.4", "E6.5", "E6.6", "E6.7"]) {
+    for (const code of ["E4.15", "E4.16", "E6.1", "E6.2", "E6.3", "E3.1", "E6.4", "E6.5", "E6.6", "E6.7"]) {
       expect(codes).toContain(code);
     }
   });

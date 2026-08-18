@@ -203,8 +203,15 @@ export async function addOtherPsp(
   });
 }
 
-/** The working-paper fields each procedure carries (sketch: E1 screen). */
-const PSP_FIELDS = new Set(["r", "objective", "approach", "tools", "conclusion"]);
+/** The working-paper fields each procedure carries (sketch: E1 open row). */
+const PSP_FIELDS = new Set([
+  "r",
+  "finding",
+  "adj_debit_account",
+  "adj_debit_amount",
+  "adj_credit_account",
+  "adj_credit_amount",
+]);
 
 /** Save one of a step's working-paper fields under the task's psp paper. */
 export async function savePspResult(

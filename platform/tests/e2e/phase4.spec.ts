@@ -55,7 +55,6 @@ test("Phase 4: step execution → findings routing → C1.1 vs materiality → r
   await page.getByTestId("psp-other-add").click();
   await page.getByTestId("psp-row-OSP-1").click();
   await page.locator("[data-testid^=psp-done-]").check();
-  await page.getByTestId("psp-back").click();
   await expect(page.getByTestId("psp-row-OSP-1")).toContainText("✓");
 
   // Findings and control tests live on the general-procedures task (E5.1).

@@ -123,9 +123,9 @@ test("full Phase 2 acceptance → planning → gates → close", async ({ page }
   await page.getByTestId("generate-program").click();
   await expect(page.getByTestId("program-table")).toContainText(/EXTENDED/i);
 
-  // --- E2.1: program links the management-override risk ---
+  // --- E3.1: program links the management-override risk ---
   await page.goto(engagementUrl);
-  await page.getByTestId("open-section-E2.1").click();
+  await page.getByTestId("open-section-E3.1").click();
   await page.waitForURL("**/sections/**");
   await page.getByTestId("generate-program").click();
   await expect(page.getByTestId("program-table")).toBeVisible();

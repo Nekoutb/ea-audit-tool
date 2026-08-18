@@ -39,7 +39,7 @@ const LETTER_OF: Record<string, string> = {
   "E4.14": "Q", // Cash Flow Statement Tie-out
   "E4.15": "Q", // Commitments & Contingencies
   "E4.16": "Q", // Equity & Reserves
-  "E6.1": "G", "E6.2": "G", "E6.3": "G", "E2.1": "G", "E6.4": "G", "E6.5": "G", "E6.6": "G", "E6.7": "G",
+  "E6.1": "G", "E6.2": "G", "E6.3": "G", "E3.1": "G", "E6.4": "G", "E6.5": "G", "E6.6": "G", "E6.7": "G",
   "E1.1": "G", "E1.2": "G", // IT overlay
 };
 
