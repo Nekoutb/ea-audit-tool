@@ -77,7 +77,7 @@ export async function seedPresumedRisks(
   engagementId: string,
 ): Promise<void> {
   const sections = await tx.query<{ id: string; code: string }>(
-    "SELECT id, code FROM file_item WHERE engagement_id = $1 AND code IN ('E4.1', 'E2.1')",
+    "SELECT id, code FROM file_item WHERE engagement_id = $1 AND code IN ('E4.20', 'E2.1')",
     [engagementId],
   );
   const byCode = new Map(sections.rows.map((row) => [row.code, row.id]));
@@ -86,7 +86,7 @@ export async function seedPresumedRisks(
     {
       description: "Presumed fraud risk in revenue recognition (ISA 240)",
       presumed: "revenue_fraud",
-      section: byCode.get("E4.1"),
+      section: byCode.get("E4.20"),
       assertions: ["E", "A"],
     },
     {

@@ -105,13 +105,24 @@ test("Phase 7: gates block → complete file → issue report → archive → ro
   await page.getByTestId("create-materiality").click();
   await page.getByTestId("approve-materiality").click();
 
-  for (const section of ["E4.1", "E2.1"]) {
+  // E4 accounts run on substantive procedures now (no generated program);
+  // the program generator remains on the standards-response tasks.
+  for (const section of ["E2.1"]) {
     await page.goto(engagementUrl);
     await page.getByTestId(`open-section-${section}`).click();
     await page.waitForURL("**/sections/**");
     await page.getByTestId("generate-program").click();
     await expect(page.getByTestId("program-table")).toBeVisible();
   }
+  // Answer the presumed revenue-fraud risk with a substantive procedure on
+  // Revenue (E4.20) — the procedure links as the risk's response.
+  await page.goto(engagementUrl);
+  await page.getByTestId("open-section-E4.20").click();
+  await page.waitForURL("**/sections/**");
+  await page.getByTestId("psp-add-row").click();
+  await page.getByTestId("psp-other-text").fill("Substantive testing of revenue recognition and cut-off.");
+  await page.getByTestId("psp-other-add").click();
+  await expect(page.getByTestId("psp-row-OSP-1")).toBeVisible();
   for (const code of ["P2.2", "P5.2", "S3.1"]) {
     await partnerSignCode(page, engagementUrl, code);
   }
@@ -138,6 +149,19 @@ test("Phase 7: gates block → complete file → issue report → archive → ro
     await page.getByTestId("review-conclusion").click();
     await expect(page.getByTestId("conclusion-state")).toContainText("Objectives achieved.");
   }
+
+  // Revenue (E4.20): complete its substantive procedure and conclude — the
+  // account-page flow (procedure list → detail → done, conclusion footer).
+  await page.goto(engagementUrl);
+  await page.getByTestId("open-section-E4.20").click();
+  await page.waitForURL("**/sections/**");
+  await page.getByTestId("psp-row-OSP-1").click();
+  await page.locator("[data-testid^=psp-done-]").check();
+  await page.getByTestId("psp-back").click();
+  await page.getByTestId("section-conclusion").fill("Objectives achieved.");
+  await page.getByTestId("save-conclusion").click();
+  await page.getByTestId("review-conclusion").click();
+  await expect(page.getByTestId("conclusion-state")).toContainText("Objectives achieved.");
 
   // Conclusion tab: gates visible, several failing; issuance is BLOCKED.
   await page.goto(`${engagementUrl}/conclusion`);

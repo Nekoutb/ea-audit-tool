@@ -63,7 +63,7 @@ export const TASK_GROUPS: TaskGroupDef[] = [
   // ---- Execution ----
   { id: "e1", code: "E1", section: "execution", titleEn: "Tests of Controls & Updates", titleFr: "Tests de contrôles & mises à jour", members: ["E1.1", "E1.2", "E1.3"] },
   { id: "e2", code: "E2", section: "execution", titleEn: "Journal Entries & Fraud", titleFr: "Écritures comptables & fraude", members: ["E2.1"] },
-  { id: "e4", code: "E4", section: "execution", titleEn: "Accounts", titleFr: "Comptes", members: ["E4.1", "E4.2", "E4.3", "E4.4", "E4.5", "E4.6", "E4.7", "E4.8", "E4.9", "E4.10", "E4.11", "E4.12", "E4.13", "E4.14", "E4.15", "E4.16"] },
+  { id: "e4", code: "E4", section: "execution", titleEn: "Accounts", titleFr: "Comptes", members: ["E4.1", "E4.2", "E4.3", "E4.4", "E4.5", "E4.6", "E4.7", "E4.8", "E4.9", "E4.10", "E4.11", "E4.12", "E4.13", "E4.14", "E4.15", "E4.16", "E4.17", "E4.18", "E4.19", "E4.20", "E4.21", "E4.22", "E4.23", "E4.24", "E4.25", "E4.26", "E4.27", "E4.28", "E4.29", "E4.30", "E4.31", "E4.32", "E4.33", "E4.34", "E4.35", "E4.36"] },
   { id: "e5", code: "E5", section: "execution", titleEn: "General Procedures", titleFr: "Procédures générales", members: ["E5.1", "E5.2", "E5.3", "E5.4", "E5.5"] },
   { id: "e6", code: "E6", section: "execution", titleEn: "Standards Responses & Reassessment", titleFr: "Réponses normatives & réévaluation", members: ["E6.1", "E6.2", "E6.3", "E6.4", "E6.5", "E6.6", "E6.7", "E6.8"] },
 

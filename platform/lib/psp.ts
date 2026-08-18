@@ -142,21 +142,42 @@ export async function generatePsp(
     if (existing.rows[0]) return 0;
     let seq = 0;
     let n = 0;
+    let firstStepId: string | null = null;
     for (const idx of indexes) {
       let i = 0;
       for (const proc of pspFor(idx)) {
         i += 1;
         seq += 10;
         n += 1;
-        await tx.query(
+        const inserted = await tx.query<{ id: string }>(
           `INSERT INTO program_step (tenant_id, engagement_id, file_item_id, seq, description, assertions, source)
-           VALUES ($1, $2, $3, $4, $5, $6, 'psp')`,
-          [tenantId, engagementId, fileItemId, seq, `${idx}-${i} — ${proc.en}`, proc.a.split(","), ],
+           VALUES ($1, $2, $3, $4, $5, $6, 'psp') RETURNING id`,
+          [tenantId, engagementId, fileItemId, seq, `${idx}${i} — ${proc.en}`, proc.a.split(","), ],
         );
+        if (!firstStepId) firstStepId = inserted.rows[0].id;
       }
     }
+    // the procedures ARE the response: link the account's live significant
+    // risks so the planning stand-back sees them answered
+    if (firstStepId) await linkSectionRisks(tx, tenantId, fileItemId, firstStepId);
     return n;
   });
+}
+
+async function linkSectionRisks(
+  tx: { query: <T>(sql: string, params?: unknown[]) => Promise<{ rows: T[] }> },
+  tenantId: string,
+  fileItemId: string,
+  stepId: string,
+): Promise<void> {
+  await tx.query(
+    `INSERT INTO risk_response (tenant_id, risk_id, program_step_id)
+     SELECT $1, rs.risk_id, $3 FROM risk_section rs
+       JOIN risk r ON r.id = rs.risk_id AND r.rebutted = false
+      WHERE rs.file_item_id = $2
+     ON CONFLICT DO NOTHING`,
+    [tenantId, fileItemId, stepId],
+  );
 }
 
 /** Add one "other substantive procedure" (user-defined). */
@@ -173,28 +194,35 @@ export async function addOtherPsp(
       "SELECT coalesce(max(seq), 0) + 10 AS v, count(*) FILTER (WHERE description LIKE 'OSP-%')::int + 1 AS n FROM program_step WHERE file_item_id = $1",
       [fileItemId],
     );
-    await tx.query(
+    const inserted = await tx.query<{ id: string }>(
       `INSERT INTO program_step (tenant_id, engagement_id, file_item_id, seq, description, assertions, source)
-       VALUES ($1, $2, $3, $4, $5, $6, 'custom')`,
+       VALUES ($1, $2, $3, $4, $5, $6, 'custom') RETURNING id`,
       [tenantId, engagementId, fileItemId, next.rows[0].v, `OSP-${next.rows[0].n} — ${description.trim()}`, assertions.filter((a) => "CEAVP".includes(a))],
     );
+    await linkSectionRisks(tx, tenantId, fileItemId, inserted.rows[0].id);
   });
 }
 
-/** Save a step's execution result under the task's psp paper. */
+/** The working-paper fields each procedure carries (sketch: E1 screen). */
+const PSP_FIELDS = new Set(["r", "objective", "approach", "tools", "conclusion"]);
+
+/** Save one of a step's working-paper fields under the task's psp paper. */
 export async function savePspResult(
   engagementId: string,
   taskCode: string,
   stepId: string,
   value: string,
+  field = "r",
 ): Promise<void> {
   const { tenantId, userId } = await requireTenant();
   if (!/^[0-9a-f-]{36}$/.test(stepId)) throw new Error("invalid-step");
+  if (!PSP_FIELDS.has(field)) throw new Error("invalid-field");
+  const key = `${field}_${stepId}`;
   await withTenant(tenantId, async (tx) => {
     if (value.trim() === "") {
       await tx.query(
         "DELETE FROM form_response WHERE engagement_id = $1 AND code = $2 AND field_key = $3",
-        [engagementId, `psp:${taskCode}`, `r_${stepId}`],
+        [engagementId, `psp:${taskCode}`, key],
       );
       return;
     }
@@ -203,7 +231,7 @@ export async function savePspResult(
        VALUES ($1, $2, $3, $4, to_jsonb($5::text), $6)
        ON CONFLICT (engagement_id, code, field_key)
        DO UPDATE SET value = EXCLUDED.value, updated_by = EXCLUDED.updated_by, updated_at = now()`,
-      [tenantId, engagementId, `psp:${taskCode}`, `r_${stepId}`, value, userId],
+      [tenantId, engagementId, `psp:${taskCode}`, key, value, userId],
     );
   });
 }

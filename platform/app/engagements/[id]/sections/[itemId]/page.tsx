@@ -202,10 +202,12 @@ export default async function SectionPage(props: {
   const fscpVals = section.code === "S1.4" ? await fscpValues(id) : null;
   // E4.x — the account workpaper: lead-schedule tab + substantive procedures
   const isAccountTask = section.code.startsWith("E4.");
-  const taskIndexes = isAccountTask ? indexesForTask(section.code) : [];
-  const accountSchedules = isAccountTask
-    ? (await apLeadSchedules(id)).filter((s) => taskIndexes.includes(s.def.code))
-    : [];
+  // ONE index per account task — its letter is the working paper's identity
+  const accountIndex = isAccountTask ? (indexesForTask(section.code)[0] ?? null) : null;
+  const accountInIndex =
+    isAccountTask && accountIndex
+      ? (await apLeadSchedules(id)).some((s) => s.def.code === accountIndex)
+      : isAccountTask; // non-index tasks (Leases, TFT) stay usable
   const pspVals = isAccountTask ? await pspResults(id, section.code) : {};
   // P7 — the planning review & approval summary takes over the centre column
   const ras = section.code === "P7.2" ? await planningRas(id) : null;
@@ -311,6 +313,98 @@ export default async function SectionPage(props: {
     `grid h-7 w-7 place-items-center rounded-full text-[12px] font-extrabold transition ${
       on ? "bg-emerald-600 text-white" : "bg-surface-2 text-muted hover:bg-line/70"
     }`;
+
+  // ── E4 account tasks: a clean page — no phase header, no questionnaire,
+  //    no legacy panels. Back returns to the Accounts group; the content is
+  //    the procedure list (sketch) with each procedure's working paper.
+  if (isAccountTask) {
+    return (
+      <main className="min-h-screen w-full px-6 py-6">
+        <AppNav locale={locale} hideLinks current={{ id, label: engagement.name ?? engagement.clientName }} />
+        <div className="mt-5 flex flex-wrap items-center gap-3">
+          <Link
+            href={`/engagements/${id}/groups/e4`}
+            className="grid h-8 w-8 place-items-center rounded-full text-[16px] font-bold text-ink-soft transition hover:bg-surface-2 hover:text-ink"
+            title={fr ? "Retour aux comptes" : "Back to Accounts"}
+            aria-label={fr ? "Retour" : "Back"}
+            data-testid="wp-back-accounts"
+          >
+            ←
+          </Link>
+          <h1 className="min-w-0 flex-1 truncate text-[20px] font-semibold leading-tight tracking-[-0.02em] text-ink">
+            {locale === "fr" ? section.title_fr : section.title_en}
+          </h1>
+          <span className="flex items-center gap-1.5 text-[12px] text-muted">
+            {fr ? "Assigné à" : "Assigned to"}
+            {canAssign ? (
+              <form action={assignTaskAction.bind(null, id, itemId)} className="flex items-center gap-1">
+                <select name="assignee" defaultValue={assignee?.userId ?? ""} className={input} data-testid="task-assignee">
+                  <option value="">—</option>
+                  {team.map((member) => (
+                    <option key={member.userId} value={member.userId}>{member.userName}</option>
+                  ))}
+                </select>
+                <SubmitButton className="rounded-[var(--radius-atlas-sm)] border border-line-strong px-2 py-1 text-[11.5px] text-ink-soft hover:bg-surface-2" testId="task-assign-save">OK</SubmitButton>
+              </form>
+            ) : (
+              <b className="text-ink-soft" data-testid="task-assignee">{assignee?.name ?? "—"}</b>
+            )}
+          </span>
+        </div>
+        <ErrorBanner error={error} locale={locale} />
+        <Panel className="mt-4">
+          <AccountWorkpaper
+            engagementId={id}
+            fileItemId={itemId}
+            taskCode={section.code}
+            indexCode={accountIndex}
+            inIndex={accountInIndex}
+            steps={steps.filter((s) => s.source === "psp" || s.description.startsWith("OSP-"))}
+            results={pspVals}
+            attachmentsSlot={<TaskAttachments fileItemId={itemId} initial={attachments} locale={fr ? "fr" : "en"} compact />}
+            locale={isFr ? "fr" : "en"}
+          />
+        </Panel>
+
+        {/* the account's conclusion — every working paper concludes (prepare + review) */}
+        <Panel className="mt-4" data-testid="account-conclusion">
+          <PanelHeader title={te.conclusionTitle} />
+          {conclusion?.conclusion ? (
+            <div className="mt-2 text-sm text-ink-soft" data-testid="conclusion-state">
+              <p>{conclusion.conclusion}</p>
+              <p className="mt-1 text-xs text-muted">
+                {te.preparedBy}: {conclusion.preparedByName ?? "—"} · {te.reviewedBy}: {conclusion.reviewedByName ?? "—"}
+              </p>
+            </div>
+          ) : null}
+          <form action={saveConclusionAction.bind(null, id, itemId)} className="mt-3 flex flex-wrap items-end gap-2">
+            <input
+              name="conclusion"
+              required
+              placeholder={te.conclusionTitle}
+              defaultValue={conclusion?.conclusion ?? ""}
+              className={`${input} w-96 max-w-full`}
+              data-testid="section-conclusion"
+            />
+            <label className="flex items-center gap-1 text-xs text-muted">
+              <input type="checkbox" name="objectivesAchieved" defaultChecked={conclusion?.objectivesAchieved ?? true} />
+              {te.objectivesAchieved}
+            </label>
+            <button type="submit" className={btn} data-testid="save-conclusion">
+              {te.saveConclusion}
+            </button>
+          </form>
+          {conclusion?.conclusion && !conclusion.reviewedByName ? (
+            <form action={reviewConclusionAction.bind(null, id, itemId, false)} className="mt-2">
+              <button type="submit" className={btn} data-testid="review-conclusion">
+                {te.review}
+              </button>
+            </form>
+          ) : null}
+        </Panel>
+      </main>
+    );
+  }
 
   // ── The fixed working-paper screen: header band + 25/50/25, no page scroll.
   //    Execution tasks keep the legacy page below (their tools stay untouched).
@@ -625,13 +719,14 @@ export default async function SectionPage(props: {
         )}
       </div>
 
-      {isAccountTask ? (
-        <div className="mt-6" data-testid="wp-account-workpaper">
+      {false ? (
+        <div className="mt-6" data-testid="wp-account-workpaper-legacy">
           <AccountWorkpaper
             engagementId={id}
             fileItemId={itemId}
             taskCode={section.code}
-            schedules={accountSchedules}
+            indexCode={accountIndex}
+            inIndex={accountInIndex}
             steps={steps.filter((s) => s.source === "psp" || s.description.startsWith("OSP-"))}
             results={pspVals}
             locale={isFr ? "fr" : "en"}

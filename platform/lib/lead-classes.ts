@@ -216,11 +216,14 @@ export function subIndexFor(account: string): string | null {
  * never chosen by the user: the index IS the lead schedule.
  */
 export const INDEX_SECTION: Record<string, string> = {
-  T: "E4.16", Q: "E4.8", P1: "E4.11", P2: "E4.11", P3: "E4.9", P4: "E4.9",
-  L: "E4.6", K: "E4.5", J: "E4.7", F: "E4.4", N: "E4.2", E: "E4.1",
-  O1: "E4.9", O2: "E4.9", O4: "E4.9", I1: "E6.2", I2: "E6.2",
-  G2: "E4.9", G3: "E4.9", C: "E4.8",
-  UA: "E4.1", UB2: "E4.1", UC: "E4.8", U1: "E4.13",
-  VA1: "E4.2", VA2: "E4.4", VB: "E4.3", VO: "E4.10", VD1: "E4.2",
-  VD2: "E4.5", VD3: "E4.11", VD4: "E4.2", VD5: "E4.8", V1: "E4.13",
+  // ONE task per index — an account working paper never mixes indexes
+  // (balance sheet E4.1–E4.19, income statement E4.20–E4.34)
+  E: "E4.1", N: "E4.2", F: "E4.3", K: "E4.4", L: "E4.5", J: "E4.6",
+  C: "E4.7", Q: "E4.8", T: "E4.9", P1: "E4.10", P2: "E4.11", P3: "E4.12",
+  P4: "E4.13", O1: "E4.14", O2: "E4.15", I1: "E4.16", I2: "E4.17",
+  G2: "E4.18", G3: "E4.19",
+  UA: "E4.20", UB2: "E4.21", UC: "E4.22", U1: "E4.23",
+  VA1: "E4.24", VA2: "E4.25", VB: "E4.26", VO: "E4.27", VD1: "E4.28",
+  VD2: "E4.29", VD3: "E4.30", VD4: "E4.31", VD5: "E4.32", V1: "E4.33",
+  O4: "E4.34",
 };

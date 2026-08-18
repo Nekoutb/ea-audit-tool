@@ -82,7 +82,13 @@ export default async function SamplingPage(props: { params: Promise<{ id: string
           hint={fr ? "assigné directement à la conception du test (S2.2)" : "assigned straight onto the test design (S2.2)"}
         />
         <div className="mt-3">
-          <SamplingStudio engagementId={id} purposes={purposes} glAccounts={glAccounts} locale={fr ? "fr" : "en"} />
+          <SamplingStudio
+            engagementId={id}
+            purposes={purposes}
+            glAccounts={glAccounts}
+            s22Href={(() => { const t = tasks.find((x) => x.code === "S2.2"); return t ? `/engagements/${id}/sections/${t.id}` : undefined; })()}
+            locale={fr ? "fr" : "en"}
+          />
         </div>
       </Panel>
 

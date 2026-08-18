@@ -45,16 +45,24 @@ test("Phase 4: step execution → findings routing → C1.1 vs materiality → r
   await page.getByTestId("create-materiality").click();
   await page.getByTestId("approve-materiality").click();
 
-  // E4.2 workspace: add a step and complete it with a conclusion (4.2).
+  // E4.2 account workpaper: add a substantive procedure and complete it (4.2).
   await page.goto(engagementUrl);
   await page.getByTestId("open-section-E4.2").click();
   await page.waitForURL("**/sections/**");
   const sectionUrl = page.url();
-  await page.getByTestId("custom-step-description").fill("Search for unrecorded liabilities.");
-  await page.getByTestId("add-custom-step").click();
-  await page.locator("[data-testid^=step-conclusion-]").first().fill("No unrecorded liabilities found.");
-  await page.locator("[data-testid^=complete-step-]").first().click();
-  await expect(page.locator("[data-testid^=step-status-]").first()).toContainText("✓");
+  await page.getByTestId("psp-add-row").click();
+  await page.getByTestId("psp-other-text").fill("Search for unrecorded liabilities.");
+  await page.getByTestId("psp-other-add").click();
+  await page.getByTestId("psp-row-OSP-1").click();
+  await page.locator("[data-testid^=psp-done-]").check();
+  await page.getByTestId("psp-back").click();
+  await expect(page.getByTestId("psp-row-OSP-1")).toContainText("✓");
+
+  // Findings and control tests live on the general-procedures task (E5.1).
+  await page.goto(engagementUrl);
+  await page.getByTestId("open-section-E5.1").click();
+  await page.waitForURL("**/sections/**");
+  const e5Url = page.url();
 
   // Matter arising → C1.1 misstatement above trivial (4.4/4.5).
   await page.getByTestId("finding-route").selectOption("b5");
@@ -63,7 +71,7 @@ test("Phase 4: step execution → findings routing → C1.1 vs materiality → r
   await page.getByTestId("route-finding").click();
 
   // Control deviation → deficiency → C5.1 (4.7).
-  await page.goto(sectionUrl);
+  await page.goto(e5Url);
   await page.getByTestId("control-description").fill("Three-way match control");
   await page.getByTestId("control-result").selectOption("deviation");
   await page.getByTestId("control-decision").selectOption("deficiency");
@@ -75,7 +83,7 @@ test("Phase 4: step execution → findings routing → C1.1 vs materiality → r
   await page.getByTestId("finding-title").fill("New inventory obsolescence risk identified");
   await page.getByTestId("route-finding").click();
 
-  // Section conclusion: prepare + review (4.11) — no significant risk on E4.2.
+  // Section conclusion: prepare + review (4.11) — on the E4.2 account page.
   await page.goto(sectionUrl);
   await page.getByTestId("section-conclusion").fill("Objectives achieved for payables.");
   await page.getByTestId("save-conclusion").click();

@@ -94,11 +94,14 @@ export function SamplingStudio({
   engagementId,
   purposes,
   glAccounts,
+  s22Href,
   locale,
 }: {
   engagementId: string;
   purposes: SamplingPurpose[];
   glAccounts: GlAccountOption[];
+  /** the S2.2 design screen — clicking a control's description returns there */
+  s22Href?: string;
   locale: "en" | "fr";
 }) {
   const fr = locale === "fr";
@@ -236,7 +239,13 @@ export function SamplingStudio({
                   return (
                     <tr key={p.controlId} data-testid={`toc-row-${p.controlName.replace(/[^A-Za-z0-9]/g, "_").slice(0, 24)}`}>
                       <td className={`${td} whitespace-normal`}>
-                        <span className="font-medium text-ink">{p.controlName}</span>
+                        {s22Href ? (
+                          <a href={s22Href} className="font-medium text-ink underline-offset-2 hover:text-emerald-700 hover:underline dark:hover:text-emerald-400" title={fr ? "Ouvrir la conception du test (S2.2)" : "Open the test design (S2.2)"} data-testid={`toc-open-${p.controlName.replace(/[^A-Za-z0-9]/g, "_").slice(0, 24)}`}>
+                            {p.controlName}
+                          </a>
+                        ) : (
+                          <span className="font-medium text-ink">{p.controlName}</span>
+                        )}
                         {p.sole ? <span className="ml-1.5 rounded-full bg-[var(--color-warn-soft)] px-1.5 py-[1px] text-[9px] font-bold text-warn" title={fr ? "Seul contrôle couvrant une assertion — échantillon renforcé" : "Only control covering an assertion — larger sample"}>{fr ? "seul" : "sole"}</span> : null}
                         {p.sampleSize ? <span className="ml-1.5 text-[10px] text-muted tnum">({fr ? "actuel" : "current"}: {p.sampleSize})</span> : null}
                       </td>

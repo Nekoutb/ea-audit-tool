@@ -27,7 +27,7 @@ export async function POST(request: Request, context: { params: Promise<{ id: st
         );
         break;
       case "saveResult":
-        await savePspResult(id, String(body.taskCode), String(body.stepId), String(body.value ?? ""));
+        await savePspResult(id, String(body.taskCode), String(body.stepId), String(body.value ?? ""), String(body.field ?? "r"));
         break;
       case "toggleDone": {
         const { tenantId } = await requireTenant();
