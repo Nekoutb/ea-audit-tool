@@ -31,6 +31,9 @@ import { significantAccounts, specificThresholds } from "@/lib/significant-accou
 import { craRows } from "@/lib/cra";
 import { listEstimates, listRelatedParties } from "@/lib/registers";
 import { fscpValues, scotStudio, scotSummary, walkthroughValues } from "@/lib/scots";
+import { indexesForTask, pspResults } from "@/lib/psp";
+import { apLeadSchedules } from "@/lib/analytical-procedures";
+import { AccountWorkpaper } from "@/components/AccountWorkpaper";
 import { ScotRegister } from "@/components/ScotRegister";
 import { WcgwBuilder } from "@/components/WcgwBuilder";
 import { WalkthroughBoard } from "@/components/WalkthroughBoard";
@@ -197,6 +200,13 @@ export default async function SectionPage(props: {
   const wtValues = scotView && section.code === "S1.3" ? await walkthroughValues(id) : null;
   // S1.4 — the close process form (one per engagement, code 'fscp')
   const fscpVals = section.code === "S1.4" ? await fscpValues(id) : null;
+  // E4.x — the account workpaper: lead-schedule tab + substantive procedures
+  const isAccountTask = section.code.startsWith("E4.");
+  const taskIndexes = isAccountTask ? indexesForTask(section.code) : [];
+  const accountSchedules = isAccountTask
+    ? (await apLeadSchedules(id)).filter((s) => taskIndexes.includes(s.def.code))
+    : [];
+  const pspVals = isAccountTask ? await pspResults(id, section.code) : {};
   // P7 — the planning review & approval summary takes over the centre column
   const ras = section.code === "P7.2" ? await planningRas(id) : null;
   // Appendix 1 rows: the engagement team by seniority, then three free rows
@@ -614,6 +624,20 @@ export default async function SectionPage(props: {
           </span>
         )}
       </div>
+
+      {isAccountTask ? (
+        <div className="mt-6" data-testid="wp-account-workpaper">
+          <AccountWorkpaper
+            engagementId={id}
+            fileItemId={itemId}
+            taskCode={section.code}
+            schedules={accountSchedules}
+            steps={steps.filter((s) => s.source === "psp" || s.description.startsWith("OSP-"))}
+            results={pspVals}
+            locale={isFr ? "fr" : "en"}
+          />
+        </div>
+      ) : null}
 
       <WorkingPaper
         code={section.code}

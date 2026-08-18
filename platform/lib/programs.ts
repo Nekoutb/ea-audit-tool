@@ -16,7 +16,7 @@ export interface ProgramStep {
   seq: number;
   description: string;
   assertions: Assertion[];
-  source: "library" | "custom" | "risk_extension";
+  source: "library" | "custom" | "risk_extension" | "psp";
   status: "planned" | "complete" | "na";
   linkedRiskIds: string[];
 }
