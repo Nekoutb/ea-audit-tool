@@ -140,7 +140,7 @@ export function CraBoard({
       {error ? <p className="text-[12px] font-semibold text-rose">{error}</p> : null}
 
       <div className="overflow-x-auto">
-        <table className="w-full min-w-[720px]">
+        <table className="w-full min-w-[600px]">
           <thead>
             <tr>
               <th className={`${label} px-2 py-1.5 text-left`}>{fr ? "Indice" : "Lead"}</th>
@@ -179,8 +179,12 @@ export function CraBoard({
                       </td>
                     ) : null}
                     <td className="px-2 py-1.5">
-                      <span className="text-[12.5px] font-bold text-ink">{cell.assertion}</span>
-                      <span className="ml-1.5 text-[11px] text-muted">{fr ? ASSERTION_LABELS[cell.assertion].fr : ASSERTION_LABELS[cell.assertion].en}</span>
+                      <span
+                        className="cursor-help text-[12.5px] font-bold text-ink"
+                        title={fr ? ASSERTION_LABELS[cell.assertion].fr : ASSERTION_LABELS[cell.assertion].en}
+                      >
+                        {cell.assertion}
+                      </span>
                       {cell.significant ? <span className="ml-1.5"><Chip tone="rose">{fr ? "Risque important" : "Significant risk"}</Chip></span> : null}
                       {cell.fraud ? <span className="ml-1"><Chip tone="rose">{fr ? "Fraude" : "Fraud"}</Chip></span> : null}
                     </td>
