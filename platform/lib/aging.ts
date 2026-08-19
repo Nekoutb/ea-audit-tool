@@ -9,6 +9,8 @@ import { requireTenant } from "@/lib/tenant";
 export interface AgingRow {
   party: string;
   name: string;
+  /** the party's first non-empty payment-terms value (only when mapped) */
+  terms: string | null;
   current: number;
   d31_60: number;
   d61_90: number;
@@ -18,11 +20,13 @@ export interface AgingRow {
 
 export interface AgingResult {
   rows: AgingRow[];
-  totals: Omit<AgingRow, "party" | "name">;
+  totals: Omit<AgingRow, "party" | "name" | "terms">;
   periodEnd: string;
   transactionCount: number;
   /** transactions skipped because their date could not be read */
   undated: number;
+  /** the dataset mapping carries a paymentTerms column */
+  hasTerms: boolean;
 }
 
 function parseDate(value: unknown): Date | null {
@@ -84,6 +88,7 @@ export async function agingFor(
     );
 
     const end = new Date(periodEnd + "T00:00:00Z");
+    const termsColumn = mapping.paymentTerms;
     const byParty = new Map<string, AgingRow>();
     let undated = 0;
     for (const { data } of rows.rows) {
@@ -99,12 +104,17 @@ export async function agingFor(
       const entry = byParty.get(party) ?? {
         party,
         name: mapping.partyName ? String(data[mapping.partyName] ?? "").trim() || party : party,
+        terms: null,
         current: 0,
         d31_60: 0,
         d61_90: 0,
         over90: 0,
         total: 0,
       };
+      if (termsColumn && entry.terms === null) {
+        const terms = String(data[termsColumn] ?? "").trim();
+        if (terms) entry.terms = terms;
+      }
       if (age <= 30) entry.current += amount;
       else if (age <= 60) entry.d31_60 += amount;
       else if (age <= 90) entry.d61_90 += amount;
@@ -135,6 +145,6 @@ export async function agingFor(
       { current: 0, d31_60: 0, d61_90: 0, over90: 0, total: 0 },
     );
 
-    return { rows: result, totals, periodEnd, transactionCount: rows.rows.length, undated };
+    return { rows: result, totals, periodEnd, transactionCount: rows.rows.length, undated, hasTerms: Boolean(termsColumn) };
   });
 }

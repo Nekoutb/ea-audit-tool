@@ -198,14 +198,17 @@ describe("7.10 OHADA statutory report", () => {
 
 describe("7.11/7.12 archive immutability + rollforward", () => {
   it("archives with a manifest, then blocks any document mutation", async () => {
-    // the ISA 230 archive gates demand the C6.2 assembly checklist concluded
-    await savePaper(
-      engagementId,
-      "C6.2",
-      Object.fromEntries(
-        requiredKeys(paperFor("C6.2")).map((k) => [k, k.startsWith("q_") || k.startsWith("c_") ? "yes" : "Done."]),
-      ),
-    );
+    // the ISA 230 archive gates demand the C6.2 assembly checklist AND the
+    // C4.1 review & approval summary concluded
+    for (const code of ["C6.2", "C4.1"]) {
+      await savePaper(
+        engagementId,
+        code,
+        Object.fromEntries(
+          requiredKeys(paperFor(code)).map((k) => [k, k.startsWith("q_") || k.startsWith("c_") ? "yes" : "Done."]),
+        ),
+      );
+    }
     await archiveEngagement(engagementId);
     const state = await getConclusionState(engagementId);
     expect(state.archivedAt).not.toBeNull();

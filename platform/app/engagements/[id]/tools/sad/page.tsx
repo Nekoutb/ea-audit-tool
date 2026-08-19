@@ -3,7 +3,6 @@ import { notFound, redirect } from "next/navigation";
 import { auth } from "@/auth";
 import { AppNav } from "@/components/AppNav";
 import { SadBoard } from "@/components/SadBoard";
-import { Panel } from "@/components/ui/atlas";
 import { getEngagement } from "@/lib/engagements";
 import { getLocale } from "@/lib/locale";
 import { sadView } from "@/lib/sad";
@@ -51,9 +50,9 @@ export default async function SadPage(props: { params: Promise<{ id: string }> }
         </div>
       </div>
 
-      <Panel className="mt-4 p-4">
+      <div className="mt-4">
         <SadBoard engagementId={id} view={view} locale={locale} />
-      </Panel>
+      </div>
     </main>
   );
 }

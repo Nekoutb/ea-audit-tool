@@ -124,7 +124,38 @@ export interface PspStep {
   status: string;
 }
 
-/** Generate the PSPs for the task's in-index accounts (idempotent). */
+/**
+ * The catalog positions selected for an index in the S5.5 design (union over
+ * assertions). null = S5.5 has recorded no selection for the index at all.
+ */
+async function dspSelectedIdx(
+  tx: { query: <T>(sql: string, params?: unknown[]) => Promise<{ rows: T[] }> },
+  engagementId: string,
+  indexCode: string,
+): Promise<number[] | null> {
+  const r = await tx.query<{ value: unknown }>(
+    "SELECT value FROM form_response WHERE engagement_id = $1 AND code = 'dsp' AND field_key LIKE $2",
+    [engagementId, `${indexCode}\\_sel\\_%`],
+  );
+  if (r.rows.length === 0) return null;
+  const out = new Set<number>();
+  for (const row of r.rows) {
+    try {
+      const arr = JSON.parse(typeof row.value === "string" ? row.value : String(row.value ?? ""));
+      if (Array.isArray(arr)) arr.forEach((n) => Number.isInteger(n) && n >= 0 && out.add(n));
+    } catch {
+      /* unreadable selection row — skip */
+    }
+  }
+  return [...out].sort((a, b) => a - b);
+}
+
+/**
+ * Generate the PSPs for the task's in-index accounts (idempotent). Only the
+ * procedures selected per assertion in the S5.5 design are generated — an
+ * index with no recorded selection generates nothing and returns -1 so the
+ * paper can point the preparer to S5.5.
+ */
 export async function generatePsp(
   engagementId: string,
   fileItemId: string,
@@ -142,10 +173,17 @@ export async function generatePsp(
     if (existing.rows[0]) return 0;
     let seq = 0;
     let n = 0;
+    let sawSelection = false;
     let firstStepId: string | null = null;
     for (const idx of indexes) {
+      const chosen = await dspSelectedIdx(tx, engagementId, idx);
+      if (chosen === null) continue;
+      sawSelection = true;
+      const catalog = pspFor(idx);
       let i = 0;
-      for (const proc of pspFor(idx)) {
+      for (const pos of chosen) {
+        const proc = catalog[pos];
+        if (!proc) continue;
         i += 1;
         seq += 10;
         n += 1;
@@ -157,6 +195,7 @@ export async function generatePsp(
         if (!firstStepId) firstStepId = inserted.rows[0].id;
       }
     }
+    if (!sawSelection) return -1;
     // the procedures ARE the response: link the account's live significant
     // risks so the planning stand-back sees them answered
     if (firstStepId) await linkSectionRisks(tx, tenantId, fileItemId, firstStepId);

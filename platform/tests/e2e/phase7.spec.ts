@@ -251,6 +251,48 @@ test("Phase 7: gates block → complete file → issue report → archive → ro
   await page.getByTestId("wp-save-C6.2").click();
   await page.waitForLoadState("networkidle");
 
+  // C4.1 review & approval summary — an archive gate: the paper itself must
+  // be concluded, not just its document generated.
+  await page.goto(`${engagementUrl}/groups/c4`);
+  await page.locator('tr[role="link"]', { hasText: "C4.1" }).first().click();
+  await page.waitForURL("**/sections/**");
+  for (let s = 0; s < 8; s++) {
+    for (const radio of await page.locator('form[data-testid="wp-form-C4.1"] [data-testid$="-yes"]:visible').all()) {
+      await radio.click();
+    }
+    for (const area of await page.locator('form[data-testid="wp-form-C4.1"] textarea:visible').all()) {
+      await area.fill("Reviewed and approved — see the sign-off record.");
+    }
+    const next41 = page.getByTestId("wp-next");
+    if (await next41.isEnabled()) await next41.click();
+    else break;
+  }
+  await page.getByTestId("wp-save-C4.1").click();
+  await page.waitForLoadState("networkidle");
+
+  // Every working paper signed as preparer AND reviewer — an archive gate.
+  // Sweep the file index: open each document and complete both sign-offs.
+  await page.goto(engagementUrl);
+  const docHrefs = new Set<string>();
+  for (const a of await page.locator('a[href*="/documents/"]').all()) {
+    const href = await a.getAttribute("href");
+    if (href) docHrefs.add(href);
+  }
+  for (const href of docHrefs) {
+    await page.goto(href);
+    await page.waitForLoadState("networkidle");
+    const signPrep = page.getByTestId("sign-preparer");
+    if (await signPrep.isVisible().catch(() => false)) {
+      await signPrep.click();
+      await expect(page.getByTestId("signed-preparer")).toBeVisible();
+    }
+    const signPart = page.getByTestId("sign-partner");
+    if (await signPart.isVisible().catch(() => false)) {
+      await signPart.click();
+      await expect(page.getByTestId("signed-partner")).toBeVisible();
+    }
+  }
+
   // Archive → gates green → immutable; the rollforward form appears.
   await page.goto(`${engagementUrl}/conclusion`);
   await expect(page.getByTestId("archive-gates")).not.toContainText("✗");

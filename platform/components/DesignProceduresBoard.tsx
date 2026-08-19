@@ -9,6 +9,7 @@
 
 import { useState } from "react";
 import Link from "next/link";
+import { usePathname } from "next/navigation";
 import type { DspRow, DspView } from "@/lib/design-procedures";
 import { craTone, thresholdSuggestion, timingSuggestion, todLabel, type CraLevel, type CraTod } from "@/lib/cra-model";
 import { Chip } from "@/components/ui/atlas";
@@ -44,13 +45,35 @@ export function DesignProceduresBoard({
   locale: "en" | "fr";
 }) {
   const fr = locale === "fr";
+  const pathname = usePathname();
   const [open, setOpen] = useState<string | null>(null);
+  const [openSel, setOpenSel] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [values, setValues] = useState<Record<string, string>>(() => {
     const out: Record<string, string> = {};
     for (const r of view.rows) for (const [k, v] of Object.entries(r.values)) out[`${r.indexCode}_${k}`] = v;
     return out;
   });
+  // index|assertion → selected catalog positions
+  const [sels, setSels] = useState<Record<string, number[]>>(() => {
+    const out: Record<string, number[]> = {};
+    for (const r of view.rows) for (const [a, arr] of Object.entries(r.selected)) out[`${r.indexCode}|${a}`] = arr;
+    return out;
+  });
+
+  function toggleSel(indexCode: string, assertion: string, pos: number) {
+    const key = `${indexCode}|${assertion}`;
+    const cur = sels[key] ?? [];
+    const next = cur.includes(pos) ? cur.filter((n) => n !== pos) : [...cur, pos].sort((a, b) => a - b);
+    setSels((s) => ({ ...s, [key]: next }));
+    void save(indexCode, `sel_${assertion}`, JSON.stringify(next));
+  }
+
+  const rowSelectedCount = (row: DspRow) => {
+    const all = new Set<number>();
+    for (const c of row.cells) for (const n of sels[`${row.indexCode}|${c.assertion}`] ?? []) all.add(n);
+    return all.size;
+  };
 
   const label = "text-[10px] font-extrabold uppercase tracking-[0.07em] text-muted";
   const select = "w-full rounded-[var(--radius-atlas-sm)] border border-line-strong bg-surface px-1.5 py-1 text-[11.8px] text-ink outline-none focus:border-emerald-600";
@@ -113,15 +136,18 @@ export function DesignProceduresBoard({
               <span className="font-mono text-[11.5px] font-extrabold text-emerald-700/70 tnum dark:text-emerald-400/70">{row.indexCode}</span>
               <span className="min-w-0 flex-1 truncate text-[12.8px] font-semibold text-ink">{row.label}</span>
               {row.worst && level ? <Chip tone={craTone(level)}>{todLabel(row.worst, fr ? "fr" : "en")}</Chip> : <Chip tone="muted">{fr ? "ECR à évaluer" : "CRA pending"}</Chip>}
-              {row.ospRequired ? <Chip tone="warn">OSP</Chip> : null}
               <span className="text-[11px] text-muted">{isOpen ? "▾" : "▸"}</span>
             </button>
 
             {isOpen ? (
               <div className="flex flex-col gap-2.5 border-t border-line px-3 py-2.5" data-testid={`dsp-detail-${row.indexCode}`}>
-                <p className="text-[12px] text-ink-soft">
+                <p className="text-[12px] text-ink-soft" data-testid={`dsp-summary-${row.indexCode}`}>
+                  <b>{rowSelectedCount(row)}</b>
+                  {"/"}
                   <b>{row.pspCount}</b>{" "}
-                  {fr ? "procédures substantives primaires dans la bibliothèque" : "primary substantive procedures in the library"}
+                  {fr
+                    ? "procédures substantives primaires retenues — seules les procédures retenues sont générées dans le papier E4"
+                    : "primary substantive procedures selected — only selected procedures are generated in the E4 paper"}
                   {" · "}
                   {row.generated > 0
                     ? fr ? `${row.done}/${row.generated} exécutées dans le papier` : `${row.done}/${row.generated} executed in the workpaper`
@@ -129,7 +155,7 @@ export function DesignProceduresBoard({
                   {row.taskItemId ? (
                     <>
                       {" · "}
-                      <Link href={`/engagements/${engagementId}/sections/${row.taskItemId}`} className="font-semibold text-emerald-700 hover:underline dark:text-emerald-400" data-testid={`dsp-open-${row.indexCode}`}>
+                      <Link href={`/engagements/${engagementId}/sections/${row.taskItemId}?back=${encodeURIComponent(pathname)}`} className="font-semibold text-emerald-700 hover:underline dark:text-emerald-400" data-testid={`dsp-open-${row.indexCode}`}>
                         {fr ? `Ouvrir ${row.taskCode}` : `Open ${row.taskCode}`}
                       </Link>
                     </>
@@ -138,11 +164,12 @@ export function DesignProceduresBoard({
 
                 {/* design grid: one row per relevant assertion, against its own CRA */}
                 <div className="overflow-x-auto">
-                  <table className="w-full min-w-[680px]">
+                  <table className="w-full min-w-[860px]">
                     <thead>
                       <tr>
                         <th className={`${label} px-1.5 py-1 text-left`}>{fr ? "Assertion" : "Assertion"}</th>
                         <th className={`${label} px-1.5 py-1 text-left`}>CRA</th>
+                        <th className={`${label} px-1.5 py-1 text-left`}>{fr ? "Procédures substantives primaires" : "Primary substantive procedures"}</th>
                         <th className={`${label} px-1.5 py-1 text-left`}>{fr ? "Nature" : "Nature"}</th>
                         <th className={`${label} px-1.5 py-1 text-left`}>{fr ? "Calendrier" : "Timing"}</th>
                         <th className={`${label} px-1.5 py-1 text-left`}>{fr ? "Étendue" : "Extent"}</th>
@@ -152,6 +179,10 @@ export function DesignProceduresBoard({
                       {row.cells.map((c) => {
                         const cellLevel = levelOf(c.tod);
                         const allowed = timingAllowed(cellLevel);
+                        const selKey = `${row.indexCode}|${c.assertion}`;
+                        const covering = row.catalog.filter((p) => p.a.includes(c.assertion));
+                        const chosen = sels[selKey] ?? [];
+                        const selOpen = openSel === selKey;
                         return (
                           <tr key={c.assertion} className="border-t border-line align-top">
                             <td className="px-1.5 py-1.5">
@@ -160,6 +191,39 @@ export function DesignProceduresBoard({
                             </td>
                             <td className="px-1.5 py-1.5">
                               <Chip tone={craTone(cellLevel)}>{todLabel(c.tod, fr ? "fr" : "en")}</Chip>
+                            </td>
+                            <td className="relative px-1.5 py-1.5">
+                              <button
+                                type="button"
+                                onClick={() => setOpenSel(selOpen ? null : selKey)}
+                                className="w-full min-w-[150px] rounded-[var(--radius-atlas-sm)] border border-line-strong bg-surface px-2 py-1 text-left text-[11.8px] text-ink hover:border-emerald-600"
+                                data-testid={`dsp-sel-${row.indexCode}-${c.assertion}`}
+                              >
+                                {chosen.length > 0
+                                  ? `${chosen.length}/${covering.length} ${fr ? "retenues" : "selected"}`
+                                  : fr ? `— retenir (${covering.length})` : `— select (${covering.length})`}
+                                <span className="float-right text-muted">{selOpen ? "▴" : "▾"}</span>
+                              </button>
+                              {selOpen ? (
+                                <div className="absolute left-0 top-full z-20 mt-1 w-[340px] rounded-[var(--radius-atlas-sm)] border border-line-strong bg-surface p-2 shadow-atlas-sm" data-testid={`dsp-sel-list-${row.indexCode}-${c.assertion}`}>
+                                  {covering.length === 0 ? (
+                                    <p className="text-[11.5px] text-muted">{fr ? "Aucune procédure de la bibliothèque ne couvre cette assertion — ajouter une OSP." : "No library procedure covers this assertion — add an OSP."}</p>
+                                  ) : (
+                                    covering.map((p) => (
+                                      <label key={p.i} className="flex cursor-pointer items-start gap-2 rounded px-1.5 py-1 text-[11.8px] leading-snug text-ink-soft hover:bg-surface-2">
+                                        <input
+                                          type="checkbox"
+                                          checked={chosen.includes(p.i)}
+                                          onChange={() => toggleSel(row.indexCode, c.assertion, p.i)}
+                                          className="mt-0.5 h-3.5 w-3.5 accent-emerald-700"
+                                          data-testid={`dsp-sel-${row.indexCode}-${c.assertion}-${p.i}`}
+                                        />
+                                        <span>{fr ? p.fr : p.en}</span>
+                                      </label>
+                                    ))
+                                  )}
+                                </div>
+                              ) : null}
                             </td>
                             <td className="px-1.5 py-1.5">
                               <select

@@ -229,10 +229,19 @@ export function assemblyDeadline(reportDate: string): string {
  * assembly checklist concluded. The 60-day window is shown, not enforced: a
  * late file must still be archivable.
  */
-export async function archiveGates(engagementId: string): Promise<GateResult[]> {
+export interface ArchiveGate extends GateResult {
+  /** how many items still block the gate (0 when ok) */
+  pending: number;
+}
+
+export async function archiveGates(engagementId: string): Promise<ArchiveGate[]> {
   const { tenantId } = await requireTenant();
   const { paperFor, paperComplete, loadPaper } = await import("@/lib/working-papers");
-  const c62 = paperComplete(paperFor("C6.2"), await loadPaper(engagementId, "C6.2"));
+  const [c62, c41] = await Promise.all([
+    loadPaper(engagementId, "C6.2").then((v) => paperComplete(paperFor("C6.2"), v)),
+    loadPaper(engagementId, "C4.1").then((v) => paperComplete(paperFor("C4.1"), v)),
+  ]);
+  const completion = await completionGates(engagementId);
   return withTenant(tenantId, async (tx) => {
     const reportDate = await tx.query<{ report_date: string | null }>(
       "SELECT report_date::text FROM engagement WHERE id = $1",
@@ -247,18 +256,46 @@ export async function archiveGates(engagementId: string): Promise<GateResult[]> 
           AND NOT EXISTS (SELECT 1 FROM signoff s WHERE s.document_id = d.id AND s.role IN ('reviewer', 'partner') AND s.voided_at IS NULL)`,
       [engagementId],
     );
+    // every workpaper document needs BOTH sign-offs — an unsigned paper is an
+    // unfinished paper, whoever forgot it
+    const unsignedPapers = await count(
+      tx,
+      `SELECT count(*)::text AS n FROM document d
+        WHERE d.engagement_id = $1 AND d.kind = 'workpaper'
+          AND (NOT EXISTS (SELECT 1 FROM signoff s WHERE s.document_id = d.id AND s.role = 'preparer' AND s.voided_at IS NULL)
+            OR NOT EXISTS (SELECT 1 FROM signoff s WHERE s.document_id = d.id AND s.role IN ('reviewer', 'partner') AND s.voided_at IS NULL))`,
+      [engagementId],
+    );
+    // review notes: document-linked AND task-level (document_id IS NULL)
     const openNotes = await count(
       tx,
       `SELECT count(*)::text AS n FROM review_note rn
-         JOIN document d ON d.id = rn.document_id
-        WHERE d.engagement_id = $1 AND rn.status = 'open'`,
+         LEFT JOIN document d ON d.id = rn.document_id
+        WHERE rn.status = 'open'
+          AND (d.engagement_id = $1 OR (rn.document_id IS NULL AND rn.engagement_id = $1))`,
       [engagementId],
     );
+    // every control selected for testing is concluded on: design evaluated and
+    // operating effectiveness tested (or the selection reversed in S2.1)
+    const openControls = await count(
+      tx,
+      `SELECT count(*)::text AS n FROM scot_control c
+         JOIN scot s ON s.id = c.scot_id
+        WHERE s.engagement_id = $1 AND c.selected_for_testing
+          AND (c.design_eval IS NULL
+            OR NOT EXISTS (SELECT 1 FROM control_test ct WHERE ct.scot_control_id = c.id))`,
+      [engagementId],
+    );
+    const completionPending = completion.filter((g) => !g.ok).length;
     return [
-      { key: "report_issued", ok: reportDate.rows[0]?.report_date != null },
-      { key: "reviews_complete", ok: halfReviewed === 0 },
-      { key: "review_notes_cleared", ok: openNotes === 0 },
-      { key: "c62_checklist", ok: c62 },
+      { key: "report_issued", ok: reportDate.rows[0]?.report_date != null, pending: reportDate.rows[0]?.report_date ? 0 : 1 },
+      { key: "completion_gates", ok: completionPending === 0, pending: completionPending },
+      { key: "controls_concluded", ok: openControls === 0, pending: openControls },
+      { key: "reviews_complete", ok: halfReviewed === 0, pending: halfReviewed },
+      { key: "papers_signed", ok: unsignedPapers === 0, pending: unsignedPapers },
+      { key: "review_approval", ok: c41, pending: c41 ? 0 : 1 },
+      { key: "review_notes_cleared", ok: openNotes === 0, pending: openNotes },
+      { key: "c62_checklist", ok: c62, pending: c62 ? 0 : 1 },
     ];
   });
 }

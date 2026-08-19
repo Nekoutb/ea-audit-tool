@@ -10,9 +10,10 @@ import { GRID_CELL, GRID_HEAD, GRID_NUM } from "@/components/ui/grid";
 
 type Unit = "fcfa" | "k" | "m";
 
-const COLS = [
+const cols = (withTerms: boolean) => [
   { width: "110px" }, // party
   { width: "220px" }, // name
+  ...(withTerms ? [{ width: "130px" }] : []), // payment terms
   { width: "110px" },
   { width: "110px" },
   { width: "110px" },
@@ -78,7 +79,7 @@ export function AgingGrid({
         <div className="overflow-x-auto border-t border-line p-2">
           <table className="w-full table-fixed border-collapse bg-white dark:bg-surface" data-testid="aging-grid">
             <colgroup>
-              {COLS.map((c, i) => (
+              {cols(aging.hasTerms).map((c, i) => (
                 <col key={i} style={c} />
               ))}
             </colgroup>
@@ -86,6 +87,7 @@ export function AgingGrid({
               <tr className={GRID_HEAD}>
                 <th className={`${GRID_CELL} text-left`}>{partyLabel}</th>
                 <th className={`${GRID_CELL} text-left`}>{fr ? "Nom" : "Name"}</th>
+                {aging.hasTerms ? <th className={`${GRID_CELL} text-left`}>{fr ? "Conditions" : "Terms"}</th> : null}
                 <th className={GRID_NUM}>{fr ? "Courant 0–30" : "Current 0–30"}</th>
                 <th className={GRID_NUM}>31–60</th>
                 <th className={GRID_NUM}>61–90</th>
@@ -98,6 +100,9 @@ export function AgingGrid({
                 <tr key={row.party} data-testid={`aging-row-${row.party}`}>
                   <td className={`${GRID_CELL} overflow-hidden text-ellipsis font-mono`}>{row.party}</td>
                   <td className={`${GRID_CELL} overflow-hidden text-ellipsis`} title={row.name}>{row.name}</td>
+                  {aging.hasTerms ? (
+                    <td className={`${GRID_CELL} overflow-hidden text-ellipsis`} title={row.terms ?? undefined}>{row.terms ?? "—"}</td>
+                  ) : null}
                   <td className={GRID_NUM}>{fmt(row.current)}</td>
                   <td className={GRID_NUM}>{fmt(row.d31_60)}</td>
                   <td className={GRID_NUM}>{fmt(row.d61_90)}</td>
@@ -108,6 +113,7 @@ export function AgingGrid({
               <tr className="font-bold" style={{ borderTopStyle: "double" }} data-testid="aging-total">
                 <td className={GRID_CELL}>TOTAL</td>
                 <td className={GRID_CELL} />
+                {aging.hasTerms ? <td className={GRID_CELL} /> : null}
                 <td className={GRID_NUM}>{fmt(aging.totals.current)}</td>
                 <td className={GRID_NUM}>{fmt(aging.totals.d31_60)}</td>
                 <td className={GRID_NUM}>{fmt(aging.totals.d61_90)}</td>

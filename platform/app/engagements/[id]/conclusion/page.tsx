@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
 import { auth } from "@/auth";
 import {
@@ -250,29 +251,54 @@ export default async function ConclusionPage(props: {
             </p>
             {!state.archivedAt ? (
               <>
-                {/* ISA 230 archive gates: what must hold before the file locks */}
+                {/* ISA 230 archive gates: what must hold before the file locks.
+                    A failing gate links straight to where it is actioned. */}
                 <ul className="mt-3 flex flex-col gap-1" data-testid="archive-gates">
                   {archGates.map((g) => {
-                    const labels: Record<string, { en: string; fr: string }> = {
+                    const labels: Record<string, { en: string; fr: string; href?: string }> = {
                       report_issued: { en: "Report issued", fr: "Rapport émis" },
-                      reviews_complete: { en: "Every prepared paper carries its review sign-off", fr: "Chaque papier préparé porte sa signature de revue" },
-                      review_notes_cleared: { en: "Review notes cleared", fr: "Notes de revue levées" },
-                      c62_checklist: { en: "C6.2 assembly & archive checklist concluded", fr: "Liste C6.2 d'assemblage & archivage conclue" },
+                      completion_gates: { en: "All completion gates green (C4.1)", fr: "Toutes les portes d'achèvement au vert (C4.1)", href: `/engagements/${id}/conclusion` },
+                      controls_concluded: { en: "Every control selected for testing is designed, tested and concluded", fr: "Chaque contrôle retenu pour test est conçu, testé et conclu", href: `/engagements/${id}/groups/e1` },
+                      reviews_complete: { en: "Every prepared paper carries its review sign-off", fr: "Chaque papier préparé porte sa signature de revue", href: `/engagements/${id}/dashboard` },
+                      papers_signed: { en: "Every working paper signed off as preparer and reviewer", fr: "Chaque papier de travail signé préparateur et réviseur", href: `/engagements/${id}/dashboard` },
+                      review_approval: { en: "Review & approval summary concluded (C4.1)", fr: "Récapitulatif de revue & approbation conclu (C4.1)", href: `/engagements/${id}/groups/c4` },
+                      review_notes_cleared: { en: "Review notes cleared (papers and tasks)", fr: "Notes de revue levées (papiers et tâches)", href: `/engagements/${id}/tools/review-notes` },
+                      c62_checklist: { en: "C6.2 assembly & archive checklist concluded", fr: "Liste C6.2 d'assemblage & archivage conclue", href: `/engagements/${id}/groups/c6` },
                     };
                     const l = labels[g.key] ?? { en: g.key, fr: g.key };
                     return (
                       <li key={g.key} className="flex items-center gap-2 text-xs" data-testid={`archive-gate-${g.key}`}>
                         <span className={g.ok ? "font-bold text-good" : "font-bold text-rose"}>{g.ok ? "✓" : "✗"}</span>
-                        <span className={g.ok ? "text-ink-soft" : "text-ink"}>{locale === "fr" ? l.fr : l.en}</span>
+                        <span className={g.ok ? "text-ink-soft" : "text-ink"}>
+                          {locale === "fr" ? l.fr : l.en}
+                          {!g.ok && g.pending > 0 ? <span className="ml-1 font-semibold text-rose tnum">({g.pending})</span> : null}
+                        </span>
+                        {!g.ok && l.href ? (
+                          <Link href={l.href} className="font-semibold text-emerald-700 hover:underline dark:text-emerald-400" data-testid={`archive-fix-${g.key}`}>
+                            {locale === "fr" ? "Corriger →" : "Action →"}
+                          </Link>
+                        ) : null}
                       </li>
                     );
                   })}
                 </ul>
-                <form action={archiveAction.bind(null, id)} className="mt-3">
-                  <button type="submit" className={primary} data-testid="archive-file">
+                {archGates.every((g) => g.ok) ? (
+                  <form action={archiveAction.bind(null, id)} className="mt-3">
+                    <button type="submit" className={primary} data-testid="archive-file">
+                      {tc.archive}
+                    </button>
+                  </form>
+                ) : (
+                  <button
+                    type="button"
+                    disabled
+                    className={`${primary} mt-3 cursor-not-allowed opacity-40`}
+                    title={locale === "fr" ? "Toutes les conditions d'archivage doivent être remplies" : "Every archive condition must be met first"}
+                    data-testid="archive-file-disabled"
+                  >
                     {tc.archive}
                   </button>
-                </form>
+                )}
               </>
             ) : (
               <form action={rollforwardAction.bind(null, id)} className="mt-3 flex items-end gap-2">

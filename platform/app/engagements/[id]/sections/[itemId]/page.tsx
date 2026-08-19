@@ -30,7 +30,7 @@ import { listTaskNotes } from "@/lib/task-notes";
 import { significantAccounts, specificThresholds } from "@/lib/significant-accounts";
 import { craBoard, craRollupByIndex } from "@/lib/cra";
 import { craTone, todLabel, type CraLevel } from "@/lib/cra-model";
-import { dspView, s55ItemId } from "@/lib/design-procedures";
+import { dspHasSelection, dspView, s55ItemId } from "@/lib/design-procedures";
 import { DesignProceduresBoard } from "@/components/DesignProceduresBoard";
 import { itAppsView } from "@/lib/itgc";
 import { ItAppsBoard } from "@/components/ItAppsBoard";
@@ -94,13 +94,16 @@ async function sectionInfo(itemId: string) {
 
 export default async function SectionPage(props: {
   params: Promise<{ id: string; itemId: string }>;
-  searchParams: Promise<{ error?: string }>;
+  searchParams: Promise<{ error?: string; back?: string }>;
 }) {
   const session = await auth();
   if (!session?.user) redirect("/login");
 
   const { id, itemId } = await props.params;
-  const { error } = await props.searchParams;
+  const { error, back } = await props.searchParams;
+  // Return-context navigation (e.g. CRA → E4 paper → back to CRA). Only
+  // engagement-internal paths are honoured — anything else is dropped.
+  const backHref = back && back.startsWith(`/engagements/${id}/`) && !back.includes("//") ? back : null;
   const locale = await getLocale();
   const t = getMessages(locale);
   const ts = t.planning.sections;
@@ -120,6 +123,8 @@ export default async function SectionPage(props: {
   // the 24-hour reminder sweep — idempotent per day, so simply working the
   // file keeps reminders flowing without a separate scheduler.
   const isIndependenceTask = section.code === "P2.1";
+  // The CRA cluster needs the width: no attachments/linked-tasks rail there.
+  const wideBoard = section.code === "S3.1" || section.code === "S5.5";
   // Tool-filled values for the blue auto fields: P6.1 shows the approved
   // (or latest) materiality version computed from the trial-balance basis.
   const autoValues: Record<string, string> = {};
@@ -220,6 +225,8 @@ export default async function SectionPage(props: {
       : null;
   // the design the paper executes — the return path to S5.5
   const designItemId = isAccountTask ? await s55ItemId(id).catch(() => null) : null;
+  const accountHasSelection =
+    isAccountTask && accountIndex ? await dspHasSelection(id, accountIndex).catch(() => false) : false;
   const accountInIndex =
     isAccountTask && accountIndex
       ? (await apLeadSchedules(id)).some((s) => s.def.code === accountIndex)
@@ -254,7 +261,7 @@ export default async function SectionPage(props: {
     "S1.1": ["P6.2", "S1.2"], "S1.2": ["S1.3", "E1.1"], "S1.3": ["S1.2", "E1.1"], "S1.4": ["E3.1", "C2.1"],
     "S2.1": ["S2.2", "E1.1"], "S2.2": ["E1.1", "S3.1"], "S5.1": ["P2.2"], "S5.2": ["P4.3"], "S5.3": ["E1.1"],
     "S6.1": ["P7.2", "P6.1", "S3.1"], "S6.2": ["P7.2", "S6.1"],
-    "C3.1": ["C1.1", "E4.15"], "C3.2": ["E4.1", "E4.8"], "C4.2": ["P1.5", "C5.1"], "C5.1": ["C1.1", "C2.2", "C4.2"],
+    "C3.1": ["C1.1", "E4.15"], "C4.2": ["P1.5", "C5.1"], "C5.1": ["C1.1", "C2.2", "C4.2"],
     "C4.1": ["C4.3", "C6.1"], "C1.2": ["C1.1", "C1.3"], "C5.3": ["E6.2"], "C5.8": ["E4.16", "E6.3"],
   };
   let linkedTasks: { code: string; title: string; href: string }[] = [];
@@ -339,9 +346,9 @@ export default async function SectionPage(props: {
         <AppNav locale={locale} hideLinks current={{ id, label: engagement.name ?? engagement.clientName }} />
         <div className="mt-5 flex flex-wrap items-center gap-3">
           <Link
-            href={`/engagements/${id}/groups/e4`}
+            href={backHref ?? `/engagements/${id}/groups/e4`}
             className="grid h-8 w-8 place-items-center rounded-full text-[16px] font-bold text-ink-soft transition hover:bg-surface-2 hover:text-ink"
-            title={fr ? "Retour aux comptes" : "Back to Accounts"}
+            title={backHref ? (fr ? "Retour" : "Back") : fr ? "Retour aux comptes" : "Back to Accounts"}
             aria-label={fr ? "Retour" : "Back"}
             data-testid="wp-back-accounts"
           >
@@ -392,6 +399,8 @@ export default async function SectionPage(props: {
             taskCode={section.code}
             indexCode={accountIndex}
             inIndex={accountInIndex}
+            hasSelection={accountHasSelection}
+            designHref={designItemId ? `/engagements/${id}/sections/${designItemId}` : null}
             steps={steps.filter((s) => s.source === "psp" || s.description.startsWith("OSP-"))}
             results={pspVals}
             attachmentsSlot={<TaskAttachments fileItemId={itemId} initial={attachments} locale={fr ? "fr" : "en"} compact />}
@@ -521,7 +530,7 @@ export default async function SectionPage(props: {
 
         <ErrorBanner error={error} locale={locale} />
 
-        <div className="grid min-h-0 flex-1 grid-cols-1 gap-3 xl:grid-cols-[25fr_50fr_25fr] xl:overflow-hidden">
+        <div className={`grid min-h-0 flex-1 grid-cols-1 gap-3 xl:overflow-hidden ${wideBoard ? "xl:grid-cols-[22fr_78fr]" : "xl:grid-cols-[25fr_50fr_25fr]"}`}>
           <div className="flex min-h-0 flex-col gap-3 xl:overflow-hidden">
           <section className="flex min-h-0 flex-col overflow-hidden rounded-[var(--radius-atlas)] border border-glass-border bg-surface px-4 py-3 shadow-atlas-sm backdrop-blur-xl xl:max-h-[50%]" data-testid="wp-guidance">
             <h2 className="text-[11px] font-extrabold uppercase tracking-[0.07em] text-muted">Guidance</h2>
@@ -649,6 +658,7 @@ export default async function SectionPage(props: {
             )}
           </section>
 
+          {wideBoard ? null : (
           <section className="flex min-h-0 flex-col gap-3 xl:overflow-hidden">
             <TaskAttachments fileItemId={itemId} initial={attachments} locale={fr ? "fr" : "en"} compact />
             <div className="flex min-h-0 flex-1 flex-col overflow-hidden rounded-[var(--radius-atlas)] border border-glass-border bg-surface px-4 py-3 shadow-atlas-sm backdrop-blur-xl" data-testid="wp-linked">
@@ -704,6 +714,7 @@ export default async function SectionPage(props: {
               ) : null}
             </div>
           </section>
+          )}
         </div>
       </main>
     );

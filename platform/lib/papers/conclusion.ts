@@ -418,45 +418,6 @@ const C3_1 = mk({
   ],
 });
 
-const C3_2 = mk({
-  std: "ISA 505 ¶7–16",
-  ownsEn: "the external confirmation process and its results",
-  ownsFr: "la procédure de circularisation et ses résultats",
-  tools: ["confirmations"],
-  reqEn: [
-    "We maintain control over the confirmation requests: determining the information to confirm, selecting the confirming party, designing the request including the address for reply, and sending the request (ISA 505 ¶7).",
-    "Where management refuses to allow a confirmation to be sent, we inquire into the reasons, evaluate their validity, and perform alternative procedures. Where the refusal is unreasonable or alternative procedures do not provide the evidence, we communicate with those charged with governance and consider the effect on the opinion (ISA 505 ¶8–9).",
-  ],
-  reqFr: [
-    "Nous gardons la maîtrise des demandes de confirmation : information à confirmer, choix du tiers, conception de la demande dont l'adresse de réponse, et envoi (ISA 505 ¶7).",
-    "En cas de refus de la direction, nous en examinons les motifs, en apprécions la validité et mettons en œuvre des procédures alternatives. Si le refus est infondé, nous en informons la gouvernance et en évaluons l'effet sur l'opinion (ISA 505 ¶8–9).",
-  ],
-  procs: [
-    P("scope", "Establish the confirmations to be sent across the engagement: banks, receivables, payables, legal advisers, inventory held by third parties and lenders.", "Établir les circularisations à adresser sur l'ensemble de la mission : banques, clients, fournisseurs, conseils juridiques, stocks détenus par des tiers et prêteurs.", "E4.1 · E4.2 · E4.4 · E4.7 · E4.8 · E4.15", "E4.1 · E4.2 · E4.4 · E4.7 · E4.8 · E4.15"),
-    P("control", "Send each request ourselves, with our own address for the reply, and record the date sent.", "Adresser chaque demande nous-mêmes, avec notre propre adresse de réponse, et consigner la date d'envoi.", "Confirmation register · our correspondence", "Registre des circularisations · notre correspondance"),
-    P("addresses", "Verify the address of each confirming party independently of the list provided by the entity.", "Vérifier l'adresse de chaque tiers indépendamment de la liste fournie par l'entité.", "Independent directory · contracts · bank documentation", "Annuaire indépendant · contrats · documentation bancaire"),
-    P("track", "Track the replies received, and send a second request where no reply is received within the period set.", "Suivre les réponses reçues et adresser une relance en l'absence de réponse dans le délai fixé.", "Confirmation register · reminder correspondence", "Registre des circularisations · relances"),
-    P("exceptions", "Investigate every difference between the reply and the recorded amount, and raise a misstatement in C1.1 where the difference is a misstatement.", "Investiguer chaque écart entre la réponse et le montant comptabilisé et porter une anomalie en C1.1 le cas échéant.", "Replies · ledger · C1.1", "Réponses · grand livre · C1.1"),
-    P("alternatives", "Where no reply is obtained, perform alternative procedures and record why they provide the evidence the confirmation would have.", "À défaut de réponse, mettre en œuvre des procédures alternatives et consigner en quoi elles apportent l'élément attendu.", "ISA 505 ¶12 · subsequent receipts · shipping documents", "ISA 505 ¶12 · encaissements postérieurs · documents d'expédition"),
-    P("reliability", "Where there is doubt about the reliability of a reply, obtain further evidence, including verifying the source and the authority of the respondent.", "En cas de doute sur la fiabilité d'une réponse, obtenir des éléments complémentaires, dont la vérification de la source et de la qualité du répondant.", "ISA 505 ¶10–11 · direct contact with the party", "ISA 505 ¶10–11 · contact direct avec le tiers"),
-    P("refusal", "Record any refusal by management to permit a confirmation, the reasons given, and our evaluation of them.", "Consigner tout refus de la direction d'autoriser une circularisation, les motifs invoqués et notre appréciation.", "ISA 505 ¶8–9 · correspondence", "ISA 505 ¶8–9 · correspondance"),
-  ],
-  items: [
-    Q("control", "We retained control over every request from design through to receipt of the reply (procedures 2, 3).", "Nous avons gardé la maîtrise de chaque demande, de sa conception à la réception de la réponse (procédures 2, 3)."),
-    Q("coverage", "The replies received, together with the alternative procedures, cover the balances selected (procedures 4, 6).", "Les réponses reçues et les procédures alternatives couvrent les soldes sélectionnés (procédures 4, 6)."),
-    Q("exceptions", "Every exception has been investigated and resolved (procedure 5).", "Chaque exception a été investiguée et résolue (procédure 5)."),
-    Q("no_refusal", "Management did not refuse to permit any confirmation to be sent (procedure 8).", "La direction n'a refusé aucune circularisation (procédure 8)."),
-  ],
-  conclEn: [
-    "The confirmation process was controlled by us throughout, and the evidence obtained from it, together with the alternative procedures performed, is sufficient for the balances selected.",
-  ],
-  conclFr: [
-    "La procédure de circularisation est restée sous notre maîtrise, et les éléments obtenus, complétés par les procédures alternatives, sont suffisants pour les soldes sélectionnés.",
-  ],
-});
-
-/* ================================== quality & governance (C5) ============ */
-
 const C4_2 = mk({
   std: "ISQM 2 ¶19–26 · ISA 220 (Revised) ¶36 · ISA 260 (Revised) · ISA 265",
   ownsEn: "the engagement quality review and the communications to those charged with governance",
@@ -859,8 +820,7 @@ export const CONCLUSION_PAPERS: Record<string, PaperDef> = {
   "C1.2": C1_2,
   "C1.3": C1_3,
   "C2.2": C2_2,
-  "C3.1": C3_1,
-  "C3.2": C3_2,
+  "C3.1": C3_1,
   "C4.2": C4_2,
   "C5.1": C5_1,
   "C5.2": C5_2,

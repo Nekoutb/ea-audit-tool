@@ -131,7 +131,7 @@ export function detectAmountColumn(table: ParsedTable): string | null {
   return best && best.score >= Math.max(1, table.rows.length / 2) ? best.header : null;
 }
 
-export type DatasetTiming = "pre_audit" | "post_audit";
+export type DatasetTiming = "pre_audit" | "post_audit" | "prior_year";
 
 export interface DatasetSummary {
   id: string;

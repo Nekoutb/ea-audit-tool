@@ -9,6 +9,7 @@
 // One index per task; ＋ adds another substantive procedure.
 
 import { useState } from "react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import type { PspStep } from "@/lib/psp";
 
@@ -27,6 +28,8 @@ export function AccountWorkpaper({
   taskCode,
   indexCode,
   inIndex,
+  hasSelection = true,
+  designHref = null,
   steps,
   results,
   attachmentsSlot,
@@ -39,6 +42,10 @@ export function AccountWorkpaper({
   indexCode: string | null;
   /** the index has trial-balance lines on this engagement */
   inIndex: boolean;
+  /** S5.5 has selected primary substantive procedures for this index */
+  hasSelection?: boolean;
+  /** the S5.5 design paper, for the selection hint */
+  designHref?: string | null;
   steps: PspStep[];
   results: Record<string, string>;
   attachmentsSlot?: React.ReactNode;
@@ -94,20 +101,41 @@ export function AccountWorkpaper({
       ) : null}
 
       {steps.length === 0 && inIndex && indexCode ? (
-        <div className="flex flex-wrap items-center gap-3 rounded-[var(--radius-atlas-sm)] border border-line px-3 py-2.5">
-          <p className="text-[12.5px] text-ink-soft">
-            {fr ? `Générer les procédures substantives primaires du guide pour ${indexCode}.` : `Generate the guide's primary substantive procedures for ${indexCode}.`}
-          </p>
-          <button
-            type="button"
-            disabled={pending}
-            onClick={async () => { setPending(true); await op({ op: "generate", fileItemId, taskCode, presentIndexes: [indexCode] }); setPending(false); }}
-            className="rounded-[var(--radius-atlas-sm)] bg-emerald-700 px-3.5 py-1.5 text-[12.5px] font-semibold text-white hover:bg-emerald-800 disabled:opacity-50"
-            data-testid="psp-generate"
-          >
-            {pending ? "…" : fr ? "Générer" : "Generate"}
-          </button>
-        </div>
+        hasSelection ? (
+          <div className="flex flex-wrap items-center gap-3 rounded-[var(--radius-atlas-sm)] border border-line px-3 py-2.5">
+            <p className="text-[12.5px] text-ink-soft">
+              {fr
+                ? `Générer les procédures substantives primaires retenues en S5.5 pour ${indexCode}.`
+                : `Generate the primary substantive procedures selected in S5.5 for ${indexCode}.`}
+            </p>
+            <button
+              type="button"
+              disabled={pending}
+              onClick={async () => { setPending(true); await op({ op: "generate", fileItemId, taskCode, presentIndexes: [indexCode] }); setPending(false); }}
+              className="rounded-[var(--radius-atlas-sm)] bg-emerald-700 px-3.5 py-1.5 text-[12.5px] font-semibold text-white hover:bg-emerald-800 disabled:opacity-50"
+              data-testid="psp-generate"
+            >
+              {pending ? "…" : fr ? "Générer" : "Generate"}
+            </button>
+          </div>
+        ) : (
+          <div className="flex flex-wrap items-center gap-3 rounded-[var(--radius-atlas-sm)] border border-amber-600/40 bg-amber-500/5 px-3 py-2.5" data-testid="psp-no-selection">
+            <p className="text-[12.5px] text-ink-soft">
+              {fr
+                ? `Aucune procédure retenue pour ${indexCode} — sélectionner d'abord les procédures substantives primaires par assertion dans la conception S5.5 ; seules les procédures retenues apparaissent ici.`
+                : `No procedures selected for ${indexCode} yet — select the primary substantive procedures per assertion in the S5.5 design first; only selected procedures appear here.`}
+            </p>
+            {designHref ? (
+              <Link
+                href={designHref}
+                className="rounded-[var(--radius-atlas-sm)] bg-emerald-700 px-3.5 py-1.5 text-[12.5px] font-semibold text-white hover:bg-emerald-800"
+                data-testid="psp-goto-design"
+              >
+                {fr ? "Ouvrir la conception S5.5" : "Open the S5.5 design"}
+              </Link>
+            ) : null}
+          </div>
+        )
       ) : null}
 
       {steps.map((s) => {

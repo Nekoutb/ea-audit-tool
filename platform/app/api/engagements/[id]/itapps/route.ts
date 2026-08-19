@@ -1,9 +1,11 @@
 import { NextResponse } from "next/server";
+import { assertMutable, ArchivedError } from "@/lib/mutability";
 import { saveItApp } from "@/lib/itgc";
 
 /** S2.3 IT-applications board mutations: one application row at a time. */
 export async function POST(request: Request, context: { params: Promise<{ id: string }> }) {
   const { id } = await context.params;
+  try { await assertMutable(id); } catch (e) { if (e instanceof ArchivedError) return NextResponse.json({ error: "archived" }, { status: 423 }); throw e; }
   try {
     const body = (await request.json()) as { op?: string } & Record<string, unknown>;
     if (body.op !== "save") return NextResponse.json({ error: "invalid-op" }, { status: 400 });

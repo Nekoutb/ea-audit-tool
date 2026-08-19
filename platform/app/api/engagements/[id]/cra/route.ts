@@ -1,9 +1,11 @@
 import { NextResponse } from "next/server";
+import { assertMutable, ArchivedError } from "@/lib/mutability";
 import { saveCraCell } from "@/lib/cra";
 
 /** S3.1 CRA matrix mutations: one cell of the assessment at a time. */
 export async function POST(request: Request, context: { params: Promise<{ id: string }> }) {
   const { id } = await context.params;
+  try { await assertMutable(id); } catch (e) { if (e instanceof ArchivedError) return NextResponse.json({ error: "archived" }, { status: 423 }); throw e; }
   try {
     const body = (await request.json()) as { op?: string } & Record<string, unknown>;
     if (body.op !== "saveCell") return NextResponse.json({ error: "invalid-op" }, { status: 400 });

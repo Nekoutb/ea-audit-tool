@@ -17,8 +17,10 @@ export type DspField = (typeof DSP_FIELDS)[number];
  * Storage keys: `<index>_<field>` for the account level (osp), and
  * `<index>_<assertion>_<field>` for the per-assertion design — procedures are
  * designed per relevant assertion against that assertion's CRA (ISA 330 ¶6–7).
+ * `sel_<assertion>` holds the JSON array of catalog indices the preparer
+ * selected for that assertion — only selected procedures reach the E4 paper.
  */
-const FIELD_KEY = /^(?:[CEAVP]_)?(nature|timing|extent|osp)$/;
+const FIELD_KEY = /^(?:[CEAVP]_)?(nature|timing|extent|osp)$|^sel_[CEAVP]$/;
 
 export interface DspRow {
   indexCode: string;
@@ -31,6 +33,10 @@ export interface DspRow {
   cells: { assertion: string; tod: CraTod; significant: boolean; notRely: boolean }[];
   /** the primary-procedure baseline from the library */
   pspCount: number;
+  /** the library itself: catalog position, wording, assertions covered */
+  catalog: { i: number; en: string; fr: string; a: string[] }[];
+  /** assertion → selected catalog positions (what E4 will generate) */
+  selected: Record<string, number[]>;
   /** procedures already generated / completed in the E4 workpaper */
   generated: number;
   done: number;
@@ -84,6 +90,17 @@ export async function dspView(engagementId: string): Promise<DspView> {
     const prefix = `${row.indexCode}_`;
     const rowValues: Record<string, string> = {};
     for (const [k, val] of values) if (k.startsWith(prefix)) rowValues[k.slice(prefix.length)] = val;
+    const catalog = pspFor(row.indexCode).map((p, i) => ({ i, en: p.en, fr: p.fr, a: p.a.split(",") }));
+    const selected: Record<string, number[]> = {};
+    for (const [k, val] of Object.entries(rowValues)) {
+      if (!k.startsWith("sel_")) continue;
+      try {
+        const arr = JSON.parse(val);
+        if (Array.isArray(arr)) selected[k.slice(4)] = arr.filter((n) => Number.isInteger(n) && n >= 0 && n < catalog.length);
+      } catch {
+        /* unreadable selection — treated as none */
+      }
+    }
     return {
       indexCode: row.indexCode,
       label: row.label,
@@ -92,7 +109,9 @@ export async function dspView(engagementId: string): Promise<DspView> {
       taskItemId: row.taskItemId,
       worst: rowWorstTod(row),
       cells,
-      pspCount: pspFor(row.indexCode).length,
+      pspCount: catalog.length,
+      catalog,
+      selected,
       generated: st?.total ?? 0,
       done: st?.done ?? 0,
       ospRequired: cells.some((c) => c.significant || c.notRely),
@@ -115,10 +134,33 @@ export async function s55ItemId(engagementId: string): Promise<string | null> {
   });
 }
 
+/** Whether S5.5 has recorded any procedure selection for the index. */
+export async function dspHasSelection(engagementId: string, indexCode: string): Promise<boolean> {
+  const { tenantId } = await requireTenant();
+  return withTenant(tenantId, async (tx) => {
+    const r = await tx.query(
+      "SELECT 1 FROM form_response WHERE engagement_id = $1 AND code = 'dsp' AND field_key LIKE $2 LIMIT 1",
+      [engagementId, `${indexCode}\\_sel\\_%`],
+    );
+    return r.rows.length > 0;
+  });
+}
+
 /** Persist one design field — account-level (`osp`) or per-assertion (`E_nature`). */
 export async function saveDsp(engagementId: string, indexCode: string, field: string, value: string): Promise<void> {
   if (!FIELD_KEY.test(field)) throw new Error("invalid-field");
   if (!/^[A-Z][A-Z0-9]{0,2}$/.test(indexCode)) throw new Error("invalid-index");
+  if (field.startsWith("sel_")) {
+    let arr: unknown;
+    try {
+      arr = JSON.parse(value);
+    } catch {
+      throw new Error("invalid-selection");
+    }
+    if (!Array.isArray(arr) || arr.length > 40 || arr.some((n) => !Number.isInteger(n) || (n as number) < 0 || (n as number) > 40)) {
+      throw new Error("invalid-selection");
+    }
+  }
   const { tenantId, userId } = await requireTenant();
   await withTenant(tenantId, async (tx) => {
     await tx.query(

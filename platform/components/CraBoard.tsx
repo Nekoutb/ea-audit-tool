@@ -9,6 +9,7 @@
 
 import { useState } from "react";
 import Link from "next/link";
+import { usePathname } from "next/navigation";
 import type { CraAccountRow, CraBoardView, CraCell } from "@/lib/cra";
 import { craOf, craTone, toTod, todLabel, type CraCr, type CraIr, type CraLevel } from "@/lib/cra-model";
 import { Chip } from "@/components/ui/atlas";
@@ -40,16 +41,18 @@ function cellState(c: CraCell): { ir: CraIr; cr: CraCr; recorded: boolean } {
 
 function CraChip({ cell, fr }: { cell: CraCell; fr: boolean }) {
   const { ir, cr, recorded } = cellState(cell);
+  if (!recorded) {
+    return (
+      <span data-testid={`cra-level-${cell.assertion}`}>
+        <Chip tone="muted">—</Chip>
+      </span>
+    );
+  }
   const level = craOf(ir, cr);
   const tod = toTod(level, cell.significant);
   return (
-    <span className="inline-flex items-center gap-1" data-testid={`cra-level-${cell.assertion}`}>
+    <span data-testid={`cra-level-${cell.assertion}`}>
       <Chip tone={craTone(level)}>{todLabel(tod, fr ? "fr" : "en")}</Chip>
-      {!recorded ? (
-        <span className="text-[10px] italic text-muted" title={fr ? "Suggestion du dossier — à confirmer" : "Suggested from the file — to confirm"}>
-          {fr ? "sugg." : "sugg."}
-        </span>
-      ) : null}
     </span>
   );
 }
@@ -64,6 +67,7 @@ export function CraBoard({
   locale: "en" | "fr";
 }) {
   const fr = locale === "fr";
+  const pathname = usePathname();
   const [rows, setRows] = useState(view.rows);
   const [openBasis, setOpenBasis] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -169,10 +173,10 @@ export function CraBoard({
                           <span className="max-w-[180px] text-[12px] font-semibold leading-tight text-ink">{row.label}</span>
                           {row.taskItemId ? (
                             <Link
-                              href={`/engagements/${engagementId}/sections/${row.taskItemId}`}
+                              href={`/engagements/${engagementId}/sections/${row.taskItemId}?back=${encodeURIComponent(pathname)}`}
                               className="text-[10.5px] font-semibold text-emerald-700 hover:underline dark:text-emerald-400"
                             >
-                              {fr ? `Papier ${row.taskCode}` : `${row.taskCode} paper`}
+                              {row.taskCode}
                             </Link>
                           ) : null}
                         </div>
@@ -196,7 +200,7 @@ export function CraBoard({
                         title={cell.riskCount > 0 ? (fr ? `${cell.riskCount} risque(s) au registre` : `${cell.riskCount} risk(s) in the register`) : (fr ? "Aucun risque rattaché" : "No risk linked")}
                         data-testid={`cra-ir-${row.indexCode}-${cell.assertion}`}
                       >
-                        <option value="">{fr ? `sugg. ${cell.suggestedIr === "higher" ? "Élevé" : "Faible"}` : `sugg. ${cell.suggestedIr === "higher" ? "Higher" : "Lower"}`}</option>
+                        <option value="">—</option>
                         <option value="lower">{fr ? "Faible" : "Lower"}</option>
                         <option value="higher">{fr ? "Élevé" : "Higher"}</option>
                       </select>
@@ -215,7 +219,7 @@ export function CraBoard({
                         }
                         data-testid={`cra-cr-${row.indexCode}-${cell.assertion}`}
                       >
-                        <option value="">{fr ? `sugg. ${cell.suggestedCr === "rely" ? "Appui" : "Sans appui"}` : `sugg. ${cell.suggestedCr === "rely" ? "Rely" : "Not rely"}`}</option>
+                        <option value="">—</option>
                         <option value="rely">{fr ? "Appui" : "Rely"}</option>
                         <option value="not_rely">{fr ? "Sans appui" : "Not rely"}</option>
                       </select>

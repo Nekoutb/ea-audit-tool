@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { assertMutable, ArchivedError } from "@/lib/mutability";
 import { withTenant } from "@/lib/db";
 import { requireTenant } from "@/lib/tenant";
 import { addOtherPsp, generatePsp, savePspResult } from "@/lib/psp";
@@ -6,6 +7,7 @@ import { addOtherPsp, generatePsp, savePspResult } from "@/lib/psp";
 /** E4 account workpaper mutations: generate PSPs, other procedures, results. */
 export async function POST(request: Request, context: { params: Promise<{ id: string }> }) {
   const { id } = await context.params;
+  try { await assertMutable(id); } catch (e) { if (e instanceof ArchivedError) return NextResponse.json({ error: "archived" }, { status: 423 }); throw e; }
   try {
     const body = (await request.json()) as { op?: string } & Record<string, unknown>;
     switch (body.op) {

@@ -394,6 +394,11 @@ export async function signDocument(documentId: string, role: SignoffRole): Promi
   if (role === "partner" && !canPartnerSignoff(userRole)) throw new DocumentRuleError("forbidden");
 
   await withTenant(tenantId, async (tx) => {
+    const arch = await tx.query<{ archived_at: string | null }>(
+      "SELECT e.archived_at::text FROM document d JOIN engagement e ON e.id = d.engagement_id WHERE d.id = $1",
+      [documentId],
+    );
+    if (arch.rows[0]?.archived_at) throw new DocumentRuleError("archived");
     const doc = await tx.query<{ status: string; current_version: number; checked_out_by: string | null }>(
       "SELECT status, current_version, checked_out_by FROM document WHERE id = $1 FOR UPDATE",
       [documentId],

@@ -4,7 +4,9 @@ import { auth } from "@/auth";
 import { AppNav } from "@/components/AppNav";
 import { DatasetAnalyzer } from "@/components/DatasetAnalyzer";
 import { AgingGrid } from "@/components/AgingGrid";
+import { GlInsightsBoard } from "@/components/GlInsightsBoard";
 import { agingFor } from "@/lib/aging";
+import { classVolumes, entryLag, glAccountPrefixes, preparersReviewers, weekdayAnalysis } from "@/lib/gl-insights";
 import { Panel } from "@/components/ui/atlas";
 import { getEngagement } from "@/lib/engagements";
 import { formatFCFA, getMessages } from "@/lib/i18n";
@@ -43,6 +45,13 @@ export default async function AnalyzerPage(props: {
   if (!engagement) notFound();
   const datasets = (await listDatasets(id)).filter((d) => d.kind === kind);
   const aging = kind === "ar_open_items" || kind === "ap_open_items" ? await agingFor(id, kind) : null;
+  // AR/AP: the aging header already names the file — the datasets table would duplicate it.
+  const hideDatasetsTable = kind === "ar_open_items" || kind === "ap_open_items";
+  // GL insight suite, computed server-side over the latest CY (and PY) datasets.
+  const hasGl = kind === "journal_entries" && datasets.length > 0;
+  const [glPreparers, glVolumes, glWeekdays, glLag, glPrefixes] = hasGl
+    ? await Promise.all([preparersReviewers(id), classVolumes(id), weekdayAnalysis(id), entryLag(id), glAccountPrefixes(id)])
+    : [null, null, null, null, []];
   const title = ANALYZER_TITLES[kind] ?? { en: kind, fr: kind };
 
   return (
@@ -75,7 +84,7 @@ export default async function AnalyzerPage(props: {
             />
           </div>
         ) : null}
-        {datasets.length > 0 ? (
+        {datasets.length > 0 ? hideDatasetsTable ? null : (
           <div className="mt-5 overflow-x-auto rounded-[var(--radius-atlas)] border border-line">
             <table className="w-full text-sm" data-testid="analyzer-datasets">
               <tbody>
@@ -83,8 +92,8 @@ export default async function AnalyzerPage(props: {
                   <tr key={dataset.id} className="border-t border-line first:border-t-0 hover:bg-surface-2" data-testid={`dataset-${dataset.timing}`}>
                     {kind === "journal_entries" ? (
                       <td className="px-4 py-2">
-                        <span className={`rounded-full px-2 py-0.5 text-[11px] font-bold ${dataset.timing === "pre_audit" ? "bg-emerald-50 text-emerald-800 dark:bg-emerald-950/40 dark:text-emerald-300" : "bg-[var(--color-warn-soft)] text-warn"}`}>
-                          {dataset.timing === "pre_audit" ? (fr ? "Pré-audit" : "Pre-audit") : fr ? "Post-audit" : "Post-audit"}
+                        <span className={`rounded-full px-2 py-0.5 text-[11px] font-bold ${dataset.timing === "pre_audit" ? "bg-emerald-50 text-emerald-800 dark:bg-emerald-950/40 dark:text-emerald-300" : dataset.timing === "prior_year" ? "bg-surface-2 text-muted" : "bg-[var(--color-warn-soft)] text-warn"}`}>
+                          {dataset.timing === "pre_audit" ? (fr ? "Pré-audit" : "Pre-audit") : dataset.timing === "prior_year" ? (fr ? "N-1" : "Prior year") : fr ? "Post-audit" : "Post-audit"}
                         </span>
                       </td>
                     ) : null}
@@ -109,6 +118,20 @@ export default async function AnalyzerPage(props: {
           </p>
         )}
       </Panel>
+
+      {hasGl ? (
+        <div className="mt-5">
+          <GlInsightsBoard
+            engagementId={id}
+            locale={locale}
+            preparers={glPreparers}
+            volumes={glVolumes}
+            weekdays={glWeekdays}
+            lag={glLag}
+            prefixes={glPrefixes}
+          />
+        </div>
+      ) : null}
     </main>
   );
 }

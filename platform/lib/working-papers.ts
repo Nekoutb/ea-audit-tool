@@ -137,6 +137,8 @@ export async function savePaper(
   code: string,
   values: Record<string, string>,
 ): Promise<void> {
+  const { assertMutable } = await import("@/lib/mutability");
+  await assertMutable(engagementId);
   const { tenantId, userId } = await requireTenant();
   const allowed = paperKeys(paperFor(code));
   await withTenant(tenantId, async (tx) => {

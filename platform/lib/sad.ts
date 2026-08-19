@@ -3,11 +3,25 @@
 // an E4/E5 workpaper step) flows here, classified by financial-statement
 // caption, marked corrected or uncorrected, and posted onto the misstatement
 // schedule that C1.1 evaluates against materiality. Each line keeps the link
-// back to its working paper.
+// back to its working paper. The view also carries what the six workbook tabs
+// need: engagement identity, FS caption totals from the current TB, income
+// before tax, and the tab meta (qualitative factors, conclusion text, manual
+// cash-flow and disclosure rows).
 
+import type { PoolClient } from "pg";
 import { withTenant } from "@/lib/db";
 import { requireTenant } from "@/lib/tenant";
-import { SAD_CAPTIONS, SAD_TYPES, suggestCaption, type SadCaption, type SadEntry, type SadView } from "@/lib/sad-model";
+import {
+  SAD_CAPTIONS,
+  SAD_COLUMN_COUNT,
+  SAD_QUAL_FACTORS,
+  SAD_TYPES,
+  captionColumn,
+  suggestCaption,
+  type SadCaption,
+  type SadEntry,
+  type SadView,
+} from "@/lib/sad-model";
 
 export type { SadCaption, SadEntry, SadView } from "@/lib/sad-model";
 
@@ -18,10 +32,68 @@ const num = (v: string): number => {
 
 const CODE = "sad";
 const RESULT_FIELD = /^(finding|adj_debit_account|adj_debit_amount|adj_credit_account|adj_credit_amount)_(.+)$/;
+const OVERRIDE_FIELD = /^(drcap|crcap|mtype|corrected|rationale)_(.+)$/;
+const META_KEY = /^(concl_text|cf_rows|disc_rows|q_[a-z_]+|qx_[a-z_]+)$/;
+
+interface FsAmounts {
+  /** one total per grid column (credit-positive for liabilities/equity, col 5 = 7 minus 6 net) */
+  columns: number[];
+  /** classes 7 minus 6 net */
+  incomeBeforeTax: number;
+}
+
+async function fsCaptionAmountsTx(tx: PoolClient, engagementId: string): Promise<FsAmounts | null> {
+  const rows = await tx.query<{ account_code: string; closing: string }>(
+    `SELECT r.account_code,
+            (r.opening_debit - r.opening_credit + r.debit - r.credit)::text AS closing
+       FROM trial_balance tb
+       JOIN trial_balance_version v ON v.trial_balance_id = tb.id AND v.version_no = tb.current_version_no
+       JOIN trial_balance_row r ON r.version_id = v.id
+      WHERE tb.engagement_id = $1`,
+    [engagementId],
+  );
+  if (rows.rows.length === 0) return null;
+  const columns = new Array<number>(SAD_COLUMN_COUNT).fill(0);
+  let cl6 = 0;
+  let cl7 = 0;
+  for (const row of rows.rows) {
+    const closing = Number(row.closing);
+    const col = captionColumn(suggestCaption(row.account_code));
+    // assets debit-positive; liabilities, equity and the income statement
+    // credit-positive (so column 5 is exactly classes 7 minus 6 net)
+    columns[col] += col <= 1 ? closing : -closing;
+    const d1 = row.account_code[0];
+    if (d1 === "6") cl6 += closing;
+    else if (d1 === "7") cl7 += closing;
+  }
+  return {
+    columns: columns.map((x) => Math.round(x)),
+    incomeBeforeTax: Math.round(-(cl6 + cl7)),
+  };
+}
+
+/**
+ * FS amounts per caption column from the CURRENT trial-balance version:
+ * closing balances grouped by suggestCaption(account) into the six grid
+ * columns; the income-statement column is classes 7 minus 6 net. Null = no TB.
+ */
+export async function fsCaptionAmounts(engagementId: string): Promise<number[] | null> {
+  const { tenantId } = await requireTenant();
+  return withTenant(tenantId, async (tx) => {
+    const fs = await fsCaptionAmountsTx(tx, engagementId);
+    return fs ? fs.columns : null;
+  });
+}
 
 export async function sadView(engagementId: string): Promise<SadView> {
   const { tenantId } = await requireTenant();
   return withTenant(tenantId, async (tx) => {
+    const eng = await tx.query<{ client_name: string; period_end: string }>(
+      `SELECT c.name AS client_name, to_char(e.period_end, 'YYYY-MM-DD') AS period_end
+         FROM engagement e JOIN client c ON c.id = e.client_id
+        WHERE e.id = $1`,
+      [engagementId],
+    );
     const steps = await tx.query<{ id: string; description: string; file_item_id: string; code: string; title_en: string }>(
       `SELECT ps.id, ps.description, fi.id AS file_item_id, fi.code, fi.title_en
          FROM program_step ps
@@ -43,21 +115,26 @@ export async function sadView(engagementId: string): Promise<SadView> {
         ORDER BY version_no DESC LIMIT 1`,
       [engagementId],
     );
+    const fs = await fsCaptionAmountsTx(tx, engagementId);
 
     const stepById = new Map(steps.rows.map((s) => [s.id, s]));
     const postedSet = new Set(posted.rows.map((r) => r.program_step_id));
 
-    // per step: the psp-result fields and the SAD overrides
+    // per step: the psp-result fields and the SAD overrides; plus the tab meta
     const byStep = new Map<string, Record<string, string>>();
     const overrides = new Map<string, Record<string, string>>();
+    const meta: Record<string, string> = {};
     for (const row of results.rows) {
       const value = typeof row.value === "string" ? row.value : String(row.value ?? "");
       if (row.code === CODE) {
-        const m = row.field_key.match(/^(drcap|crcap|mtype|corrected)_(.+)$/);
-        if (!m) continue;
-        const cur = overrides.get(m[2]) ?? {};
-        cur[m[1]] = value;
-        overrides.set(m[2], cur);
+        const m = row.field_key.match(OVERRIDE_FIELD);
+        if (m) {
+          const cur = overrides.get(m[2]) ?? {};
+          cur[m[1]] = value;
+          overrides.set(m[2], cur);
+        } else if (META_KEY.test(row.field_key)) {
+          meta[row.field_key] = value;
+        }
       } else {
         const m = row.field_key.match(RESULT_FIELD);
         if (!m) continue;
@@ -97,6 +174,7 @@ export async function sadView(engagementId: string): Promise<SadView> {
         crSuggested: crOverride === null,
         mtype: (SAD_TYPES as readonly string[]).includes(o.mtype) ? o.mtype : "factual",
         corrected: o.corrected === "yes",
+        rationale: o.rationale ?? "",
         posted: postedSet.has(stepId),
       });
     }
@@ -112,16 +190,22 @@ export async function sadView(engagementId: string): Promise<SadView> {
             trivial: Math.round((Number(m.overall) * Number(m.trivial_pct)) / 100),
           }
         : null,
+      entityName: eng.rows[0]?.client_name ?? "",
+      periodEnd: eng.rows[0]?.period_end ?? "",
+      fsCaptions: fs ? fs.columns : null,
+      incomeBeforeTax: fs ? fs.incomeBeforeTax : null,
+      meta,
     };
   });
 }
 
-/** Persist one SAD field (caption override, type, corrected flag) for a step. */
+/** Persist one SAD field (caption override, type, corrected flag, rationale) for a step. */
 export async function saveSad(engagementId: string, stepId: string, field: string, value: string): Promise<void> {
-  if (!["drcap", "crcap", "mtype", "corrected"].includes(field)) throw new Error("invalid-field");
+  if (!["drcap", "crcap", "mtype", "corrected", "rationale"].includes(field)) throw new Error("invalid-field");
   if (!/^[0-9a-f-]{36}$/.test(stepId)) throw new Error("invalid-step");
   if ((field === "drcap" || field === "crcap") && !(SAD_CAPTIONS as readonly string[]).includes(value)) throw new Error("invalid-caption");
   if (field === "mtype" && !(SAD_TYPES as readonly string[]).includes(value)) throw new Error("invalid-type");
+  if (field === "rationale" && value.length > 4000) throw new Error("invalid-value");
   const { tenantId, userId } = await requireTenant();
   await withTenant(tenantId, async (tx) => {
     await tx.query(
@@ -131,6 +215,40 @@ export async function saveSad(engagementId: string, stepId: string, field: strin
        DO UPDATE SET value = EXCLUDED.value, updated_by = EXCLUDED.updated_by,
                      carried_forward = false, updated_at = now()`,
       [tenantId, engagementId, CODE, `${field}_${stepId}`, JSON.stringify(value), userId],
+    );
+  });
+}
+
+/**
+ * Persist one SAD tab meta value: a qualitative-factor answer (q_<key>) or
+ * comment (qx_<key>), the overall conclusion text (concl_text), or the manual
+ * row arrays of the cash-flow and disclosure tabs (cf_rows / disc_rows, JSON).
+ */
+export async function saveSadMeta(engagementId: string, key: string, value: string): Promise<void> {
+  const factor = key.match(/^(q|qx)_([a-z_]+)$/);
+  if (["concl_text", "cf_rows", "disc_rows"].includes(key)) {
+    if (key !== "concl_text") {
+      try {
+        if (!Array.isArray(JSON.parse(value))) throw new Error("invalid-value");
+      } catch {
+        throw new Error("invalid-value");
+      }
+    }
+  } else if (factor && (SAD_QUAL_FACTORS as readonly string[]).includes(factor[2])) {
+    if (factor[1] === "q" && !["yes", "no", "na", ""].includes(value)) throw new Error("invalid-value");
+  } else {
+    throw new Error("invalid-field");
+  }
+  if (value.length > 100000) throw new Error("invalid-value");
+  const { tenantId, userId } = await requireTenant();
+  await withTenant(tenantId, async (tx) => {
+    await tx.query(
+      `INSERT INTO form_response (tenant_id, engagement_id, code, field_key, value, updated_by, carried_forward)
+       VALUES ($1, $2, $3, $4, $5, $6, false)
+       ON CONFLICT (engagement_id, code, field_key)
+       DO UPDATE SET value = EXCLUDED.value, updated_by = EXCLUDED.updated_by,
+                     carried_forward = false, updated_at = now()`,
+      [tenantId, engagementId, CODE, key, JSON.stringify(value), userId],
     );
   });
 }

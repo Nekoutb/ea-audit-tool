@@ -41,7 +41,6 @@ export const DEFAULT_FILE_INDEX: readonly FileIndexEntry[] = [
   { code: "C4.3", section: "B", titleEn: "Points Outstanding", titleFr: "Points en suspens" },
   { code: "C2.2", section: "B", titleEn: "Subsequent Events Review (ISA 560)", titleFr: "Revue des événements postérieurs (ISA 560)" },
   { code: "C3.1", section: "B", titleEn: "Management Representation Letter(s) (ISA 580)", titleFr: "Lettre(s) d'affirmation de la direction (ISA 580)" },
-  { code: "C3.2", section: "B", titleEn: "External Confirmation Letter", titleFr: "Lettre de confirmation externe" },
   { code: "C6.1", section: "B", titleEn: "Points Forward (next year)", titleFr: "Points à reporter (exercice suivant)" },
 
   { code: "C6.2", section: "B", titleEn: "Complete Documentation and Archive Engagement", titleFr: "Finaliser la documentation et archiver la mission", tier: "core" },
@@ -184,7 +183,6 @@ const SHORT_TITLES: Record<string, { en: string; fr: string }> = {
   "C4.3": { en: "Points Outstanding", fr: "Points en suspens" },
   "C2.2": { en: "Subsequent Events (ISA 560)", fr: "Événements postérieurs (ISA 560)" },
   "C3.1": { en: "Management Rep. Letters (ISA 580)", fr: "Lettres d'affirmation (ISA 580)" },
-  "C3.2": { en: "External Confirmation Letter", fr: "Lettre de confirmation externe" },
   "C6.1": { en: "Points Forward (next year)", fr: "Points à reporter (N+1)" },
   "C6.2": { en: "Documentation & Archive", fr: "Documentation & archivage" },
   "C5.1": { en: "Communications (ISA 260)", fr: "Communications (ISA 260)" },

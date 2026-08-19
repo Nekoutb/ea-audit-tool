@@ -42,6 +42,7 @@ const FIELDS: Record<SubLedgerKind, FieldDef[]> = {
     { key: "amount", en: "Transaction amount", fr: "Montant de la transaction", required: true, aliases: ["montant", "amount", "solde", "balance", "valeur"] },
     { key: "transactionType", en: "Transaction type", fr: "Type de transaction", aliases: ["type", "typepiece", "nature", "sens"] },
     { key: "location", en: "Supplier location", fr: "Localisation du fournisseur", aliases: ["ville", "pays", "location", "region", "adresse"] },
+    { key: "paymentTerms", en: "Payment terms (optional)", fr: "Conditions de paiement (optionnel)", aliases: ["terms", "term", "delai", "echeance", "paiement", "payment"] },
   ],
   ar_open_items: [
     { key: "party", en: "Customer number", fr: "Numéro client", required: true, aliases: ["code", "numero", "compte", "client", "customer"] },
@@ -51,6 +52,7 @@ const FIELDS: Record<SubLedgerKind, FieldDef[]> = {
     { key: "amount", en: "Transaction amount", fr: "Montant de la transaction", required: true, aliases: ["montant", "amount", "solde", "balance", "valeur"] },
     { key: "transactionType", en: "Transaction type", fr: "Type de transaction", aliases: ["type", "typepiece", "nature", "sens"] },
     { key: "location", en: "Customer location", fr: "Localisation du client", aliases: ["ville", "pays", "location", "region", "adresse"] },
+    { key: "paymentTerms", en: "Payment terms (optional)", fr: "Conditions de paiement (optionnel)", aliases: ["terms", "term", "delai", "echeance", "paiement", "payment"] },
   ],
   inventory_listing: [
     { key: "item", en: "Item number", fr: "Numéro d'article", required: true, aliases: ["article", "item", "reference", "code", "sku"] },
@@ -121,9 +123,9 @@ export function DatasetAnalyzer({
   const router = useRouter();
   const fileRef = useRef<HTMLInputElement>(null);
   const [kind, setKind] = useState<SubLedgerKind>(fixedKind ?? "ar_open_items");
-  // GL mirrors the trial balance: a pre-audit and a post-audit ledger, and a
-  // new upload replaces the previous one of the chosen timing.
-  const [timing, setTiming] = useState<"pre_audit" | "post_audit">("pre_audit");
+  // GL mirrors the trial balance: pre-audit, post-audit and prior-year ledgers,
+  // and a new upload replaces the previous one of the chosen timing.
+  const [timing, setTiming] = useState<"pre_audit" | "post_audit" | "prior_year">("pre_audit");
   const [preview, setPreview] = useState<{ headers: string[]; headerSamples: Record<string, string[]>; rowCount: number } | null>(null);
   const [mapping, setMapping] = useState<Record<string, string>>({});
   const [error, setError] = useState<string | null>(null);
@@ -194,12 +196,13 @@ export function DatasetAnalyzer({
         {kind === "journal_entries" ? (
           <select
             value={timing}
-            onChange={(e) => setTiming(e.target.value as "pre_audit" | "post_audit")}
+            onChange={(e) => setTiming(e.target.value as "pre_audit" | "post_audit" | "prior_year")}
             className="rounded-[var(--radius-atlas-sm)] border border-line-strong bg-surface px-3 py-2 text-sm text-ink outline-none focus:border-emerald-600"
             data-testid="dataset-timing"
           >
             <option value="pre_audit">{fr ? "Grand livre pré-audit" : "Pre-audit GL"}</option>
             <option value="post_audit">{fr ? "Grand livre post-audit" : "Post-audit GL"}</option>
+            <option value="prior_year">{fr ? "Grand livre N-1" : "Prior-year GL"}</option>
           </select>
         ) : null}
         <input

@@ -16,7 +16,7 @@ describe("default audit file index", () => {
   });
 
   it("ships the complete conclusion section in the recoded scheme", () => {
-    for (const code of ["C1.1", "C1.2", "C1.3", "C2.1", "C2.2", "C3.1", "C3.2", "C4.1", "C4.2", "C4.3", "C5.1", "C6.1", "C6.2"]) {
+    for (const code of ["C1.1", "C1.2", "C1.3", "C2.1", "C2.2", "C3.1", "C4.1", "C4.2", "C4.3", "C5.1", "C6.1", "C6.2"]) {
       expect(codes).toContain(code);
     }
   });
