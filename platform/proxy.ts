@@ -68,10 +68,24 @@ function proceed(req: Parameters<Parameters<typeof auth>[0]>[0], nonce: string):
   return res;
 }
 
-/** Attach the same headers to a refusal or redirect. */
-function decorate(res: Response, nonce: string): Response {
-  for (const [k, v] of Object.entries(securityHeaders(nonce))) res.headers.set(k, v);
-  return res;
+/**
+ * Build a redirect carrying the security headers.
+ *
+ * Constructed rather than decorated: Response.redirect() returns a response
+ * whose headers are IMMUTABLE, so setting one throws "TypeError: immutable" and
+ * the route 500s. That is what happened to every unauthenticated request to a
+ * protected page after the first version of this file shipped.
+ */
+function redirectTo(url: URL, nonce: string): Response {
+  return new NextResponse(null, {
+    status: 307,
+    headers: { Location: url.toString(), ...securityHeaders(nonce) },
+  });
+}
+
+/** Build a refusal carrying the security headers, for the same reason. */
+function refuse(body: string, status: number, nonce: string): Response {
+  return new NextResponse(body, { status, headers: securityHeaders(nonce) });
 }
 
 export const proxy = auth((req) => {
@@ -85,15 +99,15 @@ export const proxy = auth((req) => {
     // API routes return their own 401; pages redirect to login.
     if (isApi) return proceed(req, nonce);
     const loginUrl = new URL("/login", req.nextUrl.origin);
-    return decorate(Response.redirect(loginUrl), nonce);
+    return redirectTo(loginUrl, nonce);
   }
   // An account still holding its system-generated temporary password gets
   // nowhere until it sets its own (Phase 0 item 1). Checked before the portal
   // rules so a client_user with a temporary password is confined too.
   if (req.auth.user?.mustChangePassword) {
     const onChange = req.nextUrl.pathname.startsWith("/change-password");
-    if (isApi) return decorate(new Response("Password change required", { status: 403 }), nonce);
-    if (!onChange) return decorate(Response.redirect(new URL("/change-password", req.nextUrl.origin)), nonce);
+    if (isApi) return refuse("Password change required", 403, nonce);
+    if (!onChange) return redirectTo(new URL("/change-password", req.nextUrl.origin), nonce);
     return proceed(req, nonce);
   }
 
@@ -112,12 +126,12 @@ export const proxy = auth((req) => {
   // the lib layer — path alone cannot tell one action id from another.
   const ownPortalAction = role === "client_user" && req.nextUrl.pathname.startsWith("/portal");
   if (isMutation && role && !canWrite(role) && !ownPortalAction) {
-    if (isApi) return decorate(new Response("Forbidden", { status: 403 }), nonce);
+    if (isApi) return refuse("Forbidden", 403, nonce);
     // A page-level Server Action: send the refusal back through the same
     // ?error= channel the actions already use, so the user sees a message.
     const url = new URL(req.nextUrl.pathname, req.nextUrl.origin);
     url.searchParams.set("error", "read-only-role");
-    return decorate(Response.redirect(url), nonce);
+    return redirectTo(url, nonce);
   }
 
   // Portal users never see the audit file (spec §2.3): firm routes redirect
@@ -126,13 +140,13 @@ export const proxy = auth((req) => {
   const isClientUser = req.auth.user?.role === "client_user";
   const onPortal = req.nextUrl.pathname.startsWith("/portal");
   if (isClientUser && isApi) {
-    return decorate(new Response("Forbidden", { status: 403 }), nonce);
+    return refuse("Forbidden", 403, nonce);
   }
   if (isClientUser && !onPortal) {
-    return decorate(Response.redirect(new URL("/portal", req.nextUrl.origin)), nonce);
+    return redirectTo(new URL("/portal", req.nextUrl.origin), nonce);
   }
   if (!isClientUser && onPortal) {
-    return decorate(Response.redirect(new URL("/dashboard", req.nextUrl.origin)), nonce);
+    return redirectTo(new URL("/dashboard", req.nextUrl.origin), nonce);
   }
   return proceed(req, nonce);
 });
