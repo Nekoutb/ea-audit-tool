@@ -10,7 +10,7 @@ import bcrypt from "bcryptjs";
 import { randomBytes } from "node:crypto";
 import { auth } from "@/auth";
 import { pool, withTenant } from "@/lib/db";
-import { sendEmail } from "@/lib/email";
+import { platformSender, sendEmail } from "@/lib/email";
 
 export class AdminError extends Error {}
 
@@ -185,6 +185,9 @@ export async function createFirm(input: {
   }
 
   sendEmail({
+    // Onboarding is platform mail, not audit correspondence — a reply belongs
+    // with support rather than in a firm's confirmation inbox.
+    ...platformSender(),
     to: adminEmail,
     subject: `Welcome to AuditISA — ${name} is onboarded`,
     body:

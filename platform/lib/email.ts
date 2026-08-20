@@ -33,6 +33,24 @@ export function sanitiseMailLocal(value: string | null | undefined): string | un
   return MAIL_LOCAL_PATTERN.test(local) ? local : undefined;
 }
 
+/**
+ * The platform's own operational address, used for onboarding and account mail
+ * — welcoming a firm, inviting someone to an engagement, anything about the
+ * TOOL rather than about an audit.
+ *
+ * Deliberately distinct from a firm's own address: audit correspondence
+ * (independence declarations, balance confirmations) must carry the firm's
+ * identity because a third party is being asked to rely on it, whereas an
+ * invitation is from the platform and a reply to it should reach support, not a
+ * partner's confirmation inbox.
+ */
+export const PLATFORM_SUPPORT_LOCAL = "support";
+
+/** From-fields for platform operational mail: support@<MAIL_DOMAIN>. */
+export function platformSender(): { fromLocal: string; fromName: string } {
+  return { fromLocal: PLATFORM_SUPPORT_LOCAL, fromName: process.env.MAIL_FROM_NAME?.trim() || "AuditISA" };
+}
+
 /** The single verified sending domain every firm's address sits on. */
 export function mailDomain(): string {
   return (process.env.MAIL_DOMAIN ?? "").trim() || "auditisa.com";
