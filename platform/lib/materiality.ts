@@ -7,6 +7,7 @@ import { withTenant } from "@/lib/db";
 import { createNotification } from "@/lib/notifications";
 import { canPartnerSignoff } from "@/lib/rbac";
 import { requireTenant } from "@/lib/tenant";
+import { recordActivity } from "@/lib/activity";
 
 export type Benchmark = "pbt" | "revenue" | "total_assets" | "equity" | "expenses";
 export const BENCHMARKS: readonly Benchmark[] = ["pbt", "revenue", "total_assets", "equity", "expenses"];
@@ -194,12 +195,19 @@ export async function createMaterialityVersion(
   const { overall, performance, trivial } = computeMateriality(input);
 
   return withTenant(tenantId, async (tx) => {
+    // COUNT the approved version; do not supersede it. Drafting a revision
+    // used to retire the approved figure immediately, which left the engagement
+    // with NO approved materiality until the partner got round to approving the
+    // draft — and nothing degrades gracefully without one. Scoping defaults
+    // every account to not-significant, the CRA board collapses to whatever has
+    // saved cells, S5.5 empties with it, the sampling studio refuses with
+    // "materiality not approved yet", the completion gate b5 fails, and the
+    // trivial threshold becomes null so NOTHING counts as clearly trivial.
+    // approveMateriality already supersedes the prior version at the moment the
+    // new one takes effect, which is the correct point.
     const superseded = await tx.query<{ n: string }>(
-      `WITH up AS (
-         UPDATE materiality SET status = 'superseded'
-          WHERE engagement_id = $1 AND status = 'approved'
-          RETURNING 1
-       ) SELECT count(*)::text AS n FROM up`,
+      `SELECT count(*)::text AS n FROM materiality
+        WHERE engagement_id = $1 AND status = 'approved'`,
       [engagementId],
     );
     const next = await tx.query<{ v: number }>(
@@ -277,4 +285,64 @@ export async function approveMateriality(engagementId: string, versionNo: number
     );
     if (updated.rowCount === 0) throw new Error("not-found");
   });
+
+  await reflagMisstatements(engagementId);
+}
+
+/**
+ * Re-classify accumulated misstatements against the newly approved trivial
+ * threshold.
+ *
+ * misstatement.trivial is STORED, decided at the moment the entry was posted
+ * (lib/sad.ts postSadEntry). Revising materiality therefore left every earlier
+ * entry carrying a verdict reached against a threshold that no longer exists —
+ * and that verdict decides which misstatements accumulate toward the opinion.
+ * ISA 450 para 5 requires accumulating misstatements other than those clearly
+ * trivial, and ISA 320 para 12-13 requires revising materiality as the audit
+ * progresses; if the threshold falls, items previously set aside become
+ * reportable and the aggregate can cross into a modified opinion.
+ *
+ * What is re-derived is the CLASSIFICATION only. The amount, the description,
+ * the accounts, who found it and when are evidence of work performed and are
+ * never rewritten — a materiality change does not alter what was observed, only
+ * how it is judged.
+ *
+ * Returned counts feed the activity entry, so a reviewer can see that a
+ * revision moved items across the line rather than having to infer it.
+ */
+export async function reflagMisstatements(
+  engagementId: string,
+): Promise<{ nowReportable: number; nowTrivial: number }> {
+  const { tenantId } = await requireTenant();
+  const approved = await approvedMateriality(engagementId);
+  if (!approved) return { nowReportable: 0, nowTrivial: 0 };
+
+  const counts = await withTenant(tenantId, async (tx) => {
+    // Two directed updates rather than one recompute, so each side can be
+    // counted and reported separately.
+    const reportable = await tx.query(
+      `UPDATE misstatement SET trivial = false
+        WHERE engagement_id = $1 AND trivial = true AND abs(amount) >= $2`,
+      [engagementId, approved.trivial],
+    );
+    const trivial = await tx.query(
+      `UPDATE misstatement SET trivial = true
+        WHERE engagement_id = $1 AND trivial = false AND abs(amount) < $2`,
+      [engagementId, approved.trivial],
+    );
+    return { nowReportable: reportable.rowCount ?? 0, nowTrivial: trivial.rowCount ?? 0 };
+  });
+
+  if (counts.nowReportable > 0 || counts.nowTrivial > 0) {
+    await recordActivity({
+      engagementId,
+      entityType: "materiality",
+      action: "materiality.reflagged",
+      summary:
+        `Materiality revised: ${counts.nowReportable} misstatement(s) became reportable, ` +
+        `${counts.nowTrivial} became clearly trivial`,
+      meta: { trivialThreshold: approved.trivial, ...counts },
+    });
+  }
+  return counts;
 }
