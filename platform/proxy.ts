@@ -6,7 +6,8 @@
 // server-side. The matcher keeps the proxy off public routes and static assets.
 import { NextResponse } from "next/server";
 import { auth } from "@/auth";
-import { canWrite } from "@/lib/rbac";
+import { canWrite, isRole } from "@/lib/rbac";
+import { visibleToUser } from "@/lib/engagement-access";
 
 /**
  * Routes that must stay reachable without a session. They still receive the
@@ -88,7 +89,7 @@ function refuse(body: string, status: number, nonce: string): Response {
   return new NextResponse(body, { status, headers: securityHeaders(nonce) });
 }
 
-export const proxy = auth((req) => {
+export const proxy = auth(async (req) => {
   const nonce = crypto.randomUUID().replace(/-/g, "");
   const path = req.nextUrl.pathname;
   // Public routes get the headers and none of the session rules.
@@ -138,6 +139,25 @@ export const proxy = auth((req) => {
     const url = new URL(req.nextUrl.pathname, req.nextUrl.origin);
     url.searchParams.set("error", "read-only-role");
     return redirectTo(url, nonce);
+  }
+
+  // Engagement-level access for the API. app/engagements/[id]/layout.tsx gates
+  // the ~30 PAGES, but 20 route handlers under /api/engagements/[id] sit
+  // outside it and none checked for itself — so the id in the URL was enough to
+  // read or write another team's file through the API. Enforced here rather
+  // than in each handler: one place, and a route added later inherits it
+  // instead of having to remember.
+  const engagementMatch = /^\/api\/engagements\/([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})(?:\/|$)/.exec(path);
+  if (engagementMatch) {
+    const user = req.auth.user;
+    const userRole = user?.role;
+    // Partners and firm admins short-circuit without a query.
+    if (user?.tenantId && user.id && userRole && isRole(userRole)) {
+      const allowed = await visibleToUser(engagementMatch[1], user.tenantId, user.id, userRole)
+        // A database problem must not silently open the door.
+        .catch(() => false);
+      if (!allowed) return refuse("Forbidden", 403, nonce);
+    }
   }
 
   // Portal users never see the audit file (spec §2.3): firm routes redirect

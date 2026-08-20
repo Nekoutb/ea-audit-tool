@@ -86,3 +86,18 @@ async function visibleTx(tx: PoolClient, engagementId: string, userId: string): 
   // No row means the tenant's RLS already hid it; treat as invisible.
   return result.rows[0]?.visible ?? false;
 }
+
+/**
+ * The same decision for a caller the proxy has already authenticated, without
+ * going through auth() again. The proxy holds the session on req.auth, so
+ * re-resolving it there would be a second decode per request.
+ */
+export async function visibleToUser(
+  engagementId: string,
+  tenantId: string,
+  userId: string,
+  role: Role,
+): Promise<boolean> {
+  if (hasPortfolioOversight(role)) return true;
+  return withTenant(tenantId, (tx) => visibleTx(tx, engagementId, userId));
+}
