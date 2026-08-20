@@ -5,7 +5,7 @@
 // they can never diverge from the deviation side-effects in lib/execution.ts.
 
 import { withTenant } from "@/lib/db";
-import { requireTenant } from "@/lib/tenant";
+import { requireRole, requireTenant } from "@/lib/tenant";
 import { createNotification } from "@/lib/notifications";
 import { significantAccounts } from "@/lib/significant-accounts";
 import { amountOr } from "@/lib/amount";
@@ -529,7 +529,7 @@ export async function updateScot(
 }
 
 export async function deleteScot(scotId: string): Promise<void> {
-  const { tenantId } = await requireTenant();
+  const { tenantId } = await requireRole("senior");
   await withTenant(tenantId, async (tx) => {
     await tx.query("DELETE FROM scot WHERE id = $1", [scotId]);
   });
@@ -586,7 +586,7 @@ export async function linkScotIndex(scotId: string, indexCode: string, assertion
 }
 
 export async function unlinkScotIndex(scotId: string, indexCode: string): Promise<void> {
-  const { tenantId } = await requireTenant();
+  const { tenantId } = await requireRole("senior");
   await withTenant(tenantId, async (tx) => {
     await tx.query("DELETE FROM scot_index WHERE scot_id = $1 AND index_code = $2", [scotId, indexCode]);
   });
@@ -607,7 +607,7 @@ export async function addWcgw(scotId: string, description: string, assertions: u
 }
 
 export async function deleteWcgw(wcgwId: string): Promise<void> {
-  const { tenantId } = await requireTenant();
+  const { tenantId } = await requireRole("senior");
   await withTenant(tenantId, async (tx) => {
     await tx.query("DELETE FROM wcgw WHERE id = $1", [wcgwId]);
   });
@@ -732,7 +732,7 @@ export async function musPreview(
 }
 
 export async function toggleWcgwControl(wcgwId: string, controlId: string, linked: boolean): Promise<void> {
-  const { tenantId } = await requireTenant();
+  const { tenantId } = await requireRole("senior");
   await withTenant(tenantId, async (tx) => {
     if (linked) {
       await tx.query(
@@ -747,7 +747,7 @@ export async function toggleWcgwControl(wcgwId: string, controlId: string, linke
 }
 
 export async function deleteControl(controlId: string): Promise<void> {
-  const { tenantId } = await requireTenant();
+  const { tenantId } = await requireRole("senior");
   await withTenant(tenantId, async (tx) => {
     await tx.query("DELETE FROM scot_control WHERE id = $1", [controlId]);
   });

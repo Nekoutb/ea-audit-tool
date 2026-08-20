@@ -429,9 +429,21 @@ export async function archiveEngagement(engagementId: string): Promise<void> {
        ON CONFLICT (engagement_id, key) DO NOTHING`,
       [tenantId, engagementId, JSON.stringify(snapshot.rows[0].data), userId],
     );
+    // Fix the retention date in the same transaction that closes the file, from
+    // the firm's period as it stands today. Stamping it here rather than reading
+    // the firm setting later means a change to that setting cannot
+    // retrospectively shorten the life of a file already archived.
+    const policy = await tx.query<{ retention_years: number }>(
+      "SELECT coalesce(t.retention_years, 10) AS retention_years FROM tenant t WHERE t.id = $1",
+      [tenantId],
+    );
     await tx.query(
-      "UPDATE engagement SET phase = 'archived', archived_at = now() WHERE id = $1",
-      [engagementId],
+      `UPDATE engagement
+          SET phase = 'archived',
+              archived_at = now(),
+              retention_until = (coalesce(report_date, period_end) + ($2 || ' years')::interval)::date
+        WHERE id = $1`,
+      [engagementId, String(policy.rows[0]?.retention_years ?? 10)],
     );
   });
 }
