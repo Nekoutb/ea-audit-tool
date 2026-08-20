@@ -4,6 +4,7 @@ import { withTenant } from "@/lib/db";
 import { itemsForComplexity, type Section } from "@/lib/file-index";
 import { seedPresumedRisks } from "@/lib/risks";
 import { requireTenant } from "@/lib/tenant";
+import { visibilityClause } from "@/lib/engagement-access";
 
 export type EngagementPhase = "acceptance" | "planning" | "execution" | "conclusion" | "archived";
 
@@ -69,7 +70,7 @@ export interface EngagementRegisterRow extends EngagementSummary {
 }
 
 export async function listEngagements(clientId?: string): Promise<EngagementRegisterRow[]> {
-  const { tenantId, userId } = await requireTenant();
+  const { tenantId, userId, role } = await requireTenant();
   return withTenant(tenantId, async (tx) => {
     const result = await tx.query<
       EngagementRow & {
@@ -100,7 +101,7 @@ export async function listEngagements(clientId?: string): Promise<EngagementRegi
                OR EXISTS (SELECT 1 FROM file_item fi WHERE fi.engagement_id = e.id AND fi.owner_id = $2)) AS is_mine
          FROM engagement e
          JOIN client c ON c.id = e.client_id
-        WHERE ($1::uuid IS NULL OR e.client_id = $1)
+        WHERE ($1::uuid IS NULL OR e.client_id = $1)${visibilityClause(role, "e", 2)}
         ORDER BY e.fiscal_year DESC, c.name`,
       [clientId ?? null, userId],
     );

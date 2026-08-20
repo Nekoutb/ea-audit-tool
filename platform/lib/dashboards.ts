@@ -2,7 +2,7 @@
 // Single-query aggregates — no state, everything derived live.
 
 import { withTenant } from "@/lib/db";
-import { requireTenant } from "@/lib/tenant";
+import { requireRole, requireTenant } from "@/lib/tenant";
 
 export interface EngagementDashboard {
   phase: string;
@@ -96,7 +96,9 @@ export interface FirmDashboard {
 }
 
 export async function firmDashboard(): Promise<FirmDashboard> {
-  const { tenantId } = await requireTenant();
+  // Firm-wide rollup — see teamWorkload for why this is gated rather than
+  // filtered.
+  const { tenantId } = await requireRole("manager");
   return withTenant(tenantId, async (tx) => {
     const byPhase = await tx.query<{ phase: string; count: string }>(
       "SELECT phase, count(*)::text FROM engagement GROUP BY phase ORDER BY phase",

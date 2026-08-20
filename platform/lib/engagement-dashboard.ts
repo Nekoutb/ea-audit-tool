@@ -10,6 +10,7 @@ import {
 } from "@/lib/engagements";
 import { fileItemHasAssignee } from "@/lib/team";
 import { requireTenant } from "@/lib/tenant";
+import { visibilityClause } from "@/lib/engagement-access";
 
 /**
  * Schema-tolerant due-date read (expand/contract deploy): the app ships before
@@ -412,17 +413,19 @@ const RECENT_ORDER = `greatest(
 
 /** Recent non-archived engagements, most-recently-worked first (for the selector). */
 export async function recentEngagements(limit = 6): Promise<EngagementSummary[]> {
-  const { tenantId } = await requireTenant();
+  // The nav switcher is a personal list, so filtering is right here — nobody
+  // reads a total off it.
+  const { tenantId, userId, role } = await requireTenant();
   return withTenant(tenantId, async (tx) => {
     const result = await tx.query<RecentRow>(
       `SELECT e.id, e.client_id, c.name AS client_name, e.fiscal_year,
               to_char(e.period_end, 'YYYY-MM-DD') AS period_end, e.phase, e.name, e.complexity
          FROM engagement e
          JOIN client c ON c.id = e.client_id
-        WHERE e.phase <> 'archived'
+        WHERE e.phase <> 'archived'${visibilityClause(role, "e", 2)}
         ORDER BY ${RECENT_ORDER}
         LIMIT $1`,
-      [limit],
+      [limit, userId],
     );
     return result.rows.map(toSummary);
   });

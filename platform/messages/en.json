@@ -1224,7 +1224,9 @@
       "logo-too-large": "The logo exceeds the 150 KB limit.",
       "text-too-long": "One of the text fields exceeds 160 characters.",
       "changed-elsewhere": "Someone else changed this paper while you had it open. Reload to see their version before saving again — your entry has not been stored.",
-      "read-only-role": "Your role can view this file but not change it."
+      "read-only-role": "Your role can view this file but not change it.",
+      "not-on-this-engagement": "You are not assigned to that engagement.",
+      "requires-manager": "Only a manager or above can see firm-wide figures."
     }
   },
   "team": {

@@ -5,7 +5,7 @@
 
 import { withTenant } from "@/lib/db";
 import type { Role } from "@/lib/rbac";
-import { requireTenant } from "@/lib/tenant";
+import { requireRole, requireTenant } from "@/lib/tenant";
 
 export interface WorkloadRow {
   id: string;
@@ -17,7 +17,11 @@ export interface WorkloadRow {
 }
 
 export async function teamWorkload(): Promise<WorkloadRow[]> {
-  const { tenantId } = await requireTenant();
+  // Counts every engagement in the firm. Filtering it by engagement visibility
+  // would be worse than refusing: a manager would be shown a PARTIAL count
+  // presented as a firm-wide total, and act on it. So the figure stays whole
+  // and the audience is narrowed instead.
+  const { tenantId } = await requireRole("manager");
   return withTenant(tenantId, async (tx) => {
     const r = await tx.query<{
       id: string;
