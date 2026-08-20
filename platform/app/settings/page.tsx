@@ -44,6 +44,23 @@ export default async function SettingsPage(props: {
         </p>
       ) : null}
 
+      {/* Everyone's own account, admin or not. */}
+      <Panel className="mt-6 p-6">
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <PanelHeader
+            title={locale === "fr" ? "Sécurité du compte" : "Account security"}
+            hint={
+              locale === "fr"
+                ? "mot de passe et double authentification"
+                : "password and two-factor authentication"
+            }
+          />
+          <Link href="/security" data-testid="security-link" className={btnPrimary}>
+            {locale === "fr" ? "Gérer" : "Manage"}
+          </Link>
+        </div>
+      </Panel>
+
       {isAdmin ? (
         <Panel className="mt-6 p-6">
           <div className="flex flex-wrap items-center justify-between gap-3">

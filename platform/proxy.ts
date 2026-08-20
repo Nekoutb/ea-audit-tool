@@ -99,6 +99,12 @@ export const proxy = auth((req) => {
     // API routes return their own 401; pages redirect to login.
     if (isApi) return proceed(req, nonce);
     const loginUrl = new URL("/login", req.nextUrl.origin);
+    // A session cookie that no longer resolves means the jwt callback refused
+    // it — the membership went, the account was suspended, or the password
+    // changed. Say so, rather than presenting a blank login form to someone who
+    // believes they are signed in.
+    const hadSession = req.cookies.getAll().some((c) => c.name.includes("authjs.session-token"));
+    if (hadSession) loginUrl.searchParams.set("error", "session-ended");
     return redirectTo(loginUrl, nonce);
   }
   // An account still holding its system-generated temporary password gets

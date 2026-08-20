@@ -18,6 +18,18 @@ export default async function LoginPage(props: {
   const locale = await getLocale();
   const messages = getMessages(locale);
 
+  // A refused credential and a session that ended underneath someone are
+  // different things and must not read the same. Anything unrecognised falls
+  // back to the credential message, so a new code can never render blank.
+  const notice =
+    error === "session-ended"
+      ? messages.login.sessionEnded
+      : error === "too-many-attempts"
+        ? messages.login.tooManyAttempts
+        : error === "mfa-required"
+          ? messages.login.mfaRequired
+          : null;
+
   return (
     <main className="flex min-h-screen items-center justify-center bg-canvas px-4">
       <div className="w-full max-w-sm rounded-[var(--radius-atlas)] border border-line bg-surface p-8 shadow-[var(--shadow-atlas)]">
@@ -35,7 +47,7 @@ export default async function LoginPage(props: {
           </div>
           <LanguageSwitcher current={locale} />
         </div>
-        <LoginForm messages={messages.login} failed={Boolean(error)} />
+        <LoginForm messages={messages.login} failed={Boolean(error) && !notice} notice={notice} />
       </div>
     </main>
   );

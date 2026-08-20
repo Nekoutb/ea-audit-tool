@@ -51,7 +51,12 @@
     "password": "Password",
     "submit": "Sign in",
     "submitting": "Signing in…",
-    "error": "Incorrect email or password."
+    "error": "Incorrect email or password.",
+    "sessionEnded": "You were signed out because your access changed. Sign in again.",
+    "tooManyAttempts": "Too many failed attempts. Wait a few minutes and try again.",
+    "code": "Authentication code",
+    "codeHint": "Only if your account uses an authenticator app. A recovery code works here too.",
+    "mfaRequired": "That account needs its authentication code. Enter your password and the six-digit code together."
   },
   "dashboard": {
     "title": "Dashboard",

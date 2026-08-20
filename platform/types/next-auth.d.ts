@@ -25,6 +25,8 @@ declare module "next-auth" {
     clientId?: string | null;
     isSuper?: boolean;
     mustChangePassword?: boolean;
+    /** app_user.session_version at sign-in; a mismatch later kills the token. */
+    sessionVersion?: number;
   }
 }
 
@@ -37,5 +39,9 @@ declare module "next-auth/jwt" {
     clientId?: string | null;
     isSuper?: boolean;
     mustChangePassword?: boolean;
+    /** session_version the token was minted against */
+    sv?: number;
+    /** checked-at, epoch seconds — drives the staleness window */
+    cat?: number;
   }
 }

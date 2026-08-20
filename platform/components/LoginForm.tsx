@@ -16,11 +16,21 @@ async function loginAction(formData: FormData): Promise<void> {
     await signIn("credentials", {
       email: String(formData.get("email") ?? ""),
       password: String(formData.get("password") ?? ""),
+      // Blank for the great majority of accounts; only consulted when the
+      // account has a confirmed authenticator.
+      code: String(formData.get("code") ?? ""),
       // "/" resolves to the most-recently-worked engagement's dashboard.
       redirectTo: "/",
     });
   } catch (error) {
-    if (error instanceof AuthError) redirect("/login?error=1");
+    if (error instanceof AuthError) {
+      // CredentialsSignin subclasses carry a code; anything else is a plain
+      // credential failure. The login page maps unknown codes back to the
+      // generic message, so a new code can never render blank.
+      const code = (error as { code?: string }).code;
+      const known = code === "too-many-attempts" || code === "mfa-required" ? code : "1";
+      redirect(`/login?error=${encodeURIComponent(known)}`);
+    }
     throw error; // NEXT_REDIRECT on success must propagate
   }
 }
@@ -28,9 +38,12 @@ async function loginAction(formData: FormData): Promise<void> {
 export function LoginForm({
   messages,
   failed,
+  notice,
 }: {
   messages: Messages["login"];
   failed?: boolean;
+  /** A non-credential explanation — session ended, throttled. */
+  notice?: string | null;
 }) {
   return (
     <form action={loginAction} className="flex flex-col gap-4">
@@ -56,8 +69,26 @@ export function LoginForm({
         />
       </label>
 
-      {failed ? (
-        <p role="alert" className="text-sm text-rose">
+      <label className="flex flex-col gap-1 text-sm">
+        <span className="font-medium text-ink-soft">{messages.code}</span>
+        <input
+          name="code"
+          type="text"
+          inputMode="numeric"
+          autoComplete="one-time-code"
+          maxLength={12}
+          data-testid="login-code"
+          className="rounded-[var(--radius-atlas-sm)] border border-line-strong bg-surface px-3 py-2 tracking-[0.2em] text-ink outline-none focus:border-emerald-600 focus:ring-2 focus:ring-emerald-600/20"
+        />
+        <span className="text-[11.5px] text-muted">{messages.codeHint}</span>
+      </label>
+
+      {notice ? (
+        <p role="status" className="text-sm text-ink-soft" data-testid="login-notice">
+          {notice}
+        </p>
+      ) : failed ? (
+        <p role="alert" className="text-sm text-rose" data-testid="login-error">
           {messages.error}
         </p>
       ) : null}

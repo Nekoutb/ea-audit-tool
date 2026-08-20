@@ -51,7 +51,12 @@
     "password": "Mot de passe",
     "submit": "Se connecter",
     "submitting": "Connexion…",
-    "error": "Adresse e-mail ou mot de passe incorrect."
+    "error": "Adresse e-mail ou mot de passe incorrect.",
+    "sessionEnded": "Vous avez été déconnecté car vos accès ont changé. Reconnectez-vous.",
+    "tooManyAttempts": "Trop de tentatives échouées. Patientez quelques minutes puis réessayez.",
+    "code": "Code d'authentification",
+    "codeHint": "Uniquement si votre compte utilise une application d'authentification. Un code de récupération fonctionne aussi.",
+    "mfaRequired": "Ce compte requiert son code d'authentification. Saisissez votre mot de passe et le code à six chiffres ensemble."
   },
   "dashboard": {
     "title": "Tableau de bord",
