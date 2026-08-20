@@ -29,7 +29,10 @@ jobs:
 
     env:
       DATABASE_URL: postgresql://postgres:postgres@localhost:5432/ea_audit
-      APP_DATABASE_URL: postgresql://ea_app:ea_app_password@localhost:5432/ea_audit
+      # Generated per run by the 'app role' step below; never a literal, so the
+      # repository does not publish a password that also works elsewhere.
+      APP_DATABASE_URL: postgresql://ea_app:${{ github.run_id }}-${{ github.run_attempt }}@localhost:5432/ea_audit
+      APP_ROLE_PASSWORD: ${{ github.run_id }}-${{ github.run_attempt }}
       AUTH_SECRET: ci-only-secret-not-used-in-production
       NEXTAUTH_URL: http://localhost:3100
       CI: "true"

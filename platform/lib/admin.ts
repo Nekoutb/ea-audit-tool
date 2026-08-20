@@ -94,7 +94,9 @@ export async function createFirm(input: {
   const mailTaken = await pool.query("SELECT 1 FROM tenant WHERE lower(mail_local) = $1", [mailLocal]);
   if (mailTaken.rows[0]) throw new AdminError("mail-local-taken");
 
-  const tempPassword = randomBytes(6).toString("base64url");
+  // 24 bytes, not 6: the old 48 bits was defensible only because the reset is
+  // forced, and an unread onboarding email would have been the whole account.
+  const tempPassword = randomBytes(24).toString("base64url");
   const hash = await bcrypt.hash(tempPassword, 10);
   const existingUser = await pool.query<{ id: string }>(
     "SELECT id FROM app_user WHERE lower(email) = $1",

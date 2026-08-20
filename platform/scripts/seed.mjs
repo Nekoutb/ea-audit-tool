@@ -36,7 +36,9 @@ export const FIRMS = [
   },
 ];
 
-export const SEED_PASSWORD = "password";
+// Local fixture credential. Overridable so a shared environment is never
+// seeded with a value published in this repository.
+export const SEED_PASSWORD = process.env.SEED_PASSWORD ?? "password";
 
 const client = new pg.Client({ connectionString });
 
@@ -80,8 +82,9 @@ try {
     await client.query("DELETE FROM notification WHERE tenant_id = $1", [firm.id]);
   }
 
+  // Emails only — the shared fixture password is not echoed into CI logs.
   console.log(
-    `Seeded ${FIRMS.length} firms: ${FIRMS.map((f) => `${f.email}/${SEED_PASSWORD}`).join(", ")}`,
+    `Seeded ${FIRMS.length} firms: ${FIRMS.map((f) => f.email).join(", ")} (password from SEED_PASSWORD)`,
   );
 } catch (error) {
   console.error("Seed failed:", error.message);

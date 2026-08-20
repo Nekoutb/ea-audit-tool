@@ -1,18 +1,29 @@
+import { timingSafeEqual } from "node:crypto";
 import { NextResponse } from "next/server";
 import { ingestInboundEmail } from "@/lib/email-inbound";
 
 /**
  * MailerSend inbound-route webhook. Configure the inbound route to POST here
- * with ?secret=<EMAIL_INBOUND_SECRET>. Replies to independence and balance
+ * with the header `x-inbound-secret: <EMAIL_INBOUND_SECRET>`. The secret is NOT
+ * accepted from the query string: a URL lands in the Apache access log, in any
+ * Referer, and in proxy logs — the same defect that was just removed from the
+ * onboarding redirect. Replies to independence and balance
  * confirmations are matched by their [ref:…] token and logged with the
  * reply's timestamp; everything else is acknowledged and ignored.
  */
+/** Length-independent comparison, so a wrong secret leaks nothing by timing. */
+function constantTimeEquals(a: string, b: string): boolean {
+  const ab = Buffer.from(a);
+  const bb = Buffer.from(b);
+  if (ab.length !== bb.length) return false;
+  return timingSafeEqual(ab, bb);
+}
+
 export async function POST(request: Request) {
   const secret = process.env.EMAIL_INBOUND_SECRET;
   if (!secret) return NextResponse.json({ error: "inbound-disabled" }, { status: 503 });
-  const url = new URL(request.url);
-  const given = url.searchParams.get("secret") ?? request.headers.get("x-inbound-secret");
-  if (given !== secret) return NextResponse.json({ error: "forbidden" }, { status: 403 });
+  const given = request.headers.get("x-inbound-secret") ?? "";
+  if (!constantTimeEquals(given, secret)) return NextResponse.json({ error: "forbidden" }, { status: 403 });
 
   try {
     const body = (await request.json()) as Record<string, unknown>;

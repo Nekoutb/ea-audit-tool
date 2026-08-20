@@ -17,7 +17,8 @@ if (!connectionString) {
 }
 
 const EMAIL = "admin@demo.test";
-const PASSWORD = "password";
+// Local fixture credential — see scripts/seed.mjs.
+const PASSWORD = process.env.SEED_PASSWORD ?? "password";
 
 const client = new pg.Client({ connectionString });
 
@@ -49,7 +50,8 @@ try {
     [userId, tenantId],
   );
 
-  console.log(`Seeded firm 'Demo Firm' with admin ${EMAIL} / ${PASSWORD}`);
+  // The password is deliberately not echoed — CI logs are retained and readable.
+  console.log(`Seeded firm 'Demo Firm' with admin ${EMAIL} (password from SEED_PASSWORD)`);
 } catch (error) {
   console.error("Seed failed:", error.message);
   process.exitCode = 1;
