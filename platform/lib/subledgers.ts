@@ -8,6 +8,7 @@ import ExcelJS from "exceljs";
 import { withTenant } from "@/lib/db";
 import { type SubLedgerKind } from "@/lib/subledger-kinds";
 import { requireTenant } from "@/lib/tenant";
+import { parseAmount } from "@/lib/amount";
 
 export { isSubLedgerKind, SUB_LEDGER_KINDS, type SubLedgerKind } from "@/lib/subledger-kinds";
 
@@ -103,14 +104,9 @@ export async function parseTabularFile(filename: string, buffer: Buffer): Promis
   throw new SubLedgerError("unsupported-file");
 }
 
+/** Amounts come from lib/amount.ts — one parser for the whole product. */
 function toNumber(value: unknown): number | null {
-  if (typeof value === "number" && Number.isFinite(value)) return value;
-  if (typeof value !== "string") return null;
-  const cleaned = value.replace(/[\s  ]/g, "").replace(/,(?=\d{1,2}$)/, ".").replace(/,/g, "");
-  if (!cleaned || !/^-?\(?\d+(\.\d+)?\)?$/.test(cleaned)) return null;
-  const negative = cleaned.startsWith("(") && cleaned.endsWith(")");
-  const parsed = Number(cleaned.replace(/[()]/g, ""));
-  return Number.isFinite(parsed) ? (negative ? -parsed : parsed) : null;
+  return parseAmount(value);
 }
 
 const AMOUNT_HINTS = ["amount", "balance", "solde", "montant", "total", "net", "nbv", "value", "valeur"];

@@ -17,6 +17,7 @@
 import type { PoolClient } from "pg";
 import { withTenant } from "@/lib/db";
 import { requireTenant } from "@/lib/tenant";
+import { parseAmount } from "@/lib/amount";
 
 type Tx = PoolClient;
 
@@ -53,22 +54,12 @@ export interface GlDatasetMeta {
  * — deliberately NOT a naive strip of every non-digit, which turns "1,234.56"
  * into 1.23456e5 nonsense on one locale or the other.
  */
-export function parseAmount(value: unknown): number | null {
-  if (typeof value === "number") return Number.isFinite(value) ? value : null;
-  if (value === null || value === undefined) return null;
-  const raw = String(value).trim();
-  if (raw === "" || raw === "-") return null;
-  const cleaned = raw
-    .replace(/[\s   ]/g, "")
-    .replace(/,(?=\d{1,2}$)/, ".")
-    .replace(/,/g, "");
-  const negative = cleaned.startsWith("(") && cleaned.endsWith(")");
-  const bare = cleaned.replace(/[()]/g, "");
-  if (!/^[+-]?\d*\.?\d+$/.test(bare)) return null;
-  const parsed = Number(bare);
-  if (!Number.isFinite(parsed)) return null;
-  return negative ? -parsed : parsed;
-}
+/**
+ * Amounts come from lib/amount.ts. Re-exported here because callers import it
+ * from this module; the implementation is shared so the GL projection and the
+ * trial balance can never disagree about what a figure means.
+ */
+export { parseAmount };
 
 /** Excel's day 0 is 1899-12-30 (its 1900 leap-year bug included). */
 const EXCEL_EPOCH = Date.UTC(1899, 11, 30);

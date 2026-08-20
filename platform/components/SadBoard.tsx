@@ -7,6 +7,7 @@
 // keeps the link back to its paper); cash-flow and disclosure rows are manual.
 
 import { Fragment, useState, type ReactNode } from "react";
+import { amountOr } from "@/lib/amount";
 import Link from "next/link";
 import {
   SAD_CAPTIONS,
@@ -117,10 +118,8 @@ export function SadBoard({
 
   const n = (x: number) => new Intl.NumberFormat("fr-FR").format(Math.round(x));
   const pct1 = (x: number) => `${new Intl.NumberFormat("fr-FR", { minimumFractionDigits: 1, maximumFractionDigits: 1 }).format(x)} %`;
-  const amt = (v: string): number => {
-    const x = Number(String(v).replace(/[^0-9.-]/g, ""));
-    return Number.isFinite(x) ? x : 0;
-  };
+  // Shared parser — see lib/amount.ts; the previous one lost the decimal comma.
+  const amt = (v: string): number => amountOr(v, 0);
   const label = "text-[10px] font-extrabold uppercase tracking-[0.07em] text-muted";
   const select = "rounded-[var(--radius-atlas-sm)] border border-line-strong bg-surface px-1 py-0.5 text-[11.3px] text-ink outline-none focus:border-emerald-600";
   const input = "w-full rounded-[var(--radius-atlas-sm)] border border-line-strong bg-surface px-1.5 py-1 text-[11.8px] text-ink outline-none focus:border-emerald-600";

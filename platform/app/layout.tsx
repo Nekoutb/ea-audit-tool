@@ -1,3 +1,4 @@
+import { headers } from "next/headers";
 import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import { BrandStyle } from "@/components/BrandStyle";
@@ -26,6 +27,9 @@ export default async function RootLayout({
   children: React.ReactNode;
 }>) {
   const locale = await getLocale();
+  // Set by proxy.ts. The theme is stamped before first paint, so this inline
+  // script needs the request nonce or the CSP blocks it and the page flashes.
+  const nonce = (await headers()).get("x-nonce") ?? undefined;
   return (
     <html
       lang={locale}
@@ -34,6 +38,7 @@ export default async function RootLayout({
       <head>
         {/* stamp the theme before first paint — stored choice, else the OS */}
         <script
+          nonce={nonce}
           dangerouslySetInnerHTML={{
             __html:
               "try{var t=localStorage.getItem(\"theme\");if(t!==\"light\"&&t!==\"dark\"){t=matchMedia(\"(prefers-color-scheme: dark)\").matches?\"dark\":\"light\"}document.documentElement.setAttribute(\"data-theme\",t)}catch(e){}",

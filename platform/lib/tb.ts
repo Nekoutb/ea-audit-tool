@@ -12,6 +12,7 @@ import { resolveSection } from "@/lib/leadsheets";
 import { LEAD_INDEXES, SUB_INDEX_BY_CODE, leadIndexFor, subIndexFor } from "@/lib/lead-classes";
 import { parseTabularFile, type ParsedTable } from "@/lib/subledgers";
 import { requireTenant } from "@/lib/tenant";
+import { amountOr, parseAmount as parseAmountOrNull } from "@/lib/amount";
 
 export type TbColumn =
   | "account"
@@ -71,15 +72,13 @@ export function inferTbMapping(headers: readonly string[]): TbMapping {
   return mapping;
 }
 
+/**
+ * Amounts come from lib/amount.ts. The local version handled the common French
+ * case but returned 0 — silently, as a valid trial-balance figure — for dotted
+ * grouping such as "1.500.000,75", and dropped the decimal on "12 345,678".
+ */
 function parseAmount(value: unknown): number {
-  if (typeof value === "number" && Number.isFinite(value)) return value;
-  if (value === null || value === undefined) return 0;
-  const cleaned = String(value).replace(/[\s  ]/g, "").replace(/,(?=\d{1,2}$)/, ".").replace(/,/g, "");
-  if (cleaned === "" || cleaned === "-") return 0;
-  const negative = cleaned.startsWith("(") && cleaned.endsWith(")");
-  const parsed = Number(cleaned.replace(/[()]/g, ""));
-  if (!Number.isFinite(parsed)) return 0;
-  return negative ? -parsed : parsed;
+  return amountOr(value, 0);
 }
 
 export interface TbImportRow {
@@ -885,10 +884,12 @@ function heuristicFill(table: ParsedTable, mapping: TbMapping): TbMapping {
       const v = String(row[header] ?? "").trim();
       if (!v) continue;
       filled += 1;
-      if (/^d{4,}$/.test(v)) digits += 1;
+      if (/^\d{4,}$/.test(v)) digits += 1;
       if (/[a-zA-ZÀ-ɏ]{3,}/.test(v)) text += 1;
-      const cleaned = v.replace(/[s  ]/g, "").replace(/,(?=d{1,2}$)/, ".").replace(/,/g, "").replace(/[()]/g, "");
-      if (cleaned !== "" && Number.isFinite(Number(cleaned))) numeric += 1;
+      // Column-type detection. This line had lost the backslashes from its
+      // character classes, so "\s" matched a literal 's' and "\d" a literal 'd' —
+      // no decimal comma was ever converted and every amount column scored wrong.
+      if (parseAmountOrNull(v) !== null) numeric += 1;
     }
     return { header, digits: filled ? digits / filled : 0, text: filled ? text / filled : 0, numeric: filled ? numeric / filled : 0 };
   });

@@ -11,6 +11,7 @@
 import { useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
+import { amountOr } from "@/lib/amount";
 import type { PspStep } from "@/lib/psp";
 
 const ASSERTION_CODES = ["C", "E", "A", "V", "P"] as const;
@@ -108,10 +109,9 @@ export function AccountWorkpaper({
   const saveField = (stepId: string, field: string, value: string, current: string) => {
     if (value !== current) void op({ op: "saveResult", taskCode, stepId, field, value });
   };
-  const num = (v: string) => {
-    const n = parseFloat(String(v).replace(/[^0-9.-]/g, ""));
-    return Number.isFinite(n) ? n : 0;
-  };
+  // Shared parser — this one dropped the decimal comma, so a French-entered
+  // adjustment was a hundred times too large in the control total.
+  const num = (v: string) => amountOr(v, 0);
   const money = (n: number) => new Intl.NumberFormat("fr-FR").format(Math.round(n));
   const label = "text-[10.5px] font-extrabold uppercase tracking-[0.07em] text-muted";
   const amber = "w-full resize-none overflow-hidden rounded-[var(--radius-atlas-xs)] bg-[color:var(--wp-input)] px-2.5 py-2 text-[12.5px] leading-relaxed text-ink outline-none placeholder:text-muted focus:ring-1 focus:ring-emerald-600/40";

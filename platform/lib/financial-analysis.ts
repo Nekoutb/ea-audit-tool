@@ -9,6 +9,7 @@
 
 import { withTenant } from "@/lib/db";
 import { requireTenant } from "@/lib/tenant";
+import { amountOr } from "@/lib/amount";
 
 export type RatioGroup = "Liquidity" | "Activity" | "Profitability" | "Leverage" | "Investment";
 
@@ -196,10 +197,7 @@ export async function financialAnalysis(engagementId: string): Promise<Financial
         const d = m ? new Date(Date.UTC(Number(m[3]), Number(m[2]) - 1, Number(m[1]))) : new Date(raw);
         return Number.isNaN(d.getTime()) ? null : d;
       };
-      const parseAmount = (v: unknown): number => {
-        const n = Number(String(v ?? "").replace(/[\s  ]/g, "").replace(/,(?=\d{1,2}$)/, ".").replace(/,/g, ""));
-        return Number.isFinite(n) ? n : 0;
-      };
+      const parseAmount = (v: unknown): number => amountOr(v, 0);
       let sales = 0;
       let purchases = 0;
       let inWindow = 0;

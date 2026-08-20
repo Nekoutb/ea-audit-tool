@@ -8,6 +8,7 @@ import { requireTenant } from "@/lib/tenant";
 import { LEAD_INDEXES, leadIndexFor } from "@/lib/lead-classes";
 import { approvedMateriality } from "@/lib/materiality";
 import { riskDerivedAssertions } from "@/lib/risks";
+import { amountOr } from "@/lib/amount";
 
 export interface SignificantAccountRow {
   index: string;
@@ -147,7 +148,7 @@ export async function significantAccounts(engagementId: string): Promise<Signifi
     const specific = new Map<string, number>();
     for (const r of saved.rows) {
       if (r.code !== "wp:P6.1" || !r.field_key.startsWith("sm_")) continue;
-      const amount = Number(r.value.replace(/[^\d.-]/g, ""));
+      const amount = amountOr(r.value, 0);
       if (Number.isFinite(amount) && amount > 0) specific.set(r.field_key.slice(3), amount);
     }
 

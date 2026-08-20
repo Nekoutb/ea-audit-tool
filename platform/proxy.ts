@@ -4,25 +4,97 @@
 //
 // This is defense-in-depth: every protected page also calls auth()/requireTenant()
 // server-side. The matcher keeps the proxy off public routes and static assets.
+import { NextResponse } from "next/server";
 import { auth } from "@/auth";
 import { canWrite } from "@/lib/rbac";
 
+/**
+ * Routes that must stay reachable without a session. They still receive the
+ * security headers — a Content-Security-Policy is worth least on the pages an
+ * attacker can reach without signing in first.
+ */
+const PUBLIC = ["/login", "/api/auth", "/api/email/inbound"];
+const isPublic = (path: string) =>
+  path === "/" || PUBLIC.some((p) => path === p || path.startsWith(`${p}/`));
+
+/**
+ * Security headers, with a per-request nonce for the Content-Security-Policy.
+ *
+ * script-src carries the nonce plus 'strict-dynamic', so the chunks Next loads
+ * from its own bootstrap are allowed while an injected <script> is not — the
+ * attacker would have to guess a fresh random value. style-src keeps
+ * 'unsafe-inline' deliberately: 52 components set React `style` attributes,
+ * which CSP governs as inline styles, and style injection is a far smaller
+ * prize than script execution. 'unsafe-eval' is development-only, where React
+ * uses eval to rebuild server stacks.
+ */
+function securityHeaders(nonce: string): Record<string, string> {
+  const dev = process.env.NODE_ENV === "development";
+  const csp = [
+    "default-src 'self'",
+    `script-src 'self' 'nonce-${nonce}' 'strict-dynamic'${dev ? " 'unsafe-eval'" : ""}`,
+    "style-src 'self' 'unsafe-inline'",
+    "img-src 'self' blob: data:",
+    "font-src 'self' data:",
+    "connect-src 'self'",
+    "object-src 'none'",
+    "base-uri 'self'",
+    "form-action 'self'",
+    "frame-ancestors 'none'",
+    "frame-src 'none'",
+    "upgrade-insecure-requests",
+  ].join("; ");
+
+  return {
+    "Content-Security-Policy": csp,
+    // frame-ancestors covers modern browsers; this covers the rest.
+    "X-Frame-Options": "DENY",
+    // An uploaded file must never be re-interpreted as script by sniffing.
+    "X-Content-Type-Options": "nosniff",
+    "Referrer-Policy": "strict-origin-when-cross-origin",
+    "X-Permitted-Cross-Domain-Policies": "none",
+    "Permissions-Policy": "camera=(), microphone=(), geolocation=(), payment=(), usb=()",
+    // The site is HTTPS-only behind Cloudflare; two years, subdomains included.
+    "Strict-Transport-Security": "max-age=63072000; includeSubDomains; preload",
+  };
+}
+
+/** Continue to the route, carrying the nonce forward and the headers back. */
+function proceed(req: Parameters<Parameters<typeof auth>[0]>[0], nonce: string): NextResponse {
+  const requestHeaders = new Headers(req.headers);
+  requestHeaders.set("x-nonce", nonce);
+  const res = NextResponse.next({ request: { headers: requestHeaders } });
+  for (const [k, v] of Object.entries(securityHeaders(nonce))) res.headers.set(k, v);
+  return res;
+}
+
+/** Attach the same headers to a refusal or redirect. */
+function decorate(res: Response, nonce: string): Response {
+  for (const [k, v] of Object.entries(securityHeaders(nonce))) res.headers.set(k, v);
+  return res;
+}
+
 export const proxy = auth((req) => {
-  const isApi = req.nextUrl.pathname.startsWith("/api/");
+  const nonce = crypto.randomUUID().replace(/-/g, "");
+  const path = req.nextUrl.pathname;
+  // Public routes get the headers and none of the session rules.
+  if (isPublic(path)) return proceed(req, nonce);
+
+  const isApi = path.startsWith("/api/");
   if (!req.auth) {
     // API routes return their own 401; pages redirect to login.
-    if (isApi) return;
+    if (isApi) return proceed(req, nonce);
     const loginUrl = new URL("/login", req.nextUrl.origin);
-    return Response.redirect(loginUrl);
+    return decorate(Response.redirect(loginUrl), nonce);
   }
   // An account still holding its system-generated temporary password gets
   // nowhere until it sets its own (Phase 0 item 1). Checked before the portal
   // rules so a client_user with a temporary password is confined too.
   if (req.auth.user?.mustChangePassword) {
     const onChange = req.nextUrl.pathname.startsWith("/change-password");
-    if (isApi) return new Response("Password change required", { status: 403 });
-    if (!onChange) return Response.redirect(new URL("/change-password", req.nextUrl.origin));
-    return;
+    if (isApi) return decorate(new Response("Password change required", { status: 403 }), nonce);
+    if (!onChange) return decorate(Response.redirect(new URL("/change-password", req.nextUrl.origin)), nonce);
+    return proceed(req, nonce);
   }
 
   // A role that may not write must not reach a mutation, whichever surface it
@@ -40,12 +112,12 @@ export const proxy = auth((req) => {
   // the lib layer — path alone cannot tell one action id from another.
   const ownPortalAction = role === "client_user" && req.nextUrl.pathname.startsWith("/portal");
   if (isMutation && role && !canWrite(role) && !ownPortalAction) {
-    if (isApi) return new Response("Forbidden", { status: 403 });
+    if (isApi) return decorate(new Response("Forbidden", { status: 403 }), nonce);
     // A page-level Server Action: send the refusal back through the same
     // ?error= channel the actions already use, so the user sees a message.
     const url = new URL(req.nextUrl.pathname, req.nextUrl.origin);
     url.searchParams.set("error", "read-only-role");
-    return Response.redirect(url);
+    return decorate(Response.redirect(url), nonce);
   }
 
   // Portal users never see the audit file (spec §2.3): firm routes redirect
@@ -54,14 +126,15 @@ export const proxy = auth((req) => {
   const isClientUser = req.auth.user?.role === "client_user";
   const onPortal = req.nextUrl.pathname.startsWith("/portal");
   if (isClientUser && isApi) {
-    return new Response("Forbidden", { status: 403 });
+    return decorate(new Response("Forbidden", { status: 403 }), nonce);
   }
   if (isClientUser && !onPortal) {
-    return Response.redirect(new URL("/portal", req.nextUrl.origin));
+    return decorate(Response.redirect(new URL("/portal", req.nextUrl.origin)), nonce);
   }
   if (!isClientUser && onPortal) {
-    return Response.redirect(new URL("/dashboard", req.nextUrl.origin));
+    return decorate(Response.redirect(new URL("/dashboard", req.nextUrl.origin)), nonce);
   }
+  return proceed(req, nonce);
 });
 
 /*
@@ -84,28 +157,10 @@ export const proxy = auth((req) => {
  * but a tree missing from this list is a tree with no proxy-level check at all.
  */
 export const config = {
-  matcher: [
-    // Authenticated pages.
-    "/admin/:path*",
-    "/change-password/:path*",
-    "/clients/:path*",
-    "/dashboard/:path*",
-    "/documents/:path*",
-    "/engagements/:path*",
-    "/independence/:path*",
-    "/new-engagement/:path*",
-    "/notifications/:path*",
-    "/portal/:path*",
-    "/resources/:path*",
-    "/settings/:path*",
-    "/templates/:path*",
-    "/users/:path*",
-    // API trees.
-    "/api/attachments/:path*",
-    "/api/documents/:path*",
-    "/api/engagements/:path*",
-    "/api/notifications/:path*",
-    "/api/probe/:path*",
-    "/api/steps/:path*",
-  ],
+  // Everything except Next's own static output and file-like requests. The
+  // security headers must reach every document, including the landing page and
+  // /login — a Content-Security-Policy is worth least on the pages an attacker
+  // can reach without signing in. The route rules inside the proxy still apply
+  // only to non-public paths; see PUBLIC above.
+  matcher: ["/((?!_next/static|_next/image|favicon[.]ico|.*[.][^/]+$).*)"],
 };

@@ -5,6 +5,7 @@
 
 import { withTenant } from "@/lib/db";
 import { requireTenant } from "@/lib/tenant";
+import { amountOr } from "@/lib/amount";
 
 export interface AgingRow {
   party: string;
@@ -42,17 +43,9 @@ function parseDate(value: unknown): Date | null {
   return Number.isNaN(d.getTime()) ? null : d;
 }
 
+/** Amounts come from lib/amount.ts — one parser for the whole product. */
 function parseAmount(value: unknown): number {
-  if (typeof value === "number" && Number.isFinite(value)) return value;
-  const cleaned = String(value ?? "")
-    .replace(/[\s  ]/g, "")
-    .replace(/,(?=\d{1,2}$)/, ".")
-    .replace(/,/g, "");
-  if (cleaned === "" || cleaned === "-") return 0;
-  const negative = cleaned.startsWith("(") && cleaned.endsWith(")");
-  const parsed = Number(cleaned.replace(/[()]/g, ""));
-  if (!Number.isFinite(parsed)) return 0;
-  return negative ? -parsed : parsed;
+  return amountOr(value, 0);
 }
 
 /**

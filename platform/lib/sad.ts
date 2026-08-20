@@ -23,12 +23,11 @@ import {
   type SadView,
 } from "@/lib/sad-model";
 
+import { amountOr } from "@/lib/amount";
 export type { SadCaption, SadEntry, SadView } from "@/lib/sad-model";
 
-const num = (v: string): number => {
-  const n = Number(String(v).replace(/[^0-9.-]/g, ""));
-  return Number.isFinite(n) ? n : 0;
-};
+/** Shared parser: this stripped the decimal comma and inflated FCFA figures. */
+const num = (v: string): number => amountOr(v, 0);
 
 const CODE = "sad";
 const RESULT_FIELD = /^(finding|adj_debit_account|adj_debit_amount|adj_credit_account|adj_credit_amount)_(.+)$/;

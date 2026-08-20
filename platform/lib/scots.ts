@@ -8,6 +8,7 @@ import { withTenant } from "@/lib/db";
 import { requireTenant } from "@/lib/tenant";
 import { createNotification } from "@/lib/notifications";
 import { significantAccounts } from "@/lib/significant-accounts";
+import { amountOr } from "@/lib/amount";
 
 export type TransactionType = "routine" | "non_routine" | "estimation";
 export type ScotStrategy = "controls" | "substantive";
@@ -350,7 +351,7 @@ async function glLines(
   for (const { data } of rows.rows) {
     const account = String(data[mapping.account] ?? "").trim();
     if (clean && !account.startsWith(clean)) continue;
-    const n = Number(String(data[mapping.amount] ?? "").replace(/[\s  ]/g, "").replace(/,(?=\d{1,2}$)/, ".").replace(/,/g, ""));
+    const n = amountOr(data[mapping.amount], 0);
     if (!Number.isFinite(n) || n === 0) continue;
     out.push({
       ref: String(data[mapping.jeNumber ?? ""] ?? "").trim() || account,
@@ -713,7 +714,7 @@ export async function musPreview(
     for (const { data } of rows.rows) {
       const account = String(data[mapping.account] ?? "").trim();
       if (clean && !account.startsWith(clean)) continue;
-      const n = Number(String(data[mapping.amount] ?? "").replace(/[\s  ]/g, "").replace(/,(?=\d{1,2}$)/, ".").replace(/,/g, ""));
+      const n = amountOr(data[mapping.amount], 0);
       if (!Number.isFinite(n) || n === 0) continue;
       const abs = Math.abs(n);
       populationValue += abs;

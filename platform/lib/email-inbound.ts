@@ -9,6 +9,7 @@
 // (tenant is a global table; per-tenant reads stay under RLS via withTenant).
 
 import { pool, withTenant } from "@/lib/db";
+import { parseAmount } from "@/lib/amount";
 
 const REF = /\[ref:(IND|CONF)-([A-Za-z0-9_-]+)\]/;
 
@@ -17,8 +18,8 @@ export function extractAmount(text: string): number | null {
   const matches = text.match(/\d[\d\s  .,]{2,}\d/g) ?? [];
   let best: number | null = null;
   for (const raw of matches) {
-    const n = Number(raw.replace(/[\s  ]/g, "").replace(/,(?=\d{1,2}$)/, ".").replace(/,/g, ""));
-    if (Number.isFinite(n) && n > 0) best = best === null ? n : Math.max(best, n);
+    const n = parseAmount(raw);
+    if (n !== null && n > 0) best = best === null ? n : Math.max(best, n);
   }
   return best;
 }
