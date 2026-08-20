@@ -78,7 +78,7 @@ export async function saveFormAction(
       ? `/engagements/${engagementId}/groups/${group.id}`
       : `/engagements/${engagementId}/phases/${slug}`;
     try {
-      await saveForm(engagementId, code, values);
+      await saveForm(engagementId, code, values, String(formData.get("__revision") ?? "") || undefined);
       const { tenantId } = await requireTenant();
       const item = await withTenant(tenantId, async (tx) => {
         const r = await tx.query<{ id: string }>(
@@ -108,7 +108,8 @@ export async function saveFormAction(
     redirect(listPath);
   }
 
-  await guarded(path, () => saveForm(engagementId, code, values));
+  const revision = String(formData.get("__revision") ?? "");
+  await guarded(path, () => saveForm(engagementId, code, values, revision || undefined));
 }
 
 export async function carryForwardAction(engagementId: string): Promise<void> {

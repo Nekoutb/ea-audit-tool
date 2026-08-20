@@ -68,7 +68,7 @@ export default async function FormPage(props: {
   const phase = phaseOfTask("D", code);
   const phaseSlug = PHASE_SLUG_OF[phase];
   const tk = t.taskPage;
-  const [{ values, carried }, registers, task, template] = await Promise.all([
+  const [{ values, carried, revision }, registers, task, template] = await Promise.all([
     loadForm(id, code),
     subRegisters(id, code),
     taskForItem(id, code),
@@ -224,6 +224,8 @@ export default async function FormPage(props: {
       {/* FORM FIELDS (canvas block 4) */}
       <Panel>
         <form id="task-form" action={saveFormAction.bind(null, id, code)} className="flex flex-col gap-4">
+          {/* Baseline for optimistic concurrency — saveForm compares against it. */}
+          <input type="hidden" name="__revision" value={revision} />
           {definition.fields.map((field) => {
             const value = values[field.key];
             const isCarried = carried.has(field.key);

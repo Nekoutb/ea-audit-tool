@@ -137,23 +137,48 @@ export const FORM_DEFINITIONS: Record<string, FormDefinition> = {
 
 export type FormValues = Record<string, unknown>;
 
+/**
+ * Raised when someone else changed a field while this editor had the paper
+ * open. `fields` names them and `by` names who, so the message can say what to
+ * look at rather than just "conflict".
+ */
+export class ConcurrentEditError extends Error {
+  readonly fields: string[];
+  readonly by: string;
+  constructor(fields: string[], by: string) {
+    super("changed-elsewhere");
+    this.name = "ConcurrentEditError";
+    this.fields = fields;
+    this.by = by;
+  }
+}
+
 export async function loadForm(engagementId: string, code: string): Promise<{
   values: FormValues;
   carried: Set<string>;
+  /** Baseline for optimistic concurrency — hand it back to saveForm. */
+  revision: string;
 }> {
   const { tenantId } = await requireTenant();
   return withTenant(tenantId, async (tx) => {
     const result = await tx.query<{ field_key: string; value: unknown; carried_forward: boolean }>(
-      "SELECT field_key, value, carried_forward FROM form_response WHERE engagement_id = $1 AND code = $2",
+      `SELECT field_key, value, carried_forward
+         FROM form_response WHERE engagement_id = $1 AND code = $2`,
       [engagementId, code],
     );
+    // The baseline is the database clock at load time, not max(updated_at):
+    // the question saveForm asks is "did anyone write after I loaded this?",
+    // and an empty paper needs an answer too — two people starting the same
+    // blank paper at once is exactly when they collide. now() is the
+    // transaction start time, so it sits at or before the row read above.
+    const clock = await tx.query<{ now: string }>("SELECT now()::text AS now");
     const values: FormValues = {};
     const carried = new Set<string>();
     for (const row of result.rows) {
       values[row.field_key] = row.value;
       if (row.carried_forward) carried.add(row.field_key);
     }
-    return { values, carried };
+    return { values, carried, revision: clock.rows[0].now };
   });
 }
 
@@ -162,6 +187,8 @@ export async function saveForm(
   engagementId: string,
   code: string,
   values: FormValues,
+  /** The revision loadForm returned. Omit to save unconditionally. */
+  baseRevision?: string,
 ): Promise<void> {
   const { tenantId, userId } = await requireTenant();
   const definition = FORM_DEFINITIONS[code];
@@ -177,6 +204,36 @@ export async function saveForm(
   }
 
   await withTenant(tenantId, async (tx) => {
+    // Optimistic concurrency. Two people on one paper is normal and mostly
+    // harmless — they are usually in different fields — so a conflict is raised
+    // only where all three hold: the field was written after this editor loaded
+    // it, by someone else, and to a different value. Editing round someone
+    // else, or re-saving what is already stored, is not a conflict.
+    if (baseRevision) {
+      const keys = definition.fields.map((f) => f.key).filter((k) => k in values);
+      if (keys.length > 0) {
+        const since = await tx.query<{ field_key: string; value: unknown; name: string | null }>(
+          `SELECT fr.field_key, fr.value, coalesce(u.name, u.email) AS name
+             FROM form_response fr
+             LEFT JOIN app_user u ON u.id = fr.updated_by
+            WHERE fr.engagement_id = $1 AND fr.code = $2
+              AND fr.field_key = ANY($3)
+              AND fr.updated_at > $4::timestamptz
+              AND fr.updated_by IS DISTINCT FROM $5`,
+          [engagementId, code, keys, baseRevision, userId],
+        );
+        const clashed = since.rows.filter(
+          (r) => JSON.stringify(r.value) !== JSON.stringify(values[r.field_key]),
+        );
+        if (clashed.length > 0) {
+          throw new ConcurrentEditError(
+            clashed.map((r) => r.field_key),
+            clashed[0].name ?? "another user",
+          );
+        }
+      }
+    }
+
     for (const field of definition.fields) {
       if (!(field.key in values)) continue;
       await tx.query(

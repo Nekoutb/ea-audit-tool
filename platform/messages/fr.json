@@ -1217,7 +1217,9 @@
       "invalid-color": "L'accent doit être une couleur hexadécimale, ex. #1f6b56.",
       "invalid-logo-type": "Le logo doit être une image PNG ou JPEG.",
       "logo-too-large": "Le logo dépasse la limite de 150 Ko.",
-      "text-too-long": "Un des champs texte dépasse 160 caractères."
+      "text-too-long": "Un des champs texte dépasse 160 caractères.",
+      "changed-elsewhere": "Une autre personne a modifié ce papier pendant que vous l'aviez ouvert. Rechargez pour voir sa version avant d'enregistrer — votre saisie n'a pas été conservée.",
+      "read-only-role": "Votre rôle permet de consulter ce dossier mais pas de le modifier."
     }
   },
   "team": {

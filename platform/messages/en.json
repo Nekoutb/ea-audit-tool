@@ -1217,7 +1217,9 @@
       "invalid-color": "The accent must be a hex colour like #1f6b56.",
       "invalid-logo-type": "The logo must be a PNG or JPEG image.",
       "logo-too-large": "The logo exceeds the 150 KB limit.",
-      "text-too-long": "One of the text fields exceeds 160 characters."
+      "text-too-long": "One of the text fields exceeds 160 characters.",
+      "changed-elsewhere": "Someone else changed this paper while you had it open. Reload to see their version before saving again — your entry has not been stored.",
+      "read-only-role": "Your role can view this file but not change it."
     }
   },
   "team": {
