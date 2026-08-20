@@ -36,7 +36,7 @@ export default async function AdminPage(props: { searchParams: Promise<{ error?:
         language: String(formData.get("language") ?? "fr") === "en" ? "en" : "fr",
         mailLocal: String(formData.get("mailLocal") ?? ""),
       });
-      redirect(`/admin?ok=${encodeURIComponent(r.tempPassword ? `created:${r.tempPassword}` : "created")}`);
+      redirect(`/admin?ok=${r.emailed ? "created-emailed" : "created"}`);
     } catch (e) {
       if (e instanceof AdminError) redirect(`/admin?error=${encodeURIComponent(e.message)}`);
       throw e;
@@ -63,9 +63,13 @@ export default async function AdminPage(props: { searchParams: Promise<{ error?:
       {error ? <p role="alert" className="mt-3 text-[13px] font-semibold text-rose">{error}</p> : null}
       {ok ? (
         <p className="mt-3 text-[13px] font-semibold text-emerald-700 dark:text-emerald-400" data-testid="admin-ok">
-          {ok.startsWith("created:")
-            ? `${fr ? "Cabinet créé — mot de passe provisoire (aussi envoyé par email)" : "Firm created — temporary password (also emailed)"}: ${ok.slice(8)}`
-            : fr ? "Cabinet créé — email d'accueil envoyé." : "Firm created — onboarding email sent."}
+          {ok === "created-emailed"
+            ? fr
+              ? "Cabinet créé. Le mot de passe provisoire a été envoyé à l'administrateur par email ; il devra le remplacer à la première connexion."
+              : "Firm created. The temporary password was emailed to the administrator, who must replace it at first sign-in."
+            : fr
+              ? "Cabinet créé — l'administrateur utilise son mot de passe existant."
+              : "Firm created — the administrator uses their existing password."}
         </p>
       ) : null}
 

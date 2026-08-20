@@ -12,6 +12,7 @@ interface UserRow {
   password_hash: string;
   preferred_language: string;
   is_super: boolean;
+  must_change_password: boolean;
 }
 
 interface MembershipRow {
@@ -38,7 +39,10 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
         if (!email || !password) return null;
 
         const userResult = await pool.query<UserRow>(
-          "SELECT id, email, name, password_hash, preferred_language, coalesce(is_super, false) AS is_super FROM app_user WHERE lower(email) = $1",
+          `SELECT id, email, name, password_hash, preferred_language,
+                  coalesce(is_super, false) AS is_super,
+                  coalesce(must_change_password, false) AS must_change_password
+             FROM app_user WHERE lower(email) = $1`,
           [email],
         );
         const user = userResult.rows[0];
@@ -68,6 +72,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
           locale,
           clientId: membership.client_id,
           isSuper: user.is_super,
+          mustChangePassword: user.must_change_password,
         };
       },
     }),
@@ -81,6 +86,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
         token.locale = user.locale;
         token.clientId = user.clientId ?? null;
         token.isSuper = user.isSuper ?? false;
+        token.mustChangePassword = user.mustChangePassword ?? false;
       }
       return token;
     },
@@ -92,6 +98,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
         session.user.locale = token.locale as Locale;
         session.user.clientId = (token.clientId as string | null) ?? null;
         session.user.isSuper = (token.isSuper as boolean | undefined) ?? false;
+        session.user.mustChangePassword = (token.mustChangePassword as boolean | undefined) ?? false;
       }
       return session;
     },

@@ -13,6 +13,8 @@ declare module "next-auth" {
       clientId: string | null;
       /** Platform operator (cross-firm admin console). */
       isSuper: boolean;
+      /** Holding a system-generated temporary password; confined to /change-password. */
+      mustChangePassword: boolean;
     } & DefaultSession["user"];
   }
 
@@ -22,6 +24,7 @@ declare module "next-auth" {
     locale?: Locale;
     clientId?: string | null;
     isSuper?: boolean;
+    mustChangePassword?: boolean;
   }
 }
 
@@ -33,5 +36,6 @@ declare module "next-auth/jwt" {
     locale?: Locale;
     clientId?: string | null;
     isSuper?: boolean;
+    mustChangePassword?: boolean;
   }
 }

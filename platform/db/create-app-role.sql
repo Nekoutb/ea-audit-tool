@@ -8,16 +8,29 @@
 -- as ea_app (APP_DATABASE_URL); migrations run as the owner (postgres,
 -- DATABASE_URL). Idempotent — safe to re-run.
 
+-- The password is supplied at run time and never stored in this file. The
+-- runner (scripts/run-sql.mjs) puts it in a session setting first:
+--
+--   APP_ROLE_PASSWORD="$(openssl rand -base64 24)" npm run db:role
+--
+-- A session setting is used rather than a psql variable because the runner is
+-- deliberately psql-free (it must work in CI without psql on PATH). Missing or
+-- empty is a hard error, so no path can recreate a known credential.
 DO $$
+DECLARE
+  pw text := nullif(current_setting('ea.app_password', true), '');
 BEGIN
+  IF pw IS NULL THEN
+    RAISE EXCEPTION
+      'ea.app_password is not set - run with APP_ROLE_PASSWORD=<secret> (e.g. openssl rand -base64 24)';
+  END IF;
+
   IF NOT EXISTS (SELECT FROM pg_roles WHERE rolname = 'ea_app') THEN
-    -- SECURITY: placeholder credential, committed to the repository and
-    -- therefore compromised. It MUST be rotated out of band (ALTER ROLE ea_app
-    -- PASSWORD '<new>' plus APP_DATABASE_URL) and this file changed to read the
-    -- value from psql's :app_password variable instead of a literal. Left
-    -- verbatim here only because rotation is being handled separately — do not
-    -- "fix" it by inventing another literal.
-    CREATE ROLE ea_app LOGIN PASSWORD 'ea_app_password';
+    EXECUTE format('CREATE ROLE ea_app LOGIN PASSWORD %L', pw);
+  ELSE
+    -- Re-running rotates the secret to the supplied value: run this, then
+    -- update APP_DATABASE_URL and restart the service.
+    EXECUTE format('ALTER ROLE ea_app PASSWORD %L', pw);
   END IF;
 END $$;
 

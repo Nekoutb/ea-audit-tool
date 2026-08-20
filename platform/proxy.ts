@@ -14,6 +14,16 @@ export const proxy = auth((req) => {
     const loginUrl = new URL("/login", req.nextUrl.origin);
     return Response.redirect(loginUrl);
   }
+  // An account still holding its system-generated temporary password gets
+  // nowhere until it sets its own (Phase 0 item 1). Checked before the portal
+  // rules so a client_user with a temporary password is confined too.
+  if (req.auth.user?.mustChangePassword) {
+    const onChange = req.nextUrl.pathname.startsWith("/change-password");
+    if (isApi) return new Response("Password change required", { status: 403 });
+    if (!onChange) return Response.redirect(new URL("/change-password", req.nextUrl.origin));
+    return;
+  }
+
   // Portal users never see the audit file (spec §2.3): firm routes redirect
   // to the portal, firm APIs are refused outright, and firm users have no
   // business on the portal.
@@ -53,6 +63,7 @@ export const config = {
   matcher: [
     // Authenticated pages.
     "/admin/:path*",
+    "/change-password/:path*",
     "/clients/:path*",
     "/dashboard/:path*",
     "/documents/:path*",

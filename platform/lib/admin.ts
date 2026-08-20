@@ -76,7 +76,7 @@ export async function createFirm(input: {
   language?: "en" | "fr";
   /** local part of the firm's sending address; defaults to the slug */
   mailLocal?: string;
-}): Promise<{ tenantId: string; tempPassword: string }> {
+}): Promise<{ tenantId: string; emailed: boolean }> {
   await requireSuper();
   const name = input.name.trim();
   const slug = input.slug.trim().toLowerCase().replace(/[^a-z0-9-]/g, "-");
@@ -114,8 +114,8 @@ export async function createFirm(input: {
     let userId = existingUser.rows[0]?.id;
     if (!userId) {
       const u = await client.query<{ id: string }>(
-        `INSERT INTO app_user (email, name, password_hash, preferred_language)
-         VALUES ($1, $2, $3, $4) RETURNING id`,
+        `INSERT INTO app_user (email, name, password_hash, preferred_language, must_change_password)
+         VALUES ($1, $2, $3, $4, true) RETURNING id`,
         [adminEmail, input.adminName.trim() || name, hash, language],
       );
       userId = u.rows[0].id;
@@ -138,10 +138,12 @@ export async function createFirm(input: {
     body:
       `Your audit firm "${name}" has been set up on AuditISA.\n\n` +
       `Sign in: /login\nEmail: ${adminEmail}\n` +
-      (isNewUser ? `Temporary password: ${tempPassword}\n\nChange the password after your first sign-in, ` : `Use your existing password. `) +
+      (isNewUser ? `Temporary password: ${tempPassword}\n\nYou will be asked to replace it the first time you sign in, ` : `Use your existing password. `) +
       `then create your clients and audit engagements and invite your team. ` +
       `Each firm's data is fully segregated, and every engagement is independent within the firm.`,
   });
 
-  return { tenantId, tempPassword: isNewUser ? tempPassword : "" };
+  // The generated secret leaves this function only by email. It is never
+  // returned to the console, put in a URL, or logged (Phase 0 item 1).
+  return { tenantId, emailed: isNewUser };
 }
