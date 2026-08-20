@@ -8,8 +8,10 @@
 // Answers and signatures persist in form_response under the paper code
 // "wp:P7.2", like every other working paper.
 
+import type { PoolClient } from "pg";
 import { withTenant } from "@/lib/db";
-import { requireTenant } from "@/lib/tenant";
+import { atLeast, type Role } from "@/lib/rbac";
+import { ForbiddenError, requireTenant, requireRole, requireWrite } from "@/lib/tenant";
 import { engagementTasks } from "@/lib/engagement-dashboard";
 
 export interface RasItem {
@@ -150,15 +152,51 @@ export async function planningRas(engagementId: string): Promise<PlanningRasView
   });
 }
 
+/**
+ * Lowest rank that may answer each section. The signature tiers were already
+ * gated; the attestations UNDER them were not, so any staff member could answer
+ * b17 ("planning is complete and fieldwork may begin") and every Section C line
+ * — statements written in the first person of a partner or quality reviewer.
+ */
+const SECTION_FLOOR: Record<string, "senior" | "partner"> = {
+  a: "senior",
+  b: "partner",
+  // c is deliberately absent: Section C is the quality reviewer's, and that is
+  // an identity rule (assertQualityReviewer), not a rank floor.
+};
+
+/**
+ * ISQM 2 para 19: the engagement quality reviewer is someone other than the
+ * engagement partner and not a member of the team. Rank cannot express this —
+ * eqr_reviewer and manager both rank 4, and partner ranks above both, so
+ * atLeast() admits every manager and every partner. Identity is the control.
+ */
+async function assertQualityReviewer(
+  tx: PoolClient,
+  engagementId: string,
+  userId: string,
+  actor: Role,
+): Promise<void> {
+  if (actor !== "eqr_reviewer") throw new ForbiddenError("eqr-must-be-the-quality-reviewer");
+  const onTeam = await tx.query(
+    "SELECT 1 FROM team_member WHERE engagement_id = $1 AND user_id = $2",
+    [engagementId, userId],
+  );
+  if (onTeam.rows.length > 0) throw new ForbiddenError("eqr-cannot-be-on-the-team");
+}
+
 /** Record one answer (or its explanation). Signing is a separate act. */
 export async function saveRasAnswer(
   engagementId: string,
   key: string,
   value: string,
 ): Promise<void> {
-  const { tenantId, userId } = await requireTenant();
+  const { tenantId, userId, role } = await requireWrite();
   if (!/^([abc]\d{1,2}(_x)?|ap_[A-Za-z0-9-]{1,40}_(name|role|grade|client|hours|skills))$/.test(key)) throw new Error("invalid-key");
+  const floor = SECTION_FLOOR[key[0]];
+  if (floor && !atLeast(role, floor)) throw new ForbiddenError(`requires-${floor.replace(/_/g, "-")}`);
   await withTenant(tenantId, async (tx) => {
+    if (key[0] === "c") await assertQualityReviewer(tx, engagementId, userId, role);
     if (value.trim() === "") {
       await tx.query(
         "DELETE FROM form_response WHERE engagement_id = $1 AND code = $2 AND field_key = $3",
@@ -186,9 +224,20 @@ export async function signRas(
   role: SignatureRole,
   clear = false,
 ): Promise<void> {
-  const { tenantId, userId } = await requireTenant();
-  if (!SIGNATURE_ROLES.some((r) => r.role === role)) throw new Error("invalid-role");
+  // The floor was enforced in the route handler only, so any second caller — a
+  // server action, a future batch path — bypassed it silently. It belongs here;
+  // the route's copy stays as defence in depth.
+  const definition = SIGNATURE_ROLES.find((r) => r.role === role);
+  if (!definition) throw new Error("invalid-role");
+  const { tenantId, userId, role: actor } = await requireRole(definition.min);
   await withTenant(tenantId, async (tx) => {
+    // ISQM 2 para 19: the engagement quality reviewer is someone other than the
+    // engagement partner and not a member of the team. A rank floor cannot say
+    // this — partner ranks ABOVE eqr_reviewer, so atLeast() alone lets the
+    // engagement partner sign as their own quality reviewer, and withdraw the
+    // real reviewer's signature. Identity is the control here, not seniority.
+    if (role === "eqr") await assertQualityReviewer(tx, engagementId, userId, actor);
+
     if (clear) {
       await tx.query(
         "DELETE FROM form_response WHERE engagement_id = $1 AND code = $2 AND field_key = $3",

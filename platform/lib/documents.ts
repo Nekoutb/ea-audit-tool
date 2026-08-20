@@ -4,10 +4,10 @@ import { withTenant } from "@/lib/db";
 import { generateWorkpaperDocx } from "@/lib/docx";
 import type { Locale } from "@/lib/i18n";
 import { createNotification } from "@/lib/notifications";
-import { canPartnerSignoff, canReview } from "@/lib/rbac";
+import { atLeast, canPartnerSignoff, canReview, type Role } from "@/lib/rbac";
 import { applyOverride } from "@/lib/template-overrides";
 import { templateFor } from "@/lib/templates";
-import { requireTenant } from "@/lib/tenant";
+import { ForbiddenError, requireRole, requireTenant, requireWrite } from "@/lib/tenant";
 import { paperContentHashTx } from "@/lib/working-papers";
 
 export const DOCX_MIME =
@@ -504,18 +504,53 @@ export async function signDocument(documentId: string, role: SignoffRole): Promi
  * Reopen a signed document with a reason: voids every active sign-off, unlocks
  * the paper, and notifies the signers whose sign-offs were voided (spec §9.5).
  */
+/** Lowest firm rank that could have produced each sign-off tier. */
+const SIGNOFF_TIER_FLOOR: Record<string, Role | undefined> = {
+  preparer: "staff",
+  reviewer: "senior",
+  partner: "partner",
+};
+
 export async function reopenDocument(documentId: string, reason: string): Promise<void> {
-  const { tenantId, userId } = await requireTenant();
+  // Un-signing is the mirror of signing and must not be cheaper than it.
+  // signDocument refuses a reviewer signature below senior and a partner
+  // signature below partner; without a floor here, a preparer could void both.
+  const { tenantId, userId, role } = await requireRole("manager");
   const signers: { user_id: string; title: string }[] = [];
 
   await withTenant(tenantId, async (tx) => {
-    const doc = await tx.query<{ status: string; title: string }>(
-      "SELECT status, title FROM document WHERE id = $1 FOR UPDATE",
+    const doc = await tx.query<{ status: string; title: string; engagement_id: string }>(
+      "SELECT status, title, engagement_id FROM document WHERE id = $1 FOR UPDATE",
       [documentId],
     );
     const row = doc.rows[0];
     if (!row) throw new DocumentRuleError("not-found");
     if (!reason.trim()) throw new DocumentRuleError("reason-required");
+
+    // Once the report is signed, reopening a paper is a post-report-date change
+    // to the audit documentation (ISA 230 para 16) and is the partner's call.
+    const eng = await tx.query<{ report_date: string | null }>(
+      "SELECT report_date::text FROM engagement WHERE id = $1",
+      [row.engagement_id],
+    );
+    if (eng.rows[0]?.report_date && !canPartnerSignoff(role)) {
+      throw new ForbiddenError("requires-partner-after-report-date");
+    }
+
+    // Dominance: you may not void an attestation more senior than your own.
+    // signoff.role is the sign-off TIER (preparer/reviewer/partner), so it maps
+    // to the lowest firm rank that could have made it — the same floors
+    // signDocument enforces when the signature is created.
+    const held = await tx.query<{ role: string }>(
+      "SELECT DISTINCT role FROM signoff WHERE document_id = $1 AND voided_at IS NULL",
+      [documentId],
+    );
+    for (const h of held.rows) {
+      const floor = SIGNOFF_TIER_FLOOR[h.role];
+      if (floor && !atLeast(role, floor)) {
+        throw new ForbiddenError("cannot-void-more-senior-signoff");
+      }
+    }
 
     const voided = await tx.query<{ user_id: string }>(
       `UPDATE signoff SET voided_at = now(), void_reason = $2
@@ -583,9 +618,23 @@ export async function addReviewNote(documentId: string, body: string): Promise<v
 }
 
 export async function clearReviewNote(noteId: string, response: string): Promise<void> {
-  const { tenantId, userId } = await requireTenant();
+  const { tenantId, userId, role } = await requireWrite();
   if (!response.trim()) throw new DocumentRuleError("response-required");
   await withTenant(tenantId, async (tx) => {
+    // Clearing a note is not bookkeeping: an open note blocks both the reviewer
+    // and partner signature (signDocument) and the archive gate
+    // (review_notes_cleared). ISA 220 (Revised) para 29 puts the judgement that
+    // a point is resolved with the reviewer, so a preparer must not close the
+    // note raised against their own work. The author may always close their own
+    // — a staff member who queried someone else's paper can withdraw it.
+    const note = await tx.query<{ author_id: string | null }>(
+      "SELECT author_id FROM review_note WHERE id = $1",
+      [noteId],
+    );
+    const author = note.rows[0]?.author_id;
+    if (author !== userId && !atLeast(role, "senior")) {
+      throw new ForbiddenError("requires-senior-or-author");
+    }
     await tx.query(
       `UPDATE review_note
           SET status = 'cleared', response = $2, cleared_at = now(), cleared_by = $3

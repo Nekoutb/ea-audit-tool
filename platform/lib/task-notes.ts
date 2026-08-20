@@ -3,7 +3,8 @@
 // under Review notes. Notes are cleared, never deleted — the trail stays.
 
 import { withTenant } from "@/lib/db";
-import { requireTenant } from "@/lib/tenant";
+import { atLeast } from "@/lib/rbac";
+import { ForbiddenError, requireTenant, requireWrite } from "@/lib/tenant";
 import { createNotification } from "@/lib/notifications";
 
 export interface TaskNote {
@@ -105,8 +106,22 @@ export async function addTaskNote(
 
 /** Answer and clear a note. */
 export async function clearTaskNote(noteId: string, response: string): Promise<void> {
-  const { tenantId, userId } = await requireTenant();
+  const { tenantId, userId, role } = await requireWrite();
   await withTenant(tenantId, async (tx) => {
+    // Clearing a note is not bookkeeping: an open note blocks both the reviewer
+    // and partner signature (signDocument) and the archive gate
+    // (review_notes_cleared). ISA 220 (Revised) para 29 puts the judgement that
+    // a point is resolved with the reviewer, so a preparer must not close the
+    // note raised against their own work. The author may always close their own
+    // — a staff member who queried someone else's paper can withdraw it.
+    const note = await tx.query<{ author_id: string | null }>(
+      "SELECT author_id FROM review_note WHERE id = $1",
+      [noteId],
+    );
+    const author = note.rows[0]?.author_id;
+    if (author !== userId && !atLeast(role, "senior")) {
+      throw new ForbiddenError("requires-senior-or-author");
+    }
     await tx.query(
       `UPDATE review_note
           SET status = 'cleared', response = $2, cleared_at = now(), cleared_by = $3

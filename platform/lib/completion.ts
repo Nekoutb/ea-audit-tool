@@ -7,7 +7,8 @@ import { withTenant } from "@/lib/db";
 import { carryForwardFromPriorYear } from "@/lib/forms";
 import type { GateResult } from "@/lib/gates";
 import { canPartnerSignoff } from "@/lib/rbac";
-import { requireTenant } from "@/lib/tenant";
+import { assertMutable } from "@/lib/mutability";
+import { requireRole, requireTenant } from "@/lib/tenant";
 
 export class CompletionError extends Error {
   constructor(public readonly code: string) {
@@ -16,15 +17,33 @@ export class CompletionError extends Error {
   }
 }
 
+/**
+ * Keys the system owns. archive_manifest is the snapshot proving what the file
+ * contained when it closed; completion_record is deliberately exempt from the
+ * archive-immutability triggers so archiveEngagement can write it, which means
+ * nothing but this check stops that record being rewritten afterwards.
+ */
+const SYSTEM_COMPLETION_KEYS = new Set(["archive_manifest"]);
+
 export async function recordCompletion(
   engagementId: string,
   key: string,
   data: Record<string, unknown> = {},
 ): Promise<void> {
-  const { tenantId, userId, role } = await requireTenant();
+  // Four of these keys ARE completion gates, and recordExists() tests existence
+  // rather than content — so writing the key is passing the gate. Senior is the
+  // floor: in a small firm the senior running fieldwork legitimately performs
+  // and records the final analytical review and the tie-out.
+  const { tenantId, userId, role } = await requireRole("senior");
   if (key === "partner_conclusion" && !canPartnerSignoff(role)) {
     throw new CompletionError("forbidden");
   }
+  if (SYSTEM_COMPLETION_KEYS.has(key)) throw new CompletionError("system-key");
+  // points_forward is written for NEXT year's file and is the reason
+  // completion_record is exempt from the archive triggers (see the header of
+  // migrations/20260820000002_archive_immutability.sql) — it must stay writable
+  // across the rollforward boundary. Everything else is part of this file.
+  if (key !== "points_forward") await assertMutable(engagementId);
   await withTenant(tenantId, async (tx) => {
     await tx.query(
       `INSERT INTO completion_record (tenant_id, engagement_id, key, data, done_by)
