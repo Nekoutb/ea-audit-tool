@@ -48,6 +48,36 @@ ALTER DEFAULT PRIVILEGES IN SCHEMA public
 ALTER DEFAULT PRIVILEGES IN SCHEMA public
   GRANT USAGE, SELECT ON SEQUENCES TO ea_app;
 
+-- ---- Deletes the application never issues ----
+--
+-- GRANT ... ON ALL TABLES above hands ea_app DELETE on everything. Removing an
+-- audit firm, a client, an engagement or a person is not something the product
+-- does — the only global delete in the whole codebase is lib/users.ts removing
+-- a membership, which is how a person leaves a firm — so the privilege is pure
+-- surface area. Without it, a leaked application credential cannot drop a firm.
+--
+-- Owner-role work is unaffected: migrations and test teardown connect as
+-- postgres, not ea_app.
+--
+-- app_user in particular must never be deleted by the app: sign-off attribution
+-- and activity_log point at those rows, and removing one would orphan the
+-- evidence of who did the work.
+DO $$
+DECLARE t text;
+BEGIN
+  -- legal_hold belongs here too: the append-only trigger refuses a delete
+  -- anyway, and the grant should say the same thing as the trigger. Its own
+  -- migration revoked it, and then re-running THIS script's blanket GRANT ON
+  -- ALL TABLES handed it straight back — which is exactly how a narrowing
+  -- gets silently undone, and why tests/lib/app-role-privileges.test.ts exists.
+  FOREACH t IN ARRAY ARRAY['engagement', 'client', 'tenant', 'app_user', 'legal_hold']
+  LOOP
+    IF to_regclass('public.' || t) IS NOT NULL THEN
+      EXECUTE format('REVOKE DELETE ON %I FROM ea_app', t);
+    END IF;
+  END LOOP;
+END $$;
+
 -- ---- Append-only tables: exceptions to the blanket grant above ----
 --
 -- The audit trail must not be rewritable by the role that writes it, otherwise
