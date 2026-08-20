@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { getVersionContent } from "@/lib/documents";
 import { atLeast } from "@/lib/rbac";
 import { requireTenant } from "@/lib/tenant";
+import { fileResponseHeaders } from "@/lib/upload-safety";
 
 /**
  * Download a specific version of a working paper (tenant-scoped via session).
@@ -27,10 +28,7 @@ export async function GET(
     const version = await getVersionContent(id, versionNo);
     if (!version) return NextResponse.json({ error: "not-found" }, { status: 404 });
     return new NextResponse(new Uint8Array(version.content), {
-      headers: {
-        "Content-Type": version.mime,
-        "Content-Disposition": `attachment; filename="${encodeURIComponent(version.filename)}"`,
-      },
+      headers: fileResponseHeaders(version.filename, version.mime),
     });
   } catch {
     return NextResponse.json({ error: "unauthenticated" }, { status: 401 });

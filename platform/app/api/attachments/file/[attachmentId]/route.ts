@@ -7,6 +7,7 @@ import {
 } from "@/lib/attachments";
 import { atLeast } from "@/lib/rbac";
 import { requireTenant } from "@/lib/tenant";
+import { fileResponseHeaders } from "@/lib/upload-safety";
 
 // Defence in depth (assurance finding C2): the proxy matcher walls portal users
 // off this tree, but the handlers below never assume it did. Each one resolves
@@ -39,11 +40,7 @@ export async function GET(_request: Request, context: { params: Promise<{ attach
     const row = await getAttachment(attachmentId);
     if (!row) return NextResponse.json({ error: "not-found" }, { status: 404 });
     return new NextResponse(new Uint8Array(row.content), {
-      headers: {
-        "Content-Type": row.mime,
-        "Content-Disposition": `attachment; filename="${encodeURIComponent(row.name)}"`,
-        "Cache-Control": "private, no-store",
-      },
+      headers: fileResponseHeaders(row.name, row.mime),
     });
   } catch {
     return NextResponse.json({ error: "unauthenticated" }, { status: 401 });

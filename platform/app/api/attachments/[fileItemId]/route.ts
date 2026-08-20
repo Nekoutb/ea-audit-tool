@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { saveAttachment } from "@/lib/attachments";
 import { atLeast } from "@/lib/rbac";
 import { requireTenant } from "@/lib/tenant";
+import { allowedExtensions, checkUpload, UnsafeFileError } from "@/lib/upload-safety";
 
 const MAX_BYTES = 25 * 1024 * 1024; // same 25 MB ceiling as working papers
 
@@ -28,15 +29,20 @@ export async function POST(request: Request, context: { params: Promise<{ fileIt
     if (file.size === 0 || file.size > MAX_BYTES) {
       return NextResponse.json({ error: "file-size" }, { status: 400 });
     }
-    // keep the basename only; the name keys the version chain
-    const name = file.name.replace(/[/\\]/g, "").slice(0, 160) || "attachment";
     const content = Buffer.from(await file.arrayBuffer());
-    const saved = await saveAttachment(
-      fileItemId,
-      name,
-      file.type || "application/octet-stream",
-      content,
-    );
+    // The extension is checked against an allowlist AND against the bytes, and
+    // the stored MIME comes from the result — the uploader's file.type was
+    // previously written through verbatim and replayed on download.
+    let checked;
+    try {
+      checked = checkUpload(file.name, content);
+    } catch (e) {
+      if (e instanceof UnsafeFileError) {
+        return NextResponse.json({ error: e.code, allowed: allowedExtensions() }, { status: 400 });
+      }
+      throw e;
+    }
+    const saved = await saveAttachment(fileItemId, checked.name, checked.mime, content);
     return NextResponse.json({ attachment: saved });
   } catch (error) {
     if (error instanceof Error && error.message === "task-not-found") {
