@@ -60,11 +60,14 @@ export function TaskAttachments({
   fileItemId,
   initial,
   locale,
+  canManage = false,
 }: {
   compact?: boolean;
   fileItemId: string;
   initial: AttachmentRow[];
   locale: "en" | "fr";
+  /** the signed-in user may rename or delete evidence (manager and above) */
+  canManage?: boolean;
 }) {
   const fr = locale === "fr";
   const [rows, setRows] = useState<AttachmentRow[]>(initial);
@@ -164,7 +167,9 @@ export function TaskAttachments({
   }
 
   async function remove(row: AttachmentRow) {
-    if (!window.confirm(fr ? `Supprimer « ${row.name} » et toutes ses versions ?` : `Delete "${row.name}" and all its versions?`)) return;
+    if (!window.confirm(fr
+      ? `Supprimer « ${row.name} » ? Le fichier reste récupérable pendant 30 jours.`
+      : `Delete "${row.name}"? It stays recoverable for 30 days.`)) return;
     const response = await fetch(`/api/attachments/file/${row.id}`, { method: "DELETE" });
     if (!response.ok) {
       setError(fr ? "Suppression impossible" : "Could not delete the file");
@@ -252,7 +257,8 @@ export function TaskAttachments({
                   {watching[row.name] !== undefined ? (fr ? " · suivi actif" : " · watching saves") : ""}
                 </span>
               </span>
-              {/* rename */}
+              {/* rename — evidence metadata is a managed change */}
+              {canManage ? (
               <button
                 type="button"
                 onClick={() => setRenaming(row.name)}
@@ -263,6 +269,7 @@ export function TaskAttachments({
               >
                 <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 20h9" /><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4Z" /></svg>
               </button>
+              ) : null}
               {/* edit locally / stop watching */}
               {watching[row.name] !== undefined ? (
                 <button
@@ -297,7 +304,8 @@ export function TaskAttachments({
               >
                 <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 3v12" /><path d="m7 10 5 5 5-5" /><path d="M5 21h14" /></svg>
               </a>
-              {/* delete — the file and every version of it */}
+              {/* delete — recoverable for 30 days, manager and above only */}
+              {canManage ? (
               <button
                 type="button"
                 onClick={() => void remove(row)}
@@ -308,6 +316,7 @@ export function TaskAttachments({
               >
                 <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round"><path d="M18 6 6 18" /><path d="m6 6 12 12" /></svg>
               </button>
+              ) : null}
             </li>
           ))}
         </ul>

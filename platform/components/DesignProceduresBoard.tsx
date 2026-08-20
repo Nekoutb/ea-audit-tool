@@ -205,7 +205,7 @@ export function DesignProceduresBoard({
                                 <span className="float-right text-muted">{selOpen ? "▴" : "▾"}</span>
                               </button>
                               {selOpen ? (
-                                <div className="absolute left-0 top-full z-20 mt-1 w-[340px] rounded-[var(--radius-atlas-sm)] border border-line-strong bg-surface p-2 shadow-atlas-sm" data-testid={`dsp-sel-list-${row.indexCode}-${c.assertion}`}>
+                                <div className="absolute left-0 top-full z-20 mt-1 w-[340px] rounded-[var(--radius-atlas-sm)] border border-line-strong bg-surface-pop p-2 shadow-atlas-sm" data-testid={`dsp-sel-list-${row.indexCode}-${c.assertion}`}>
                                   {covering.length === 0 ? (
                                     <p className="text-[11.5px] text-muted">{fr ? "Aucune procédure de la bibliothèque ne couvre cette assertion — ajouter une OSP." : "No library procedure covers this assertion — add an OSP."}</p>
                                   ) : (

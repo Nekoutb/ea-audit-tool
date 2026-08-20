@@ -76,7 +76,7 @@ export function EngagementSelector({
       </button>
 
       {open ? (
-        <div className="absolute right-0 top-[calc(100%+8px)] z-50 w-[320px] rounded-[var(--radius-atlas)] border border-line-strong bg-surface p-1.5 shadow-[var(--shadow-atlas-lg)]">
+        <div className="absolute right-0 top-[calc(100%+8px)] z-50 w-[320px] rounded-[var(--radius-atlas)] border border-line-strong bg-surface-pop p-1.5 shadow-[var(--shadow-atlas-lg)]">
           <p className="px-2.5 py-1.5 text-[10px] font-bold uppercase tracking-[0.08em] text-muted">
             {labels.recent}
           </p>

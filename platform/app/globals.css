@@ -22,6 +22,7 @@
   --canvas: #dde1e5;
   /* Surfaces are translucent glass — panels add backdrop-blur on top. */
   --surface: rgba(255, 255, 255, 0.55);
+  --surface-pop: #ffffff;
   --glass-border: rgba(255, 255, 255, 0.7);
   --surface-2: rgba(228, 232, 236, 0.75);
   --glass-inner: rgba(255, 255, 255, 0.85);
@@ -62,6 +63,7 @@
     --ground-c: #101214;
     --canvas: #121418;
     --surface: rgba(40, 44, 51, 0.52);
+    --surface-pop: #24272d;
     --glass-border: rgba(255, 255, 255, 0.1);
     --surface-2: rgba(255, 255, 255, 0.055);
     --glass-inner: rgba(255, 255, 255, 0.07);
@@ -94,6 +96,7 @@
     --ground-c: #101214;
     --canvas: #121418;
     --surface: rgba(40, 44, 51, 0.52);
+    --surface-pop: #24272d;
     --glass-border: rgba(255, 255, 255, 0.1);
     --surface-2: rgba(255, 255, 255, 0.055);
     --glass-inner: rgba(255, 255, 255, 0.07);
@@ -122,6 +125,7 @@
   --ground-c: #bdc3cb;
   --canvas: #dde1e5;
   --surface: rgba(255, 255, 255, 0.55);
+  --surface-pop: #ffffff;
   --glass-border: rgba(255, 255, 255, 0.7);
   --surface-2: rgba(228, 232, 236, 0.75);
   --glass-inner: rgba(255, 255, 255, 0.85);
@@ -149,6 +153,7 @@
   --color-canvas: var(--canvas);
   --color-surface: var(--surface);
   --color-surface-2: var(--surface-2);
+  --color-surface-pop: var(--surface-pop);
   --color-ink: var(--ink);
   --color-ink-soft: var(--ink-soft);
   --color-muted: var(--muted);

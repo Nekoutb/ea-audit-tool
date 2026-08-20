@@ -75,14 +75,17 @@ export default async function SettingsPage(props: {
         </div>
       </Panel>
 
-      <Panel className="mt-6 p-6">
-        <div className="flex flex-wrap items-center justify-between gap-3">
-          <PanelHeader title={t.resources.title} hint={t.resources.subtitle} />
-          <Link href="/resources" data-testid="team-workload-link" className={btnPrimary}>
-            {t.resources.link}
-          </Link>
-        </div>
-      </Panel>
+      {/* /resources carries every employee's workload — firm management only */}
+      {isAdmin ? (
+        <Panel className="mt-6 p-6">
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <PanelHeader title={t.resources.title} hint={t.resources.subtitle} />
+            <Link href="/resources" data-testid="team-workload-link" className={btnPrimary}>
+              {t.resources.link}
+            </Link>
+          </div>
+        </Panel>
+      ) : null}
 
       <Panel className="mt-6 p-6">
         <PanelHeader title={t.integrations.title} hint={t.integrations.subtitle} />

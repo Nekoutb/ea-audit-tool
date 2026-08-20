@@ -91,7 +91,7 @@ export function NotificationBell({
 
       {open ? (
         <div
-          className="absolute right-0 top-full z-50 mt-1 w-[340px] overflow-hidden rounded-[var(--radius-atlas-sm)] border border-line-strong bg-surface shadow-atlas-sm"
+          className="absolute right-0 top-full z-[60] mt-1 w-[340px] overflow-hidden rounded-[var(--radius-atlas-sm)] border border-line-strong bg-surface-pop shadow-atlas-sm"
           onMouseEnter={show}
           onMouseLeave={hide}
           data-testid="notif-panel"

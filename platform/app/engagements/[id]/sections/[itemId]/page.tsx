@@ -253,6 +253,8 @@ export default async function SectionPage(props: {
       ]
     : [];
   const userRole = isRole(session.user.role) ? session.user.role : null;
+  // renaming or deleting evidence is a manager-and-above action (server-enforced)
+  const canManageEvidence = userRole !== null && atLeast(userRole, "manager");
   const taskInfo = await taskForItem(id, section.code);
   const CROSS_LINKS: Record<string, string[]> = {
     "P1.1": ["P1.2", "P2.1"], "P2.1": ["P1.1", "P1.5"], "P1.2": ["P1.1", "E6.5"],
@@ -408,7 +410,7 @@ export default async function SectionPage(props: {
             designHref={designItemId ? `/engagements/${id}/sections/${designItemId}` : null}
             steps={steps.filter((s) => s.source === "psp" || s.description.startsWith("OSP-"))}
             results={pspVals}
-            attachmentsSlot={<TaskAttachments fileItemId={itemId} initial={accountAttachments} locale={fr ? "fr" : "en"} compact />}
+            attachmentsSlot={<TaskAttachments fileItemId={itemId} initial={accountAttachments} locale={fr ? "fr" : "en"} canManage={canManageEvidence} compact />}
             locale={isFr ? "fr" : "en"}
           />
         </Panel>
@@ -665,7 +667,7 @@ export default async function SectionPage(props: {
 
           {wideBoard ? null : (
           <section className="flex min-h-0 flex-col gap-3 xl:overflow-hidden">
-            <TaskAttachments fileItemId={itemId} initial={attachments} locale={fr ? "fr" : "en"} compact />
+            <TaskAttachments fileItemId={itemId} initial={attachments} locale={fr ? "fr" : "en"} canManage={canManageEvidence} compact />
             <div className="flex min-h-0 flex-1 flex-col overflow-hidden rounded-[var(--radius-atlas)] border border-glass-border bg-surface px-4 py-3 shadow-atlas-sm backdrop-blur-xl" data-testid="wp-linked">
               <h2 className="text-[11px] font-extrabold uppercase tracking-[0.07em] text-muted">
                 {fr ? "Tâches liées" : "Linked tasks"}
@@ -805,7 +807,7 @@ export default async function SectionPage(props: {
       )}
 
       {/* files of the task: upload · download · versions · edit-locally watcher */}
-      <TaskAttachments fileItemId={itemId} initial={attachments} locale={locale === "fr" ? "fr" : "en"} />
+      <TaskAttachments fileItemId={itemId} initial={attachments} locale={locale === "fr" ? "fr" : "en"} canManage={canManageEvidence} />
 
       {isIndependenceTask ? (
         <Panel className="mt-6" data-testid="independence-campaign">
