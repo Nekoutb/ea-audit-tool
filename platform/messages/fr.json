@@ -110,7 +110,11 @@
       "entityLabels": {
         "engagement": "Mission",
         "file_item": "Feuille de travail",
-        "document": "Document"
+        "document": "Document",
+        "attachment": "Pièce jointe",
+        "materiality": "Seuil de signification",
+        "misstatement": "Anomalie",
+        "export": "Export"
       }
     },
     "recentEngagements": "Missions récentes",
@@ -540,6 +544,7 @@
       "no-version": "Le document n'a aucune version à signer.",
       "already-signed": "Vous avez déjà signé dans ce rôle.",
       "preparer-first": "Le préparateur doit signer avant le réviseur ou l'associé.",
+      "self-review": "Vous avez préparé cette feuille de travail — un autre membre du cabinet doit la revoir et la signer.",
       "open-notes": "Toutes les notes de revue doivent être levées avant signature.",
       "forbidden": "Votre rôle ne permet pas cette action.",
       "reason-required": "Un motif est requis.",
@@ -1184,6 +1189,7 @@
       "invalid-engagement": "Vérifiez les champs de la mission : client, exercice et date de clôture sont requis.",
       "duplicate-engagement": "Une mission existe déjà pour ce client et cet exercice. Ouvrez-la depuis la liste des missions, ou choisissez un autre exercice.",
       "preparer-first": "Le préparateur doit signer et transmettre avant que le réviseur puisse signer.",
+      "self-review": "Vous avez préparé ces travaux — un autre membre du cabinet doit les revoir et les signer.",
       "open-notes": "Traitez les notes de revue ouvertes sur cette feuille de travail avant la signature du réviseur.",
       "already-signed": "Vous avez déjà signé cette feuille de travail dans ce rôle.",
       "checked-out": "Cette feuille de travail est verrouillée pour édition. Enregistrez-la avant de signer.",

@@ -110,7 +110,11 @@
       "entityLabels": {
         "engagement": "Engagement",
         "file_item": "Working paper",
-        "document": "Document"
+        "document": "Document",
+        "attachment": "Attachment",
+        "materiality": "Materiality",
+        "misstatement": "Misstatement",
+        "export": "Export"
       }
     },
     "recentEngagements": "Recent engagements",
@@ -540,6 +544,7 @@
       "no-version": "The document has no version to sign.",
       "already-signed": "You have already signed in this role.",
       "preparer-first": "The preparer must sign before the reviewer or partner.",
+      "self-review": "You prepared this working paper — another member of the firm must review and sign it.",
       "open-notes": "All review notes must be cleared before sign-off.",
       "forbidden": "Your role does not allow this action.",
       "reason-required": "A reason is required.",
@@ -1184,6 +1189,7 @@
       "invalid-engagement": "Check the engagement fields: client, fiscal year and period end are required.",
       "duplicate-engagement": "An engagement already exists for this client and fiscal year. Open it from the Engagements list, or choose a different fiscal year.",
       "preparer-first": "The preparer must sign off and hand off before the reviewer can sign.",
+      "self-review": "You prepared this work — another member of the firm must review and sign it.",
       "open-notes": "Clear the open review notes on this working paper before reviewer sign-off.",
       "already-signed": "You have already signed this working paper in that role.",
       "checked-out": "This working paper is checked out for editing. Check it in before signing.",

@@ -225,13 +225,88 @@ export function assemblyDeadline(reportDate: string): string {
 
 /**
  * Archive gates (ISA 230 ¶14–16): what must hold before the file locks —
- * report issued, no half-reviewed paper, review notes cleared, and the C6.2
- * assembly checklist concluded. The 60-day window is shown, not enforced: a
- * late file must still be archivable.
+ * report issued, every worked task carrying a signed and reviewed paper,
+ * review notes cleared, and the C6.2 assembly checklist concluded. The 60-day
+ * window is shown, not enforced: a late file must still be archivable.
  */
 export interface ArchiveGate extends GateResult {
   /** how many items still block the gate (0 when ok) */
   pending: number;
+  /** file-index codes still blocking, so the UI can name them (capped) */
+  codes?: string[];
+}
+
+/** How many failing codes travel back to the UI before the list is cut. */
+const CODE_CAP = 20;
+
+/**
+ * Which file items still owe a signed paper (assurance finding C5: the archive
+ * gates counted DOCUMENTS, so a file with 114 tasks and 4 documents archived
+ * clean — the 110 tasks that held work but never produced a paper were invisible
+ * to the gate).
+ *
+ * A task owes a paper when it is NOT conditional (an inapplicable task is not
+ * expected to produce one) and it carries work: program steps, a section
+ * conclusion, a paper document, or saved working-paper values under `wp:<code>`.
+ *
+ * "Paper" means a document of kind 'workpaper' or 'leadsheet'. Letters, the
+ * statutory report and engine output are filed on file items too, but they are
+ * deliverables or tool output rather than papers the team prepares and reviews —
+ * they carry their own gates (rep_letters_generated, report_issued). This
+ * mirrors the kind filter the phase gates already apply in lib/gates.ts.
+ *
+ * Concludedness is not re-tested here and must not be: completionGatesTx's
+ * sections_concluded already demands a REVIEWED section conclusion for every
+ * task carrying program steps, C4.1/C6.2 have their own gates, and
+ * completion_gates is itself one of the archive gates below. What this function
+ * adds is the paper — present, prepared, reviewed — for every worked task.
+ */
+async function paperGapsTx(
+  tx: PoolClient,
+  engagementId: string,
+): Promise<{ unsigned: string[]; unreviewed: string[] }> {
+  const preparer =
+    "EXISTS (SELECT 1 FROM signoff s WHERE s.document_id = d.id AND s.role = 'preparer' AND s.voided_at IS NULL)";
+  const reviewer =
+    "EXISTS (SELECT 1 FROM signoff s WHERE s.document_id = d.id AND s.role IN ('reviewer', 'partner') AND s.voided_at IS NULL)";
+  const rows = await tx.query<{
+    code: string;
+    conditional: boolean;
+    worked: boolean;
+    prepared: boolean;
+    reviewed: boolean;
+    half_reviewed: boolean;
+  }>(
+    `SELECT fi.code,
+            fi.conditional,
+            (EXISTS (SELECT 1 FROM program_step ps WHERE ps.file_item_id = fi.id AND ps.status <> 'na')
+             OR EXISTS (SELECT 1 FROM section_conclusion sc WHERE sc.file_item_id = fi.id)
+             OR EXISTS (SELECT 1 FROM document d WHERE d.file_item_id = fi.id AND d.kind IN ('workpaper', 'leadsheet'))
+             OR EXISTS (SELECT 1 FROM form_response fr
+                         WHERE fr.engagement_id = fi.engagement_id
+                           AND fr.code = 'wp:' || fi.code
+                           AND btrim(coalesce(fr.value #>> '{}', '')) <> '')) AS worked,
+            EXISTS (SELECT 1 FROM document d
+                     WHERE d.file_item_id = fi.id AND d.kind IN ('workpaper', 'leadsheet') AND ${preparer}) AS prepared,
+            EXISTS (SELECT 1 FROM document d
+                     WHERE d.file_item_id = fi.id AND d.kind IN ('workpaper', 'leadsheet') AND ${reviewer}) AS reviewed,
+            EXISTS (SELECT 1 FROM document d
+                     WHERE d.file_item_id = fi.id AND ${preparer} AND NOT ${reviewer}) AS half_reviewed
+       FROM file_item fi
+      WHERE fi.engagement_id = $1
+      ORDER BY fi.sort_order, fi.code`,
+    [engagementId],
+  );
+  const unsigned: string[] = [];
+  const unreviewed: string[] = [];
+  for (const row of rows.rows) {
+    const owes = !row.conditional && row.worked;
+    if (owes && !row.prepared) unsigned.push(row.code);
+    // a paper someone prepared but nobody reviewed blocks the file whether or
+    // not the task itself owed a paper
+    if ((owes && !row.reviewed) || row.half_reviewed) unreviewed.push(row.code);
+  }
+  return { unsigned, unreviewed };
 }
 
 export async function archiveGates(engagementId: string): Promise<ArchiveGate[]> {
@@ -247,32 +322,20 @@ export async function archiveGates(engagementId: string): Promise<ArchiveGate[]>
       "SELECT report_date::text FROM engagement WHERE id = $1",
       [engagementId],
     );
-    // every paper a preparer signed must also carry its review sign-off
-    const halfReviewed = await count(
-      tx,
-      `SELECT count(*)::text AS n FROM document d
-        WHERE d.engagement_id = $1
-          AND EXISTS (SELECT 1 FROM signoff s WHERE s.document_id = d.id AND s.role = 'preparer' AND s.voided_at IS NULL)
-          AND NOT EXISTS (SELECT 1 FROM signoff s WHERE s.document_id = d.id AND s.role IN ('reviewer', 'partner') AND s.voided_at IS NULL)`,
-      [engagementId],
-    );
-    // every workpaper document needs BOTH sign-offs — an unsigned paper is an
-    // unfinished paper, whoever forgot it
-    const unsignedPapers = await count(
-      tx,
-      `SELECT count(*)::text AS n FROM document d
-        WHERE d.engagement_id = $1 AND d.kind = 'workpaper'
-          AND (NOT EXISTS (SELECT 1 FROM signoff s WHERE s.document_id = d.id AND s.role = 'preparer' AND s.voided_at IS NULL)
-            OR NOT EXISTS (SELECT 1 FROM signoff s WHERE s.document_id = d.id AND s.role IN ('reviewer', 'partner') AND s.voided_at IS NULL))`,
-      [engagementId],
-    );
-    // review notes: document-linked AND task-level (document_id IS NULL)
+    // FILE-ITEM based, not document based: every task that holds work must hold
+    // a paper, and that paper must be prepared and reviewed (finding C5)
+    const gaps = await paperGapsTx(tx, engagementId);
+    // review notes, whichever way they were raised: on a document, on a task
+    // (engagement_id set), or on a task through its file item. Resolving all
+    // three shapes keeps the gate consistent with the item-based paper gates —
+    // a note is open until someone clears it, wherever it hangs.
     const openNotes = await count(
       tx,
       `SELECT count(*)::text AS n FROM review_note rn
          LEFT JOIN document d ON d.id = rn.document_id
+         LEFT JOIN file_item fi ON fi.id = rn.file_item_id
         WHERE rn.status = 'open'
-          AND (d.engagement_id = $1 OR (rn.document_id IS NULL AND rn.engagement_id = $1))`,
+          AND coalesce(d.engagement_id, rn.engagement_id, fi.engagement_id) = $1`,
       [engagementId],
     );
     // every control selected for testing is concluded on: design evaluated and
@@ -291,8 +354,18 @@ export async function archiveGates(engagementId: string): Promise<ArchiveGate[]>
       { key: "report_issued", ok: reportDate.rows[0]?.report_date != null, pending: reportDate.rows[0]?.report_date ? 0 : 1 },
       { key: "completion_gates", ok: completionPending === 0, pending: completionPending },
       { key: "controls_concluded", ok: openControls === 0, pending: openControls },
-      { key: "reviews_complete", ok: halfReviewed === 0, pending: halfReviewed },
-      { key: "papers_signed", ok: unsignedPapers === 0, pending: unsignedPapers },
+      {
+        key: "reviews_complete",
+        ok: gaps.unreviewed.length === 0,
+        pending: gaps.unreviewed.length,
+        codes: gaps.unreviewed.slice(0, CODE_CAP),
+      },
+      {
+        key: "papers_signed",
+        ok: gaps.unsigned.length === 0,
+        pending: gaps.unsigned.length,
+        codes: gaps.unsigned.slice(0, CODE_CAP),
+      },
       { key: "review_approval", ok: c41, pending: c41 ? 0 : 1 },
       { key: "review_notes_cleared", ok: openNotes === 0, pending: openNotes },
       { key: "c62_checklist", ok: c62, pending: c62 ? 0 : 1 },

@@ -4,6 +4,7 @@ import { AppNav } from "@/components/AppNav";
 import { Panel } from "@/components/ui/atlas";
 import { getMessages } from "@/lib/i18n";
 import { getLocale } from "@/lib/locale";
+import { canManageFirm, type Role } from "@/lib/rbac";
 import { teamWorkload } from "@/lib/resources";
 
 export const metadata = { title: "Team workload · AuditISA" };
@@ -11,6 +12,10 @@ export const metadata = { title: "Team workload · AuditISA" };
 export default async function ResourcesPage() {
   const session = await auth();
   if (!session?.user) redirect("/login");
+  // Every employee's hours and open-task count is firm-management information,
+  // not something any authenticated account may browse (assurance finding C2).
+  // Reached from Settings, which is gated the same way.
+  if (!canManageFirm(session.user.role as Role)) redirect("/dashboard");
 
   const locale = await getLocale();
   const t = getMessages(locale);

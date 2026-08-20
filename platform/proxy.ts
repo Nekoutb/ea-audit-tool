@@ -30,16 +30,47 @@ export const proxy = auth((req) => {
   }
 });
 
+/*
+ * Every authenticated page tree and every API tree is listed here — closes
+ * assurance finding C2, where only /api/engagements was matched and
+ * /api/attachments, /api/documents, /api/steps, /api/probe and
+ * /api/notifications reached their handlers with no portal-user check at all.
+ *
+ * Deliberately NOT matched (they must stay reachable without a session):
+ *   /                    marketing/landing page
+ *   /login               the sign-in page itself
+ *   /api/auth/*          NextAuth's own endpoints — matching them would make
+ *                        signing in depend on already being signed in
+ *   /api/email/inbound   the inbound-mail webhook, authenticated by its own
+ *                        shared secret rather than by a session
+ *
+ * A `:path*` suffix matches zero or more segments, so each entry covers the
+ * bare route as well as everything beneath it. ADD A LINE HERE FOR EVERY NEW
+ * app/<tree> AND app/api/<tree>: the routes below carry their own role checks,
+ * but a tree missing from this list is a tree with no proxy-level check at all.
+ */
 export const config = {
   matcher: [
-    "/dashboard/:path*",
-    "/notifications/:path*",
+    // Authenticated pages.
+    "/admin/:path*",
     "/clients/:path*",
-    "/engagements/:path*",
+    "/dashboard/:path*",
     "/documents/:path*",
+    "/engagements/:path*",
     "/independence/:path*",
+    "/new-engagement/:path*",
+    "/notifications/:path*",
     "/portal/:path*",
+    "/resources/:path*",
     "/settings/:path*",
+    "/templates/:path*",
+    "/users/:path*",
+    // API trees.
+    "/api/attachments/:path*",
+    "/api/documents/:path*",
     "/api/engagements/:path*",
+    "/api/notifications/:path*",
+    "/api/probe/:path*",
+    "/api/steps/:path*",
   ],
 };

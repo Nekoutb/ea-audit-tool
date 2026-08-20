@@ -1,12 +1,23 @@
 import { NextResponse } from "next/server";
 import { checkinDocument, DocumentRuleError, DOCX_MIME } from "@/lib/documents";
+import { atLeast } from "@/lib/rbac";
+import { requireTenant } from "@/lib/tenant";
 
 const MAX_BYTES = 25 * 1024 * 1024; // 25 MB working-paper ceiling
 
-/** Check in an edited working paper as the next version (requires check-out). */
+/**
+ * Check in an edited working paper as the next version (requires check-out).
+ *
+ * Defence in depth (assurance finding C2): refuses portal and read-only
+ * accounts here, independently of the proxy matcher.
+ */
 export async function POST(request: Request, context: { params: Promise<{ id: string }> }) {
   const { id } = await context.params;
   try {
+    const { role } = await requireTenant();
+    if (!atLeast(role, "staff")) {
+      return NextResponse.json({ error: "forbidden" }, { status: 403 });
+    }
     const form = await request.formData();
     const file = form.get("file");
     if (!(file instanceof File)) {

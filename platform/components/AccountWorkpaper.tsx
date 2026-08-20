@@ -63,6 +63,19 @@ export function AccountWorkpaper({
   const [adj, setAdj] = useState<Record<string, string>>({});
   const adjVal = (stepId: string, field: string) => adj[`${field}_${stepId}`] ?? results[`${field}_${stepId}`] ?? "";
 
+  // Specific refusals worth explaining; anything else falls back to the generic
+  // save failure. "conclusion-required": a procedure cannot be ticked done until
+  // its finding & conclusion is documented.
+  const errorText = (code: string | null) => {
+    if (code === "conclusion-required")
+      return fr
+        ? "Documentez le constat et la conclusion de la procédure avant de la marquer exécutée."
+        : "Document the procedure's finding & conclusion before marking it done.";
+    if (code === "archived")
+      return fr ? "Ce dossier est archivé et immuable." : "This file is archived and immutable.";
+    return fr ? "Échec de l'enregistrement." : "Save failed.";
+  };
+
   async function op(body: Record<string, unknown>) {
     setError(null);
     const r = await fetch(`/api/engagements/${engagementId}/psp`, {
@@ -70,7 +83,14 @@ export function AccountWorkpaper({
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(body),
     }).catch(() => null);
-    if (!r?.ok) { setError(fr ? "Échec de l'enregistrement." : "Save failed."); return false; }
+    if (!r?.ok) {
+      const code = await r
+        ?.json()
+        .then((d: { error?: string }) => d.error ?? null)
+        .catch(() => null);
+      setError(errorText(code ?? null));
+      return false;
+    }
     router.refresh();
     return true;
   }
@@ -201,7 +221,14 @@ export function AccountWorkpaper({
                       <input
                         type="checkbox"
                         defaultChecked={s.status === "complete"}
-                        onChange={(e) => void op({ op: "toggleDone", stepId: s.id, done: e.target.checked })}
+                        onChange={(e) => {
+                          // a refused completion must not leave the box ticked
+                          const box = e.currentTarget;
+                          const wanted = box.checked;
+                          void op({ op: "toggleDone", stepId: s.id, done: wanted }).then((ok) => {
+                            if (!ok) box.checked = !wanted;
+                          });
+                        }}
                         className="h-4 w-4 accent-emerald-700"
                         data-testid={`psp-done-${refOf(s)}`}
                       />

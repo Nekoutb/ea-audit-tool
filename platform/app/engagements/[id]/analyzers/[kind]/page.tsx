@@ -70,6 +70,16 @@ export default async function AnalyzerPage(props: {
         <h1 className="text-[22px] font-semibold leading-tight tracking-[-0.02em] text-ink">
           {fr ? title.fr : title.en}
         </h1>
+        {/* the ingested ledger is interrogated in the correlation console, not here */}
+        {hasGl ? (
+          <Link
+            href={`/engagements/${id}/tools/gl-console`}
+            className="ml-auto rounded-[var(--radius-atlas-sm)] border border-line-strong bg-surface px-3 py-1.5 text-[12px] font-semibold text-ink-soft transition hover:border-emerald-600 hover:text-emerald-700"
+            data-testid="analyzer-gl-console-link"
+          >
+            {fr ? "Ouvrir la console de corrélation du grand livre →" : "Open the GL Correlation Console →"}
+          </Link>
+        ) : null}
       </div>
 
       <Panel className="mt-5">

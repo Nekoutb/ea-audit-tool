@@ -22,7 +22,7 @@ import {
   rollforward,
 } from "@/lib/completion";
 import { closePool } from "@/lib/db";
-import { checkoutDocument } from "@/lib/documents";
+import { checkoutDocument, generateDocument, signDocument } from "@/lib/documents";
 import { createEngagement } from "@/lib/engagements";
 import { computeBilan, computeCr } from "@/lib/fs-tieout";
 import { generateLetter } from "@/lib/letters";
@@ -209,6 +209,21 @@ describe("7.11/7.12 archive immutability + rollforward", () => {
         ),
       );
     }
+    // ...and, since the gates became file-item based (finding C5), every task
+    // that holds work must hold a paper that is prepared AND reviewed. C6.2 and
+    // C4.1 now hold saved working-paper values, so each owes a signed document.
+    // (The rep letters and the statutory report are deliverables, not papers —
+    // they answer their own gates.)
+    for (const code of ["C6.2", "C4.1"]) {
+      const item = await admin.query<{ id: string }>(
+        "SELECT id FROM file_item WHERE engagement_id = $1 AND code = $2",
+        [engagementId, code],
+      );
+      const documentId = await generateDocument(item.rows[0].id, "en");
+      await signDocument(documentId, "preparer");
+      await signDocument(documentId, "partner");
+    }
+
     await archiveEngagement(engagementId);
     const state = await getConclusionState(engagementId);
     expect(state.archivedAt).not.toBeNull();

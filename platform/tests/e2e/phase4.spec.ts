@@ -15,6 +15,21 @@ async function login(page: Page): Promise<void> {
   await page.waitForURL("**/dashboard");
 }
 
+/**
+ * Fill an account procedure's finding & conclusion and wait for the blur-save
+ * to land: the "procedure done" tick is refused while the step has no
+ * conclusion (a completion records conclusion + preparer + timestamp).
+ */
+async function concludePsp(page: Page, ref: string, text: string): Promise<void> {
+  await page.getByTestId(`psp-finding-${ref}`).fill(text);
+  await Promise.all([
+    page.waitForResponse(
+      (r) => r.url().includes("/psp") && r.request().method() === "POST" && r.ok(),
+    ),
+    page.getByTestId(`psp-finding-${ref}`).blur(),
+  ]);
+}
+
 test("Phase 4: step execution → findings routing → C1.1 vs materiality → revise-approach", async ({ page }) => {
   test.setTimeout(300_000);
   await login(page);
@@ -54,6 +69,9 @@ test("Phase 4: step execution → findings routing → C1.1 vs materiality → r
   await page.getByTestId("psp-other-text").fill("Search for unrecorded liabilities.");
   await page.getByTestId("psp-other-add").click();
   await page.getByTestId("psp-row-OSP-1").click();
+  // A procedure carries its conclusion before it can be marked done — the
+  // finding & conclusion box IS the step conclusion the completion records.
+  await concludePsp(page, "OSP-1", "Performed over the payables population; no exceptions noted.");
   await page.locator("[data-testid^=psp-done-]").check();
   await expect(page.getByTestId("psp-row-OSP-1")).toContainText("✓");
 

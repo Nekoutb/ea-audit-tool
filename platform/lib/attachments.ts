@@ -2,9 +2,40 @@
 // Re-uploading a name creates the next version — the edit-locally watcher
 // records each local save this way. Reads and writes run under the tenant RLS
 // context like every other tenant-scoped table.
+//
+// Evidence rules (assurance finding C1). Attachments are audit evidence, so:
+//   * removal is a SOFT delete (deleted_at/deleted_by), never a DELETE;
+//   * removal needs manager-level authority and an unarchived engagement;
+//   * removal and restore are both written to the activity log;
+//   * a removed document can be restored for 30 days.
+// Every read path below filters deleted_at IS NULL so a soft-deleted document
+// is invisible to list, get and download alike.
 
+import { recordActivity } from "@/lib/activity";
 import { withTenant } from "@/lib/db";
+import { assertMutable } from "@/lib/mutability";
+import { atLeast, type Role } from "@/lib/rbac";
 import { requireTenant } from "@/lib/tenant";
+
+/** Days a soft-deleted attachment stays restorable. */
+export const RESTORE_WINDOW_DAYS = 30;
+
+export class AttachmentPermissionError extends Error {
+  constructor() {
+    super("forbidden");
+    this.name = "AttachmentPermissionError";
+  }
+}
+
+/** Removing or restoring evidence is a manager-and-above act. */
+function assertCanDelete(role: Role): void {
+  if (!atLeast(role, "manager")) throw new AttachmentPermissionError();
+}
+
+/** Uploading/renaming evidence: any audit team member, never read-only or portal. */
+function assertCanWrite(role: Role): void {
+  if (!atLeast(role, "staff")) throw new AttachmentPermissionError();
+}
 
 export interface AttachmentRow {
   id: string;
@@ -16,7 +47,7 @@ export interface AttachmentRow {
   uploadedAt: string;
 }
 
-/** Latest version of each filename on the task, newest upload first. */
+/** Latest live version of each filename on the task, newest upload first. */
 export async function listAttachments(fileItemId: string): Promise<AttachmentRow[]> {
   const { tenantId } = await requireTenant();
   return withTenant(tenantId, async (tx) => {
@@ -36,6 +67,7 @@ export async function listAttachments(fileItemId: string): Promise<AttachmentRow
          FROM task_attachment a
          JOIN app_user u ON u.id = a.uploaded_by
         WHERE a.file_item_id = $1
+          AND a.deleted_at IS NULL
         ORDER BY a.name, a.version DESC`,
       [fileItemId],
     );
@@ -60,7 +92,8 @@ export async function saveAttachment(
   mime: string,
   content: Buffer,
 ): Promise<AttachmentRow> {
-  const { tenantId, userId } = await requireTenant();
+  const { tenantId, userId, role } = await requireTenant();
+  assertCanWrite(role);
   return withTenant(tenantId, async (tx) => {
     const item = await tx.query<{ engagement_id: string }>(
       "SELECT engagement_id FROM file_item WHERE id = $1",
@@ -68,6 +101,8 @@ export async function saveAttachment(
     );
     if (item.rows.length === 0) throw new Error("task-not-found");
     const engagementId = item.rows[0].engagement_id;
+    // max(version) deliberately ignores deleted_at: numbering keeps climbing
+    // past a removed chain so a re-upload can never collide with it.
     const r = await tx.query<{ id: string; version: number; uploaded_at: string }>(
       `INSERT INTO task_attachment
          (tenant_id, engagement_id, file_item_id, name, mime, size_bytes, version, content, uploaded_by)
@@ -90,14 +125,14 @@ export async function saveAttachment(
   });
 }
 
-/** One attachment with its bytes, for download. RLS scopes the read. */
+/** One live attachment with its bytes, for download. RLS scopes the read. */
 export async function getAttachment(
   id: string,
 ): Promise<{ name: string; mime: string; content: Buffer } | null> {
   const { tenantId } = await requireTenant();
   return withTenant(tenantId, async (tx) => {
     const r = await tx.query<{ name: string; mime: string; content: Buffer }>(
-      "SELECT name, mime, content FROM task_attachment WHERE id = $1",
+      "SELECT name, mime, content FROM task_attachment WHERE id = $1 AND deleted_at IS NULL",
       [id],
     );
     return r.rows[0] ?? null;
@@ -105,42 +140,146 @@ export async function getAttachment(
 }
 
 /**
- * Rename a document (every version of it, so the chain stays intact). The
- * extension is preserved when the new name omits one.
+ * Rename a document (every live version of it, so the chain stays intact). The
+ * extension is preserved when the new name omits one. Refused on an archived
+ * engagement and for read-only/portal accounts.
  */
 export async function renameAttachment(id: string, newNameRaw: string): Promise<string> {
-  const { tenantId } = await requireTenant();
-  return withTenant(tenantId, async (tx) => {
-    const row = await tx.query<{ file_item_id: string; name: string }>(
-      "SELECT file_item_id, name FROM task_attachment WHERE id = $1",
+  const { tenantId, role } = await requireTenant();
+  assertCanWrite(role);
+  const target = await withTenant(tenantId, async (tx) => {
+    const row = await tx.query<{
+      file_item_id: string;
+      engagement_id: string;
+      name: string;
+    }>(
+      `SELECT file_item_id, engagement_id, name
+         FROM task_attachment
+        WHERE id = $1 AND deleted_at IS NULL`,
       [id],
     );
-    if (!row.rows[0]) throw new Error("not-found");
-    const { file_item_id, name } = row.rows[0];
-    let next = newNameRaw.trim().replace(/[\/:*?"<>|]/g, "").slice(0, 120);
-    if (!next) throw new Error("name-required");
-    const oldExt = name.includes(".") ? name.slice(name.lastIndexOf(".")) : "";
-    if (oldExt && !next.toLowerCase().endsWith(oldExt.toLowerCase())) next += oldExt;
+    return row.rows[0] ?? null;
+  });
+  if (!target) throw new Error("not-found");
+  await assertMutable(target.engagement_id);
+
+  let next = newNameRaw.trim().replace(/[\/:*?"<>|]/g, "").slice(0, 120);
+  if (!next) throw new Error("name-required");
+  const oldExt = target.name.includes(".") ? target.name.slice(target.name.lastIndexOf(".")) : "";
+  if (oldExt && !next.toLowerCase().endsWith(oldExt.toLowerCase())) next += oldExt;
+
+  await withTenant(tenantId, async (tx) => {
     await tx.query(
-      "UPDATE task_attachment SET name = $3 WHERE file_item_id = $1 AND name = $2",
-      [file_item_id, name, next],
+      `UPDATE task_attachment SET name = $3
+        WHERE file_item_id = $1 AND name = $2 AND deleted_at IS NULL`,
+      [target.file_item_id, target.name, next],
     );
-    return next;
+  });
+  await recordActivity({
+    engagementId: target.engagement_id,
+    entityType: "attachment",
+    entityId: id,
+    action: "renamed",
+    summary: `${target.name} → ${next}`,
+    meta: { fileItemId: target.file_item_id, from: target.name, to: next },
+  });
+  return next;
+}
+
+/**
+ * Soft-delete a document and all its versions: the rows stay, stamped with who
+ * removed them and when, and disappear from every read path. Restorable for
+ * RESTORE_WINDOW_DAYS. Manager-level role, unarchived engagement, logged.
+ */
+export async function deleteAttachment(id: string): Promise<void> {
+  const { tenantId, userId, role } = await requireTenant();
+  assertCanDelete(role);
+  const target = await withTenant(tenantId, async (tx) => {
+    const row = await tx.query<{
+      file_item_id: string;
+      engagement_id: string;
+      name: string;
+    }>(
+      `SELECT file_item_id, engagement_id, name
+         FROM task_attachment
+        WHERE id = $1 AND deleted_at IS NULL`,
+      [id],
+    );
+    return row.rows[0] ?? null;
+  });
+  if (!target) throw new Error("not-found");
+  await assertMutable(target.engagement_id);
+
+  const versions = await withTenant(tenantId, async (tx) => {
+    const r = await tx.query(
+      `UPDATE task_attachment
+          SET deleted_at = now(), deleted_by = $3
+        WHERE file_item_id = $1 AND name = $2 AND deleted_at IS NULL`,
+      [target.file_item_id, target.name, userId],
+    );
+    return r.rowCount ?? 0;
+  });
+
+  await recordActivity({
+    engagementId: target.engagement_id,
+    entityType: "attachment",
+    entityId: id,
+    action: "deleted",
+    summary: target.name,
+    meta: {
+      fileItemId: target.file_item_id,
+      name: target.name,
+      versions,
+      restorableForDays: RESTORE_WINDOW_DAYS,
+    },
   });
 }
 
-/** Delete a document and all its versions from the task. */
-export async function deleteAttachment(id: string): Promise<void> {
-  const { tenantId } = await requireTenant();
-  await withTenant(tenantId, async (tx) => {
-    const row = await tx.query<{ file_item_id: string; name: string }>(
-      "SELECT file_item_id, name FROM task_attachment WHERE id = $1",
-      [id],
+/**
+ * Undo a soft delete inside the RESTORE_WINDOW_DAYS recovery window. Same
+ * manager-level authority as the delete, and equally logged. Past the window
+ * the rows stay in place but are no longer restorable from the application —
+ * recovery becomes a deliberate, out-of-band act.
+ */
+export async function restoreAttachment(attachmentId: string): Promise<void> {
+  const { tenantId, role } = await requireTenant();
+  assertCanDelete(role);
+  const target = await withTenant(tenantId, async (tx) => {
+    const row = await tx.query<{
+      file_item_id: string;
+      engagement_id: string;
+      name: string;
+      expired: boolean;
+    }>(
+      `SELECT file_item_id, engagement_id, name,
+              deleted_at < now() - ($2::int * interval '1 day') AS expired
+         FROM task_attachment
+        WHERE id = $1 AND deleted_at IS NOT NULL`,
+      [attachmentId, RESTORE_WINDOW_DAYS],
     );
-    if (!row.rows[0]) throw new Error("not-found");
-    await tx.query("DELETE FROM task_attachment WHERE file_item_id = $1 AND name = $2", [
-      row.rows[0].file_item_id,
-      row.rows[0].name,
-    ]);
+    return row.rows[0] ?? null;
+  });
+  if (!target) throw new Error("not-found");
+  if (target.expired) throw new Error("restore-window-expired");
+  await assertMutable(target.engagement_id);
+
+  const versions = await withTenant(tenantId, async (tx) => {
+    const r = await tx.query(
+      `UPDATE task_attachment
+          SET deleted_at = NULL, deleted_by = NULL
+        WHERE file_item_id = $1 AND name = $2 AND deleted_at IS NOT NULL
+          AND deleted_at >= now() - ($3::int * interval '1 day')`,
+      [target.file_item_id, target.name, RESTORE_WINDOW_DAYS],
+    );
+    return r.rowCount ?? 0;
+  });
+
+  await recordActivity({
+    engagementId: target.engagement_id,
+    entityType: "attachment",
+    entityId: attachmentId,
+    action: "restored",
+    summary: target.name,
+    meta: { fileItemId: target.file_item_id, name: target.name, versions },
   });
 }

@@ -156,7 +156,15 @@ test("Phase 7: gates block → complete file → issue report → archive → ro
   await page.getByTestId("open-section-E4.20").click();
   await page.waitForURL("**/sections/**");
   await page.getByTestId("psp-row-OSP-1").click();
+  // The completion records a conclusion, so the procedure is concluded first
+  // (the finding & conclusion box is that conclusion).
+  await page.getByTestId("psp-finding-OSP-1").fill("Revenue recognition and cut-off tested; no exceptions noted.");
+  await Promise.all([
+    page.waitForResponse((r) => r.url().includes("/psp") && r.request().method() === "POST" && r.ok()),
+    page.getByTestId("psp-finding-OSP-1").blur(),
+  ]);
   await page.locator("[data-testid^=psp-done-]").check();
+  await expect(page.getByTestId("psp-row-OSP-1")).toContainText("✓");
   await page.getByTestId("section-conclusion").fill("Objectives achieved.");
   await page.getByTestId("save-conclusion").click();
   await page.getByTestId("review-conclusion").click();
@@ -269,6 +277,17 @@ test("Phase 7: gates block → complete file → issue report → archive → ro
   }
   await page.getByTestId("wp-save-C4.1").click();
   await page.waitForLoadState("networkidle");
+
+  // The archive gates are FILE-ITEM based since the C5 finding (a file with 114
+  // tasks and 4 documents used to archive clean). Every task that holds work —
+  // program steps, a section conclusion, or saved working-paper values — must
+  // hold a paper, prepared and reviewed. These are the tasks this run worked:
+  // the three E-sections concluded above and the two C papers just filled.
+  // (P1.1/P2.2/P5.2/S3.1 already carry signed papers; the rep letters and the
+  // statutory report are deliverables, not papers, and answer their own gates.)
+  for (const code of ["E4.1", "E3.1", "E4.20", "C4.1", "C6.2"]) {
+    await partnerSignCode(page, engagementUrl, code);
+  }
 
   // Every working paper signed as preparer AND reviewer — an archive gate.
   // Sweep the file index: open each document and complete both sign-offs.

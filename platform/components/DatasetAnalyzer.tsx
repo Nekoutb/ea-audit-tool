@@ -26,13 +26,27 @@ const FIELDS: Record<SubLedgerKind, FieldDef[]> = {
     { key: "accountName", en: "Account name", fr: "Intitulé du compte", aliases: ["intitule", "libellecompte", "accountname", "designation"] },
     { key: "jeNumber", en: "JE number", fr: "Numéro d'écriture", required: true, aliases: ["piece", "numeroecriture", "jenumber", "entry", "numero"] },
     { key: "jeDescription", en: "Transaction description", fr: "Libellé de l'écriture", required: true, aliases: ["libelleecriture", "description", "narration", "libelle"] },
-    { key: "amount", en: "Amount", fr: "Montant", required: true, aliases: ["montant", "amount", "debit", "valeur"] },
+    // "debit" is deliberately NOT an alias here any more: the ledger now has a
+    // dedicated Debit field below, and letting Amount claim a Debit column
+    // first would leave the pair half-mapped (credit alone) and the signed
+    // amount silently taken from the debit side only.
+    { key: "amount", en: "Amount", fr: "Montant", required: true, aliases: ["montant", "amount", "valeur"] },
     { key: "journalDate", en: "Journal date (period)", fr: "Date du journal (période)", required: true, aliases: ["datejournal", "journaldate", "dateoperation", "date"] },
     { key: "jeDate", en: "JE date (entered)", fr: "Date de saisie", aliases: ["datesaisie", "dateecriture", "jedate", "entrydate"] },
     { key: "costCenter", en: "Cost centre", fr: "Centre de coût", aliases: ["centredecout", "centrecout", "costcenter", "costcentre", "section", "analytique"] },
     { key: "recordedBy", en: "Recorded by", fr: "Saisi par", aliases: ["saisipar", "recordedby", "utilisateur", "user", "operateur"] },
     { key: "preparedBy", en: "Prepared by", fr: "Préparé par", aliases: ["preparepar", "preparedby", "auteur"] },
     { key: "approvedBy", en: "Approved by", fr: "Approuvé par", aliases: ["approuvepar", "approvedby", "validepar", "validation"] },
+    // Optional GL-analytics columns. Mapping them unlocks the analytics that
+    // depend on them (lib/gl-analytics.ts); leaving them blank only makes those
+    // analytics report themselves unavailable — never a misleading result.
+    { key: "debit", en: "Debit", fr: "Débit", aliases: ["debit", "debitamount"] },
+    { key: "credit", en: "Credit", fr: "Crédit", aliases: ["credit", "creditamount"] },
+    { key: "journalCode", en: "Journal code", fr: "Code journal", aliases: ["journal", "codejournal", "journalcode"] },
+    { key: "reference", en: "Reference", fr: "Référence", aliases: ["reference", "piecejustificative", "ref", "docref"] },
+    { key: "thirdPartyCode", en: "Third-party code", fr: "Code tiers", aliases: ["tiers", "codetiers", "thirdparty", "partner"] },
+    { key: "thirdPartyName", en: "Third-party name", fr: "Nom du tiers", aliases: ["nomtiers", "thirdpartyname", "partnername"] },
+    { key: "reviewer", en: "Reviewer", fr: "Réviseur", aliases: ["revisepar", "reviewer", "controlepar"] },
   ],
   ap_open_items: [
     { key: "party", en: "Supplier number", fr: "Numéro fournisseur", required: true, aliases: ["code", "numero", "compte", "fournisseur", "supplier", "vendor"] },
@@ -174,8 +188,16 @@ export function DatasetAnalyzer({
 
   const input =
     "rounded-[var(--radius-atlas-sm)] border border-line-strong bg-surface px-2 py-1 text-xs text-ink outline-none focus:border-emerald-600";
+  // A general ledger states its value either as one signed amount column or as
+  // a debit/credit pair — mapping the pair satisfies the amount requirement.
+  const amountSatisfied =
+    Boolean(mapping.amount) || (Boolean(mapping.debit) && Boolean(mapping.credit));
   const missing = preview
-    ? FIELDS[kind].filter((field) => field.required && !mapping[field.key]).length
+    ? FIELDS[kind].filter((field) => {
+        if (!field.required) return false;
+        if (field.key === "amount" && kind === "journal_entries") return !amountSatisfied;
+        return !mapping[field.key];
+      }).length
     : 0;
 
   return (

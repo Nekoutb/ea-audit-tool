@@ -155,8 +155,13 @@ export async function createDataset(
 ): Promise<string> {
   const { tenantId, userId } = await requireTenant();
   const table = await parseTabularFile(filename, buffer);
-  // the confirmed amount-bearing column wins over the guess
-  const amountColumn = mapping?.amount ?? detectAmountColumn(table);
+  // the confirmed amount-bearing column wins over the guess; a ledger that
+  // states value as a debit/credit pair has no single amount column, so the
+  // row amount is derived as debit - credit (debits positive, credits negative)
+  const debitColumn = mapping?.debit ?? null;
+  const creditColumn = mapping?.credit ?? null;
+  const signedPair = Boolean(debitColumn && creditColumn) && !mapping?.amount;
+  const amountColumn = mapping?.amount ?? (signedPair ? debitColumn : detectAmountColumn(table));
   const sha256 = createHash("sha256").update(buffer).digest("hex");
 
   return withTenant(tenantId, async (tx) => {
@@ -180,7 +185,11 @@ export async function createDataset(
     let rowNo = 0;
     for (const row of table.rows) {
       rowNo += 1;
-      const amount = amountColumn ? toNumber(row[amountColumn]) : null;
+      const amount = signedPair
+        ? (toNumber(row[debitColumn as string]) ?? 0) - (toNumber(row[creditColumn as string]) ?? 0)
+        : amountColumn
+          ? toNumber(row[amountColumn])
+          : null;
       if (amount !== null) total = (total ?? 0) + amount;
       await tx.query(
         "INSERT INTO sub_ledger_row (tenant_id, dataset_id, row_no, data, amount) VALUES ($1, $2, $3, $4, $5)",

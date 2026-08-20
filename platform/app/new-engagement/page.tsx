@@ -6,6 +6,7 @@ import { ErrorBanner } from "@/components/GatesPanel";
 import { listClients } from "@/lib/clients";
 import { getMessages } from "@/lib/i18n";
 import { getLocale } from "@/lib/locale";
+import { atLeast, type Role } from "@/lib/rbac";
 
 export const metadata = { title: "New engagement · AuditISA" };
 
@@ -15,6 +16,10 @@ export default async function NewEngagementPage(props: {
 }) {
   const session = await auth();
   if (!session?.user) redirect("/login");
+  // Opening a file creates a client and an engagement — a write, and one that
+  // seeds the whole audit file. read_only and client_user accounts have no
+  // business here (assurance finding C2: a session alone was the only check).
+  if (!atLeast(session.user.role as Role, "staff")) redirect("/dashboard");
 
   const { client, error } = await props.searchParams;
   const locale = await getLocale();

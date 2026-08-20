@@ -6,9 +6,11 @@
 // with the two-stage (+ partner on significant risk) review chain (§6.3).
 
 import { withTenant } from "@/lib/db";
+import { hasOtherReviewer } from "@/lib/documents";
 import { createNotification } from "@/lib/notifications";
 import { canPartnerSignoff, canReview } from "@/lib/rbac";
 import { requireTenant } from "@/lib/tenant";
+import { invalidateStaleSignoffs, reportInvalidatedSignoffs } from "@/lib/working-papers";
 
 export class ExecutionError extends Error {
   constructor(public readonly code: string) {
@@ -19,15 +21,45 @@ export class ExecutionError extends Error {
 
 // ---- 4.2 program-step execution ----
 
-export async function completeStep(stepId: string, conclusion: string): Promise<void> {
+/**
+ * Complete a program step: the conclusion, who reached it and when are recorded
+ * together — a step is never "done" without them (assurance finding C7).
+ * `engagementId`, where the caller knows it, scopes the step to that engagement
+ * on top of the tenant isolation RLS already provides.
+ */
+export async function completeStep(
+  stepId: string,
+  conclusion: string,
+  engagementId?: string,
+): Promise<void> {
   const { tenantId, userId } = await requireTenant();
   if (!conclusion.trim()) throw new ExecutionError("conclusion-required");
   await withTenant(tenantId, async (tx) => {
     const updated = await tx.query(
       `UPDATE program_step
           SET status = 'complete', conclusion = $2, completed_by = $3, completed_at = now()
-        WHERE id = $1 AND status = 'planned'`,
-      [stepId, conclusion, userId],
+        WHERE id = $1 AND status = 'planned'
+          AND ($4::uuid IS NULL OR engagement_id = $4)`,
+      [stepId, conclusion, userId, engagementId ?? null],
+    );
+    if (updated.rowCount === 0) throw new ExecutionError("not-found");
+  });
+}
+
+/**
+ * Undo a completion (the account workpaper's "procedure done" tick, unticked):
+ * the step returns to planned and the conclusion/preparer/timestamp it carried
+ * are cleared, so a completed step can never show a stale attribution.
+ */
+export async function uncompleteStep(stepId: string, engagementId?: string): Promise<void> {
+  const { tenantId } = await requireTenant();
+  await withTenant(tenantId, async (tx) => {
+    const updated = await tx.query(
+      `UPDATE program_step
+          SET status = 'planned', conclusion = NULL, completed_by = NULL, completed_at = NULL
+        WHERE id = $1 AND status = 'complete'
+          AND ($2::uuid IS NULL OR engagement_id = $2)`,
+      [stepId, engagementId ?? null],
     );
     if (updated.rowCount === 0) throw new ExecutionError("not-found");
   });
@@ -520,9 +552,9 @@ export async function saveSectionConclusion(
 ): Promise<void> {
   const { tenantId, userId } = await requireTenant();
   if (!conclusion.trim()) throw new ExecutionError("conclusion-required");
-  await withTenant(tenantId, async (tx) => {
-    const item = await tx.query<{ engagement_id: string }>(
-      "SELECT engagement_id FROM file_item WHERE id = $1 AND section = 'E'",
+  const written = await withTenant(tenantId, async (tx) => {
+    const item = await tx.query<{ engagement_id: string; code: string }>(
+      "SELECT engagement_id, code FROM file_item WHERE id = $1 AND section = 'E'",
       [fileItemId],
     );
     if (!item.rows[0]) throw new ExecutionError("not-found");
@@ -537,7 +569,19 @@ export async function saveSectionConclusion(
              partner_reviewed_by = NULL, partner_reviewed_at = NULL`,
       [tenantId, item.rows[0].engagement_id, fileItemId, conclusion, objectivesAchieved, userId],
     );
+    // The section conclusion is part of what a sign-off on this item attests
+    // to, so rewriting it voids any signature given over the earlier text.
+    const invalidated = await invalidateStaleSignoffs(tx, item.rows[0].engagement_id, item.rows[0].code);
+    return { engagementId: item.rows[0].engagement_id, code: item.rows[0].code, invalidated };
   });
+
+  await reportInvalidatedSignoffs(
+    tenantId,
+    written.engagementId,
+    written.code,
+    written.invalidated,
+    userId,
+  );
 }
 
 export async function reviewSectionConclusion(fileItemId: string, asPartner: boolean): Promise<void> {
@@ -545,6 +589,17 @@ export async function reviewSectionConclusion(fileItemId: string, asPartner: boo
   if (asPartner && !canPartnerSignoff(role)) throw new ExecutionError("forbidden");
   if (!asPartner && !canReview(role)) throw new ExecutionError("forbidden");
   await withTenant(tenantId, async (tx) => {
+    // No self-review (ISA 220 (Revised) ¶29): whoever prepared the section
+    // conclusion cannot also review it while the firm has another reviewer.
+    const prepared = await tx.query<{ prepared_by: string | null }>(
+      "SELECT prepared_by FROM section_conclusion WHERE file_item_id = $1",
+      [fileItemId],
+    );
+    const preparedBy = prepared.rows[0]?.prepared_by ?? null;
+    if (preparedBy === userId && (await hasOtherReviewer(tx, tenantId, userId))) {
+      throw new ExecutionError("self-review");
+    }
+
     const column = asPartner ? "partner_reviewed_by" : "reviewed_by";
     const timeColumn = asPartner ? "partner_reviewed_at" : "reviewed_at";
     const updated = await tx.query(

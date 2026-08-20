@@ -8,6 +8,7 @@ import { canPartnerSignoff, canReview } from "@/lib/rbac";
 import { applyOverride } from "@/lib/template-overrides";
 import { templateFor } from "@/lib/templates";
 import { requireTenant } from "@/lib/tenant";
+import { paperContentHashTx } from "@/lib/working-papers";
 
 export const DOCX_MIME =
   "application/vnd.openxmlformats-officedocument.wordprocessingml.document";
@@ -43,6 +44,9 @@ export interface SignoffInfo {
   signedAt: string;
   voidedAt: string | null;
   voidReason: string | null;
+  /** set when a later edit changed the content this signature attested to */
+  invalidatedAt: string | null;
+  invalidatedReason: string | null;
 }
 
 export interface ReviewNoteInfo {
@@ -361,10 +365,14 @@ export async function listSignoffs(documentId: string): Promise<SignoffInfo[]> {
       signed_at: string;
       voided_at: string | null;
       void_reason: string | null;
+      invalidated_at: string | null;
+      invalidated_reason: string | null;
     }>(
       `SELECT s.id, s.role, s.version_no, coalesce(u.name, u.email) AS user_name,
               to_char(s.signed_at, 'YYYY-MM-DD HH24:MI') AS signed_at,
-              to_char(s.voided_at, 'YYYY-MM-DD HH24:MI') AS voided_at, s.void_reason
+              to_char(s.voided_at, 'YYYY-MM-DD HH24:MI') AS voided_at, s.void_reason,
+              to_char(s.invalidated_at, 'YYYY-MM-DD HH24:MI') AS invalidated_at,
+              s.invalidated_reason
          FROM signoff s
          JOIN app_user u ON u.id = s.user_id
         WHERE s.document_id = $1
@@ -379,14 +387,46 @@ export async function listSignoffs(documentId: string): Promise<SignoffInfo[]> {
       signedAt: row.signed_at,
       voidedAt: row.voided_at,
       voidReason: row.void_reason,
+      invalidatedAt: row.invalidated_at,
+      invalidatedReason: row.invalidated_reason,
     }));
   });
+}
+
+/**
+ * Another member of the firm carries review authority (senior and above), i.e.
+ * someone other than this user could review the work. Where nobody else can —
+ * a sole practitioner — the self-review refusal would make the file impossible
+ * to complete, so the rule stands down there and the signature record (which
+ * carries the user on every role) shows preparer and reviewer are the same
+ * person. Exported for the section-conclusion chain in lib/execution.ts.
+ */
+export async function hasOtherReviewer(
+  tx: PoolClient,
+  tenantId: string,
+  userId: string,
+): Promise<boolean> {
+  const result = await tx.query<{ n: string }>(
+    `SELECT count(*)::text AS n
+       FROM membership
+      WHERE tenant_id = $1 AND user_id <> $2
+        AND role IN ('senior', 'manager', 'eqr_reviewer', 'partner', 'firm_admin')`,
+    [tenantId, userId],
+  );
+  return Number(result.rows[0].n) > 0;
 }
 
 /**
  * Sign the current version. Two-stage minimum (spec §6.3): preparer first, then
  * reviewer — reviewer/partner require review authority, an active preparer
  * sign-off, and NO open review notes. The reviewer sign-off locks the document.
+ *
+ * Two integrity rules on top (assurance findings C4 / H1):
+ *  - no self-review: the holder of the active preparer sign-off cannot also
+ *    sign as reviewer or partner while anyone else in the firm could review;
+ *  - the signature is bound to the paper's content by content_hash, so a later
+ *    edit voids it (see invalidateStaleSignoffs in lib/working-papers.ts)
+ *    instead of leaving an attestation standing over content nobody signed.
  */
 export async function signDocument(documentId: string, role: SignoffRole): Promise<void> {
   const { tenantId, userId, role: userRole } = await requireTenant();
@@ -399,8 +439,16 @@ export async function signDocument(documentId: string, role: SignoffRole): Promi
       [documentId],
     );
     if (arch.rows[0]?.archived_at) throw new DocumentRuleError("archived");
-    const doc = await tx.query<{ status: string; current_version: number; checked_out_by: string | null }>(
-      "SELECT status, current_version, checked_out_by FROM document WHERE id = $1 FOR UPDATE",
+    const doc = await tx.query<{
+      status: string;
+      current_version: number;
+      checked_out_by: string | null;
+      engagement_id: string;
+      code: string;
+    }>(
+      `SELECT d.status, d.current_version, d.checked_out_by, d.engagement_id, fi.code
+         FROM document d JOIN file_item fi ON fi.id = d.file_item_id
+        WHERE d.id = $1 FOR UPDATE OF d`,
       [documentId],
     );
     const row = doc.rows[0];
@@ -409,8 +457,8 @@ export async function signDocument(documentId: string, role: SignoffRole): Promi
     if (row.current_version === 0) throw new DocumentRuleError("no-version");
     if (row.checked_out_by) throw new DocumentRuleError("checked-out");
 
-    const active = await tx.query<{ role: SignoffRole }>(
-      "SELECT role FROM signoff WHERE document_id = $1 AND voided_at IS NULL",
+    const active = await tx.query<{ role: SignoffRole; user_id: string }>(
+      "SELECT role, user_id FROM signoff WHERE document_id = $1 AND voided_at IS NULL AND invalidated_at IS NULL",
       [documentId],
     );
     const activeRoles = new Set(active.rows.map((r) => r.role));
@@ -419,6 +467,17 @@ export async function signDocument(documentId: string, role: SignoffRole): Promi
       throw new DocumentRuleError("preparer-first");
 
     if (role !== "preparer") {
+      // ISA 220 (Revised) ¶29: the work of the preparer is reviewed by someone
+      // else. Refuse the reviewer/partner signature to the preparer themselves.
+      const preparer = active.rows.find((r) => r.role === "preparer");
+      if (
+        preparer &&
+        preparer.user_id === userId &&
+        (await hasOtherReviewer(tx, tenantId, userId))
+      ) {
+        throw new DocumentRuleError("self-review");
+      }
+
       const openNotes = await tx.query<{ n: string }>(
         "SELECT count(*)::text AS n FROM review_note WHERE document_id = $1 AND status = 'open'",
         [documentId],
@@ -426,10 +485,12 @@ export async function signDocument(documentId: string, role: SignoffRole): Promi
       if (Number(openNotes.rows[0].n) > 0) throw new DocumentRuleError("open-notes");
     }
 
+    // Bind the signature to the paper content as it stands right now.
+    const contentHash = await paperContentHashTx(tx, row.engagement_id, row.code);
     await tx.query(
-      `INSERT INTO signoff (tenant_id, document_id, version_no, role, user_id)
-       VALUES ($1, $2, $3, $4, $5)`,
-      [tenantId, documentId, row.current_version, role, userId],
+      `INSERT INTO signoff (tenant_id, document_id, version_no, role, user_id, content_hash)
+       VALUES ($1, $2, $3, $4, $5, $6)`,
+      [tenantId, documentId, row.current_version, role, userId, contentHash],
     );
 
     // The reviewer sign-off completes the two-stage minimum and locks the paper.

@@ -95,20 +95,33 @@ export async function significantAccounts(engagementId: string): Promise<Signifi
       [engagementId],
     );
     const mapping = gl.rows[0]?.mapping;
+    const accountKey = typeof mapping?.account === "string" ? mapping.account : null;
     const volumes = new Map<string, number>();
     let glAvailable = false;
-    if (gl.rows[0] && mapping?.account) {
+    if (gl.rows[0] && accountKey) {
       glAvailable = true;
-      const lines = await tx.query<{ data: Record<string, unknown> }>(
-        "SELECT data FROM sub_ledger_row WHERE dataset_id = $1",
-        [gl.rows[0].id],
+      // Count in the database, not in Node. Streaming every sub_ledger_row.data
+      // jsonb into memory made an ordinary P6.2/E4 render load the whole general
+      // ledger (hundreds of thousands of rows on a real file) inside an open
+      // transaction. Grouping by account code returns one row per distinct
+      // account — a few hundred at most — and the (tenant_id, dataset_id, row_no)
+      // index serves the scan.
+      //
+      // The mapped column name comes from the uploaded file's header row, i.e.
+      // it is user input: it is passed as a bind parameter to the jsonb `->>`
+      // operator and never concatenated into the SQL text.
+      const grouped = await tx.query<{ account: string; lines: string }>(
+        `SELECT btrim(r.data ->> $2::text) AS account, count(*)::text AS lines
+           FROM sub_ledger_row r
+          WHERE r.dataset_id = $1
+            AND btrim(coalesce(r.data ->> $2::text, '')) <> ''
+          GROUP BY 1`,
+        [gl.rows[0].id, accountKey],
       );
-      for (const { data } of lines.rows) {
-        const account = String(data[mapping.account] ?? "").trim();
-        if (!account) continue;
-        const index = indexOf(account);
+      for (const row of grouped.rows) {
+        const index = indexOf(row.account);
         if (!index) continue;
-        volumes.set(index, (volumes.get(index) ?? 0) + 1);
+        volumes.set(index, (volumes.get(index) ?? 0) + Number(row.lines));
       }
     }
 

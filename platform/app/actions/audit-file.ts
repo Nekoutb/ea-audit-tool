@@ -132,14 +132,17 @@ export async function generateDocumentAction(fileItemId: string): Promise<void> 
 
 /**
  * P / R sign-off buttons on the phase task list. The preparer button generates
- * the working paper if needed then signs it as preparer (hand-off); the reviewer
- * button signs it off as partner, which locks the paper. Domain-rule violations
- * (preparer must sign first, open review notes, checked out …) come back as a
- * localized banner on the phase screen rather than a 500.
+ * the working paper if needed then signs it as preparer (hand-off); the R button
+ * signs it as REVIEWER — the role the control is labelled with and the role the
+ * activity entry records (they disagreed before: the button signed as partner
+ * while the trail said reviewer). Partner sign-off, which the phase gates look
+ * for, stays on the partner control of the document itself. Domain-rule
+ * violations (preparer must sign first, self-review, open review notes, checked
+ * out …) come back as a localized banner on the phase screen rather than a 500.
  */
 async function signOffFromList(
   formData: FormData,
-  role: "preparer" | "partner",
+  role: "preparer" | "reviewer",
 ): Promise<never> {
   const fileItemId = String(formData.get("fileItemId") ?? "");
   const engagementId = String(formData.get("engagementId") ?? "");
@@ -162,7 +165,8 @@ async function signOffFromList(
     engagementId,
     entityType: "file_item",
     entityId: fileItemId,
-    action: role === "preparer" ? "preparer_signoff" : "reviewer_signoff",
+    // derived from the role actually recorded, so the trail cannot drift from it
+    action: `${role}_signoff`,
     summary: role === "preparer" ? "Signed off as preparer" : "Signed off as reviewer",
   });
   revalidatePath(back);
@@ -252,7 +256,7 @@ export async function signOffPreparerAction(formData: FormData): Promise<void> {
 }
 
 export async function signOffReviewerAction(formData: FormData): Promise<void> {
-  await signOffFromList(formData, "partner");
+  await signOffFromList(formData, "reviewer");
 }
 
 export async function checkoutAction(documentId: string): Promise<void> {
