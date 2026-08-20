@@ -413,17 +413,117 @@ export async function archiveEngagement(engagementId: string): Promise<void> {
     if (!engagement.rows[0].report_date) throw new CompletionError("no-report");
     if (engagement.rows[0].archived_at) throw new CompletionError("already-archived");
 
+    /*
+     * The archive manifest: what this file contained at the moment it closed.
+     *
+     * v1 held six lists and no identity — no client, no period, no report date,
+     * no opinion, no sign-offs, no working papers, no conclusions — so it could
+     * not be read on its own and could not answer what an inspection asks.
+     * fileIndex also lacked a coalesce, so an engagement with no items
+     * serialised as null rather than an empty list.
+     *
+     * Captured INSIDE the archiving transaction, so it describes the file as
+     * archived rather than as it looked whenever somebody later asked.
+     */
     const snapshot = await tx.query<{ data: unknown }>(
       `SELECT json_build_object(
-         'fileIndex', (SELECT json_agg(json_build_object('code', code, 'title', title_en)) FROM file_item WHERE engagement_id = $1),
+         'manifestVersion', 2,
+         'generatedAt', now(),
+
+         'engagement', (SELECT json_build_object(
+                          'id', e.id, 'name', e.name,
+                          'client', c.name, 'clientLegalForm', c.legal_form,
+                          'fiscalYear', e.fiscal_year,
+                          'periodEnd', e.period_end, 'reportDate', e.report_date,
+                          'opinion', e.opinion, 'framework', e.framework,
+                          'firstYear', e.first_year, 'complexity', e.complexity,
+                          'retentionUntil', e.retention_until)
+                         FROM engagement e JOIN client c ON c.id = e.client_id WHERE e.id = $1),
+         'firm', (SELECT json_build_object('name', t.name, 'slug', t.slug,
+                                           'retentionYears', t.retention_years)
+                    FROM tenant t WHERE t.id = $2),
+         'archivedBy', (SELECT coalesce(u.name, u.email) FROM app_user u WHERE u.id = $3),
+
+         'fileIndex', (SELECT coalesce(json_agg(json_build_object(
+                          'id', fi.id, 'code', fi.code, 'section', fi.section,
+                          'titleEn', fi.title_en, 'titleFr', fi.title_fr,
+                          'conditional', fi.conditional, 'material', fi.material,
+                          'owner', (SELECT coalesce(o.name, o.email) FROM app_user o WHERE o.id = fi.owner_id),
+                          'assignee', (SELECT coalesce(a.name, a.email) FROM app_user a WHERE a.id = fi.assignee_user_id)
+                        ) ORDER BY fi.sort_order), '[]'::json)
+                        FROM file_item fi WHERE fi.engagement_id = $1),
+
+         'workingPapers', (SELECT coalesce(json_agg(json_build_object(
+                              'code', fr.code, 'field', fr.field_key, 'value', fr.value,
+                              'updatedAt', fr.updated_at,
+                              'updatedBy', (SELECT coalesce(u.name, u.email) FROM app_user u WHERE u.id = fr.updated_by)
+                            ) ORDER BY fr.code, fr.field_key), '[]'::json)
+                            FROM form_response fr WHERE fr.engagement_id = $1),
+
+         'sectionConclusions', (SELECT coalesce(json_agg(to_jsonb(sc) - 'tenant_id'), '[]'::json)
+                                  FROM section_conclusion sc WHERE sc.engagement_id = $1),
+
+         'signoffs', (SELECT coalesce(json_agg(json_build_object(
+                         'documentId', sg.document_id, 'role', sg.role, 'versionNo', sg.version_no,
+                         'by', (SELECT coalesce(u.name, u.email) FROM app_user u WHERE u.id = sg.user_id),
+                         'signedAt', sg.signed_at, 'contentHash', sg.content_hash,
+                         'voidedAt', sg.voided_at, 'voidReason', sg.void_reason,
+                         'invalidatedAt', sg.invalidated_at, 'invalidatedReason', sg.invalidated_reason
+                       ) ORDER BY sg.signed_at), '[]'::json)
+                       FROM signoff sg
+                       JOIN document d2 ON d2.id = sg.document_id
+                      WHERE d2.engagement_id = $1),
+
+         'documents', (SELECT coalesce(json_agg(json_build_object(
+                          'id', d.id, 'title', d.title, 'kind', d.kind, 'status', d.status,
+                          'fileItemCode', (SELECT fi2.code FROM file_item fi2 WHERE fi2.id = d.file_item_id),
+                          'currentVersion', d.current_version,
+                          'versions', (SELECT coalesce(json_agg(json_build_object(
+                                          'versionNo', v.version_no, 'sha256', v.sha256,
+                                          'bytes', v.byte_size, 'note', v.note,
+                                          'createdAt', v.created_at,
+                                          'createdBy', (SELECT coalesce(u.name, u.email) FROM app_user u WHERE u.id = v.created_by)
+                                        ) ORDER BY v.version_no), '[]'::json)
+                                        FROM document_version v WHERE v.document_id = d.id)
+                        ) ORDER BY d.title), '[]'::json)
+                        FROM document d WHERE d.engagement_id = $1),
+
+         'attachments', (SELECT coalesce(json_agg(json_build_object(
+                            'name', ta.name, 'mime', ta.mime, 'bytes', ta.size_bytes,
+                            'version', ta.version, 'uploadedAt', ta.uploaded_at,
+                            'deletedAt', ta.deleted_at
+                          ) ORDER BY ta.name, ta.version), '[]'::json)
+                          FROM task_attachment ta WHERE ta.engagement_id = $1),
+
+         'reviewNotes', (SELECT coalesce(json_agg(json_build_object(
+                            'body', rn.body, 'status', rn.status, 'response', rn.response,
+                            'raisedAt', rn.created_at, 'clearedAt', rn.cleared_at,
+                            'author', (SELECT coalesce(u.name, u.email) FROM app_user u WHERE u.id = rn.author_id)
+                          ) ORDER BY rn.created_at), '[]'::json)
+                          FROM review_note rn WHERE rn.engagement_id = $1),
+
+         'materiality', (SELECT coalesce(json_agg(to_jsonb(m2) - 'tenant_id' ORDER BY m2.version_no), '[]'::json)
+                           FROM materiality m2 WHERE m2.engagement_id = $1),
+
+         'team', (SELECT coalesce(json_agg(json_build_object(
+                     'name', (SELECT coalesce(u.name, u.email) FROM app_user u WHERE u.id = tm.user_id),
+                     'role', tm.team_role, 'status', tm.status)), '[]'::json)
+                   FROM team_member tm WHERE tm.engagement_id = $1),
+
          'risks', (SELECT coalesce(json_agg(to_jsonb(r) - 'tenant_id'), '[]'::json) FROM risk r WHERE engagement_id = $1),
          'misstatements', (SELECT coalesce(json_agg(to_jsonb(m) - 'tenant_id'), '[]'::json) FROM misstatement m WHERE engagement_id = $1),
          'findings', (SELECT coalesce(json_agg(to_jsonb(f) - 'tenant_id'), '[]'::json) FROM finding f WHERE engagement_id = $1),
-         'confirmations', (SELECT coalesce(json_agg(to_jsonb(c) - 'tenant_id'), '[]'::json) FROM confirmation c WHERE engagement_id = $1),
-         'documents', (SELECT coalesce(json_agg(json_build_object('title', d.title, 'kind', d.kind, 'versions', d.current_version)), '[]'::json)
-                         FROM document d WHERE d.engagement_id = $1)
+         'confirmations', (SELECT coalesce(json_agg(to_jsonb(c2) - 'tenant_id'), '[]'::json) FROM confirmation c2 WHERE engagement_id = $1),
+
+         'counts', json_build_object(
+            'fileItems', (SELECT count(*) FROM file_item WHERE engagement_id = $1),
+            'documents', (SELECT count(*) FROM document WHERE engagement_id = $1),
+            'documentVersions', (SELECT count(*) FROM document_version v2 JOIN document d3 ON d3.id = v2.document_id WHERE d3.engagement_id = $1),
+            'signoffs', (SELECT count(*) FROM signoff sg2 JOIN document d4 ON d4.id = sg2.document_id WHERE d4.engagement_id = $1),
+            'attachments', (SELECT count(*) FROM task_attachment WHERE engagement_id = $1),
+            'activityEntries', (SELECT count(*) FROM activity_log WHERE engagement_id = $1))
        ) AS data`,
-      [engagementId],
+      [engagementId, tenantId, userId],
     );
     await tx.query(
       `INSERT INTO completion_record (tenant_id, engagement_id, key, data, done_by)

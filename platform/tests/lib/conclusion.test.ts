@@ -36,7 +36,16 @@ const admin = new pg.Pool({ connectionString: process.env.DATABASE_URL });
 let engagementId: string;
 
 async function removeFixture(): Promise<void> {
-  await admin.query("DELETE FROM tenant WHERE id = $1", [TENANT]);
+  // Dropping the tenant cascades into completion_record, and the archive
+  // manifest there is immutable by trigger (20260820000011). Teardown disables
+  // the trigger rather than the guard being relaxed to suit the tests — a
+  // superuser may do this, the application role may not, which is the point.
+  await admin.query("ALTER TABLE completion_record DISABLE TRIGGER trg_manifest_immutable");
+  try {
+    await admin.query("DELETE FROM tenant WHERE id = $1", [TENANT]);
+  } finally {
+    await admin.query("ALTER TABLE completion_record ENABLE TRIGGER trg_manifest_immutable");
+  }
   await admin.query("DELETE FROM app_user WHERE id = $1", [USER]);
 }
 
