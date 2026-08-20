@@ -5,7 +5,8 @@ import { ThemeToggle } from "@/components/ThemeToggle";
 import { getBranding, type Branding } from "@/lib/branding";
 import { recentEngagements } from "@/lib/engagement-dashboard";
 import { getMessages, type Locale } from "@/lib/i18n";
-import { unreadCount } from "@/lib/notifications";
+import { listMyNotifications, unreadCount, type Notification as NotificationItem } from "@/lib/notifications";
+import { NotificationBell } from "@/components/NotificationBell";
 import Link from "next/link";
 import { SECTION_ORDER, sectionLabel } from "@/lib/task-groups";
 
@@ -39,10 +40,17 @@ export async function AppNav({
   let branding: Branding | null = null;
   let recent: SelectorItem[] = [];
   let unread = 0;
+  let notifs: NotificationItem[] = [];
   try {
-    const [b, r, u] = await Promise.all([getBranding(), recentEngagements(6), unreadCount()]);
+    const [b, r, u, n] = await Promise.all([
+      getBranding(),
+      recentEngagements(6),
+      unreadCount(),
+      listMyNotifications(8),
+    ]);
     branding = b;
     unread = u;
+    notifs = n;
     recent = r.map((e) => ({
       id: e.id,
       title: e.name ?? e.clientName,
@@ -149,26 +157,7 @@ export async function AppNav({
           </NavLink>
         ) : null}
 
-        <NavLink
-          href="/notifications"
-          className="relative grid h-9 w-9 place-items-center rounded-[var(--radius-atlas-sm)] border border-line-strong bg-surface text-ink-soft transition"
-          idleClassName="hover:bg-surface-2"
-          activeClassName="bg-surface-2"
-          testId="nav-notifications"
-        >
-          <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8">
-            <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9" />
-            <path d="M13.7 21a2 2 0 0 1-3.4 0" />
-          </svg>
-          {unread > 0 ? (
-            <span
-              data-testid="unread-badge"
-              className="absolute -right-1 -top-1 grid h-4 min-w-4 place-items-center rounded-full bg-emerald-700 px-1 text-[10px] font-bold text-white"
-            >
-              {unread}
-            </span>
-          ) : null}
-        </NavLink>
+        <NotificationBell unread={unread} items={notifs} locale={locale} />
 
         <NavLink
           href={current ? `/engagements/${current.id}/settings` : "/settings"}

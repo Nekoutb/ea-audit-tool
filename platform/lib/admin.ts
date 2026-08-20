@@ -24,6 +24,8 @@ export interface FirmSummary {
   id: string;
   name: string;
   slug: string;
+  /** the firm's local part on the platform mail domain, e.g. "eca" */
+  mailLocal: string | null;
   createdAt: string;
   users: number;
   clients: number;
@@ -32,8 +34,8 @@ export interface FirmSummary {
 
 export async function listFirms(): Promise<FirmSummary[]> {
   await requireSuper();
-  const tenants = await pool.query<{ id: string; name: string; slug: string; created_at: string }>(
-    "SELECT id, name, slug, to_char(created_at, 'YYYY-MM-DD') AS created_at FROM tenant ORDER BY created_at",
+  const tenants = await pool.query<{ id: string; name: string; slug: string; mail_local: string | null; created_at: string }>(
+    "SELECT id, name, slug, mail_local, to_char(created_at, 'YYYY-MM-DD') AS created_at FROM tenant ORDER BY created_at",
   );
   const members = await pool.query<{ tenant_id: string; n: string }>(
     "SELECT tenant_id, count(*)::text AS n FROM membership GROUP BY tenant_id",
@@ -52,6 +54,7 @@ export async function listFirms(): Promise<FirmSummary[]> {
       id: t.id,
       name: t.name,
       slug: t.slug,
+      mailLocal: t.mail_local,
       createdAt: t.created_at,
       users: memberOf.get(t.id) ?? 0,
       clients: Number(counts.clients),
@@ -71,6 +74,8 @@ export async function createFirm(input: {
   adminEmail: string;
   adminName: string;
   language?: "en" | "fr";
+  /** local part of the firm's sending address; defaults to the slug */
+  mailLocal?: string;
 }): Promise<{ tenantId: string; tempPassword: string }> {
   await requireSuper();
   const name = input.name.trim();
@@ -81,6 +86,13 @@ export async function createFirm(input: {
 
   const existing = await pool.query("SELECT 1 FROM tenant WHERE slug = $1", [slug]);
   if (existing.rows[0]) throw new AdminError("slug-taken");
+
+  // the firm's sending identity: local part only — the domain is the platform's
+  // verified one, so a firm can never set a From that would fail to deliver
+  const mailLocal = (input.mailLocal ?? "").trim().toLowerCase() || slug;
+  if (!/^[a-z0-9._-]{1,64}$/.test(mailLocal)) throw new AdminError("bad-mail-local");
+  const mailTaken = await pool.query("SELECT 1 FROM tenant WHERE lower(mail_local) = $1", [mailLocal]);
+  if (mailTaken.rows[0]) throw new AdminError("mail-local-taken");
 
   const tempPassword = randomBytes(6).toString("base64url");
   const hash = await bcrypt.hash(tempPassword, 10);
@@ -95,8 +107,8 @@ export async function createFirm(input: {
   try {
     await client.query("BEGIN");
     const t = await client.query<{ id: string }>(
-      "INSERT INTO tenant (name, slug, default_language) VALUES ($1, $2, $3) RETURNING id",
-      [name, slug, language],
+      "INSERT INTO tenant (name, slug, default_language, mail_local) VALUES ($1, $2, $3, $4) RETURNING id",
+      [name, slug, language, mailLocal],
     );
     tenantId = t.rows[0].id;
     let userId = existingUser.rows[0]?.id;

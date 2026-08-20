@@ -4,6 +4,7 @@
 import { randomBytes } from "node:crypto";
 import type { PoolClient } from "pg";
 import { sendEmail } from "@/lib/email";
+import { tenantSender } from "@/lib/tenant-mail";
 import { createNotification } from "@/lib/notifications";
 import { withTenant } from "@/lib/db";
 import { requireTenant } from "@/lib/tenant";
@@ -312,6 +313,7 @@ export async function addTeamMemberByEmail(
   });
 
   sendEmail({
+    ...(await tenantSender(tenantId)),
     to: email,
     subject: `You have been added to ${engagementName}`,
     body: `You have been added to the engagement "${engagementName}" as ${teamRole.replace("_", " ")}. Sign in and accept or decline it from the engagement dashboard: /engagements/${engagementId}/dashboard`,

@@ -4,7 +4,7 @@
 //   E1…En rows with a SHORT summary description, each rolling out in place.
 //   An open row shows: description detailed + objective, guidance, practical
 //   considerations on the left; working paper & evidence (+) on the right;
-//   then Findings & conclusion with the proposed SAP adjustment
+//   then Findings & conclusion with the proposed SAD adjustment
 //   (debit account/amount, credit account/amount). Fields blur-save.
 // One index per task; ＋ adds another substantive procedure.
 
@@ -59,6 +59,9 @@ export function AccountWorkpaper({
   const [adding, setAdding] = useState(false);
   const [otherText, setOtherText] = useState("");
   const [otherA, setOtherA] = useState<string[]>([]);
+  // live mirror of the adjustment amounts so the control total moves as it is typed
+  const [adj, setAdj] = useState<Record<string, string>>({});
+  const adjVal = (stepId: string, field: string) => adj[`${field}_${stepId}`] ?? results[`${field}_${stepId}`] ?? "";
 
   async function op(body: Record<string, unknown>) {
     setError(null);
@@ -85,6 +88,11 @@ export function AccountWorkpaper({
   const saveField = (stepId: string, field: string, value: string, current: string) => {
     if (value !== current) void op({ op: "saveResult", taskCode, stepId, field, value });
   };
+  const num = (v: string) => {
+    const n = parseFloat(String(v).replace(/[^0-9.-]/g, ""));
+    return Number.isFinite(n) ? n : 0;
+  };
+  const money = (n: number) => new Intl.NumberFormat("fr-FR").format(Math.round(n));
   const label = "text-[10.5px] font-extrabold uppercase tracking-[0.07em] text-muted";
   const amber = "w-full resize-none overflow-hidden rounded-[var(--radius-atlas-xs)] bg-[color:var(--wp-input)] px-2.5 py-2 text-[12.5px] leading-relaxed text-ink outline-none placeholder:text-muted focus:ring-1 focus:ring-emerald-600/40";
   const inputCls = "rounded-[var(--radius-atlas-xs)] border border-line-strong bg-surface px-2 py-1.5 text-[12px] text-ink outline-none focus:border-emerald-600";
@@ -210,23 +218,102 @@ export function AccountWorkpaper({
                     className={`${amber} mt-1.5`}
                     data-testid={`psp-finding-${refOf(s)}`}
                   />
-                  <p className={`${label} mt-2`}>{fr ? "Ajustement SYSCOHADA proposé" : "SAP adjustment (proposed entry)"}</p>
-                  <div className="mt-1 grid grid-cols-1 gap-1.5 sm:grid-cols-2 lg:grid-cols-4">
-                    {([
-                      ["adj_debit_account", fr ? "Compte à débiter" : "Debit account"],
-                      ["adj_debit_amount", fr ? "Montant débit" : "Debit amount"],
-                      ["adj_credit_account", fr ? "Compte à créditer" : "Credit account"],
-                      ["adj_credit_amount", fr ? "Montant crédit" : "Credit amount"],
-                    ] as const).map(([field, ph]) => (
-                      <input
-                        key={field}
-                        defaultValue={results[`${field}_${s.id}`] ?? ""}
-                        placeholder={ph}
-                        onBlur={(e) => saveField(s.id, field, e.target.value, results[`${field}_${s.id}`] ?? "")}
-                        className={`${inputCls} ${field.endsWith("amount") ? "tnum" : ""}`}
-                        data-testid={`psp-${field}-${refOf(s)}`}
-                      />
-                    ))}
+                  {/* the proposed entry, as a journal: it lands on the SAD as
+                      uncorrected until the senior marks it corrected there */}
+                  <div className="mt-2.5 rounded-[var(--radius-atlas-xs)] border border-line">
+                    <div className="flex flex-wrap items-baseline justify-between gap-2 border-b border-line bg-surface-2 px-2 py-1">
+                      <p className={label}>{fr ? "Ajustement SAD proposé" : "SAD adjustment (proposed entry)"}</p>
+                      <p className="text-[10.5px] text-muted">
+                        {fr
+                          ? "Reporté au SAD en « non corrigé » — le senior le marque corrigé sur le SAD."
+                          : "Carried to the SAD as uncorrected — the senior marks it corrected there."}
+                      </p>
+                    </div>
+                    <table className="w-full">
+                      <thead>
+                        <tr>
+                          <th className={`${label} px-2 py-1 text-left`}>{fr ? "Compte" : "Account"}</th>
+                          <th className={`${label} px-2 py-1 text-right`}>{fr ? "Débit" : "Debit"}</th>
+                          <th className={`${label} px-2 py-1 text-right`}>{fr ? "Crédit" : "Credit"}</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {([
+                          ["adj_debit_account", "adj_debit_amount", "debit"] as const,
+                          ["adj_credit_account", "adj_credit_amount", "credit"] as const,
+                        ]).map(([acctField, amtField, side]) => (
+                          <tr key={side} className="border-t border-line">
+                            <td className="px-2 py-1">
+                              <input
+                                defaultValue={results[`${acctField}_${s.id}`] ?? ""}
+                                placeholder={side === "debit"
+                                  ? (fr ? "Compte à débiter" : "Debit account")
+                                  : (fr ? "Compte à créditer" : "Credit account")}
+                                onBlur={(e) => { saveField(s.id, acctField, e.target.value, results[`${acctField}_${s.id}`] ?? ""); }}
+                                className={`${inputCls} w-full`}
+                                data-testid={`psp-${acctField}-${refOf(s)}`}
+                              />
+                            </td>
+                            <td className="px-2 py-1">
+                              {side === "debit" ? (
+                                <input
+                                  defaultValue={results[`${amtField}_${s.id}`] ?? ""}
+                                  placeholder="0"
+                                  onBlur={(e) => { saveField(s.id, amtField, e.target.value, results[`${amtField}_${s.id}`] ?? ""); setAdj((a) => ({ ...a, [`${amtField}_${s.id}`]: e.target.value })); }}
+                                  onInput={(e) => setAdj((a) => ({ ...a, [`${amtField}_${s.id}`]: e.currentTarget.value }))}
+                                  className={`${inputCls} w-full text-right tnum`}
+                                  data-testid={`psp-${amtField}-${refOf(s)}`}
+                                />
+                              ) : null}
+                            </td>
+                            <td className="px-2 py-1">
+                              {side === "credit" ? (
+                                <input
+                                  defaultValue={results[`${amtField}_${s.id}`] ?? ""}
+                                  placeholder="0"
+                                  onBlur={(e) => { saveField(s.id, amtField, e.target.value, results[`${amtField}_${s.id}`] ?? ""); setAdj((a) => ({ ...a, [`${amtField}_${s.id}`]: e.target.value })); }}
+                                  onInput={(e) => setAdj((a) => ({ ...a, [`${amtField}_${s.id}`]: e.currentTarget.value }))}
+                                  className={`${inputCls} w-full text-right tnum`}
+                                  data-testid={`psp-${amtField}-${refOf(s)}`}
+                                />
+                              ) : null}
+                            </td>
+                          </tr>
+                        ))}
+                        {(() => {
+                          const dr = num(adjVal(s.id, "adj_debit_amount"));
+                          const cr = num(adjVal(s.id, "adj_credit_amount"));
+                          const balanced = Math.abs(dr - cr) < 0.005;
+                          const empty = dr === 0 && cr === 0;
+                          return (
+                            <tr className="border-t-2 border-line-strong bg-surface-2">
+                              <td className="px-2 py-1 text-[11.5px] font-bold text-ink">
+                                {fr ? "Total de contrôle" : "Control total"}
+                              </td>
+                              <td className="px-2 py-1 text-right text-[12px] font-bold tnum" data-testid={`psp-ctl-debit-${refOf(s)}`}>{money(dr)}</td>
+                              <td className="px-2 py-1 text-right text-[12px] font-bold tnum" data-testid={`psp-ctl-credit-${refOf(s)}`}>{money(cr)}</td>
+                            </tr>
+                          );
+                        })()}
+                      </tbody>
+                    </table>
+                    {(() => {
+                      const dr = num(adjVal(s.id, "adj_debit_amount"));
+                      const cr = num(adjVal(s.id, "adj_credit_amount"));
+                      if (dr === 0 && cr === 0) return null;
+                      const diff = dr - cr;
+                      const ok = Math.abs(diff) < 0.005;
+                      return (
+                        <p
+                          className={`border-t border-line px-2 py-1 text-[11.5px] font-semibold ${ok ? "text-good" : "text-rose"}`}
+                          data-testid={`psp-ctl-check-${refOf(s)}`}
+                        >
+                          {ok
+                            ? (fr ? "Débits = crédits — l'écriture s'équilibre." : "Debits equal credits — the entry balances.")
+                            : (fr ? `Écart de ${money(Math.abs(diff))} — débits et crédits ne s'équilibrent pas.` : `Out of balance by ${money(Math.abs(diff))} — debits do not equal credits.`)}
+                        </p>
+                      );
+                    })()}
                   </div>
                 </div>
               </div>

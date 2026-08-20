@@ -8,6 +8,7 @@ import { Document, HeadingLevel, Packer, Paragraph, TextRun } from "docx";
 import { withTenant } from "@/lib/db";
 import { DOCX_MIME } from "@/lib/documents";
 import { sendEmail } from "@/lib/email";
+import { tenantSender } from "@/lib/tenant-mail";
 import { createNotification } from "@/lib/notifications";
 import { canPartnerSignoff } from "@/lib/rbac";
 import { requireTenant } from "@/lib/tenant";
@@ -57,6 +58,7 @@ export async function launchCampaign(
 ): Promise<string> {
   const { tenantId, userId } = await requireTenant();
   if (userIds.length === 0) throw new Error("no-recipients");
+  const sender = await tenantSender(tenantId);
   return withTenant(tenantId, async (tx) => {
     const existing = await tx.query<{ id: string }>(
       "SELECT id FROM independence_campaign WHERE engagement_id = $1 ORDER BY created_at LIMIT 1 FOR UPDATE",
@@ -86,6 +88,7 @@ export async function launchCampaign(
       );
       if (email.rows[0]) {
         sendEmail({
+          ...sender,
           to: email.rows[0].email,
           subject: "Independence confirmation required",
           body: `Complete your confirmation: /independence/${token}\n\nOr simply REPLY to this email with "I CONFIRM my independence" — your reply is logged in the engagement file with its timestamp.`,
@@ -281,6 +284,7 @@ export async function sendReminder(confirmationId: string): Promise<void> {
   );
   if (target) {
     sendEmail({
+      ...(await tenantSender(tenantId)),
       to: target.email,
       subject: "Reminder: independence confirmation outstanding",
       body: `Complete your confirmation: /independence/${target.token}\n\nOr simply REPLY to this email with "I CONFIRM my independence" — your reply is logged with its timestamp.`,
@@ -319,8 +323,10 @@ export async function sendDueReminders(engagementId: string): Promise<number> {
     );
     return r.rows;
   });
+  const sweepSender = await tenantSender(tenantId);
   for (const row of due) {
     sendEmail({
+      ...sweepSender,
       to: row.email,
       subject: "Reminder: independence confirmation outstanding",
       body: `Your independence confirmation is still outstanding. Complete it: /independence/${row.token}\n\nOr simply REPLY to this email with "I CONFIRM my independence" — your reply is logged with its timestamp.`,

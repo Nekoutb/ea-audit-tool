@@ -243,6 +243,7 @@ export async function createMaterialityVersion(
           kind: "materiality-revised",
           title: "Materiality revised",
           body: `Version ${versionNo} created — items computed under the prior figure need review and the new version needs approval.`,
+          href: `/engagements/${engagementId}/tools/materiality`,
         });
       }
     }

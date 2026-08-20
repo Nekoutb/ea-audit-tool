@@ -296,11 +296,13 @@ export function SadBoard({
                   no += 1;
                   const drCol = captionColumn(e.drCaption);
                   const crCol = captionColumn(e.crCaption);
+                  const balanced = Math.abs(e.drAmount - e.crAmount) < 0.005;
                   return (
                     <Fragment key={e.stepId}>
-                      <tr className="border-t border-line" data-testid={`sad-${e.stepId}`}>
-                        <td colSpan={1 + SAD_COLUMN_COUNT} className="px-2 pb-0.5 pt-2.5">
-                          <span className="mr-2 text-[11px] font-extrabold text-muted tnum">{fr ? "N°" : "No."} {no}</span>
+                      {/* the misstatement: one narrative row, then its two journal lines */}
+                      <tr className="border-t-2 border-line-strong bg-surface-2/60" data-testid={`sad-${e.stepId}`}>
+                        <td colSpan={1 + SAD_COLUMN_COUNT} className="px-2 py-1.5">
+                          <span className="mr-2 text-[11px] font-extrabold text-muted tnum">{no}</span>
                           <Link
                             href={`/engagements/${engagementId}/sections/${e.taskItemId}?back=${backParam}`}
                             className="mr-2 font-mono text-[11.5px] font-extrabold text-emerald-700 hover:underline dark:text-emerald-400"
@@ -312,32 +314,37 @@ export function SadBoard({
                           <span className="text-[11.8px] text-ink-soft">
                             {e.finding || <span className="italic text-muted">{fr ? "sans description" : "no description"}</span>}
                           </span>
+                          {!balanced ? (
+                            <span className="ml-2 text-[10.5px] font-bold text-rose" data-testid={`sad-unbalanced-${e.stepId}`}>
+                              {fr ? "· débits ≠ crédits" : "· debits ≠ credits"}
+                            </span>
+                          ) : null}
                         </td>
                       </tr>
-                      <tr>
-                        <td className="px-2 py-0.5 text-[11.8px] font-semibold text-ink">
-                          <span className="mr-1.5 text-[10px] font-extrabold uppercase text-muted">{fr ? "Débit" : "Dr"}</span>
+                      <tr className="border-t border-line">
+                        <td className="px-2 py-1 text-[11.8px] text-ink">
+                          <span className="mr-1.5 inline-block w-[18px] text-[10px] font-extrabold uppercase text-muted">{fr ? "D" : "Dr"}</span>
                           <span className="tnum">{e.drAccount || "—"}</span>
                         </td>
                         {COLUMN_LABELS.map((_, i) => (
-                          <td key={i} className="px-2 py-0.5 text-right text-[11.8px] text-ink tnum">
+                          <td key={i} className="px-2 py-1 text-right text-[11.8px] text-ink tnum">
                             {i === drCol && e.drAmount ? n(e.drAmount) : ""}
                           </td>
                         ))}
                       </tr>
-                      <tr>
-                        <td className="px-2 py-0.5 text-[11.8px] font-semibold text-ink">
-                          <span className="mr-1.5 text-[10px] font-extrabold uppercase text-muted">{fr ? "Crédit" : "Cr"}</span>
+                      <tr className="border-t border-line">
+                        <td className="px-2 py-1 text-[11.8px] text-ink">
+                          <span className="mr-1.5 inline-block w-[18px] text-[10px] font-extrabold uppercase text-muted">{fr ? "C" : "Cr"}</span>
                           <span className="tnum">{e.crAccount || "—"}</span>
                         </td>
                         {COLUMN_LABELS.map((_, i) => (
-                          <td key={i} className="px-2 py-0.5 text-right text-[11.8px] text-ink tnum">
+                          <td key={i} className="px-2 py-1 text-right text-[11.8px] text-ink tnum">
                             {i === crCol && e.crAmount ? n(-e.crAmount) : ""}
                           </td>
                         ))}
                       </tr>
-                      <tr>
-                        <td colSpan={1 + SAD_COLUMN_COUNT} className="px-2 pb-2.5 pt-1">
+                      <tr className="border-t border-line-soft">
+                        <td colSpan={1 + SAD_COLUMN_COUNT} className="px-2 py-1">
                           {entryControls(e, showRationale)}
                         </td>
                       </tr>
@@ -349,11 +356,37 @@ export function SadBoard({
           </tbody>
           <tfoot>
             <tr className="border-t-2 border-line-strong">
-              <td className="px-2 py-1.5 text-[11.8px] font-bold text-ink">{fr ? "Total" : "Total"}</td>
+              <td className="px-2 py-1.5 text-[11.8px] font-bold text-ink">{fr ? "Total par rubrique" : "Total by caption"}</td>
               {totals.map((t, i) => (
                 <td key={i} className="px-2 py-1.5 text-right text-[11.8px] font-bold text-ink tnum">{t !== 0 ? n(t) : "—"}</td>
               ))}
             </tr>
+            {/* control total: the section's debits must equal its credits */}
+            {(() => {
+              const dr = all.reduce((a, e) => a + e.drAmount, 0);
+              const cr = all.reduce((a, e) => a + e.crAmount, 0);
+              const ok = Math.abs(dr - cr) < 0.005;
+              return (
+                <tr className="border-t border-line bg-surface-2" data-testid={`${testPrefix}-control`}>
+                  <td className="px-2 py-1.5 text-[11.5px] font-bold text-ink">{fr ? "Total de contrôle" : "Control total"}</td>
+                  <td colSpan={SAD_COLUMN_COUNT} className="px-2 py-1.5 text-right text-[11.5px] tnum">
+                    <span className="mr-4">
+                      <span className="mr-1.5 text-[10px] font-extrabold uppercase text-muted">{fr ? "Débits" : "Debits"}</span>
+                      <b>{n(dr)}</b>
+                    </span>
+                    <span className="mr-4">
+                      <span className="mr-1.5 text-[10px] font-extrabold uppercase text-muted">{fr ? "Crédits" : "Credits"}</span>
+                      <b>{n(cr)}</b>
+                    </span>
+                    <span className={ok ? "font-bold text-good" : "font-bold text-rose"}>
+                      {ok
+                        ? (fr ? "Équilibré" : "In balance")
+                        : (fr ? `Écart ${n(Math.abs(dr - cr))}` : `Out of balance by ${n(Math.abs(dr - cr))}`)}
+                    </span>
+                  </td>
+                </tr>
+              );
+            })()}
             <tr className="border-t border-line">
               <td className="px-2 py-1.5 text-[11.3px] text-ink-soft">{fr ? "Montants des états financiers" : "Financial statement amounts"}</td>
               {COLUMN_LABELS.map((_, i) => (
@@ -761,18 +794,32 @@ export function SadBoard({
         "uncorrected",
         fr ? "SAD — anomalies non corrigées" : "SAD uncorrected",
         uncorrectedE.length,
-        captionGrid(
-          [typeGroup("factual", uncorrectedE), typeGroup("judgmental", uncorrectedE), typeGroup("projected", uncorrectedE)],
-          false,
-          "sad-uncorrected",
-        ),
+        <>
+          <p className="mb-2 text-[11.5px] text-ink-soft">
+            {fr
+              ? "Toute écriture proposée sur un papier de travail arrive ici. Cocher « Corrigée » lorsque le client la passe en comptabilité — la ligne bascule alors vers « SAD — anomalies corrigées »."
+              : "Every entry proposed on a working paper arrives here. Tick \"Corrected\" once the client books it — the line then moves to \"SAD corrected\"."}
+          </p>
+          {captionGrid(
+            [typeGroup("factual", uncorrectedE), typeGroup("judgmental", uncorrectedE), typeGroup("projected", uncorrectedE)],
+            false,
+            "sad-uncorrected",
+          )}
+        </>,
       )}
 
       {section(
         "corrected",
         fr ? "SAD — anomalies corrigées" : "SAD corrected",
         correctedE.length,
-        captionGrid([{ label: null, entries: correctedE }], true, "sad-corrected"),
+        <>
+          <p className="mb-2 text-[11.5px] text-ink-soft">
+            {fr
+              ? "Anomalies passées en comptabilité par le client. Décocher « Corrigée » les renvoie en non corrigées."
+              : "Misstatements the client has booked. Unticking \"Corrected\" sends them back to uncorrected."}
+          </p>
+          {captionGrid([{ label: null, entries: correctedE }], true, "sad-corrected")}
+        </>,
       )}
 
       {section("conclusion", fr ? "Conclusion SAD" : "SAD conclusion", null, conclusionBody())}

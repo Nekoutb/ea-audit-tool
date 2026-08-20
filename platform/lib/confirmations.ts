@@ -12,6 +12,7 @@ import type { PoolClient } from "pg";
 import { withTenant } from "@/lib/db";
 import { DOCX_MIME } from "@/lib/documents";
 import { sendEmail } from "@/lib/email";
+import { tenantSender } from "@/lib/tenant-mail";
 import { routeFinding } from "@/lib/execution";
 import type { Locale } from "@/lib/i18n";
 import { requireTenant } from "@/lib/tenant";
@@ -307,6 +308,7 @@ export async function approveConfirmation(id: string): Promise<void> {
 
 export async function sendConfirmation(id: string): Promise<void> {
   const { tenantId } = await requireTenant();
+  const sender = await tenantSender(tenantId);
   await withTenant(tenantId, async (tx) => {
     const updated = await tx.query<{ party_email: string | null; party_name: string; reply_token: string }>(
       `UPDATE confirmation SET status = 'sent', sent_at = now()
@@ -318,6 +320,7 @@ export async function sendConfirmation(id: string): Promise<void> {
     if (!row) throw new ConfirmationError("wrong-status");
     if (row.party_email) {
       sendEmail({
+        ...sender,
         to: row.party_email,
         subject: `Confirmation request / Demande de confirmation — ${row.party_name}`,
         body:

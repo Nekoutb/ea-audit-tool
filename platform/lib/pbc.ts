@@ -58,6 +58,8 @@ export async function addPbcItem(engagementId: string, title: string, note: stri
       kind: "pbc-requested",
       title: `PBC: ${title}`,
       body: note || "A document has been requested — please upload it on the portal.",
+      // client_user recipients only ever see the portal, never the firm console.
+      href: "/portal",
     });
   }
   return itemId;
@@ -117,8 +119,8 @@ export async function uploadPbc(
       [itemId, clientId, file.filename, file.mime, file.content, userId],
     );
     if (updated.rowCount === 0) throw new PbcError("not-found");
-    const team = await tx.query<{ user_id: string }>(
-      `SELECT tm.user_id FROM team_member tm
+    const team = await tx.query<{ user_id: string; engagement_id: string }>(
+      `SELECT tm.user_id, fi.engagement_id FROM team_member tm
         JOIN pbc_item fi ON fi.engagement_id = tm.engagement_id
        WHERE fi.id = $1`,
       [itemId],
@@ -129,6 +131,7 @@ export async function uploadPbc(
         userId: member.user_id,
         kind: "pbc-uploaded",
         title: `PBC uploaded: ${file.filename}`,
+        href: `/engagements/${member.engagement_id}/pbc`,
       });
     }
   });

@@ -206,6 +206,7 @@ export async function routeFinding(input: RouteFindingInput): Promise<RouteResul
         kind: "risk-addition",
         title: "Risk added during execution — approval required",
         body: input.title,
+        href: `/engagements/${input.engagementId}/risks`,
       });
     }
     return { destination: "risk" };

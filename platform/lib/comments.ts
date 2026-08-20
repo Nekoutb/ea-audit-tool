@@ -86,6 +86,7 @@ export async function addComment(input: {
       kind: "mention",
       title: "You were mentioned in a discussion",
       body: preview,
+      href: `/engagements/${input.engagementId}/discussion`,
     });
   }
   if (parentAuthor && parentAuthor !== userId && !mentioned.has(parentAuthor)) {
@@ -95,6 +96,7 @@ export async function addComment(input: {
       kind: "reply",
       title: "New reply to your comment",
       body: preview,
+      href: `/engagements/${input.engagementId}/discussion`,
     });
   }
   await recordActivity({

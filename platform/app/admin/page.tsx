@@ -3,6 +3,7 @@ import { auth } from "@/auth";
 import { AppNav } from "@/components/AppNav";
 import { Panel, PanelHeader } from "@/components/ui/atlas";
 import { AdminError, createFirm, listFirms } from "@/lib/admin";
+import { mailDomain } from "@/lib/email";
 import { getLocale } from "@/lib/locale";
 
 export const metadata = { title: "Admin console · AuditISA" };
@@ -22,6 +23,7 @@ export default async function AdminPage(props: { searchParams: Promise<{ error?:
   const locale = await getLocale();
   const fr = locale === "fr";
   const firms = await listFirms();
+  const domain = mailDomain();
 
   async function createFirmAction(formData: FormData) {
     "use server";
@@ -32,6 +34,7 @@ export default async function AdminPage(props: { searchParams: Promise<{ error?:
         adminEmail: String(formData.get("adminEmail") ?? ""),
         adminName: String(formData.get("adminName") ?? ""),
         language: String(formData.get("language") ?? "fr") === "en" ? "en" : "fr",
+        mailLocal: String(formData.get("mailLocal") ?? ""),
       });
       redirect(`/admin?ok=${encodeURIComponent(r.tempPassword ? `created:${r.tempPassword}` : "created")}`);
     } catch (e) {
@@ -79,6 +82,7 @@ export default async function AdminPage(props: { searchParams: Promise<{ error?:
               <tr>
                 <th className={th}>{fr ? "Cabinet" : "Firm"}</th>
                 <th className={th}>Slug</th>
+                <th className={th}>{fr ? "Adresse d'envoi" : "Sending address"}</th>
                 <th className={th}>{fr ? "Utilisateurs" : "Users"}</th>
                 <th className={th}>{fr ? "Clients" : "Clients"}</th>
                 <th className={th}>{fr ? "Missions" : "Engagements"}</th>
@@ -90,6 +94,9 @@ export default async function AdminPage(props: { searchParams: Promise<{ error?:
                 <tr key={f.id} className="hover:bg-surface-2" data-testid={`admin-firm-${f.slug}`}>
                   <td className={`${td} font-medium text-ink`}>{f.name}</td>
                   <td className={`${td} font-mono text-[11.5px] text-muted`}>{f.slug}</td>
+                  <td className={`${td} font-mono text-[11.5px] text-ink-soft`} data-testid={`admin-firm-mail-${f.slug}`}>
+                    {f.mailLocal ? `${f.mailLocal}@${domain}` : "—"}
+                  </td>
                   <td className={`${td} tnum`}>{f.users}</td>
                   <td className={`${td} tnum`}>{f.clients}</td>
                   <td className={`${td} tnum`}>{f.engagements}</td>
@@ -111,6 +118,18 @@ export default async function AdminPage(props: { searchParams: Promise<{ error?:
           <label className="flex flex-col gap-0.5 text-[11px] text-muted">
             Slug
             <input name="slug" required placeholder="my-firm" className={`${input} w-[140px]`} data-testid="firm-slug" />
+          </label>
+          <label className="flex flex-col gap-0.5 text-[11px] text-muted">
+            {fr ? "Adresse d'envoi" : "Sending address"}
+            <span className="flex items-center gap-1">
+              <input
+                name="mailLocal"
+                placeholder={fr ? "défaut : le slug" : "defaults to the slug"}
+                className={`${input} w-[130px]`}
+                data-testid="firm-mail-local"
+              />
+              <span className="font-mono text-[11.5px] text-muted">@{domain}</span>
+            </span>
           </label>
           <label className="flex flex-col gap-0.5 text-[11px] text-muted">
             {fr ? "Email de l'administrateur" : "Admin email"}

@@ -231,7 +231,8 @@ export async function escalateOverdue(engagementId: string): Promise<number> {
         userId: partner.user_id,
         kind: "deadline-overdue",
         title: `Statutory deadline overdue: ${deadline.key}`,
-        body: `Due ${deadline.due_date} — engagement ${engagementId}.`,
+        body: `Due ${deadline.due_date} — open the statutory calendar to clear it.`,
+        href: `/engagements/${engagementId}/legal`,
       });
     }
   }
@@ -678,6 +679,7 @@ export async function equityCheck(engagementId: string): Promise<EquityCheck> {
         kind: "equity-breach",
         title: "Capitaux propres < ½ capital social",
         body: `Equity ${check.equity} vs half capital ${check.halfCapital} — statutory EGM workflow raised (C5.8).`,
+        href: `/engagements/${engagementId}/legal`,
       });
     }
   }

@@ -64,6 +64,7 @@ import { approvedMateriality } from "@/lib/materiality";
 import { groupOfTask, type SectionKey } from "@/lib/task-groups";
 import { signOffPreparerAction, signOffReviewerAction } from "@/app/actions/audit-file";
 import { listAttachments } from "@/lib/attachments";
+import { WP_TEMPLATES, ensureDefaultWorkpaper } from "@/lib/wp-templates";
 import { taskForItem, engagementTasks } from "@/lib/engagement-dashboard";
 import { listConfirmations, sendDueReminders } from "@/lib/independence";
 import { listTeam as listEngagementTeam } from "@/lib/team";
@@ -341,6 +342,10 @@ export default async function SectionPage(props: {
   //    no legacy panels. Back returns to the Accounts group; the content is
   //    the procedure list (sketch) with each procedure's working paper.
   if (isAccountTask) {
+    // The account's default working paper (E/F/K/N) is attached on first open,
+    // so the documents list below already carries it.
+    await ensureDefaultWorkpaper(id, itemId, section.code).catch(() => {});
+    const accountAttachments = WP_TEMPLATES[section.code] ? await listAttachments(itemId) : attachments;
     return (
       <main className="min-h-screen w-full px-6 py-6">
         <AppNav locale={locale} hideLinks current={{ id, label: engagement.name ?? engagement.clientName }} />
@@ -403,7 +408,7 @@ export default async function SectionPage(props: {
             designHref={designItemId ? `/engagements/${id}/sections/${designItemId}` : null}
             steps={steps.filter((s) => s.source === "psp" || s.description.startsWith("OSP-"))}
             results={pspVals}
-            attachmentsSlot={<TaskAttachments fileItemId={itemId} initial={attachments} locale={fr ? "fr" : "en"} compact />}
+            attachmentsSlot={<TaskAttachments fileItemId={itemId} initial={accountAttachments} locale={fr ? "fr" : "en"} compact />}
             locale={isFr ? "fr" : "en"}
           />
         </Panel>
@@ -671,6 +676,14 @@ export default async function SectionPage(props: {
                     <Link href={`/engagements/${id}/tools/sampling`} className="flex items-baseline gap-1.5 rounded-[var(--radius-atlas-xs)] px-1.5 py-1 text-[12.3px] font-semibold text-emerald-700 transition hover:bg-surface-2 dark:text-emerald-400" data-testid="linked-sampling-tool">
                       <span className="font-mono text-[10.5px] text-muted">TL</span>
                       <span className="min-w-0 flex-1 truncate">{fr ? "Outil d'échantillonnage — déterminer l'échantillon" : "Sampling tool — determine the sample"}</span>
+                    </Link>
+                  </li>
+                ) : null}
+                {section.code === "C1.1" ? (
+                  <li>
+                    <Link href={`/engagements/${id}/tools/sad`} className="flex items-baseline gap-1.5 rounded-[var(--radius-atlas-xs)] px-1.5 py-1 text-[12.3px] font-semibold text-emerald-700 transition hover:bg-surface-2 dark:text-emerald-400" data-testid="linked-sad-tool">
+                      <span className="font-mono text-[10.5px] text-muted">TL</span>
+                      <span className="min-w-0 flex-1 truncate">{fr ? "Récapitulatif des écarts d'audit (SAD)" : "Summary of Audit Differences (SAD)"}</span>
                     </Link>
                   </li>
                 ) : null}

@@ -13,7 +13,6 @@ import { withTenant } from "@/lib/db";
 import type { Locale } from "@/lib/i18n";
 import { leadRef } from "@/lib/lead-taxonomy";
 import { createNotification } from "@/lib/notifications";
-import { sendEmail } from "@/lib/email";
 import { requireTenant } from "@/lib/tenant";
 
 const XLSX_MIME = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet";
@@ -402,21 +401,15 @@ export async function assignSection(fileItemId: string, userId: string): Promise
       [fileItemId, userId],
     );
     if (!updated.rows[0]) throw new Error("not-found");
-    const email = await tx.query<{ email: string }>("SELECT email FROM app_user WHERE id = $1", [userId]);
-    return { ...updated.rows[0], email: email.rows[0]?.email };
+    return updated.rows[0];
   });
+  // In-app only: the bell is the single delivery channel for assignments.
   await createNotification({
     tenantId,
     userId,
     kind: "section-assigned",
     title: `Section ${target.code} assigned to you`,
-    body: `Open the lead schedule under /engagements/${target.engagement_id}/sections/${fileItemId}.`,
+    body: "The lead schedule is ready — open the section to work it.",
+    href: `/engagements/${target.engagement_id}/sections/${fileItemId}`,
   });
-  if (target.email) {
-    sendEmail({
-      to: target.email,
-      subject: `Section ${target.code} assigned`,
-      body: `Lead schedule ready: /engagements/${target.engagement_id}/sections/${fileItemId}`,
-    });
-  }
 }

@@ -229,6 +229,8 @@ const C1_1 = mk({
   std: "ISA 450 ¶5–15",
   ownsEn: "the misstatement schedule and its evaluation",
   ownsFr: "le récapitulatif des anomalies et son évaluation",
+  // the SAD tool builds this schedule from the adjustments proposed on the papers
+  tools: ["sad"],
   reqEn: [
     "We accumulate misstatements identified during the audit, other than those that are clearly trivial (ISA 450 ¶5). Before evaluating the effect of uncorrected misstatements, we reassess whether materiality remains appropriate in the context of the entity's actual results (ISA 450 ¶10).",
     "We evaluate whether uncorrected misstatements are material individually or in aggregate, considering their size and nature and the circumstances of their occurrence, and the effect of uncorrected misstatements relating to prior periods (ISA 450 ¶11).",
@@ -820,7 +822,8 @@ export const CONCLUSION_PAPERS: Record<string, PaperDef> = {
   "C1.2": C1_2,
   "C1.3": C1_3,
   "C2.2": C2_2,
-  "C3.1": C3_1,
+  "C3.1": C3_1,
+
   "C4.2": C4_2,
   "C5.1": C5_1,
   "C5.2": C5_2,

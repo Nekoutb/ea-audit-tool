@@ -1,5 +1,4 @@
 import { withTenant } from "@/lib/db";
-import { sendEmail } from "@/lib/email";
 import { requireTenant } from "@/lib/tenant";
 
 export interface Notification {
@@ -7,6 +6,8 @@ export interface Notification {
   kind: string;
   title: string;
   body: string | null;
+  /** In-app destination for the notification, e.g. /engagements/<id>/sections/<itemId>. */
+  href: string | null;
   readAt: string | null;
   createdAt: string;
 }
@@ -16,6 +17,7 @@ interface NotificationRow {
   kind: string;
   title: string;
   body: string | null;
+  href: string | null;
   read_at: string | null;
   created_at: string;
 }
@@ -26,26 +28,24 @@ export interface CreateNotificationInput {
   kind: string;
   title: string;
   body?: string;
-  email?: string;
+  /** Where clicking the notification should land. Omit when there is no screen to open. */
+  href?: string;
 }
 
 /**
  * Create an in-app notification for a user within a tenant. Runs inside the
- * tenant context so RLS applies. Also fires the (stubbed) email channel.
+ * tenant context so RLS applies. Notifications are in-app only — there is no
+ * email channel; the bell and /notifications are the single delivery surface.
  * Callers already hold the tenantId (e.g. from an assignment they are making),
  * so it is passed in rather than re-derived.
  */
 export async function createNotification(input: CreateNotificationInput): Promise<void> {
   await withTenant(input.tenantId, async (client) => {
     await client.query(
-      "INSERT INTO notification (tenant_id, user_id, kind, title, body) VALUES ($1, $2, $3, $4, $5)",
-      [input.tenantId, input.userId, input.kind, input.title, input.body ?? null],
+      "INSERT INTO notification (tenant_id, user_id, kind, title, body, href) VALUES ($1, $2, $3, $4, $5, $6)",
+      [input.tenantId, input.userId, input.kind, input.title, input.body ?? null, input.href ?? null],
     );
   });
-
-  if (input.email) {
-    sendEmail({ to: input.email, subject: input.title, body: input.body ?? "" });
-  }
 }
 
 function toNotification(row: NotificationRow): Notification {
@@ -54,22 +54,24 @@ function toNotification(row: NotificationRow): Notification {
     kind: row.kind,
     title: row.title,
     body: row.body,
+    href: row.href,
     readAt: row.read_at,
     createdAt: row.created_at,
   };
 }
 
 /** The signed-in user's notifications, newest first. */
-export async function listMyNotifications(): Promise<Notification[]> {
+export async function listMyNotifications(limit = 50): Promise<Notification[]> {
   const { tenantId, userId } = await requireTenant();
+  const capped = Math.max(1, Math.min(200, Math.trunc(limit)));
   return withTenant(tenantId, async (client) => {
     const result = await client.query<NotificationRow>(
-      `SELECT id, kind, title, body, read_at, created_at
+      `SELECT id, kind, title, body, href, read_at, created_at
          FROM notification
         WHERE user_id = $1
         ORDER BY created_at DESC
-        LIMIT 50`,
-      [userId],
+        LIMIT $2`,
+      [userId, capped],
     );
     return result.rows.map(toNotification);
   });

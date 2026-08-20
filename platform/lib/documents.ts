@@ -475,6 +475,7 @@ export async function reopenDocument(documentId: string, reason: string): Promis
       kind: "signoff-voided",
       title: `Sign-off voided: ${signer.title}`,
       body: reason,
+      href: `/documents/${documentId}`,
     });
   }
 }

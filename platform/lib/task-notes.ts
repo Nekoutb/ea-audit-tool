@@ -95,7 +95,7 @@ export async function addTaskNote(
         kind: "review_note",
         title: `Review note on ${target.code}`,
         body: text.slice(0, 400),
-        email: target.email ?? undefined,
+        href: `/engagements/${engagementId}/sections/${fileItemId}`,
       });
     } catch {
       // a failed notification must never lose the note

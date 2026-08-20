@@ -544,7 +544,14 @@ export async function assignScot(scotId: string, userIdOrNull: string | null): P
         RETURNING name, engagement_id, (assignee_user_id IS NOT NULL) AS changed`,
       [scotId, userIdOrNull],
     );
-    return r.rows[0] ?? null;
+    const row = r.rows[0] ?? null;
+    if (!row) return null;
+    // the register itself lives on the S1.1 task page — link straight to it
+    const item = await tx.query<{ id: string }>(
+      "SELECT id FROM file_item WHERE engagement_id = $1 AND code = 'S1.1' LIMIT 1",
+      [row.engagement_id],
+    );
+    return { ...row, fileItemId: item.rows[0]?.id ?? null };
   });
   if (notify && userIdOrNull) {
     try {
@@ -554,6 +561,9 @@ export async function assignScot(scotId: string, userIdOrNull: string | null): P
         kind: "scot_assignment",
         title: `SCOT assigned: ${notify.name}`,
         body: "Open the SCOT register on task S1.1 to see the class of transactions you now own.",
+        href: notify.fileItemId
+          ? `/engagements/${notify.engagement_id}/sections/${notify.fileItemId}`
+          : `/engagements/${notify.engagement_id}/dashboard`,
       });
     } catch {
       // notification failure never blocks the assignment

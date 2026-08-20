@@ -221,11 +221,6 @@ export function TaskAttachments({
           </label>
         }
       />
-      <p className="mt-2 text-xs text-muted">
-        {fr
-          ? "Téléverser à nouveau un fichier du même nom crée la version suivante. « Modifier en local » surveille le fichier ouvert : chaque enregistrement remonte automatiquement dans l’outil tant que cette page reste ouverte."
-          : "Re-uploading the same filename stores the next version. “Edit locally” watches the opened file: every save on your machine uploads automatically while this page stays open."}
-      </p>
       {error ? <p className="mt-2 text-xs font-semibold text-rose">{error}</p> : null}
       {rows.length === 0 ? (
         <p className="mt-3 text-sm text-muted" data-testid="attachments-empty">
