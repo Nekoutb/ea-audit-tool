@@ -1,8 +1,9 @@
 import { redirect } from "next/navigation";
 import { auth } from "@/auth";
 import { AppNav } from "@/components/AppNav";
+import { FirmOnboardingWizard } from "@/components/FirmOnboardingWizard";
 import { Panel, PanelHeader } from "@/components/ui/atlas";
-import { AdminError, createFirm, listFirms } from "@/lib/admin";
+import { AdminError, checkAvailability, createFirm, listFirms, type Availability } from "@/lib/admin";
 import { mailDomain } from "@/lib/email";
 import { getLocale } from "@/lib/locale";
 
@@ -43,8 +44,17 @@ export default async function AdminPage(props: { searchParams: Promise<{ error?:
     }
   }
 
-  const input =
-    "rounded-[var(--radius-atlas-sm)] border border-line-strong bg-surface px-2.5 py-1.5 text-[13px] text-ink outline-none focus:border-emerald-600";
+  async function checkAvailabilityAction(
+    slug: string,
+    mailLocal: string,
+    adminEmail: string,
+  ): Promise<Availability> {
+    "use server";
+    // requireSuper() runs inside checkAvailability — a server action is a public
+    // endpoint, so the console being super-admin-only is not the control here.
+    return checkAvailability({ slug, mailLocal, adminEmail });
+  }
+
   const th = "px-4 py-2.5 text-left text-[10px] font-extrabold uppercase tracking-[0.07em] text-muted bg-surface-2";
   const td = "border-t border-line px-4 py-2.5 text-[13px]";
 
@@ -113,47 +123,22 @@ export default async function AdminPage(props: { searchParams: Promise<{ error?:
       </Panel>
 
       <Panel className="mt-4">
-        <PanelHeader title={fr ? "Intégrer un nouveau cabinet" : "Onboard a new audit firm"} hint={fr ? "l'administrateur reçoit l'email d'accueil" : "the admin receives the onboarding email"} />
-        <form action={createFirmAction} className="mt-3 flex flex-wrap items-end gap-2.5" data-testid="admin-create-firm">
-          <label className="flex flex-col gap-0.5 text-[11px] text-muted">
-            {fr ? "Nom du cabinet" : "Firm name"}
-            <input name="name" required className={`${input} w-[220px]`} data-testid="firm-name" />
-          </label>
-          <label className="flex flex-col gap-0.5 text-[11px] text-muted">
-            Slug
-            <input name="slug" required placeholder="my-firm" className={`${input} w-[140px]`} data-testid="firm-slug" />
-          </label>
-          <label className="flex flex-col gap-0.5 text-[11px] text-muted">
-            {fr ? "Adresse d'envoi" : "Sending address"}
-            <span className="flex items-center gap-1">
-              <input
-                name="mailLocal"
-                placeholder={fr ? "défaut : le slug" : "defaults to the slug"}
-                className={`${input} w-[130px]`}
-                data-testid="firm-mail-local"
-              />
-              <span className="font-mono text-[11.5px] text-muted">@{domain}</span>
-            </span>
-          </label>
-          <label className="flex flex-col gap-0.5 text-[11px] text-muted">
-            {fr ? "Email de l'administrateur" : "Admin email"}
-            <input name="adminEmail" type="email" required className={`${input} w-[220px]`} data-testid="firm-admin-email" />
-          </label>
-          <label className="flex flex-col gap-0.5 text-[11px] text-muted">
-            {fr ? "Nom de l'administrateur" : "Admin name"}
-            <input name="adminName" className={`${input} w-[180px]`} />
-          </label>
-          <label className="flex flex-col gap-0.5 text-[11px] text-muted">
-            {fr ? "Langue" : "Language"}
-            <select name="language" defaultValue="fr" className={input}>
-              <option value="fr">FR</option>
-              <option value="en">EN</option>
-            </select>
-          </label>
-          <button type="submit" className="rounded-[var(--radius-atlas-sm)] bg-emerald-700 px-4 py-1.5 text-[13px] font-semibold text-white hover:bg-emerald-800" data-testid="firm-create">
-            {fr ? "Créer le cabinet" : "Create firm"}
-          </button>
-        </form>
+        <PanelHeader
+          title={fr ? "Intégrer un cabinet d'audit" : "Onboard an audit firm"}
+          hint={
+            fr
+              ? "quatre étapes ; rien n'est écrit avant la dernière"
+              : "four steps; nothing is written until the last one"
+          }
+        />
+        <div className="mt-3">
+          <FirmOnboardingWizard
+            domain={domain}
+            locale={locale}
+            createAction={createFirmAction}
+            checkAction={checkAvailabilityAction}
+          />
+        </div>
       </Panel>
     </main>
   );

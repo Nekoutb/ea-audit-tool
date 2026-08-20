@@ -64,6 +64,56 @@ export async function listFirms(): Promise<FirmSummary[]> {
   return out;
 }
 
+/** Normalise a firm name into a slug the same way createFirm will. */
+export function slugify(name: string): string {
+  return name
+    .normalize("NFD")
+    .replace(/[̀-ͯ]/g, "")
+    .trim()
+    .toLowerCase()
+    .replace(/[^a-z0-9-]+/g, "-")
+    .replace(/^-+|-+$/g, "")
+    .slice(0, 48);
+}
+
+export interface Availability {
+  slugTaken: boolean;
+  mailTaken: boolean;
+  /** the admin email already has an account — they will keep their password */
+  emailExists: boolean;
+  mailLocalValid: boolean;
+}
+
+/**
+ * Pre-flight for the onboarding wizard, so a collision is shown while the
+ * operator is still typing rather than after the firm is half-created. The
+ * checks are the same ones createFirm enforces — this never replaces them, and
+ * createFirm re-runs them inside the transaction where they actually count.
+ */
+export async function checkAvailability(input: {
+  slug: string;
+  mailLocal: string;
+  adminEmail: string;
+}): Promise<Availability> {
+  await requireSuper();
+  const slug = slugify(input.slug);
+  const mailLocal = (input.mailLocal || slug).trim().toLowerCase();
+  const email = input.adminEmail.trim().toLowerCase();
+
+  const [slugRow, mailRow, userRow] = await Promise.all([
+    slug ? pool.query("SELECT 1 FROM tenant WHERE slug = $1", [slug]) : Promise.resolve({ rows: [] as unknown[] }),
+    mailLocal ? pool.query("SELECT 1 FROM tenant WHERE lower(mail_local) = $1", [mailLocal]) : Promise.resolve({ rows: [] as unknown[] }),
+    email ? pool.query("SELECT 1 FROM app_user WHERE lower(email) = $1", [email]) : Promise.resolve({ rows: [] as unknown[] }),
+  ]);
+
+  return {
+    slugTaken: slugRow.rows.length > 0,
+    mailTaken: mailRow.rows.length > 0,
+    emailExists: userRow.rows.length > 0,
+    mailLocalValid: mailLocal === "" || /^[a-z0-9._-]{1,64}$/.test(mailLocal),
+  };
+}
+
 /**
  * Onboard an audit firm: tenant + firm-admin account + onboarding email with
  * a one-time password the admin changes after first sign-in.
@@ -79,7 +129,7 @@ export async function createFirm(input: {
 }): Promise<{ tenantId: string; emailed: boolean }> {
   await requireSuper();
   const name = input.name.trim();
-  const slug = input.slug.trim().toLowerCase().replace(/[^a-z0-9-]/g, "-");
+  const slug = slugify(input.slug);
   const adminEmail = input.adminEmail.trim().toLowerCase();
   if (!name || !slug || !/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(adminEmail)) throw new AdminError("fields-required");
   const language = input.language === "en" ? "en" : "fr";
