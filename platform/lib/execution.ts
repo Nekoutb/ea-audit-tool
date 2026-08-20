@@ -9,8 +9,9 @@ import { withTenant } from "@/lib/db";
 import { hasOtherReviewer } from "@/lib/documents";
 import { createNotification } from "@/lib/notifications";
 import { canPartnerSignoff, canReview } from "@/lib/rbac";
-import { requireTenant } from "@/lib/tenant";
+import { requireTenant, requireWrite } from "@/lib/tenant";
 import { invalidateStaleSignoffs, reportInvalidatedSignoffs } from "@/lib/working-papers";
+import { logMisstatementChange } from "@/lib/activity";
 
 export class ExecutionError extends Error {
   constructor(public readonly code: string) {
@@ -339,9 +340,21 @@ export async function evaluateB5(engagementId: string): Promise<B5Evaluation> {
 }
 
 export async function setMisstatementCorrected(id: string, corrected: boolean): Promise<void> {
-  const { tenantId } = await requireTenant();
-  await withTenant(tenantId, async (tx) => {
+  const { tenantId } = await requireWrite();
+  const engagementId = await withTenant(tenantId, async (tx) => {
+    const row = await tx.query<{ engagement_id: string; corrected: boolean }>(
+      "SELECT engagement_id, corrected FROM misstatement WHERE id = $1",
+      [id],
+    );
+    if (!row.rows[0]) throw new ExecutionError("not-found");
     await tx.query("UPDATE misstatement SET corrected = $2 WHERE id = $1", [id, corrected]);
+    return row.rows[0].engagement_id;
+  });
+  // Whether a difference was put right is what the C1.1 evaluation turns on, so
+  // the change belongs in the trail alongside who made it.
+  await logMisstatementChange(engagementId, id, corrected ? "corrected" : "uncorrected", {
+    before: { corrected: !corrected },
+    after: { corrected },
   });
 }
 

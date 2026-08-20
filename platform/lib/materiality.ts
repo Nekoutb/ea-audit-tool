@@ -7,7 +7,7 @@ import { withTenant } from "@/lib/db";
 import { createNotification } from "@/lib/notifications";
 import { canPartnerSignoff } from "@/lib/rbac";
 import { requireTenant } from "@/lib/tenant";
-import { recordActivity } from "@/lib/activity";
+import { recordActivity, logMaterialityChange } from "@/lib/activity";
 
 export type Benchmark = "pbt" | "revenue" | "total_assets" | "equity" | "expenses";
 export const BENCHMARKS: readonly Benchmark[] = ["pbt", "revenue", "total_assets", "equity", "expenses"];
@@ -194,7 +194,7 @@ export async function createMaterialityVersion(
   }
   const { overall, performance, trivial } = computeMateriality(input);
 
-  return withTenant(tenantId, async (tx) => {
+  const versionNo = await withTenant(tenantId, async (tx) => {
     // COUNT the approved version; do not supersede it. Drafting a revision
     // used to retire the approved figure immediately, which left the engagement
     // with NO approved materiality until the partner got round to approving the
@@ -257,6 +257,10 @@ export async function createMaterialityVersion(
     }
     return versionNo;
   });
+  await logMaterialityChange(engagementId, "revised", versionNo, {
+    after: { overall, performance, trivial },
+  });
+  return versionNo;
 }
 
 /**
@@ -286,6 +290,7 @@ export async function approveMateriality(engagementId: string, versionNo: number
     if (updated.rowCount === 0) throw new Error("not-found");
   });
 
+  await logMaterialityChange(engagementId, "approved", versionNo);
   await reflagMisstatements(engagementId);
 }
 

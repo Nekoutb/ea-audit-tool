@@ -9,6 +9,7 @@ import type { GateResult } from "@/lib/gates";
 import { canPartnerSignoff } from "@/lib/rbac";
 import { assertMutable } from "@/lib/mutability";
 import { requireRole, requireTenant } from "@/lib/tenant";
+import { logArchive, logEngagementFinalised } from "@/lib/activity";
 
 export class CompletionError extends Error {
   constructor(public readonly code: string) {
@@ -233,6 +234,7 @@ export async function issueReport(
       [engagementId, reportDate, opinion],
     );
   });
+  await logEngagementFinalised(engagementId, opinion, reportDate);
 }
 
 /** 60-day assembly deadline from the report date (spec §7 item 11). */
@@ -446,6 +448,9 @@ export async function archiveEngagement(engagementId: string): Promise<void> {
       [engagementId, String(policy.rows[0]?.retention_years ?? 10)],
     );
   });
+  // After COMMIT: an audit entry must not be rolled back with the work it
+  // describes, and recordActivity opens its own transaction.
+  await logArchive(engagementId);
 }
 
 /** Guard used by mutating layers: an archived file is immutable (spec §9.6). */

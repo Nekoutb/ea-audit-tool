@@ -9,6 +9,7 @@ import { applyOverride } from "@/lib/template-overrides";
 import { templateFor } from "@/lib/templates";
 import { ForbiddenError, requireRole, requireTenant, requireWrite } from "@/lib/tenant";
 import { paperContentHashTx } from "@/lib/working-papers";
+import { logReopen, logSignOff, logSignOffVoided, logVersionRestored } from "@/lib/activity";
 
 export const DOCX_MIME =
   "application/vnd.openxmlformats-officedocument.wordprocessingml.document";
@@ -329,7 +330,7 @@ export async function checkinDocument(documentId: string, content: Buffer): Prom
 /** Restore an old version by copying it forward as a new version (history is never rewritten). */
 export async function restoreVersion(documentId: string, versionNo: number): Promise<number> {
   const { tenantId, userId } = await requireTenant();
-  return withTenant(tenantId, async (tx) => {
+  const restoredAs = await withTenant(tenantId, async (tx) => {
     const doc = await tx.query<{ status: string; checked_out_by: string | null }>(
       "SELECT status, checked_out_by FROM document WHERE id = $1 FOR UPDATE",
       [documentId],
@@ -352,6 +353,8 @@ export async function restoreVersion(documentId: string, versionNo: number): Pro
       userId,
     );
   });
+  await logVersionRestored(documentId, versionNo, restoredAs);
+  return restoredAs;
 }
 
 export async function listSignoffs(documentId: string): Promise<SignoffInfo[]> {
@@ -498,6 +501,7 @@ export async function signDocument(documentId: string, role: SignoffRole): Promi
       await tx.query("UPDATE document SET status = 'signed' WHERE id = $1", [documentId]);
     }
   });
+  await logSignOff(documentId, role);
 }
 
 /**
@@ -574,6 +578,8 @@ export async function reopenDocument(documentId: string, reason: string): Promis
       href: `/documents/${documentId}`,
     });
   }
+  await logSignOffVoided(documentId, reason, { voidedUserIds: signers.map((s) => s.user_id) });
+  await logReopen(documentId, reason);
 }
 
 export async function listReviewNotes(documentId: string): Promise<ReviewNoteInfo[]> {
