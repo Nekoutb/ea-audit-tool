@@ -5,6 +5,7 @@
 // This is defense-in-depth: every protected page also calls auth()/requireTenant()
 // server-side. The matcher keeps the proxy off public routes and static assets.
 import { auth } from "@/auth";
+import { canWrite } from "@/lib/rbac";
 
 export const proxy = auth((req) => {
   const isApi = req.nextUrl.pathname.startsWith("/api/");
@@ -22,6 +23,29 @@ export const proxy = auth((req) => {
     if (isApi) return new Response("Password change required", { status: 403 });
     if (!onChange) return Response.redirect(new URL("/change-password", req.nextUrl.origin));
     return;
+  }
+
+  // A role that may not write must not reach a mutation, whichever surface it
+  // arrives on. There are two: a non-GET request to an API tree, and a Server
+  // Action — which posts to the URL of the page that rendered it and is
+  // identified by the Next-Action header, not by its path. Checking here covers
+  // both without depending on 29 route handlers and 19 action files each
+  // remembering to check. The lib layer checks again (requireWrite); this is the
+  // outer boundary, not the only one.
+  const role = req.auth.user?.role;
+  const isServerAction = req.method === "POST" && req.headers.has("next-action");
+  const isMutation = isServerAction || (isApi && !["GET", "HEAD", "OPTIONS"].includes(req.method));
+  // The portal is a client_user's own surface and has actions of its own (PBC
+  // upload). Which of them they may call is decided by requirePortalUser() in
+  // the lib layer — path alone cannot tell one action id from another.
+  const ownPortalAction = role === "client_user" && req.nextUrl.pathname.startsWith("/portal");
+  if (isMutation && role && !canWrite(role) && !ownPortalAction) {
+    if (isApi) return new Response("Forbidden", { status: 403 });
+    // A page-level Server Action: send the refusal back through the same
+    // ?error= channel the actions already use, so the user sees a message.
+    const url = new URL(req.nextUrl.pathname, req.nextUrl.origin);
+    url.searchParams.set("error", "read-only-role");
+    return Response.redirect(url);
   }
 
   // Portal users never see the audit file (spec §2.3): firm routes redirect

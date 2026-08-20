@@ -1,5 +1,5 @@
 import pg from "pg";
-import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
+import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from "vitest";
 
 const TENANT = "9a9a9a9a-9a9a-4a9a-8a9a-9a9a9a9a9a9a";
 const FIRM_USER = "9a9a9a9a-9a9a-4a9a-8a9a-9a9a9a9a9a01";
@@ -46,6 +46,11 @@ function asFirm(): void {
     user: { id: FIRM_USER, tenantId: TENANT, role: "firm_admin", locale: "en", clientId: null },
   };
 }
+
+// Restore the firm identity even when a test fails part-way: without this a
+// leaked client_user session runs the remaining tests, which is precisely how
+// the missing role check went unnoticed.
+afterEach(() => asFirm());
 
 function asPortal(): void {
   currentUser = {
@@ -137,7 +142,7 @@ describe("9.1/9.2 PBC flow: requested → uploaded → accepted + attach", () =>
       uploadPbc(itemId, otherClientId, {
         filename: "gl.csv", mime: "text/csv", content: Buffer.from("a;b\n1;2", "utf8"),
       }),
-    ).rejects.toThrow("not-found"); // cross-client upload refused
+    ).rejects.toThrow("not-your-client"); // refused from the session, before any query
     await uploadPbc(itemId, clientId, {
       filename: "gl.csv", mime: "text/csv", content: Buffer.from("Compte;Montant\n411;100", "utf8"),
     });

@@ -10,7 +10,7 @@ import type { PoolClient } from "pg";
 import { withTenant } from "@/lib/db";
 import { createNotification } from "@/lib/notifications";
 import { canReview } from "@/lib/rbac";
-import { requireTenant } from "@/lib/tenant";
+import { requireTenant, requirePortalUser, ForbiddenError } from "@/lib/tenant";
 
 export class PbcError extends Error {
   constructor(public readonly code: string) {
@@ -73,8 +73,11 @@ export async function listPbcItems(engagementId: string): Promise<PbcItem[]> {
 
 /** Portal side: items across the client's engagements, scoped by clientId. */
 export async function listPortalItems(clientId: string): Promise<PbcItem[]> {
-  const { tenantId } = await requireTenant();
-  return withTenant(tenantId, (tx) => queryItems(tx, "e.client_id = $1", [clientId]));
+  // Portal surface: the caller is a client_user, and may only ever see their own
+  // client's items — the id is taken from the session, never from the argument.
+  const { tenantId, clientId: own } = await requirePortalUser();
+  if (clientId !== own) throw new ForbiddenError("not-your-client");
+  return withTenant(tenantId, (tx) => queryItems(tx, "e.client_id = $1", [own]));
 }
 
 async function queryItems(tx: PoolClient, where: string, params: unknown[]): Promise<PbcItem[]> {
@@ -105,7 +108,8 @@ export async function uploadPbc(
   clientId: string,
   file: { filename: string; mime: string; content: Buffer },
 ): Promise<void> {
-  const { tenantId, userId } = await requireTenant();
+  const { tenantId, userId, clientId: own } = await requirePortalUser();
+  if (clientId !== own) throw new ForbiddenError("not-your-client");
   if (file.content.length === 0) throw new PbcError("empty-file");
   if (file.content.length > MAX_PBC_BYTES) throw new PbcError("file-too-large");
   await withTenant(tenantId, async (tx) => {

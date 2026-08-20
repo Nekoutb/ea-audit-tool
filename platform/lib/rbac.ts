@@ -36,6 +36,13 @@ export function atLeast(role: Role, min: Role): boolean {
   return RANK[role] >= RANK[min];
 }
 
+/**
+ * Roles permitted to change anything at all. read_only exists so a person can be
+ * given the file without being able to touch it; client_user belongs to the
+ * portal and reaches firm mutations through no legitimate path.
+ */
+export const canWrite = (role: Role): boolean => role !== "read_only" && role !== "client_user";
+
 export const canManageFirm = (role: Role): boolean => atLeast(role, "firm_admin");
 export const canPartnerSignoff = (role: Role): boolean => atLeast(role, "partner");
 export const canReview = (role: Role): boolean => atLeast(role, "senior");
