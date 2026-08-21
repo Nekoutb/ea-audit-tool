@@ -143,6 +143,12 @@ describe("finding things", () => {
     expect(exact.hits.length).toBeGreaterThan(0);
   });
 
+  it("finds an engagement by its client's name", async () => {
+    // The first thing anyone types into a search box is a client name.
+    const r = await search("Recherche");
+    expect(r.hits.some((h) => h.kind === "engagement")).toBe(true);
+  });
+
   it("finds nothing for a word that appears nowhere", async () => {
     expect((await search("zzzzunlikelyterm")).hits).toHaveLength(0);
   });

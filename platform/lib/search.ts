@@ -76,7 +76,31 @@ function branch(
 
 const ITEM_JOIN = "LEFT JOIN file_item fi ON fi.id = %ALIAS%.file_item_id";
 
+/**
+ * The engagement itself, by its own name or its client's.
+ *
+ * Not one of the indexed tables: engagement and client are small — hundreds of
+ * rows for a firm, not millions — so a sequential scan costs nothing, and
+ * carrying two more generated columns for them would be maintenance without
+ * benefit. Typing a client's name is the first thing anyone tries, so it has to
+ * work.
+ */
+const ENGAGEMENT_BRANCH = `
+    SELECT 'engagement' AS kind,
+           e.id AS engagement_id,
+           coalesce(e.name, '') AS engagement_name,
+           c.name AS client_name,
+           NULL AS code,
+           coalesce(nullif(e.name, ''), c.name) AS title,
+           ts_headline('audit_search', c.name || ' — ' || coalesce(e.name, ''), %%TSQ%%,
+                       'MaxWords=22, MinWords=4, MaxFragments=1') AS snippet,
+           ts_rank(to_tsvector('audit_search', c.name || ' ' || coalesce(e.name, '')), %%TSQ%%) AS rank
+      FROM engagement e
+      JOIN client c ON c.id = e.client_id
+     WHERE to_tsvector('audit_search', c.name || ' ' || coalesce(e.name, '')) @@ %%TSQ%%%%VISIBILITY%%`;
+
 const BRANCHES: string[] = [
+  ENGAGEMENT_BRANCH,
   branch("task", "file_item", "fi2", "coalesce(fi2.title_en, fi2.code)", "coalesce(fi2.title_en, '') || ' ' || coalesce(fi2.title_fr, '')", "", "fi2.code", true),
   branch("risk", "risk", "r", "left(coalesce(r.description, ''), 90)", "coalesce(r.description, '') || ' ' || coalesce(r.fs_note, '')", "", "NULL", true),
   branch("finding", "finding", "f", "coalesce(f.title, '')", "coalesce(f.detail, '') || ' ' || coalesce(f.response, '')", "", "NULL", true),
