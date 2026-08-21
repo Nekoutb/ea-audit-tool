@@ -157,6 +157,19 @@ export async function AppNav({
           </NavLink>
         ) : null}
 
+        {/* A plain GET form so search works without JavaScript, like the
+            login form — filtered networks sometimes block script files. */}
+        <form action="/search" method="get" className="hidden lg:block">
+          <input
+            name="q"
+            type="search"
+            placeholder={locale === "fr" ? "Rechercher…" : "Search…"}
+            aria-label={locale === "fr" ? "Rechercher dans le dossier" : "Search the audit file"}
+            data-testid="nav-search"
+            className="h-9 w-[190px] rounded-[var(--radius-atlas-sm)] border border-line-strong bg-surface px-2.5 text-[12.5px] text-ink outline-none transition focus:w-[240px] focus:border-emerald-600"
+          />
+        </form>
+
         <NotificationBell unread={unread} items={notifs} locale={locale} />
 
         <NavLink
