@@ -74,11 +74,31 @@ export default async function DashboardPage() {
         <Panel flush className="mt-4 flex flex-col">
           <div className="flex flex-col gap-1 p-1.5" data-testid="my-engagements">
             {myEngagements.length === 0 ? (
-              <p className="px-4 py-8 text-center text-sm text-muted">
-                {fr
-                  ? "Aucune mission ne vous est affectée. Rapprochez-vous de l’associé responsable."
-                  : "No engagement is assigned to you. Ask the engagement partner to add you to a team."}
-              </p>
+              // A platform operator belongs to the platform's own tenant, which
+              // has no engagements by design — telling them to ask a partner is
+              // a dead end, so send them where their work actually is.
+              session.user.isSuper ? (
+                <div className="px-4 py-8 text-center">
+                  <p className="text-sm text-muted">
+                    {fr
+                      ? "Vous êtes connecté en tant qu'opérateur de la plateforme. Les cabinets se gèrent depuis la console."
+                      : "You are signed in as the platform operator. Firms are managed from the console."}
+                  </p>
+                  <Link
+                    href="/admin"
+                    data-testid="dashboard-admin-link"
+                    className="mt-3 inline-flex min-h-[36px] items-center rounded-[var(--radius-atlas-sm)] bg-emerald-700 px-4 py-1.5 text-sm font-semibold text-white transition hover:bg-emerald-800"
+                  >
+                    {fr ? "Ouvrir la console de la plateforme" : "Open the platform console"}
+                  </Link>
+                </div>
+              ) : (
+                <p className="px-4 py-8 text-center text-sm text-muted">
+                  {fr
+                    ? "Aucune mission ne vous est affectée. Rapprochez-vous de l’associé responsable."
+                    : "No engagement is assigned to you. Ask the engagement partner to add you to a team."}
+                </p>
+              )
             ) : (
               myEngagements.map((e) => {
                 const pct = e.tasksTotal > 0 ? Math.round((e.tasksDone / e.tasksTotal) * 100) : 0;

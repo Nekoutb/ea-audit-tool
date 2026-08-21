@@ -157,6 +157,25 @@ export async function AppNav({
           </NavLink>
         ) : null}
 
+        {/* The platform operator's console. Nothing linked to /admin at all,
+            so the only way in was to know the URL — and a super admin belongs
+            to the platform tenant, which has no engagements, so the dashboard
+            they land on is empty and looks broken. */}
+        {session?.user?.isSuper ? (
+          <Link
+            href="/admin"
+            data-testid="nav-admin"
+            className="hidden h-9 items-center gap-1.5 rounded-[var(--radius-atlas-sm)] border border-line-strong bg-surface px-2.5 text-[12.5px] font-semibold text-ink-soft transition hover:bg-surface-2 sm:inline-flex"
+          >
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" aria-hidden="true">
+              <path d="M3 21h18" />
+              <path d="M5 21V8l7-5 7 5v13" />
+              <path d="M10 21v-6h4v6" />
+            </svg>
+            {locale === "fr" ? "Plateforme" : "Platform"}
+          </Link>
+        ) : null}
+
         {/* A plain GET form so search works without JavaScript, like the
             login form — filtered networks sometimes block script files. */}
         <form action="/search" method="get" className="hidden lg:block">
