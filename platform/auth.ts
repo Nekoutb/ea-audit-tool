@@ -6,7 +6,7 @@ import { pool } from "@/lib/db";
 import { isLocale, type Locale } from "@/lib/i18n";
 import { isRole, type Role } from "@/lib/rbac";
 import { clientIp } from "@/lib/client-ip";
-import { mfaRequirementFor, verifySecondFactor } from "@/lib/mfa";
+import { mfaRequirementFor, verifySecondFactor } from "@/lib/mfa-verify";
 import { checkLoginThrottle, recordLoginAttempt } from "@/lib/login-throttle";
 import { revalidatePrincipal, revalidationWindowSeconds } from "@/lib/session-guard";
 
