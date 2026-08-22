@@ -202,3 +202,27 @@ export async function createFirm(input: {
   // returned to the console, put in a URL, or logged (Phase 0 item 1).
   return { tenantId, emailed: isNewUser };
 }
+
+/**
+ * Delete a firm and everything inside it. The policy lives in the
+ * admin_delete_firm database function (SECURITY DEFINER — the app role holds
+ * no DELETE on tenant): a firm with archived audit files or a legal hold is
+ * refused, accounts whose only firm this was go with it, accounts that also
+ * belong to another firm survive. The caller must pass the firm's slug back
+ * as confirmation — a super admin typing it is the "are you sure".
+ */
+export async function deleteFirm(tenantId: string, confirmSlug: string): Promise<void> {
+  await requireSuper();
+  const t = await pool.query<{ slug: string }>("SELECT slug FROM tenant WHERE id = $1", [tenantId]);
+  if (!t.rows[0]) throw new AdminError("firm-not-found");
+  if (t.rows[0].slug !== confirmSlug.trim()) throw new AdminError("confirm-mismatch");
+  try {
+    await pool.query("SELECT admin_delete_firm($1)", [tenantId]);
+  } catch (e) {
+    const msg = e instanceof Error ? e.message : "";
+    if (["firm-not-found", "firm-has-archived-files", "firm-has-legal-hold"].includes(msg)) {
+      throw new AdminError(msg);
+    }
+    throw e;
+  }
+}

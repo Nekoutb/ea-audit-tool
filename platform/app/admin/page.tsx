@@ -3,7 +3,7 @@ import { auth } from "@/auth";
 import { AppNav } from "@/components/AppNav";
 import { FirmOnboardingWizard } from "@/components/FirmOnboardingWizard";
 import { Panel, PanelHeader } from "@/components/ui/atlas";
-import { AdminError, checkAvailability, createFirm, listFirms, type Availability } from "@/lib/admin";
+import { AdminError, checkAvailability, createFirm, deleteFirm, listFirms, type Availability } from "@/lib/admin";
 import { mailDomain } from "@/lib/email";
 import { getLocale } from "@/lib/locale";
 
@@ -44,6 +44,19 @@ export default async function AdminPage(props: { searchParams: Promise<{ error?:
     }
   }
 
+  async function deleteFirmAction(formData: FormData) {
+    "use server";
+    // requireSuper() runs inside deleteFirm — same reasoning as availability:
+    // a server action is a public endpoint, the console page is not the gate.
+    try {
+      await deleteFirm(String(formData.get("tenantId") ?? ""), String(formData.get("confirmSlug") ?? ""));
+      redirect("/admin?ok=deleted");
+    } catch (e) {
+      if (e instanceof AdminError) redirect(`/admin?error=${encodeURIComponent(e.message)}`);
+      throw e;
+    }
+  }
+
   async function checkAvailabilityAction(
     slug: string,
     mailLocal: string,
@@ -70,16 +83,36 @@ export default async function AdminPage(props: { searchParams: Promise<{ error?:
           : "Every firm is walled off by forced row-level security; every engagement is independent within its firm."}
       </p>
 
-      {error ? <p role="alert" className="mt-3 text-[13px] font-semibold text-rose">{error}</p> : null}
+      {error ? (
+        <p role="alert" className="mt-3 text-[13px] font-semibold text-rose">
+          {error === "confirm-mismatch"
+            ? fr
+              ? "Suppression refusée : tapez le slug exact du cabinet dans le champ de confirmation."
+              : "Deletion refused: type the firm's exact slug in the confirmation field."
+            : error === "firm-has-archived-files"
+              ? fr
+                ? "Suppression refusée : ce cabinet détient des dossiers d'audit archivés sous obligation de conservation (ISA 230)."
+                : "Deletion refused: this firm holds archived audit files under a retention obligation (ISA 230)."
+              : error === "firm-has-legal-hold"
+                ? fr
+                  ? "Suppression refusée : une mission de ce cabinet est sous conservation légale."
+                  : "Deletion refused: an engagement of this firm is under legal hold."
+                : error}
+        </p>
+      ) : null}
       {ok ? (
         <p className="mt-3 text-[13px] font-semibold text-emerald-700 dark:text-emerald-400" data-testid="admin-ok">
           {ok === "created-emailed"
             ? fr
               ? "Cabinet créé. Le mot de passe provisoire a été envoyé à l'administrateur par email ; il devra le remplacer à la première connexion."
               : "Firm created. The temporary password was emailed to the administrator, who must replace it at first sign-in."
-            : fr
-              ? "Cabinet créé — l'administrateur utilise son mot de passe existant."
-              : "Firm created — the administrator uses their existing password."}
+            : ok === "deleted"
+              ? fr
+                ? "Cabinet supprimé, ainsi que ses données et les comptes qui n'appartenaient qu'à lui."
+                : "Firm deleted, with its data and the accounts that belonged only to it."
+              : fr
+                ? "Cabinet créé — l'administrateur utilise son mot de passe existant."
+                : "Firm created — the administrator uses their existing password."}
         </p>
       ) : null}
 
@@ -101,6 +134,7 @@ export default async function AdminPage(props: { searchParams: Promise<{ error?:
                 <th className={th}>{fr ? "Clients" : "Clients"}</th>
                 <th className={th}>{fr ? "Missions" : "Engagements"}</th>
                 <th className={th}>{fr ? "Créé le" : "Created"}</th>
+                <th className={th}>{fr ? "Supprimer" : "Delete"}</th>
               </tr>
             </thead>
             <tbody>
@@ -115,6 +149,27 @@ export default async function AdminPage(props: { searchParams: Promise<{ error?:
                   <td className={`${td} tnum`}>{f.clients}</td>
                   <td className={`${td} tnum`}>{f.engagements}</td>
                   <td className={`${td} text-muted tnum`}>{f.createdAt}</td>
+                  <td className={td}>
+                    <form action={deleteFirmAction} className="flex items-center gap-1.5">
+                      <input type="hidden" name="tenantId" value={f.id} />
+                      <input
+                        name="confirmSlug"
+                        placeholder={f.slug}
+                        autoComplete="off"
+                        spellCheck={false}
+                        className="w-32 rounded-[var(--radius-atlas-sm)] border border-line-strong bg-surface px-2 py-1 font-mono text-[11px] text-ink outline-none focus:border-rose-500 focus:ring-2 focus:ring-rose-500/20"
+                        aria-label={fr ? `Taper ${f.slug} pour confirmer` : `Type ${f.slug} to confirm`}
+                        data-testid={`delete-confirm-${f.slug}`}
+                      />
+                      <button
+                        type="submit"
+                        className="rounded-[var(--radius-atlas-sm)] border border-rose-300 px-2 py-1 text-[11px] font-semibold text-rose-700 hover:bg-rose-50 dark:border-rose-900 dark:text-rose-400 dark:hover:bg-rose-950/40"
+                        data-testid={`delete-firm-${f.slug}`}
+                      >
+                        {fr ? "Supprimer" : "Delete"}
+                      </button>
+                    </form>
+                  </td>
                 </tr>
               ))}
             </tbody>
