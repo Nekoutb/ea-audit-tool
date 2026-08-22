@@ -18,7 +18,7 @@
     "migrate:down": "node-pg-migrate down",
     "db:role": "node scripts/run-sql.mjs db/create-app-role.sql",
     "db:rls": "node scripts/run-sql.mjs db/rls.sql",
-    "db:setup": "npm run migrate:up && npm run db:role && npm run db:rls",
+    "db:setup": "npm run db:role && npm run migrate:up && npm run db:rls",
     "seed": "node scripts/seed.mjs",
     "seed:dev": "node scripts/seed-dev.mjs"
   },
