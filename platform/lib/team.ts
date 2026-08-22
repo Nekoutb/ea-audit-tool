@@ -169,6 +169,36 @@ export async function assignTask(
 }
 
 /**
+ * Assign every listed task (file item) of the engagement to one team member in
+ * a single statement — the phase-level counterpart of assignTask, used by the
+ * Forms tool to hand a whole phase to one person. Same rules: the target must
+ * be a team_member of the engagement; null unassigns. Returns how many tasks
+ * were repointed.
+ */
+export async function assignTasks(
+  engagementId: string,
+  itemIds: string[],
+  userIdOrNull: string | null,
+): Promise<number> {
+  if (itemIds.length === 0) return 0;
+  const { tenantId } = await requireTenant();
+  return withTenant(tenantId, async (tx) => {
+    if (userIdOrNull) {
+      const member = await tx.query(
+        "SELECT 1 FROM team_member WHERE engagement_id = $1 AND user_id = $2",
+        [engagementId, userIdOrNull],
+      );
+      if ((member.rowCount ?? 0) === 0) throw new Error("not-found");
+    }
+    const updated = await tx.query(
+      "UPDATE file_item SET assignee_user_id = $3 WHERE engagement_id = $1 AND id = ANY($2::uuid[])",
+      [engagementId, itemIds, userIdOrNull],
+    );
+    return updated.rowCount ?? 0;
+  });
+}
+
+/**
  * Open (not yet reviewed) directly-assigned tasks per team member of the
  * engagement, in one query: user_id → count.
  */

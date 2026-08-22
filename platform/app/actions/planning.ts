@@ -15,7 +15,7 @@ import { dismissPotentialRisk, linkRiskToIndex, linkRiskToStep, mapRiskToSection
 import { decideLead } from "@/lib/risk-leads";
 import { canReview } from "@/lib/rbac";
 import { savePaper } from "@/lib/working-papers";
-import { addPbcItem, assignTask, assignTeamMember, removeTeamMember, setBudgetLine, setPbcStatus, type PbcItem, type TeamRole } from "@/lib/team";
+import { addPbcItem, assignTask, assignTasks, assignTeamMember, removeTeamMember, setBudgetLine, setPbcStatus, type PbcItem, type TeamRole } from "@/lib/team";
 import { getLocale } from "@/lib/locale";
 
 /** Wrap a mutation: domain errors become ?error=<code> banners, not 500s. */
@@ -304,6 +304,34 @@ export async function assignTaskAction(
   revalidatePath(`/engagements/${engagementId}/tasks`);
   revalidatePath(path);
   redirect(path);
+}
+
+/**
+ * Assign a set of tasks — one form's task, or a whole phase — from the Forms
+ * tool. Same permission gate as direct task assignment (canReview); lands back
+ * on the Forms page rather than the section.
+ */
+export async function assignFormsTasksAction(
+  engagementId: string,
+  itemIds: string[],
+  formData: FormData,
+): Promise<void> {
+  const path = `/engagements/${engagementId}/tools/forms`;
+  const userIdOrNull = String(formData.get("assignee") ?? "").trim() || null;
+  const session = await auth();
+  let assigned = 0;
+  try {
+    if (!session?.user || !canReview(session.user.role)) throw new Error("forbidden");
+    assigned = await assignTasks(engagementId, itemIds, userIdOrNull);
+  } catch (error) {
+    if (error instanceof Error && /^[a-z0-9-]+$/.test(error.message)) {
+      redirect(`${path}?error=${encodeURIComponent(error.message)}`);
+    }
+    throw error;
+  }
+  revalidatePath(path);
+  revalidatePath(`/engagements/${engagementId}/tasks`);
+  redirect(`${path}?assigned=${assigned}`);
 }
 
 export async function setBudgetAction(engagementId: string, formData: FormData): Promise<void> {
