@@ -81,6 +81,25 @@ describe("admin_delete_firm", () => {
     expect(bothMembership.rows).toEqual([{ tenant_id: T2 }]);
   });
 
+  it("refuses to strand a super-admin whose only membership is in the firm", async () => {
+    const SUPER = "b8b8b8b8-b8b8-4b8b-8b8b-b8b8b8b8b813";
+    await admin.query("DELETE FROM app_user WHERE id = $1", [SUPER]);
+    await makeFirm(T1, "strand-check-firm");
+    await admin.query(
+      "INSERT INTO app_user (id, email, name, password_hash, is_super) VALUES ($1, 'super@delete-firm.local', 'Op', 'x', true)",
+      [SUPER],
+    );
+    await admin.query("INSERT INTO membership (user_id, tenant_id, role) VALUES ($1, $2, 'firm_admin')", [SUPER, T1]);
+    await expect(app.query("SELECT admin_delete_firm($1)", [T1])).rejects.toThrow("firm-holds-operator-membership");
+    // A second membership elsewhere lifts the refusal.
+    await admin.query("INSERT INTO membership (user_id, tenant_id, role) VALUES ($1, $2, 'firm_admin')", [SUPER, T2]);
+    const r = await app.query<{ admin_delete_firm: number }>("SELECT admin_delete_firm($1)", [T1]);
+    expect(r.rows[0].admin_delete_firm).toBe(1);
+    const still = await admin.query("SELECT 1 FROM app_user WHERE id = $1", [SUPER]);
+    expect(still.rowCount).toBe(1);
+    await admin.query("DELETE FROM app_user WHERE id = $1", [SUPER]);
+  });
+
   it("the app role still cannot DELETE tenant directly", async () => {
     // SQLSTATE 42501 (insufficient_privilege) — the message text is localized.
     const direct = await app

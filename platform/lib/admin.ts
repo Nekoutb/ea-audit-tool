@@ -220,7 +220,7 @@ export async function deleteFirm(tenantId: string, confirmSlug: string): Promise
     await pool.query("SELECT admin_delete_firm($1)", [tenantId]);
   } catch (e) {
     const msg = e instanceof Error ? e.message : "";
-    if (["firm-not-found", "firm-has-archived-files", "firm-has-legal-hold"].includes(msg)) {
+    if (["firm-not-found", "firm-has-archived-files", "firm-has-legal-hold", "firm-holds-operator-membership"].includes(msg)) {
       throw new AdminError(msg);
     }
     throw e;

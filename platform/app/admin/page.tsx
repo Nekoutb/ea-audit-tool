@@ -97,7 +97,11 @@ export default async function AdminPage(props: { searchParams: Promise<{ error?:
                 ? fr
                   ? "Suppression refusée : une mission de ce cabinet est sous conservation légale."
                   : "Deletion refused: an engagement of this firm is under legal hold."
-                : error}
+                : error === "firm-holds-operator-membership"
+                  ? fr
+                    ? "Suppression refusée : ce cabinet porte la seule appartenance de l'opérateur de la plateforme — rattachez d'abord son compte à un autre cabinet."
+                    : "Deletion refused: this firm holds the platform operator's only membership — attach their account to another firm first."
+                  : error}
         </p>
       ) : null}
       {ok ? (
