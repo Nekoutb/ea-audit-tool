@@ -158,8 +158,17 @@ describe("acceptance gates → planning (2.2, 2.3, 2.4)", () => {
 
     const confirmations = await listConfirmations(engagementId);
     const mine = confirmations.find((c) => c.userId === USER)!;
-    const status = await submitConfirmation(mine.token, { financial_interest: true }, "Planner");
+    // An exception without its explanation is refused outright (IESBA §120).
+    await expect(
+      submitConfirmation(mine.token, { financial_interest: true }, "Planner"),
+    ).rejects.toThrow("explanation-required");
+    const status = await submitConfirmation(mine.token, { financial_interest: true }, "Planner", {
+      financial_interest: "Holds 40 shares in the client through a family PEA; divestment initiated.",
+    });
     expect(status).toBe("exception");
+    // The explanation is stored and readable by the reviewer.
+    const withNotes = (await listConfirmations(engagementId)).find((c) => c.userId === USER)!;
+    expect(withNotes.explanations?.financial_interest).toContain("40 shares");
 
     // The signed confirmation is archived into P1.1 as an artifact (spec §4.2).
     const archived = await admin.query<{ kind: string }>(

@@ -2,6 +2,7 @@ import { notFound, redirect } from "next/navigation";
 import { auth } from "@/auth";
 import { submitConfirmationAction } from "@/app/actions/planning";
 import { ErrorBanner } from "@/components/GatesPanel";
+import { IndependenceQuestionField } from "@/components/IndependenceQuestionField";
 import { getMessages } from "@/lib/i18n";
 import { getMyConfirmation, INDEPENDENCE_QUESTIONS } from "@/lib/independence";
 import { getLocale } from "@/lib/locale";
@@ -39,21 +40,23 @@ export default async function IndependencePage(props: {
             <p className="mt-2 text-sm text-ink-soft">{t.formIntro}</p>
             <form action={submitConfirmationAction.bind(null, token)} className="mt-5 flex flex-col gap-4">
               {INDEPENDENCE_QUESTIONS.map((question) => (
-                <fieldset key={question.key} className="rounded-[var(--radius-atlas)] border border-line p-3 text-sm">
-                  <legend className="px-1 text-ink">
-                    {locale === "fr" ? question.labelFr : question.labelEn}
-                  </legend>
-                  <div className="mt-1 flex gap-5">
-                    <label className="flex items-center gap-1.5">
-                      <input type="radio" name={question.key} value="no" defaultChecked required data-testid={`q-${question.key}-no`} />
-                      {t.no}
-                    </label>
-                    <label className="flex items-center gap-1.5">
-                      <input type="radio" name={question.key} value="yes" data-testid={`q-${question.key}-yes`} />
-                      {t.yes}
-                    </label>
-                  </div>
-                </fieldset>
+                <IndependenceQuestionField
+                  key={question.key}
+                  qkey={question.key}
+                  label={locale === "fr" ? question.labelFr : question.labelEn}
+                  yesLabel={t.yes}
+                  noLabel={t.no}
+                  noteLabel={
+                    locale === "fr"
+                      ? "Décrivez les circonstances et les facteurs d'atténuation / mesures de sauvegarde"
+                      : "Describe the circumstances and the mitigating factors / safeguards"
+                  }
+                  notePlaceholder={
+                    locale === "fr"
+                      ? "Nature du lien, montants, période, mesures prises ou proposées…"
+                      : "Nature of the relationship, amounts, period, measures taken or proposed…"
+                  }
+                />
               ))}
               <label className="flex flex-col gap-1 text-sm">
                 <span className="text-ink-soft">{t.signature}</span>

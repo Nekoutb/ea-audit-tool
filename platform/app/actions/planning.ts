@@ -181,12 +181,15 @@ export async function launchCampaignAction(engagementId: string, formData: FormD
 
 export async function submitConfirmationAction(token: string, formData: FormData): Promise<void> {
   const answers: IndependenceAnswers = {};
+  const explanations: Record<string, string> = {};
   for (const question of INDEPENDENCE_QUESTIONS) {
     answers[question.key] = formData.get(question.key) === "yes";
+    const note = String(formData.get(`note_${question.key}`) ?? "").trim();
+    if (note) explanations[question.key] = note;
   }
   const signature = String(formData.get("signature") ?? "");
   try {
-    await submitConfirmation(token, answers, signature);
+    await submitConfirmation(token, answers, signature, explanations);
   } catch (error) {
     if (error instanceof Error && /^[a-z0-9-]+$/.test(error.message)) {
       redirect(`/independence/${token}?error=${error.message}`);

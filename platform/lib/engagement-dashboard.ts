@@ -144,7 +144,8 @@ export interface PhaseTask {
   documentId: string | null;
   /** Editable per-task due date (YYYY-MM-DD) or null → phase-derived. */
   dueDate: string | null;
-  /** Assigned preparer (file_item.owner_id), name or null. */
+  /** Assigned preparer (file_item.owner_id), id/name or null. */
+  ownerUserId: string | null;
   ownerName: string | null;
   /** Direct task assignee (file_item.assignee_user_id), or null. */
   assigneeUserId: string | null;
@@ -184,6 +185,7 @@ export async function phaseTasks(engagementId: string, phase: DashboardPhase): P
       title_fr: string;
       document_id: string | null;
       due_date: string | null;
+      owner_user_id: string | null;
       owner_name: string | null;
       assignee_user_id: string | null;
       assignee_name: string | null;
@@ -195,6 +197,7 @@ export async function phaseTasks(engagementId: string, phase: DashboardPhase): P
       `SELECT fi.id, fi.code, fi.section, fi.title_en, fi.title_fr,
               d.id AS document_id,
               ${dueDate} AS due_date,
+              fi.owner_id AS owner_user_id,
               (SELECT coalesce(name, email) FROM app_user WHERE id = fi.owner_id) AS owner_name,
               ${assignee.id} AS assignee_user_id,
               ${assignee.name} AS assignee_name,
@@ -239,6 +242,7 @@ export async function phaseTasks(engagementId: string, phase: DashboardPhase): P
         titleFr: row.title_fr,
         documentId: row.document_id,
         dueDate: row.due_date,
+        ownerUserId: row.owner_user_id,
         ownerName: row.owner_name,
         assigneeUserId: row.assignee_user_id,
         assigneeName: row.assignee_name,
@@ -463,6 +467,7 @@ export async function engagementTasks(
       title_fr: string;
       document_id: string | null;
       due_date: string | null;
+      owner_user_id: string | null;
       owner_name: string | null;
       assignee_user_id: string | null;
       assignee_name: string | null;
@@ -474,6 +479,7 @@ export async function engagementTasks(
       `SELECT fi.id, fi.code, fi.section, fi.title_en, fi.title_fr,
               d.id AS document_id,
               ${dueDate} AS due_date,
+              fi.owner_id AS owner_user_id,
               (SELECT coalesce(name, email) FROM app_user WHERE id = fi.owner_id) AS owner_name,
               ${assignee.id} AS assignee_user_id,
               ${assignee.name} AS assignee_name,
@@ -517,6 +523,7 @@ export async function engagementTasks(
         titleFr: row.title_fr,
         documentId: row.document_id,
         dueDate: row.due_date,
+        ownerUserId: row.owner_user_id,
         ownerName: row.owner_name,
         assigneeUserId: row.assignee_user_id,
         assigneeName: row.assignee_name,
@@ -550,9 +557,12 @@ async function statsScoped(engagementId: string | null): Promise<DashboardStats>
       notes_by_me: string;
     }>(
       `SELECT
+         -- "mine" means prepared by me OR directly assigned to me — the same
+         -- definition the tasks page's ?filter=mine applies, so the tile count
+         -- always equals the list it links to.
          (SELECT count(*) FROM file_item fi
            WHERE ($1::uuid IS NULL OR fi.engagement_id = $1) AND fi.conditional = false
-             AND fi.owner_id = $2
+             AND (fi.owner_id = $2 OR fi.assignee_user_id = $2)
              AND NOT EXISTS (
                SELECT 1 FROM document d JOIN signoff s ON s.document_id = d.id
                 WHERE d.file_item_id = fi.id AND s.role IN ('reviewer','partner') AND s.voided_at IS NULL
@@ -569,7 +579,7 @@ async function statsScoped(engagementId: string | null): Promise<DashboardStats>
              ))::text AS for_my_review,
          (SELECT count(*) FROM file_item fi
            WHERE ($1::uuid IS NULL OR fi.engagement_id = $1) AND fi.conditional = false
-             AND fi.owner_id = $2
+             AND (fi.owner_id = $2 OR fi.assignee_user_id = $2)
              AND NOT EXISTS (SELECT 1 FROM document d WHERE d.file_item_id = fi.id))::text AS to_do,
          -- notes reach me either through a document I own or, since review
          -- notes live on tasks, by being addressed to me directly
@@ -622,6 +632,7 @@ export async function taskForItem(engagementId: string, code: string): Promise<P
       title_fr: string;
       document_id: string | null;
       due_date: string | null;
+      owner_user_id: string | null;
       owner_name: string | null;
       assignee_user_id: string | null;
       assignee_name: string | null;
@@ -633,6 +644,7 @@ export async function taskForItem(engagementId: string, code: string): Promise<P
       `SELECT fi.id, fi.code, fi.section, fi.title_en, fi.title_fr,
               d.id AS document_id,
               ${dueDate} AS due_date,
+              fi.owner_id AS owner_user_id,
               (SELECT coalesce(name, email) FROM app_user WHERE id = fi.owner_id) AS owner_name,
               ${assignee.id} AS assignee_user_id,
               ${assignee.name} AS assignee_name,
@@ -677,6 +689,7 @@ export async function taskForItem(engagementId: string, code: string): Promise<P
       titleFr: row.title_fr,
       documentId: row.document_id,
       dueDate: row.due_date,
+      ownerUserId: row.owner_user_id,
       ownerName: row.owner_name,
       assigneeUserId: row.assignee_user_id,
       assigneeName: row.assignee_name,

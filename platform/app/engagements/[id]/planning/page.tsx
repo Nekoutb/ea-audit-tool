@@ -15,7 +15,6 @@ import {
 } from "@/app/actions/planning";
 import { AppNav } from "@/components/AppNav";
 import { MaterialityBasis } from "@/components/MaterialityBasis";
-import { EngagementTabs } from "@/components/EngagementTabs";
 import { ErrorBanner, GatesPanel } from "@/components/GatesPanel";
 import { Chip, Panel, PanelHeader, btnPrimary } from "@/components/ui/atlas";
 import { withTenant } from "@/lib/db";
@@ -139,7 +138,6 @@ export default async function PlanningPage(props: {
       <h1 className="mt-8 text-2xl font-semibold tracking-[-0.02em] text-ink">
         {engagement.clientName} — {engagement.fiscalYear} · {tp.planningTitle}
       </h1>
-      <EngagementTabs engagementId={id} locale={locale} active="planning" />
       <ErrorBanner error={error} failed={failed} locale={locale} />
 
       <Panel className="mt-6">

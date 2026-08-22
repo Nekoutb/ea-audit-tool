@@ -14,7 +14,6 @@ import {
   subsequentEventsAction,
 } from "@/app/actions/conclusion";
 import { AppNav } from "@/components/AppNav";
-import { EngagementTabs } from "@/components/EngagementTabs";
 import { ErrorBanner, GatesPanel } from "@/components/GatesPanel";
 import { Panel } from "@/components/ui/atlas";
 import { getClient } from "@/lib/clients";
@@ -90,7 +89,6 @@ export default async function ConclusionPage(props: {
       <h1 className="mt-8 text-2xl font-semibold text-ink">
         {engagement.clientName} — {engagement.fiscalYear} · {tc.title}
       </h1>
-      <EngagementTabs engagementId={id} locale={locale} active="conclusion" />
       <ErrorBanner error={error} failed={failed} locale={locale} />
 
       {state.archivedAt ? (

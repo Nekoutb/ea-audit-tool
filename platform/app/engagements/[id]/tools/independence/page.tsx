@@ -121,7 +121,24 @@ export default async function IndependencePage(props: { params: Promise<{ id: st
                       </Chip>
                     </td>
                     <td className="px-3 py-2 text-xs text-muted tnum">{c.signedAt?.slice(0, 10) ?? "—"}</td>
-                    <td className="px-3 py-2 text-xs text-ink-soft">{c.disposition ?? "—"}</td>
+                    <td className="px-3 py-2 text-xs text-ink-soft">
+                      {c.status === "exception" && c.explanations && Object.keys(c.explanations).length > 0 ? (
+                        <div className="flex flex-col gap-1" data-testid={`indep-explanations-${c.id}`}>
+                          {Object.entries(c.explanations).map(([k, note]) => (
+                            <div key={k}>
+                              <span className="font-semibold text-rose">{k.replace(/_/g, " ")}:</span> {note}
+                            </div>
+                          ))}
+                          {c.disposition ? (
+                            <div className="text-muted">
+                              {fr ? "Disposition" : "Disposition"}: {c.disposition}
+                            </div>
+                          ) : null}
+                        </div>
+                      ) : (
+                        c.disposition ?? "—"
+                      )}
+                    </td>
                     <td className="px-3 py-2 text-right">
                       {canManage && c.status !== "completed" ? (
                         <form action={sendReminderAction.bind(null, id, c.id)}>

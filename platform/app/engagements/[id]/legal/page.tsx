@@ -17,7 +17,6 @@ import {
   titresAttestationAction,
 } from "@/app/actions/legal";
 import { AppNav } from "@/components/AppNav";
-import { EngagementTabs } from "@/components/EngagementTabs";
 import { ErrorBanner } from "@/components/GatesPanel";
 import { getAlerte } from "@/lib/alerte";
 import { getCompletionRecord } from "@/lib/completion";
@@ -74,7 +73,6 @@ export default async function LegalPage(props: {
       <h1 className="mt-8 text-2xl font-semibold text-ink">
         {engagement.clientName} — {engagement.fiscalYear} · {tl.title}
       </h1>
-      <EngagementTabs engagementId={id} locale={locale} active="legal" />
       <ErrorBanner error={error} locale={locale} />
 
       {/* C5.2 deadlines */}

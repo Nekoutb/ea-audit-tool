@@ -38,6 +38,8 @@ export interface MaterialityVersion {
   percentage: number;
   justification: string;
   performancePct: number;
+  /** clearly-trivial (SAD) threshold as % of overall materiality */
+  trivialPct: number;
   overall: number;
   performance: number;
   trivial: number;
@@ -64,6 +66,7 @@ function toVersion(row: {
   percentage: string;
   justification: string;
   performance_pct: string;
+  trivial_pct: string;
   overall: string;
   performance: string;
   trivial: string;
@@ -78,6 +81,7 @@ function toVersion(row: {
     percentage: Number(row.percentage),
     justification: row.justification,
     performancePct: Number(row.performance_pct),
+    trivialPct: Number(row.trivial_pct),
     overall: Number(row.overall),
     performance: Number(row.performance),
     trivial: Number(row.trivial),
@@ -88,7 +92,7 @@ function toVersion(row: {
 
 const SELECT_VERSION = `
   SELECT m.id, m.version_no, m.benchmark, m.benchmark_amount::text, m.percentage::text,
-         m.justification, m.performance_pct::text, m.overall::text, m.performance::text,
+         m.justification, m.performance_pct::text, m.trivial_pct::text, m.overall::text, m.performance::text,
          m.trivial::text, m.status, coalesce(u.name, u.email) AS approved_by_name
     FROM materiality m
     LEFT JOIN app_user u ON u.id = m.approved_by`;

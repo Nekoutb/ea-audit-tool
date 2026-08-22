@@ -136,7 +136,7 @@ export default async function SectionPage(props: {
     const m = approvedM;
     if (m) {
       const n = (x: number) => new Intl.NumberFormat("fr-FR").format(x);
-      autoValues.benchmark = `${m.benchmark} · ${m.percentage}% × ${n(m.benchmarkAmount)} → PM ${n(m.overall)} · TE ${n(m.performance)} · SAD ${n(m.trivial)} FCFA (${m.status}${m.approvedByName ? " · " + m.approvedByName : ""})`;
+      autoValues.benchmark = `${m.benchmark} · ${m.percentage}% × ${n(m.benchmarkAmount)} → PM ${n(m.overall)} · TE ${n(m.performance)} (${m.performancePct}% PM) · SAD ${n(m.trivial)} (${m.trivialPct}% PM) FCFA (${m.status}${m.approvedByName ? " · " + m.approvedByName : ""})`;
       const sm = await specificThresholds(id);
       if (sm.size > 0) autoValues.benchmark += ` · ${sm.size} specific threshold${sm.size > 1 ? "s" : ""} (P6.2)`;
     }
@@ -147,7 +147,7 @@ export default async function SectionPage(props: {
     const sig = live.filter((r) => r.significant).length;
     const n = (x: number) => new Intl.NumberFormat("fr-FR").format(x);
     autoValues.context = m
-      ? `${m.benchmark} · PM ${n(m.overall)} · TE ${n(m.performance)} FCFA · ${live.length} risk(s), ${sig} significant`
+      ? `${m.benchmark} · PM ${n(m.overall)} · TE ${n(m.performance)} (${m.performancePct}% PM) · SAD ${n(m.trivial)} (${m.trivialPct}% PM) FCFA · ${live.length} risk(s), ${sig} significant`
       : `Materiality not approved yet · ${live.length} risk(s), ${sig} significant`;
   }
   let campaign: Awaited<ReturnType<typeof listConfirmations>> = [];

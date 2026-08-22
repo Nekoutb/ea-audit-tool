@@ -287,11 +287,6 @@
     "notRequired": "Not required",
     "notRequiredHint": "Not required for this engagement — \"{trigger}\" is answered No (or unanswered) in the S6.1 strategy driver."
   },
-  "tabGroups": {
-    "phases": "Phase work",
-    "data": "Data",
-    "registers": "Registers & statutory"
-  },
   "taskPage": {
     "saveHandoff": "Save & hand off",
     "backTo": "Back to {phase} task list",
@@ -1153,6 +1148,7 @@
       "rationale-required": "A rationale is required.",
       "description-required": "A description is required.",
       "signature-required": "Type your name to sign.",
+      "explanation-required": "Every \"yes\" answer needs an explanation of the circumstances and mitigating factors.",
       "disposition-required": "A disposition is required.",
       "fields-required": "Required fields are missing.",
       "no-recipients": "Select at least one recipient.",

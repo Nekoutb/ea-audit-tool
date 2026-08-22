@@ -101,7 +101,16 @@ export function SignificantAccounts({
           <b className="text-ink tnum">
             {view.tolerableError !== null ? fmt(view.tolerableError) : fr ? "non approuvée" : "not approved yet"}
           </b>
+          {view.tolerableError !== null && view.tolerableErrorPct !== null ? (
+            <span className="tnum"> ({view.tolerableErrorPct}% {fr ? "de PM" : "of PM"})</span>
+          ) : null}
         </span>
+        {view.sadThreshold !== null ? (
+          <span className="text-[11px] text-muted">
+            SAD: <b className="text-ink tnum">{fmt(view.sadThreshold)}</b>
+            {view.sadPct !== null ? <span className="tnum"> ({view.sadPct}% {fr ? "de PM" : "of PM"})</span> : null}
+          </span>
+        ) : null}
         <span className="text-[11px] text-muted">
           {fr ? "Comptes significatifs" : "Significant"}: <b className="text-ink tnum">{rows.filter((r) => r.status === "significant").length}</b>/{rows.length}
         </span>

@@ -10,7 +10,6 @@ import {
   setMandateAction,
 } from "@/app/actions/planning";
 import { AppNav } from "@/components/AppNav";
-import { EngagementTabs } from "@/components/EngagementTabs";
 import { ErrorBanner, GatesPanel } from "@/components/GatesPanel";
 import { Panel } from "@/components/ui/atlas";
 import { getEngagement } from "@/lib/engagements";
@@ -84,7 +83,6 @@ export default async function AcceptancePage(props: {
       <h1 className="mt-8 text-2xl font-semibold text-ink">
         {engagement.clientName} — {engagement.fiscalYear} · {tp.acceptanceTitle}
       </h1>
-      <EngagementTabs engagementId={id} locale={locale} active="acceptance" />
       <ErrorBanner error={error} failed={failed} locale={locale} />
 
       <Panel className={sectionClass}>

@@ -174,11 +174,6 @@ export default async function TeamPage(props: {
                   <option key={u.id} value={u.email ?? ""}>{u.name}</option>
                 ))}
               </datalist>
-              <span className="text-xs text-muted">
-                {locale === "fr"
-                  ? "Une adresse inconnue crée le compte ; le membre est invité par e-mail à accepter la mission."
-                  : "An unknown address provisions the account; the member is emailed to accept or decline the engagement."}
-              </span>
             </label>
             <label className="flex flex-col gap-1 text-sm text-ink-soft">
               {tt.role}
@@ -193,6 +188,13 @@ export default async function TeamPage(props: {
             <SubmitButton className={btnPrimary} testId="team-add">
               {tt.add}
             </SubmitButton>
+            {/* Full-width helper on its own wrap line, so the three controls
+                above share one baseline instead of bottom-aligning to it. */}
+            <span className="w-full text-xs text-muted">
+              {locale === "fr"
+                ? "Une adresse inconnue crée le compte ; le membre est invité par e-mail à accepter la mission."
+                : "An unknown address provisions the account; the member is emailed to accept or decline the engagement."}
+            </span>
           </form>
         </Panel>
       ) : null}

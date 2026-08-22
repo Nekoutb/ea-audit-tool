@@ -705,6 +705,13 @@ export function GlConsole({
                 pending={analyticPending}
                 error={analyticError}
                 monthLabel={monthLabel}
+                onMonth={(month, title) =>
+                  openDrill({
+                    labelEn: `${title} · ${month === "n/a" ? "no date" : month} — the lines behind this row`,
+                    labelFr: `${title} · ${month === "n/a" ? "sans date" : month} — les lignes derrière cette ligne`,
+                    filter: { month },
+                  })
+                }
               />
             </div>
           ) : null}
@@ -1158,7 +1165,7 @@ function CorrelationView({
 // C3. Analytics: the catalogue of thirty, and one result at a time.
 
 function AnalyticsView({
-  fr, catalogue, activeKey, onRun, result, pending, error, monthLabel,
+  fr, catalogue, activeKey, onRun, result, pending, error, monthLabel, onMonth,
 }: {
   fr: boolean;
   catalogue: CatalogueEntry[];
@@ -1168,6 +1175,8 @@ function AnalyticsView({
   pending: boolean;
   error: string | null;
   monthLabel: (m: string) => string;
+  /** drill into the transactions behind one grouped (month) row */
+  onMonth: (month: string, title: string) => void;
 }) {
   const T = (en: string, frText: string) => (fr ? frText : en);
   const active = catalogue.find((c) => c.key === activeKey) ?? null;
@@ -1303,7 +1312,17 @@ function AnalyticsView({
                   <tbody>
                     {result.rows.map((row, i) => (
                       <SRow key={`${row.month}-${i}`} n={i + 1} testId={`gl-analytic-month-${tid(row.month)}`}>
-                        <SCell>{monthLabel(row.month)}</SCell>
+                        <SCell>
+                          <button
+                            type="button"
+                            onClick={() => onMonth(row.month, result.title)}
+                            title={T("Show the transactions behind this row", "Voir les transactions derrière cette ligne")}
+                            className="cursor-pointer underline decoration-dotted underline-offset-2 hover:text-emerald-700"
+                            data-testid={`gl-analytic-drill-${tid(row.month)}`}
+                          >
+                            {monthLabel(row.month)}
+                          </button>
+                        </SCell>
                         {result.columns.map((c, j) => {
                           const value = row.cells[j];
                           return (

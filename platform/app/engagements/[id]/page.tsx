@@ -3,7 +3,6 @@ import { notFound, redirect } from "next/navigation";
 import { auth } from "@/auth";
 import { generateDocumentAction } from "@/app/actions/audit-file";
 import { AppNav } from "@/components/AppNav";
-import { EngagementTabs } from "@/components/EngagementTabs";
 import { Chip, Panel, StatCell } from "@/components/ui/atlas";
 import { engagementDashboard } from "@/lib/dashboards";
 import { getEngagement, listFileItems } from "@/lib/engagements";
@@ -38,7 +37,6 @@ export default async function EngagementFilePage(props: { params: Promise<{ id: 
           {t.engagements.periodEnd}: {engagement.periodEnd}
         </span>
       </div>
-      <EngagementTabs engagementId={id} locale={locale} active="file" />
 
       {/* 9.3 engagement dashboard strip */}
       <section

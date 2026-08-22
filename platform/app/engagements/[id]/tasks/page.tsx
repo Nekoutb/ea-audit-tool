@@ -59,7 +59,9 @@ type Filter = "all" | "review" | "todo" | "mine" | "open";
 function applyFilter(tasks: PhaseTask[], filter: Filter, userId: string): PhaseTask[] {
   if (filter === "review") return tasks.filter((t) => t.status === "in_review");
   if (filter === "todo") return tasks.filter((t) => t.status === "not_started");
-  if (filter === "mine") return tasks.filter((t) => t.assigneeUserId === userId);
+  // "mine" = directly assigned to me OR I am the preparer — the same
+  // definition the dashboard's my-tasks tile counts, so tile and list agree.
+  if (filter === "mine") return tasks.filter((t) => t.assigneeUserId === userId || t.ownerUserId === userId);
   if (filter === "open") return tasks.filter((t) => t.status !== "reviewed");
   return tasks;
 }
@@ -146,7 +148,7 @@ export default async function MyTasksPage(props: {
     {
       key: "mine",
       label: L.mine,
-      count: tasks.filter((task) => task.assigneeUserId === session.user.id).length,
+      count: tasks.filter((task) => task.assigneeUserId === session.user.id || task.ownerUserId === session.user.id).length,
       href: `${base}?filter=mine`,
       testId: "filter-assigned",
     },

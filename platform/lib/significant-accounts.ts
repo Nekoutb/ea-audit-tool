@@ -42,6 +42,11 @@ export interface SignificantAccountRow {
 export interface SignificantAccountsView {
   rows: SignificantAccountRow[];
   tolerableError: number | null;
+  /** TE as % of overall materiality (PM), from the approved materiality */
+  tolerableErrorPct: number | null;
+  /** clearly-trivial (SAD) threshold and its % of PM */
+  sadThreshold: number | null;
+  sadPct: number | null;
   totalClosing: number;
   significantCount: number;
   /** overrides still missing their justification */
@@ -55,6 +60,9 @@ export async function significantAccounts(engagementId: string): Promise<Signifi
   const { tenantId } = await requireTenant();
   const materiality = await approvedMateriality(engagementId);
   const tolerableError = materiality?.performance ?? null;
+  const tolerableErrorPct = materiality?.performancePct ?? null;
+  const sadThreshold = materiality?.trivial ?? null;
+  const sadPct = materiality?.trivialPct ?? null;
   // assertions the Risk Console derives per index (¶12(h): relevant = has an identified RMM)
   const derived = await riskDerivedAssertions(engagementId);
 
@@ -198,6 +206,9 @@ export async function significantAccounts(engagementId: string): Promise<Signifi
     return {
       rows,
       tolerableError,
+      tolerableErrorPct,
+      sadThreshold,
+      sadPct,
       totalClosing: rows.reduce((sum, r) => sum + r.closing, 0),
       significantCount: rows.filter((r) => r.status === "significant").length,
       unjustified: rows.filter((r) => r.overridden && r.justification.trim() === "").length,

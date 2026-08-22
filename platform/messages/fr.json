@@ -287,11 +287,6 @@
     "notRequired": "Non requis",
     "notRequiredHint": "Non requis pour cette mission — « {trigger} » est répondu Non (ou sans réponse) dans le pilote de stratégie S6.1."
   },
-  "tabGroups": {
-    "phases": "Travaux par phase",
-    "data": "Données",
-    "registers": "Registres et légal"
-  },
   "taskPage": {
     "saveHandoff": "Enregistrer et transmettre",
     "backTo": "Retour aux tâches {phase}",
@@ -1153,6 +1148,7 @@
       "rationale-required": "Un motif est requis.",
       "description-required": "Une description est requise.",
       "signature-required": "Saisissez votre nom pour signer.",
+      "explanation-required": "Chaque réponse « oui » doit être accompagnée d’une explication des circonstances et des facteurs d’atténuation.",
       "disposition-required": "Un traitement est requis.",
       "fields-required": "Des champs obligatoires sont manquants.",
       "no-recipients": "Sélectionnez au moins un destinataire.",

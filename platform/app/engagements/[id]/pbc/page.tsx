@@ -2,7 +2,6 @@ import { notFound, redirect } from "next/navigation";
 import { auth } from "@/auth";
 import { acceptPbcAction, addPbcItemAction } from "@/app/actions/pbc";
 import { AppNav } from "@/components/AppNav";
-import { EngagementTabs } from "@/components/EngagementTabs";
 import { ErrorBanner } from "@/components/GatesPanel";
 import { Panel } from "@/components/ui/atlas";
 import { getEngagement, listFileItems } from "@/lib/engagements";
@@ -41,7 +40,6 @@ export default async function PbcPage(props: {
       <h1 className="mt-8 text-2xl font-semibold tracking-[-0.01em] text-ink">
         {engagement.clientName} — {engagement.fiscalYear} · {tp.title}
       </h1>
-      <EngagementTabs engagementId={id} locale={locale} active="pbc" />
       <ErrorBanner error={error} locale={locale} />
 
       <Panel className="mt-6">

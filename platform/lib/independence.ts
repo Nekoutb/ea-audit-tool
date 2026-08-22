@@ -30,6 +30,9 @@ export const INDEPENDENCE_QUESTIONS: readonly IndependenceQuestion[] = [
 ] as const;
 
 export type IndependenceAnswers = Record<string, boolean>;
+/** Per-question account of circumstances and mitigating factors/safeguards,
+ * required for every exception ("yes") answer. Keyed by question key. */
+export type IndependenceExplanations = Record<string, string>;
 
 export function hasException(answers: IndependenceAnswers): boolean {
   return INDEPENDENCE_QUESTIONS.some((q) => answers[q.key] === true);
@@ -44,6 +47,9 @@ export interface ConfirmationSummary {
   reminderCount: number;
   signedAt: string | null;
   disposition: string | null;
+  /** the member's answers and their exception explanations, once signed */
+  answers: IndependenceAnswers | null;
+  explanations: IndependenceExplanations | null;
 }
 
 /**
@@ -112,10 +118,12 @@ export async function listConfirmations(engagementId: string): Promise<Confirmat
       reminder_count: number;
       signed_at: string | null;
       disposition: string | null;
+      answers: IndependenceAnswers | null;
+      explanations: IndependenceExplanations | null;
     }>(
       `SELECT ic.id, ic.user_id, coalesce(u.name, u.email) AS user_name, ic.token, ic.status,
               ic.reminder_count, to_char(ic.signed_at, 'YYYY-MM-DD HH24:MI') AS signed_at,
-              ic.disposition
+              ic.disposition, ic.answers, ic.explanations
          FROM independence_confirmation ic
          JOIN independence_campaign c ON c.id = ic.campaign_id
          JOIN app_user u ON u.id = ic.user_id
@@ -132,6 +140,8 @@ export async function listConfirmations(engagementId: string): Promise<Confirmat
       reminderCount: row.reminder_count,
       signedAt: row.signed_at,
       disposition: row.disposition,
+      answers: row.answers,
+      explanations: row.explanations,
     }));
   });
 }
@@ -164,21 +174,32 @@ async function confirmationArtifact(
   answers: IndependenceAnswers,
   signatureName: string,
   status: string,
+  explanations: IndependenceExplanations = {},
 ): Promise<Buffer> {
   const children = [
     new Paragraph({
       heading: HeadingLevel.TITLE,
       children: [new TextRun("Independence confirmation / Confirmation d'indépendance")],
     }),
-    ...INDEPENDENCE_QUESTIONS.map(
-      (question) =>
+    ...INDEPENDENCE_QUESTIONS.flatMap((question) => {
+      const out = [
         new Paragraph({
           children: [
             new TextRun({ text: `${question.labelEn} — ` }),
             new TextRun({ text: answers[question.key] ? "YES" : "NO", bold: true }),
           ],
         }),
-    ),
+      ];
+      const note = explanations[question.key]?.trim();
+      if (note) {
+        out.push(
+          new Paragraph({
+            children: [new TextRun({ text: `Circumstances and mitigating factors: ${note}`, italics: true })],
+          }),
+        );
+      }
+      return out;
+    }),
     new Paragraph({ children: [new TextRun({ text: `Status: ${status}`, bold: true })] }),
     new Paragraph({
       children: [
@@ -201,19 +222,25 @@ export async function submitConfirmation(
   token: string,
   answers: IndependenceAnswers,
   signatureName: string,
+  explanations: IndependenceExplanations = {},
 ): Promise<"completed" | "exception"> {
   const { tenantId, userId } = await requireTenant();
   if (!signatureName.trim()) throw new Error("signature-required");
+  // Every exception must explain itself: circumstances + mitigating factors.
+  for (const q of INDEPENDENCE_QUESTIONS) {
+    if (answers[q.key] === true && !explanations[q.key]?.trim()) throw new Error("explanation-required");
+  }
   const status = hasException(answers) ? "exception" : "completed";
   await withTenant(tenantId, async (tx) => {
     const updated = await tx.query<{ engagement_id: string }>(
       `UPDATE independence_confirmation ic
-          SET answers = $2, signature_name = $3, signed_at = now(), status = $4
+          SET answers = $2, signature_name = $3, signed_at = now(), status = $4,
+              explanations = $6
          FROM independence_campaign c
         WHERE ic.token = $1 AND ic.user_id = $5 AND ic.status IN ('sent', 'opened')
           AND c.id = ic.campaign_id
         RETURNING c.engagement_id`,
-      [token, JSON.stringify(answers), signatureName, status, userId],
+      [token, JSON.stringify(answers), signatureName, status, userId, JSON.stringify(explanations)],
     );
     if (updated.rowCount === 0) throw new Error("not-found");
 
@@ -224,7 +251,7 @@ export async function submitConfirmation(
       [engagementId],
     );
     if (item.rows[0]) {
-      const content = await confirmationArtifact(answers, signatureName, status);
+      const content = await confirmationArtifact(answers, signatureName, status, explanations);
       const created = await tx.query<{ id: string }>(
         `INSERT INTO document (tenant_id, engagement_id, file_item_id, title, language, kind, created_by, current_version)
          VALUES ($1, $2, $3, $4, 'en', 'letter', $5, 1) RETURNING id`,
