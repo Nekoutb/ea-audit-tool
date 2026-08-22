@@ -128,6 +128,7 @@ export function SamplingStudio({
     return v ? { index: idx as string, value: v } : null;
   }, [craByIndex, prefix]);
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- adopts the server-derived S3.1 CRA as the editable default when it arrives
     if (s31) setCra(s31.value);
   }, [s31]);
   const [assurance, setAssurance] = useState("little");
@@ -164,6 +165,7 @@ export function SamplingStudio({
     if (pop && pop > 0 && p.controlType === "manual") {
       const size = Math.min(suggestion.size, pop);
       const picked = new Set<number>();
+      // eslint-disable-next-line react-hooks/purity -- event handler, not render: the random draw happens once per click and is persisted in the note
       while (picked.size < size) picked.add(1 + Math.floor(Math.random() * pop));
       drawn = [...picked].sort((a, b) => a - b);
     }

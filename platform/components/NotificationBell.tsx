@@ -51,6 +51,7 @@ export function NotificationBell({
   const age = (iso: string) => {
     const then = new Date(iso).getTime();
     if (!Number.isFinite(then)) return "";
+    // eslint-disable-next-line react-hooks/purity -- relative "x min ago" labels want the clock at render; a stale minute after a re-render is fine
     const mins = Math.max(0, Math.round((Date.now() - then) / 60000));
     if (mins < 1) return fr ? "à l'instant" : "just now";
     if (mins < 60) return fr ? `il y a ${mins} min` : `${mins} min ago`;

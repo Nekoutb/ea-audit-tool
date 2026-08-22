@@ -189,6 +189,7 @@ export function PaperWizard({
   }, [step, steps]);
   // if a resize shrinks the page count, stay on a valid step
   useLayoutEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- must clamp before paint or the vanished page flashes; the updater is a no-op when already valid
     setStep((s) => Math.min(s, Math.max(0, steps.length - 1)));
   }, [steps.length]);
   const soloEmbed = Boolean(embed && embedOnly);

@@ -12,6 +12,7 @@ export function ThemeToggle() {
 
   useEffect(() => {
     const current = document.documentElement.getAttribute("data-theme");
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- one-time mount sync with the attribute the pre-hydration script already set
     setTheme(current === "light" || current === "dark" ? current : "light");
   }, []);
 

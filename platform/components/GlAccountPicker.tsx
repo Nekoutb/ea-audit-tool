@@ -123,6 +123,7 @@ export function GlAccountPicker({
     setNotice(null);
   };
 
+  // eslint-disable-next-line react-hooks/refs -- `known` is a fetch-populated lookup cache; rendering the last known metadata for a code is the point
   const rows = selected.map((code) => known.current.get(code) ?? {
     account: code, name: null, lines: 0, entries: 0, debit: 0, credit: 0, signed: 0,
   });

@@ -219,6 +219,7 @@ export function GlConsole({
 
   useEffect(() => {
     if (!datasetId) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect -- guard path: no dataset means the console can never load; one sync render settles it
       setPhase("error");
       return;
     }
@@ -309,6 +310,7 @@ export function GlConsole({
 
   useEffect(() => {
     if (phase !== "ready" || tab !== "correlate" || !pair) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect -- guard path clearing stale correlation before the async fetch below
       setCorr(null);
       return;
     }
