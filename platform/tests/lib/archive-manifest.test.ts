@@ -111,6 +111,9 @@ interface Manifest {
 let engagementId: string;
 let tenantId: string;
 let userId: string;
+// A dev database offers a data-rich engagement; a fresh one (CI) offers
+// nothing, so the suite builds a minimal fixture and removes it after.
+let fixtureTenant: string | null = null;
 
 beforeAll(async () => {
   const row = await admin.query<{ id: string; tenant_id: string }>(
@@ -119,13 +122,43 @@ beforeAll(async () => {
       ORDER BY (SELECT count(*) FROM file_item fi WHERE fi.engagement_id = e.id) DESC
       LIMIT 1`,
   );
-  engagementId = row.rows[0].id;
-  tenantId = row.rows[0].tenant_id;
-  const u = await admin.query<{ id: string }>("SELECT id FROM app_user LIMIT 1");
+  if (row.rows[0]) {
+    engagementId = row.rows[0].id;
+    tenantId = row.rows[0].tenant_id;
+    const u = await admin.query<{ id: string }>("SELECT id FROM app_user LIMIT 1");
+    userId = u.rows[0].id;
+    return;
+  }
+  const t = await admin.query<{ id: string }>(
+    "INSERT INTO tenant (name, slug) VALUES ('Manifest Fixture Firm', 'manifest-fixture') RETURNING id",
+  );
+  fixtureTenant = t.rows[0].id;
+  tenantId = fixtureTenant;
+  const u = await admin.query<{ id: string }>(
+    "INSERT INTO app_user (email, name, password_hash) VALUES ('manifest@fixture.local', 'Manifest Fixture', 'x') RETURNING id",
+  );
   userId = u.rows[0].id;
+  const c = await admin.query<{ id: string }>(
+    "INSERT INTO client (tenant_id, name, legal_form) VALUES ($1, 'Manifest SA', 'SA') RETURNING id",
+    [tenantId],
+  );
+  const e = await admin.query<{ id: string }>(
+    "INSERT INTO engagement (tenant_id, client_id, fiscal_year, period_end) VALUES ($1, $2, 2025, '2025-12-31') RETURNING id",
+    [tenantId, c.rows[0].id],
+  );
+  engagementId = e.rows[0].id;
+  await admin.query(
+    `INSERT INTO file_item (tenant_id, engagement_id, code, section, title_en, title_fr, sort_order)
+     VALUES ($1, $2, 'P1.1', 'A', 'Fixture item', 'Élément de test', 1)`,
+    [tenantId, engagementId],
+  );
 }, 30_000);
 
 afterAll(async () => {
+  if (fixtureTenant) {
+    await admin.query("DELETE FROM tenant WHERE id = $1", [fixtureTenant]);
+    await admin.query("DELETE FROM app_user WHERE email = 'manifest@fixture.local'");
+  }
   await admin.end();
 });
 
