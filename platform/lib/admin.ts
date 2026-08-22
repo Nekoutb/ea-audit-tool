@@ -30,12 +30,14 @@ export interface FirmSummary {
   users: number;
   clients: number;
   engagements: number;
+  /** the operator-home tenant: cannot be deleted, hides the delete control */
+  protected: boolean;
 }
 
 export async function listFirms(): Promise<FirmSummary[]> {
   await requireSuper();
-  const tenants = await pool.query<{ id: string; name: string; slug: string; mail_local: string | null; created_at: string }>(
-    "SELECT id, name, slug, mail_local, to_char(created_at, 'YYYY-MM-DD') AS created_at FROM tenant ORDER BY created_at",
+  const tenants = await pool.query<{ id: string; name: string; slug: string; mail_local: string | null; created_at: string; protected: boolean }>(
+    "SELECT id, name, slug, mail_local, to_char(created_at, 'YYYY-MM-DD') AS created_at, coalesce(protected, false) AS protected FROM tenant ORDER BY created_at",
   );
   const members = await pool.query<{ tenant_id: string; n: string }>(
     "SELECT tenant_id, count(*)::text AS n FROM membership GROUP BY tenant_id",
@@ -59,6 +61,7 @@ export async function listFirms(): Promise<FirmSummary[]> {
       users: memberOf.get(t.id) ?? 0,
       clients: Number(counts.clients),
       engagements: Number(counts.engagements),
+      protected: t.protected,
     });
   }
   return out;
@@ -220,7 +223,7 @@ export async function deleteFirm(tenantId: string, confirmSlug: string): Promise
     await pool.query("SELECT admin_delete_firm($1)", [tenantId]);
   } catch (e) {
     const msg = e instanceof Error ? e.message : "";
-    if (["firm-not-found", "firm-has-archived-files", "firm-has-legal-hold", "firm-holds-operator-membership"].includes(msg)) {
+    if (["firm-not-found", "firm-has-archived-files", "firm-has-legal-hold", "firm-holds-operator-membership", "firm-protected"].includes(msg)) {
       throw new AdminError(msg);
     }
     throw e;

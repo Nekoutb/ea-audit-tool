@@ -100,6 +100,18 @@ describe("admin_delete_firm", () => {
     await admin.query("DELETE FROM app_user WHERE id = $1", [SUPER]);
   });
 
+  it("a protected tenant is undeletable by the function AND by raw owner SQL", async () => {
+    const P = "b8b8b8b8-b8b8-4b8b-8b8b-b8b8b8b8b820";
+    await admin.query("INSERT INTO tenant (id, name, slug, protected) VALUES ($1, 'Operator Home', 'op-home-test', true)", [P]);
+    await expect(app.query("SELECT admin_delete_firm($1)", [P])).rejects.toThrow("firm-protected");
+    await expect(admin.query("DELETE FROM tenant WHERE id = $1", [P])).rejects.toThrow("firm-protected");
+    // clearing the flag is the single deliberate way out
+    await admin.query("UPDATE tenant SET protected = false WHERE id = $1", [P]);
+    await admin.query("DELETE FROM tenant WHERE id = $1", [P]);
+    const gone = await admin.query("SELECT 1 FROM tenant WHERE id = $1", [P]);
+    expect(gone.rowCount).toBe(0);
+  });
+
   it("the app role still cannot DELETE tenant directly", async () => {
     // SQLSTATE 42501 (insufficient_privilege) — the message text is localized.
     const direct = await app

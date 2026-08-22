@@ -101,7 +101,11 @@ export default async function AdminPage(props: { searchParams: Promise<{ error?:
                   ? fr
                     ? "Suppression refusée : ce cabinet porte la seule appartenance de l'opérateur de la plateforme — rattachez d'abord son compte à un autre cabinet."
                     : "Deletion refused: this firm holds the platform operator's only membership — attach their account to another firm first."
-                  : error}
+                  : error === "firm-protected"
+                    ? fr
+                      ? "Suppression refusée : ce cabinet est protégé (hébergement de l'opérateur de la plateforme)."
+                      : "Deletion refused: this firm is protected (the platform operator's home)."
+                    : error}
         </p>
       ) : null}
       {ok ? (
@@ -154,6 +158,11 @@ export default async function AdminPage(props: { searchParams: Promise<{ error?:
                   <td className={`${td} tnum`}>{f.engagements}</td>
                   <td className={`${td} text-muted tnum`}>{f.createdAt}</td>
                   <td className={td}>
+                    {f.protected ? (
+                      <span className="text-[11px] font-semibold text-muted" data-testid={`protected-${f.slug}`}>
+                        {fr ? "🔒 Protégé — hébergement de l'opérateur" : "🔒 Protected — operator home"}
+                      </span>
+                    ) : (
                     <form action={deleteFirmAction} className="flex items-center gap-1.5">
                       <input type="hidden" name="tenantId" value={f.id} />
                       <input
@@ -173,6 +182,7 @@ export default async function AdminPage(props: { searchParams: Promise<{ error?:
                         {fr ? "Supprimer" : "Delete"}
                       </button>
                     </form>
+                    )}
                   </td>
                 </tr>
               ))}
