@@ -1,0 +1,521 @@
+<title>AuditISA — System Workflow & Architecture</title>
+<style>
+  :root {
+    --ground-a: #e6e9ed; --ground-b: #d3d8de; --ground-c: #c2c8d0;
+    --canvas: #dce0e5;
+    --panel: rgba(255,255,255,0.66);
+    --panel-solid: #f4f6f8;
+    --glass-border: rgba(255,255,255,0.7);
+    --ink: #191c21; --ink-soft: #2c333c; --muted: #565d68;
+    --line: rgba(24,28,33,0.1); --line-strong: rgba(24,28,33,0.18);
+    --accent: #0c7a58; --accent-ink: #075c42; --accent-soft: rgba(12,122,88,0.1);
+    --warn: #9a6a10; --warn-soft: rgba(154,106,16,0.12);
+    --rose: #a63d50; --rose-soft: rgba(166,61,80,0.11);
+    --info: #35507e; --info-soft: rgba(53,80,126,0.1);
+    --shadow: 0 1px 2px rgba(20,24,30,0.06), 0 14px 36px rgba(20,24,30,0.1);
+    --shadow-sm: 0 1px 2px rgba(20,24,30,0.07);
+    --r: 18px; --r-sm: 11px; --r-xs: 7px;
+    --mono: ui-monospace, "SF Mono", "Cascadia Code", Menlo, Consolas, monospace;
+    --sans: -apple-system, "SF Pro Text", system-ui, "Segoe UI", Roboto, sans-serif;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --ground-a: #14171b; --ground-b: #1b1e23; --ground-c: #0f1114;
+      --canvas: #131519;
+      --panel: rgba(40,44,51,0.55);
+      --panel-solid: #f4f6f8; /* diagrams stay on a light card even in dark */
+      --glass-border: rgba(255,255,255,0.09);
+      --ink: #eef1f5; --ink-soft: #c8d1de; --muted: #9aa4b2;
+      --line: rgba(255,255,255,0.08); --line-strong: rgba(255,255,255,0.16);
+      --accent: #4fc39a; --accent-ink: #7ad4b4; --accent-soft: rgba(79,195,154,0.13);
+      --warn: #dcae57; --warn-soft: rgba(220,174,87,0.14);
+      --rose: #e88a9b; --rose-soft: rgba(232,138,155,0.13);
+      --info: #8fa9df; --info-soft: rgba(143,169,223,0.14);
+      --shadow: 0 1px 2px rgba(0,0,0,0.4), 0 16px 40px rgba(0,0,0,0.5);
+      --shadow-sm: 0 1px 2px rgba(0,0,0,0.45);
+    }
+  }
+  :root[data-theme="dark"] {
+    --ground-a: #14171b; --ground-b: #1b1e23; --ground-c: #0f1114; --canvas: #131519;
+    --panel: rgba(40,44,51,0.55); --panel-solid: #f4f6f8; --glass-border: rgba(255,255,255,0.09);
+    --ink: #eef1f5; --ink-soft: #c8d1de; --muted: #9aa4b2;
+    --line: rgba(255,255,255,0.08); --line-strong: rgba(255,255,255,0.16);
+    --accent: #4fc39a; --accent-ink: #7ad4b4; --accent-soft: rgba(79,195,154,0.13);
+    --warn: #dcae57; --warn-soft: rgba(220,174,87,0.14);
+    --rose: #e88a9b; --rose-soft: rgba(232,138,155,0.13);
+    --info: #8fa9df; --info-soft: rgba(143,169,223,0.14);
+    --shadow: 0 1px 2px rgba(0,0,0,0.4), 0 16px 40px rgba(0,0,0,0.5);
+    --shadow-sm: 0 1px 2px rgba(0,0,0,0.45);
+  }
+  :root[data-theme="light"] {
+    --ground-a: #e6e9ed; --ground-b: #d3d8de; --ground-c: #c2c8d0; --canvas: #dce0e5;
+    --panel: rgba(255,255,255,0.66); --panel-solid: #f4f6f8; --glass-border: rgba(255,255,255,0.7);
+    --ink: #191c21; --ink-soft: #2c333c; --muted: #565d68;
+    --line: rgba(24,28,33,0.1); --line-strong: rgba(24,28,33,0.18);
+    --accent: #0c7a58; --accent-ink: #075c42; --accent-soft: rgba(12,122,88,0.1);
+    --warn: #9a6a10; --warn-soft: rgba(154,106,16,0.12);
+    --rose: #a63d50; --rose-soft: rgba(166,61,80,0.11);
+    --info: #35507e; --info-soft: rgba(53,80,126,0.1);
+    --shadow: 0 1px 2px rgba(20,24,30,0.06), 0 14px 36px rgba(20,24,30,0.1);
+    --shadow-sm: 0 1px 2px rgba(20,24,30,0.07);
+  }
+
+  * { box-sizing: border-box; }
+  html { scroll-behavior: smooth; scroll-padding-top: 20px; }
+  body {
+    margin: 0; color: var(--ink); font-family: var(--sans); line-height: 1.55;
+    -webkit-font-smoothing: antialiased;
+    background:
+      radial-gradient(1100px 520px at 10% -8%, var(--ground-a), transparent 60%),
+      radial-gradient(900px 600px at 110% 10%, var(--ground-c), transparent 55%),
+      linear-gradient(160deg, var(--ground-a), var(--ground-b) 55%, var(--ground-c)) fixed;
+    background-color: var(--canvas);
+  }
+  .shell { max-width: 1240px; margin: 0 auto; padding: 30px 22px 80px; display: grid; grid-template-columns: 224px 1fr; gap: 34px; }
+  @media (max-width: 900px) { .shell { grid-template-columns: 1fr; } nav.toc { position: static !important; max-height: none !important; } }
+
+  /* ---- sticky TOC ---- */
+  nav.toc { position: sticky; top: 20px; align-self: start; max-height: calc(100vh - 40px); overflow-y: auto;
+    font-size: 13px; padding: 16px; border-radius: var(--r);
+    background: var(--panel); backdrop-filter: blur(20px) saturate(1.4); -webkit-backdrop-filter: blur(20px) saturate(1.4);
+    border: 1px solid var(--glass-border); box-shadow: var(--shadow-sm); }
+  nav.toc .brand { display: flex; align-items: center; gap: 9px; font-weight: 800; letter-spacing: -0.02em; font-size: 15px; margin-bottom: 4px; }
+  nav.toc .dot { width: 22px; height: 22px; border-radius: 7px; background: linear-gradient(145deg, var(--accent), var(--accent-ink)); box-shadow: inset 0 1px 0 rgba(255,255,255,.4); flex-shrink: 0; }
+  nav.toc .sub { font-size: 11px; color: var(--muted); margin: 0 0 14px 31px; }
+  nav.toc a { display: block; color: var(--ink-soft); text-decoration: none; padding: 6px 10px; border-radius: var(--r-xs); font-weight: 550; transition: background .15s, color .15s; }
+  nav.toc a:hover { background: var(--accent-soft); color: var(--accent-ink); }
+  nav.toc a .n { color: var(--muted); font-variant-numeric: tabular-nums; font-weight: 700; margin-right: 7px; font-size: 11px; }
+
+  main { min-width: 0; }
+  header.hero { margin-bottom: 30px; }
+  .eyebrow { font-size: 11.5px; font-weight: 800; letter-spacing: 0.12em; text-transform: uppercase; color: var(--accent-ink); }
+  h1 { font-size: clamp(28px, 4vw, 40px); line-height: 1.08; letter-spacing: -0.03em; margin: 8px 0 10px; text-wrap: balance; }
+  header.hero p.lede { font-size: 16px; color: var(--ink-soft); max-width: 64ch; margin: 0; }
+  .meta-row { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 16px; }
+  .pill { font-size: 11.5px; font-weight: 650; padding: 5px 11px; border-radius: 999px; background: var(--panel); border: 1px solid var(--glass-border); color: var(--ink-soft); }
+  .pill b { color: var(--accent-ink); }
+
+  section.block { margin-bottom: 34px; scroll-margin-top: 20px; }
+  h2 { font-size: 22px; letter-spacing: -0.02em; margin: 0 0 4px; display: flex; align-items: baseline; gap: 11px; }
+  h2 .n { font-size: 14px; font-weight: 800; color: var(--accent-ink); font-variant-numeric: tabular-nums; }
+  .block > p.intro { color: var(--ink-soft); margin: 0 0 16px; max-width: 70ch; }
+
+  .card { background: var(--panel); backdrop-filter: blur(20px) saturate(1.4); -webkit-backdrop-filter: blur(20px) saturate(1.4);
+    border: 1px solid var(--glass-border); border-radius: var(--r); box-shadow: var(--shadow); padding: 20px; margin-bottom: 16px; }
+  .card h3 { margin: 0 0 12px; font-size: 14px; letter-spacing: -0.01em; }
+  .diagram { background: var(--panel-solid); border: 1px solid var(--line); border-radius: var(--r-sm); padding: 14px; overflow-x: auto; }
+  .diagram pre.mermaid { margin: 0; text-align: center; min-width: 0; }
+  .cap { font-size: 12px; color: var(--muted); margin: 10px 2px 0; }
+
+  /* gate / rule cards */
+  .grid2 { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 12px; }
+  .gate { border: 1px solid var(--line); border-radius: var(--r-sm); padding: 14px 15px; background: var(--panel); }
+  .gate .hd { display: flex; align-items: center; gap: 8px; font-weight: 750; font-size: 13.5px; margin-bottom: 6px; }
+  .gate .step { font-size: 10.5px; font-weight: 800; padding: 2px 8px; border-radius: 999px; letter-spacing: 0.03em; white-space: nowrap; }
+  .s-acc { background: var(--accent-soft); color: var(--accent-ink); }
+  .s-warn { background: var(--warn-soft); color: var(--warn); }
+  .s-rose { background: var(--rose-soft); color: var(--rose); }
+  .s-info { background: var(--info-soft); color: var(--info); }
+  .gate ul { margin: 4px 0 0; padding-left: 16px; font-size: 12.5px; color: var(--ink-soft); }
+  .gate ul li { margin: 3px 0; }
+  code, .k { font-family: var(--mono); font-size: 0.86em; background: var(--accent-soft); color: var(--accent-ink); padding: 1px 5px; border-radius: 5px; }
+  .gate code { background: var(--line); color: var(--ink-soft); }
+
+  table.inv { width: 100%; border-collapse: collapse; font-size: 12.5px; }
+  table.inv th { text-align: left; padding: 9px 10px; font-size: 10.5px; text-transform: uppercase; letter-spacing: 0.06em; color: var(--muted); border-bottom: 1px solid var(--line-strong); font-weight: 800; }
+  table.inv td { padding: 8px 10px; border-bottom: 1px solid var(--line); vertical-align: top; color: var(--ink-soft); }
+  table.inv td:first-child { font-family: var(--mono); font-size: 11.5px; color: var(--ink); white-space: nowrap; }
+  table.inv tr:hover td { background: var(--accent-soft); }
+  .tag { display: inline-block; font-size: 10px; font-weight: 700; padding: 1px 7px; border-radius: 999px; }
+
+  .legend { display: flex; flex-wrap: wrap; gap: 14px; margin-top: 12px; font-size: 12px; color: var(--muted); }
+  .legend span { display: inline-flex; align-items: center; gap: 6px; }
+  .swatch { width: 12px; height: 12px; border-radius: 4px; }
+
+  .callout { border-left: 3px solid var(--accent); background: var(--accent-soft); border-radius: 0 var(--r-sm) var(--r-sm) 0; padding: 12px 15px; font-size: 13px; color: var(--ink-soft); margin: 14px 0; }
+  .callout b { color: var(--accent-ink); }
+  footer { margin-top: 40px; padding-top: 18px; border-top: 1px solid var(--line); font-size: 12px; color: var(--muted); }
+</style>
+
+<div class="shell">
+  <nav class="toc">
+    <div class="brand"><span class="dot"></span>AuditISA</div>
+    <p class="sub">System workflow & architecture</p>
+    <a href="#overview"><span class="n">01</span>System at a glance</a>
+    <a href="#entry"><span class="n">02</span>Entry & authentication</a>
+    <a href="#navmap"><span class="n">03</span>Navigation map</a>
+    <a href="#hierarchy"><span class="n">04</span>Task hierarchy (4 levels)</a>
+    <a href="#lifecycle"><span class="n">05</span>Engagement lifecycle & gates</a>
+    <a href="#signoff"><span class="n">06</span>Document sign-off engine</a>
+    <a href="#datamodel"><span class="n">07</span>Data model</a>
+    <a href="#tenancy"><span class="n">08</span>Multi-tenancy & security</a>
+    <a href="#inventory"><span class="n">09</span>Full page inventory</a>
+  </nav>
+
+  <main>
+    <header class="hero">
+      <div class="eyebrow">Reference · built from the live codebase</div>
+      <h1>How the system flows, end to end</h1>
+      <p class="lede">Every page, its interdependencies, the state machines that gate progress, and the data model beneath them — the substrate the UI is built on. Each rule below is drawn from the actual code, not a sketch.</p>
+      <div class="meta-row">
+        <span class="pill"><b>34</b> pages</span>
+        <span class="pill"><b>9</b> API routes</span>
+        <span class="pill"><b>5</b> lifecycle phases</span>
+        <span class="pill"><b>4</b> roles</span>
+        <span class="pill">Next.js · PostgreSQL RLS · multi-tenant</span>
+      </div>
+    </header>
+
+    <!-- ===== 01 OVERVIEW ===== -->
+    <section class="block" id="overview">
+      <h2><span class="n">01</span> System at a glance</h2>
+      <p class="intro">Five layers, top to bottom. A request enters at the gate, resolves to a workspace, and drills down to a single working paper that carries its own approval state. Everything is scoped to one firm (tenant) by the database itself.</p>
+      <div class="card">
+        <div class="diagram">
+          <pre class="mermaid">
+%%{init: {'theme':'base','themeVariables':{'fontFamily':'system-ui','primaryColor':'#eef2f4','primaryTextColor':'#191c21','primaryBorderColor':'#0c7a58','lineColor':'#565d68','fontSize':'14px'}}}%%
+flowchart TD
+  A["① Entry &amp; Auth<br/><small>/ · /login · session gate</small>"] --> B["② Portfolio<br/><small>/dashboard · /engagements · /clients</small>"]
+  B --> C["③ Engagement workspace<br/><small>/engagements/:id/dashboard — the hub</small>"]
+  C --> D["④ Section → Group → Task<br/><small>progressive drill-down</small>"]
+  D --> E["⑤ Working paper + sign-off<br/><small>/documents/:id</small>"]
+  E -. "locks &amp; feeds progress back up" .-> C
+  classDef l fill:#eef2f4,stroke:#0c7a58,stroke-width:1.5px,color:#191c21;
+  class A,B,C,D,E l;
+          </pre>
+        </div>
+        <p class="cap">The spine. Each layer expands in the sections below.</p>
+      </div>
+    </section>
+
+    <!-- ===== 02 ENTRY ===== -->
+    <section class="block" id="entry">
+      <h2><span class="n">02</span> Entry & authentication</h2>
+      <p class="intro">The front door. <code>/</code> is a pure auth gate with a smart redirect — a returning user lands straight on the engagement they last touched, never a cold start.</p>
+      <div class="card">
+        <div class="diagram">
+          <pre class="mermaid">
+%%{init: {'theme':'base','themeVariables':{'fontFamily':'system-ui','primaryColor':'#eef2f4','primaryTextColor':'#191c21','primaryBorderColor':'#0c7a58','lineColor':'#565d68','fontSize':'14px'}}}%%
+flowchart TD
+  V([Visitor]) --> ROOT{"/ — auth()"}
+  ROOT -->|no session| LOGIN["/login<br/><small>credentials form</small>"]
+  LOGIN -->|sign in| ROOT
+  ROOT -->|session + recent engagement| ED["/engagements/:id/dashboard<br/><small>last-worked hub</small>"]
+  ROOT -->|session, no engagement yet| PD["/dashboard<br/><small>portfolio overview</small>"]
+  classDef g fill:#eef2f4,stroke:#0c7a58,stroke-width:1.4px,color:#191c21;
+  classDef d fill:#f4ede0,stroke:#9a6a10,stroke-width:1.4px,color:#191c21;
+  class LOGIN,ED,PD g; class ROOT d;
+          </pre>
+        </div>
+        <p class="cap">Four roles govern everything downstream: <span class="k">firm_admin</span> · <span class="k">partner</span> · <span class="k">reviewer</span> · <span class="k">preparer</span>. Sign-off authority and admin screens key off these.</p>
+      </div>
+    </section>
+
+    <!-- ===== 03 NAV MAP ===== -->
+    <section class="block" id="navmap">
+      <h2><span class="n">03</span> Navigation map</h2>
+      <p class="intro">The whole site as a link graph, grouped into clusters. Solid arrows are the primary spine; the engagement workspace fans out from a single hub.</p>
+      <div class="card">
+        <div class="diagram">
+          <pre class="mermaid">
+%%{init: {'theme':'base','themeVariables':{'fontFamily':'system-ui','primaryColor':'#eef2f4','primaryTextColor':'#191c21','primaryBorderColor':'#0c7a58','lineColor':'#565d68','fontSize':'13px'}}}%%
+flowchart LR
+  LOGIN["/login"]
+
+  subgraph PORT["Portfolio level"]
+    direction TB
+    PDASH["/dashboard"]
+    ENGS["/engagements"]
+    NEW["/new-engagement"]
+    CLI["/clients"]
+    CLID["/clients/:id"]
+  end
+
+  subgraph WORK["Engagement workspace"]
+    direction TB
+    HUB["/:id/dashboard<br/>(hub)"]
+    GRP["/:id/groups/:group"]
+    TASK["/:id/forms/:code"]
+    SEC["/:id/sections/:itemId"]
+    DOC["/documents/:id"]
+  end
+
+  subgraph WS["Phase workspaces (tab bar)"]
+    direction TB
+    ACC["acceptance"]
+    PLAN["planning"]
+    CONC["conclusion"]
+    REG["risks · findings · confirmations<br/>pbc · legal · data · analytics"]
+  end
+
+  LOGIN --> PDASH & ENGS & CLI
+  ENGS --> NEW --> HUB
+  ENGS --> HUB
+  CLI --> CLID --> HUB
+  PDASH -.-> REG
+  HUB --> GRP --> TASK --> DOC
+  HUB --> WS
+  ACC --> TASK
+  PLAN --> SEC
+  SEC --> DOC
+
+  classDef p fill:#eef2f4,stroke:#0c7a58,stroke-width:1.3px,color:#191c21;
+  classDef h fill:#e0efe9,stroke:#0c7a58,stroke-width:2px,color:#191c21;
+  class PDASH,ENGS,NEW,CLI,CLID,GRP,TASK,SEC,DOC,ACC,PLAN,CONC,REG p;
+  class HUB h;
+          </pre>
+        </div>
+        <div class="legend">
+          <span><span class="swatch" style="background:#e0efe9;border:1.5px solid var(--accent)"></span> The hub — everything routes through it</span>
+          <span><span class="swatch" style="background:#eef2f4;border:1px solid var(--accent)"></span> Standard page</span>
+          <span>— primary link · ⋯ contextual link</span>
+        </div>
+        <div class="callout"><b>Design note for the UI:</b> the workspace is deliberately hub-and-spoke. The engagement dashboard is the one screen a user always returns to; the phase-workspace tab bar and the section-rail are two parallel ways into the same tasks. Both a group row (new IA) and a phase row (legacy) resolve to the same task/document targets.</div>
+      </div>
+    </section>
+
+    <!-- ===== 04 HIERARCHY ===== -->
+    <section class="block" id="hierarchy">
+      <h2><span class="n">04</span> Task hierarchy — four levels of disclosure</h2>
+      <p class="intro">The core information architecture. A firm never sees a flat task dump; each level reveals only completion, and the detail lives one click deeper. This is what the section-rail on the dashboard drives.</p>
+      <div class="card">
+        <div class="diagram">
+          <pre class="mermaid">
+%%{init: {'theme':'base','themeVariables':{'fontFamily':'system-ui','primaryColor':'#eef2f4','primaryTextColor':'#191c21','primaryBorderColor':'#0c7a58','lineColor':'#565d68','fontSize':'13px'}}}%%
+flowchart TD
+  ENG["Engagement<br/><small>overall %</small>"]
+  ENG --> S1["§ Planning &amp; Strategy (ST)<br/><small>ring + %</small>"]
+  ENG --> S2["§ Execution (E)<br/><small>ring + %</small>"]
+  ENG --> S3["§ Conclusion (C)<br/><small>ring + %</small>"]
+  S2 --> G1["Group E1 · Significant Transaction Classes"]
+  S2 --> G2["Group E2 · IT"]
+  S2 --> G3["Group E3 · Accounts"]
+  S2 --> Gx["Group E4 · General · E5 · Response"]
+  G1 --> T1["Task E1.1 · Revenue<br/><small>= a file_item</small>"]
+  G1 --> T2["Task E1.2 · Purchases"]
+  T1 --> D["Working paper (document)"]
+  D --> SO["Sign-off: P → R"]
+  classDef s fill:#e0efe9,stroke:#0c7a58,stroke-width:1.6px,color:#191c21;
+  classDef g fill:#eef2f4,stroke:#0c7a58,stroke-width:1.2px,color:#191c21;
+  classDef t fill:#f4ede0,stroke:#9a6a10,stroke-width:1.2px,color:#191c21;
+  class S1,S2,S3 s; class G1,G2,G3,Gx g; class T1,T2,D,SO t;
+          </pre>
+        </div>
+        <p class="cap"><b>Level rule:</b> Dashboard shows sections + group completion only. Detail tasks appear <em>only</em> on the group page. Internally each task keeps its original storage code (<code>E100</code>, <code>D3.1</code>…); the <code>ST/E/C</code> codes are a presentation layer — so documents, sign-offs and history never move.</p>
+      </div>
+    </section>
+
+    <!-- ===== 05 LIFECYCLE ===== -->
+    <section class="block" id="lifecycle">
+      <h2><span class="n">05</span> Engagement lifecycle & the gates between phases</h2>
+      <p class="intro">An engagement is a state machine. It cannot skip a phase, and each transition is a <b>single locked transaction</b> that checks its gates and mutates the phase together — no half-advances, no races. These are the real conditions the code enforces.</p>
+      <div class="card">
+        <div class="diagram">
+          <pre class="mermaid">
+%%{init: {'theme':'base','themeVariables':{'fontFamily':'system-ui','primaryColor':'#eef2f4','primaryTextColor':'#191c21','primaryBorderColor':'#0c7a58','lineColor':'#565d68','fontSize':'13px'}}}%%
+stateDiagram-v2
+  direction LR
+  [*] --> acceptance
+  acceptance --> planning: advanceToPlanning() ▸ 4 gates
+  planning --> execution: closePlanning() ▸ 6 gates + snapshot
+  execution --> conclusion: issueReport() ▸ 11 gates + report date
+  conclusion --> execution: reopen (allowed)
+  conclusion --> archived: archive() ▸ report issued
+  archived --> [*]
+  note right of conclusion : rollforward() spawns\nthe next year's engagement
+          </pre>
+        </div>
+        <div class="grid2" style="margin-top:16px">
+          <div class="gate">
+            <div class="hd"><span class="step s-acc">Acceptance → Planning</span></div>
+            <ul>
+              <li><b>D3.1 form complete</b> & conclusion = <code>accept</code></li>
+              <li><b>D3.1 partner-signed</b> (on the workpaper)</li>
+              <li><b>Independence complete</b> — campaign exists, every confirmation returned</li>
+              <li><b>Exceptions disposed</b> — no undisposed independence exception</li>
+            </ul>
+          </div>
+          <div class="gate">
+            <div class="hd"><span class="step s-warn">Planning → Execution</span></div>
+            <ul>
+              <li><b>Materiality approved</b> (latest version)</li>
+              <li><b>D6.1, D7.1, D7.2 partner-signed</b></li>
+              <li><b>Significant risks linked</b> — each non-rebutted significant risk has ≥1 program step</li>
+              <li><b>Rebuttals approved</b></li>
+              <li><b>Stand-back</b> — every material section covered by a step</li>
+              <li>→ takes a <code>planning_snapshot</code></li>
+            </ul>
+          </div>
+          <div class="gate">
+            <div class="hd"><span class="step s-rose">Execution → Conclusion</span></div>
+            <ul>
+              <li><b>All sections concluded</b>, no step left <code>planned</code></li>
+              <li><b>All risks concluded</b>; late risks approved</li>
+              <li><b>B5 within materiality</b> (uncorrected misstatements)</li>
+              <li><b>Final analytics · FS tie-out · disclosure · subsequent events · partner conclusion</b> recorded</li>
+              <li><b>≥2 rep letters</b> · B4 cleared · confirmations closed</li>
+              <li>→ stamps <code>report_date</code> (starts 60-day clock)</li>
+            </ul>
+          </div>
+          <div class="gate">
+            <div class="hd"><span class="step s-info">Conclusion → Archived</span></div>
+            <ul>
+              <li><b>Report issued</b> (<code>report_date</code> set)</li>
+              <li>Writes an <code>archive_manifest</code> snapshot</li>
+              <li>Sets <code>archived_at</code> — the file becomes <b>immutable</b> (documents can no longer be checked out or edited)</li>
+            </ul>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ===== 06 SIGN-OFF ===== -->
+    <section class="block" id="signoff">
+      <h2><span class="n">06</span> Document sign-off engine</h2>
+      <p class="intro">Every working paper carries its own approval state. This is the two-stage minimum (preparer, then reviewer/partner) that underpins the whole audit trail. A reviewer sign-off <b>locks</b> the paper; reopening voids the sign-offs and notifies the signers.</p>
+      <div class="card">
+        <div class="diagram">
+          <pre class="mermaid">
+%%{init: {'theme':'base','themeVariables':{'fontFamily':'system-ui','primaryColor':'#eef2f4','primaryTextColor':'#191c21','primaryBorderColor':'#0c7a58','lineColor':'#565d68','fontSize':'13px'}}}%%
+stateDiagram-v2
+  direction LR
+  [*] --> draft: generateDocument()
+  draft --> draft: check-out / check-in\n(new immutable version)
+  draft --> preparer_signed: sign(preparer)
+  preparer_signed --> signed: sign(reviewer / partner)
+  signed --> draft: reopen(reason)\nvoids sign-offs
+  signed --> [*]: locked
+  note right of preparer_signed : blocked if any\nreview note is open
+  note right of signed : status = 'signed'\nLOCKED
+          </pre>
+        </div>
+        <div class="grid2" style="margin-top:16px">
+          <div class="gate">
+            <div class="hd">🔒 The rules the engine enforces</div>
+            <ul>
+              <li><b>preparer-first</b> — reviewer/partner cannot sign before the preparer</li>
+              <li><b>open-notes</b> — an open review note blocks all higher sign-offs</li>
+              <li><b>signed-locked</b> — a signed paper is read-only until reopened</li>
+              <li><b>checked-out</b> — must be checked in before signing</li>
+              <li><b>already-signed</b> — one active sign-off per role</li>
+              <li><b>role authority</b> — reviewer needs ≥ senior, partner needs ≥ partner</li>
+            </ul>
+          </div>
+          <div class="gate">
+            <div class="hd">🧾 What's permanent</div>
+            <ul>
+              <li>Bytes live in immutable <code>document_version</code> rows — history is never rewritten</li>
+              <li><code>restoreVersion</code> copies an old version <em>forward</em> as a new one</li>
+              <li>Each version is <code>sha256</code>-hashed; the template used is stamped into the version note</li>
+              <li>Reopen records a reason and voids sign-offs with an audit stamp</li>
+            </ul>
+          </div>
+        </div>
+        <div class="callout"><b>"Save & hand off"</b> on a task page runs this whole chain in one click: save fields → generate the document if needed → sign as preparer → record activity → return to the group.</div>
+      </div>
+    </section>
+
+    <!-- ===== 07 DATA MODEL ===== -->
+    <section class="block" id="datamodel">
+      <h2><span class="n">07</span> Data model — the containment chain</h2>
+      <p class="intro">One firm owns everything beneath it. The spine is <span class="k">tenant → client → engagement → file_item → document → signoff</span>; the registers (risk, materiality, findings, confirmations…) hang off the engagement.</p>
+      <div class="card">
+        <div class="diagram">
+          <pre class="mermaid">
+%%{init: {'theme':'base','themeVariables':{'fontFamily':'system-ui','primaryColor':'#eef2f4','primaryTextColor':'#191c21','primaryBorderColor':'#0c7a58','lineColor':'#565d68','fontSize':'12px'}}}%%
+erDiagram
+  tenant ||--o{ client : owns
+  tenant ||--o{ membership : "users"
+  client ||--o{ engagement : "per fiscal year"
+  engagement ||--o{ file_item : "A–F index = tasks"
+  engagement ||--o{ team_member : ""
+  engagement ||--o{ materiality : "versioned"
+  engagement ||--o{ risk : "register"
+  engagement ||--o{ program_step : ""
+  engagement ||--o{ finding : ""
+  engagement ||--o{ confirmation : ""
+  engagement ||--o{ completion_record : ""
+  file_item ||--o| document : "workpaper"
+  document ||--o{ document_version : "immutable bytes"
+  document ||--o{ signoff : "P / R / partner"
+  document ||--o{ review_note : "open / cleared"
+  risk ||--o{ risk_response : "must link"
+  program_step ||--o{ risk_response : ""
+  program_step ||--o{ evidence : ""
+          </pre>
+        </div>
+        <p class="cap">Every tenant-scoped table carries <code>tenant_id</code> with cascade delete. <code>risk_response</code> is the mandatory two-way link that makes "every significant risk has a response" enforceable at a gate.</p>
+      </div>
+    </section>
+
+    <!-- ===== 08 TENANCY ===== -->
+    <section class="block" id="tenancy">
+      <h2><span class="n">08</span> Multi-tenancy & security</h2>
+      <p class="intro">Isolation is enforced by the database, not by application code remembering to filter — the safest possible default.</p>
+      <div class="grid2">
+        <div class="card" style="margin:0">
+          <h3>Row-Level Security (fail-closed)</h3>
+          <p style="font-size:13px;color:var(--ink-soft);margin:0 0 8px">Every query runs inside <code>withTenant()</code>, which sets a transaction-local <code>app.tenant_id</code>. Each table has <code>FORCE ROW LEVEL SECURITY</code> with a policy that only matches that id.</p>
+          <p style="font-size:13px;color:var(--ink-soft);margin:0">If the context is ever unset, the comparison is <code>NULL</code> and <b>no rows are visible</b> — the table fails closed rather than leaking.</p>
+        </div>
+        <div class="card" style="margin:0">
+          <h3>Least privilege</h3>
+          <p style="font-size:13px;color:var(--ink-soft);margin:0 0 8px">The app connects as a non-owner role (<code>ea_app</code>) because owners/superusers bypass RLS.</p>
+          <p style="font-size:13px;color:var(--ink-soft);margin:0"><code>tenant</code>, <code>app_user</code> and <code>membership</code> sit outside RLS — they're read during authentication, before a tenant context exists, and are scoped by user id in code.</p>
+        </div>
+      </div>
+    </section>
+
+    <!-- ===== 09 INVENTORY ===== -->
+    <section class="block" id="inventory">
+      <h2><span class="n">09</span> Full page inventory</h2>
+      <p class="intro">All 34 pages, by cluster, with the primary purpose of each. This is the checklist for the UI build.</p>
+      <div class="card">
+        <table class="inv">
+          <thead><tr><th>Route</th><th>Cluster</th><th>Purpose</th></tr></thead>
+          <tbody>
+            <tr><td>/</td><td><span class="tag s-info">auth</span></td><td>Auth gate → smart redirect to last engagement</td></tr>
+            <tr><td>/login</td><td><span class="tag s-info">auth</span></td><td>Sign-in form</td></tr>
+            <tr><td>/dashboard</td><td><span class="tag s-acc">portfolio</span></td><td>Firm-wide overview: phases, workload, deadlines, risk exposure</td></tr>
+            <tr><td>/engagements</td><td><span class="tag s-acc">portfolio</span></td><td>List of all engagements</td></tr>
+            <tr><td>/new-engagement</td><td><span class="tag s-acc">portfolio</span></td><td>Creation wizard: identity + complexity assessment + partner</td></tr>
+            <tr><td>/clients</td><td><span class="tag s-acc">portfolio</span></td><td>Client list + create client</td></tr>
+            <tr><td>/clients/:id</td><td><span class="tag s-acc">portfolio</span></td><td>One client's engagements + PBC portal contacts</td></tr>
+            <tr><td>/engagements/:id/dashboard</td><td><span class="tag s-acc">workspace</span></td><td><b>The hub</b> — section rail, attention queue, summary tiles</td></tr>
+            <tr><td>/engagements/:id</td><td><span class="tag s-acc">workspace</span></td><td>Full A–F file index (not in tab bar)</td></tr>
+            <tr><td>/engagements/:id/groups/:group</td><td><span class="tag s-acc">workspace</span></td><td>A group's detail tasks (only place they're listed)</td></tr>
+            <tr><td>/engagements/:id/phases/:phase</td><td><span class="tag s-acc">workspace</span></td><td>Legacy phase task table (parallel route)</td></tr>
+            <tr><td>/engagements/:id/forms/:code</td><td><span class="tag s-acc">workspace</span></td><td>Single task editor: fields, sign-off footer, review notes</td></tr>
+            <tr><td>/engagements/:id/sections/:itemId</td><td><span class="tag s-acc">workspace</span></td><td>Section workpaper: program steps, engines, conclusion</td></tr>
+            <tr><td>/engagements/:id/acceptance</td><td><span class="tag s-warn">phase</span></td><td>Acceptance & continuance, independence, letters, mandate</td></tr>
+            <tr><td>/engagements/:id/planning</td><td><span class="tag s-warn">phase</span></td><td>Risk-driver matrix, materiality versions</td></tr>
+            <tr><td>/engagements/:id/considerations</td><td><span class="tag s-warn">phase</span></td><td>Merged D4.5–D4.9 conditional forms</td></tr>
+            <tr><td>/engagements/:id/risks</td><td><span class="tag s-warn">register</span></td><td>Risk register (D7.2)</td></tr>
+            <tr><td>/engagements/:id/data</td><td><span class="tag s-warn">register</span></td><td>Trial balance / subledgers / lead schedules</td></tr>
+            <tr><td>/engagements/:id/analytics</td><td><span class="tag s-warn">register</span></td><td>Analytics workspace</td></tr>
+            <tr><td>/engagements/:id/confirmations</td><td><span class="tag s-warn">register</span></td><td>External confirmations register</td></tr>
+            <tr><td>/engagements/:id/pbc</td><td><span class="tag s-warn">register</span></td><td>PBC request register (firm side)</td></tr>
+            <tr><td>/engagements/:id/legal</td><td><span class="tag s-warn">register</span></td><td>OHADA legal / statutory deadlines</td></tr>
+            <tr><td>/engagements/:id/conclusion</td><td><span class="tag s-warn">phase</span></td><td>Conclusion phase: completion gates, opinion</td></tr>
+            <tr><td>/engagements/:id/findings</td><td><span class="tag s-warn">register</span></td><td>B5 uncorrected misstatements / findings</td></tr>
+            <tr><td>/engagements/:id/activity</td><td><span class="tag s-acc">panel</span></td><td>Audit-trail timeline</td></tr>
+            <tr><td>/engagements/:id/time</td><td><span class="tag s-acc">panel</span></td><td>Time tracking</td></tr>
+            <tr><td>/engagements/:id/discussion</td><td><span class="tag s-acc">panel</span></td><td>Team discussion thread (@mentions)</td></tr>
+            <tr><td>/documents/:id</td><td><span class="tag s-rose">document</span></td><td>Working-paper viewer: checkout, sign, versions, notes</td></tr>
+            <tr><td>/settings</td><td><span class="tag s-info">admin</span></td><td>Branding, language, integrations</td></tr>
+            <tr><td>/users</td><td><span class="tag s-info">admin</span></td><td>User & role admin (firm-admin only)</td></tr>
+            <tr><td>/resources</td><td><span class="tag s-info">admin</span></td><td>Team-workload table</td></tr>
+            <tr><td>/templates · /templates/:code</td><td><span class="tag s-info">admin</span></td><td>Firm workpaper-template overrides</td></tr>
+            <tr><td>/notifications</td><td><span class="tag s-info">admin</span></td><td>Notification inbox</td></tr>
+            <tr><td>/portal</td><td><span class="tag s-rose">external</span></td><td>Client PBC upload portal (restricted role)</td></tr>
+            <tr><td>/independence/:token</td><td><span class="tag s-rose">external</span></td><td>Token-scoped independence questionnaire</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <footer>
+      Generated from the live codebase (routes, server actions, migrations). Rules reflect the actual gate conditions and sign-off logic in <code>lib/gates.ts</code>, <code>lib/completion.ts</code>, <code>lib/documents.ts</code>. Diagrams are the map; the code is the territory.
+    </footer>
+  </main>
+</div>

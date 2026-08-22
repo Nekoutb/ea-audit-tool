@@ -1,0 +1,424 @@
+<title>AuditISA · Design canvas — task page</title>
+<style>
+  :root{
+    --canvas:#eef1f6; --surface:#ffffff; --surface-2:#f6f8fb;
+    --ink:#111827; --ink-soft:#3a4658; --muted:#67728a;
+    --line:#e3e8f0; --line-strong:#d3dbe7;
+    --emer:#0f7a52; --emer-soft:#e6f3ec; --emer-ink:#0b5c3e;
+    --indigo:#3b4d8f; --indigo-soft:#e9ecf9;
+    --warn:#a86f12; --warn-soft:#f7edd8;
+    --rose:#b23c4f; --rose-soft:#f7e7ea;
+    --sh:0 1px 2px rgba(17,24,39,.05),0 10px 28px rgba(20,45,90,.08);
+    --sans:"Segoe UI",system-ui,-apple-system,Roboto,Arial,sans-serif;
+    --r:14px; --r-sm:10px; --r-xs:7px;
+    --ctrl:#0f7a52;
+  }
+  @media (prefers-color-scheme:dark){:root{
+    --canvas:#0c1017; --surface:#141b26; --surface-2:#101722;
+    --ink:#eaeff7; --ink-soft:#b9c3d3; --muted:#8492a6;
+    --line:#232d3c; --line-strong:#2f3b4d;
+    --emer:#3fbf8a; --emer-soft:#12241d; --emer-ink:#7fe0bb;
+    --indigo:#8ea3e6; --indigo-soft:#1a2138;
+    --warn:#e0b054; --warn-soft:#2a2113; --rose:#ef7a8b; --rose-soft:#2b171b;
+    --sh:0 1px 2px rgba(0,0,0,.4),0 14px 34px rgba(0,0,0,.45);
+  }}
+  :root[data-theme="dark"]{
+    --canvas:#0c1017; --surface:#141b26; --surface-2:#101722;
+    --ink:#eaeff7; --ink-soft:#b9c3d3; --muted:#8492a6;
+    --line:#232d3c; --line-strong:#2f3b4d;
+    --emer:#3fbf8a; --emer-soft:#12241d; --emer-ink:#7fe0bb;
+    --indigo:#8ea3e6; --indigo-soft:#1a2138;
+    --warn:#e0b054; --warn-soft:#2a2113; --rose:#ef7a8b; --rose-soft:#2b171b;
+    --sh:0 1px 2px rgba(0,0,0,.4),0 14px 34px rgba(0,0,0,.45);
+  }
+  :root[data-theme="light"]{
+    --canvas:#eef1f6; --surface:#ffffff; --surface-2:#f6f8fb;
+    --ink:#111827; --ink-soft:#3a4658; --muted:#67728a;
+    --line:#e3e8f0; --line-strong:#d3dbe7;
+    --emer:#0f7a52; --emer-soft:#e6f3ec; --emer-ink:#0b5c3e;
+    --indigo:#3b4d8f; --indigo-soft:#e9ecf9;
+    --warn:#a86f12; --warn-soft:#f7edd8; --rose:#b23c4f; --rose-soft:#f7e7ea;
+    --sh:0 1px 2px rgba(17,24,39,.05),0 10px 28px rgba(20,45,90,.08);
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{background:var(--canvas);color:var(--ink);font-family:var(--sans);line-height:1.5;-webkit-font-smoothing:antialiased}
+  .tnum{font-variant-numeric:tabular-nums}
+
+  /* ===== top instruction bar ===== */
+  .howto{position:sticky;top:0;z-index:50;background:var(--surface);border-bottom:1px solid var(--line-strong);box-shadow:var(--sh)}
+  .howto-in{max-width:1080px;margin:0 auto;padding:12px 20px;display:flex;flex-wrap:wrap;align-items:center;gap:10px 18px}
+  .howto b{color:var(--emer)}
+  .howto .hint{font-size:12.5px;color:var(--ink-soft)}
+  .howto .actions{margin-left:auto;display:flex;gap:8px}
+  .btn{font-family:inherit;font-size:12.5px;font-weight:700;padding:8px 14px;border-radius:999px;border:1px solid var(--line-strong);background:var(--surface);color:var(--ink-soft);cursor:pointer}
+  .btn:hover{background:var(--surface-2)}
+  .btn.primary{background:var(--emer);border-color:var(--emer);color:#fff}
+  .btn.primary:hover{filter:brightness(1.07)}
+
+  .wrap{max-width:1080px;margin:0 auto;padding:26px 20px 90px}
+
+  /* ===== block chrome (the design controls) ===== */
+  .block{position:relative;margin-top:18px;border-radius:calc(var(--r) + 6px);transition:box-shadow .15s}
+  .block.hidden-block .content{opacity:.28;filter:grayscale(.7)}
+  .block:hover{outline:2px dashed color-mix(in srgb,var(--ctrl) 45%,transparent);outline-offset:6px}
+  .chrome{position:absolute;right:0;top:-13px;z-index:10;display:flex;gap:4px;opacity:0;transition:opacity .12s}
+  .block:hover .chrome,.block.noted .chrome{opacity:1}
+  .chip-btn{font-family:inherit;font-size:11px;font-weight:800;padding:4px 9px;border-radius:999px;border:1px solid var(--line-strong);background:var(--surface);color:var(--ink-soft);cursor:pointer;box-shadow:var(--sh)}
+  .chip-btn:hover{background:var(--surface-2)}
+  .chip-btn.v{color:var(--indigo)}
+  .blocklabel{position:absolute;left:0;top:-13px;z-index:10;font-size:10px;font-weight:800;letter-spacing:.06em;text-transform:uppercase;color:#fff;background:var(--ctrl);padding:3px 9px;border-radius:999px;opacity:0;transition:opacity .12s}
+  .block:hover .blocklabel{opacity:1}
+  .note{display:none;margin-top:8px;border:1.5px dashed var(--warn);background:var(--warn-soft);border-radius:var(--r-sm);padding:9px 12px}
+  .note.show{display:block}
+  .note .ntag{font-size:10px;font-weight:800;letter-spacing:.05em;text-transform:uppercase;color:var(--warn)}
+  .note .ntext{margin-top:3px;font-size:13px;color:var(--ink);min-height:20px;outline:none}
+  .note .ntext:empty::before{content:"Type what you want Claude to do with this section…";color:var(--muted)}
+
+  /* ===== app look-alike pieces ===== */
+  [contenteditable]{outline:none;border-radius:4px}
+  [contenteditable]:hover{box-shadow:0 0 0 2px color-mix(in srgb,var(--ctrl) 30%,transparent)}
+  [contenteditable]:focus{box-shadow:0 0 0 2px var(--ctrl)}
+  .panel{background:var(--surface);border:1px solid var(--line);border-radius:var(--r);box-shadow:var(--sh)}
+  .appnav{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:10px;padding:10px 16px}
+  .brand{display:flex;align-items:center;gap:8px;font-size:14px;font-weight:800;color:var(--emer)}
+  .brand .mk{display:grid;place-items:center;width:28px;height:28px;border-radius:var(--r-xs);background:var(--emer);color:#fff;font-size:13px}
+  .navlinks{display:flex;gap:4px}
+  .navlinks span{padding:6px 12px;border-radius:var(--r-xs);font-size:13.5px;font-weight:600;color:var(--ink-soft)}
+  .navlinks span.on{background:var(--emer-soft);color:var(--emer-ink)}
+  .selector{display:flex;align-items:center;gap:8px;border:1px solid var(--line-strong);border-radius:var(--r-sm);padding:6px 12px;font-size:13px;font-weight:700}
+  .selector i{width:7px;height:7px;border-radius:50%;background:var(--emer);display:inline-block}
+  .backlink{display:inline-flex;align-items:center;gap:6px;font-size:13px;font-weight:700;color:var(--emer)}
+  h1.task{font-size:24px;letter-spacing:-.02em;display:flex;flex-wrap:wrap;align-items:center;gap:10px}
+  .code-badge{font-family:ui-monospace,Consolas,monospace;font-size:13px;font-weight:800;background:var(--surface-2);border:1px solid var(--line-strong);border-radius:var(--r-xs);padding:3px 8px;color:var(--ink-soft)}
+  .phase-badge{font-size:10px;font-weight:800;letter-spacing:.04em;text-transform:uppercase;padding:4px 10px;border-radius:999px;background:var(--warn-soft);color:var(--warn)}
+  .meta{font-size:13px;color:var(--ink-soft)}
+  .ptitle{font-size:11px;font-weight:800;letter-spacing:.06em;text-transform:uppercase;color:var(--muted)}
+  .purpose{font-size:13.5px;color:var(--ink-soft);margin-top:6px}
+  ol.checklist{margin:10px 0 0 0;padding-left:0;list-style:none;counter-reset:c}
+  ol.checklist li{counter-increment:c;display:flex;gap:10px;padding:7px 0;border-top:1px solid var(--line);font-size:13.5px;color:var(--ink-soft)}
+  ol.checklist li::before{content:counter(c,decimal-leading-zero);font-size:11px;font-weight:800;color:var(--emer);opacity:.6;min-width:20px;padding-top:1px}
+  .field label{display:block;font-size:12.5px;font-weight:700;color:var(--ink-soft);margin-bottom:5px}
+  .field .box{border:1px solid var(--line-strong);border-radius:var(--r-sm);background:var(--surface);padding:10px 12px;font-size:13.5px;color:var(--ink);min-height:64px}
+  .grid2{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+  @media(max-width:720px){.grid2{grid-template-columns:1fr}}
+  .savebar{display:flex;align-items:center;gap:10px}
+  .save{background:var(--emer);color:#fff;border:none;border-radius:var(--r-sm);padding:9px 18px;font-size:13.5px;font-weight:700;font-family:inherit}
+  .ghost{background:var(--surface);border:1px solid var(--line-strong);color:var(--ink-soft);border-radius:var(--r-sm);padding:9px 14px;font-size:13px;font-weight:600;font-family:inherit}
+  .sobox{display:inline-grid;place-items:center;width:26px;height:26px;border-radius:var(--r-xs);font-size:12px;font-weight:800}
+  .sobox.p{background:var(--emer-soft);color:var(--emer-ink)}
+  .sobox.r{background:var(--indigo-soft);color:var(--indigo)}
+  .sorow{display:flex;align-items:center;gap:10px;font-size:12.5px;color:var(--ink-soft)}
+  .sostate{font-size:11px;color:var(--warn);font-weight:700}
+  .cmt{display:flex;gap:10px;padding:10px 0;border-top:1px solid var(--line)}
+  .cmt .av{display:grid;place-items:center;width:30px;height:30px;border-radius:50%;background:var(--emer-soft);color:var(--emer-ink);font-size:10px;font-weight:800;flex-shrink:0}
+  .cmt .who{font-size:12px;color:var(--muted)}
+  .cmt .who b{color:var(--ink)}
+  .cmt .msg{font-size:13px;color:var(--ink-soft)}
+  .addblock{margin-top:22px;width:100%;border:2px dashed var(--line-strong);background:transparent;border-radius:var(--r);padding:14px;font-size:13px;font-weight:700;color:var(--muted);cursor:pointer;font-family:inherit}
+  .addblock:hover{border-color:var(--ctrl);color:var(--ctrl)}
+
+  /* export dialog */
+  dialog{border:none;border-radius:var(--r);box-shadow:var(--sh);padding:0;max-width:720px;width:92vw;background:var(--surface);color:var(--ink)}
+  dialog::backdrop{background:rgba(10,16,26,.55)}
+  .dlg{padding:20px}
+  .dlg h2{font-size:17px;margin-bottom:4px}
+  .dlg p{font-size:13px;color:var(--ink-soft)}
+  .dlg textarea{width:100%;height:260px;margin-top:12px;border:1px solid var(--line-strong);border-radius:var(--r-sm);background:var(--surface-2);color:var(--ink);font-family:ui-monospace,Consolas,monospace;font-size:11.5px;padding:10px}
+  .dlg .row{display:flex;justify-content:flex-end;gap:8px;margin-top:12px}
+  .toast{position:fixed;bottom:18px;left:50%;transform:translateX(-50%);background:var(--ink);color:var(--canvas);font-size:13px;font-weight:700;padding:9px 18px;border-radius:999px;opacity:0;transition:opacity .2s;pointer-events:none;z-index:99}
+  .toast.show{opacity:1}
+</style>
+
+<div class="howto">
+  <div class="howto-in">
+    <div>
+      <b>Design canvas — task page.</b>
+      <span class="hint"> Click any text to rewrite it · hover a section for controls: <b>↑↓</b> reorder · <b>Style</b> cycles layouts · <b>Hide</b> · <b>📝 Note</b> = tell Claude your intent</span>
+    </div>
+    <div class="actions">
+      <button class="btn" id="resetBtn">Reset</button>
+      <button class="btn primary" id="exportBtn">✅ Copy design spec for Claude</button>
+    </div>
+  </div>
+</div>
+
+<div class="wrap" id="stack">
+
+  <!-- ============ BLOCK: navigation ============ -->
+  <section class="block" data-id="nav" data-variants="Tabs + back|Back only|Full tab bar">
+    <span class="blocklabel">Navigation</span>
+    <div class="content">
+      <div class="panel appnav" contenteditable="false">
+        <span class="brand"><span class="mk">E</span><span contenteditable="true">Elite Advisors SARL</span></span>
+        <span class="navlinks"><span contenteditable="true">Dashboard</span><span contenteditable="true">Clients</span><span class="on" contenteditable="true">Engagements</span></span>
+        <span class="selector"><i></i><span contenteditable="true">ZOEDEN AUDIT 2026</span> ▾</span>
+      </div>
+      <div style="margin-top:12px"><span class="backlink" contenteditable="true">← Back to Pre-Planning task list</span></div>
+    </div>
+  </section>
+
+  <!-- ============ BLOCK: task header ============ -->
+  <section class="block" data-id="header" data-variants="Code + name + phase|Hero banner|Compact one-line">
+    <span class="blocklabel">Task header</span>
+    <div class="content">
+      <h1 class="task">
+        <span class="code-badge" contenteditable="true">D4.7</span>
+        <span contenteditable="true">Reliance on Experts (ISA 620)</span>
+        <span class="phase-badge" contenteditable="true">Pre-Planning · In progress</span>
+      </h1>
+      <p class="meta" style="margin-top:4px"><span contenteditable="true">ZOEDEN · Fiscal year 2026 · Deadline 2 Oct 2026 · On track</span></p>
+    </div>
+  </section>
+
+  <!-- ============ BLOCK: purpose & checklist ============ -->
+  <section class="block" data-id="purpose" data-variants="Card with checklist|Collapsible (closed by default)|Purpose only, no checklist">
+    <span class="blocklabel">Purpose &amp; guidance</span>
+    <div class="content">
+      <div class="panel" style="padding:16px 18px">
+        <div class="ptitle" contenteditable="true">Objective of this working paper</div>
+        <p class="purpose" contenteditable="true">Assess whether an auditor's expert is needed, and evaluate the expert's competence, capabilities and objectivity (ISA 620). Document the nature of the work and how it will be used as audit evidence.</p>
+        <ol class="checklist">
+          <li><span contenteditable="true">Identify areas where an expert is used (valuations, actuarial, IT…).</span></li>
+          <li><span contenteditable="true">Evaluate the expert's competence and objectivity.</span></li>
+          <li><span contenteditable="true">Agree the scope of the expert's work in writing.</span></li>
+          <li><span contenteditable="true">Conclude on the adequacy of the expert's work as evidence.</span></li>
+        </ol>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============ BLOCK: form fields ============ -->
+  <section class="block" data-id="fields" data-variants="Single column|Two columns|Grouped with section headings">
+    <span class="blocklabel">Form fields</span>
+    <div class="content">
+      <div class="panel" style="padding:16px 18px">
+        <div class="grid2" data-zone="fields">
+          <div class="field"><label contenteditable="true">Expert used, competence &amp; objectivity</label><div class="box" contenteditable="true">Describe the expert engaged, their qualifications, and your assessment of objectivity…</div></div>
+          <div class="field"><label contenteditable="true">Scope of the expert's work</label><div class="box" contenteditable="true">Agreed scope, timing and intended use of the expert's findings…</div></div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============ BLOCK: sign-off ============ -->
+  <section class="block" data-id="signoff" data-variants="Footer bar|Side-by-side cards|Top-right of header">
+    <span class="blocklabel">Sign-off</span>
+    <div class="content">
+      <div class="panel" style="padding:14px 18px;display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:12px">
+        <div style="display:flex;gap:22px;flex-wrap:wrap">
+          <span class="sorow"><span class="sobox p">P</span><span><b contenteditable="true">NBO</b> · <span class="sostate" contenteditable="true">Awaiting hand-off</span></span></span>
+          <span class="sorow"><span class="sobox r">R</span><span><b contenteditable="true">JOS</b> · <span contenteditable="true" style="color:var(--muted)">Awaiting preparer</span></span></span>
+        </div>
+        <div class="savebar">
+          <button class="ghost" contenteditable="true">Save draft</button>
+          <button class="save" contenteditable="true">Save &amp; hand off</button>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============ BLOCK: evidence ============ -->
+  <section class="block" data-id="evidence" data-variants="Attachment list|Drop zone|Hidden by default">
+    <span class="blocklabel">Evidence / attachments</span>
+    <div class="content">
+      <div class="panel" style="padding:16px 18px">
+        <div class="ptitle" contenteditable="true">Evidence attached</div>
+        <p class="purpose" contenteditable="true">📎 expert-engagement-letter.pdf · 📎 valuation-report-2026.pdf — <i>drop files here or attach from PBC</i></p>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============ BLOCK: review notes / comments ============ -->
+  <section class="block" data-id="comments" data-variants="Thread under the form|Side panel|Hidden until review">
+    <span class="blocklabel">Review notes</span>
+    <div class="content">
+      <div class="panel" style="padding:16px 18px">
+        <div class="ptitle" contenteditable="true">Review notes</div>
+        <div class="cmt" style="border-top:none"><span class="av">JOS</span><div><div class="who"><b contenteditable="true">Josiane</b> · <span contenteditable="true">reviewer</span></div><div class="msg" contenteditable="true">Please attach the expert's independence confirmation before hand-off.</div></div></div>
+        <div class="cmt"><span class="av">NBO</span><div><div class="who"><b contenteditable="true">Nekout Boma</b> · <span contenteditable="true">preparer</span></div><div class="msg" contenteditable="true">Added — see attachment 2.</div></div></div>
+      </div>
+    </div>
+  </section>
+
+  <button class="addblock" id="addBlock">＋ Add a custom section (describe anything else you want on this page)</button>
+</div>
+
+<dialog id="exportDlg">
+  <div class="dlg">
+    <h2>Your design spec</h2>
+    <p>This captures your layout order, chosen styles, hidden sections, edited texts and notes. It has been copied to your clipboard — <b>paste it to Claude in the chat</b> and it will be implemented on the site. (A screenshot alongside helps too.)</p>
+    <textarea id="specOut" readonly></textarea>
+    <div class="row">
+      <button class="btn" id="closeDlg">Close</button>
+      <button class="btn primary" id="copyAgain">Copy again</button>
+    </div>
+  </div>
+</dialog>
+<div class="toast" id="toast">Copied ✓</div>
+
+<script>
+(function(){
+  var stack = document.getElementById('stack');
+  var KEY = 'auditisa-design-canvas-v1';
+
+  function blocks(){ return Array.prototype.slice.call(stack.querySelectorAll('.block')); }
+
+  function makeChrome(block){
+    if (block.querySelector('.chrome')) return;
+    var chrome = document.createElement('div');
+    chrome.className = 'chrome';
+    chrome.setAttribute('contenteditable', 'false');
+    var variants = (block.dataset.variants || 'Default').split('|');
+    block.dataset.variant = block.dataset.variant || '0';
+
+    function mk(label, title, fn, cls){
+      var b = document.createElement('button');
+      b.className = 'chip-btn' + (cls ? ' ' + cls : '');
+      b.textContent = label; b.title = title;
+      b.addEventListener('click', function(e){ e.preventDefault(); fn(b); });
+      chrome.appendChild(b); return b;
+    }
+    mk('↑','Move up',function(){ var prev = block.previousElementSibling; if (prev && prev.classList.contains('block')) stack.insertBefore(block, prev); save(); });
+    mk('↓','Move down',function(){ var next = block.nextElementSibling; if (next && next.classList.contains('block')) stack.insertBefore(next, block); save(); });
+    var vBtn = mk('Style: ' + variants[block.dataset.variant|0], 'Cycle layout style', function(){
+      var i = ((block.dataset.variant|0) + 1) % variants.length;
+      block.dataset.variant = String(i);
+      vBtn.textContent = 'Style: ' + variants[i];
+      save();
+    }, 'v');
+    var hBtn = mk(block.classList.contains('hidden-block') ? 'Show' : 'Hide','Hide this section on the real page', function(){
+      block.classList.toggle('hidden-block');
+      hBtn.textContent = block.classList.contains('hidden-block') ? 'Show' : 'Hide';
+      save();
+    });
+    mk('📝','Add a note for Claude', function(){
+      var n = block.querySelector('.note');
+      n.classList.toggle('show');
+      block.classList.toggle('noted', n.classList.contains('show'));
+      if (n.classList.contains('show')) n.querySelector('.ntext').focus();
+      save();
+    });
+    block.insertBefore(chrome, block.firstChild);
+
+    var note = document.createElement('div');
+    note.className = 'note';
+    note.innerHTML = '<div class="ntag">Note for Claude</div><div class="ntext" contenteditable="true"></div>';
+    block.appendChild(note);
+    note.querySelector('.ntext').addEventListener('input', save);
+  }
+
+  function addCustomBlock(labelText){
+    var s = document.createElement('section');
+    s.className = 'block'; s.dataset.id = 'custom-' + Date.now();
+    s.dataset.variants = 'Custom';
+    s.innerHTML = '<span class="blocklabel">Custom section</span>' +
+      '<div class="content"><div class="panel" style="padding:16px 18px">' +
+      '<div class="ptitle" contenteditable="true">' + (labelText || 'MY NEW SECTION') + '</div>' +
+      '<p class="purpose" contenteditable="true">Describe or sketch here exactly what you want in this section — layout, content, behaviour…</p>' +
+      '</div></div>';
+    stack.insertBefore(s, document.getElementById('addBlock'));
+    makeChrome(s);
+    var n = s.querySelector('.note'); n.classList.add('show'); s.classList.add('noted');
+    save();
+  }
+  document.getElementById('addBlock').addEventListener('click', function(){ addCustomBlock(); });
+
+  function collectSpec(){
+    var spec = { page: 'Task detail (engagement working paper)', exportedAt: new Date().toISOString(), blocks: [] };
+    blocks().forEach(function(b, i){
+      var variants = (b.dataset.variants || 'Default').split('|');
+      var noteEl = b.querySelector('.note .ntext');
+      var texts = Array.prototype.slice.call(b.querySelectorAll('[contenteditable="true"]'))
+        .filter(function(el){ return !el.classList.contains('ntext'); })
+        .map(function(el){ return el.innerText.trim(); })
+        .filter(Boolean);
+      spec.blocks.push({
+        position: i + 1,
+        section: b.dataset.id,
+        hidden: b.classList.contains('hidden-block'),
+        style: variants[b.dataset.variant|0] || 'Default',
+        note: noteEl ? noteEl.innerText.trim() : '',
+        texts: texts
+      });
+    });
+    return spec;
+  }
+
+  function specText(){
+    var s = collectSpec();
+    var lines = ['=== AuditISA design spec — ' + s.page + ' ===', ''];
+    s.blocks.forEach(function(b){
+      lines.push((b.hidden ? '[HIDDEN] ' : '') + b.position + '. ' + b.section.toUpperCase() + '  (style: ' + b.style + ')');
+      if (b.note) lines.push('   NOTE: ' + b.note);
+      b.texts.forEach(function(t){ lines.push('   · ' + t.replace(/\n+/g, ' / ')); });
+      lines.push('');
+    });
+    lines.push('--- raw JSON ---');
+    lines.push(JSON.stringify(s));
+    return lines.join('\n');
+  }
+
+  function toast(msg){
+    var t = document.getElementById('toast');
+    t.textContent = msg; t.classList.add('show');
+    setTimeout(function(){ t.classList.remove('show'); }, 1800);
+  }
+
+  function doCopy(text){
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      navigator.clipboard.writeText(text).then(function(){ toast('Copied ✓ — paste it to Claude'); }, function(){ fallback(); });
+    } else fallback();
+    function fallback(){
+      var ta = document.getElementById('specOut');
+      ta.focus(); ta.select();
+      try { document.execCommand('copy'); toast('Copied ✓ — paste it to Claude'); } catch(e) { toast('Select-all + copy the text box'); }
+    }
+  }
+
+  document.getElementById('exportBtn').addEventListener('click', function(){
+    var text = specText();
+    document.getElementById('specOut').value = text;
+    document.getElementById('exportDlg').showModal();
+    doCopy(text);
+  });
+  document.getElementById('copyAgain').addEventListener('click', function(){ doCopy(document.getElementById('specOut').value); });
+  document.getElementById('closeDlg').addEventListener('click', function(){ document.getElementById('exportDlg').close(); });
+
+  function save(){
+    try {
+      localStorage.setItem(KEY, JSON.stringify({
+        html: stack.innerHTML
+      }));
+    } catch(e) {}
+  }
+  document.getElementById('resetBtn').addEventListener('click', function(){
+    try { localStorage.removeItem(KEY); } catch(e) {}
+    location.reload();
+  });
+
+  // restore
+  var saved = null;
+  try { saved = JSON.parse(localStorage.getItem(KEY) || 'null'); } catch(e) {}
+  if (saved && saved.html) {
+    stack.innerHTML = saved.html;
+    var add = document.getElementById('addBlock');
+    if (add) add.addEventListener('click', function(){ addCustomBlock(); });
+    blocks().forEach(function(b){
+      var oldChrome = b.querySelector('.chrome'); if (oldChrome) oldChrome.remove();
+      var oldNoteShown = b.querySelector('.note') && b.querySelector('.note').classList.contains('show');
+      var oldNoteText = b.querySelector('.note .ntext') ? b.querySelector('.note .ntext').innerText : '';
+      var oldNote = b.querySelector('.note'); if (oldNote) oldNote.remove();
+      makeChrome(b);
+      if (oldNoteText || oldNoteShown) {
+        var n = b.querySelector('.note');
+        n.querySelector('.ntext').innerText = oldNoteText;
+        if (oldNoteShown) { n.classList.add('show'); b.classList.add('noted'); }
+      }
+    });
+  } else {
+    blocks().forEach(makeChrome);
+  }
+
+  stack.addEventListener('input', save);
+})();
+</script>

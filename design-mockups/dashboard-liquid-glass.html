@@ -1,0 +1,367 @@
+<title>AuditISA — Dashboard draft (Liquid Glass)</title>
+<style>
+  /* ---------- Liquid Glass / grey token system ---------- */
+  :root {
+    --ground-a: #e9ebee; --ground-b: #d7dade; --ground-c: #c9cdd3;
+    --glass: rgba(255, 255, 255, 0.52);
+    --glass-strong: rgba(255, 255, 255, 0.72);
+    --glass-border: rgba(255, 255, 255, 0.65);
+    --glass-inner: rgba(255, 255, 255, 0.85);
+    --ink: #1b1e23;
+    --ink-soft: #3d434c;
+    --muted: #5f6672;
+    --line: rgba(27, 30, 35, 0.08);
+    --accent: #0f7a5c;          /* single restrained accent for progress/positive */
+    --accent-soft: rgba(15, 122, 92, 0.12);
+    --warn: #9a6a10; --warn-soft: rgba(154, 106, 16, 0.13);
+    --rose: #a63d50; --rose-soft: rgba(166, 61, 80, 0.12);
+    --ring-track: rgba(27, 30, 35, 0.1);
+    --shadow: 0 1px 2px rgba(20, 24, 30, 0.06), 0 16px 40px rgba(20, 24, 30, 0.12);
+    --shadow-sm: 0 1px 2px rgba(20, 24, 30, 0.07);
+    --r-lg: 22px; --r-md: 14px; --r-sm: 9px;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --ground-a: #131518; --ground-b: #1a1d21; --ground-c: #101214;
+      --glass: rgba(38, 42, 48, 0.5);
+      --glass-strong: rgba(44, 48, 55, 0.66);
+      --glass-border: rgba(255, 255, 255, 0.09);
+      --glass-inner: rgba(255, 255, 255, 0.06);
+      --ink: #eef1f5; --ink-soft: #c3cad4; --muted: #98a1ad;
+      --line: rgba(255, 255, 255, 0.07);
+      --accent: #4fc39a; --accent-soft: rgba(79, 195, 154, 0.14);
+      --warn: #dcae57; --warn-soft: rgba(220, 174, 87, 0.14);
+      --rose: #e88a9b; --rose-soft: rgba(232, 138, 155, 0.13);
+      --ring-track: rgba(255, 255, 255, 0.1);
+      --shadow: 0 1px 2px rgba(0, 0, 0, 0.4), 0 18px 44px rgba(0, 0, 0, 0.5);
+      --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.45);
+    }
+  }
+  :root[data-theme="dark"] {
+    --ground-a: #131518; --ground-b: #1a1d21; --ground-c: #101214;
+    --glass: rgba(38, 42, 48, 0.5); --glass-strong: rgba(44, 48, 55, 0.66);
+    --glass-border: rgba(255, 255, 255, 0.09); --glass-inner: rgba(255, 255, 255, 0.06);
+    --ink: #eef1f5; --ink-soft: #c3cad4; --muted: #98a1ad; --line: rgba(255, 255, 255, 0.07);
+    --accent: #4fc39a; --accent-soft: rgba(79, 195, 154, 0.14);
+    --warn: #dcae57; --warn-soft: rgba(220, 174, 87, 0.14);
+    --rose: #e88a9b; --rose-soft: rgba(232, 138, 155, 0.13);
+    --ring-track: rgba(255, 255, 255, 0.1);
+    --shadow: 0 1px 2px rgba(0, 0, 0, 0.4), 0 18px 44px rgba(0, 0, 0, 0.5);
+    --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.45);
+  }
+  :root[data-theme="light"] {
+    --ground-a: #e9ebee; --ground-b: #d7dade; --ground-c: #c9cdd3;
+    --glass: rgba(255, 255, 255, 0.52); --glass-strong: rgba(255, 255, 255, 0.72);
+    --glass-border: rgba(255, 255, 255, 0.65); --glass-inner: rgba(255, 255, 255, 0.85);
+    --ink: #1b1e23; --ink-soft: #3d434c; --muted: #5f6672; --line: rgba(27, 30, 35, 0.08);
+    --accent: #0f7a5c; --accent-soft: rgba(15, 122, 92, 0.12);
+    --warn: #9a6a10; --warn-soft: rgba(154, 106, 16, 0.13);
+    --rose: #a63d50; --rose-soft: rgba(166, 61, 80, 0.12);
+    --ring-track: rgba(27, 30, 35, 0.1);
+    --shadow: 0 1px 2px rgba(20, 24, 30, 0.06), 0 16px 40px rgba(20, 24, 30, 0.12);
+    --shadow-sm: 0 1px 2px rgba(20, 24, 30, 0.07);
+  }
+
+  * { box-sizing: border-box; }
+  html, body { margin: 0; }
+  body {
+    font: 14px/1.5 -apple-system, "SF Pro Text", system-ui, "Segoe UI", Roboto, sans-serif;
+    color: var(--ink);
+    background:
+      radial-gradient(1100px 520px at 12% -8%, var(--ground-a), transparent 60%),
+      radial-gradient(900px 600px at 108% 12%, var(--ground-c), transparent 55%),
+      linear-gradient(160deg, var(--ground-a), var(--ground-b) 55%, var(--ground-c));
+    min-height: 100vh;
+    -webkit-font-smoothing: antialiased;
+  }
+  .wrap { max-width: 1240px; margin: 0 auto; padding: 22px 20px 56px; }
+
+  /* ---------- glass panel primitive ---------- */
+  .glass {
+    background: var(--glass);
+    -webkit-backdrop-filter: blur(22px) saturate(1.5);
+    backdrop-filter: blur(22px) saturate(1.5);
+    border: 1px solid var(--glass-border);
+    border-radius: var(--r-lg);
+    box-shadow: var(--shadow), inset 0 1px 0 var(--glass-inner);
+  }
+  .glass-sm { border-radius: var(--r-md); box-shadow: var(--shadow-sm), inset 0 1px 0 var(--glass-inner); }
+
+  /* ---------- header ---------- */
+  header.glass {
+    display: flex; align-items: center; gap: 16px; flex-wrap: wrap;
+    padding: 13px 20px; margin-bottom: 18px; position: sticky; top: 12px; z-index: 30;
+  }
+  .brand { display: flex; align-items: center; gap: 10px; font-weight: 700; letter-spacing: -0.01em; }
+  .brand-dot { width: 26px; height: 26px; border-radius: 8px; background: linear-gradient(145deg, var(--accent), #0b5c46); box-shadow: inset 0 1px 0 rgba(255,255,255,.35); }
+  .eng { display: flex; flex-direction: column; gap: 1px; min-width: 0; }
+  .eng b { font-size: 14.5px; letter-spacing: -0.01em; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .eng span { font-size: 12px; color: var(--muted); }
+  .hdr-right { margin-left: auto; display: flex; align-items: center; gap: 10px; }
+  .chip {
+    font-size: 11.5px; font-weight: 650; padding: 4px 11px; border-radius: 999px;
+    background: var(--accent-soft); color: var(--accent); border: 1px solid transparent;
+  }
+  .avatar { width: 30px; height: 30px; border-radius: 999px; background: linear-gradient(145deg, #8b93a0, #5f6672); color: #fff; display: grid; place-items: center; font-size: 11.5px; font-weight: 700; }
+
+  /* ---------- section (phase) cards ---------- */
+  .phase-row { display: grid; grid-template-columns: 1fr 1fr 1fr 232px; gap: 14px; margin-bottom: 16px; }
+  .phase { padding: 18px 18px 14px; display: flex; flex-direction: column; gap: 12px; }
+  .phase-top { display: flex; align-items: center; gap: 14px; }
+  .phase h2 { margin: 0; font-size: 15px; letter-spacing: -0.015em; font-weight: 700; }
+  .phase-sub { font-size: 11.5px; color: var(--muted); margin-top: 1px; }
+  .ring { --p: 0; --ring-col: var(--accent); width: 64px; height: 64px; border-radius: 50%; flex-shrink: 0;
+    background:
+      radial-gradient(closest-side, var(--glass-strong) 76%, transparent 77% 100%),
+      conic-gradient(var(--ring-col) calc(var(--p) * 1%), var(--ring-track) 0);
+    display: grid; place-items: center;
+    font-size: 14px; font-weight: 750; font-variant-numeric: tabular-nums; letter-spacing: -0.02em;
+  }
+  .groups { display: flex; flex-direction: column; }
+  .group {
+    display: flex; align-items: center; gap: 9px; padding: 7px 9px; margin: 0 -9px;
+    border-radius: var(--r-sm); cursor: pointer; border: none; background: none; width: calc(100% + 18px);
+    font: inherit; color: var(--ink-soft); text-align: left; transition: background 150ms ease;
+  }
+  .group:hover { background: rgba(127, 132, 140, 0.12); }
+  .group:focus-visible { outline: 2px solid var(--accent); outline-offset: -2px; }
+  .group .gname { flex: 1; min-width: 0; font-weight: 550; font-size: 13px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .group .gcount { font-size: 11.5px; color: var(--muted); font-variant-numeric: tabular-nums; }
+  .gbar { width: 44px; height: 4px; border-radius: 3px; background: var(--ring-track); overflow: hidden; flex-shrink: 0; }
+  .gbar i { display: block; height: 100%; border-radius: 3px; background: var(--accent); }
+  .caret { width: 12px; height: 12px; flex-shrink: 0; color: var(--muted); transition: transform 180ms cubic-bezier(.23,1,.32,1); }
+  .group[aria-expanded="true"] .caret { transform: rotate(90deg); }
+
+  /* drill-down (STC example) */
+  .drill { overflow: hidden; max-height: 0; transition: max-height 260ms cubic-bezier(.23,1,.32,1); }
+  .drill.open { max-height: 300px; }
+  .drill ul { list-style: none; margin: 2px 0 6px; padding: 0 0 0 10px; border-left: 2px solid var(--line); }
+  .drill li { display: flex; align-items: center; gap: 8px; padding: 5.5px 8px; font-size: 12.5px; color: var(--ink-soft); border-radius: 7px; }
+  .drill li:hover { background: rgba(127, 132, 140, 0.1); cursor: pointer; }
+  .st { font-size: 10px; font-weight: 700; padding: 2px 7px; border-radius: 999px; margin-left: auto; white-space: nowrap; }
+  .st.done { background: var(--accent-soft); color: var(--accent); }
+  .st.rev  { background: var(--warn-soft); color: var(--warn); }
+  .st.todo { background: var(--ring-track); color: var(--muted); }
+
+  /* reference documents rail */
+  .refs { padding: 16px 16px 10px; display: flex; flex-direction: column; }
+  .refs h3, .feed h3, .findings h3 { margin: 0 0 4px; font-size: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.06em; color: var(--muted); }
+  .ref { display: flex; align-items: center; gap: 9px; padding: 7.5px 8px; margin: 0 -8px; border-radius: var(--r-sm); color: var(--ink-soft); font-size: 12.5px; cursor: pointer; }
+  .ref:hover { background: rgba(127, 132, 140, 0.12); }
+  .ref svg { flex-shrink: 0; color: var(--muted); }
+  .ref span { min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+
+  /* ---------- middle: toggle + tiles + findings | feed ---------- */
+  .mid { display: grid; grid-template-columns: 1fr 340px; gap: 14px; align-items: start; }
+  .col { display: flex; flex-direction: column; gap: 14px; min-width: 0; }
+
+  .seg {
+    display: inline-flex; padding: 4px; gap: 2px; border-radius: 999px; align-self: flex-start;
+  }
+  .seg button {
+    font: inherit; font-size: 12.5px; font-weight: 600; color: var(--muted);
+    border: none; background: none; padding: 7px 16px; border-radius: 999px; cursor: pointer;
+    transition: background 160ms ease, color 160ms ease;
+  }
+  .seg button:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+  .seg button.on { background: var(--glass-strong); color: var(--ink); box-shadow: var(--shadow-sm), inset 0 1px 0 var(--glass-inner); }
+
+  .tiles { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; }
+  .tile { padding: 14px 16px 12px; display: flex; flex-direction: column; gap: 2px; cursor: pointer; transition: transform 160ms cubic-bezier(.23,1,.32,1); }
+  .tile:hover { transform: translateY(-2px); }
+  .tile:active { transform: scale(0.98); }
+  .tile .lab { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.06em; color: var(--muted); }
+  .tile .num { font-size: 30px; font-weight: 760; letter-spacing: -0.03em; font-variant-numeric: tabular-nums; line-height: 1.15; }
+  .tile .hint { font-size: 11.5px; color: var(--muted); }
+  .tile.split .num { font-size: 22px; }
+  .split-row { display: flex; gap: 14px; }
+  .split-row > div { flex: 1; }
+  .split-row .mini { font-size: 10.5px; color: var(--muted); font-weight: 650; }
+
+  .findings { padding: 15px 18px 13px; }
+  .f-row { display: flex; align-items: center; gap: 10px; padding: 8px 10px; margin: 0 -10px; border-radius: var(--r-sm); cursor: pointer; }
+  .f-row:hover { background: rgba(127, 132, 140, 0.1); }
+  .f-dot { width: 8px; height: 8px; border-radius: 99px; flex-shrink: 0; }
+  .f-row span { flex: 1; font-size: 13px; color: var(--ink-soft); }
+
+  .feed { padding: 16px 16px 12px; display: flex; flex-direction: column; }
+  .ev { display: flex; gap: 10px; padding: 9px 8px; margin: 0 -8px; border-radius: var(--r-sm); }
+  .ev:hover { background: rgba(127, 132, 140, 0.1); }
+  .ev .who { width: 28px; height: 28px; border-radius: 999px; flex-shrink: 0; display: grid; place-items: center; font-size: 10px; font-weight: 750; background: var(--ring-track); color: var(--ink-soft); }
+  .ev p { margin: 0; font-size: 12.5px; color: var(--ink-soft); }
+  .ev time { font-size: 11px; color: var(--muted); }
+
+  .note { margin-top: 20px; font-size: 12px; color: var(--muted); text-align: center; }
+
+  @media (max-width: 1020px) {
+    .phase-row { grid-template-columns: 1fr 1fr; }
+    .refs { grid-column: span 2; flex-direction: row; flex-wrap: wrap; gap: 2px 18px; }
+    .refs h3 { width: 100%; }
+    .mid { grid-template-columns: 1fr; }
+  }
+  @media (max-width: 640px) {
+    .phase-row { grid-template-columns: 1fr; }
+    .refs { grid-column: span 1; }
+    .tiles { grid-template-columns: 1fr 1fr; }
+    header.glass { position: static; }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .drill, .caret, .tile, .seg button, .group { transition: none; }
+  }
+</style>
+
+<div class="wrap">
+  <header class="glass">
+    <div class="brand"><div class="brand-dot"></div>AuditISA</div>
+    <div class="eng">
+      <b>SOCAPALM — Statutory audit FY 2025</b>
+      <span>Period end 31 Dec 2025 · FCFA · ISA + OHADA</span>
+    </div>
+    <div class="hdr-right">
+      <span class="chip">Execution</span>
+      <div class="avatar">MB</div>
+    </div>
+  </header>
+
+  <!-- ============ 3 sections + reference documents ============ -->
+  <div class="phase-row">
+
+    <section class="phase glass">
+      <div class="phase-top">
+        <div class="ring" style="--p:85">85%</div>
+        <div>
+          <h2>Planning &amp; Strategy</h2>
+          <div class="phase-sub">17 of 20 tasks reviewed · due 2 Oct 2025</div>
+        </div>
+      </div>
+      <div class="groups">
+        <button class="group"><svg class="caret" viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M4 2l4 4-4 4"/></svg><span class="gname">Acceptance &amp; Continuance</span><span class="gcount">4/4</span><span class="gbar"><i style="width:100%"></i></span></button>
+        <button class="group"><svg class="caret" viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M4 2l4 4-4 4"/></svg><span class="gname">Engagement Strategy</span><span class="gcount">3/3</span><span class="gbar"><i style="width:100%"></i></span></button>
+        <button class="group"><svg class="caret" viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M4 2l4 4-4 4"/></svg><span class="gname">Risk Assessment</span><span class="gcount">5/6</span><span class="gbar"><i style="width:83%"></i></span></button>
+        <button class="group"><svg class="caret" viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M4 2l4 4-4 4"/></svg><span class="gname">Materiality</span><span class="gcount">2/2</span><span class="gbar"><i style="width:100%"></i></span></button>
+        <button class="group"><svg class="caret" viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M4 2l4 4-4 4"/></svg><span class="gname">Planning Considerations</span><span class="gcount">3/4</span><span class="gbar"><i style="width:75%"></i></span></button>
+        <button class="group"><svg class="caret" viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M4 2l4 4-4 4"/></svg><span class="gname">Team &amp; Direction</span><span class="gcount">1/1</span><span class="gbar"><i style="width:100%"></i></span></button>
+      </div>
+    </section>
+
+    <section class="phase glass">
+      <div class="phase-top">
+        <div class="ring" style="--p:4; --ring-col: var(--warn)">4%</div>
+        <div>
+          <h2>Execution</h2>
+          <div class="phase-sub">2 of 65 tasks reviewed · due 15 Feb 2026</div>
+        </div>
+      </div>
+      <div class="groups">
+        <button class="group" id="stc-btn" aria-expanded="true" aria-controls="stc-drill">
+          <svg class="caret" viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M4 2l4 4-4 4"/></svg>
+          <span class="gname">Significant Transaction Classes</span><span class="gcount">1/24</span><span class="gbar"><i style="width:4%"></i></span>
+        </button>
+        <div class="drill open" id="stc-drill">
+          <ul>
+            <li>Understanding the process — Revenue<span class="st done">Reviewed</span></li>
+            <li>Walkthroughs — Revenue<span class="st rev">In review</span></li>
+            <li>Control testing — Revenue<span class="st todo">Not started</span></li>
+            <li>Substantive procedures — Revenue<span class="st todo">Not started</span></li>
+            <li>Understanding the process — Purchases<span class="st todo">Not started</span></li>
+            <li style="color:var(--muted); font-size:11.5px">+ 19 more…</li>
+          </ul>
+        </div>
+        <button class="group"><svg class="caret" viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M4 2l4 4-4 4"/></svg><span class="gname">IT</span><span class="gcount">0/6</span><span class="gbar"><i style="width:0%"></i></span></button>
+        <button class="group"><svg class="caret" viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M4 2l4 4-4 4"/></svg><span class="gname">Accounts</span><span class="gcount">1/18</span><span class="gbar"><i style="width:6%"></i></span></button>
+        <button class="group"><svg class="caret" viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M4 2l4 4-4 4"/></svg><span class="gname">General</span><span class="gcount">0/8</span><span class="gbar"><i style="width:0%"></i></span></button>
+        <button class="group"><svg class="caret" viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M4 2l4 4-4 4"/></svg><span class="gname">Response Tasks</span><span class="gcount">0/9</span><span class="gbar"><i style="width:0%"></i></span></button>
+      </div>
+    </section>
+
+    <section class="phase glass">
+      <div class="phase-top">
+        <div class="ring" style="--p:0; --ring-col: var(--muted)">0%</div>
+        <div>
+          <h2>Conclusion</h2>
+          <div class="phase-sub">0 of 14 tasks · due 15 Apr 2026</div>
+        </div>
+      </div>
+      <div class="groups">
+        <button class="group"><svg class="caret" viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M4 2l4 4-4 4"/></svg><span class="gname">Completion Procedures</span><span class="gcount">0/4</span><span class="gbar"><i style="width:0%"></i></span></button>
+        <button class="group"><svg class="caret" viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M4 2l4 4-4 4"/></svg><span class="gname">Subsequent Events</span><span class="gcount">0/2</span><span class="gbar"><i style="width:0%"></i></span></button>
+        <button class="group"><svg class="caret" viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M4 2l4 4-4 4"/></svg><span class="gname">Going Concern</span><span class="gcount">0/2</span><span class="gbar"><i style="width:0%"></i></span></button>
+        <button class="group"><svg class="caret" viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M4 2l4 4-4 4"/></svg><span class="gname">Legal &amp; Litigation</span><span class="gcount">0/2</span><span class="gbar"><i style="width:0%"></i></span></button>
+        <button class="group"><svg class="caret" viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M4 2l4 4-4 4"/></svg><span class="gname">Final Analytical Review</span><span class="gcount">0/2</span><span class="gbar"><i style="width:0%"></i></span></button>
+        <button class="group"><svg class="caret" viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M4 2l4 4-4 4"/></svg><span class="gname">Reporting &amp; Opinion</span><span class="gcount">0/2</span><span class="gbar"><i style="width:0%"></i></span></button>
+      </div>
+    </section>
+
+    <aside class="refs glass glass-sm">
+      <h3>Reference documents</h3>
+      <div class="ref"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6"/></svg><span>Trial balance FY25.xlsx</span></div>
+      <div class="ref"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6"/></svg><span>Signed engagement letter.pdf</span></div>
+      <div class="ref"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6"/></svg><span>Prior year audit file (FY24)</span></div>
+      <div class="ref"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6"/></svg><span>Statutory registers</span></div>
+      <div class="ref"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6"/></svg><span>Group audit instructions</span></div>
+    </aside>
+  </div>
+
+  <!-- ============ summary toggle + tiles + findings | feed ============ -->
+  <div class="mid">
+    <div class="col">
+      <div class="seg glass glass-sm" role="tablist" aria-label="Summary scope">
+        <button class="on" id="seg-my" role="tab" aria-selected="true">My engagement summary</button>
+        <button id="seg-all" role="tab" aria-selected="false">All engagements summary</button>
+      </div>
+
+      <div class="tiles">
+        <div class="tile glass glass-sm"><span class="lab">My tasks</span><span class="num" data-my="20" data-all="64">20</span><span class="hint">assigned to me</span></div>
+        <div class="tile glass glass-sm"><span class="lab">For my review</span><span class="num" data-my="2" data-all="9">2</span><span class="hint">awaiting sign-off</span></div>
+        <div class="tile glass glass-sm"><span class="lab">To do</span><span class="num" data-my="1" data-all="7">1</span><span class="hint">due this week</span></div>
+        <div class="tile glass glass-sm split">
+          <span class="lab">My review notes</span>
+          <div class="split-row">
+            <div><span class="num" data-my="3" data-all="11">3</span><div class="mini">for me</div></div>
+            <div><span class="num" data-my="1" data-all="6">1</span><div class="mini">by me</div></div>
+          </div>
+        </div>
+      </div>
+
+      <section class="findings glass">
+        <h3>Findings</h3>
+        <div class="f-row"><span class="f-dot" style="background:var(--rose)"></span><span>Revenue cut-off variance — 3 invoices posted post-close</span><span class="st rev">Open</span></div>
+        <div class="f-row"><span class="f-dot" style="background:var(--warn)"></span><span>Inventory count difference at Douala depot</span><span class="st rev">Open</span></div>
+        <div class="f-row"><span class="f-dot" style="background:var(--accent)"></span><span>Payroll reconciliation gap — resolved with client</span><span class="st done">Cleared</span></div>
+      </section>
+    </div>
+
+    <aside class="feed glass">
+      <h3>Engagement feed</h3>
+      <div class="ev"><div class="who">MB</div><div><p><b>M. Boma</b> signed off <b>Walkthroughs — Revenue</b> as preparer</p><time>2 h ago</time></div></div>
+      <div class="ev"><div class="who">AN</div><div><p><b>A. Ngo</b> raised a review note on <b>Understanding the process — Revenue</b></p><time>5 h ago</time></div></div>
+      <div class="ev"><div class="who" style="background:var(--accent-soft); color:var(--accent)">TB</div><div><p>Trial balance imported — <b>412 accounts</b> mapped to SYSCOHADA</p><time>Yesterday</time></div></div>
+      <div class="ev"><div class="who">MB</div><div><p><b>M. Boma</b> recalculated materiality — overall <b>84.5 M FCFA</b></p><time>2 d ago</time></div></div>
+      <div class="ev"><div class="who">AN</div><div><p><b>A. Ngo</b> reviewed <b>Engagement Strategy</b> — Planning &amp; Strategy 85%</p><time>3 d ago</time></div></div>
+    </aside>
+  </div>
+
+  <p class="note">Draft — Liquid Glass direction · 3 sections × task groups × detail tasks · click "Significant Transaction Classes" to fold/unfold the drill-down · toggle My / All summary</p>
+</div>
+
+<script>
+  // STC drill-down fold
+  const stcBtn = document.getElementById('stc-btn');
+  const stcDrill = document.getElementById('stc-drill');
+  stcBtn.addEventListener('click', () => {
+    const open = stcDrill.classList.toggle('open');
+    stcBtn.setAttribute('aria-expanded', String(open));
+  });
+  // My / All summary toggle
+  const segMy = document.getElementById('seg-my');
+  const segAll = document.getElementById('seg-all');
+  function setScope(scope) {
+    segMy.classList.toggle('on', scope === 'my');
+    segAll.classList.toggle('on', scope === 'all');
+    segMy.setAttribute('aria-selected', String(scope === 'my'));
+    segAll.setAttribute('aria-selected', String(scope === 'all'));
+    document.querySelectorAll('.num').forEach((el) => { el.textContent = el.dataset[scope]; });
+  }
+  segMy.addEventListener('click', () => setScope('my'));
+  segAll.addEventListener('click', () => setScope('all'));
+</script>

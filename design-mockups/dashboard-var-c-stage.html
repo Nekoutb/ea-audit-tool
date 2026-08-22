@@ -1,0 +1,310 @@
+<title>Dashboard C — Focus stage</title>
+<style>
+  :root {
+    --ground-a:#e9ebee; --ground-b:#d7dade; --ground-c:#c9cdd3;
+    --glass:rgba(255,255,255,.52); --glass-strong:rgba(255,255,255,.74);
+    --glass-border:rgba(255,255,255,.65); --glass-inner:rgba(255,255,255,.85);
+    --ink:#1b1e23; --ink-soft:#3d434c; --muted:#5f6672; --line:rgba(27,30,35,.08);
+    --accent:#0f7a5c; --accent-soft:rgba(15,122,92,.12);
+    --warn:#9a6a10; --warn-soft:rgba(154,106,16,.13);
+    --rose:#a63d50; --rose-soft:rgba(166,61,80,.12);
+    --track:rgba(27,30,35,.1);
+    --shadow:0 1px 2px rgba(20,24,30,.06),0 16px 40px rgba(20,24,30,.12);
+    --shadow-sm:0 1px 2px rgba(20,24,30,.07);
+    --r-lg:22px; --r-md:14px; --r-sm:9px;
+  }
+  @media (prefers-color-scheme: dark) { :root {
+    --ground-a:#131518; --ground-b:#1a1d21; --ground-c:#101214;
+    --glass:rgba(38,42,48,.5); --glass-strong:rgba(48,52,60,.72);
+    --glass-border:rgba(255,255,255,.09); --glass-inner:rgba(255,255,255,.06);
+    --ink:#eef1f5; --ink-soft:#c3cad4; --muted:#98a1ad; --line:rgba(255,255,255,.07);
+    --accent:#4fc39a; --accent-soft:rgba(79,195,154,.14);
+    --warn:#dcae57; --warn-soft:rgba(220,174,87,.14);
+    --rose:#e88a9b; --rose-soft:rgba(232,138,155,.13);
+    --track:rgba(255,255,255,.1);
+    --shadow:0 1px 2px rgba(0,0,0,.4),0 18px 44px rgba(0,0,0,.5);
+    --shadow-sm:0 1px 2px rgba(0,0,0,.45);
+  } }
+  :root[data-theme="dark"] {
+    --ground-a:#131518; --ground-b:#1a1d21; --ground-c:#101214;
+    --glass:rgba(38,42,48,.5); --glass-strong:rgba(48,52,60,.72);
+    --glass-border:rgba(255,255,255,.09); --glass-inner:rgba(255,255,255,.06);
+    --ink:#eef1f5; --ink-soft:#c3cad4; --muted:#98a1ad; --line:rgba(255,255,255,.07);
+    --accent:#4fc39a; --accent-soft:rgba(79,195,154,.14);
+    --warn:#dcae57; --warn-soft:rgba(220,174,87,.14);
+    --rose:#e88a9b; --rose-soft:rgba(232,138,155,.13);
+    --track:rgba(255,255,255,.1);
+    --shadow:0 1px 2px rgba(0,0,0,.4),0 18px 44px rgba(0,0,0,.5);
+    --shadow-sm:0 1px 2px rgba(0,0,0,.45);
+  }
+  :root[data-theme="light"] {
+    --ground-a:#e9ebee; --ground-b:#d7dade; --ground-c:#c9cdd3;
+    --glass:rgba(255,255,255,.52); --glass-strong:rgba(255,255,255,.74);
+    --glass-border:rgba(255,255,255,.65); --glass-inner:rgba(255,255,255,.85);
+    --ink:#1b1e23; --ink-soft:#3d434c; --muted:#5f6672; --line:rgba(27,30,35,.08);
+    --accent:#0f7a5c; --accent-soft:rgba(15,122,92,.12);
+    --warn:#9a6a10; --warn-soft:rgba(154,106,16,.13);
+    --rose:#a63d50; --rose-soft:rgba(166,61,80,.12);
+    --track:rgba(27,30,35,.1);
+    --shadow:0 1px 2px rgba(20,24,30,.06),0 16px 40px rgba(20,24,30,.12);
+    --shadow-sm:0 1px 2px rgba(20,24,30,.07);
+  }
+  * { box-sizing:border-box; }
+  html,body { margin:0; }
+  body {
+    font:14px/1.5 -apple-system,"SF Pro Text",system-ui,"Segoe UI",Roboto,sans-serif;
+    color:var(--ink); min-height:100vh; -webkit-font-smoothing:antialiased;
+    background:
+      radial-gradient(1100px 520px at 12% -8%, var(--ground-a), transparent 60%),
+      radial-gradient(900px 600px at 108% 12%, var(--ground-c), transparent 55%),
+      linear-gradient(160deg,var(--ground-a),var(--ground-b) 55%,var(--ground-c));
+  }
+  .wrap { max-width:1240px; margin:0 auto; padding:22px 20px 56px; }
+  .glass { background:var(--glass); -webkit-backdrop-filter:blur(22px) saturate(1.5); backdrop-filter:blur(22px) saturate(1.5);
+    border:1px solid var(--glass-border); border-radius:var(--r-lg); box-shadow:var(--shadow),inset 0 1px 0 var(--glass-inner); }
+  .glass-sm { border-radius:var(--r-md); box-shadow:var(--shadow-sm),inset 0 1px 0 var(--glass-inner); }
+
+  header.glass { display:flex; align-items:center; gap:16px; flex-wrap:wrap; padding:13px 20px; margin-bottom:18px; }
+  .brand { display:flex; align-items:center; gap:10px; font-weight:700; }
+  .brand-dot { width:26px; height:26px; border-radius:8px; background:linear-gradient(145deg,var(--accent),#0b5c46); box-shadow:inset 0 1px 0 rgba(255,255,255,.35); }
+  .eng b { font-size:14.5px; } .eng span { font-size:12px; color:var(--muted); display:block; }
+  .hdr-right { margin-left:auto; display:flex; gap:10px; align-items:center; }
+  .chip { font-size:11.5px; font-weight:650; padding:4px 11px; border-radius:999px; background:var(--accent-soft); color:var(--accent); }
+  .avatar { width:30px; height:30px; border-radius:999px; background:linear-gradient(145deg,#8b93a0,#5f6672); color:#fff; display:grid; place-items:center; font-size:11.5px; font-weight:700; }
+
+  /* ====== C: focus stage ====== */
+  .stage { display:grid; grid-template-columns:300px 1fr; gap:14px; margin-bottom:16px; align-items:stretch; }
+  .hero { padding:20px; display:flex; flex-direction:column; gap:14px; }
+  .hero-ring { --p:0; --c:var(--accent); width:130px; height:130px; border-radius:50%; margin:6px auto 0;
+    background:radial-gradient(closest-side,var(--glass-strong) 80%,transparent 81% 100%),conic-gradient(var(--c) calc(var(--p)*1%),var(--track) 0);
+    display:grid; place-items:center; font-size:26px; font-weight:780; letter-spacing:-.03em; font-variant-numeric:tabular-nums;
+    transition:--p 300ms ease; }
+  .hero h2 { margin:0; text-align:center; font-size:16.5px; letter-spacing:-.015em; }
+  .hero .sub { text-align:center; font-size:12px; color:var(--muted); margin-top:2px; }
+  .switch { display:flex; gap:6px; justify-content:center; }
+  .sw { flex:1; display:flex; flex-direction:column; align-items:center; gap:4px; padding:9px 6px; border-radius:var(--r-md);
+    border:1px solid transparent; background:none; font:inherit; cursor:pointer; color:var(--muted); transition:background 160ms ease; }
+  .sw:hover { background:rgba(127,132,140,.12); }
+  .sw.on { background:var(--glass-strong); color:var(--ink); border-color:var(--glass-border); box-shadow:var(--shadow-sm); }
+  .sw:focus-visible { outline:2px solid var(--accent); }
+  .sw .mini-ring { --p:0; --c:var(--accent); width:34px; height:34px; border-radius:50%;
+    background:radial-gradient(closest-side,var(--glass-strong) 70%,transparent 71% 100%),conic-gradient(var(--c) calc(var(--p)*1%),var(--track) 0);
+    display:grid; place-items:center; font-size:8.5px; font-weight:750; font-variant-numeric:tabular-nums; }
+  .sw span.lbl { font-size:10px; font-weight:650; }
+  .fan { display:grid; grid-template-columns:repeat(3,1fr); gap:12px; align-content:start; }
+  .grp {
+    display:flex; flex-direction:column; gap:8px; padding:15px 16px 13px; text-align:left; font:inherit; cursor:pointer;
+    color:var(--ink); border:1px solid var(--glass-border);
+    opacity:0; transform:translateX(-18px);
+    animation:roll 340ms cubic-bezier(.23,1,.32,1) forwards; animation-delay:calc(var(--i) * 55ms);
+    transition:transform 180ms cubic-bezier(.23,1,.32,1);
+  }
+  @keyframes roll { to { opacity:1; transform:none; } }
+  .grp:hover { transform:translateY(-2px); }
+  .grp:active { transform:scale(.98); }
+  .grp:focus-visible { outline:2px solid var(--accent); outline-offset:2px; }
+  .grp .gcode { font-size:10px; font-weight:750; letter-spacing:.05em; color:var(--muted); }
+  .grp .gname { font-weight:650; font-size:13px; line-height:1.3; min-height:34px; }
+  .grp .grow { display:flex; align-items:center; gap:8px; }
+  .grp .gcount { font-size:11.5px; color:var(--muted); font-variant-numeric:tabular-nums; }
+  .gbar { flex:1; height:5px; border-radius:3px; background:var(--track); overflow:hidden; }
+  .gbar i { display:block; height:100%; background:var(--accent); border-radius:3px; }
+  .hint { grid-column:1/-1; font-size:11px; color:var(--muted); }
+  /* tiles / findings / feed */
+  .mid { display:grid; grid-template-columns:1fr 340px; gap:14px; align-items:start; }
+  .col { display:flex; flex-direction:column; gap:14px; min-width:0; }
+  .seg { display:inline-flex; padding:4px; gap:2px; border-radius:999px; align-self:flex-start; }
+  .seg button { font:inherit; font-size:12.5px; font-weight:600; color:var(--muted); border:none; background:none; padding:7px 16px; border-radius:999px; cursor:pointer; }
+  .seg button.on { background:var(--glass-strong); color:var(--ink); box-shadow:var(--shadow-sm),inset 0 1px 0 var(--glass-inner); }
+  .seg button:focus-visible { outline:2px solid var(--accent); }
+  .tiles { display:grid; grid-template-columns:repeat(4,1fr); gap:12px; }
+  .tile { padding:14px 16px 12px; display:flex; flex-direction:column; gap:2px; }
+  .tile .lab { font-size:11px; font-weight:700; text-transform:uppercase; letter-spacing:.06em; color:var(--muted); }
+  .tile .num { font-size:30px; font-weight:760; letter-spacing:-.03em; font-variant-numeric:tabular-nums; }
+  .tile .hint2 { font-size:11.5px; color:var(--muted); }
+  .split-row { display:flex; gap:14px; } .split-row .num { font-size:22px; } .mini { font-size:10.5px; color:var(--muted); font-weight:650; }
+  .findings { padding:15px 18px 13px; }
+  .findings h3, .feed h3, .refs h3 { margin:0 0 4px; font-size:12px; font-weight:700; text-transform:uppercase; letter-spacing:.06em; color:var(--muted); }
+  .f-row { display:flex; align-items:center; gap:10px; padding:8px 10px; margin:0 -10px; border-radius:var(--r-sm); }
+  .f-row:hover { background:rgba(127,132,140,.1); }
+  .f-dot { width:8px; height:8px; border-radius:99px; }
+  .f-row span { flex:1; font-size:13px; color:var(--ink-soft); }
+  .st { font-size:10px; font-weight:700; padding:2px 7px; border-radius:999px; white-space:nowrap; }
+  .st.done { background:var(--accent-soft); color:var(--accent); } .st.rev { background:var(--warn-soft); color:var(--warn); } .st.todo { background:var(--track); color:var(--muted); }
+  .feed { padding:16px 16px 12px; }
+  .ev { display:flex; gap:10px; padding:9px 8px; margin:0 -8px; border-radius:var(--r-sm); }
+  .ev .who { width:28px; height:28px; border-radius:999px; flex-shrink:0; display:grid; place-items:center; font-size:10px; font-weight:750; background:var(--track); color:var(--ink-soft); }
+  .ev p { margin:0; font-size:12.5px; color:var(--ink-soft); } .ev time { font-size:11px; color:var(--muted); }
+  .refs { padding:14px 16px 8px; margin-top:14px; }
+  .refs-row { display:flex; flex-wrap:wrap; gap:2px 6px; }
+  .ref { display:flex; align-items:center; gap:7px; padding:6px 10px; border-radius:999px; font-size:12px; color:var(--ink-soft); background:var(--track); }
+
+  /* drawer = group task page preview */
+  .scrim { position:fixed; inset:0; background:rgba(15,17,20,.35); opacity:0; pointer-events:none; transition:opacity 220ms ease; z-index:40; }
+  .drawer { position:fixed; top:0; right:0; bottom:0; width:min(560px,94vw); z-index:41; padding:22px;
+    transform:translateX(105%); transition:transform 300ms cubic-bezier(.23,1,.32,1);
+    border-radius:var(--r-lg) 0 0 var(--r-lg); overflow-y:auto; }
+  .open .scrim { opacity:1; pointer-events:auto; }
+  .open .drawer { transform:none; }
+  .drawer .crumb { font-size:11.5px; color:var(--muted); margin-bottom:4px; }
+  .drawer h3 { margin:0 0 2px; font-size:17px; letter-spacing:-.015em; }
+  .drawer .dmeta { font-size:12px; color:var(--muted); margin-bottom:14px; }
+  .trow { display:flex; align-items:center; gap:10px; padding:10px 10px; margin:0 -10px; border-top:1px solid var(--line); }
+  .trow:hover { background:rgba(127,132,140,.1); border-radius:var(--r-sm); }
+  .tcode { font-size:11px; font-weight:750; color:var(--muted); width:42px; flex-shrink:0; font-variant-numeric:tabular-nums; }
+  .tname { flex:1; font-size:13px; color:var(--ink); min-width:0; }
+  .pr { display:flex; gap:4px; }
+  .box { width:22px; height:22px; border-radius:6px; display:grid; place-items:center; font-size:9.5px; font-weight:750; background:var(--track); color:var(--muted); }
+  .box.sig { background:var(--accent-soft); color:var(--accent); }
+  .dnote { font-size:11.5px; color:var(--muted); margin-top:12px; }
+  .close { position:absolute; top:16px; right:16px; width:30px; height:30px; border-radius:99px; border:none; cursor:pointer; background:var(--track); color:var(--ink-soft); font-size:15px; }
+  .close:focus-visible { outline:2px solid var(--accent); }
+
+  .note { margin-top:20px; font-size:12px; color:var(--muted); text-align:center; }
+  @media (max-width:960px) { .stage { grid-template-columns:1fr; } .fan { grid-template-columns:1fr 1fr; } .mid { grid-template-columns:1fr; } .tiles { grid-template-columns:1fr 1fr; } .gbar { width:70px; } }
+  @media (prefers-reduced-motion: reduce) { .grp { animation:none; opacity:1; transform:none; } .drawer,.scrim,.sec { transition:none; } }
+</style>
+
+<div class="wrap" id="app">
+  <header class="glass">
+    <div class="brand"><div class="brand-dot"></div>AuditISA</div>
+    <div class="eng"><b>SOCAPALM — Statutory audit FY 2025</b><span>Period end 31 Dec 2025 · FCFA · ISA + OHADA</span></div>
+    <div class="hdr-right"><span class="chip">Execution</span><div class="avatar">MB</div></div>
+  </header>
+
+  <div class="stage">
+    <aside class="hero glass" id="hero"></aside>
+    <div class="fan" id="fan"></div>
+  </div>
+
+  <div class="mid">
+    <div class="col">
+      <div class="seg glass glass-sm">
+        <button class="on" id="seg-my">My engagement summary</button>
+        <button id="seg-all">All engagements summary</button>
+      </div>
+      <div class="tiles">
+        <div class="tile glass glass-sm"><span class="lab">My tasks</span><span class="num" data-my="20" data-all="64">20</span><span class="hint2">assigned to me</span></div>
+        <div class="tile glass glass-sm"><span class="lab">For my review</span><span class="num" data-my="2" data-all="9">2</span><span class="hint2">awaiting sign-off</span></div>
+        <div class="tile glass glass-sm"><span class="lab">To do</span><span class="num" data-my="1" data-all="7">1</span><span class="hint2">due this week</span></div>
+        <div class="tile glass glass-sm"><span class="lab">My review notes</span>
+          <div class="split-row"><div><span class="num" data-my="3" data-all="11">3</span><div class="mini">for me</div></div>
+          <div><span class="num" data-my="1" data-all="6">1</span><div class="mini">by me</div></div></div></div>
+      </div>
+      <section class="findings glass">
+        <h3>Findings</h3>
+        <div class="f-row"><span class="f-dot" style="background:var(--rose)"></span><span>Revenue cut-off variance — 3 invoices posted post-close</span><span class="st rev">Open</span></div>
+        <div class="f-row"><span class="f-dot" style="background:var(--warn)"></span><span>Inventory count difference at Douala depot</span><span class="st rev">Open</span></div>
+        <div class="f-row"><span class="f-dot" style="background:var(--accent)"></span><span>Payroll reconciliation gap — resolved with client</span><span class="st done">Cleared</span></div>
+      </section>
+      <section class="refs glass glass-sm">
+        <h3>Reference documents</h3>
+        <div class="refs-row">
+          <span class="ref">Trial balance FY25.xlsx</span><span class="ref">Engagement letter.pdf</span>
+          <span class="ref">Prior year file (FY24)</span><span class="ref">Statutory registers</span><span class="ref">Group instructions</span>
+        </div>
+      </section>
+    </div>
+    <aside class="feed glass">
+      <h3>Engagement feed</h3>
+      <div class="ev"><div class="who">MB</div><div><p><b>M. Boma</b> signed off <b>E1.1 Revenue &amp; Receivables</b> as preparer</p><time>2 h ago</time></div></div>
+      <div class="ev"><div class="who">AN</div><div><p><b>A. Ngo</b> raised a review note on <b>ST3.1 Understanding the Entity</b></p><time>5 h ago</time></div></div>
+      <div class="ev"><div class="who" style="background:var(--accent-soft);color:var(--accent)">TB</div><div><p>Trial balance imported — <b>412 accounts</b> mapped</p><time>Yesterday</time></div></div>
+      <div class="ev"><div class="who">MB</div><div><p><b>M. Boma</b> recalculated materiality — <b>84.5 M FCFA</b></p><time>2 d ago</time></div></div>
+    </aside>
+  </div>
+
+  <p class="note">Variation C — focus stage · the selected section takes the spotlight; its groups fan out to the right as tiles · click a group for its task page (drawer preview)</p>
+</div>
+
+<div class="scrim" id="scrim"></div>
+<aside class="drawer glass" id="drawer" role="dialog" aria-modal="true" aria-labelledby="d-title">
+  <button class="close" id="d-close" aria-label="Close">×</button>
+  <div class="crumb" id="d-crumb"></div>
+  <h3 id="d-title"></h3>
+  <div class="dmeta" id="d-meta"></div>
+  <div id="d-rows"></div>
+  <p class="dnote">In the app this is a full page: the sign-off table with preparer / reviewer boxes, deadlines and status — scoped to this group only.</p>
+</aside>
+
+<script>
+  const DATA = [
+    { key:'st', name:'Planning & Strategy', pct:85, col:'var(--accent)', due:'due 2 Oct 2025', done:17, total:20, groups:[
+      { code:'ST1', name:'Acceptance & Continuance', done:2, total:2, tasks:[['ST1.1','Acceptance / Continuance Procedures','RR'],['ST1.2','Documentation of Job Arrangements','RR']] },
+      { code:'ST2', name:'Strategy & Direction', done:3, total:3, tasks:[['ST2.1','Engagement Strategy Driver','RR'],['ST2.2','Direction from the Engagement Partner','RR'],['ST2.3','Team Discussion','RR']] },
+      { code:'ST3', name:'Understanding the Entity', done:3, total:4, tasks:[['ST3.1','Understanding the Entity — ISA 315','PR'],['ST3.2','Analytical Risk Assessment','RR'],['ST3.3','Components of Internal Control','RR'],['ST3.4','Control Environment Assessment','RR']] },
+      { code:'ST4', name:'IT & Reliance', done:4, total:4, tasks:[['ST4.1','Understanding the IT Environment','RR'],['ST4.2','Reliance on Experts — ISA 620','RR'],['ST4.3','Service Organisations — ISA 402','RR'],['ST4.4','Internal Audit — ISA 610','RR']] },
+      { code:'ST5', name:'Materiality & Specific Risks', done:5, total:6, tasks:[['ST5.1','Materiality — ISA 320','RR'],['ST5.2','Commitments & Contingencies','RR'],['ST5.3','Fraud Risk Assessment — ISA 240','PR'],['ST5.4','Going Concern — Preliminary','RR'],['ST5.5','Related Parties — ISA 550','RR'],['ST5.6','Estimates — Planning','RR']] },
+      { code:'ST6', name:'Risk Register & Response Plan', done:0, total:1, tasks:[['ST6.1','Risk Assessment (Risk Register)','--']] },
+    ]},
+    { key:'e', name:'Execution', pct:4, col:'var(--warn)', due:'due 15 Feb 2026', done:2, total:27, groups:[
+      { code:'E1', name:'Significant Transaction Classes', done:1, total:3, tasks:[['E1.1','Revenue & Receivables','P-'],['E1.2','Purchases & Payables','--'],['E1.3','Payroll & Personnel Costs','--']] },
+      { code:'E2', name:'IT', done:0, total:2, tasks:[['E2.1','ITGC Testing','--'],['E2.2','Application Controls Testing','--']] },
+      { code:'E3', name:'Accounts', done:1, total:13, tasks:[['E3.1','Inventories — ISA 501','RR'],['E3.2','Property, Plant & Equipment','--'],['E3.3','Cash & Bank / Loans','--'],['E3.4','Taxation (current & deferred)','--'],['…','+ 9 more accounts','  ']] },
+      { code:'E4', name:'General', done:0, total:7, tasks:[['E4.1','Laws & Regulations / NOCLAR','--'],['E4.2','Related Parties — ISA 550','--'],['E4.3','Going Concern — ISA 570','--'],['…','+ 4 more','  ']] },
+      { code:'E5', name:'Response Tasks', done:0, total:2, tasks:[['E5.1','Fraud & Management Override','--'],['E5.2','Response: Revenue cut-off risk','--']] },
+    ]},
+    { key:'c', name:'Conclusion', pct:0, col:'var(--muted)', due:'due 15 Apr 2026', done:0, total:21, groups:[
+      { code:'C1', name:'Financial Statements & Completion', done:0, total:4, tasks:[['C1.1','Financial Statements Program','--'],['C1.2','Completion Checklist','--'],['C1.3','Points Outstanding','--'],['C1.4','Points Forward (next year)','--']] },
+      { code:'C2', name:'Misstatements & Significant Matters', done:0, total:3, tasks:[['C2.1','Summary of Misstatements','--'],['C2.2','Significant Matters / Issues','--'],['C2.3','Consultation Record','--']] },
+      { code:'C3', name:'Subsequent Events & Going Concern', done:0, total:1, tasks:[['C3.1','Subsequent Events Review — ISA 560','--']] },
+      { code:'C4', name:'Representations & Confirmations', done:0, total:2, tasks:[['C4.1','Management Representation Letters','--'],['C4.2','External Confirmation Letter','--']] },
+      { code:'C5', name:'Quality & Governance', done:0, total:2, tasks:[['C5.1','Engagement Quality Review','--'],['C5.2','Communications with TCWG','--']] },
+      { code:'C6', name:'Legal & Statutory (OHADA)', done:0, total:8, tasks:[['C6.1','Statutory Deadlines Calendar','--'],['C6.2','Conventions Réglementées','--'],['C6.3','Article 715 Report','--'],['…','+ 5 more','  ']] },
+    ]},
+  ];
+
+  const hero = document.getElementById('hero');
+  const fan = document.getElementById('fan');
+  let current = 0;
+
+  function render() {
+    const s = DATA[current];
+    hero.innerHTML = `
+      <div class="switch" role="tablist" aria-label="Sections">
+        ${DATA.map((x, i) => `
+          <button class="sw ${i === current ? 'on' : ''}" role="tab" aria-selected="${i === current}" data-i="${i}">
+            <span class="mini-ring" style="--p:${x.pct};--c:${x.col}">${x.pct}%</span>
+            <span class="lbl">${x.name.split(' ')[0]}</span>
+          </button>`).join('')}
+      </div>
+      <div>
+        <div class="hero-ring" style="--p:${s.pct};--c:${s.col}">${s.pct}%</div>
+        <h2>${s.name}</h2>
+        <div class="sub">${s.done} of ${s.total} tasks reviewed · ${s.due}</div>
+      </div>`;
+    hero.querySelectorAll('.sw').forEach((btn) => btn.addEventListener('click', () => { current = +btn.dataset.i; render(); }));
+    fan.innerHTML = s.groups.map((g, gi) => `
+      <button class="grp glass glass-sm" style="--i:${gi}" data-g="${gi}">
+        <span class="gcode">${g.code}</span>
+        <span class="gname">${g.name}</span>
+        <span class="grow"><span class="gbar"><i style="width:${g.total ? Math.round((g.done / g.total) * 100) : 0}%"></i></span>
+        <span class="gcount">${g.done}/${g.total}</span></span>
+      </button>`).join('') + '<div class="hint">Detail tasks open on the group page — click a group.</div>';
+    fan.querySelectorAll('.grp').forEach((btn) => btn.addEventListener('click', () => openDrawer(s, s.groups[+btn.dataset.g])));
+  }
+
+  const drawerHost = document.getElementById('app').parentElement;
+  function openDrawer(s, g) {
+    document.getElementById('d-crumb').textContent = `${s.name} → ${g.code}`;
+    document.getElementById('d-title').textContent = `${g.code} — ${g.name}`;
+    document.getElementById('d-meta').textContent = `${g.done} of ${g.total} tasks reviewed`;
+    document.getElementById('d-rows').innerHTML = g.tasks.map(([c, n, pr]) => `
+      <div class="trow"><span class="tcode">${c}</span><span class="tname">${n}</span>
+        <span class="pr"><span class="box ${pr[0] !== '-' && pr[0] !== ' ' ? 'sig' : ''}">${pr[0] === '-' || pr[0] === ' ' ? 'P' : pr[0]}</span>
+        <span class="box ${pr[1] === 'R' ? 'sig' : ''}">R</span></span></div>`).join('');
+    document.body.classList.add('open');
+  }
+  document.getElementById('scrim').addEventListener('click', () => document.body.classList.remove('open'));
+  document.getElementById('d-close').addEventListener('click', () => document.body.classList.remove('open'));
+  document.addEventListener('keydown', (e) => { if (e.key === 'Escape') document.body.classList.remove('open'); });
+
+  const segMy = document.getElementById('seg-my'), segAll = document.getElementById('seg-all');
+  function scope(sc) {
+    segMy.classList.toggle('on', sc === 'my'); segAll.classList.toggle('on', sc === 'all');
+    document.querySelectorAll('.num').forEach((el) => { el.textContent = el.dataset[sc]; });
+  }
+  segMy.addEventListener('click', () => scope('my')); segAll.addEventListener('click', () => scope('all'));
+
+  render();
+</script>

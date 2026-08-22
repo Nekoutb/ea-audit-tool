@@ -6,6 +6,39 @@
       "runtimeExecutable": "npm",
       "runtimeArgs": ["--prefix", "platform", "run", "dev", "--", "-p", "3100"],
       "port": 3100
+    },
+    {
+      "name": "mon-comptable",
+      "runtimeExecutable": "C:\\PROGRA~1\\nodejs\\npm.cmd",
+      "runtimeArgs": [
+        "--prefix",
+        "C:\\Users\\ULTRAB~1.1\\DOCUME~1\\AIPROJ~1\\MON-CO~1",
+        "run",
+        "dev"
+      ],
+      "port": 3000
+    },
+    {
+      "name": "lms",
+      "runtimeExecutable": "C:\\PROGRA~1\\nodejs\\npm.cmd",
+      "runtimeArgs": [
+        "--prefix",
+        "C:\\Users\\ULTRAB~1.1\\DOCUME~1\\AIPROJ~1\\lms",
+        "run",
+        "dev"
+      ],
+      "port": 3000
+    },
+    {
+      "name": "htsms",
+      "runtimeExecutable": "php",
+      "runtimeArgs": [
+        "C:\\Users\\UltraBook 3.1\\Documents\\AI Projects\\htsms\\backend\\artisan",
+        "serve",
+        "--host=127.0.0.1",
+        "--port=8090"
+      ],
+      "port": 8090
     }
   ]
 }
