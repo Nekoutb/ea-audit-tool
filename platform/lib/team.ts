@@ -260,9 +260,12 @@ export async function setPbcStatus(id: string, status: PbcItem["status"]): Promi
 
 /**
  * Add a team member by email address. An existing firm user is matched; an
- * unknown email provisions the account (random password — the firm admin sets
- * the real one under Settings → Users). The member starts as "invited" and is
- * prompted by email to accept or decline the engagement from the console.
+ * unknown email provisions the account with a TEMPORARY password that goes out
+ * in the invitation email and must be replaced at first sign-in — the same
+ * pattern as firm onboarding (lib/admin.ts). Without it the provisioned
+ * account was unreachable: nobody knew its random password and no admin reset
+ * existed. The member starts as "invited" and is prompted by email to accept
+ * or decline the engagement from the console.
  */
 export async function addTeamMemberByEmail(
   engagementId: string,
@@ -274,13 +277,14 @@ export async function addTeamMemberByEmail(
   const email = emailRaw.trim().toLowerCase();
   if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)) throw new Error("invalid-email");
 
-  const userId = await withTenant(tenantId, async (tx) => {
+  const tempPassword = randomBytes(24).toString("base64url");
+  const { userId, provisioned } = await withTenant(tenantId, async (tx) => {
     const existing = await tx.query<{ id: string }>(
       `SELECT u.id FROM app_user u JOIN membership m ON m.user_id = u.id
         WHERE lower(u.email) = $1 AND m.tenant_id = $2`,
       [email, tenantId],
     );
-    if (existing.rows[0]) return existing.rows[0].id;
+    if (existing.rows[0]) return { userId: existing.rows[0].id, provisioned: false };
     // Same email in another tenant is a different firm's user — never attach.
     const elsewhere = await tx.query<{ id: string }>(
       "SELECT id FROM app_user WHERE lower(email) = $1",
@@ -288,17 +292,17 @@ export async function addTeamMemberByEmail(
     );
     if (elsewhere.rows[0]) throw new Error("email-taken");
     const bcrypt = (await import("bcryptjs")).default;
-    const hash = await bcrypt.hash(randomBytes(18).toString("hex"), 10);
+    const hash = await bcrypt.hash(tempPassword, 10);
     const name = email.split("@")[0].replace(/[._-]+/g, " ").replace(/\b\w/g, (c) => c.toUpperCase());
     const user = await tx.query<{ id: string }>(
-      "INSERT INTO app_user (email, name, password_hash) VALUES ($1, $2, $3) RETURNING id",
+      "INSERT INTO app_user (email, name, password_hash, must_change_password) VALUES ($1, $2, $3, true) RETURNING id",
       [email, name, hash],
     );
     await tx.query("INSERT INTO membership (user_id, tenant_id, role) VALUES ($1, $2, 'staff')", [
       user.rows[0].id,
       tenantId,
     ]);
-    return user.rows[0].id;
+    return { userId: user.rows[0].id, provisioned: true };
   });
 
   await withTenant(tenantId, async (tx) => {
@@ -318,7 +322,13 @@ export async function addTeamMemberByEmail(
     ...platformSender(),
     to: email,
     subject: `You have been added to ${engagementName}`,
-    body: `You have been added to the engagement "${engagementName}" as ${teamRole.replace("_", " ")}. Sign in and accept or decline it from the engagement dashboard: /engagements/${engagementId}/dashboard`,
+    body:
+      `You have been added to the engagement "${engagementName}" as ${teamRole.replace("_", " ")}. ` +
+      `Sign in and accept or decline it from the engagement dashboard: /engagements/${engagementId}/dashboard` +
+      (provisioned
+        ? `\n\nAn account has been created for you.\nEmail: ${email}\nTemporary password: ${tempPassword}\n` +
+          `You will be asked to replace it the first time you sign in.`
+        : ""),
   });
   await createNotification({
     tenantId,

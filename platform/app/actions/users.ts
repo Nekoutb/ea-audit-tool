@@ -2,9 +2,9 @@
 
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
-import { UserAdminError, changeUserRole, inviteFirmUser, removeFirmUser } from "@/lib/users";
+import { UserAdminError, changeUserRole, inviteFirmUser, removeFirmUser, resetUserPassword } from "@/lib/users";
 
-async function run(fn: () => Promise<void>): Promise<never> {
+async function run(fn: () => Promise<void>, success = "saved"): Promise<never> {
   try {
     await fn();
   } catch (error) {
@@ -12,7 +12,7 @@ async function run(fn: () => Promise<void>): Promise<never> {
     throw error;
   }
   revalidatePath("/users");
-  redirect("/users?saved=1");
+  redirect(`/users?${success}=1`);
 }
 
 export async function inviteUserAction(formData: FormData): Promise<void> {
@@ -21,9 +21,13 @@ export async function inviteUserAction(formData: FormData): Promise<void> {
       email: String(formData.get("email") ?? ""),
       name: String(formData.get("name") ?? ""),
       role: String(formData.get("role") ?? ""),
-      password: String(formData.get("password") ?? ""),
     }),
   );
+}
+
+export async function resetPasswordAction(formData: FormData): Promise<void> {
+  const userId = String(formData.get("userId") ?? "");
+  await run(() => resetUserPassword(userId), "reset");
 }
 
 export async function changeRoleAction(formData: FormData): Promise<void> {

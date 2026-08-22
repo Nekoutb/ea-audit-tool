@@ -79,7 +79,7 @@ const escapeHtml = (s: string) =>
 export function sendEmail(email: OutboundEmail): void {
   const appUrl = (process.env.APP_URL ?? "https://www.auditisa.com").replace(/\/$/, "");
   // absolutize bare in-app paths so links work from a mail client
-  const body = email.body.replace(/(^|[\s:])(\/(?:engagements|independence|login|documents)\/[^\s)]+)/g, (m, sp, path) => `${sp}${appUrl}${path}`);
+  const body = email.body.replace(/(^|[\s:])(\/(?:engagements|independence|login|documents)(?:\/[^\s)]+)?)/g, (m, sp, path) => `${sp}${appUrl}${path}`);
   const subject = email.tag ? `${email.subject} [ref:${email.tag}]` : email.subject;
   const from = resolveFrom(email);
 
