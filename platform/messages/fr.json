@@ -751,7 +751,7 @@
       "title": "Seuil de signification (ISA 320)",
       "benchmark": "Critère de référence",
       "benchmarks": {
-        "pbt": "Résultat avant impôt",
+        "pbt": "Résultat avant impôt (Pre-Tax income)",
         "revenue": "Chiffre d'affaires",
         "total_assets": "Total actif",
         "equity": "Capitaux propres",
@@ -766,7 +766,7 @@
       "compute": "Créer la version",
       "overall": "Seuil de signification global",
       "performance": "Seuil de planification",
-      "trivial": "Manifestement négligeable",
+      "trivial": "SAD nominal (manifestement négligeable)",
       "version": "Version",
       "approve": "Approuver (associé)",
       "statusLabel": {

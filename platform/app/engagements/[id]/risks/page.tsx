@@ -13,6 +13,7 @@ import {
   updateRiskAction,
 } from "@/app/actions/planning";
 import { AppNav } from "@/components/AppNav";
+import { DropdownChecklist } from "@/components/DropdownChecklist";
 import { ErrorBanner } from "@/components/GatesPanel";
 import { Panel, PanelHeader } from "@/components/ui/atlas";
 import { getEngagement, listFileItems } from "@/lib/engagements";
@@ -364,14 +365,12 @@ export default async function RisksPage(props: {
                             </option>
                           ))}
                         </select>
-                        <span className="flex items-center gap-1 text-xs text-muted">
-                          {ASSERTIONS.map((assertion) => (
-                            <label key={assertion} className="flex items-center gap-0.5">
-                              <input type="checkbox" name="linkAssertions" value={assertion} />
-                              {assertion}
-                            </label>
-                          ))}
-                        </span>
+                        <DropdownChecklist
+                          label={fr ? "Assertions" : "Assertions"}
+                          name="linkAssertions"
+                          options={ASSERTIONS.map((assertion) => ({ value: assertion, label: assertion }))}
+                          testIdPrefix={`link-assert-${risk.presumedType ?? risk.id}`}
+                        />
                         <button type="submit" className={btn} data-testid={`link-save-${risk.presumedType ?? risk.id}`}>
                           {fr ? "Lier" : "Link"}
                         </button>
@@ -381,6 +380,13 @@ export default async function RisksPage(props: {
                 ) : null}
 
                 {!risk.rebutted ? (
+                  <details className="mt-2">
+                    <summary
+                      className="inline-flex cursor-pointer list-none items-center gap-1.5 rounded-full border border-line-strong px-3 py-1 text-[11.5px] font-semibold text-ink-soft hover:bg-surface-2 [&::-webkit-details-marker]:hidden"
+                      data-testid={`risk-edit-open-${risk.presumedType ?? risk.id}`}
+                    >
+                      ✎ {fr ? "Modifier l'évaluation" : "Edit assessment"}
+                    </summary>
                   <div className="mt-3 flex flex-wrap items-end gap-4">
                     <form action={updateRiskAction.bind(null, id, risk.id)} className="flex flex-wrap items-end gap-2">
                       <label className="flex flex-col text-xs text-muted">
@@ -399,25 +405,18 @@ export default async function RisksPage(props: {
                           <option value="high">high</option>
                         </select>
                       </label>
-                      {/* ISA 315 ¶31(a): the factors driving the susceptibility */}
-                      <fieldset className="flex flex-col text-xs text-muted">
-                        <legend className="text-xs text-muted">{fr ? "Facteurs de risque inhérent" : "Inherent risk factors"}</legend>
+                      {/* ISA 315 ¶31(a): the factors driving the susceptibility — a
+                          dropdown checklist instead of a sprawl of pills */}
+                      <span className="flex flex-col text-xs text-muted">
                         <input type="hidden" name="factors_present" value="1" />
-                        <span className="flex flex-wrap items-center gap-1.5 pt-0.5">
-                          {FACTORS.map((factor) => (
-                            <label key={factor.key} className="flex items-center gap-0.5 rounded-full border border-line px-1.5 py-0.5">
-                              <input
-                                type="checkbox"
-                                name="factors"
-                                value={factor.key}
-                                defaultChecked={risk.inherentFactors.includes(factor.key)}
-                                data-testid={`factor-${factor.key}-${risk.presumedType ?? risk.id}`}
-                              />
-                              {fr ? factor.fr : factor.en}
-                            </label>
-                          ))}
-                        </span>
-                      </fieldset>
+                        <DropdownChecklist
+                          label={fr ? "Facteurs de risque inhérent" : "Inherent risk factors"}
+                          name="factors"
+                          options={FACTORS.map((factor) => ({ value: factor.key, label: fr ? factor.fr : factor.en }))}
+                          defaultChecked={risk.inherentFactors}
+                          testIdPrefix={`factor-${risk.presumedType ?? risk.id}`}
+                        />
+                      </span>
                       {risk.presumedType === null ? (
                         <label className="flex items-center gap-1 text-xs text-muted">
                           <input type="hidden" name="significant_present" value="1" />
@@ -484,14 +483,12 @@ export default async function RisksPage(props: {
                           ))}
                         </select>
                       </label>
-                      <span className="flex items-center gap-1 text-xs text-muted">
-                        {ASSERTIONS.map((assertion) => (
-                          <label key={assertion} className="flex items-center gap-0.5">
-                            <input type="checkbox" name="assertions" value={assertion} />
-                            {assertion}
-                          </label>
-                        ))}
-                      </span>
+                      <DropdownChecklist
+                        label={fr ? "Assertions" : "Assertions"}
+                        name="assertions"
+                        options={ASSERTIONS.map((assertion) => ({ value: assertion, label: assertion }))}
+                        testIdPrefix={`map-assert-${risk.presumedType ?? risk.id}`}
+                      />
                       <button type="submit" className={btn}>
                         {tr.mapSection}
                       </button>
@@ -506,6 +503,7 @@ export default async function RisksPage(props: {
                       </form>
                     ) : null}
                   </div>
+                  </details>
                 ) : null}
               </li>
             ))}

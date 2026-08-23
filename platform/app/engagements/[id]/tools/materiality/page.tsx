@@ -121,15 +121,18 @@ export default async function MaterialityPage(props: {
               </span>
               <span className="text-muted">
                 <b className="text-ink">{fr ? "Seuil global (PM)" : "Planning Materiality"}</b>:{" "}
-                <span className="font-semibold text-ink tnum">{formatFCFA(latest.overall)}</span>
+                <span className="font-semibold text-ink tnum">{formatFCFA(latest.overall)}</span>{" "}
+                <span className="tnum">({latest.percentage}% {fr ? "de la base" : "of basis"})</span>
               </span>
               <span className="text-muted">
                 <b className="text-ink">{fr ? "Seuil de travail (TE)" : "Tolerable Error"}</b>:{" "}
-                <span className="font-semibold text-ink tnum">{formatFCFA(latest.performance)}</span>
+                <span className="font-semibold text-ink tnum">{formatFCFA(latest.performance)}</span>{" "}
+                <span className="tnum">({latest.performancePct}% {fr ? "de PM" : "of PM"} · {latest.benchmarkAmount > 0 ? ((latest.performance / latest.benchmarkAmount) * 100).toFixed(2) : "—"}% {fr ? "de la base" : "of basis"})</span>
               </span>
               <span className="text-muted">
-                <b className="text-ink">{fr ? "Seuil SAD" : "SAD Nominal Amount"}</b>:{" "}
-                <span className="font-semibold text-ink tnum">{formatFCFA(latest.trivial)}</span>
+                <b className="text-ink">{fr ? "SAD nominal" : "SAD Nominal"}</b>:{" "}
+                <span className="font-semibold text-ink tnum">{formatFCFA(latest.trivial)}</span>{" "}
+                <span className="tnum">({latest.trivialPct}% {fr ? "de PM" : "of PM"} · {latest.benchmarkAmount > 0 ? ((latest.trivial / latest.benchmarkAmount) * 100).toFixed(2) : "—"}% {fr ? "de la base" : "of basis"})</span>
               </span>
               <span data-testid="materiality-status">
                 {latest.status === "approved" ? (

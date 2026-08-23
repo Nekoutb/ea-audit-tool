@@ -48,6 +48,13 @@ export default async function SadPage(props: { params: Promise<{ id: string }> }
               : "Fed by the substantive-procedure conclusions · evaluated in C1.1 · attached to the representation letter (C3.1)"}
           </p>
         </div>
+        <a
+          href={`/api/engagements/${id}/sad/export?locale=${locale}`}
+          className="ml-auto inline-flex items-center gap-1.5 rounded-[var(--radius-atlas-sm)] bg-emerald-700 px-3 py-1.5 text-[12.5px] font-semibold text-white transition hover:bg-emerald-800"
+          data-testid="sad-export"
+        >
+          ⬇ {fr ? "Exporter Excel (client)" : "Export Excel (client copy)"}
+        </a>
       </div>
 
       <div className="mt-4">

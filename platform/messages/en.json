@@ -751,7 +751,7 @@
       "title": "Materiality (ISA 320)",
       "benchmark": "Benchmark",
       "benchmarks": {
-        "pbt": "Profit before tax",
+        "pbt": "Pre-Tax income",
         "revenue": "Revenue",
         "total_assets": "Total assets",
         "equity": "Equity",
@@ -766,7 +766,7 @@
       "compute": "Create version",
       "overall": "Overall materiality",
       "performance": "Performance materiality",
-      "trivial": "Clearly trivial",
+      "trivial": "SAD Nominal (clearly trivial)",
       "version": "Version",
       "approve": "Approve (partner)",
       "statusLabel": {
