@@ -1,7 +1,9 @@
 import { NextResponse } from "next/server";
 import { createDataset, isSubLedgerKind, SubLedgerError } from "@/lib/subledgers";
 
-const MAX_BYTES = 25 * 1024 * 1024;
+// Data imports (not documents): a six-figure-line CSV passes 25 MB easily.
+// Memory, not disk, is the real ceiling — see docs/capacity-2026-08-23.md.
+const MAX_BYTES = 60 * 1024 * 1024;
 
 /** Upload a typed sub-ledger dataset (CSV/XLSX) for the engagement (step 3.4). */
 export async function POST(request: Request, context: { params: Promise<{ id: string }> }) {
@@ -20,8 +22,8 @@ export async function POST(request: Request, context: { params: Promise<{ id: st
     const rawTiming = String(form.get("timing") ?? "");
     const timing = rawTiming === "post_audit" || rawTiming === "prior_year" ? rawTiming : "pre_audit";
     const headerRow = form.get("headerRow") !== "0";
-    const datasetId = await createDataset(id, kind, file.name, buffer, mapping, timing, headerRow);
-    return NextResponse.json({ datasetId });
+    const { datasetId, rowCount } = await createDataset(id, kind, file.name, buffer, mapping, timing, headerRow);
+    return NextResponse.json({ datasetId, rowCount });
   } catch (error) {
     if (error instanceof SubLedgerError) {
       return NextResponse.json({ error: error.code }, { status: 400 });

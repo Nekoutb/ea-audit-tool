@@ -32,6 +32,30 @@ export function PageLoader() {
   const pathname = usePathname();
   const first = useRef(true);
 
+  // Every internal link starts the bar the instant it is clicked — not only
+  // the components that remember to call startPageLoad(). Without this, a
+  // click on a slow route (the tools tiles especially) gives no sign the
+  // click landed until the new page commits.
+  useEffect(() => {
+    const onClick = (event: MouseEvent) => {
+      if (event.defaultPrevented || event.button !== 0) return;
+      if (event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return;
+      const target = event.target as HTMLElement | null;
+      const anchor = target?.closest?.("a[href]") as HTMLAnchorElement | null;
+      if (!anchor) return;
+      const t = (anchor.getAttribute("target") ?? "").toLowerCase();
+      if (t && t !== "_self") return;
+      const href = anchor.getAttribute("href") ?? "";
+      if (!href.startsWith("/")) return;
+      // same-page anchors and the current URL don't navigate
+      const [path] = href.split("#");
+      if (!path || path === window.location.pathname + window.location.search) return;
+      startPageLoad();
+    };
+    document.addEventListener("click", onClick, true);
+    return () => document.removeEventListener("click", onClick, true);
+  }, []);
+
   useEffect(() => {
     document.getElementById("atlas-overlay")?.classList.remove("show");
     if (first.current) {

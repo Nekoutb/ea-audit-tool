@@ -195,7 +195,7 @@ export default async function EngagementDashboardPage(props: {
       {/* The sketch's summary row: my tasks · review notes · findings.
           Tools moved to the header icon (nav-tools). */}
       <section className="grid grid-cols-1 gap-3 sm:grid-cols-3">
-        <Link href={`/engagements/${id}/tasks`} className="block">
+        <Link href={`/engagements/${id}/tasks?filter=mine`} className="block">
           <Panel className="h-full px-5 py-4 transition hover:border-emerald-600/40">
             <PanelHeader title={fr ? "Mes tâches" : "My tasks"} />
             <div className="mt-2 text-[30px] font-extrabold leading-tight tracking-[-0.03em] text-ink tnum">

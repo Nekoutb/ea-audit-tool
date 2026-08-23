@@ -3,7 +3,7 @@ import { SubLedgerError } from "@/lib/subledgers";
 import { addOverride, importTrialBalance, saveLeadIndexOverride, TbError, type TbMapping } from "@/lib/tb";
 import { getEngagement } from "@/lib/engagements";
 
-const MAX_BYTES = 25 * 1024 * 1024;
+const MAX_BYTES = 60 * 1024 * 1024; // data import, not a document — see capacity doc
 
 /** Import a trial balance file (step 3.1) — mapping is inferred and returned. */
 export async function POST(request: Request, context: { params: Promise<{ id: string }> }) {

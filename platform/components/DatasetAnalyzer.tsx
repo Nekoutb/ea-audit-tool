@@ -145,6 +145,7 @@ export function DatasetAnalyzer({
   const [error, setError] = useState<string | null>(null);
   const [pending, setPending] = useState<"analyze" | "ingest" | null>(null);
   const [headerRow, setHeaderRow] = useState(true);
+  const [done, setDone] = useState<string | null>(null);
 
   async function analyze() {
     const file = fileRef.current?.files?.[0];
@@ -177,6 +178,7 @@ export function DatasetAnalyzer({
     form.set("file", file);
     form.set("headerRow", headerRow ? "1" : "0");
     form.set("mapping", JSON.stringify(mapping));
+    setDone(null);
     const response = await fetch(`/api/engagements/${engagementId}/subledgers`, { method: "POST", body: form });
     setPending(null);
     if (!response.ok) {
@@ -185,6 +187,13 @@ export function DatasetAnalyzer({
       setError(messages.errors[code] ?? String(body.error));
       return;
     }
+    const body = (await response.json().catch(() => ({}))) as { rowCount?: number };
+    // The answer the user is owed: it worked, and this is how much arrived.
+    setDone(
+      fr
+        ? `✓ Import réussi — ${body.rowCount ?? "?"} lignes ingérées (${file.name})`
+        : `✓ Import successful — ${body.rowCount ?? "?"} rows ingested (${file.name})`,
+    );
     setPreview(null);
     router.refresh();
   }
@@ -247,6 +256,15 @@ export function DatasetAnalyzer({
           />
           {fr ? "La 1re ligne contient les en-têtes" : "First row contains headers"}
         </label>
+        {pending === "ingest" ? (
+          <span className="flex items-center gap-2 text-[12.5px] font-medium text-amber-700 dark:text-amber-400" data-testid="dataset-ingesting">
+            <span className="inline-block h-3.5 w-3.5 animate-spin rounded-full border-2 border-amber-600 border-t-transparent" aria-hidden />
+            {fr ? "Ingestion en cours — un grand livre volumineux peut prendre une minute…" : "Ingesting — a large ledger can take a minute…"}
+          </span>
+        ) : null}
+        {done ? (
+          <span className="text-[12.5px] font-semibold text-emerald-700 dark:text-emerald-400" data-testid="dataset-done">{done}</span>
+        ) : null}
         <button
           type="button"
           onClick={analyze}

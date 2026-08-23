@@ -81,7 +81,7 @@ beforeAll(async () => {
   );
 
   // AR open items dataset totalling 12,600,000 (diff vs TB 2.6M > trivial).
-  arDataset = await createDataset(
+  arDataset = (await createDataset(
     engagementId,
     "ar_open_items",
     "ar.csv",
@@ -89,9 +89,9 @@ beforeAll(async () => {
       "ACME;5000000", "Beta;2500000", "Gamma;1800000", "Delta;1200000",
       "Epsilon;900000", "Zeta;700000", "Eta;300000", "Theta;200000",
     ]),
-  );
+  )).datasetId;
 
-  jeDataset = await createDataset(
+  jeDataset = (await createDataset(
     engagementId,
     "journal_entries",
     "je.csv",
@@ -101,7 +101,7 @@ beforeAll(async () => {
       "2025-06-16;601000;500",       // clean (Monday, small, not round)
       "2025-07-19;601000;2000000",   // weekend (Saturday) + round
     ]),
-  );
+  )).datasetId;
 }, 40_000);
 
 afterAll(async () => {
@@ -162,14 +162,14 @@ describe("5.4 sub-ledger → TB reconciliation", () => {
 
 describe("5.7 supplier statements", () => {
   it("compares statement vs ledger per supplier", async () => {
-    const statements = await createDataset(
+    const statements = (await createDataset(
       engagementId, "supplier_statements", "stmt.csv",
       csv("Supplier;Balance", ["Omega;4000000", "Sigma;1000000"]),
-    );
-    const ledger = await createDataset(
+    )).datasetId;
+    const ledger = (await createDataset(
       engagementId, "ap_open_items", "ap.csv",
       csv("Supplier;Balance", ["Omega;4000000", "Sigma;800000", "Tau;150000"]),
-    );
+    )).datasetId;
     const result = await runSupplierRecon({ fileItemId: e110, statementsDatasetId: statements, ledgerDatasetId: ledger });
     expect(result.suppliersCompared).toBe(3);
     expect(result.differences).toBe(2); // Sigma 200k + Tau missing from statements

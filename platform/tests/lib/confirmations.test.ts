@@ -67,13 +67,13 @@ beforeAll(async () => {
   });
   await approveMateriality(engagementId, version);
 
-  arDataset = await createDataset(
+  arDataset = (await createDataset(
     engagementId, "ar_open_items", "ar.csv",
     Buffer.from(
       "Customer;Email;Amount\nACME;acme@x.test;5000000\nBeta;beta@x.test;2500000\nGamma;;900000\nNil Co;;0",
       "utf8",
     ),
-  );
+  )).datasetId;
 }, 30_000);
 
 afterAll(async () => {

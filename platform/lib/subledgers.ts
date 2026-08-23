@@ -172,7 +172,7 @@ export async function createDataset(
   mapping?: Record<string, string>,
   timing: DatasetTiming = "pre_audit",
   headerRow = true,
-): Promise<string> {
+): Promise<{ datasetId: string; rowCount: number }> {
   const { tenantId, userId } = await requireTenant();
   const table = await parseTabularFile(filename, buffer, headerRow);
   // the confirmed amount-bearing column wins over the guess; a ledger that
@@ -202,22 +202,37 @@ export async function createDataset(
       [tenantId, engagementId, kind, timing, filename.replace(/\.[^.]+$/, ""), filename, sha256, table.rows.length, amountColumn, mapping ? JSON.stringify(mapping) : null, userId],
     );
     const datasetId = dataset.rows[0].id;
+    // Batched ingest (audit H22): one round-trip per BATCH rows via unnest,
+    // not one per row — a six-figure ledger arrives in hundreds of queries,
+    // not hundreds of thousands.
+    const BATCH = 5000;
     let rowNo = 0;
-    for (const row of table.rows) {
-      rowNo += 1;
-      const amount = signedPair
-        ? (toNumber(row[debitColumn as string]) ?? 0) - (toNumber(row[creditColumn as string]) ?? 0)
-        : amountColumn
-          ? toNumber(row[amountColumn])
-          : null;
-      if (amount !== null) total = (total ?? 0) + amount;
+    for (let start = 0; start < table.rows.length; start += BATCH) {
+      const chunk = table.rows.slice(start, start + BATCH);
+      const rowNos: number[] = [];
+      const datas: string[] = [];
+      const amounts: (number | null)[] = [];
+      for (const row of chunk) {
+        rowNo += 1;
+        const amount = signedPair
+          ? (toNumber(row[debitColumn as string]) ?? 0) - (toNumber(row[creditColumn as string]) ?? 0)
+          : amountColumn
+            ? toNumber(row[amountColumn])
+            : null;
+        if (amount !== null) total = (total ?? 0) + amount;
+        rowNos.push(rowNo);
+        datas.push(JSON.stringify(row));
+        amounts.push(amount);
+      }
       await tx.query(
-        "INSERT INTO sub_ledger_row (tenant_id, dataset_id, row_no, data, amount) VALUES ($1, $2, $3, $4, $5)",
-        [tenantId, datasetId, rowNo, JSON.stringify(row), amount],
+        `INSERT INTO sub_ledger_row (tenant_id, dataset_id, row_no, data, amount)
+         SELECT $1, $2, r, d::jsonb, a
+           FROM unnest($3::int[], $4::text[], $5::numeric[]) AS t(r, d, a)`,
+        [tenantId, datasetId, rowNos, datas, amounts],
       );
     }
     await tx.query("UPDATE sub_ledger_dataset SET total_amount = $2 WHERE id = $1", [datasetId, total]);
-    return datasetId;
+    return { datasetId, rowCount: table.rows.length };
   });
 }
 

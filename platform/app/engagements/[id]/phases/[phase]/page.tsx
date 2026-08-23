@@ -17,7 +17,6 @@ import {
 } from "@/lib/engagement-dashboard";
 import { getEngagement } from "@/lib/engagements";
 import { shortTitle } from "@/lib/file-index";
-import { FORM_DEFINITIONS } from "@/lib/forms";
 import { getMessages } from "@/lib/i18n";
 import { getLocale } from "@/lib/locale";
 
@@ -89,19 +88,9 @@ export default async function PhaseTasksPage(props: {
   const rows: PhaseRowData[] = tasks.map((task) => {
     // Strategy tasks live on the working-paper screen — the legacy form and
     // document branches no longer apply to them.
-    const href = task.code.startsWith("S")
-      ? `/engagements/${id}/sections/${task.id}`
-      : task.documentId
-      ? `/documents/${task.documentId}`
-      : FORM_DEFINITIONS[task.code]
-        ? `/engagements/${id}/forms/${task.code}`
-        : task.code === "P6.1"
-          ? `/engagements/${id}/planning`
-          : task.code === "S3.1"
-            ? `/engagements/${id}/risks`
-            : task.section === "F"
-              ? `/engagements/${id}/legal`
-              : `/engagements/${id}/sections/${task.id}`;
+    // One canonical page per task (working-paper screen) — matches the phase
+    // drill-down and the tasks page, so the same code never opens two pages.
+    const href = `/engagements/${id}/sections/${task.id}`;
 
     const preparerSigned = Boolean(task.preparerName);
     const reviewerSigned = Boolean(task.reviewerName);

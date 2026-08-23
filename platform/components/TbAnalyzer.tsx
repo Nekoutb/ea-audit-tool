@@ -177,6 +177,14 @@ export function TbAnalyzer({
           />
           {fr ? "La 1re ligne contient les en-têtes" : "First row contains headers"}
         </label>
+        {pending ? (
+          <span className="flex items-center gap-2 text-[12.5px] font-medium text-amber-700 dark:text-amber-400" data-testid="tb-working">
+            <span className="inline-block h-3.5 w-3.5 animate-spin rounded-full border-2 border-amber-600 border-t-transparent" aria-hidden />
+            {pending === "analyze"
+              ? fr ? "Analyse du fichier…" : "Analyzing the file…"
+              : fr ? "Ingestion en cours — un fichier volumineux peut prendre une minute…" : "Ingesting — a large file can take a minute…"}
+          </span>
+        ) : null}
         <button
           type="button"
           onClick={() => analyze()}

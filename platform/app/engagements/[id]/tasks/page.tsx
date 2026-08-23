@@ -7,7 +7,6 @@ import { withTenant } from "@/lib/db";
 import { engagementTasks, initials, type PhaseTask, type PhaseTaskStatus } from "@/lib/engagement-dashboard";
 import { getEngagement } from "@/lib/engagements";
 import { shortTitle } from "@/lib/file-index";
-import { FORM_DEFINITIONS } from "@/lib/forms";
 import { getMessages } from "@/lib/i18n";
 import { getLocale } from "@/lib/locale";
 import { displayCode } from "@/lib/task-groups";
@@ -68,19 +67,10 @@ function applyFilter(tasks: PhaseTask[], filter: Filter, userId: string): PhaseT
 
 /** Same destination branching as the group task rows. */
 function taskHref(engagementId: string, task: PhaseTask): string {
-  // Strategy tasks always open their working paper.
-  if (task.code.startsWith("S")) return `/engagements/${engagementId}/sections/${task.id}`;
-  return task.documentId
-    ? `/documents/${task.documentId}`
-    : FORM_DEFINITIONS[task.code]
-      ? `/engagements/${engagementId}/forms/${task.code}`
-      : task.code === "P6.1"
-        ? `/engagements/${engagementId}/planning`
-        : task.code === "S3.1"
-          ? `/engagements/${engagementId}/risks`
-          : task.section === "F"
-            ? `/engagements/${engagementId}/legal`
-            : `/engagements/${engagementId}/sections/${task.id}`;
+  // ONE canonical page per task: the working-paper screen. Every entry point
+  // (phase lists, my tasks, forms tool, search) lands on the same URL, so the
+  // reader never sees two different "P1.1" pages.
+  return `/engagements/${engagementId}/sections/${task.id}`;
 }
 
 /** Open review-note counts per file item, in one query (fi.id → n). */
