@@ -62,15 +62,20 @@ async function obtainSession() {
     await page.fill("input[name=email]", EMAIL);
     await page.fill("input[name=password]", PASSWORD);
     await page.getByTestId("login-submit").click();
-    // Wait for a page that only a signed-in session reaches. An alternation
-    // containing "\/" matches every URL, including /login, and returns before
-    // the session cookie is set — which is what made this report "no session
-    // cookie" while the sign-in had actually worked.
-    await page.waitForURL(/\/(dashboard|engagements)/, { timeout: 40000 });
-    const cookies = await context.cookies();
-    const jar = cookies.map((c) => `${c.name}=${c.value}`).join("; ");
-    if (!/authjs\.session-token/.test(jar)) throw new Error("no session cookie after sign-in");
-    return jar;
+    // The thing this function needs is the SESSION COOKIE, not any particular
+    // URL: the sign-in server action sets the cookie before the client-side
+    // redirect, and under headless runs that redirect sometimes never fires
+    // (login_attempt shows successful=true while the page sits on /login).
+    // So poll the cookie jar; the URL is nobody's business here.
+    const deadline = Date.now() + 40000;
+    let jar = "";
+    while (Date.now() < deadline) {
+      const cookies = await context.cookies();
+      jar = cookies.map((c) => `${c.name}=${c.value}`).join("; ");
+      if (/authjs\.session-token/.test(jar)) return jar;
+      await page.waitForTimeout(500);
+    }
+    throw new Error("no session cookie after sign-in");
   } finally {
     await browser.close();
   }
