@@ -566,6 +566,7 @@
     "tbPage": {
       "title": "Trial balance",
       "import": "Import trial balance",
+      "firstRowHeaders": "First row contains headers",
       "versions": "Versions",
       "kind": {
         "initial": "Initial",

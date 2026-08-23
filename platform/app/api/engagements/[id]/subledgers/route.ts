@@ -19,7 +19,8 @@ export async function POST(request: Request, context: { params: Promise<{ id: st
     const mapping = typeof rawMapping === "string" && rawMapping ? (JSON.parse(rawMapping) as Record<string, string>) : undefined;
     const rawTiming = String(form.get("timing") ?? "");
     const timing = rawTiming === "post_audit" || rawTiming === "prior_year" ? rawTiming : "pre_audit";
-    const datasetId = await createDataset(id, kind, file.name, buffer, mapping, timing);
+    const headerRow = form.get("headerRow") !== "0";
+    const datasetId = await createDataset(id, kind, file.name, buffer, mapping, timing, headerRow);
     return NextResponse.json({ datasetId });
   } catch (error) {
     if (error instanceof SubLedgerError) {

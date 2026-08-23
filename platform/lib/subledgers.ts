@@ -24,9 +24,9 @@ export class SubLedgerError extends Error {
   }
 }
 
-function parseCsv(text: string): ParsedTable {
+function parseCsv(text: string, headerRow = true): ParsedTable {
   const lines = text.replace(/\r\n?/g, "\n").split("\n").filter((line) => line.trim().length > 0);
-  if (lines.length < 2) throw new SubLedgerError("empty-file");
+  if (lines.length < (headerRow ? 2 : 1)) throw new SubLedgerError("empty-file");
   const split = (line: string): string[] => {
     const cells: string[] = [];
     let current = "";
@@ -44,8 +44,13 @@ function parseCsv(text: string): ParsedTable {
     cells.push(current);
     return cells.map((cell) => cell.trim());
   };
-  const headers = split(lines[0]).map((header, index) => header || `col_${index + 1}`);
-  const rows = lines.slice(1).map((line) => {
+  // Without a header row every line is data and the columns get positional
+  // names, so the mapping dropdowns always have something honest to offer.
+  const width = headerRow ? split(lines[0]).length : Math.max(...lines.slice(0, 25).map((l) => split(l).length));
+  const headers = headerRow
+    ? split(lines[0]).map((header, index) => header || `col_${index + 1}`)
+    : Array.from({ length: width }, (_, index) => `col_${index + 1}`);
+  const rows = lines.slice(headerRow ? 1 : 0).map((line) => {
     const cells = split(line);
     const row: Record<string, unknown> = {};
     headers.forEach((header, index) => { row[header] = cells[index] ?? ""; });
@@ -72,19 +77,32 @@ function cellScalar(value: unknown): unknown {
   return value;
 }
 
-async function parseXlsx(buffer: Buffer): Promise<ParsedTable> {
+async function parseXlsx(buffer: Buffer, headerRow = true): Promise<ParsedTable> {
   const workbook = new ExcelJS.Workbook();
   await workbook.xlsx.load(buffer as unknown as ArrayBuffer);
   const sheet = workbook.worksheets[0];
-  if (!sheet || sheet.rowCount < 2) throw new SubLedgerError("empty-file");
-  const headerRow = sheet.getRow(1);
+  if (!sheet || sheet.rowCount < (headerRow ? 2 : 1)) throw new SubLedgerError("empty-file");
+  // Exports often open with a title or blank banner row: the header row is the
+  // first row carrying any value, not blindly row 1.
+  let headerRowNo = 1;
+  if (headerRow) {
+    for (let r = 1; r <= Math.min(sheet.rowCount, 25); r += 1) {
+      let hasValue = false;
+      sheet.getRow(r).eachCell({ includeEmpty: false }, () => { hasValue = true; });
+      if (hasValue) { headerRowNo = r; break; }
+    }
+  }
   const headers: string[] = [];
-  headerRow.eachCell({ includeEmpty: true }, (cell, col) => {
-    headers[col - 1] = String(cellScalar(cell.value) ?? `col_${col}`).trim() || `col_${col}`;
-  });
+  if (headerRow) {
+    sheet.getRow(headerRowNo).eachCell({ includeEmpty: true }, (cell, col) => {
+      headers[col - 1] = String(cellScalar(cell.value) ?? `col_${col}`).trim() || `col_${col}`;
+    });
+  } else {
+    for (let c = 1; c <= sheet.columnCount; c += 1) headers[c - 1] = `col_${c}`;
+  }
   const rows: Record<string, unknown>[] = [];
   sheet.eachRow((row, rowNumber) => {
-    if (rowNumber === 1) return;
+    if (headerRow && rowNumber <= headerRowNo) return;
     const record: Record<string, unknown> = {};
     headers.forEach((header, index) => {
       record[header] = cellScalar(row.getCell(index + 1).value);
@@ -97,10 +115,15 @@ async function parseXlsx(buffer: Buffer): Promise<ParsedTable> {
   return { headers, rows };
 }
 
-export async function parseTabularFile(filename: string, buffer: Buffer): Promise<ParsedTable> {
+export async function parseTabularFile(
+  filename: string,
+  buffer: Buffer,
+  /** false: the file has no header row — row 1 is data, columns are col_1..N */
+  headerRow = true,
+): Promise<ParsedTable> {
   const lower = filename.toLowerCase();
-  if (lower.endsWith(".csv") || lower.endsWith(".txt")) return parseCsv(buffer.toString("utf8"));
-  if (lower.endsWith(".xlsx")) return parseXlsx(buffer);
+  if (lower.endsWith(".csv") || lower.endsWith(".txt")) return parseCsv(buffer.toString("utf8"), headerRow);
+  if (lower.endsWith(".xlsx")) return parseXlsx(buffer, headerRow);
   throw new SubLedgerError("unsupported-file");
 }
 
@@ -148,9 +171,10 @@ export async function createDataset(
   buffer: Buffer,
   mapping?: Record<string, string>,
   timing: DatasetTiming = "pre_audit",
+  headerRow = true,
 ): Promise<string> {
   const { tenantId, userId } = await requireTenant();
-  const table = await parseTabularFile(filename, buffer);
+  const table = await parseTabularFile(filename, buffer, headerRow);
   // the confirmed amount-bearing column wins over the guess; a ledger that
   // states value as a debit/credit pair has no single amount column, so the
   // row amount is derived as debit - credit (debits positive, credits negative)
@@ -204,8 +228,8 @@ export interface DatasetPreview {
 }
 
 /** Parse a sub-ledger file without storing it: headers + example values. */
-export async function previewDataset(filename: string, buffer: Buffer): Promise<DatasetPreview> {
-  const table = await parseTabularFile(filename, buffer);
+export async function previewDataset(filename: string, buffer: Buffer, headerRow = true): Promise<DatasetPreview> {
+  const table = await parseTabularFile(filename, buffer, headerRow);
   const headerSamples: Record<string, string[]> = {};
   for (const header of table.headers) {
     const values: string[] = [];

@@ -48,7 +48,8 @@ export async function POST(request: Request, context: { params: Promise<{ id: st
       rawTiming === "post_audit" ? ("post_audit" as const)
       : rawTiming === "prior_year" ? ("prior_year" as const)
       : ("pre_audit" as const);
-    const result = await importTrialBalance(id, file.name, buffer, mapping, timing);
+    const headerRow = form.get("headerRow") !== "0";
+    const result = await importTrialBalance(id, file.name, buffer, mapping, timing, headerRow);
     return NextResponse.json({
       versionNo: result.versionNo,
       status: result.summary.status,

@@ -144,6 +144,7 @@ export function DatasetAnalyzer({
   const [mapping, setMapping] = useState<Record<string, string>>({});
   const [error, setError] = useState<string | null>(null);
   const [pending, setPending] = useState<"analyze" | "ingest" | null>(null);
+  const [headerRow, setHeaderRow] = useState(true);
 
   async function analyze() {
     const file = fileRef.current?.files?.[0];
@@ -152,6 +153,7 @@ export function DatasetAnalyzer({
     setPending("analyze");
     const form = new FormData();
     form.set("file", file);
+    form.set("headerRow", headerRow ? "1" : "0");
     const response = await fetch(`/api/engagements/${engagementId}/subledgers/preview`, { method: "POST", body: form });
     setPending(null);
     const body = await response.json().catch(() => ({}));
@@ -173,6 +175,7 @@ export function DatasetAnalyzer({
     form.set("kind", kind);
     form.set("timing", timing);
     form.set("file", file);
+    form.set("headerRow", headerRow ? "1" : "0");
     form.set("mapping", JSON.stringify(mapping));
     const response = await fetch(`/api/engagements/${engagementId}/subledgers`, { method: "POST", body: form });
     setPending(null);
@@ -235,6 +238,15 @@ export function DatasetAnalyzer({
           onChange={() => setPreview(null)}
           className="text-sm text-ink-soft file:mr-3 file:rounded-[var(--radius-atlas-sm)] file:border file:border-line-strong file:bg-surface file:px-3 file:py-1.5 file:text-sm file:font-medium file:text-ink-soft"
         />
+        <label className="flex items-center gap-1.5 text-[12px] text-ink-soft">
+          <input
+            type="checkbox"
+            checked={headerRow}
+            onChange={(e) => { setHeaderRow(e.target.checked); setPreview(null); }}
+            data-testid="dataset-header-row"
+          />
+          {fr ? "La 1re ligne contient les en-têtes" : "First row contains headers"}
+        </label>
         <button
           type="button"
           onClick={analyze}

@@ -75,6 +75,9 @@ export function TbAnalyzer({
   const [mapping, setMapping] = useState<Partial<Record<TbColumn, string>>>({});
   const [indexMap, setIndexMap] = useState<Record<string, string>>({});
   const [error, setError] = useState<string | null>(null);
+  // Most exports carry their column names in the first data row; untick when
+  // the file starts straight with data and columns become col_1..col_N.
+  const [headerRow, setHeaderRow] = useState(true);
   const [status, setStatus] = useState<string | null>(null);
   const [pending, setPending] = useState<"analyze" | "ingest" | null>(null);
 
@@ -86,6 +89,7 @@ export function TbAnalyzer({
     setPending("analyze");
     const form = new FormData();
     form.set("file", file);
+    form.set("headerRow", headerRow ? "1" : "0");
     if (withMapping) form.set("mapping", JSON.stringify(withMapping));
     const response = await fetch(`/api/engagements/${engagementId}/tb/preview`, { method: "POST", body: form });
     setPending(null);
@@ -110,6 +114,7 @@ export function TbAnalyzer({
     setPending("ingest");
     const form = new FormData();
     form.set("file", file);
+    form.set("headerRow", headerRow ? "1" : "0");
     form.set("mapping", JSON.stringify(mapping));
     form.set("timing", timing);
     // the internal working-paper section follows the chosen index
@@ -163,6 +168,15 @@ export function TbAnalyzer({
           onChange={() => { setPreview(null); setStatus(null); setError(null); }}
           className="text-sm text-ink-soft file:mr-3 file:rounded-[var(--radius-atlas-sm)] file:border file:border-line-strong file:bg-surface file:px-3 file:py-1.5 file:text-sm file:font-medium file:text-ink-soft"
         />
+        <label className="flex items-center gap-1.5 text-[12px] text-ink-soft">
+          <input
+            type="checkbox"
+            checked={headerRow}
+            onChange={(e) => { setHeaderRow(e.target.checked); setPreview(null); setStatus(null); }}
+            data-testid="tb-header-row"
+          />
+          {fr ? "La 1re ligne contient les en-têtes" : "First row contains headers"}
+        </label>
         <button
           type="button"
           onClick={() => analyze()}

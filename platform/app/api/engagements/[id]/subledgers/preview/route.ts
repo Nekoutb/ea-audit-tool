@@ -14,7 +14,7 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: "file-size" }, { status: 400 });
     }
     const buffer = Buffer.from(await file.arrayBuffer());
-    return NextResponse.json(await previewDataset(file.name, buffer));
+    return NextResponse.json(await previewDataset(file.name, buffer, form.get("headerRow") !== "0"));
   } catch (error) {
     if (error instanceof SubLedgerError) {
       return NextResponse.json({ error: error.code }, { status: 400 });

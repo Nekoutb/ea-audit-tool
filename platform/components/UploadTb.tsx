@@ -15,6 +15,7 @@ export function UploadTb({
   const [error, setError] = useState<string | null>(null);
   const [status, setStatus] = useState<string | null>(null);
   const [pending, setPending] = useState(false);
+  const [headerRow, setHeaderRow] = useState(true);
 
   async function onSubmit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -22,6 +23,7 @@ export function UploadTb({
     setStatus(null);
     setPending(true);
     const form = new FormData(event.currentTarget);
+    form.set("headerRow", headerRow ? "1" : "0");
     const response = await fetch(`/api/engagements/${engagementId}/tb`, {
       method: "POST",
       body: form,
@@ -51,6 +53,15 @@ export function UploadTb({
         data-testid="tb-file"
         className="text-sm text-ink-soft file:mr-3 file:rounded-[var(--radius-atlas-sm)] file:border file:border-line-strong file:bg-surface file:px-3 file:py-1.5 file:text-sm file:font-medium file:text-ink-soft"
       />
+      <label className="flex items-center gap-1.5 text-[12px] text-ink-soft">
+        <input
+          type="checkbox"
+          checked={headerRow}
+          onChange={(e) => setHeaderRow(e.target.checked)}
+          data-testid="tb-upload-header-row"
+        />
+        {messages.tbPage.firstRowHeaders}
+      </label>
       <button
         type="submit"
         disabled={pending}

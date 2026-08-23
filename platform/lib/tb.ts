@@ -252,9 +252,10 @@ export async function importTrialBalance(
   buffer: Buffer,
   mappingOverride?: TbMapping,
   timing: TbTiming = "pre_audit",
+  headerRow = true,
 ): Promise<TbImportResult> {
   const { tenantId, userId } = await requireTenant();
-  const table = await parseTabularFile(filename, buffer);
+  const table = await parseTabularFile(filename, buffer, headerRow);
   const mapping = mappingOverride ?? inferTbMapping(table.headers);
   validateMapping(mapping);
   const rows = extractTbRows(table, mapping);
@@ -917,9 +918,10 @@ export async function previewTrialBalance(
   filename: string,
   buffer: Buffer,
   mappingOverride?: TbMapping,
+  headerRow = true,
 ): Promise<TbPreview> {
   const { tenantId } = await requireTenant();
-  const table = await parseTabularFile(filename, buffer);
+  const table = await parseTabularFile(filename, buffer, headerRow);
   let mapping: TbMapping = mappingOverride ?? {};
   let mappingError: string | null = null;
   let rows: TbImportRow[] = [];

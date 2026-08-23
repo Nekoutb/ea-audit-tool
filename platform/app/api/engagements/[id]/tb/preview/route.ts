@@ -16,7 +16,8 @@ export async function POST(request: Request, context: { params: Promise<{ id: st
     const rawMapping = form.get("mapping");
     const mapping = typeof rawMapping === "string" && rawMapping ? (JSON.parse(rawMapping) as TbMapping) : undefined;
     const buffer = Buffer.from(await file.arrayBuffer());
-    const preview = await previewTrialBalance(id, file.name, buffer, mapping);
+    const headerRow = form.get("headerRow") !== "0";
+    const preview = await previewTrialBalance(id, file.name, buffer, mapping, headerRow);
     return NextResponse.json(preview);
   } catch (error) {
     if (error instanceof TbError || error instanceof SubLedgerError) {

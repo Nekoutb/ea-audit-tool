@@ -566,6 +566,7 @@
     "tbPage": {
       "title": "Balance générale",
       "import": "Importer la balance",
+      "firstRowHeaders": "La 1re ligne contient les en-têtes",
       "versions": "Versions",
       "kind": {
         "initial": "Initiale",
