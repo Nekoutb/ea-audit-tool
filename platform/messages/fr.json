@@ -1149,6 +1149,7 @@
       "rationale-required": "Un motif est requis.",
       "description-required": "Une description est requise.",
       "signature-required": "Saisissez votre nom pour signer.",
+      "partner-only": "Cette tâche ne peut être approuvée que par l’associé d’audit.",
       "explanation-required": "Chaque réponse « oui » doit être accompagnée d’une explication des circonstances et des facteurs d’atténuation.",
       "disposition-required": "Un traitement est requis.",
       "fields-required": "Des champs obligatoires sont manquants.",

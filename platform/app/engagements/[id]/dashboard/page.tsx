@@ -14,6 +14,7 @@ import {
   type AttentionTone,
   type DashboardPhase,
   type PhaseTask,
+  unassignedTaskCount,
 } from "@/lib/engagement-dashboard";
 import { respondEngagementAction } from "@/app/actions/team-independence";
 import { SubmitButton } from "@/components/SubmitButton";
@@ -103,11 +104,12 @@ export default async function EngagementDashboardPage(props: {
   if (!engagement) notFound();
 
   const myStatus = await myTeamStatus(id);
-  const [tasks, attention, dash, stats] = await Promise.all([
+  const [tasks, attention, dash, stats, unassigned] = await Promise.all([
     engagementTasks(id),
     engagementAttention(id, locale),
     engagementDashboard(id),
     dashboardStats(id),
+    unassignedTaskCount(id),
   ]);
 
   // An engagement with no file items has not been classified yet — the
@@ -191,6 +193,18 @@ export default async function EngagementDashboardPage(props: {
       {/* The four phases, filling the row — click one to slide its six
           grouped tasks open beside it. */}
       <SectionStage sections={sections} initialOpen={phaseParam ? Math.max(0, sections.findIndex((s) => s.key === phaseParam)) : null} />
+
+      {unassigned > 0 ? (
+        <Link
+          href={`/engagements/${id}/tools/forms`}
+          className="block rounded-[var(--radius-atlas-sm)] border border-amber-300 bg-amber-50 px-4 py-2.5 text-[13px] font-medium text-amber-900 transition hover:border-amber-500 dark:border-amber-900 dark:bg-amber-950/40 dark:text-amber-300"
+          data-testid="unassigned-banner"
+        >
+          {fr
+            ? `⚠ ${unassigned} tâche(s) sans préparateur ni assigné — cliquer pour les répartir dans l'outil Formulaires.`
+            : `⚠ ${unassigned} task(s) have no preparer or assignee — click to hand them out in the Forms tool.`}
+        </Link>
+      ) : null}
 
       {/* The sketch's summary row: my tasks · review notes · findings.
           Tools moved to the header icon (nav-tools). */}

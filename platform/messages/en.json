@@ -1149,6 +1149,7 @@
       "rationale-required": "A rationale is required.",
       "description-required": "A description is required.",
       "signature-required": "Type your name to sign.",
+      "partner-only": "This task can only be approved by the audit partner.",
       "explanation-required": "Every \"yes\" answer needs an explanation of the circumstances and mitigating factors.",
       "disposition-required": "A disposition is required.",
       "fields-required": "Required fields are missing.",

@@ -431,6 +431,9 @@ export async function hasOtherReviewer(
  *    edit voids it (see invalidateStaleSignoffs in lib/working-papers.ts)
  *    instead of leaving an attestation standing over content nobody signed.
  */
+/** Tasks whose approval belongs to the audit partner alone (operator rule). */
+export const PARTNER_ONLY_APPROVAL = new Set(["P5.2", "P7.2", "S6.1", "S6.2", "S3.1", "C1.1"]);
+
 export async function signDocument(documentId: string, role: SignoffRole): Promise<void> {
   const { tenantId, userId, role: userRole } = await requireTenant();
   if (role === "reviewer" && !canReview(userRole)) throw new DocumentRuleError("forbidden");
@@ -457,6 +460,11 @@ export async function signDocument(documentId: string, role: SignoffRole): Promi
     const row = doc.rows[0];
     if (!row) throw new DocumentRuleError("not-found");
     if (row.status === "signed") throw new DocumentRuleError("signed-locked");
+    // Partner-only approvals: these tasks carry the judgments only the audit
+    // partner may approve — a manager's review sign-off is refused outright.
+    if ((role === "reviewer" || role === "partner") && PARTNER_ONLY_APPROVAL.has(row.code) && !canPartnerSignoff(userRole)) {
+      throw new DocumentRuleError("partner-only");
+    }
     if (row.current_version === 0) throw new DocumentRuleError("no-version");
     if (row.checked_out_by) throw new DocumentRuleError("checked-out");
 

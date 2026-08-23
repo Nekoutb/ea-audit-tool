@@ -13,6 +13,7 @@ vi.mock("@/auth", () => ({
   })),
 }));
 
+import { auth } from "@/auth";
 import { closePool } from "@/lib/db";
 import {
   addReviewNote,
@@ -141,5 +142,22 @@ describe("document lifecycle", () => {
     await checkoutDocument(documentId);
     const v = await checkinDocument(documentId, Buffer.from("post-reopen"));
     expect(v).toBe(4);
+  });
+
+  it("partner-only codes refuse a manager's approval and accept a partner's", async () => {
+    const asRole = (role: string) =>
+      vi.mocked(auth).mockResolvedValue({
+        user: { id: USER, tenantId: TENANT, role, locale: "en" },
+      } as never);
+    const items = await listFileItems(engagementId);
+    const s61 = items.find((item) => item.code === "S6.1");
+    expect(s61).toBeDefined();
+    asRole("manager");
+    const documentId = await generateDocument(s61!.id, "en");
+    await signDocument(documentId, "preparer");
+    await expect(signDocument(documentId, "reviewer")).rejects.toThrow(/partner-only/);
+    asRole("partner");
+    await signDocument(documentId, "reviewer");
+    asRole("firm_admin");
   });
 });

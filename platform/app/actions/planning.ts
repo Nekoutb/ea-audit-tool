@@ -15,7 +15,7 @@ import { dismissPotentialRisk, linkRiskToIndex, linkRiskToStep, mapRiskToSection
 import { decideLead } from "@/lib/risk-leads";
 import { canReview } from "@/lib/rbac";
 import { savePaper } from "@/lib/working-papers";
-import { addPbcItem, assignTask, assignTasks, assignTeamMember, removeTeamMember, setBudgetLine, setPbcStatus, type PbcItem, type TeamRole } from "@/lib/team";
+import { addPbcItem, assignTask, assignTasks, assignTeamMember, removeTeamMember, setBudgetLine, setPbcStatus, type PbcItem, type TaskAssignmentRole, type TeamRole } from "@/lib/team";
 import { getLocale } from "@/lib/locale";
 
 /** Wrap a mutation: domain errors become ?error=<code> banners, not 500s. */
@@ -321,11 +321,14 @@ export async function assignFormsTasksAction(
 ): Promise<void> {
   const path = `/engagements/${engagementId}/tools/forms`;
   const userIdOrNull = String(formData.get("assignee") ?? "").trim() || null;
+  const rawRole = String(formData.get("role") ?? "assignee");
+  const role: TaskAssignmentRole =
+    rawRole === "preparer" || rawRole === "approver" ? rawRole : "assignee";
   const session = await auth();
   let assigned = 0;
   try {
     if (!session?.user || !canReview(session.user.role)) throw new Error("forbidden");
-    assigned = await assignTasks(engagementId, itemIds, userIdOrNull);
+    assigned = await assignTasks(engagementId, itemIds, userIdOrNull, role);
   } catch (error) {
     if (error instanceof Error && /^[a-z0-9-]+$/.test(error.message)) {
       redirect(`${path}?error=${encodeURIComponent(error.message)}`);

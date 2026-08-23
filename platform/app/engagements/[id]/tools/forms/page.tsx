@@ -42,7 +42,7 @@ export default async function FormsPage(props: {
 
   const byPhase = new Map<
     SectionKey,
-    { code: string; title: string; href: string | null; itemId: string | null; assigneeUserId: string | null; assigneeName: string | null }[]
+    { code: string; title: string; href: string | null; itemId: string | null; preparerUserId: string | null; approverUserId: string | null }[]
   >();
   for (const entry of DEFAULT_FILE_INDEX) {
     const group = groupOfTask(entry.code);
@@ -54,8 +54,8 @@ export default async function FormsPage(props: {
       title: shortTitle(entry.code, fr ? "fr" : "en", fr ? entry.titleFr : entry.titleEn),
       href: task ? `/engagements/${id}/sections/${task.id}` : null,
       itemId: task?.id ?? null,
-      assigneeUserId: task?.assigneeUserId ?? null,
-      assigneeName: task?.assigneeName ?? null,
+      preparerUserId: task?.ownerUserId ?? null,
+      approverUserId: task?.approverUserId ?? null,
     });
     byPhase.set(group.section, list);
   }
@@ -114,8 +114,12 @@ export default async function FormsPage(props: {
                     data-testid={`assign-phase-${phase}`}
                   >
                     <label className="text-[11px] text-muted" htmlFor={`assign-phase-select-${phase}`}>
-                      {fr ? "Assigner la phase à" : "Assign phase to"}
+                      {fr ? "Assigner la phase" : "Assign phase"}
                     </label>
+                    <select name="role" defaultValue="preparer" className={select} aria-label={fr ? "Rôle" : "Role"} data-testid={`assign-phase-role-${phase}`}>
+                      <option value="preparer">{fr ? "Préparateur" : "Preparer"}</option>
+                      <option value="approver">{fr ? "Approbateur" : "Approver"}</option>
+                    </select>
                     <select id={`assign-phase-select-${phase}`} name="assignee" defaultValue="" className={select} data-testid={`assign-phase-select-${phase}`}>
                       <option value="">—</option>
                       {team.map((member) => (
@@ -145,27 +149,38 @@ export default async function FormsPage(props: {
                       </span>
                     )}
                     {canAssign && team.length > 0 && form.itemId ? (
-                      <form
-                        action={assignFormsTasksAction.bind(null, id, [form.itemId])}
-                        className="flex flex-shrink-0 items-center gap-1"
-                      >
-                        <select
-                          name="assignee"
-                          defaultValue={form.assigneeUserId ?? ""}
-                          className={select}
-                          aria-label={fr ? `Assigner ${form.code}` : `Assign ${form.code}`}
-                          data-testid={`assign-task-${form.code}`}
-                        >
-                          <option value="">—</option>
-                          {team.map((member) => (
-                            <option key={member.userId} value={member.userId}>{member.userName}</option>
-                          ))}
-                        </select>
-                        <SubmitButton className={ok} testId={`assign-task-save-${form.code}`}>OK</SubmitButton>
-                      </form>
-                    ) : form.assigneeName ? (
-                      <span className="flex-shrink-0 text-[11px] text-muted" data-testid={`assignee-${form.code}`}>
-                        {form.assigneeName}
+                      <span className="flex flex-shrink-0 items-center gap-1.5">
+                        {([
+                          ["preparer", form.preparerUserId, fr ? "P" : "P"],
+                          ["approver", form.approverUserId, fr ? "A" : "A"],
+                        ] as const).map(([role, current, tag]) => (
+                          <form
+                            key={role}
+                            action={assignFormsTasksAction.bind(null, id, [form.itemId as string])}
+                            className="flex items-center gap-1"
+                          >
+                            <input type="hidden" name="role" value={role} />
+                            <span
+                              className="text-[10px] font-extrabold text-muted"
+                              title={role === "preparer" ? (fr ? "Préparateur" : "Preparer") : fr ? "Approbateur" : "Approver"}
+                            >
+                              {tag}
+                            </span>
+                            <select
+                              name="assignee"
+                              defaultValue={current ?? ""}
+                              className={select}
+                              aria-label={`${role === "preparer" ? (fr ? "Préparateur" : "Preparer") : fr ? "Approbateur" : "Approver"} ${form.code}`}
+                              data-testid={`assign-${role}-${form.code}`}
+                            >
+                              <option value="">—</option>
+                              {team.map((member) => (
+                                <option key={member.userId} value={member.userId}>{member.userName}</option>
+                              ))}
+                            </select>
+                            <SubmitButton className={ok} testId={`assign-${role}-save-${form.code}`}>OK</SubmitButton>
+                          </form>
+                        ))}
                       </span>
                     ) : null}
                   </li>

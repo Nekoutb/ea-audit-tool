@@ -175,10 +175,18 @@ export async function assignTask(
  * be a team_member of the engagement; null unassigns. Returns how many tasks
  * were repointed.
  */
+export type TaskAssignmentRole = "preparer" | "approver" | "assignee";
+const ASSIGNMENT_COLUMN: Record<TaskAssignmentRole, string> = {
+  preparer: "owner_id",
+  approver: "approver_user_id",
+  assignee: "assignee_user_id",
+};
+
 export async function assignTasks(
   engagementId: string,
   itemIds: string[],
   userIdOrNull: string | null,
+  role: TaskAssignmentRole = "assignee",
 ): Promise<number> {
   if (itemIds.length === 0) return 0;
   const { tenantId } = await requireTenant();
@@ -191,7 +199,7 @@ export async function assignTasks(
       if ((member.rowCount ?? 0) === 0) throw new Error("not-found");
     }
     const updated = await tx.query(
-      "UPDATE file_item SET assignee_user_id = $3 WHERE engagement_id = $1 AND id = ANY($2::uuid[])",
+      `UPDATE file_item SET ${ASSIGNMENT_COLUMN[role]} = $3 WHERE engagement_id = $1 AND id = ANY($2::uuid[])`,
       [engagementId, itemIds, userIdOrNull],
     );
     return updated.rowCount ?? 0;

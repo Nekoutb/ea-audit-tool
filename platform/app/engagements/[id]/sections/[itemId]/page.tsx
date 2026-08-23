@@ -324,6 +324,28 @@ export default async function SectionPage(props: {
       : null;
   const lastOverridden = lastSampling?.summary.override === true;
 
+  // Tasks driven by a dedicated tool link to it right on the task header —
+  // the reader never hunts through Tools for the screen that feeds the paper.
+  const TOOL_LINKS: Record<string, { path: string; en: string; fr: string }> = {
+    "P6.1": { path: "tools/materiality", en: "Materiality tool", fr: "Outil de matérialité" },
+    "P6.2": { path: "tools/materiality", en: "Materiality tool", fr: "Outil de matérialité" },
+    "C1.1": { path: "tools/sad", en: "SAD tool", fr: "Outil SAD" },
+    "S3.1": { path: "risks", en: "Risk register", fr: "Registre des risques" },
+    "P1.1": { path: "tools/independence", en: "Independence tool", fr: "Outil d'indépendance" },
+    "S2.1": { path: "data", en: "Trial balance analyzer", fr: "Analyseur de balance" },
+    "S2.2": { path: "tools/gl-console", en: "GL console", fr: "Console grand livre" },
+  };
+  const toolLink = TOOL_LINKS[section.code] ?? null;
+  const toolChip = toolLink ? (
+    <Link
+      href={`/engagements/${id}/${toolLink.path}`}
+      className="inline-flex items-center gap-1.5 rounded-full border border-emerald-600/40 bg-emerald-50 px-3 py-1 text-[11.5px] font-semibold text-emerald-800 transition hover:bg-emerald-100 dark:bg-emerald-950/40 dark:text-emerald-300 dark:hover:bg-emerald-950/70"
+      data-testid="linked-tool"
+    >
+      🔧 {fr ? toolLink.fr : toolLink.en}
+    </Link>
+  ) : null;
+
   const input =
     "rounded-[var(--radius-atlas-sm)] border border-line-strong bg-surface px-2 py-1 text-sm text-ink outline-none focus:border-emerald-600 focus:ring-2 focus:ring-emerald-600/20";
   const btn =
@@ -463,6 +485,7 @@ export default async function SectionPage(props: {
         <AppNav locale={locale} current={{ id, label: engagement.name ?? engagement.clientName }} />
 
         <div className="flex flex-wrap items-center gap-x-4 gap-y-2 rounded-[var(--radius-atlas)] border border-glass-border bg-surface px-4 py-2.5 shadow-atlas-sm backdrop-blur-xl">
+          {toolChip}
           <Link
             href={group ? `/engagements/${id}/groups/${group.id}` : `/engagements/${id}/dashboard`}
             className="grid h-7 w-7 flex-shrink-0 place-items-center rounded-full text-[15px] font-bold text-ink-soft transition hover:bg-surface-2 hover:text-ink"
@@ -752,6 +775,7 @@ export default async function SectionPage(props: {
 
       {/* Direct task assignment (six-level ladder): who is doing this task. */}
       <div className="mt-4 flex flex-wrap items-center gap-2 text-sm">
+        {toolChip}
         <span className="text-muted">{fr ? "Assigné à" : "Assigned to"}</span>
         {canAssign ? (
           <form action={assignTaskAction.bind(null, id, itemId)} className="flex flex-wrap items-center gap-1.5">

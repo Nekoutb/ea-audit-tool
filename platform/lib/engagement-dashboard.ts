@@ -150,6 +150,9 @@ export interface PhaseTask {
   /** Direct task assignee (file_item.assignee_user_id), or null. */
   assigneeUserId: string | null;
   assigneeName: string | null;
+  /** Assigned approver (file_item.approver_user_id), or null. */
+  approverUserId: string | null;
+  approverName: string | null;
   /** Preparer sign-off, if signed. */
   preparerName: string | null;
   preparerAt: string | null;
@@ -189,6 +192,8 @@ export async function phaseTasks(engagementId: string, phase: DashboardPhase): P
       owner_name: string | null;
       assignee_user_id: string | null;
       assignee_name: string | null;
+      approver_user_id: string | null;
+      approver_name: string | null;
       preparer_name: string | null;
       preparer_at: string | null;
       reviewer_name: string | null;
@@ -201,6 +206,8 @@ export async function phaseTasks(engagementId: string, phase: DashboardPhase): P
               (SELECT coalesce(name, email) FROM app_user WHERE id = fi.owner_id) AS owner_name,
               ${assignee.id} AS assignee_user_id,
               ${assignee.name} AS assignee_name,
+              fi.approver_user_id,
+              (SELECT coalesce(name, email) FROM app_user WHERE id = fi.approver_user_id) AS approver_name,
               ps.signer AS preparer_name, to_char(ps.signed_at, 'DD Mon YYYY') AS preparer_at,
               rs.signer AS reviewer_name, to_char(rs.signed_at, 'DD Mon YYYY') AS reviewer_at
          FROM file_item fi
@@ -246,6 +253,8 @@ export async function phaseTasks(engagementId: string, phase: DashboardPhase): P
         ownerName: row.owner_name,
         assigneeUserId: row.assignee_user_id,
         assigneeName: row.assignee_name,
+        approverUserId: row.approver_user_id,
+        approverName: row.approver_name,
         preparerName: row.preparer_name,
         preparerAt: row.preparer_at,
         reviewerName: row.reviewer_name,
@@ -471,6 +480,8 @@ export async function engagementTasks(
       owner_name: string | null;
       assignee_user_id: string | null;
       assignee_name: string | null;
+      approver_user_id: string | null;
+      approver_name: string | null;
       preparer_name: string | null;
       preparer_at: string | null;
       reviewer_name: string | null;
@@ -483,6 +494,8 @@ export async function engagementTasks(
               (SELECT coalesce(name, email) FROM app_user WHERE id = fi.owner_id) AS owner_name,
               ${assignee.id} AS assignee_user_id,
               ${assignee.name} AS assignee_name,
+              fi.approver_user_id,
+              (SELECT coalesce(name, email) FROM app_user WHERE id = fi.approver_user_id) AS approver_name,
               ps.signer AS preparer_name, to_char(ps.signed_at, 'DD Mon YYYY') AS preparer_at,
               rs.signer AS reviewer_name, to_char(rs.signed_at, 'DD Mon YYYY') AS reviewer_at
          FROM file_item fi
@@ -527,6 +540,8 @@ export async function engagementTasks(
         ownerName: row.owner_name,
         assigneeUserId: row.assignee_user_id,
         assigneeName: row.assignee_name,
+        approverUserId: row.approver_user_id,
+        approverName: row.approver_name,
         preparerName: row.preparer_name,
         preparerAt: row.preparer_at,
         reviewerName: row.reviewer_name,
@@ -636,6 +651,8 @@ export async function taskForItem(engagementId: string, code: string): Promise<P
       owner_name: string | null;
       assignee_user_id: string | null;
       assignee_name: string | null;
+      approver_user_id: string | null;
+      approver_name: string | null;
       preparer_name: string | null;
       preparer_at: string | null;
       reviewer_name: string | null;
@@ -648,6 +665,8 @@ export async function taskForItem(engagementId: string, code: string): Promise<P
               (SELECT coalesce(name, email) FROM app_user WHERE id = fi.owner_id) AS owner_name,
               ${assignee.id} AS assignee_user_id,
               ${assignee.name} AS assignee_name,
+              fi.approver_user_id,
+              (SELECT coalesce(name, email) FROM app_user WHERE id = fi.approver_user_id) AS approver_name,
               ps.signer AS preparer_name, to_char(ps.signed_at, 'DD Mon YYYY') AS preparer_at,
               rs.signer AS reviewer_name, to_char(rs.signed_at, 'DD Mon YYYY') AS reviewer_at
          FROM file_item fi
@@ -693,6 +712,8 @@ export async function taskForItem(engagementId: string, code: string): Promise<P
       ownerName: row.owner_name,
       assigneeUserId: row.assignee_user_id,
       assigneeName: row.assignee_name,
+      approverUserId: row.approver_user_id,
+      approverName: row.approver_name,
       preparerName: row.preparer_name,
       preparerAt: row.preparer_at,
       reviewerName: row.reviewer_name,
@@ -716,5 +737,27 @@ export async function existingTaskCodes(engagementId: string): Promise<Set<strin
       [engagementId],
     );
     return new Set(r.rows.map((x) => x.code));
+  });
+}
+
+/**
+ * Tasks with no preparer AND no assignee (approver alone does not staff a
+ * task). Surfaced as a dashboard banner every team member sees — unstaffed
+ * work should never hide until a deadline finds it.
+ */
+export async function unassignedTaskCount(engagementId: string): Promise<number> {
+  const { tenantId } = await requireTenant();
+  return withTenant(tenantId, async (tx) => {
+    const r = await tx.query<{ n: string }>(
+      `SELECT count(*)::text AS n FROM file_item fi
+        WHERE fi.engagement_id = $1 AND fi.conditional = false
+          AND fi.owner_id IS NULL AND fi.assignee_user_id IS NULL
+          AND NOT EXISTS (
+            SELECT 1 FROM document d JOIN signoff sg ON sg.document_id = d.id
+             WHERE d.file_item_id = fi.id AND sg.role IN ('reviewer','partner') AND sg.voided_at IS NULL
+          )`,
+      [engagementId],
+    );
+    return Number(r.rows[0]?.n ?? 0);
   });
 }
