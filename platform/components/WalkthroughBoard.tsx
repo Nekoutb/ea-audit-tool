@@ -196,7 +196,11 @@ export function WalkthroughBoard({
             defaultValue={v}
             placeholder={fr ? "Réponse suite aux entretiens avec la direction…" : "Answer following the inquiries of management…"}
             onBlur={(e) => { if (e.target.value !== v) void save(scotId, f.key, e.target.value); }}
-            className="mt-1 w-full resize-none rounded-[var(--radius-atlas-xs)] bg-[color:var(--wp-input)] px-2 py-1 text-[12px] text-ink outline-none placeholder:text-muted focus:ring-1 focus:ring-emerald-600/40"
+            // Grow with the answer: interviews produce paragraphs, not lines —
+            // the box follows its content instead of scrolling inside itself.
+            ref={(el) => { if (el) { el.style.height = "auto"; el.style.height = `${el.scrollHeight}px`; } }}
+            onInput={(e) => { const el = e.currentTarget; el.style.height = "auto"; el.style.height = `${el.scrollHeight}px`; }}
+            className="mt-1 w-full resize-none overflow-hidden rounded-[var(--radius-atlas-xs)] bg-[color:var(--wp-input)] px-2 py-1 text-[12px] text-ink outline-none placeholder:text-muted focus:ring-1 focus:ring-emerald-600/40"
             data-testid={`wt-${f.key}`}
           />
         ) : null}

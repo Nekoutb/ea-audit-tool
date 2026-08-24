@@ -283,3 +283,62 @@ export async function restoreAttachment(attachmentId: string): Promise<void> {
     meta: { fileItemId: target.file_item_id, name: target.name, versions },
   });
 }
+
+/**
+ * The engagement's other attachments, offered by the "attach an existing
+ * file" picker: latest live version per (task, name), excluding this task's
+ * own files. Small projection — never the bytes.
+ */
+export async function listEngagementAttachments(fileItemId: string): Promise<
+  { id: string; name: string; sizeBytes: number; taskCode: string; uploadedAt: string }[]
+> {
+  const { tenantId } = await requireTenant();
+  return withTenant(tenantId, async (tx) => {
+    const r = await tx.query<{ id: string; name: string; size_bytes: number; code: string; uploaded_at: string }>(
+      `SELECT DISTINCT ON (ta.file_item_id, ta.name)
+              ta.id, ta.name, ta.size_bytes, fi.code,
+              to_char(ta.uploaded_at, 'DD Mon YYYY') AS uploaded_at
+         FROM task_attachment ta
+         JOIN file_item fi ON fi.id = ta.file_item_id
+        WHERE ta.engagement_id = (SELECT engagement_id FROM file_item WHERE id = $1)
+          AND ta.file_item_id <> $1
+          AND ta.deleted_at IS NULL
+        ORDER BY ta.file_item_id, ta.name, ta.version DESC`,
+      [fileItemId],
+    );
+    return r.rows.map((row) => ({
+      id: row.id,
+      name: row.name,
+      sizeBytes: row.size_bytes,
+      taskCode: row.code,
+      uploadedAt: row.uploaded_at,
+    }));
+  });
+}
+
+/**
+ * Attach a file that already lives on another task of the same engagement:
+ * copies the referenced version's bytes as this task's next version of that
+ * name. Same write gate and archive discipline as a fresh upload.
+ */
+export async function copyAttachment(fileItemId: string, sourceAttachmentId: string): Promise<AttachmentRow> {
+  const { tenantId } = await requireTenant();
+  const source = await withTenant(tenantId, async (tx) => {
+    const r = await tx.query<{ name: string; mime: string; content: Buffer; engagement_id: string }>(
+      `SELECT ta.name, ta.mime, ta.content, ta.engagement_id
+         FROM task_attachment ta WHERE ta.id = $1 AND ta.deleted_at IS NULL`,
+      [sourceAttachmentId],
+    );
+    if (!r.rows[0]) throw new Error("task-not-found");
+    const target = await tx.query<{ engagement_id: string }>(
+      "SELECT engagement_id FROM file_item WHERE id = $1",
+      [fileItemId],
+    );
+    // an attachment never crosses engagements — same wall as everything else
+    if (!target.rows[0] || target.rows[0].engagement_id !== r.rows[0].engagement_id) {
+      throw new Error("task-not-found");
+    }
+    return r.rows[0];
+  });
+  return saveAttachment(fileItemId, source.name, source.mime, source.content);
+}

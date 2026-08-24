@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { saveAttachment } from "@/lib/attachments";
+import { copyAttachment, listEngagementAttachments, saveAttachment } from "@/lib/attachments";
 import { atLeast } from "@/lib/rbac";
 import { requireTenant } from "@/lib/tenant";
 import { allowedExtensions, checkUpload, UnsafeFileError } from "@/lib/upload-safety";
@@ -14,12 +14,34 @@ const MAX_BYTES = 25 * 1024 * 1024; // same 25 MB ceiling as working papers
  * but the handler refuses portal and read-only accounts on its own authority
  * rather than trusting that it ran.
  */
+/** The engagement's other attachments — the "attach an existing file" picker list. */
+export async function GET(_request: Request, context: { params: Promise<{ fileItemId: string }> }) {
+  const { fileItemId } = await context.params;
+  try {
+    const { role } = await requireTenant();
+    if (!atLeast(role, "staff")) {
+      return NextResponse.json({ error: "forbidden" }, { status: 403 });
+    }
+    return NextResponse.json({ files: await listEngagementAttachments(fileItemId) });
+  } catch {
+    return NextResponse.json({ error: "unauthenticated" }, { status: 401 });
+  }
+}
+
 export async function POST(request: Request, context: { params: Promise<{ fileItemId: string }> }) {
   const { fileItemId } = await context.params;
   try {
     const { role } = await requireTenant();
     if (!atLeast(role, "staff")) {
       return NextResponse.json({ error: "forbidden" }, { status: 403 });
+    }
+    // JSON body = attach an existing engagement file (copy its latest bytes
+    // here); multipart = a fresh upload from the computer.
+    if ((request.headers.get("content-type") ?? "").includes("application/json")) {
+      const body = (await request.json().catch(() => ({}))) as { copyFrom?: string };
+      if (!body.copyFrom) return NextResponse.json({ error: "file-required" }, { status: 400 });
+      const saved = await copyAttachment(fileItemId, body.copyFrom);
+      return NextResponse.json({ attachment: saved });
     }
     const form = await request.formData();
     const file = form.get("file");

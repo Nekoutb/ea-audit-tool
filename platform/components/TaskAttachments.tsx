@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { Chip, Panel, PanelHeader } from "@/components/ui/atlas";
+import { Panel, PanelHeader } from "@/components/ui/atlas";
 import type { AttachmentRow } from "@/lib/attachments";
 
 /** File System Access API surface used by the edit-locally watcher. */
@@ -38,7 +38,7 @@ function FileIcon({ name }: { name: string }) {
             : ["F", "#6b7280"];
   return (
     <span
-      className="grid h-7 w-7 flex-shrink-0 place-items-center rounded-md text-[10px] font-extrabold text-white"
+      className="grid h-5 w-5 flex-shrink-0 place-items-center rounded text-[8px] font-extrabold text-white"
       style={{ background: bg }}
       aria-hidden
       data-testid={`file-icon-${letter}`}
@@ -46,6 +46,15 @@ function FileIcon({ name }: { name: string }) {
       {letter}
     </span>
   );
+}
+
+/** A file living on another task of this engagement, offered by the picker. */
+interface ExistingFile {
+  id: string;
+  name: string;
+  sizeBytes: number;
+  taskCode: string;
+  uploadedAt: string;
 }
 
 /**
@@ -73,6 +82,9 @@ export function TaskAttachments({
   const [rows, setRows] = useState<AttachmentRow[]>(initial);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [done, setDone] = useState<string | null>(null);
+  const [pickerOpen, setPickerOpen] = useState(false);
+  const [pickerFiles, setPickerFiles] = useState<ExistingFile[] | null>(null);
   /** attachment name → watcher state */
   const [watching, setWatching] = useState<Record<string, number>>({});
   const [renaming, setRenaming] = useState<string | null>(null);
@@ -93,16 +105,16 @@ export function TaskAttachments({
     body.append("file", file);
     const res = await fetch(`/api/attachments/${fileItemId}`, { method: "POST", body });
     if (!res.ok) {
-      const j = await res.json().catch(() => ({}));
-      setError(
+      const j = (await res.json().catch(() => ({}))) as { error?: string; allowed?: string[] };
+      const reason =
         j.error === "file-size"
-          ? fr
-            ? "Fichier vide ou au-delà de 25 Mo."
-            : "Empty file, or larger than the 25 MB ceiling."
-          : fr
-            ? "Le téléversement a échoué."
-            : "The upload failed.",
-      );
+          ? fr ? "vide ou au-delà de 25 Mo" : "empty or over the 25 MB ceiling"
+          : j.allowed
+            ? fr
+              ? `type de fichier refusé (permis : ${j.allowed.join(", ")})`
+              : `file type refused (allowed: ${j.allowed.join(", ")})`
+            : fr ? "le téléversement a échoué" : "the upload failed";
+      setError((prev) => [prev, `${file.name}: ${reason}`].filter(Boolean).join(" · "));
       return null;
     }
     const j = (await res.json()) as { attachment: AttachmentRow };
@@ -117,9 +129,46 @@ export function TaskAttachments({
   async function onPick(files: FileList | null) {
     if (!files || files.length === 0) return;
     setBusy(true);
-    for (const f of Array.from(files)) await upload(f);
+    setError(null);
+    let ok = 0;
+    for (const f of Array.from(files)) {
+      if (await upload(f)) ok += 1;
+    }
     setBusy(false);
+    setDone(ok > 0 ? (fr ? `✓ ${ok} fichier(s) ajouté(s)` : `✓ ${ok} file(s) added`) : null);
     if (inputRef.current) inputRef.current.value = "";
+  }
+
+  /** "Attach an existing engagement file": fetch the candidates, copy one here. */
+  async function openPicker() {
+    setPickerOpen(true);
+    setPickerFiles(null);
+    const res = await fetch(`/api/attachments/${fileItemId}`);
+    if (!res.ok) {
+      setPickerFiles([]);
+      return;
+    }
+    const j = (await res.json()) as { files: ExistingFile[] };
+    setPickerFiles(j.files);
+  }
+
+  async function attachExisting(f: ExistingFile) {
+    setBusy(true);
+    setError(null);
+    const res = await fetch(`/api/attachments/${fileItemId}`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ copyFrom: f.id }),
+    });
+    setBusy(false);
+    if (!res.ok) {
+      setError(`${f.name}: ${fr ? "l'ajout a échoué" : "could not attach"}`);
+      return;
+    }
+    const j = (await res.json()) as { attachment: AttachmentRow };
+    setRows((prev) => [{ ...j.attachment, uploadedBy: fr ? "moi" : "me" }, ...prev.filter((r) => r.name !== j.attachment.name)]);
+    setDone(fr ? `✓ ${f.name} rattaché` : `✓ ${f.name} attached`);
+    setPickerOpen(false);
   }
 
   /**
@@ -212,29 +261,88 @@ export function TaskAttachments({
       <PanelHeader
         title={fr ? "Fichiers de la tâche" : "Task files"}
         right={
-          <label className="inline-flex min-h-[28px] cursor-pointer items-center rounded-[var(--radius-atlas-sm)] bg-emerald-700 px-3 py-1 text-xs font-semibold text-white transition hover:bg-emerald-800">
-            {busy ? (fr ? "Téléversement…" : "Uploading…") : fr ? "+ Téléverser un fichier" : "+ Upload a file"}
-            <input
-              ref={inputRef}
-              type="file"
-              multiple
-              className="hidden"
-              disabled={busy}
-              onChange={(e) => onPick(e.target.files)}
-              data-testid="attachment-input"
-            />
-          </label>
+          <span className="relative inline-flex">
+            <details className="relative" data-testid="attachment-add-menu">
+              <summary className="inline-flex min-h-[28px] cursor-pointer list-none items-center gap-1.5 rounded-[var(--radius-atlas-sm)] bg-emerald-700 px-3 py-1 text-xs font-semibold text-white transition hover:bg-emerald-800 [&::-webkit-details-marker]:hidden">
+                {busy ? (
+                  <>
+                    <span className="inline-block h-3 w-3 animate-spin rounded-full border-2 border-white border-t-transparent" aria-hidden />
+                    {fr ? "Téléversement…" : "Uploading…"}
+                  </>
+                ) : (
+                  <>{fr ? "+ Ajouter des fichiers" : "+ Add files"} ▾</>
+                )}
+              </summary>
+              <div className="absolute right-0 top-full z-20 mt-1 flex min-w-[230px] flex-col rounded-[var(--radius-atlas-sm)] border border-line-strong bg-surface p-1 shadow-atlas-sm">
+                <label className="cursor-pointer rounded px-2.5 py-1.5 text-left text-xs text-ink hover:bg-surface-2">
+                  {fr ? "Depuis cet ordinateur… (multiples)" : "From this computer… (multiple)"}
+                  <input
+                    ref={inputRef}
+                    type="file"
+                    multiple
+                    className="hidden"
+                    disabled={busy}
+                    onChange={(e) => onPick(e.target.files)}
+                    data-testid="attachment-input"
+                  />
+                </label>
+                <button
+                  type="button"
+                  onClick={() => void openPicker()}
+                  className="rounded px-2.5 py-1.5 text-left text-xs text-ink hover:bg-surface-2"
+                  data-testid="attachment-from-existing"
+                >
+                  {fr ? "Un fichier déjà dans la mission…" : "A file already in the engagement…"}
+                </button>
+              </div>
+            </details>
+          </span>
         }
       />
-      {error ? <p className="mt-2 text-xs font-semibold text-rose">{error}</p> : null}
+      {error ? <p className="mt-2 text-xs font-semibold text-rose" data-testid="attachment-error">{error}</p> : null}
+      {done && !error ? <p className="mt-2 text-xs font-semibold text-emerald-700 dark:text-emerald-400" data-testid="attachment-done">{done}</p> : null}
+      {pickerOpen ? (
+        <div className="mt-2 rounded-[var(--radius-atlas-sm)] border border-line-strong bg-surface-2/60 p-2" data-testid="attachment-picker">
+          <div className="flex items-center justify-between px-1 pb-1">
+            <span className="text-[11px] font-extrabold uppercase tracking-[0.07em] text-muted">
+              {fr ? "Fichiers de la mission" : "Engagement files"}
+            </span>
+            <button type="button" onClick={() => setPickerOpen(false)} className="text-xs text-muted hover:text-ink">✕</button>
+          </div>
+          {pickerFiles === null ? (
+            <p className="px-1 py-1 text-xs text-muted">{fr ? "Chargement…" : "Loading…"}</p>
+          ) : pickerFiles.length === 0 ? (
+            <p className="px-1 py-1 text-xs text-muted">{fr ? "Aucun autre fichier dans la mission." : "No other files in this engagement."}</p>
+          ) : (
+            <ul className="max-h-44 overflow-y-auto">
+              {pickerFiles.map((f) => (
+                <li key={f.id}>
+                  <button
+                    type="button"
+                    onClick={() => void attachExisting(f)}
+                    disabled={busy}
+                    className="flex w-full items-center gap-2 rounded px-1.5 py-1 text-left text-xs text-ink-soft hover:bg-surface-2 hover:text-ink disabled:opacity-50"
+                    data-testid={`attachment-existing-${f.id}`}
+                  >
+                    <FileIcon name={f.name} />
+                    <span className="min-w-0 flex-1 truncate">{f.name}</span>
+                    <span className="flex-shrink-0 font-mono text-[10px] text-muted">{f.taskCode}</span>
+                    <span className="flex-shrink-0 text-[10px] text-muted tnum">{fmtSize(f.sizeBytes)}</span>
+                  </button>
+                </li>
+              ))}
+            </ul>
+          )}
+        </div>
+      ) : null}
       {rows.length === 0 ? (
         <p className="mt-3 text-sm text-muted" data-testid="attachments-empty">
           {fr ? "Aucun fichier sur cette tâche." : "No file on this task yet."}
         </p>
       ) : (
-        <ul className="mt-3 divide-y divide-line" data-testid="attachments-list">
+        <ul className="mt-3 max-h-72 divide-y divide-line overflow-y-auto pr-1" data-testid="attachments-list">
           {rows.map((row) => (
-            <li key={row.name} className="flex items-center gap-2.5 py-2">
+            <li key={row.name} className="flex items-center gap-2 py-1.5">
               <FileIcon name={row.name} />
               <span className="min-w-0 flex-1">
                 {renaming === row.name ? (
@@ -250,9 +358,9 @@ export function TaskAttachments({
                     data-testid={`attachment-rename-input-${row.name}`}
                   />
                 ) : (
-                  <span className="block truncate text-sm font-medium text-ink">{row.name}</span>
+                  <span className="block truncate text-[12.5px] font-medium text-ink">{row.name}</span>
                 )}
-                <span className="block truncate text-[11px] text-muted tnum">
+                <span className="block truncate text-[10.5px] text-muted tnum">
                   v{watching[row.name] ?? row.version} · {fmtSize(row.sizeBytes)} · {row.uploadedAt}
                   {watching[row.name] !== undefined ? (fr ? " · suivi actif" : " · watching saves") : ""}
                 </span>
