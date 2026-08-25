@@ -5,7 +5,7 @@
 // "- " list items — so the stored value stays plain text that exports, diffs
 // and searches like any other answer in the file.
 
-import { useRef, type CSSProperties } from "react";
+import { useRef, useState, type CSSProperties } from "react";
 
 type Mark = "bold" | "italic" | "underline" | "bullet" | "number";
 
@@ -40,6 +40,8 @@ export function RichText({
   onInput?: (event: React.FormEvent<HTMLTextAreaElement>) => void;
 }) {
   const ref = useRef<HTMLTextAreaElement>(null);
+  /** floating toolbar over a mouse selection, positioned at the pointer */
+  const [pop, setPop] = useState<{ x: number; y: number } | null>(null);
 
   function applyColor(color: string) {
     const el = ref.current;
@@ -84,6 +86,23 @@ export function RichText({
     el.dispatchEvent(new Event("input", { bubbles: true }));
   }
 
+  // Ctrl/Cmd+B / I / U mark the selection without leaving the keyboard.
+  function onKeyDown(e: React.KeyboardEvent<HTMLTextAreaElement>) {
+    if (!(e.ctrlKey || e.metaKey)) return;
+    const k = e.key.toLowerCase();
+    if (k === "b" || k === "i" || k === "u") {
+      e.preventDefault();
+      apply(k === "b" ? "bold" : k === "i" ? "italic" : "underline");
+    }
+  }
+
+  function onMouseUp(e: React.MouseEvent<HTMLTextAreaElement>) {
+    const el = ref.current;
+    if (!el || readOnly) return;
+    if (el.selectionEnd > el.selectionStart) setPop({ x: e.clientX, y: e.clientY });
+    else setPop(null);
+  }
+
   const btn =
     "grid h-5 w-5 place-items-center rounded-[3px] border border-line text-[10px] leading-none text-ink-soft transition hover:border-emerald-600 hover:text-emerald-700";
 
@@ -120,9 +139,35 @@ export function RichText({
         rows={rows}
         style={style}
         onInput={onInput}
+        onKeyDown={onKeyDown}
+        onMouseUp={onMouseUp}
+        onBlur={() => window.setTimeout(() => setPop(null), 200)}
         data-testid={testId}
         className={className}
       />
+      {pop ? (
+        <div
+          className="fixed z-50 flex items-center gap-1 rounded-[var(--radius-atlas-sm)] border border-line-strong bg-surface p-1 shadow-atlas-sm"
+          style={{ left: pop.x, top: Math.max(8, pop.y - 44) }}
+          onMouseDown={(e) => e.preventDefault()}
+          data-testid={testId ? testId + "-popover" : undefined}
+        >
+          <button type="button" onClick={() => { apply("bold"); setPop(null); }} className={btn + " font-extrabold"} title="Bold (Ctrl+B)">B</button>
+          <button type="button" onClick={() => { apply("italic"); setPop(null); }} className={btn + " italic"} title="Italic (Ctrl+I)">I</button>
+          <button type="button" onClick={() => { apply("underline"); setPop(null); }} className={btn + " underline"} title="Underline (Ctrl+U)">U</button>
+          {COLORS.map((c) => (
+            <button
+              key={c}
+              type="button"
+              onClick={() => { applyColor(c); setPop(null); }}
+              className="h-4 w-4 rounded-full border border-line"
+              style={{ background: c }}
+              title={"Colour " + c}
+              aria-label={"Colour " + c}
+            />
+          ))}
+        </div>
+      ) : null}
     </div>
   );
 }

@@ -24,6 +24,7 @@ import { getLocale } from "@/lib/locale";
 import { canReview } from "@/lib/rbac";
 import { GROUP_BY_ID, displayCode, groupTitle, sectionLabel } from "@/lib/task-groups";
 import { dspDesignGaps, dspDesignedIndexes } from "@/lib/design-procedures";
+import { instantiateGroupTasks } from "@/lib/instantiate-group";
 import { indexesForTask } from "@/lib/psp";
 
 export async function generateMetadata(props: { params: Promise<{ group: string }> }) {
@@ -65,12 +66,19 @@ export default async function GroupTasksPage(props: {
   const engagement = await getEngagement(id);
   if (!engagement) notFound();
 
-  const [allTasks, reviewerName, existingCodes] = await Promise.all([
-    engagementTasks(id),
-    engagementReviewer(id),
-    existingTaskCodes(id),
-  ]);
-  const missing = g.members.filter((code) => !existingCodes.has(code));
+  const reviewerName = await engagementReviewer(id);
+  let [allTasks, existingCodes] = await Promise.all([engagementTasks(id), existingTaskCodes(id)]);
+  let missing = g.members.filter((code) => !existingCodes.has(code));
+  // A phase should never open on "0/0 — click to add the tasks": missing
+  // members are instantiated right here (idempotent; refused on archived
+  // files, in which case the manual button remains as the explanation).
+  if (missing.length > 0) {
+    const added = await instantiateGroupTasks(id, group).catch(() => 0);
+    if (added > 0) {
+      [allTasks, existingCodes] = await Promise.all([engagementTasks(id), existingTaskCodes(id)]);
+      missing = g.members.filter((code) => !existingCodes.has(code));
+    }
+  }
   const byCode = new Map(allTasks.map((task) => [task.code, task]));
   // E4 discloses only the accounts whose substantive procedures were DESIGNED
   // in S5.5 — an index nobody designed for has no performable work here. The

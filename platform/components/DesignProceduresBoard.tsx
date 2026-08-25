@@ -249,8 +249,9 @@ export function DesignProceduresBoard({
                                   {chosen.map((n) => {
                                     const p = row.catalog[n];
                                     return p ? (
-                                      <li key={n} className="rounded-[var(--radius-atlas-xs)] bg-emerald-50 px-2 py-1 text-[11.5px] leading-snug text-emerald-900 dark:bg-emerald-950/40 dark:text-emerald-200">
-                                        {fr ? p.fr : p.en}
+                                      <li key={n} className="flex gap-1.5 rounded-[var(--radius-atlas-xs)] bg-emerald-50 px-2 py-1 text-[11.5px] leading-snug text-emerald-900 dark:bg-emerald-950/40 dark:text-emerald-200">
+                                        <span aria-hidden className="flex-shrink-0 font-bold">•</span>
+                                        <span>{fr ? p.fr : p.en}</span>
                                       </li>
                                     ) : null;
                                   })}
@@ -328,6 +329,91 @@ export function DesignProceduresBoard({
                     className={`${area} mt-1`}
                     data-testid={`dsp-osp-${row.indexCode}`}
                   />
+                  {/* OSPs are designed like the library procedures: pick the
+                      assertions they answer (their CRA fills in), then set
+                      nature, timing and extent. */}
+                  {(() => {
+                    let ospAsserts: string[] = [];
+                    try { const a = JSON.parse(v("osp_assertions") || "[]"); if (Array.isArray(a)) ospAsserts = a; } catch { /* none */ }
+                    const toggleOspAssert = (assertion: string) => {
+                      const next = ospAsserts.includes(assertion)
+                        ? ospAsserts.filter((x) => x !== assertion)
+                        : [...ospAsserts, assertion];
+                      void save(row.indexCode, "osp_assertions", JSON.stringify(next));
+                    };
+                    return (
+                      <div className="mt-2 flex flex-col gap-1.5" data-testid={`dsp-osp-design-${row.indexCode}`}>
+                        <span className="flex flex-wrap items-center gap-1.5 text-[11px] text-muted">
+                          {fr ? "Assertions couvertes :" : "Assertions answered:"}
+                          {row.cells.map((c) => (
+                            <label key={c.assertion} className={`flex cursor-pointer items-center gap-1 rounded-full border px-2 py-0.5 text-[11px] ${ospAsserts.includes(c.assertion) ? "border-emerald-600 bg-emerald-50 text-emerald-800 dark:bg-emerald-950/40 dark:text-emerald-300" : "border-line text-ink-soft"}`}>
+                              <input
+                                type="checkbox"
+                                className="hidden"
+                                checked={ospAsserts.includes(c.assertion)}
+                                onChange={() => toggleOspAssert(c.assertion)}
+                                data-testid={`dsp-osp-assert-${row.indexCode}-${c.assertion}`}
+                              />
+                              {c.assertion}
+                            </label>
+                          ))}
+                        </span>
+                        {ospAsserts.length > 0 ? (
+                          <span className="flex flex-wrap items-center gap-2 text-[11px] text-muted" data-testid={`dsp-osp-cra-${row.indexCode}`}>
+                            {fr ? "ECR de ces assertions :" : "CRA of those assertions:"}
+                            {row.cells.filter((c) => ospAsserts.includes(c.assertion)).map((c) => (
+                              <span key={c.assertion} className="inline-flex items-center gap-1">
+                                <b className="text-ink">{c.assertion}</b>
+                                <Chip tone={craTone(levelOf(c.tod))}>{todLabel(c.tod, fr ? "fr" : "en")}</Chip>
+                              </span>
+                            ))}
+                          </span>
+                        ) : null}
+                        {ospAsserts.length > 0 ? (
+                          <span className="flex flex-wrap items-end gap-2.5">
+                            <label className="flex flex-col text-[10.5px] text-muted">
+                              {fr ? "Nature" : "Nature"}
+                              <select
+                                value={v("osp_nature")}
+                                onChange={(e) => void save(row.indexCode, "osp_nature", e.target.value)}
+                                className={select}
+                                data-testid={`dsp-osp-nature-${row.indexCode}`}
+                              >
+                                <option value="">{fr ? "— choisir" : "— choose"}</option>
+                                {NATURE_OPTIONS.map((o) => (
+                                  <option key={o.value} value={o.value}>{fr ? o.fr : o.en}</option>
+                                ))}
+                              </select>
+                            </label>
+                            <label className="flex flex-col text-[10.5px] text-muted">
+                              {fr ? "Calendrier" : "Timing"}
+                              <select
+                                value={v("osp_timing")}
+                                onChange={(e) => void save(row.indexCode, "osp_timing", e.target.value)}
+                                className={select}
+                                data-testid={`dsp-osp-timing-${row.indexCode}`}
+                              >
+                                <option value="">{fr ? "— choisir" : "— choose"}</option>
+                                {TIMING_OPTIONS.map((o) => (
+                                  <option key={o.value} value={o.value}>{fr ? o.fr : o.en}</option>
+                                ))}
+                              </select>
+                            </label>
+                            <label className="flex min-w-[220px] flex-1 flex-col text-[10.5px] text-muted">
+                              {fr ? "Étendue" : "Extent"}
+                              <input
+                                defaultValue={v("osp_extent")}
+                                placeholder={fr ? "ex. 100 % des éléments > SAD nominal…" : "e.g. 100% of items > SAD Nominal…"}
+                                onBlur={(e) => { if (e.target.value !== v("osp_extent")) void save(row.indexCode, "osp_extent", e.target.value); }}
+                                className={select}
+                                data-testid={`dsp-osp-extent-${row.indexCode}`}
+                              />
+                            </label>
+                          </span>
+                        ) : null}
+                      </div>
+                    );
+                  })()}
                   {row.ospRequired ? (
                     <p className="mt-0.5 text-[10.5px] text-muted">
                       {fr
