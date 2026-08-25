@@ -23,6 +23,8 @@ import { getMessages } from "@/lib/i18n";
 import { getLocale } from "@/lib/locale";
 import { canReview } from "@/lib/rbac";
 import { GROUP_BY_ID, displayCode, groupTitle, sectionLabel } from "@/lib/task-groups";
+import { dspDesignGaps, dspDesignedIndexes } from "@/lib/design-procedures";
+import { indexesForTask } from "@/lib/psp";
 
 export async function generateMetadata(props: { params: Promise<{ group: string }> }) {
   const { group } = await props.params;
@@ -70,7 +72,15 @@ export default async function GroupTasksPage(props: {
   ]);
   const missing = g.members.filter((code) => !existingCodes.has(code));
   const byCode = new Map(allTasks.map((task) => [task.code, task]));
-  const tasks = g.members.map((code) => byCode.get(code)).filter((task): task is PhaseTask => Boolean(task));
+  // E4 discloses only the accounts whose substantive procedures were DESIGNED
+  // in S5.5 — an index nobody designed for has no performable work here. The
+  // design gaps (key assertions, nothing selected) are surfaced separately.
+  const designedIndexes = group === "e4" ? await dspDesignedIndexes(id) : null;
+  const designGaps = group === "e4" ? await dspDesignGaps(id).catch(() => []) : [];
+  const memberCodes = designedIndexes
+    ? g.members.filter((code) => indexesForTask(code).some((idx) => designedIndexes.has(idx)))
+    : g.members;
+  const tasks = memberCodes.map((code) => byCode.get(code)).filter((task): task is PhaseTask => Boolean(task));
   const reviewedCount = tasks.filter((task) => task.status === "reviewed").length;
 
   // Section deadline as the default; per-task due dates win.
@@ -181,6 +191,17 @@ export default async function GroupTasksPage(props: {
       </div>
 
       <ErrorBanner error={error} locale={locale} />
+
+      {designGaps.length > 0 ? (
+        <div
+          className="rounded-[var(--radius-atlas-sm)] border border-amber-300 bg-amber-50 px-4 py-2.5 text-[13px] font-medium text-amber-900 dark:border-amber-900 dark:bg-amber-950/40 dark:text-amber-300"
+          data-testid="e4-design-gaps"
+        >
+          {locale === "fr"
+            ? `⚠ ${designGaps.length} compte(s) significatif(s) avec assertions clés SANS procédures substantives conçues : ${designGaps.join(", ")} — à concevoir en S5.5 avant exécution.`
+            : `⚠ ${designGaps.length} significant account(s) with key assertions and NO designed substantive procedures: ${designGaps.join(", ")} — design them in S5.5 before performing.`}
+        </div>
+      ) : null}
 
       <Panel flush className="flex flex-col">
         <div className="flex flex-wrap items-center justify-between gap-3 border-b border-line px-5 py-3.5">

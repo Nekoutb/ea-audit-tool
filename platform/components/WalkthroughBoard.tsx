@@ -1,5 +1,7 @@
 "use client";
 
+import { RichText } from "@/components/RichText";
+
 // S1.3 — walkthroughs by SCOT. The board replicates every SCOT identified on
 // S1.1; opening one reveals the "Understand the SCOT & Walkthrough" standard
 // form: guidance per inquiry, an answer space per line, and the design /
@@ -191,18 +193,22 @@ export function WalkthroughBoard({
           ) : null}
         </div>
         {f.kind !== "yn" ? (
-          <textarea spellCheck={false}
-            rows={2}
-            defaultValue={v}
-            placeholder={fr ? "Réponse suite aux entretiens avec la direction…" : "Answer following the inquiries of management…"}
-            onBlur={(e) => { if (e.target.value !== v) void save(scotId, f.key, e.target.value); }}
-            // Grow with the answer: interviews produce paragraphs, not lines —
-            // the box follows its content instead of scrolling inside itself.
-            ref={(el) => { if (el) { el.style.height = "auto"; el.style.height = `${el.scrollHeight}px`; } }}
-            onInput={(e) => { const el = e.currentTarget; el.style.height = "auto"; el.style.height = `${el.scrollHeight}px`; }}
-            className="mt-1 w-full resize-none overflow-hidden rounded-[var(--radius-atlas-xs)] bg-[color:var(--wp-input)] px-2 py-1 text-[12px] text-ink outline-none placeholder:text-muted focus:ring-1 focus:ring-emerald-600/40"
-            data-testid={`wt-${f.key}`}
-          />
+          <div
+            className="mt-1"
+            onBlur={(e) => {
+              const el = e.target as EventTarget & Partial<HTMLTextAreaElement>;
+              if (el instanceof HTMLTextAreaElement && el.value !== v) void save(scotId, f.key, el.value);
+            }}
+          >
+            <RichText
+              rows={2}
+              defaultValue={v}
+              placeholder={fr ? "Réponse suite aux entretiens avec la direction…" : "Answer following the inquiries of management…"}
+              onInput={(e) => { const el = e.currentTarget; el.style.height = "auto"; el.style.height = `${el.scrollHeight}px`; }}
+              className="w-full resize-none overflow-hidden rounded-[var(--radius-atlas-xs)] bg-[color:var(--wp-input)] px-2 py-1 text-[12px] text-ink outline-none placeholder:text-muted focus:ring-1 focus:ring-emerald-600/40"
+              testId={`wt-${f.key}`}
+            />
+          </div>
         ) : null}
       </div>
     );

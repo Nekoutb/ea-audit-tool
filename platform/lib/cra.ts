@@ -27,6 +27,9 @@ const ASSERTIONS = ["C", "E", "A", "V", "P"] as const;
 export interface CraCell {
   assertion: string;
   relevant: boolean;
+  /** relevance came only from the no-selection C/E/A/V fallback, not from a
+   * recorded key assertion (P6.2), a linked risk, or a saved assessment */
+  relevantDefaulted: boolean;
   /** recorded assessments — null until the preparer sets them */
   ir: CraIr | null;
   irBasis: string;
@@ -152,8 +155,10 @@ export async function craBoard(engagementId: string): Promise<CraBoardView> {
   const buildRow = (indexCode: string, label: string, closing: number, recorded: string[], riskAssertions: string[]): CraAccountRow => {
     const risks = riskByIndex.get(indexCode) ?? new Map();
     const scotInfo = scotByIndex.get(indexCode);
-    const defaultRelevant = new Set([...recorded, ...riskAssertions]);
-    if (defaultRelevant.size === 0) ["C", "E", "A", "V"].forEach((a) => defaultRelevant.add(a));
+    const explicit = new Set([...recorded, ...riskAssertions]);
+    const usedFallback = explicit.size === 0;
+    const defaultRelevant = new Set(explicit);
+    if (usedFallback) ["C", "E", "A", "V"].forEach((a) => defaultRelevant.add(a));
     const cells: CraCell[] = ASSERTIONS.map((assertion) => {
       const s = savedByKey.get(`${indexCode}|${assertion}`);
       const risk = risks.get(assertion);
@@ -164,6 +169,7 @@ export async function craBoard(engagementId: string): Promise<CraBoardView> {
       return {
         assertion,
         relevant: s ? s.relevant : defaultRelevant.has(assertion),
+        relevantDefaulted: !s && usedFallback && defaultRelevant.has(assertion),
         ir: s?.ir ?? null,
         irBasis: s?.ir_basis ?? "",
         cr: s?.cr ?? null,

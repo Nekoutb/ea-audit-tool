@@ -84,6 +84,8 @@ export function TaskAttachments({
   const [error, setError] = useState<string | null>(null);
   const [done, setDone] = useState<string | null>(null);
   const [pickerOpen, setPickerOpen] = useState(false);
+  const [menuOpen, setMenuOpen] = useState(false);
+  const menuRef = useRef<HTMLSpanElement>(null);
   const [pickerFiles, setPickerFiles] = useState<ExistingFile[] | null>(null);
   /** attachment name → watcher state */
   const [watching, setWatching] = useState<Record<string, number>>({});
@@ -100,6 +102,17 @@ export function TaskAttachments({
     };
   }, []);
 
+  // The add-files menu closes like a real menu: choosing an option or
+  // clicking anywhere else dismisses it.
+  useEffect(() => {
+    if (!menuOpen) return;
+    const close = (e: MouseEvent) => {
+      if (!menuRef.current?.contains(e.target as Node)) setMenuOpen(false);
+    };
+    document.addEventListener("mousedown", close);
+    return () => document.removeEventListener("mousedown", close);
+  }, [menuOpen]);
+
   async function upload(file: File): Promise<AttachmentRow | null> {
     const body = new FormData();
     body.append("file", file);
@@ -113,7 +126,13 @@ export function TaskAttachments({
             ? fr
               ? `type de fichier refusé (permis : ${j.allowed.join(", ")})`
               : `file type refused (allowed: ${j.allowed.join(", ")})`
-            : fr ? "le téléversement a échoué" : "the upload failed";
+            : j.error === "archived"
+              ? fr ? "dossier archivé — lecture seule" : "archived file — read-only"
+              : j.error === "forbidden"
+                ? fr ? "droits insuffisants" : "insufficient rights"
+                : fr
+                  ? `le téléversement a échoué (${j.error ?? res.status})`
+                  : `the upload failed (${j.error ?? res.status})`;
       setError((prev) => [prev, `${file.name}: ${reason}`].filter(Boolean).join(" · "));
       return null;
     }
@@ -128,15 +147,19 @@ export function TaskAttachments({
 
   async function onPick(files: FileList | null) {
     if (!files || files.length === 0) return;
+    setMenuOpen(false);
     setBusy(true);
     setError(null);
     let ok = 0;
-    for (const f of Array.from(files)) {
-      if (await upload(f)) ok += 1;
+    try {
+      for (const f of Array.from(files)) {
+        if (await upload(f)) ok += 1;
+      }
+    } finally {
+      setBusy(false);
+      if (inputRef.current) inputRef.current.value = "";
     }
-    setBusy(false);
     setDone(ok > 0 ? (fr ? `✓ ${ok} fichier(s) ajouté(s)` : `✓ ${ok} file(s) added`) : null);
-    if (inputRef.current) inputRef.current.value = "";
   }
 
   /** "Attach an existing engagement file": fetch the candidates, copy one here. */
@@ -261,18 +284,23 @@ export function TaskAttachments({
       <PanelHeader
         title={fr ? "Fichiers de la tâche" : "Task files"}
         right={
-          <span className="relative inline-flex">
-            <details className="relative" data-testid="attachment-add-menu">
-              <summary className="inline-flex min-h-[28px] cursor-pointer list-none items-center gap-1.5 rounded-[var(--radius-atlas-sm)] bg-emerald-700 px-3 py-1 text-xs font-semibold text-white transition hover:bg-emerald-800 [&::-webkit-details-marker]:hidden">
-                {busy ? (
-                  <>
-                    <span className="inline-block h-3 w-3 animate-spin rounded-full border-2 border-white border-t-transparent" aria-hidden />
-                    {fr ? "Téléversement…" : "Uploading…"}
-                  </>
-                ) : (
-                  <>{fr ? "+ Ajouter des fichiers" : "+ Add files"} ▾</>
-                )}
-              </summary>
+          <span className="relative inline-flex" ref={menuRef}>
+            <button
+              type="button"
+              onClick={() => setMenuOpen((v) => !v)}
+              className="inline-flex min-h-[28px] cursor-pointer items-center gap-1.5 rounded-[var(--radius-atlas-sm)] bg-emerald-700 px-3 py-1 text-xs font-semibold text-white transition hover:bg-emerald-800"
+              data-testid="attachment-add-menu"
+            >
+              {busy ? (
+                <>
+                  <span className="inline-block h-3 w-3 animate-spin rounded-full border-2 border-white border-t-transparent" aria-hidden />
+                  {fr ? "Téléversement…" : "Uploading…"}
+                </>
+              ) : (
+                <>{fr ? "+ Ajouter des fichiers" : "+ Add files"} ▾</>
+              )}
+            </button>
+            {menuOpen ? (
               <div className="absolute right-0 top-full z-20 mt-1 flex min-w-[230px] flex-col rounded-[var(--radius-atlas-sm)] border border-line-strong bg-surface p-1 shadow-atlas-sm">
                 <label className="cursor-pointer rounded px-2.5 py-1.5 text-left text-xs text-ink hover:bg-surface-2">
                   {fr ? "Depuis cet ordinateur… (multiples)" : "From this computer… (multiple)"}
@@ -288,14 +316,14 @@ export function TaskAttachments({
                 </label>
                 <button
                   type="button"
-                  onClick={() => void openPicker()}
+                  onClick={() => { setMenuOpen(false); void openPicker(); }}
                   className="rounded px-2.5 py-1.5 text-left text-xs text-ink hover:bg-surface-2"
                   data-testid="attachment-from-existing"
                 >
                   {fr ? "Un fichier déjà dans la mission…" : "A file already in the engagement…"}
                 </button>
               </div>
-            </details>
+            ) : null}
           </span>
         }
       />

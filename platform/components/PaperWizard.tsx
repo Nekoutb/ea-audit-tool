@@ -97,23 +97,22 @@ function Amber({
   readOnly?: boolean;
   testId?: string;
 }) {
+  // Every answer box carries the marker toolbar (bold/italic/underline/
+  // colour/lists) — values stay plain text, as the file's formatting
+  // convention requires (exports, hashing, search all keep working).
   return (
-    <textarea spellCheck={false}
-      name={name}
-      rows={1}
-      defaultValue={defaultValue}
-      readOnly={readOnly}
-      onInput={autoGrow}
-      ref={(el) => {
-        if (el && el.value) {
-          el.style.height = "auto";
-          el.style.height = `${Math.min(el.scrollHeight, 120)}px`;
-        }
-      }}
-      placeholder={placeholder}
-      data-testid={testId}
-      className={`${AMBER} mt-1`}
-    />
+    <div className="mt-1">
+      <RichText
+        name={name}
+        rows={1}
+        defaultValue={defaultValue}
+        readOnly={readOnly}
+        onInput={autoGrow}
+        placeholder={placeholder}
+        testId={testId}
+        className={AMBER}
+      />
+    </div>
   );
 }
 

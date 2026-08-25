@@ -9,6 +9,9 @@ import { useRef, type CSSProperties } from "react";
 
 type Mark = "bold" | "italic" | "underline" | "bullet" | "number";
 
+/** Colour marks wrap the selection as {#hex|text} — still plain text. */
+const COLORS = ["#b91c1c", "#b45309", "#15803d", "#1d4ed8"];
+
 const WRAP: Record<"bold" | "italic" | "underline", string> = {
   bold: "**",
   italic: "*",
@@ -37,6 +40,20 @@ export function RichText({
   onInput?: (event: React.FormEvent<HTMLTextAreaElement>) => void;
 }) {
   const ref = useRef<HTMLTextAreaElement>(null);
+
+  function applyColor(color: string) {
+    const el = ref.current;
+    if (!el || readOnly) return;
+    const start = el.selectionStart;
+    const end = el.selectionEnd;
+    const value = el.value;
+    const selected = value.slice(start, end) || (el.placeholder ? "" : "");
+    el.value = `${value.slice(0, start)}{${color}|${selected}}${value.slice(end)}`;
+    el.selectionStart = start + color.length + 2;
+    el.selectionEnd = start + color.length + 2 + selected.length;
+    el.focus();
+    el.dispatchEvent(new Event("input", { bubbles: true }));
+  }
 
   function apply(mark: Mark) {
     const el = ref.current;
@@ -79,6 +96,19 @@ export function RichText({
           <button type="button" onClick={() => apply("underline")} className={`${btn} underline`} title="Underline" data-testid={testId ? `${testId}-underline` : undefined}>U</button>
           <button type="button" onClick={() => apply("bullet")} className={btn} title="Bulleted list" data-testid={testId ? `${testId}-bullet` : undefined}>•</button>
           <button type="button" onClick={() => apply("number")} className={btn} title="Numbered list" data-testid={testId ? `${testId}-number` : undefined}>1.</button>
+          <span className="mx-0.5 h-4 w-px bg-line" aria-hidden />
+          {COLORS.map((c) => (
+            <button
+              key={c}
+              type="button"
+              onClick={() => applyColor(c)}
+              className="h-4 w-4 rounded-full border border-line"
+              style={{ background: c }}
+              title={`Colour ${c}`}
+              aria-label={`Colour ${c}`}
+              data-testid={testId ? `${testId}-color-${c.slice(1)}` : undefined}
+            />
+          ))}
         </div>
       )}
       <textarea

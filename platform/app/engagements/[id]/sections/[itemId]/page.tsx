@@ -36,7 +36,7 @@ import { itAppsView } from "@/lib/itgc";
 import { ItAppsBoard } from "@/components/ItAppsBoard";
 import { listEstimates, listRelatedParties } from "@/lib/registers";
 import { fscpValues, scotStudio, scotSummary, walkthroughValues } from "@/lib/scots";
-import { indexesForTask, pspResults } from "@/lib/psp";
+import { generatePsp, indexesForTask, pspResults } from "@/lib/psp";
 import { apLeadSchedules } from "@/lib/analytical-procedures";
 import { AccountWorkpaper } from "@/components/AccountWorkpaper";
 import { ScotRegister } from "@/components/ScotRegister";
@@ -232,6 +232,12 @@ export default async function SectionPage(props: {
     isAccountTask && accountIndex
       ? (await apLeadSchedules(id)).some((s) => s.def.code === accountIndex)
       : isAccountTask; // non-index tasks (Leases, TFT) stay usable
+  // The S5.5 design IS the program: materialise it the moment the paper is
+  // opened (generatePsp is idempotent and exits on existing steps), so nobody
+  // is ever asked to click "generate" for work already designed.
+  if (isAccountTask && accountIndex && accountHasSelection && accountInIndex) {
+    await generatePsp(id, itemId, section.code, [accountIndex]).catch(() => {});
+  }
   const pspVals = isAccountTask ? await pspResults(id, section.code) : {};
   // P7 — the planning review & approval summary takes over the centre column
   const ras = section.code === "P7.2" ? await planningRas(id) : null;

@@ -121,6 +121,19 @@ export function DesignProceduresBoard({
 
       {error ? <p className="text-[12px] font-semibold text-rose">{error}</p> : null}
 
+      {(() => {
+        const gaps = view.rows
+          .filter((row) => row.cells.length > 0 && !Object.values(row.selected).some((a) => a.length > 0))
+          .map((row) => row.indexCode);
+        return gaps.length > 0 ? (
+          <div className="rounded-[var(--radius-atlas-sm)] border border-amber-300 bg-amber-50 px-3 py-2 text-[12px] font-medium text-amber-900 dark:border-amber-900 dark:bg-amber-950/40 dark:text-amber-300" data-testid="dsp-gaps">
+            {fr
+              ? `⚠ ${gaps.length} compte(s) avec assertions clés sans procédures conçues : ${gaps.join(", ")}`
+              : `⚠ ${gaps.length} account(s) with key assertions and no designed procedures yet: ${gaps.join(", ")}`}
+          </div>
+        ) : null;
+      })()}
+
       {view.rows.map((row: DspRow) => {
         const isOpen = open === row.indexCode;
         const level = row.worst ? levelOf(row.worst) : null;
@@ -162,6 +175,13 @@ export function DesignProceduresBoard({
                   ) : null}
                 </p>
 
+                {row.cells.length === 0 ? (
+                  <p className="rounded-[var(--radius-atlas-sm)] bg-surface-2 px-3 py-2 text-[12px] text-muted" data-testid={`dsp-no-key-${row.indexCode}`}>
+                    {fr
+                      ? "Aucune assertion clé retenue pour ce compte (P6.2 / console des risques) — rien à concevoir ici."
+                      : "No key assertions selected for this account (P6.2 / risk console) — nothing to design here."}
+                  </p>
+                ) : null}
                 {/* design grid: one row per relevant assertion, against its own CRA */}
                 <div className="overflow-x-auto">
                   <table className="w-full min-w-[860px]">
@@ -223,6 +243,18 @@ export function DesignProceduresBoard({
                                     ))
                                   )}
                                 </div>
+                              ) : null}
+                              {chosen.length > 0 ? (
+                                <ul className="mt-1.5 flex flex-col gap-1" data-testid={`dsp-chosen-${row.indexCode}-${c.assertion}`}>
+                                  {chosen.map((n) => {
+                                    const p = row.catalog[n];
+                                    return p ? (
+                                      <li key={n} className="rounded-[var(--radius-atlas-xs)] bg-emerald-50 px-2 py-1 text-[11.5px] leading-snug text-emerald-900 dark:bg-emerald-950/40 dark:text-emerald-200">
+                                        {fr ? p.fr : p.en}
+                                      </li>
+                                    ) : null;
+                                  })}
+                                </ul>
                               ) : null}
                             </td>
                             <td className="px-1.5 py-1.5">

@@ -80,7 +80,10 @@ export async function dspView(engagementId: string): Promise<DspView> {
 
   const rows: DspRow[] = board.rows.map((row: CraAccountRow) => {
     const cells = row.cells
-      .filter((c) => c.relevant)
+      // Design follows the KEY assertions: a cell whose relevance is only the
+      // no-selection fallback asks for no procedures (select key assertions in
+      // P6.2 / the risk console first).
+      .filter((c) => c.relevant && !c.relevantDefaulted)
       .map((c) => {
         const ir = c.ir ?? c.suggestedIr;
         const cr = c.cr ?? c.suggestedCr;
@@ -172,4 +175,37 @@ export async function saveDsp(engagementId: string, indexCode: string, field: st
       [tenantId, engagementId, CODE, `${indexCode}_${field}`, JSON.stringify(value), userId],
     );
   });
+}
+
+/** Index codes with at least one procedure selected in the S5.5 design. */
+export async function dspDesignedIndexes(engagementId: string): Promise<Set<string>> {
+  const { tenantId } = await requireTenant();
+  return withTenant(tenantId, async (tx) => {
+    const r = await tx.query<{ field_key: string; value: unknown }>(
+      `SELECT field_key, value FROM form_response
+        WHERE engagement_id = $1 AND code = $2 AND field_key LIKE '%\_sel\_%'`,
+      [engagementId, CODE],
+    );
+    const out = new Set<string>();
+    for (const row of r.rows) {
+      const idx = row.field_key.split("_sel_")[0];
+      try {
+        const arr = JSON.parse(typeof row.value === "string" ? row.value : String(row.value ?? "[]"));
+        if (Array.isArray(arr) && arr.length > 0) out.add(idx);
+      } catch { /* unreadable — not designed */ }
+    }
+    return out;
+  });
+}
+
+/**
+ * The design gap the standards care about: significant accounts carrying
+ * explicitly relevant (key) assertions with NO procedure selected yet.
+ * Shown on the S5.5 board and the E4 group page alike.
+ */
+export async function dspDesignGaps(engagementId: string): Promise<string[]> {
+  const view = await dspView(engagementId);
+  return view.rows
+    .filter((row) => row.cells.length > 0 && !Object.values(row.selected).some((arr) => arr.length > 0))
+    .map((row) => row.indexCode);
 }

@@ -73,6 +73,12 @@ export async function POST(request: Request, context: { params: Promise<{ fileIt
     if (error instanceof Error && error.message === "forbidden") {
       return NextResponse.json({ error: "forbidden" }, { status: 403 });
     }
-    return NextResponse.json({ error: "unauthenticated" }, { status: 401 });
+    if (error instanceof Error && error.message === "engagement-archived") {
+      return NextResponse.json({ error: "archived" }, { status: 409 });
+    }
+    // An unexpected failure must say so, loudly and distinctly — collapsing
+    // everything into 401 made a database refusal read as "upload failed".
+    console.error("[attachments] upload failed:", error instanceof Error ? error.message : error);
+    return NextResponse.json({ error: "server-error" }, { status: 500 });
   }
 }

@@ -56,7 +56,6 @@ export function AccountWorkpaper({
   const router = useRouter();
   const [openId, setOpenId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const [pending, setPending] = useState(false);
   const [adding, setAdding] = useState(false);
   const [otherText, setOtherText] = useState("");
   const [otherA, setOtherA] = useState<string[]>([]);
@@ -130,21 +129,14 @@ export function AccountWorkpaper({
 
       {steps.length === 0 && inIndex && indexCode ? (
         hasSelection ? (
-          <div className="flex flex-wrap items-center gap-3 rounded-[var(--radius-atlas-sm)] border border-line px-3 py-2.5">
+          /* The page materialises the S5.5 design on load; landing here means
+             that write was refused (archived file, transient error). */
+          <div className="rounded-[var(--radius-atlas-sm)] border border-line px-3 py-2.5" data-testid="psp-pending-auto">
             <p className="text-[12.5px] text-ink-soft">
               {fr
-                ? `Générer les procédures substantives primaires retenues en S5.5 pour ${indexCode}.`
-                : `Generate the primary substantive procedures selected in S5.5 for ${indexCode}.`}
+                ? `Les procédures retenues en S5.5 pour ${indexCode} se génèrent automatiquement — rechargez la page si elles n'apparaissent pas.`
+                : `The procedures selected in S5.5 for ${indexCode} generate automatically — reload the page if they do not appear.`}
             </p>
-            <button
-              type="button"
-              disabled={pending}
-              onClick={async () => { setPending(true); await op({ op: "generate", fileItemId, taskCode, presentIndexes: [indexCode] }); setPending(false); }}
-              className="rounded-[var(--radius-atlas-sm)] bg-emerald-700 px-3.5 py-1.5 text-[12.5px] font-semibold text-white hover:bg-emerald-800 disabled:opacity-50"
-              data-testid="psp-generate"
-            >
-              {pending ? "…" : fr ? "Générer" : "Generate"}
-            </button>
           </div>
         ) : (
           <div className="flex flex-wrap items-center gap-3 rounded-[var(--radius-atlas-sm)] border border-amber-600/40 bg-amber-500/5 px-3 py-2.5" data-testid="psp-no-selection">
