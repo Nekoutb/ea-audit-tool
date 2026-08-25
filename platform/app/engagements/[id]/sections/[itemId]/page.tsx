@@ -42,6 +42,7 @@ import { AccountWorkpaper } from "@/components/AccountWorkpaper";
 import { ScotRegister } from "@/components/ScotRegister";
 import { WcgwBuilder } from "@/components/WcgwBuilder";
 import { WalkthroughBoard } from "@/components/WalkthroughBoard";
+import { TocBoard } from "@/components/TocBoard";
 import { FscpForm } from "@/components/FscpForm";
 import { EstimatesRegister, RelatedPartyRegister } from "@/components/PlanningRegisters";
 import { TriggerPanel } from "@/components/TriggerPanel";
@@ -207,8 +208,10 @@ export default async function SectionPage(props: {
   const SCOT_MODES: Record<string, "wcgw" | "select" | "design" | "results"> = {
     "S1.2": "wcgw", "S2.1": "select", "S2.2": "design", "E1.1": "results",
   };
+  // E1.2 embeds the test-of-controls board (SCOTs -> selected controls).
+  const isToc = section.code === "E1.2";
   const scotView =
-    section.code === "S1.1" || section.code === "S1.3" || section.code in SCOT_MODES
+    section.code === "S1.1" || section.code === "S1.3" || isToc || section.code in SCOT_MODES
       ? await scotStudio(id)
       : null;
   if (scotView) autoValues.context = scotSummary(scotView);
@@ -656,6 +659,8 @@ export default async function SectionPage(props: {
                   />
                 ) : scotView && wtValues && section.code === "S1.3" ? (
                   <WalkthroughBoard engagementId={id} view={scotView} values={wtValues} locale={isFr ? "fr" : "en"} />
+                ) : scotView && isToc ? (
+                  <TocBoard engagementId={id} view={scotView} locale={isFr ? "fr" : "en"} />
                 ) : scotView && section.code in SCOT_MODES && section.code !== "E1.1" ? (
                   <WcgwBuilder engagementId={id} view={scotView} mode={SCOT_MODES[section.code]} locale={isFr ? "fr" : "en"} />
                 ) : fscpVals ? (

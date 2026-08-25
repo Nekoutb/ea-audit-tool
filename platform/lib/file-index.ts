@@ -148,7 +148,7 @@ export const DEFAULT_FILE_INDEX: readonly FileIndexEntry[] = [
   { code: "E6.7", section: "E", titleEn: "Accounting Estimates (ISA 540)", titleFr: "Estimations comptables (ISA 540)" },
   // E2 (IT) group of the ST/E/C hierarchy — general and application IT controls.
   { code: "E1.1", section: "E", titleEn: "ITGC Testing", titleFr: "Tests des contrôles généraux informatiques" },
-  { code: "E1.2", section: "E", titleEn: "Application & IT-Dependent Controls", titleFr: "Contrôles applicatifs et dépendants de l'informatique" },
+  { code: "E1.2", section: "E", titleEn: "Test Controls over Significant Classes of Transactions", titleFr: "Tests des contrôles sur les flux significatifs (SCOT)" },
 
   // P&L lead schedules — the class 6/7 groupings of the audit file.
   { code: "E5.1", section: "E", titleEn: "Operating Expenditures", titleFr: "Charges opérationnelles" },
@@ -273,7 +273,7 @@ const SHORT_TITLES: Record<string, { en: string; fr: string }> = {
   "E6.6": { en: "Subsequent Events (ISA 560)", fr: "Événements postérieurs (ISA 560)" },
   "E6.7": { en: "Accounting Estimates (ISA 540)", fr: "Estimations comptables (ISA 540)" },
   "E1.1": { en: "ITGC Testing", fr: "Contrôles généraux informatiques" },
-  "E1.2": { en: "Application Controls", fr: "Contrôles applicatifs" },
+  "E1.2": { en: "Test Controls over SCOTs", fr: "Tests des contrôles (SCOT)" },
   "E2.1": { en: "Update ToC & ITGCs (post-interim)", fr: "MAJ tests de contrôles & ITGC" },
   "E5.1": { en: "Operating Expenditures", fr: "Charges opérationnelles" },
   "E5.2": { en: "Administrative Expenditures", fr: "Charges administratives" },

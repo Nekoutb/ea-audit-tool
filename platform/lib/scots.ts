@@ -34,6 +34,23 @@ export interface ScotControl {
   operating: "effective" | "exceptions" | null;
   testsCount: number;
   wcgwIds: string[];
+  /** the documented E1.2 conclusion after evaluating exceptions (CONTROLS 7.3) */
+  operatingEval: "effective" | "not_effective" | null;
+  /** occurrences of the control in the period — drives the SAMPLE 3.3 minimum */
+  tocPopulation: number | null;
+  /** transactions tested: {attributes: string[], rows: [{ref,date,desc,results}]} */
+  tocGrid: TocGrid | null;
+}
+
+export interface TocGridRow {
+  ref: string;
+  date: string;
+  desc: string;
+  results: Record<string, "pass" | "fail" | "na" | "">;
+}
+export interface TocGrid {
+  attributes: string[];
+  rows: TocGridRow[];
 }
 
 export interface Wcgw {
@@ -103,6 +120,8 @@ export async function listScots(engagementId: string): Promise<Scot[]> {
                        'designEval', c.design_eval, 'implemented', c.implemented,
                        'operatingNotes', c.operating_notes,
                        'sampleSize', c.sample_size, 'sampleNote', c.sample_note,
+                       'operatingEval', c.operating_eval, 'tocPopulation', c.toc_population,
+                       'tocGrid', c.toc_grid,
                        'operating', tst.operating, 'testsCount', tst.tests_count,
                        'wcgwIds', coalesce((SELECT json_agg(wc.wcgw_id) FROM wcgw_control wc WHERE wc.control_id = c.id), '[]'::json))
                        ORDER BY c.created_at)
@@ -648,6 +667,9 @@ export async function updateControl(
     operatingNotes?: string;
     sampleSize?: number;
     sampleNote?: string;
+    operatingEval?: "effective" | "not_effective" | "";
+    tocPopulation?: number | null;
+    tocGrid?: TocGrid;
   },
 ): Promise<void> {
   const { tenantId } = await requireTenant();
@@ -660,7 +682,10 @@ export async function updateControl(
          implemented = CASE WHEN $5::boolean IS NOT NULL THEN $5 ELSE implemented END,
          operating_notes = coalesce($6, operating_notes),
          sample_size = coalesce($7, sample_size),
-         sample_note = coalesce($8, sample_note)
+         sample_note = coalesce($8, sample_note),
+         operating_eval = CASE WHEN $9 = '' THEN NULL WHEN $9 IN ('effective','not_effective') THEN $9 ELSE operating_eval END,
+         toc_population = coalesce($10, toc_population),
+         toc_grid = coalesce($11::jsonb, toc_grid)
        WHERE id = $1`,
       [
         controlId,
@@ -671,6 +696,9 @@ export async function updateControl(
         patch.operatingNotes ?? null,
         Number.isFinite(patch.sampleSize) ? Math.max(1, Math.round(patch.sampleSize as number)) : null,
         patch.sampleNote ?? null,
+        patch.operatingEval ?? null,
+        Number.isFinite(patch.tocPopulation as number) ? Math.max(0, Math.round(patch.tocPopulation as number)) : null,
+        patch.tocGrid ? JSON.stringify(patch.tocGrid) : null,
       ],
     );
   });
