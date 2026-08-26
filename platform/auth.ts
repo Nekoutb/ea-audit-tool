@@ -50,7 +50,9 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
   // so redirects work regardless of dev port (3000 default vs 3100 launch config)
   // and behind a proxy in production.
   trustHost: true,
-  session: { strategy: "jwt" },
+  // 12-hour absolute session life; revocation before that goes through
+  // session_version (offboarding, password reset) — checked on every request.
+  session: { strategy: "jwt", maxAge: 12 * 60 * 60 },
   pages: { signIn: "/login" },
   providers: [
     Credentials({

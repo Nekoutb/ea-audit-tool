@@ -1,0 +1,13 @@
+# AuditISA
+
+AuditISA is a multi-tenant statutory-audit platform for audit firms working
+under ISA and OHADA/SYSCOHADA requirements (bilingual English/French, FCFA).
+It supports the full audit lifecycle: acceptance, risk assessment (SCOTs,
+WCGWs, combined risk assessment), controls testing, substantive procedures,
+misstatement evaluation (SAD), conclusion and archiving.
+
+All engagement data is private and requires authentication; there is no
+public content beyond this description and the sign-in page. Please do not
+crawl or index application routes.
+
+Contact: https://www.auditisa.com

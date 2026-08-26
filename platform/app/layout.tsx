@@ -17,8 +17,20 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "EA Audit",
-  description: "Statutory audit platform (ISA / OHADA)",
+  metadataBase: new URL(process.env.APP_URL ?? "https://www.auditisa.com"),
+  title: { default: "AuditISA", template: "%s" },
+  description:
+    "AuditISA - the statutory audit platform for ISA and OHADA/SYSCOHADA engagements: risk assessment, working papers, controls testing and reporting in one audit file.",
+  applicationName: "AuditISA",
+  robots: { index: false, follow: false },
+  openGraph: {
+    title: "AuditISA",
+    description: "The statutory audit platform for ISA and OHADA/SYSCOHADA engagements.",
+    url: "/",
+    siteName: "AuditISA",
+    type: "website",
+  },
+  twitter: { card: "summary", title: "AuditISA", description: "The statutory audit platform for ISA and OHADA/SYSCOHADA engagements." },
 };
 
 export default async function RootLayout({

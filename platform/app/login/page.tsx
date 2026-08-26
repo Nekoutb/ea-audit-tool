@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { redirect } from "next/navigation";
 import { auth } from "@/auth";
 import { LanguageSwitcher } from "@/components/LanguageSwitcher";
@@ -48,6 +49,15 @@ export default async function LoginPage(props: {
           <LanguageSwitcher current={locale} />
         </div>
         <LoginForm messages={messages.login} failed={Boolean(error) && !notice} notice={notice} />
+        <p className="mt-6 border-t border-line pt-4 text-center text-[11px] text-muted">
+          <Link href="/terms" className="hover:text-ink hover:underline">
+            {locale === "fr" ? "Conditions d'utilisation" : "Terms of Service"}
+          </Link>
+          <span className="px-2">·</span>
+          <Link href="/privacy" className="hover:text-ink hover:underline">
+            {locale === "fr" ? "Confidentialité" : "Privacy Policy"}
+          </Link>
+        </p>
       </div>
     </main>
   );
