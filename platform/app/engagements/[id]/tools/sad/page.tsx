@@ -2,7 +2,7 @@ import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
 import { auth } from "@/auth";
 import { AppNav } from "@/components/AppNav";
-import { SadBoard } from "@/components/SadBoard";
+import { SadWorkbook } from "@/components/SadWorkbook";
 import { getEngagement } from "@/lib/engagements";
 import { getLocale } from "@/lib/locale";
 import { sadView } from "@/lib/sad";
@@ -58,7 +58,7 @@ export default async function SadPage(props: { params: Promise<{ id: string }> }
       </div>
 
       <div className="mt-4">
-        <SadBoard engagementId={id} view={view} locale={locale} />
+        <SadWorkbook engagementId={id} view={view} locale={locale} />
       </div>
     </main>
   );

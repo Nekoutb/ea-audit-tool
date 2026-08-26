@@ -17,7 +17,6 @@ import {
 } from "@/app/actions/engines";
 import { addStepAction, assignTaskAction, generateProgramAction, linkRiskStepAction, savePaperAction } from "@/app/actions/planning";
 import { AppNav } from "@/components/AppNav";
-import { PhaseNav } from "@/components/PhaseNav";
 import { launchIndependenceToTeamAction } from "@/app/actions/team-independence";
 import { PaperWizard } from "@/components/PaperWizard";
 import { PracticalTips, type TipEntry } from "@/components/PracticalTips";
@@ -276,8 +275,11 @@ export default async function SectionPage(props: {
     "C3.1": ["C1.1", "E4.15"], "C4.2": ["P1.5", "C5.1"], "C5.1": ["C1.1", "C2.2", "C4.2"],
     "C4.1": ["C4.3", "C6.1"], "C1.2": ["C1.1", "C1.3"], "C5.3": ["E6.2"], "C5.8": ["E4.16", "E6.3"],
   };
+  // E1.2 is an execution task but uses the modern screen: its embed IS the
+  // test-of-controls board.
+  const modernScreen = phaseKey !== "execution" || section.code === "E1.2";
   let linkedTasks: { code: string; title: string; href: string }[] = [];
-  if (phaseKey !== "execution") {
+  if (modernScreen) {
     const [allTasks, condTasks] = await Promise.all([engagementTasks(id), engagementTasks(id, true)]);
     const byCode = new Map([...allTasks, ...condTasks].map((x) => [x.code, x]));
     const siblings = (groupOfTask(section.code)?.members ?? []).filter((c) => c !== section.code);
@@ -488,7 +490,7 @@ export default async function SectionPage(props: {
 
   // ── The fixed working-paper screen: header band + 25/50/25, no page scroll.
   //    Execution tasks keep the legacy page below (their tools stay untouched).
-  if (phaseKey !== "execution") {
+  if (modernScreen) {
     return (
       <main className="flex min-h-screen w-full flex-col gap-3 px-4 py-4 xl:h-screen xl:overflow-hidden xl:px-6" data-testid="wp-screen">
         <AppNav locale={locale} current={{ id, label: engagement.name ?? engagement.clientName }} />
@@ -781,7 +783,6 @@ export default async function SectionPage(props: {
         </h1>
         {section.material ? <Chip tone="warn">{ts.material}</Chip> : null}
       </div>
-      <PhaseNav engagementId={id} locale={locale} active={phaseKey} />
       <ErrorBanner error={error} locale={locale} />
 
       {/* Direct task assignment (six-level ladder): who is doing this task. */}

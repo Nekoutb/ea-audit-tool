@@ -105,9 +105,11 @@ export async function engagementPhaseProgress(
          FROM (
            SELECT fi.id,
                   ${BUCKET_CASE} AS bucket,
+                  -- done = the task carries a live reviewer/partner sign-off:
+                  -- preparation alone never moves the phase percentage.
                   EXISTS (
-                    SELECT 1 FROM document d
-                     WHERE d.file_item_id = fi.id AND d.status = 'signed'
+                    SELECT 1 FROM document d JOIN signoff s ON s.document_id = d.id
+                     WHERE d.file_item_id = fi.id AND s.role IN ('reviewer','partner') AND s.voided_at IS NULL
                   ) AS signed
              FROM file_item fi
             WHERE fi.engagement_id = $1 AND fi.conditional = false

@@ -32,7 +32,7 @@ export function SectionStage({ sections, initialOpen = null }: { sections: Stage
   const [open, setOpen] = useState<number | null>(initialOpen);
 
   return (
-    <div className="flex min-h-[236px] items-stretch" data-testid="phase-gauges" role="tablist">
+    <div className="flex min-h-[236px] items-stretch max-lg:flex-col" data-testid="phase-gauges" role="tablist">
       {sections.map((s, i) => {
         const on = open === i;
         return (
@@ -44,14 +44,14 @@ export function SectionStage({ sections, initialOpen = null }: { sections: Stage
               data-testid={`section-card-${s.key}`}
               onClick={() => setOpen(on ? null : i)}
               className={`flex min-w-0 flex-1 flex-col items-center justify-center gap-3.5 rounded-[var(--radius-atlas)] border bg-surface px-3 py-4 shadow-atlas-sm backdrop-blur-xl transition-[border-color,box-shadow] duration-200 active:scale-[.985] ${
-                i > 0 ? "ml-3" : ""
+                i > 0 ? "ml-3 max-lg:ml-0 max-lg:mt-3" : ""
               } ${
                 on
                   ? "border-emerald-600/45 ring-[3px] ring-emerald-600/12"
                   : "border-glass-border hover:border-line-strong"
               }`}
             >
-              <span className="whitespace-nowrap text-[11.5px] font-extrabold uppercase tracking-[0.08em] text-muted">
+              <span className="whitespace-nowrap text-[11.5px] font-extrabold uppercase tracking-[0.08em] text-muted max-lg:whitespace-normal max-lg:text-center">
                 {s.label}
               </span>
               <span
@@ -66,13 +66,13 @@ export function SectionStage({ sections, initialOpen = null }: { sections: Stage
             </button>
             <div
               className={`overflow-hidden transition-[flex-basis,margin-left] duration-300 ease-[cubic-bezier(.23,1,.32,1)] motion-reduce:transition-none ${
-                on ? "ml-3 basis-[310px]" : "ml-0 basis-0"
+                on ? "ml-3 basis-[310px] max-lg:ml-0 max-lg:mt-3 max-lg:basis-auto" : "ml-0 basis-0"
               }`}
               style={{ flexGrow: 0, flexShrink: 0 }}
               aria-hidden={!on}
             >
               <div
-                className="flex h-full w-[310px] flex-col justify-center gap-0.5 rounded-[var(--radius-atlas)] border border-emerald-600/40 bg-surface px-3.5 py-3 shadow-atlas-sm backdrop-blur-xl"
+                className="flex h-full w-[310px] max-lg:w-full flex-col justify-center gap-0.5 rounded-[var(--radius-atlas)] border border-emerald-600/40 bg-surface px-3.5 py-3 shadow-atlas-sm backdrop-blur-xl"
                 role="tabpanel"
                 data-testid={on ? "stage-open-panel" : undefined}
               >
