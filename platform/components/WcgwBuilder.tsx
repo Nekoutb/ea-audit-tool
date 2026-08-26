@@ -516,6 +516,30 @@ export function WcgwBuilder({
                 className="mt-1.5 w-full resize-none overflow-hidden rounded-[var(--radius-atlas-xs)] bg-[color:var(--wp-input)] px-2.5 py-1.5 text-[12px] text-ink outline-none placeholder:text-muted focus:ring-1 focus:ring-emerald-600/40"
                 data-testid={`control-design-${slug(c.name)}`}
               />
+              {/* The attributes the test establishes — defined at design time,
+                  they become the columns of the E1.2 transactions-tested grid
+                  (EY GAM CONTROLS 5: our tests describe the control attributes
+                  needed for the effective functioning of the control). */}
+              <label className="mt-1.5 block">
+                <span className="text-[10px] font-extrabold uppercase tracking-[0.07em] text-muted">
+                  {fr ? "Attributs testés (un par ligne)" : "Attributes tested (one per line)"}
+                </span>
+                <textarea
+                  spellCheck={false}
+                  rows={2}
+                  defaultValue={(c.tocGrid?.attributes ?? []).join("\n")}
+                  placeholder={fr ? "Visa du responsable\nRapprochement joint\nSuivi des écarts" : "Approver's signature\nReconciliation attached\nExceptions followed up"}
+                  onBlur={(e) => {
+                    const attributes = e.target.value.split("\n").map((x) => x.trim()).filter(Boolean);
+                    const current = c.tocGrid?.attributes ?? [];
+                    if (attributes.join("\u0001") === current.join("\u0001")) return;
+                    void op({ op: "updateControl", controlId: c.id, tocGrid: { attributes, rows: c.tocGrid?.rows ?? [] } });
+                  }}
+                  onInput={(e) => { const el = e.currentTarget; el.style.height = "auto"; el.style.height = `${el.scrollHeight}px`; }}
+                  className="mt-1 w-full resize-none overflow-hidden rounded-[var(--radius-atlas-xs)] bg-[color:var(--wp-input)] px-2.5 py-1.5 text-[12px] text-ink outline-none placeholder:text-muted focus:ring-1 focus:ring-emerald-600/40"
+                  data-testid={`control-attrs-${slug(c.name)}`}
+                />
+              </label>
             </div>
           ))
         )}

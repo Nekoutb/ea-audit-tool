@@ -78,7 +78,9 @@ function buildSections(
       key,
       label: sectionLabel(key, locale),
       pct,
-      color: pct >= 70 ? "var(--color-emerald-600)" : pct > 0 ? "var(--color-warn)" : "var(--color-muted)",
+      // One family, three depths: the brand emerald deepens as the phase
+      // closes, instead of the amber/grey mix that read as a warning.
+      color: pct >= 70 ? "var(--color-emerald-600)" : pct > 0 ? "var(--color-emerald-400)" : "var(--color-line-strong)",
       groups,
       done,
       total,

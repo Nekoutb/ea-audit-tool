@@ -68,7 +68,11 @@ function intFromEnv(name: string, fallback: number): number {
  * therefore in force for the very first query on a connection, unlike a `SET`
  * issued from a pool 'connect' handler.
  */
-const POOL_MAX = intFromEnv("PG_POOL_MAX", 20);
+// 10, not 20: the cluster this app shares runs max_connections well below
+// what one greedy pool can claim, and exhausting it takes the whole site down
+// with "too many clients already" — as it did on 26 Aug. Raise deliberately
+// (PG_POOL_MAX) once the server has the headroom to back it.
+const POOL_MAX = intFromEnv("PG_POOL_MAX", 10);
 const CONNECT_TIMEOUT = intFromEnv("PG_CONNECT_TIMEOUT_MS", 5_000);
 const IDLE_TIMEOUT = intFromEnv("PG_IDLE_TIMEOUT_MS", 30_000);
 const STATEMENT_TIMEOUT = intFromEnv("PG_STATEMENT_TIMEOUT_MS", 30_000);

@@ -158,28 +158,16 @@ export function SadWorkbook({
   );
 
   const headerBlock = (title: string) => (
-    <div className="border border-[#999]">
-      <div className="px-2 py-1 text-[13px] font-bold text-black" style={{ background: "#fff" }}>{title}</div>
-      <table className="w-full border-collapse">
-        <tbody>
-          <tr>
-            <td className={td} style={{ background: HDR, width: 90 }}><b>{fr ? "Entité :" : "Entity:"}</b></td>
-            <td className={td}>{view.entityName}</td>
-            <td className={td} style={{ background: HDR, width: 110 }}><b>{fr ? "Clôture :" : "Period Ended:"}</b></td>
-            <td className={td}>{view.periodEnd}</td>
-            <td className={td} style={{ background: HDR, width: 90 }}><b>{fr ? "Devise :" : "Currency:"}</b></td>
-            <td className={td}>XAF</td>
-          </tr>
-          <tr>
-            <td className={td} style={{ background: HDR }}><b>PM:</b></td>
-            <td className={tdNum}>{mat ? n(mat.overall) : "—"}</td>
-            <td className={td} style={{ background: HDR }}><b>TE:</b></td>
-            <td className={tdNum}>{mat ? n(mat.performance) : "—"}</td>
-            <td className={td} style={{ background: HDR }}><b>{fr ? "Montant nominal :" : "Nominal amount:"}</b></td>
-            <td className={tdNum}>{mat ? n(mat.trivial) : "—"}</td>
-          </tr>
-        </tbody>
-      </table>
+    <div className="border border-[#999] px-2 py-1" style={{ background: "#fff" }}>
+      <div className="flex flex-wrap items-baseline gap-x-4 gap-y-0.5 text-[11px] text-black">
+        <b className="text-[12.5px]">{title}</b>
+        <span><b>{fr ? "Entité :" : "Entity:"}</b> {view.entityName}</span>
+        <span><b>{fr ? "Clôture :" : "Period ended:"}</b> {view.periodEnd}</span>
+        <span><b>{fr ? "Devise :" : "Currency:"}</b> XAF</span>
+        <span><b>PM:</b> <span className="tnum">{mat ? n(mat.overall) : "—"}</span></span>
+        <span><b>TE:</b> <span className="tnum">{mat ? n(mat.performance) : "—"}</span></span>
+        <span><b>{fr ? "Nominal :" : "Nominal:"}</b> <span className="tnum">{mat ? n(mat.trivial) : "—"}</span></span>
+      </div>
     </div>
   );
 
@@ -235,8 +223,15 @@ export function SadWorkbook({
                     return (
                       <tr key={`${e.stepId}-${which}`}>
                         <td className={td} style={{ background: YEL }}>{no}</td>
-                        <td className={td} style={{ background: YEL }}>{account}</td>
-                        <td className={td} style={{ background: YEL }} />
+                        <td className={td} style={{ background: YEL }}>
+                          <a href={`/engagements/${engagementId}/sections/${e.taskItemId}`} className="text-[#0b4f9c] underline">{e.ref || e.taskCode}</a>
+                        </td>
+                        <td className={td} style={{ background: YEL }}>
+                          {account}
+                          <span className="ml-1 text-[9.5px] text-[#666]">
+                            {fr ? CAPTION_LABELS[which === "dr" ? e.drCaption : e.crCaption].fr : CAPTION_LABELS[which === "dr" ? e.drCaption : e.crCaption].en}
+                          </span>
+                        </td>
                         {Array.from({ length: SAD_COLUMN_COUNT }, (_, c) => (
                           <td key={c} className={tdNum} style={{ background: YEL }}>{c === col ? n(amount) : ""}</td>
                         ))}
@@ -248,7 +243,9 @@ export function SadWorkbook({
                     <FragmentRows key={e.stepId}>
                       <tr className="cursor-pointer" onClick={() => setDetail(detail === e.stepId ? null : e.stepId)} data-testid={`sad-entry-${e.stepId}`}>
                         <td className={td} style={{ background: YEL }}><b>{no}</b></td>
-                        <td className={td} style={{ background: YEL }}>{e.taskCode}</td>
+                        <td className={td} style={{ background: YEL }}>
+                          <a href={`/engagements/${engagementId}/sections/${e.taskItemId}`} className="text-[#0b4f9c] underline" onClick={(ev) => ev.stopPropagation()}>{e.taskCode}</a>
+                        </td>
                         <td className={td} style={{ background: YEL }} colSpan={SAD_COLUMN_COUNT + 1}>
                           <b>{e.finding || e.taskTitle}</b>
                           <span className="ml-2 text-[9.5px] text-[#666]">{e.mtype}{e.posted ? (fr ? " · portée au registre" : " · posted") : ""} ▾</span>
