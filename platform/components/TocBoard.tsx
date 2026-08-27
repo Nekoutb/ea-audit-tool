@@ -65,7 +65,8 @@ export function TocBoard({
 
   const scots = view.scots.filter((s) => s.controls.some((c) => c.selectedForTesting));
   const input = "rounded-[var(--radius-atlas-xs)] border border-line-strong bg-surface px-2 py-1 text-[11.8px] text-ink outline-none focus:border-emerald-600";
-  const label = "text-[10px] font-extrabold uppercase tracking-[0.07em] text-muted";
+  const th = "px-2.5 py-1.5 text-[10px] font-extrabold uppercase tracking-[0.06em] text-muted";
+  const td = "px-2.5 py-2 align-top";
 
   if (scots.length === 0) {
     return (
@@ -86,110 +87,126 @@ export function TocBoard({
       </p>
       {error ? <p className="text-[12px] font-semibold text-rose">{error}</p> : null}
 
-      {scots.map((scot) => (
-        <div key={scot.id} className="rounded-[var(--radius-atlas-sm)] border border-line bg-surface" data-testid={`toc-scot-${scot.id}`}>
-          <div className="flex flex-wrap items-center gap-2 border-b border-line px-3 py-2">
-            <span className="text-[12.8px] font-bold text-ink">{scot.name}</span>
-            <span className="rounded-full bg-surface-2 px-2 py-0.5 text-[10.5px] font-semibold text-muted">{scot.transactionType}</span>
-            <span className="text-[11px] text-muted">
-              {fr ? "Contrôles testés" : "Controls tested"}: {scot.controls.filter((c) => c.selectedForTesting).length}
-            </span>
+      {scots.map((scot) => {
+        const tested = scot.controls.filter((c) => c.selectedForTesting);
+        return (
+          <div key={scot.id} className="overflow-hidden rounded-[var(--radius-atlas-sm)] border border-line bg-surface" data-testid={`toc-scot-${scot.id}`}>
+            <div className="flex flex-wrap items-center gap-2 border-b border-line bg-surface-2 px-3 py-2">
+              <span className="text-[12.8px] font-bold text-ink">{scot.name}</span>
+              <span className="rounded-full border border-line-strong px-2 py-0.5 text-[10.5px] font-semibold text-muted">{scot.transactionType}</span>
+              <span className="ml-auto text-[11px] text-muted">
+                {fr ? "Contrôles testés" : "Controls tested"}: <b className="text-ink tnum">{tested.length}</b>
+              </span>
+            </div>
+
+            <div className="overflow-x-auto">
+              <table className="w-full min-w-[900px] border-collapse text-left" data-testid={`toc-table-${scot.id}`}>
+                <thead>
+                  <tr className="border-b border-line bg-surface-2">
+                    <th className={th} style={{ minWidth: 240 }}>{fr ? "Contrôle" : "Control"}</th>
+                    <th className={th} style={{ width: 110 }}>{fr ? "Type · fréquence" : "Type · frequency"}</th>
+                    <th className={th} style={{ width: 96 }}>{fr ? "Assertions" : "Assertions"}</th>
+                    <th className={`${th} text-right`} style={{ width: 96 }}>{fr ? "Population" : "Population"}</th>
+                    <th className={`${th} text-right`} style={{ width: 84 }}>{fr ? "Échantillon" : "Sample"}</th>
+                    <th className={`${th} text-center`} style={{ width: 128 }}>{fr ? "Transactions testées" : "Transactions tested"}</th>
+                    <th className={th} style={{ width: 150 }}>{fr ? "Conclusion" : "Conclusion"}</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {tested.map((c) => {
+                    const asserts = assertionsOf(scot.id, c.wcgwIds);
+                    const pop = pops[c.id] ?? (c.tocPopulation != null ? String(c.tocPopulation) : "");
+                    const sole = asserts.length > 0 && tested.filter((x) => assertionsOf(scot.id, x.wcgwIds).some((a) => asserts.includes(a))).length === 1;
+                    const sug = tocSuggested(c.controlType, c.frequency, pop ? Number(pop) : null, sole, fr);
+                    const suggested = sug && !("needPopulation" in sug) ? sug : null;
+                    const size = c.sampleSize ?? suggested?.size ?? null;
+                    const grid = gridOf(c);
+                    const deviations = grid.rows.reduce((n, r) => n + Object.values(r.results).filter((v) => v === "fail").length, 0);
+                    const gridOpen = openGrid === c.id;
+                    const short = size != null && grid.rows.length < size;
+                    return (
+                      <FragmentRows key={c.id}>
+                        <tr className="border-b border-line align-top" data-testid={`toc-control-${c.id}`}>
+                          <td className={td}>
+                            <span className="block text-[12.3px] font-semibold leading-snug text-ink">{c.name}</span>
+                            {c.owner ? <span className="block text-[10.5px] text-muted">{c.owner}</span> : null}
+                          </td>
+                          <td className={`${td} text-[11px] text-ink-soft`}>
+                            {c.controlType}
+                            {c.frequency ? <span className="block text-muted">{c.frequency}</span> : null}
+                          </td>
+                          <td className={`${td} text-[12px] font-bold text-ink`} data-testid={`toc-asserts-${c.id}`}>
+                            {asserts.join(" ") || "—"}
+                          </td>
+                          <td className={`${td} text-right`}>
+                            <input
+                              value={pop}
+                              onChange={(e) => setPops((p) => ({ ...p, [c.id]: e.target.value }))}
+                              onBlur={() => { const n = Number(pop); if (Number.isFinite(n) && n >= 0 && n !== c.tocPopulation) void patch(c.id, { tocPopulation: n }); }}
+                              placeholder="—"
+                              className={`${input} w-[76px] text-right tnum`}
+                              aria-label={fr ? `Population ${c.name}` : `Population ${c.name}`}
+                              data-testid={`toc-pop-${c.id}`}
+                            />
+                          </td>
+                          <td className={`${td} text-right`} title={suggested?.rule ?? (fr ? "Saisir la population" : "Enter the population")}>
+                            <span className="text-[13px] font-extrabold text-ink tnum" data-testid={`toc-size-${c.id}`}>{size ?? "—"}</span>
+                            {suggested ? <span className="block text-[9.5px] font-semibold text-emerald-700 dark:text-emerald-400">{fr ? "auto" : "auto"}</span> : null}
+                          </td>
+                          <td className={`${td} text-center`}>
+                            <button
+                              type="button"
+                              onClick={() => setOpenGrid(gridOpen ? null : c.id)}
+                              className="rounded-[var(--radius-atlas-sm)] border border-line-strong px-2 py-1 text-[11.5px] font-semibold text-ink-soft hover:bg-surface-2"
+                              data-testid={`toc-grid-open-${c.id}`}
+                            >
+                              {grid.rows.length}{size != null ? `/${size}` : ""} {gridOpen ? "▾" : "▸"}
+                            </button>
+                            {deviations > 0 ? <span className="block text-[10px] font-bold text-rose">{deviations} ✗</span> : null}
+                            {short && deviations === 0 ? <span className="block text-[10px] text-amber-700 dark:text-amber-400">{fr ? "incomplet" : "short"}</span> : null}
+                          </td>
+                          <td className={td}>
+                            <select
+                              value={c.operatingEval ?? ""}
+                              onChange={(e) => void patch(c.id, { operatingEval: e.target.value })}
+                              className={`${input} w-full font-semibold ${c.operatingEval === "effective" ? "text-emerald-700 dark:text-emerald-400" : c.operatingEval === "not_effective" ? "text-rose" : "text-muted"}`}
+                              data-testid={`toc-eval-${c.id}`}
+                            >
+                              {c.operatingEval === null ? <option value="" disabled hidden /> : null}
+                              <option value="effective">{fr ? "Efficace" : "Effective"}</option>
+                              <option value="not_effective">{fr ? "Non efficace" : "Not effective"}</option>
+                            </select>
+                            {c.operatingEval === "not_effective" ? (
+                              <span className="mt-0.5 block text-[10px] leading-snug text-amber-700 dark:text-amber-400">
+                                {fr
+                                  ? "Évaluer la déficience, réviser S3.1 (pas d'appui), étendre les procédures de substance."
+                                  : "Evaluate the deficiency, revise S3.1 to not-rely, extend the substantive procedures."}
+                              </span>
+                            ) : null}
+                          </td>
+                        </tr>
+                        {gridOpen ? (
+                          <tr className="border-b border-line">
+                            <td colSpan={7} className="bg-surface-2/40 px-3 py-2">
+                              <TocGridEditor
+                                grid={grid}
+                                sampleSize={size}
+                                fr={fr}
+                                controlId={c.id}
+                                onChange={(next) => setGrid(c.id, next)}
+                              />
+                            </td>
+                          </tr>
+                        ) : null}
+                      </FragmentRows>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
           </div>
-
-          <div className="flex flex-col divide-y divide-line">
-            {scot.controls.filter((c) => c.selectedForTesting).map((c) => {
-              const asserts = assertionsOf(scot.id, c.wcgwIds);
-              const pop = pops[c.id] ?? (c.tocPopulation != null ? String(c.tocPopulation) : "");
-              const sole = asserts.length > 0 && scot.controls.filter((x) => x.selectedForTesting && assertionsOf(scot.id, x.wcgwIds).some((a) => asserts.includes(a))).length === 1;
-              const sug = tocSuggested(c.controlType, c.frequency, pop ? Number(pop) : null, sole, fr);
-              const suggested = sug && !("needPopulation" in sug) ? sug : null;
-              const size = c.sampleSize ?? suggested?.size ?? null;
-              const grid = gridOf(c);
-              const deviations = grid.rows.reduce((n, r) => n + Object.values(r.results).filter((v) => v === "fail").length, 0);
-              const gridOpen = openGrid === c.id;
-              return (
-                <div key={c.id} className="px-3 py-2.5" data-testid={`toc-control-${c.id}`}>
-                  <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
-                    <span className="min-w-[220px] flex-1">
-                      <span className="block text-[12.5px] font-semibold text-ink">{c.name}</span>
-                      <span className="block text-[10.5px] text-muted">
-                        {c.owner ? `${c.owner} · ` : ""}{c.controlType}{c.frequency ? ` · ${c.frequency}` : ""} · {c.objective}
-                      </span>
-                    </span>
-
-                    <span className="flex flex-col">
-                      <span className={label}>{fr ? "Assertions" : "Assertions"}</span>
-                      <span className="text-[12px] font-bold text-ink" data-testid={`toc-asserts-${c.id}`}>{asserts.join(" ") || "—"}</span>
-                    </span>
-
-                    <label className="flex flex-col">
-                      <span className={label}>{fr ? "Population" : "Population"}</span>
-                      <input
-                        value={pop}
-                        onChange={(e) => setPops((p) => ({ ...p, [c.id]: e.target.value }))}
-                        onBlur={() => { const n = Number(pop); if (Number.isFinite(n) && n >= 0 && n !== c.tocPopulation) void patch(c.id, { tocPopulation: n }); }}
-                        placeholder={fr ? "occurrences" : "occurrences"}
-                        className={`${input} w-24 tnum`}
-                        data-testid={`toc-pop-${c.id}`}
-                      />
-                    </label>
-
-                    <span className="flex flex-col" title={suggested?.rule ?? (fr ? "Population requise pour le minimum quotidien" : "Population needed for the daily minimum")}>
-                      <span className={label}>{fr ? "Échantillon" : "Sample size"}</span>
-                      <span className="text-[13px] font-extrabold text-ink tnum" data-testid={`toc-size-${c.id}`}>
-                        {size ?? "—"}
-                        {suggested ? <span className="ml-1 align-middle text-[9.5px] font-semibold text-emerald-700 dark:text-emerald-400">{fr ? "auto" : "auto"}</span> : null}
-                      </span>
-                    </span>
-
-                    <button
-                      type="button"
-                      onClick={() => setOpenGrid(gridOpen ? null : c.id)}
-                      className="rounded-[var(--radius-atlas-sm)] border border-line-strong px-2.5 py-1 text-[11.5px] font-semibold text-ink-soft hover:bg-surface-2"
-                      data-testid={`toc-grid-open-${c.id}`}
-                    >
-                      {fr ? `Transactions testées (${grid.rows.length})` : `Transactions tested (${grid.rows.length})`}
-                      {deviations > 0 ? <span className="ml-1.5 font-bold text-rose">{deviations} ✗</span> : null}
-                    </button>
-
-                    <label className="flex flex-col">
-                      <span className={label}>{fr ? "Conclusion" : "Conclusion"}</span>
-                      <select
-                        value={c.operatingEval ?? ""}
-                        onChange={(e) => void patch(c.id, { operatingEval: e.target.value })}
-                        className={`${input} font-semibold ${c.operatingEval === "effective" ? "text-emerald-700 dark:text-emerald-400" : c.operatingEval === "not_effective" ? "text-rose" : ""}`}
-                        data-testid={`toc-eval-${c.id}`}
-                      >
-                        <option value="">{fr ? "— conclure" : "— conclude"}</option>
-                        <option value="effective">{fr ? "Efficace" : "Effective"}</option>
-                        <option value="not_effective">{fr ? "Non efficace" : "Not effective"}</option>
-                      </select>
-                    </label>
-                  </div>
-
-                  {c.operatingEval === "not_effective" ? (
-                    <p className="mt-1 text-[10.5px] font-medium text-amber-700 dark:text-amber-400">
-                      {fr
-                        ? "Contrôle non efficace : évaluer la déficience, réviser l'appui en S3.1 (ne pas s'appuyer) et étendre les procédures de substance."
-                        : "Control not effective: evaluate the deficiency, revise reliance in S3.1 (not rely) and extend the substantive procedures."}
-                    </p>
-                  ) : null}
-
-                  {gridOpen ? (
-                    <TocGridEditor
-                      grid={grid}
-                      sampleSize={size}
-                      fr={fr}
-                      controlId={c.id}
-                      onChange={(next) => setGrid(c.id, next)}
-                    />
-                  ) : null}
-                </div>
-              );
-            })}
-          </div>
-        </div>
-      ))}
+        );
+      })}
     </div>
   );
 }
@@ -311,4 +328,9 @@ function TocGridEditor({
       </button>
     </div>
   );
+}
+
+/** React fragments keyed inside <tbody> (a plain <>…</> cannot carry a key). */
+function FragmentRows({ children }: { children: React.ReactNode }) {
+  return <>{children}</>;
 }
