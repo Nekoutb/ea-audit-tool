@@ -126,8 +126,8 @@ export function TocBoard({
                           {c.operatingEval === "not_effective" ? (
                             <span className="mt-0.5 block text-[10px] leading-snug text-amber-700 dark:text-amber-400">
                               {fr
-                                ? "Évaluer la déficience, réviser S3.1 (pas d'appui), étendre les procédures de substance."
-                                : "Evaluate the deficiency, revise S3.1 to not-rely, extend the substantive procedures."}
+                                ? "S3.1 passé à « pas d'appui » pour les assertions couvertes."
+                                : "S3.1 set to not-rely for the assertions covered."}
                             </span>
                           ) : null}
                         </td>

@@ -657,6 +657,10 @@ export async function addControl(
   });
 }
 
+/** The basis stamped on S3.1 when E1.2 concludes a control not effective. */
+export const CR_DEFICIENT_BASIS =
+  "Not rely — due to deficient control conclusion under E1.2";
+
 export async function updateControl(
   controlId: string,
   patch: {
@@ -672,7 +676,7 @@ export async function updateControl(
     tocGrid?: TocGrid;
   },
 ): Promise<void> {
-  const { tenantId } = await requireTenant();
+  const { tenantId, userId } = await requireTenant();
   await withTenant(tenantId, async (tx) => {
     await tx.query(
       `UPDATE scot_control SET
@@ -701,6 +705,36 @@ export async function updateControl(
         patch.tocGrid ? JSON.stringify(patch.tocGrid) : null,
       ],
     );
+
+    // A control concluded NOT EFFECTIVE cannot be relied upon: the S3.1
+    // matrix is set to not-rely for every assertion that control answered,
+    // on every lead index its SCOT feeds, with the reason recorded in the
+    // basis. Doing it here — inside the same transaction as the conclusion —
+    // means the assessment can never disagree with the test result.
+    if (patch.operatingEval === "not_effective") {
+      await tx.query(
+        `INSERT INTO cra_assessment
+           (tenant_id, engagement_id, index_code, assertion, relevant, cr, cr_basis, updated_by)
+         SELECT $1, s.engagement_id, si.index_code, a.assertion, true, 'not_rely', $3, $4
+           FROM scot_control c
+           JOIN scot s ON s.id = c.scot_id
+           JOIN scot_index si ON si.scot_id = s.id
+           JOIN wcgw_control wc ON wc.control_id = c.id
+           JOIN wcgw w ON w.id = wc.wcgw_id
+           CROSS JOIN LATERAL unnest(w.assertions) AS a(assertion)
+          WHERE c.id = $2
+         ON CONFLICT (engagement_id, index_code, assertion) DO UPDATE SET
+           cr = 'not_rely',
+           cr_basis = CASE
+             WHEN coalesce(cra_assessment.cr_basis, '') LIKE '%E1.2%' THEN cra_assessment.cr_basis
+             WHEN coalesce(cra_assessment.cr_basis, '') = '' THEN EXCLUDED.cr_basis
+             ELSE cra_assessment.cr_basis || ' · ' || EXCLUDED.cr_basis
+           END,
+           updated_by = EXCLUDED.updated_by,
+           updated_at = now()`,
+        [tenantId, controlId, CR_DEFICIENT_BASIS, userId],
+      );
+    }
   });
 }
 
