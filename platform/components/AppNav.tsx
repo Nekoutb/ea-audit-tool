@@ -57,8 +57,13 @@ export async function AppNav({
       meta: `FY${e.fiscalYear} · ${t.engagements.stages[e.phase]}`,
       active: current ? e.id === current.id : false,
     }));
-  } catch {
-    // The shell must render even if a tenant-scoped read hiccups.
+  } catch (error) {
+    // The shell must still render if a tenant-scoped read fails — but silently
+    // is how a broken query survived eleven days in production. One failure in
+    // the Promise.all discards all four results, so the nav quietly loses the
+    // firm's branding, its unread count, its notifications and its engagement
+    // switcher, and looks like four features that simply do not work.
+    console.error("[AppNav] nav data unavailable, rendering degraded shell:", error);
   }
 
   const user = session?.user;

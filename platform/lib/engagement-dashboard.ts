@@ -432,15 +432,21 @@ export async function recentEngagements(limit = 6): Promise<EngagementSummary[]>
   // reads a total off it.
   const { tenantId, userId, role } = await requireTenant();
   return withTenant(tenantId, async (tx) => {
+    // $2 exists ONLY inside the visibility clause, and that clause is empty for
+    // a role with portfolio oversight. Binding userId unconditionally therefore
+    // sent two parameters to a one-parameter statement and the query threw for
+    // every partner and firm admin.
+    const visibility = visibilityClause(role, "e", 2);
+    const params: (number | string)[] = visibility ? [limit, userId] : [limit];
     const result = await tx.query<RecentRow>(
       `SELECT e.id, e.client_id, c.name AS client_name, e.fiscal_year,
               to_char(e.period_end, 'YYYY-MM-DD') AS period_end, e.phase, e.name, e.complexity
          FROM engagement e
          JOIN client c ON c.id = e.client_id
-        WHERE e.phase <> 'archived'${visibilityClause(role, "e", 2)}
+        WHERE e.phase <> 'archived'${visibility}
         ORDER BY ${RECENT_ORDER}
         LIMIT $1`,
-      [limit, userId],
+      params,
     );
     return result.rows.map(toSummary);
   });
