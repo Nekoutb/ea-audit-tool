@@ -3,7 +3,17 @@ import { auth } from "@/auth";
 import { AppNav } from "@/components/AppNav";
 import { FirmOnboardingWizard } from "@/components/FirmOnboardingWizard";
 import { Panel, PanelHeader } from "@/components/ui/atlas";
-import { AdminError, checkAvailability, createFirm, deleteFirm, listFirms, type Availability } from "@/lib/admin";
+import {
+  addPlatformAdmin,
+  AdminError,
+  checkAvailability,
+  createFirm,
+  deleteFirm,
+  listFirms,
+  listPlatformAdmins,
+  removePlatformAdmin,
+  type Availability,
+} from "@/lib/admin";
 import { mailDomain } from "@/lib/email";
 import { getLocale } from "@/lib/locale";
 
@@ -24,7 +34,36 @@ export default async function AdminPage(props: { searchParams: Promise<{ error?:
   const locale = await getLocale();
   const fr = locale === "fr";
   const firms = await listFirms();
+  const admins = await listPlatformAdmins();
   const domain = mailDomain();
+
+  async function addAdminAction(formData: FormData) {
+    "use server";
+    // requireSuper() runs inside addPlatformAdmin — a server action is a public
+    // endpoint, the console page is not the gate.
+    try {
+      const r = await addPlatformAdmin({
+        email: String(formData.get("email") ?? ""),
+        name: String(formData.get("name") ?? ""),
+        language: String(formData.get("language") ?? "fr") === "en" ? "en" : "fr",
+      });
+      redirect(`/admin?ok=${r.emailed ? "admin-added-emailed" : "admin-added"}`);
+    } catch (e) {
+      if (e instanceof AdminError) redirect(`/admin?error=${encodeURIComponent(e.message)}`);
+      throw e;
+    }
+  }
+
+  async function removeAdminAction(formData: FormData) {
+    "use server";
+    try {
+      await removePlatformAdmin(String(formData.get("userId") ?? ""));
+      redirect("/admin?ok=admin-removed");
+    } catch (e) {
+      if (e instanceof AdminError) redirect(`/admin?error=${encodeURIComponent(e.message)}`);
+      throw e;
+    }
+  }
 
   async function createFirmAction(formData: FormData) {
     "use server";
@@ -105,7 +144,23 @@ export default async function AdminPage(props: { searchParams: Promise<{ error?:
                     ? fr
                       ? "Suppression refusée : ce cabinet est protégé (hébergement de l'opérateur de la plateforme)."
                       : "Deletion refused: this firm is protected (the platform operator's home)."
-                    : error}
+                    : error === "cannot-remove-self"
+                      ? fr
+                        ? "Refusé : vous ne pouvez pas retirer votre propre accès administrateur."
+                        : "Refused: you cannot remove your own administrator access."
+                      : error === "already-admin"
+                        ? fr
+                          ? "Ce compte est déjà administrateur de la plateforme."
+                          : "That account is already a platform administrator."
+                        : error === "admin-fields-required"
+                          ? fr
+                            ? "Adresse email invalide."
+                            : "Invalid email address."
+                          : error === "admin-not-found"
+                            ? fr
+                              ? "Cet administrateur n'existe pas (ou a déjà été retiré)."
+                              : "That administrator does not exist (or was already removed)."
+                            : error}
         </p>
       ) : null}
       {ok ? (
@@ -118,9 +173,21 @@ export default async function AdminPage(props: { searchParams: Promise<{ error?:
               ? fr
                 ? "Cabinet supprimé, ainsi que ses données et les comptes qui n'appartenaient qu'à lui."
                 : "Firm deleted, with its data and the accounts that belonged only to it."
-              : fr
-                ? "Cabinet créé — l'administrateur utilise son mot de passe existant."
-                : "Firm created — the administrator uses their existing password."}
+              : ok === "admin-added-emailed"
+                ? fr
+                  ? "Administrateur ajouté. Le mot de passe provisoire lui a été envoyé par email ; il devra le remplacer à la première connexion."
+                  : "Administrator added. The temporary password was emailed to them; they must replace it at first sign-in."
+                : ok === "admin-added"
+                  ? fr
+                    ? "Administrateur ajouté — le compte existant garde son mot de passe et voit désormais cette console."
+                    : "Administrator added — the existing account keeps its password and now sees this console."
+                  : ok === "admin-removed"
+                    ? fr
+                      ? "Accès administrateur retiré ; ses sessions ouvertes ont été révoquées."
+                      : "Administrator access withdrawn; their open sessions were revoked."
+                    : fr
+                      ? "Cabinet créé — l'administrateur utilise son mot de passe existant."
+                      : "Firm created — the administrator uses their existing password."}
         </p>
       ) : null}
 
@@ -189,6 +256,110 @@ export default async function AdminPage(props: { searchParams: Promise<{ error?:
             </tbody>
           </table>
         </div>
+      </Panel>
+
+      <Panel flush className="mt-4">
+        <div className="border-b border-line px-4 py-3">
+          <PanelHeader
+            title={fr ? "Administrateurs de la plateforme" : "Platform administrators"}
+            hint={
+              fr
+                ? "chacun voit exactement ce que voit cette console : tous les cabinets, l'intégration, la suppression"
+                : "each one sees exactly what this console shows: every firm, onboarding, deletion"
+            }
+            right={<span className="text-xs font-semibold text-muted tnum">{admins.length}</span>}
+          />
+        </div>
+        <div className="overflow-x-auto">
+          <table className="w-full" data-testid="admin-admins">
+            <thead>
+              <tr>
+                <th className={th}>{fr ? "Nom" : "Name"}</th>
+                <th className={th}>Email</th>
+                <th className={th}>{fr ? "Depuis le" : "Since"}</th>
+                <th className={th}>{fr ? "Retirer" : "Remove"}</th>
+              </tr>
+            </thead>
+            <tbody>
+              {admins.map((a) => (
+                <tr key={a.id} className="hover:bg-surface-2" data-testid={`platform-admin-${a.email}`}>
+                  <td className={`${td} font-medium text-ink`}>
+                    {a.name}
+                    {a.self ? (
+                      <span className="ml-2 rounded-full bg-surface-2 px-2 py-[1px] text-[10px] font-bold text-muted">
+                        {fr ? "vous" : "you"}
+                      </span>
+                    ) : null}
+                  </td>
+                  <td className={`${td} font-mono text-[11.5px] text-ink-soft`}>{a.email}</td>
+                  <td className={`${td} text-muted tnum`}>{a.createdAt}</td>
+                  <td className={td}>
+                    {a.self ? (
+                      <span className="text-[11px] text-muted">—</span>
+                    ) : (
+                      <form action={removeAdminAction}>
+                        <input type="hidden" name="userId" value={a.id} />
+                        <button
+                          type="submit"
+                          className="rounded-[var(--radius-atlas-sm)] border border-rose-300 px-2 py-1 text-[11px] font-semibold text-rose-700 hover:bg-rose-50 dark:border-rose-900 dark:text-rose-400 dark:hover:bg-rose-950/40"
+                          data-testid={`remove-admin-${a.email}`}
+                        >
+                          {fr ? "Retirer" : "Remove"}
+                        </button>
+                      </form>
+                    )}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+        <form action={addAdminAction} className="flex flex-wrap items-end gap-2 border-t border-line px-4 py-3">
+          <label className="flex flex-col gap-1 text-[11px] font-semibold text-muted">
+            {fr ? "Nom" : "Name"}
+            <input
+              name="name"
+              autoComplete="off"
+              className="w-44 rounded-[var(--radius-atlas-sm)] border border-line-strong bg-surface px-2 py-1.5 text-[13px] font-normal text-ink outline-none focus:border-emerald-600 focus:ring-2 focus:ring-emerald-600/20"
+              data-testid="add-admin-name"
+            />
+          </label>
+          <label className="flex flex-col gap-1 text-[11px] font-semibold text-muted">
+            Email
+            <input
+              name="email"
+              type="email"
+              required
+              autoComplete="off"
+              spellCheck={false}
+              className="w-64 rounded-[var(--radius-atlas-sm)] border border-line-strong bg-surface px-2 py-1.5 text-[13px] font-normal text-ink outline-none focus:border-emerald-600 focus:ring-2 focus:ring-emerald-600/20"
+              data-testid="add-admin-email"
+            />
+          </label>
+          <label className="flex flex-col gap-1 text-[11px] font-semibold text-muted">
+            {fr ? "Langue" : "Language"}
+            <select
+              name="language"
+              defaultValue={locale}
+              className="rounded-[var(--radius-atlas-sm)] border border-line-strong bg-surface px-2 py-1.5 text-[13px] font-normal text-ink outline-none focus:border-emerald-600"
+            >
+              <option value="fr">Français</option>
+              <option value="en">English</option>
+            </select>
+          </label>
+          <button
+            type="submit"
+            className="rounded-[var(--radius-atlas-sm)] bg-emerald-700 px-3 py-1.5 text-[12.5px] font-semibold text-white transition hover:bg-emerald-800"
+            data-testid="add-admin-submit"
+          >
+            {fr ? "+ Ajouter un administrateur" : "+ Add an administrator"}
+          </button>
+          <p className="basis-full text-[11px] text-muted">
+            {fr
+              ? "Un compte existant garde son mot de passe ; un nouveau compte reçoit un mot de passe provisoire par email, à remplacer à la première connexion."
+              : "An existing account keeps its password; a new account is emailed a temporary password to replace at first sign-in."}
+          </p>
+        </form>
       </Panel>
 
       <Panel className="mt-4">

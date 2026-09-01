@@ -67,6 +67,141 @@ export async function listFirms(): Promise<FirmSummary[]> {
   return out;
 }
 
+export interface PlatformAdmin {
+  id: string;
+  email: string;
+  name: string;
+  createdAt: string;
+  /** the signed-in operator — the row that hides its own remove control */
+  self: boolean;
+}
+
+/** Everyone holding the platform super-admin flag. */
+export async function listPlatformAdmins(): Promise<PlatformAdmin[]> {
+  const { userId } = await requireSuper();
+  const r = await pool.query<{ id: string; email: string; name: string | null; created_at: string }>(
+    `SELECT id, email, coalesce(name, '') AS name, to_char(created_at, 'YYYY-MM-DD') AS created_at
+       FROM app_user WHERE is_super = true AND disabled_at IS NULL ORDER BY created_at`,
+  );
+  return r.rows.map((row) => ({
+    id: row.id,
+    email: row.email,
+    name: row.name ?? "",
+    createdAt: row.created_at,
+    self: row.id === userId,
+  }));
+}
+
+/**
+ * Grant the platform super-admin flag to another person: they see exactly what
+ * the operator sees on the console (every firm, onboarding, deletion). An
+ * existing account keeps its password; a new one is created with an emailed
+ * one-time password and a forced first-login reset — the same flow as firm
+ * onboarding. Sign-in requires a membership, so an account with none is seated
+ * in the protected operator-home tenant.
+ */
+export async function addPlatformAdmin(input: {
+  email: string;
+  name: string;
+  language?: "en" | "fr";
+}): Promise<{ emailed: boolean }> {
+  await requireSuper();
+  const email = input.email.trim().toLowerCase();
+  if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)) throw new AdminError("admin-fields-required");
+  const language = input.language === "en" ? "en" : "fr";
+
+  const existing = await pool.query<{ id: string; is_super: boolean }>(
+    "SELECT id, coalesce(is_super, false) AS is_super FROM app_user WHERE lower(email) = $1",
+    [email],
+  );
+  if (existing.rows[0]?.is_super) throw new AdminError("already-admin");
+
+  const tempPassword = randomBytes(24).toString("base64url");
+  const hash = await bcrypt.hash(tempPassword, 10);
+  const isNewUser = !existing.rows[0];
+
+  const client = await pool.connect();
+  try {
+    await client.query("BEGIN");
+    let userId = existing.rows[0]?.id;
+    if (!userId) {
+      const u = await client.query<{ id: string }>(
+        `INSERT INTO app_user (email, name, password_hash, preferred_language, must_change_password, is_super)
+         VALUES ($1, $2, $3, $4, true, true) RETURNING id`,
+        [email, input.name.trim() || email, hash, language],
+      );
+      userId = u.rows[0].id;
+    } else {
+      await client.query("UPDATE app_user SET is_super = true WHERE id = $1", [userId]);
+    }
+    // Sign-in resolves the account's first membership; without one the login
+    // is refused. Seat membership-less accounts in the operator-home tenant.
+    const hasMembership = await client.query("SELECT 1 FROM membership WHERE user_id = $1 LIMIT 1", [userId]);
+    if (hasMembership.rows.length === 0) {
+      const home = await client.query<{ id: string }>(
+        "SELECT id FROM tenant WHERE coalesce(protected, false) = true ORDER BY created_at LIMIT 1",
+      );
+      if (home.rows.length === 0) throw new AdminError("no-operator-home");
+      await client.query(
+        "INSERT INTO membership (tenant_id, user_id, role) VALUES ($1, $2, 'firm_admin')",
+        [home.rows[0].id, userId],
+      );
+    }
+    await client.query("COMMIT");
+  } catch (e) {
+    await client.query("ROLLBACK");
+    throw e;
+  } finally {
+    client.release();
+  }
+
+  sendEmail({
+    ...platformSender(),
+    to: email,
+    subject: "AuditISA — platform administrator access",
+    body:
+      `You have been granted platform administrator access on AuditISA.\n\n` +
+      `Sign in: /login\nEmail: ${email}\n` +
+      (isNewUser
+        ? `Temporary password: ${tempPassword}\n\nYou will be asked to replace it the first time you sign in.`
+        : `Use your existing password — the admin console is now available from your account.`),
+  });
+
+  return { emailed: isNewUser };
+}
+
+/**
+ * Withdraw the super-admin flag. Self-removal is refused, so the platform can
+ * never end up with zero operators. Their seat in the operator-home tenant is
+ * released too (memberships in real firms are untouched); an account whose
+ * only membership that was can no longer sign in until re-invited somewhere.
+ */
+export async function removePlatformAdmin(targetUserId: string): Promise<void> {
+  const { userId } = await requireSuper();
+  if (targetUserId === userId) throw new AdminError("cannot-remove-self");
+  const target = await pool.query<{ id: string }>(
+    "SELECT id FROM app_user WHERE id = $1 AND is_super = true",
+    [targetUserId],
+  );
+  if (!target.rows[0]) throw new AdminError("admin-not-found");
+  const client = await pool.connect();
+  try {
+    await client.query("BEGIN");
+    await client.query("UPDATE app_user SET is_super = false, session_version = coalesce(session_version, 1) + 1 WHERE id = $1", [targetUserId]);
+    await client.query(
+      `DELETE FROM membership m USING tenant t
+        WHERE m.user_id = $1 AND m.tenant_id = t.id AND coalesce(t.protected, false) = true`,
+      [targetUserId],
+    );
+    await client.query("COMMIT");
+  } catch (e) {
+    await client.query("ROLLBACK");
+    throw e;
+  } finally {
+    client.release();
+  }
+}
+
 /** Normalise a firm name into a slug the same way createFirm will. */
 export function slugify(name: string): string {
   return name
