@@ -22,7 +22,12 @@ export function tocSuggested(
   sole: boolean,
   fr: boolean,
 ): { size: number; rule: string } | { needPopulation: true } | null {
-  if (controlType !== "manual") {
+  // The test of one belongs to a genuinely AUTOMATED control, where the
+  // application performs the control and effective ITGCs carry it across the
+  // period. An IT-dependent manual control still has a person performing it,
+  // so it follows the frequency table like any other manual control; the
+  // report it depends on is tested separately as IPE.
+  if (controlType === "automated") {
     return { size: 1, rule: fr ? "Contrôle automatisé — test unique (ITGC efficaces)" : "Automated/application control — test of one (ITGCs effective)" };
   }
   const f = normFreq(frequency);
@@ -42,4 +47,39 @@ export function tocSuggested(
   if (!size) return null;
   const capped = population && population > 0 ? Math.min(size, population) : size;
   return { size: capped, rule: fr ? `Manuel ${frequency ?? ""} → minimum ${size}` : `Manual, ${frequency ?? "?"} → minimum ${size}` };
+}
+
+/** The size a 25-item plan extends to after a single deviation. */
+export const TOC_EXTENDED_SIZE = 60;
+
+/**
+ * `rely` — the plan is clean and the planned reliance stands.
+ * `extend` — one deviation on the 25-item plan. Extend to 60 in total, then
+ *   re-evaluate on the 60 rule. Extending is a decision recorded with the
+ *   exception once its cause is known (SAMPLE 3.6.2), never a re-draw until
+ *   the count fits.
+ * `high` / `moderate` — the 60-item outcomes. Moderate keeps reliance but
+ *   reduces the assurance taken from the control in S3.1.
+ * `none` — do not rely. Revise S3.1 and extend the substantive response.
+ */
+export type TocReliance = "high" | "moderate" | "rely" | "extend" | "none";
+
+/**
+ * Deviation evaluation for the SAMPLE 3.3 plans. `plan` is the minimum from
+ * `tocSuggested`; `tested` is the items actually tested, which exceeds the plan
+ * once a test has been extended.
+ */
+export function tocEvaluate(plan: number, tested: number, deviations: number): TocReliance {
+  if (deviations < 0) return "none";
+  // A test extended to 60, or planned at 60, is judged on the 60 rule.
+  if (tested >= TOC_EXTENDED_SIZE || plan >= TOC_EXTENDED_SIZE) {
+    if (deviations === 0) return "high";
+    return deviations === 1 ? "moderate" : "none";
+  }
+  if (plan >= 25) {
+    if (deviations === 0) return "rely";
+    return deviations === 1 ? "extend" : "none";
+  }
+  // 5, 2, 1 and the occurrence plans: the hypothesis is no exceptions at all.
+  return deviations === 0 ? "rely" : "none";
 }

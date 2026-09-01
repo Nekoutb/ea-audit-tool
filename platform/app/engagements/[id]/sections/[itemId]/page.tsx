@@ -64,7 +64,7 @@ import { approvedMateriality } from "@/lib/materiality";
 import { groupOfTask, type SectionKey } from "@/lib/task-groups";
 import { signOffPreparerAction, signOffReviewerAction } from "@/app/actions/audit-file";
 import { listAttachments } from "@/lib/attachments";
-import { WP_TEMPLATES, ensureDefaultWorkpaper } from "@/lib/wp-templates";
+import { ensureDefaultWorkpaper, templateForCode } from "@/lib/wp-templates";
 import { taskForItem, engagementTasks } from "@/lib/engagement-dashboard";
 import { listConfirmations, sendDueReminders } from "@/lib/independence";
 import { listTeam as listEngagementTeam } from "@/lib/team";
@@ -380,7 +380,7 @@ export default async function SectionPage(props: {
     // The account's default working paper (E/F/K/N) is attached on first open,
     // so the documents list below already carries it.
     await ensureDefaultWorkpaper(id, itemId, section.code).catch(() => {});
-    const accountAttachments = WP_TEMPLATES[section.code] ? await listAttachments(itemId) : attachments;
+    const accountAttachments = templateForCode(section.code) ? await listAttachments(itemId) : attachments;
     return (
       <main className="min-h-screen w-full px-6 py-6">
         <AppNav locale={locale} hideLinks current={{ id, label: engagement.name ?? engagement.clientName }} />
