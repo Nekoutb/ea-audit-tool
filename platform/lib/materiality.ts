@@ -9,6 +9,8 @@ import { canPartnerSignoff } from "@/lib/rbac";
 import { requireTenant } from "@/lib/tenant";
 import { recordActivity, logMaterialityChange } from "@/lib/activity";
 
+export { uncorrectedMisstatementThreshold } from "@/lib/materiality-model";
+
 export type Benchmark = "pbt" | "revenue" | "total_assets" | "equity" | "expenses";
 export const BENCHMARKS: readonly Benchmark[] = ["pbt", "revenue", "total_assets", "equity", "expenses"];
 

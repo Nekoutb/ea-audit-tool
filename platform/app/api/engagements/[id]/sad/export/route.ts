@@ -2,6 +2,7 @@ import ExcelJS from "exceljs";
 import { NextResponse } from "next/server";
 import { amountOr } from "@/lib/amount";
 import { getEngagement } from "@/lib/engagements";
+import { uncorrectedMisstatementThreshold } from "@/lib/materiality-model";
 import { sadView } from "@/lib/sad";
 import { SAD_COLUMN_COUNT, captionColumn, type SadCfRow, type SadDiscRow, type SadEntry } from "@/lib/sad-model";
 
@@ -193,7 +194,7 @@ export async function GET(request: Request, context: { params: Promise<{ id: str
       fr ? "Avant retournement" : "Before turnaround", fr ? "Après retournement" : "After turnaround",
     ]);
     for (const r of [h1, h2]) r.eachCell((cell) => { fill(cell, HDR); box(cell); cell.font = { bold: true, size: 9 }; cell.alignment = { wrapText: true }; });
-    const threshold = mat ? mat.performance : null;
+    const threshold = uncorrectedMisstatementThreshold(mat);
     const series = [cumIS, cumIS + turnF + turnJ, afterTax, cumulative];
     const cum = wsK.addRow([fr ? "Effet cumulé sur le résultat des anomalies non corrigées" : "Cumulative income effect of uncorrected misstatements", ...series]);
     cum.eachCell((cell, c) => { box(cell); if (c > 1) cell.numFmt = MONEY; });
@@ -209,7 +210,7 @@ export async function GET(request: Request, context: { params: Promise<{ id: str
     pctRow.eachCell((cell, c) => { box(cell); if (c > 1) cell.numFmt = PCT; });
     for (const [label, value] of [
       [fr ? "Seuil de signification (PM)" : "Planning materiality", mat?.overall ?? null],
-      [fr ? "Seuil des anomalies non corrigées (TE)" : "Uncorrected Misstatements Threshold (TE)", threshold],
+      [fr ? "Seuil des anomalies non corrigées (UMT = PM − TE)" : "Uncorrected Misstatements Threshold (UMT = PM − TE)", threshold],
     ] as [string, number | null][]) {
       const r = wsK.addRow([label, value]);
       r.getCell(2).numFmt = MONEY;

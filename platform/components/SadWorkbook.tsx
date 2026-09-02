@@ -10,6 +10,7 @@
 
 import { useState } from "react";
 import { amountOr } from "@/lib/amount";
+import { uncorrectedMisstatementThreshold } from "@/lib/materiality-model";
 import {
   SAD_CAPTIONS,
   SAD_COLUMN_COUNT,
@@ -138,7 +139,7 @@ export function SadWorkbook({
   const turnJ = amountOr(meta.turnaround_judgmental ?? "", 0);
   const cumulative = afterTaxIS + (turnF + turnJ) * (1 - rate);
   const iat = amountOr(meta.income_after_tax ?? "", 0) || null;
-  const threshold = mat ? mat.performance : null;
+  const threshold = uncorrectedMisstatementThreshold(mat);
 
   // ---- shared cell styles ----------------------------------------------------
   const td = "border border-[#999] px-1.5 py-0.5 text-[11px] leading-tight text-black";
@@ -435,7 +436,7 @@ export function SadWorkbook({
                     <td className={tdNum}>{iat ? pctf(cumulative / iat) : "—"}</td>
                   </tr>
                   <tr><td className={td}>{fr ? "Seuil de signification (PM)" : "Planning materiality"}</td><td className={tdNum} colSpan={4}>{mat ? n(mat.overall) : "—"}</td></tr>
-                  <tr><td className={td}>{fr ? "Seuil des anomalies non corrigées (TE)" : "Uncorrected Misstatements Threshold (TE)"}</td><td className={tdNum} colSpan={4}>{threshold !== null ? n(threshold) : "—"}</td></tr>
+                  <tr><td className={td}>{fr ? "Seuil des anomalies non corrigées (UMT = PM − TE)" : "Uncorrected Misstatements Threshold (UMT = PM − TE)"}</td><td className={tdNum} colSpan={4}>{threshold !== null ? n(threshold) : "—"}</td></tr>
                   <tr>
                     <td className={td} style={{ background: HDR }}><b>{fr ? "Les anomalies non corrigées dépassent-elles le seuil ?" : "Do uncorrected misstatements exceed the threshold?"}</b></td>
                     {[cumIS, cumIS + turnF + turnJ, afterTaxIS, cumulative].map((v, i) => (
