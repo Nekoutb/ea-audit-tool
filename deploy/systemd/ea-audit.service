@@ -1,0 +1,22 @@
+# Production instance of the AuditISA platform — https://www.auditisa.com
+# Identical to the unit that ran /opt/ea-audit as a plain copy of platform/,
+# except that WorkingDirectory is the `current` symlink of the release layout
+# (deploy/deploy-ea-audit.sh re-points it atomically) and the app binds to
+# loopback only: Apache is the only client. Installed by deploy/setup-prod-layout.sh.
+[Unit]
+Description=EA Audit platform (Next.js)
+After=network.target postgresql.service
+
+[Service]
+User=deploy
+WorkingDirectory=/opt/ea-audit-prod/current
+ExecStart=/usr/bin/npm start -- -p 3200 -H 127.0.0.1
+Restart=always
+RestartSec=5
+Environment=NODE_ENV=production
+Environment=NODE_OPTIONS=--max-old-space-size=768
+MemoryHigh=900M
+MemoryMax=1200M
+
+[Install]
+WantedBy=multi-user.target

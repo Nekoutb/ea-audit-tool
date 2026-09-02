@@ -5,10 +5,11 @@
 # never printed. Run as root: bash setup-dev-instance.sh
 set -euo pipefail
 ROOT=/opt/ea-audit-dev
-PROD_ENV=/opt/ea-audit/.env
+PROD_ENV=${PROD_ENV:-/opt/ea-audit-prod/shared/.env}   # production on the release layout; the legacy copy is the fallback
+[ -f "$PROD_ENV" ] || PROD_ENV=/opt/ea-audit/.env
 HERE=$(cd "$(dirname "$0")" && pwd)
 
-install -d -o deploy -g deploy -m 755 "$ROOT" "$ROOT/releases" "$ROOT/backups" "$ROOT/logs"
+install -d -o deploy -g deploy -m 755 "$ROOT" "$ROOT/releases" "$ROOT/logs"
 install -d -o deploy -g deploy -m 750 "$ROOT/shared"
 touch "$ROOT/deployed-shas.log"; chown deploy:deploy "$ROOT/deployed-shas.log"
 

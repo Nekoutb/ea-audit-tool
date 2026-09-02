@@ -16,6 +16,8 @@
 #
 # Options: --rebuild   throw away an existing release directory for this sha and build again
 #          --no-fetch  do not contact GitHub (use the mirror as it is)
+#          --yes       production only: skip the interactive "type PROD" confirmation
+#                      (required when stdin is not a terminal, e.g. `ssh host deploy-ea-audit prod --yes`)
 
 set -euo pipefail
 
@@ -27,6 +29,7 @@ KEEP_RELEASES=3
 MIN_FREE_MB=1200          # refuse to build with less than this available — the build must never squeeze production
 BUILD_MEM=2200M           # cgroup ceiling for npm ci / next build: the build dies before the box does
 RUN_AS=deploy
+YES=0
 
 log()  { printf '\033[1;34m[deploy]\033[0m %s\n' "$*"; }
 warn() { printf '\033[1;33m[deploy]\033[0m %s\n' "$*" >&2; }
@@ -50,7 +53,14 @@ current_release() {   # prints the release dir `current` points at, or nothing
   [ -L "$ROOT/current" ] && readlink -f "$ROOT/current" || true
 }
 
+previous_release() {  # prints what current.previous records, or nothing
+  sed -n 's/^previous=//p' "$ROOT/current.previous" 2>/dev/null || true
+}
+
 sha_of_release() { [ -f "$1/RELEASE" ] && sed -n 's/^sha=//p' "$1/RELEASE" || basename "$1"; }
+
+# deploy and rollback are mutually exclusive; status needs no lock.
+take_lock() { exec 9>"$LOCK"; flock -n 9 || die "another deployment or rollback is running"; }
 
 # --- subcommands that need no build -----------------------------------------
 
@@ -67,22 +77,34 @@ cmd_status() {
 }
 
 cmd_rollback() {
-  configure "${1:?rollback <dev|prod>}"
+  configure "${1:?rollback <dev|prod>}"; shift
+  while [ $# -gt 0 ]; do
+    case "$1" in
+      --yes) YES=1 ;;
+      *)     die "unknown option $1 (rollback <dev|prod> [--yes])" ;;
+    esac; shift
+  done
+  take_lock
   local cur prev
   cur=$(current_release); [ -n "$cur" ] || die "$TARGET has no current release"
-  prev=$(sed -n 's/^previous=//p' "$ROOT/current.previous" 2>/dev/null || true)
+  prev=$(previous_release)
   [ -n "$prev" ] && [ -d "$prev" ] || die "no previous release recorded for $TARGET"
+  # Only ever roll back onto something that passed its health check here: a
+  # release that never made it into the log is a build that was never good.
+  grep -q "^$(sha_of_release "$prev") " "$DEPLOY_LOG" 2>/dev/null \
+    || die "$(basename "$prev") was never successfully deployed to $TARGET (not in $DEPLOY_LOG) — refusing to roll back onto it"
   [ "$TARGET" = prod ] && confirm_prod "ROLLBACK production to $(basename "$prev")"
   log "$TARGET: $(basename "$cur") -> $(basename "$prev") (migrations are NOT reverted)"
   switch_to "$prev"
-  restart_and_check || die "$TARGET is unhealthy after rollback — investigate now"
+  restart_and_check || die "$TARGET is unhealthy after rollback — current is left on $(basename "$prev"); investigate now"
   printf '%s %s rollback %s\n' "$(sha_of_release "$prev")" "$(basename "$prev")" "$(date -u +%FT%TZ)" >> "$DEPLOY_LOG"
 }
 
 # --- pieces of a deployment -------------------------------------------------
 
 confirm_prod() {
-  [ -t 0 ] || return 0   # non-interactive callers already decided
+  [ "$YES" = 1 ] && return 0
+  [ -t 0 ] || die "$1: stdin is not a terminal, so nobody can confirm — re-run with --yes (or from an interactive shell)"
   printf '%s. Type the word PROD to continue: ' "$1"; read -r ans; [ "$ans" = PROD ] || die "aborted"
 }
 
@@ -91,7 +113,7 @@ ensure_mirror() {
     log "cloning mirror of $REPO_URL"
     git clone --quiet --mirror "$REPO_URL" "$MIRROR"
   elif [ "$NO_FETCH" = 0 ]; then
-    git -C "$MIRROR" fetch --quiet --prune
+    git -C "$MIRROR" fetch --quiet --prune || die "git fetch from $REPO_URL failed (offline? --no-fetch uses the mirror as it is)"
   fi
 }
 
@@ -122,8 +144,11 @@ gate_prod() {
   fi
 }
 
+# The target must already be on the release layout: <root>/current is what the
+# unit runs, <root>/shared/.env is the only environment file. deploy/setup-*.sh
+# put a target there; this script never changes the unit or the layout itself.
 check_layout() {
-  [ -d "$ROOT" ] || die "$ROOT does not exist — $TARGET is not set up for the release layout"
+  [ -d "$ROOT" ] || die "$ROOT does not exist — $TARGET is not set up for the release layout (see docs/deployment-workflow.md)"
   [ -f "$ROOT/shared/.env" ] || die "$ROOT/shared/.env is missing"
   local wd; wd=$(systemctl show "$SERVICE" -p WorkingDirectory --value 2>/dev/null || true)
   [ "$wd" = "$ROOT/current" ] || die "$SERVICE.service has WorkingDirectory=$wd, expected $ROOT/current — the unit must be moved to the release layout first"
@@ -193,17 +218,21 @@ migrate() {
     || die "db/rls.sql failed on $DB — see $mlog"
 }
 
+# switch_to <release> [previous]: re-point current at <release> and record what
+# to roll back to. By default that is whatever current pointed at until now;
+# the automatic rollback passes the pre-deploy value instead, so a failed
+# release never becomes the "previous" one.
 switch_to() {
-  local prev; prev=$(current_release)
-  [ -n "$prev" ] && printf 'previous=%s\n' "$prev" > "$ROOT/current.previous"
+  local prev=${2-$(current_release)}
+  if [ -n "$prev" ]; then printf 'previous=%s\n' "$prev" > "$ROOT/current.previous"; else rm -f "$ROOT/current.previous"; fi
   ln -sfn "$1" "$ROOT/current.tmp" && mv -Tf "$ROOT/current.tmp" "$ROOT/current"
   chown -h $RUN_AS:$RUN_AS "$ROOT/current"
 }
 
-healthy() {   # $1 = attempts
+healthy() {   # $1 = attempts, 3 s apart, each request capped at 10 s
   local i code
   for ((i = 1; i <= $1; i++)); do
-    code=$(curl -s -o /dev/null -w '%{http_code}' -H "Host: $HOST" "http://127.0.0.1:$PORT/login" || true)
+    code=$(curl -s --max-time 10 -o /dev/null -w '%{http_code}' -H "Host: $HOST" "http://127.0.0.1:$PORT/login" || true)
     [ "$code" = 200 ] && return 0
     sleep 3
   done
@@ -216,17 +245,17 @@ restart_and_check() {
   systemctl restart "$SERVICE"
   healthy 30 || return 1
   # through Apache as a real visitor would arrive (vhost, TLS, proxy headers)
-  local code; code=$(curl -sk -o /dev/null -w '%{http_code}' --resolve "$HOST:443:127.0.0.1" "https://$HOST/login" || true)
+  local code; code=$(curl -sk --max-time 15 -o /dev/null -w '%{http_code}' --resolve "$HOST:443:127.0.0.1" "https://$HOST/login" || true)
   [ "$code" = 200 ] || { warn "app is up on :$PORT but https://$HOST/login via Apache returned $code"; return 1; }
   return 0
 }
 
 prune_releases() {
-  local cur; cur=$(current_release)
+  local cur prev; cur=$(current_release); prev=$(previous_release)
   ls -1dt "$ROOT"/releases/*/ 2>/dev/null | tail -n +$((KEEP_RELEASES + 1)) | while read -r d; do
     d=${d%/}
     [ "$(readlink -f "$d")" = "$cur" ] && continue
-    grep -q "^previous=$d$" "$ROOT/current.previous" 2>/dev/null && continue
+    [ "$(readlink -f "$d")" = "$prev" ] && continue
     log "pruning old release $(basename "$d")"; rm -rf "$d"
   done
 }
@@ -238,24 +267,27 @@ cmd_deploy() {
     case "$1" in
       --rebuild)  REBUILD=1 ;;
       --no-fetch) NO_FETCH=1 ;;
+      --yes)      YES=1 ;;
       --hotfix)   HOTFIX=${2:-}; [ -n "$HOTFIX" ] || die "--hotfix needs a reason"; shift ;;
       -*)         die "unknown option $1" ;;
       *)          [ -z "$REF" ] || die "one ref only"; REF=$1 ;;
     esac; shift
   done
   REF=${REF:-$DEFAULT_REF}
+  if [ -n "$HOTFIX" ] && [ "$TARGET" != prod ]; then die "--hotfix only means something for prod (dev has no gate)"; fi
 
-  exec 9>"$LOCK"; flock -n 9 || die "another deployment is running"
-  check_layout
+  take_lock
   ensure_mirror
   resolve_ref
   log "$TARGET <- $REF ($SHORT: $(git -C "$MIRROR" log -1 --format=%s "$SHA" | cut -c1-70))"
-  gate_prod
-  local cur; cur=$(current_release)
+  gate_prod          # an un-tested commit is refused before anything else is looked at
+  check_layout
+  local cur prev_before; cur=$(current_release); prev_before=$(previous_release)
   if [ -n "$cur" ] && [ "$(sha_of_release "$cur")" = "$SHA" ] && [ "$REBUILD" = 0 ]; then
     log "$TARGET already runs $SHORT — nothing to do (--rebuild to force)"; exit 0
   fi
   [ "$TARGET" = prod ] && confirm_prod "Deploy $SHORT to PRODUCTION"
+  [ -n "$cur" ] || warn "$TARGET has no current release: if the health check fails there is nothing to roll back to"
 
   build_release
   [ "$TARGET" = prod ] && backup_db
@@ -268,10 +300,12 @@ cmd_deploy() {
   else
     if [ -n "$cur" ]; then
       warn "rolling $TARGET back to $(basename "$cur")"
-      switch_to "$cur"
+      switch_to "$cur" "$prev_before"     # current.previous goes back to what it was, not to the failed build
       restart_and_check && warn "rolled back; $TARGET is healthy on $(basename "$cur")" || warn "$TARGET is STILL unhealthy after rollback"
+    else
+      warn "$TARGET had no previous release — current is left on $SHORT; fix forward or restore by hand"
     fi
-    die "deployment of $SHORT to $TARGET FAILED"
+    die "deployment of $SHORT to $TARGET FAILED (build kept in $REL for inspection; migrations were NOT reverted)"
   fi
 }
 
@@ -279,5 +313,5 @@ case "${1:-}" in
   status)   cmd_status ;;
   rollback) shift; cmd_rollback "$@" ;;
   dev|prod) cmd_deploy "$@" ;;
-  *) sed -n '2,20p' "$0"; exit 64 ;;
+  *) sed -n '2,21p' "$0"; exit 64 ;;
 esac

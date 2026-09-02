@@ -14,7 +14,7 @@ WorkingDirectory=/opt/ea-audit-dev/current
 Environment=NODE_ENV=production
 Environment=NODE_OPTIONS=--max-old-space-size=512
 Environment=PG_APPLICATION_NAME=ea-audit-dev
-ExecStart=/usr/bin/npm start -- -p 3201
+ExecStart=/usr/bin/npm start -- -p 3201 -H 127.0.0.1
 Restart=always
 RestartSec=5
 MemoryHigh=600M
