@@ -5,9 +5,14 @@
 #   deploy/install-github-deploy-key.sh            do it
 #   deploy/install-github-deploy-key.sh --check    only verify (server + secrets)
 #
-# Needs: ssh access to the server as root (the `ea-audit` alias from
-# deploy/grant-claude-ssh-access.sh, or SERVER=root@host), and `gh` signed in
-# to an account that may write repository secrets.
+# Runs in either place:
+#   ON THE SERVER, as root (the normal case — it notices deploy-ea-audit is
+#     installed and works locally, no ssh involved):
+#       git clone https://github.com/Nekoutb/ea-audit-tool.git /tmp/ea && bash /tmp/ea/deploy/install-github-deploy-key.sh
+#   FROM A WORKSTATION with ssh access to the server as root (the `ea-audit`
+#     alias from deploy/grant-claude-ssh-access.sh, or SERVER=root@host).
+# Either way `gh` must be able to sign in to an account that may write the
+# repository's secrets; it is installed and signed in on demand.
 #
 # What it does:
 #   1. runs deploy/setup-github-deploy-key.sh ON the server: forced-command
@@ -19,19 +24,35 @@
 #      and DEPLOY_SSH_KEY — the private key travels ssh → gh through a pipe and
 #      is never printed or written to disk here
 #
-# Environment: SERVER (ea-audit)  SERVER_IP (45.32.150.96)  REPO (Nekoutb/ea-audit-tool)
+# Environment: SERVER (ea-audit, or "local" to force running on this host)
+#              SERVER_IP (45.32.150.96; on the server: its first address)
+#              REPO (Nekoutb/ea-audit-tool)
 
 set -euo pipefail
 
-SERVER=${SERVER:-ea-audit}
-SERVER_IP=${SERVER_IP:-45.32.150.96}
 REPO=${REPO:-Nekoutb/ea-audit-tool}
 KEY=/root/.ssh/github-deploy-ea-audit
 HERE=$(cd "$(dirname "$0")" && pwd)
 
 say()  { printf '\033[1;34m[github-key]\033[0m %s\n' "$*"; }
 die()  { printf '\033[1;31m[github-key] %s\033[0m\n' "$*" >&2; exit 1; }
-remote() { ssh -o BatchMode=yes -o ConnectTimeout=20 "$SERVER" "$@"; }
+
+# Where are we? Root on a host that has the deploy script IS the server.
+if [ "${SERVER:-}" = local ] || { [ -z "${SERVER:-}" ] && [ "$(id -u)" = 0 ] && [ -x /usr/local/sbin/deploy-ea-audit ]; }; then
+  LOCAL=1
+  SERVER_IP=${SERVER_IP:-$(hostname -I 2>/dev/null | awk '{print $1}')}
+  [ -n "$SERVER_IP" ] || die "could not determine this server's IP — set SERVER_IP"
+  say "running on the server itself ($(hostname), $SERVER_IP)"
+else
+  LOCAL=0
+  SERVER=${SERVER:-ea-audit}
+  SERVER_IP=${SERVER_IP:-45.32.150.96}
+fi
+
+# Run a command on the server: directly when we are the server, over ssh otherwise.
+remote() {
+  if [ "$LOCAL" = 1 ]; then bash -c "$*"; else ssh -o BatchMode=yes -o ConnectTimeout=20 "$SERVER" "$@"; fi
+}
 
 # gh: on PATH, or installed where its installers put it but not yet on this
 # shell's PATH (Git Bash on Windows is the usual case) — or offer to install it.
@@ -53,9 +74,11 @@ find_gh() {
 install_gh() {
   say "gh (GitHub CLI) is not installed."
   local how=""
+  local sudo=""; [ "$(id -u)" = 0 ] || sudo="sudo "
   if command -v winget >/dev/null;   then how="winget install --id GitHub.cli -e --accept-source-agreements --accept-package-agreements"
   elif command -v brew >/dev/null;   then how="brew install gh"
-  elif command -v apt-get >/dev/null; then how="sudo apt-get install -y gh"
+  elif command -v apt-get >/dev/null; then how="${sudo}apt-get update -qq && ${sudo}apt-get install -y gh"
+  elif command -v dnf >/dev/null;    then how="${sudo}dnf install -y gh"
   fi
   [ -n "$how" ] || die "install it from https://cli.github.com and run this script again"
   printf 'Install it now with:  %s  [y/N] ' "$how"; read -r ans
@@ -67,9 +90,14 @@ install_gh() {
 
 find_gh || install_gh
 if ! gh auth status >/dev/null 2>&1; then
-  say "gh is not signed in — starting 'gh auth login' (choose GitHub.com, HTTPS, browser)"
+  if [ "$LOCAL" = 1 ]; then
+    say "gh is not signed in — starting 'gh auth login' (GitHub.com, HTTPS, 'Login with a web browser': it prints a one-time code to enter at github.com/login/device from any browser)"
+  else
+    say "gh is not signed in — starting 'gh auth login' (choose GitHub.com, HTTPS, browser)"
+  fi
   gh auth login || die "gh sign-in did not complete"
 fi
+[ "$LOCAL" = 1 ] || remote 'id -un' >/dev/null 2>&1 || die "cannot ssh to $SERVER non-interactively — run deploy/grant-claude-ssh-access.sh first, or set SERVER=root@host"
 remote 'id -un' >/dev/null 2>&1 || die "cannot ssh to $SERVER non-interactively — run deploy/grant-claude-ssh-access.sh first, or set SERVER=root@host"
 
 self_test() {
@@ -113,7 +141,13 @@ self_test
 say "setting repository secrets on $REPO"
 gh secret set DEPLOY_HOST --repo "$REPO" --body "$SERVER_IP"
 gh secret set DEPLOY_USER --repo "$REPO" --body root
-ssh-keyscan -t ed25519 "$SERVER_IP" 2>/dev/null | gh secret set DEPLOY_KNOWN_HOSTS --repo "$REPO"
+# The host key as GitHub's runner will see it: keyed by the public address.
+# On the server itself 127.0.0.1 answers with the same key, if the public
+# address does not route back.
+known=$(ssh-keyscan -t ed25519 "$SERVER_IP" 2>/dev/null || true)
+[ -n "$known" ] || known=$(ssh-keyscan -t ed25519 127.0.0.1 2>/dev/null | sed "s/^127\.0\.0\.1/$SERVER_IP/")
+[ -n "$known" ] || die "ssh-keyscan returned nothing for $SERVER_IP"
+printf '%s\n' "$known" | gh secret set DEPLOY_KNOWN_HOSTS --repo "$REPO"
 remote "cat $KEY" | gh secret set DEPLOY_SSH_KEY --repo "$REPO"
 check_secrets
 
