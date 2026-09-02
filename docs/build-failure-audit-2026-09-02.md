@@ -105,17 +105,42 @@ byte-for-byte in the run #29 and #33 logs:
   Associés", the retry inherited that state and failed its first assertion.
   *Fix:* the branding spec re-seeds before each attempt.
 
-## 6. One failure is still unexplained
+## 6. Switching users by clearing cookies does not work in this app
 
 In run #33 the first attempt of the branding spec spent its whole 180 s
-budget on the third sign-in of the test (`/login` rendered without the e-mail
-field; no server-side error in the log). The retry failed for reason 5, so
-there is no trace of the first attempt — `trace: "on-first-retry"` only records
-retries. Two changes make the next occurrence diagnosable rather than a
-mystery: CI now keeps the trace of every failed attempt
-(`retain-on-failure`) and uploads `test-results/` plus the HTML report as a
-run artifact, and the new action/navigation timeouts turn a 170-second stall
-into a 20-second failure that names the step.
+budget on the third sign-in of the test: `/login` rendered without the
+e-mail field and nothing was logged server-side. There was no trace to look
+at — `trace: "on-first-retry"` records retries only. With traces kept for every
+failed attempt (run #34 of this branch), the page snapshot at the moment of
+failure was **Bob's dashboard**: the spec had cleared the cookies and asked
+for `/login`, and the server still saw Bob's session.
+
+The trace's network log shows why. The proxy wraps every route in Auth.js's
+`auth()`, which re-issues the session cookie on every response, and the nav
+prefetches its links (`/settings?_rsc=…`, `/notifications?_rsc=…`, …). A
+prefetch still in flight when `clearCookies()` ran set Bob's cookie straight
+back, so `/login` redirected to `/dashboard` and the e-mail field never
+existed. Not a product bug — rolling sessions are the intent — but a rule for
+the specs: **a user switch needs a fresh browser context**, never a cookie
+clear. The branding spec now opens one context per user.
+
+## 7. Two more drifts surfaced once the others were out of the way
+
+- **E4 accounts became index-per-account working papers** (commit 7796693):
+  no risk header, no program generator, no engines panel. phase2 asserted the
+  seeded revenue risk in the E4.1 header and generated E4.1's program; it now
+  reads the risk off the register, links it through a procedure on E4.20
+  (which is what the significant-risks gate counts), and covers E4.2 with a
+  procedure row. phase5 ran the sampling/reconciliation/analytics engines on
+  E4.1; they live on the execution tasks, so it uses E5.1.
+- **A Server Action answers 303**, with `X-Action-Redirect`, never 200. The
+  first version of the phase7 fix waited for an `ok()` response to the risk
+  update and timed out; it now matches on method and path.
+
+Every finding above was reproduced from a trace or a log line, not inferred;
+the action/navigation timeouts turned each remaining stall into a 20-second
+failure that names the step, which is what made the second pass a
+30-minute job instead of another month of red.
 
 ## Also noted, not changed
 

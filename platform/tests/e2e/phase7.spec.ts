@@ -190,10 +190,13 @@ test("Phase 7: gates block → complete file → issue report → archive → ro
     await page.goto(`${engagementUrl}/risks`);
     await page.getByTestId(`risk-edit-open-${risk}`).click();
     await page.getByTestId(`risk-status-${risk}`).selectOption("concluded");
+    // A Server Action answers 303 + X-Action-Redirect, never 200, so match on
+    // method and path only, then let the redirected render settle.
     await Promise.all([
-      page.waitForResponse((r) => r.url().includes("/risks") && r.request().method() === "POST" && r.ok()),
+      page.waitForResponse((r) => r.url().includes("/risks") && r.request().method() === "POST"),
       page.getByTestId(`risk-update-${risk}`).click(),
     ]);
+    await page.waitForLoadState("networkidle");
   }
 
   // Final analytical review + FS tie-out snapshots.
