@@ -14,7 +14,9 @@ import { visibleToUser } from "@/lib/engagement-access";
  * security headers — a Content-Security-Policy is worth least on the pages an
  * attacker can reach without signing in first.
  */
-const PUBLIC = ["/login", "/terms", "/privacy", "/api/auth", "/api/email/inbound"];
+// /api/version answers "which commit is this?" — the deploy pipeline's proof
+// that the public site serves what it just deployed (app/api/version/route.ts).
+const PUBLIC = ["/login", "/terms", "/privacy", "/api/auth", "/api/email/inbound", "/api/version"];
 const isPublic = (path: string) =>
   path === "/" || PUBLIC.some((p) => path === p || path.startsWith(`${p}/`));
 
