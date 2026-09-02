@@ -57,3 +57,15 @@ test("the tenant API rejects unauthenticated requests", async ({ request }) => {
   const response = await request.get("/api/probe");
   expect(response.status()).toBe(401);
 });
+
+// /api/version is deliberately public: the deploy pipeline reads it from
+// outside to prove the site serves the commit it just deployed. Under
+// `next start` in CI there is a BUILD_ID but no RELEASE file (the deploy
+// script writes that), so the sha is null here and set on a real instance.
+test("the version endpoint answers without a session", async ({ request }) => {
+  const response = await request.get("/api/version");
+  expect(response.status()).toBe(200);
+  const body = (await response.json()) as { sha: string | null; buildId: string | null };
+  expect(body).toHaveProperty("sha");
+  expect(typeof body.buildId === "string" || body.buildId === null).toBe(true);
+});

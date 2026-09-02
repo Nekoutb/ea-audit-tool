@@ -95,12 +95,25 @@ jobs:
           args: dev ${{ env.DEPLOY_REF }}
 
       # The script already health-checked the app port and would have rolled
-      # back; this confirms the public chain (DNS, TLS, vhost) from outside.
-      - name: Verify through the public URL
+      # back. This confirms, from outside, that the public chain (DNS, TLS,
+      # vhost) works AND that the site serves the commit that was deployed:
+      # /api/version reports the sha the running release was built from.
+      - name: Verify the public site serves this commit
+        id: verify
         run: |
+          expected="$DEPLOY_REF"
+          if ! [[ "$expected" =~ ^[0-9a-f]{40}$ ]]; then
+            expected=$(git ls-remote "https://github.com/${{ github.repository }}.git" "refs/heads/$DEPLOY_REF" "refs/tags/$DEPLOY_REF" | head -1 | cut -f1)
+            [ -n "$expected" ] || { echo "::error::cannot resolve '$DEPLOY_REF' to a commit"; exit 1; }
+          fi
           code=$(curl -sS -o /dev/null -w '%{http_code}' --retry 3 --retry-delay 5 --max-time 20 "$STAGING_URL/login")
           echo "GET $STAGING_URL/login -> $code"
           [ "$code" = 200 ] || { echo "::error::staging answered $code, not 200"; exit 1; }
+          version=$(curl -sS --retry 3 --retry-delay 5 --max-time 20 "$STAGING_URL/api/version")
+          echo "GET $STAGING_URL/api/version -> $version"
+          served=$(printf '%s' "$version" | sed -n 's/.*"sha":"\([0-9a-f]\{40\}\)".*/\1/p')
+          [ "$served" = "$expected" ] || { echo "::error::staging serves ${served:-<no sha>}, expected $expected"; exit 1; }
+          echo "served=$served" >> "$GITHUB_OUTPUT"
 
       - name: Summary
         run: |
@@ -109,7 +122,8 @@ jobs:
             echo
             echo "| | |"
             echo "|---|---|"
-            echo "| commit | \`$DEPLOY_REF\` |"
+            echo "| commit deployed | \`$DEPLOY_REF\` |"
+            echo "| commit served by the public site | \`${{ steps.verify.outputs.served }}\` |"
             echo "| trigger | ${{ github.event_name }} |"
             echo
             echo "Test it there. When it is right, merge \`dev\` into \`main\` (fast-forward) and push — CI on \`main\` then offers the production release."
@@ -184,11 +198,22 @@ jobs:
           jump-host: ${{ secrets.DEPLOY_JUMP_HOST }}
           args: prod ${{ env.DEPLOY_REF }} --yes
 
-      - name: Verify through the public URL
+      - name: Verify the public site serves this commit
+        id: verify
         run: |
+          expected="$DEPLOY_REF"
+          if ! [[ "$expected" =~ ^[0-9a-f]{40}$ ]]; then
+            expected=$(git ls-remote "https://github.com/${{ github.repository }}.git" "refs/heads/$DEPLOY_REF" "refs/tags/$DEPLOY_REF" | head -1 | cut -f1)
+            [ -n "$expected" ] || { echo "::error::cannot resolve '$DEPLOY_REF' to a commit"; exit 1; }
+          fi
           code=$(curl -sS -o /dev/null -w '%{http_code}' --retry 3 --retry-delay 5 --max-time 20 "$PRODUCTION_URL/login")
           echo "GET $PRODUCTION_URL/login -> $code"
           [ "$code" = 200 ] || { echo "::error::production answered $code, not 200"; exit 1; }
+          version=$(curl -sS --retry 3 --retry-delay 5 --max-time 20 "$PRODUCTION_URL/api/version")
+          echo "GET $PRODUCTION_URL/api/version -> $version"
+          served=$(printf '%s' "$version" | sed -n 's/.*"sha":"\([0-9a-f]\{40\}\)".*/\1/p')
+          [ "$served" = "$expected" ] || { echo "::error::production serves ${served:-<no sha>}, expected $expected"; exit 1; }
+          echo "served=$served" >> "$GITHUB_OUTPUT"
 
       - name: Summary
         run: |
@@ -197,7 +222,8 @@ jobs:
             echo
             echo "| | |"
             echo "|---|---|"
-            echo "| commit | \`$DEPLOY_REF\` |"
+            echo "| commit deployed | \`$DEPLOY_REF\` |"
+            echo "| commit served by the public site | \`${{ steps.verify.outputs.served }}\` |"
             echo "| approved by | ${{ github.actor }} |"
             echo
             echo "Rollback, if needed, is server-side: \`deploy-ea-audit rollback prod\` (see docs/deployment-workflow.md)."
