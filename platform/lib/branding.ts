@@ -9,7 +9,7 @@ import { Paragraph, TextRun } from "docx";
 import type { PoolClient } from "pg";
 import { withTenant } from "@/lib/db";
 import { canManageFirm } from "@/lib/rbac";
-import { requireTenant } from "@/lib/tenant";
+import { requirePortalUser, requireTenant } from "@/lib/tenant";
 
 export class BrandingError extends Error {
   constructor(public readonly code: string) {
@@ -82,6 +82,19 @@ export async function loadBranding(tx: PoolClient, tenantId: string): Promise<Br
 
 export async function getBranding(): Promise<Branding> {
   const { tenantId } = await requireTenant();
+  return withTenant(tenantId, (tx) => loadBranding(tx, tenantId));
+}
+
+/**
+ * The firm's branding as its client portal shows it. `requireTenant()` refuses
+ * portal accounts by design (it is the boundary between a client_user and the
+ * audit file), so the portal page cannot go through `getBranding()` — it did,
+ * and every portal visit threw `ForbiddenError: portal-account`. The firm's
+ * name, logo and colours are the one piece of firm data a client is meant to
+ * see; nothing else is read here.
+ */
+export async function getPortalBranding(): Promise<Branding> {
+  const { tenantId } = await requirePortalUser();
   return withTenant(tenantId, (tx) => loadBranding(tx, tenantId));
 }
 

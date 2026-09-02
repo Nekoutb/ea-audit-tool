@@ -74,11 +74,16 @@ test("Phase 5: engines run on demo data; projected misstatement lands in C1.1", 
   await page.getByTestId("dataset-analyze").click();
   await page.getByTestId("dataset-confirm").waitFor();
   await page.getByTestId("dataset-upload").click();
-  await expect(page.getByTestId("analyzer-datasets")).toContainText("ar.csv");
+  // The AR analyzer no longer lists its datasets in a table (the aging header
+  // names the file); the upload confirmation and the aging grid are the proof.
+  await expect(page.getByTestId("dataset-done")).toContainText("ar.csv");
+  await expect(page.getByTestId("aging")).toBeVisible();
 
-  // E4.1 workspace: run sampling (MUS, seeded) → run recorded + output document.
+  // E5.1 (general audit procedures) workspace: run sampling (MUS, seeded) →
+  // run recorded + output document. The engines panel lives on the execution
+  // tasks; E4 accounts became index-per-account papers without it.
   await page.goto(engagementUrl);
-  await page.getByTestId("open-section-E4.1").click();
+  await page.getByTestId("open-section-E5.1").click();
   await page.waitForURL("**/sections/**");
   const sectionUrl = page.url();
   await page.getByTestId("sampling-method").selectOption("mus");

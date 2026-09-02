@@ -15,9 +15,15 @@ export const metadata = { title: "My engagements · AuditISA" };
 /**
  * The screen after sign-in: a welcome, and the engagements the user is
  * assigned to — nothing else. Assignment means membership of the engagement
- * team or ownership of a task in it. The dev-only diagnostics panel remains
- * outside production because the E2E isolation and notification suites
- * depend on it.
+ * team or ownership of a task in it.
+ *
+ * The diagnostics panel (tenant probe rows, a test-notification button) is
+ * what the E2E isolation and notification suites assert against. It shows on
+ * the dev server, and on a production build only when E2E_DIAGNOSTICS=1 is in
+ * the environment — CI runs the suite against `next start`, where NODE_ENV is
+ * "production" and the old NODE_ENV-only gate hid the panel from the very
+ * tests that need it. The variable is read at request time, never inlined by
+ * the build, so a deployed instance shows the panel only if its .env says so.
  */
 export default async function DashboardPage() {
   const session = await auth();
@@ -25,7 +31,8 @@ export default async function DashboardPage() {
     redirect("/login");
   }
 
-  const showDiagnostics = process.env.NODE_ENV !== "production";
+  const showDiagnostics =
+    process.env.NODE_ENV !== "production" || process.env.E2E_DIAGNOSTICS === "1";
   const { email, role, tenantId } = session.user;
   const firstName = (session.user.name ?? email ?? "").split(/[ @]/)[0] ?? "";
   const locale = await getLocale();

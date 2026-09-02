@@ -12,6 +12,11 @@ Two instances of this application run on the same server. Read
 | release root · unit · port | `/opt/ea-audit-prod` · `ea-audit` · 3200 | `/opt/ea-audit-dev` · `ea-audit-dev` · 3201 |
 | database | `ea_audit` | `ea_audit_dev` |
 
+Deployments also run from GitHub Actions (`.github/workflows/deploy.yml`):
+a green CI run on `dev` deploys to dev/staging on its own; a green CI run on
+`main` offers a production release that waits for a reviewer's approval and
+for the server's staging-first gate. See `docs/github-deploy-setup.md`.
+
 ## Rules for any agent or person working here
 
 1. **Dev first, always.** A commit reaches production only after the same

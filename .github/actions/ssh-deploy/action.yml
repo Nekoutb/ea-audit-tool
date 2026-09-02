@@ -1,0 +1,115 @@
+name: Run deploy-ea-audit over SSH
+description: >
+  Opens one SSH session to the server and runs the installed deploy script
+  (/usr/local/sbin/deploy-ea-audit, source deploy/deploy-ea-audit.sh) with the
+  given arguments. Used by deploy.yml for staging, the production gate check
+  and production itself, so the SSH handling lives in exactly one place.
+
+inputs:
+  host:
+    description: Server hostname or IP (secret DEPLOY_HOST).
+    required: true
+  user:
+    description: SSH user allowed to run deploy-ea-audit (secret DEPLOY_USER).
+    required: true
+  ssh-key:
+    description: Private key for that user, ed25519 (secret DEPLOY_SSH_KEY).
+    required: true
+  known-hosts:
+    description: >
+      Output of `ssh-keyscan <host>` (secret DEPLOY_KNOWN_HOSTS). Optional; when
+      empty the first connection pins the host key unverified (accept-new).
+    required: false
+    default: ""
+  jump-host:
+    description: >
+      Optional ProxyJump, e.g. root@185.92.222.217 (secret DEPLOY_JUMP_HOST).
+      Only needed if the server's port 22 is not reachable from the internet;
+      the same key must then be authorised on the jump host too.
+    required: false
+    default: ""
+  port:
+    description: SSH port on the server.
+    required: false
+    default: "22"
+  args:
+    description: >
+      Arguments for deploy-ea-audit, space separated, e.g. "dev <sha>" or
+      "prod <sha> --yes". Every token must match ^[A-Za-z0-9._/-]+$ or be
+      --yes — the string is joined into a remote shell command line, and a
+      workflow_dispatch input is typed by a person.
+    required: true
+
+runs:
+  using: composite
+  steps:
+    - name: Prepare SSH
+      shell: bash
+      env:
+        SSH_KEY: ${{ inputs.ssh-key }}
+        KNOWN_HOSTS: ${{ inputs.known-hosts }}
+        HOST: ${{ inputs.host }}
+        DEPLOY_USER: ${{ inputs.user }}
+      run: |
+        set -euo pipefail
+        test -n "$SSH_KEY" || { echo "::error::DEPLOY_SSH_KEY secret is not set"; exit 1; }
+        test -n "$HOST" || { echo "::error::DEPLOY_HOST secret is not set"; exit 1; }
+        test -n "$DEPLOY_USER" || { echo "::error::DEPLOY_USER secret is not set"; exit 1; }
+        mkdir -p ~/.ssh && chmod 700 ~/.ssh
+        printf '%s\n' "$SSH_KEY" > ~/.ssh/deploy_key
+        chmod 600 ~/.ssh/deploy_key
+        if [ -n "$KNOWN_HOSTS" ]; then
+          printf '%s\n' "$KNOWN_HOSTS" > ~/.ssh/known_hosts
+          chmod 600 ~/.ssh/known_hosts
+          echo "host key: pinned from DEPLOY_KNOWN_HOSTS"
+        else
+          echo "::warning::DEPLOY_KNOWN_HOSTS is not set — the host key is accepted on first use, unverified"
+        fi
+
+    - name: Run deploy-ea-audit
+      shell: bash
+      env:
+        HOST: ${{ inputs.host }}
+        DEPLOY_USER: ${{ inputs.user }}
+        JUMP_HOST: ${{ inputs.jump-host }}
+        PORT: ${{ inputs.port }}
+        KNOWN_HOSTS: ${{ inputs.known-hosts }}
+        SCRIPT_ARGS: ${{ inputs.args }}
+      run: |
+        set -euo pipefail
+        # Refuse anything a git ref or a deploy flag cannot contain before it
+        # reaches a remote shell.
+        read -ra ARGS <<< "$SCRIPT_ARGS"
+        [ "${#ARGS[@]}" -gt 0 ] || { echo "::error::no arguments for deploy-ea-audit"; exit 1; }
+        for a in "${ARGS[@]}"; do
+          [[ "$a" =~ ^([A-Za-z0-9._/-]+|--yes)$ ]] || { echo "::error::argument '$a' is not something deploy-ea-audit accepts from here"; exit 1; }
+        done
+        [[ "$PORT" =~ ^[0-9]+$ ]] || { echo "::error::port must be numeric"; exit 1; }
+        if [ -n "$JUMP_HOST" ]; then
+          [[ "$JUMP_HOST" =~ ^[A-Za-z0-9._@:-]+$ ]] || { echo "::error::jump host has characters an SSH destination cannot have"; exit 1; }
+        fi
+
+        SSH_OPTS=(
+          -i ~/.ssh/deploy_key
+          -p "$PORT"
+          -o BatchMode=yes
+          -o ConnectTimeout=15
+          -o ConnectionAttempts=3
+          -o ServerAliveInterval=30
+          -o ServerAliveCountMax=20
+          -o IdentitiesOnly=yes
+        )
+        if [ -n "$KNOWN_HOSTS" ]; then
+          SSH_OPTS+=(-o StrictHostKeyChecking=yes)
+        else
+          SSH_OPTS+=(-o StrictHostKeyChecking=accept-new)
+        fi
+        [ -n "$JUMP_HOST" ] && SSH_OPTS+=(-J "$JUMP_HOST")
+
+        echo "deploy-ea-audit ${ARGS[*]}  (on $HOST as $DEPLOY_USER)"
+        ssh "${SSH_OPTS[@]}" "$DEPLOY_USER@$HOST" -- deploy-ea-audit "${ARGS[@]}"
+
+    - name: Remove the key
+      if: always()
+      shell: bash
+      run: rm -f ~/.ssh/deploy_key

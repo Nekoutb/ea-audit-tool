@@ -70,6 +70,11 @@ test("full Phase 2 acceptance → planning → gates → close", async ({ page }
   await page.getByTestId("my-confirmation-link").click();
   await page.waitForURL("**/independence/**");
   await page.getByTestId("q-financial_interest-yes").check(); // exception path
+  // An exception answer requires the circumstances and safeguards (IESBA
+  // §120); the textarea appears the moment "yes" is chosen and is required.
+  await page
+    .getByTestId("q-financial_interest-note")
+    .fill("Holds a small shareholding in the client; divested before fieldwork.");
   await page.getByTestId("signature-input").fill("Alice Alpha");
   await page.getByTestId("submit-confirmation").click();
   await expect(page.getByTestId("confirmation-done")).toBeVisible();
@@ -112,30 +117,41 @@ test("full Phase 2 acceptance → planning → gates → close", async ({ page }
   await expect(page.getByTestId("planning-error")).toContainText(/significant risk/i);
   await expect(page.getByTestId("planning-error")).toContainText(/material section/i);
 
-  // --- E4.1: the seeded significant revenue risk appears in the section header ---
-  await page.goto(engagementUrl);
-  await page.getByTestId("open-section-E4.1").click();
-  await page.waitForURL("**/sections/**");
-  await expect(page.getByTestId("section-risks")).toContainText(/revenue recognition/i);
-  await expect(page.getByTestId("section-risks")).toContainText(/Significant/i);
+  // --- The seeded significant revenue risk is on the register (ISA 240 presumed) ---
+  // E4 accounts are index-per-account working papers now, with no risk header
+  // and no program generator; the register is where a risk shows its rating.
+  await page.goto(`${engagementUrl}/risks`);
+  await expect(page.getByTestId("risk-revenue_fraud")).toContainText(/revenue recognition/i);
+  await expect(page.getByTestId("risk-revenue_fraud")).toContainText(/Significant/i);
 
-  // Generate the tailored program: library steps + risk extensions auto-linked.
-  await page.getByTestId("generate-program").click();
-  await expect(page.getByTestId("program-table")).toContainText(/EXTENDED/i);
-
-  // --- E3.1: program links the management-override risk ---
+  // --- E3.1: the generated program links the management-override risk ---
   await page.goto(engagementUrl);
   await page.getByTestId("open-section-E3.1").click();
   await page.waitForURL("**/sections/**");
   await page.getByTestId("generate-program").click();
   await expect(page.getByTestId("program-table")).toBeVisible();
 
-  // --- E4.2 (material): add substantive coverage ---
+  // --- E4.2 (material): substantive coverage is a procedure on the account paper ---
+  // A procedure row is a program step (source 'psp'), which is what the
+  // stand-back gate counts as coverage.
   await page.goto(engagementUrl);
   await page.getByTestId("open-section-E4.2").click();
   await page.waitForURL("**/sections/**");
-  await page.getByTestId("custom-step-description").fill("Substantive coverage for purchases & payables.");
-  await page.getByTestId("add-custom-step").click();
+  await page.getByTestId("psp-add-row").click();
+  await page.getByTestId("psp-other-text").fill("Substantive coverage for purchases & payables.");
+  await page.getByTestId("psp-other-add").click();
+  await expect(page.getByTestId("psp-row-OSP-1")).toBeVisible();
+
+  // --- E4.20 (Revenue): a substantive procedure answers the presumed revenue
+  // risk — the procedure links as the risk's response, which the
+  // significant-risks gate requires (the E4 program generator used to do this).
+  await page.goto(engagementUrl);
+  await page.getByTestId("open-section-E4.20").click();
+  await page.waitForURL("**/sections/**");
+  await page.getByTestId("psp-add-row").click();
+  await page.getByTestId("psp-other-text").fill("Substantive testing of revenue recognition and cut-off.");
+  await page.getByTestId("psp-other-add").click();
+  await expect(page.getByTestId("psp-row-OSP-1")).toBeVisible();
 
   // --- Partner sign-offs on the gate documents ---
   for (const code of ["P2.2", "P5.2", "S3.1"]) {

@@ -58,7 +58,10 @@ test("Phase 6: AR + bank confirmation cycle with exception → C1.1 and a non-re
   await page.getByTestId("dataset-analyze").click();
   await page.getByTestId("dataset-confirm").waitFor();
   await page.getByTestId("dataset-upload").click();
-  await expect(page.getByTestId("analyzer-datasets")).toContainText("ar.csv");
+  // The AR analyzer no longer lists its datasets in a table (the aging header
+  // names the file); the upload confirmation and the aging grid are the proof.
+  await expect(page.getByTestId("dataset-done")).toContainText("ar.csv");
+  await expect(page.getByTestId("aging")).toBeVisible();
 
   // Confirmations tab: select AR positives above 1M (ACME + Beta).
   await page.goto(`${engagementUrl}/confirmations`);
