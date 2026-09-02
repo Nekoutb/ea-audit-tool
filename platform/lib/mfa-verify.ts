@@ -1,6 +1,7 @@
 import bcrypt from "bcryptjs";
 import { createDecipheriv, scryptSync } from "node:crypto";
 import { pool } from "@/lib/db";
+import { mfaDisabled } from "@/lib/mfa-policy";
 import { verifyTotp } from "@/lib/totp";
 
 /**
@@ -38,6 +39,9 @@ export interface MfaRequirement {
 }
 
 export async function mfaRequirementFor(userId: string): Promise<MfaRequirement> {
+  // Dev/staging may run without the challenge; see lib/mfa-policy.ts for why
+  // the flag alone cannot do this on production.
+  if (mfaDisabled()) return { required: false, secret: null };
   const row = await pool.query<{ totp_secret: string | null; totp_enrolled_at: string | null }>(
     "SELECT totp_secret, totp_enrolled_at::text FROM app_user WHERE id = $1",
     [userId],

@@ -7,6 +7,7 @@
 import { redirect } from "next/navigation";
 import { AuthError } from "next-auth";
 import { signIn } from "@/auth";
+import { mfaDisabled } from "@/lib/mfa-policy";
 import { SubmitButton } from "@/components/SubmitButton";
 import type { Messages } from "@/lib/i18n";
 
@@ -69,19 +70,21 @@ export function LoginForm({
         />
       </label>
 
-      <label className="flex flex-col gap-1 text-sm">
-        <span className="font-medium text-ink-soft">{messages.code}</span>
-        <input
-          name="code"
-          type="text"
-          inputMode="numeric"
-          autoComplete="one-time-code"
-          maxLength={12}
-          data-testid="login-code"
-          className="rounded-[var(--radius-atlas-sm)] border border-line-strong bg-surface px-3 py-2 tracking-[0.2em] text-ink outline-none focus:border-emerald-600 focus:ring-2 focus:ring-emerald-600/20"
-        />
-        <span className="text-[11.5px] text-muted">{messages.codeHint}</span>
-      </label>
+      {mfaDisabled() ? null : (
+        <label className="flex flex-col gap-1 text-sm">
+          <span className="font-medium text-ink-soft">{messages.code}</span>
+          <input
+            name="code"
+            type="text"
+            inputMode="numeric"
+            autoComplete="one-time-code"
+            maxLength={12}
+            data-testid="login-code"
+            className="rounded-[var(--radius-atlas-sm)] border border-line-strong bg-surface px-3 py-2 tracking-[0.2em] text-ink outline-none focus:border-emerald-600 focus:ring-2 focus:ring-emerald-600/20"
+          />
+          <span className="text-[11.5px] text-muted">{messages.codeHint}</span>
+        </label>
+      )}
 
       {notice ? (
         <p role="status" className="text-sm text-ink-soft" data-testid="login-notice">

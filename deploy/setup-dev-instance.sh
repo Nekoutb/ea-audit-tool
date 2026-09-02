@@ -41,6 +41,17 @@ if [ ! -f "$ROOT/shared/.env" ]; then
 fi
 grep -q MAILERSEND_API_KEY "$ROOT/shared/.env" && { echo "refusing: a MailerSend key is in the dev env" >&2; exit 1; }
 
+# Dev does not challenge for the sign-in second factor: the people who exercise
+# this instance do not carry the production authenticator. The application
+# honours AUTH_DISABLE_MFA only when its database name ends in _dev, so the line
+# is inert should it ever be copied into production's .env. Appended rather than
+# written with the block above, so an instance created before this existed picks
+# it up on the next run.
+if ! grep -q '^AUTH_DISABLE_MFA=' "$ROOT/shared/.env"; then
+  echo 'AUTH_DISABLE_MFA=1' >> "$ROOT/shared/.env"
+  echo "added AUTH_DISABLE_MFA=1 to $ROOT/shared/.env (dev signs in without the second factor)"
+fi
+
 install -m 644 "$HERE/systemd/ea-audit-dev.service" /etc/systemd/system/ea-audit-dev.service
 systemctl daemon-reload
 install -m 644 "$HERE/apache/dev.auditisa.com.conf" /etc/apache2/sites-available/dev.auditisa.com.conf
