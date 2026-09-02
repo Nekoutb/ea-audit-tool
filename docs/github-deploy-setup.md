@@ -52,7 +52,14 @@ install -m 755 deploy/deploy-ea-audit.sh /usr/local/sbin/deploy-ea-audit
 deploy-ea-audit gate main   # should print either "would accept" or the refusal
 ```
 
-Create a dedicated SSH identity for GitHub:
+Everything else in this step is one idempotent script, which prints the
+secrets to set when it finishes:
+
+```bash
+ssh root@45.32.150.96 'bash -s' < deploy/setup-github-deploy-key.sh
+```
+
+By hand, the same thing is: create a dedicated SSH identity for GitHub:
 
 ```bash
 ssh-keygen -t ed25519 -N "" -C github-deploy -f /root/.ssh/github-deploy
