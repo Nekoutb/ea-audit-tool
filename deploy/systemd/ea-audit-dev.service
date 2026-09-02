@@ -1,0 +1,29 @@
+# Dev/staging instance of the AuditISA platform — https://dev.auditisa.com
+# Same shape as ea-audit.service (production) with a different port, database
+# and a smaller memory ceiling. WorkingDirectory is the `current` symlink of
+# the release layout, which deploy/deploy-ea-audit.sh re-points atomically.
+[Unit]
+Description=EA Audit platform — DEV instance (Next.js)
+After=network.target postgresql.service
+
+[Service]
+Type=simple
+User=deploy
+Group=deploy
+WorkingDirectory=/opt/ea-audit-dev/current
+Environment=NODE_ENV=production
+Environment=NODE_OPTIONS=--max-old-space-size=512
+Environment=PG_APPLICATION_NAME=ea-audit-dev
+ExecStart=/usr/bin/npm start -- -p 3201
+Restart=always
+RestartSec=5
+MemoryHigh=600M
+MemoryMax=800M
+# A staging instance must never be the reason production runs out of memory.
+OOMPolicy=kill
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=ea-audit-dev
+
+[Install]
+WantedBy=multi-user.target
