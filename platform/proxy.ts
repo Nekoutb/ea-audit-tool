@@ -16,7 +16,7 @@ import { visibleToUser } from "@/lib/engagement-access";
  */
 // /api/version answers "which commit is this?" — the deploy pipeline's proof
 // that the public site serves what it just deployed (app/api/version/route.ts).
-const PUBLIC = ["/login", "/terms", "/privacy", "/api/auth", "/api/email/inbound", "/api/version"];
+const PUBLIC = ["/login", "/terms", "/privacy", "/api/auth", "/api/email/inbound", "/api/version", "/version"];
 const isPublic = (path: string) =>
   path === "/" || PUBLIC.some((p) => path === p || path.startsWith(`${p}/`));
 
