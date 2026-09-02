@@ -4,9 +4,13 @@ on:
   push:
     branches:
       - main
+      # The Deploy workflow (deploy.yml) listens for this workflow finishing on
+      # dev and main — a green CI run on dev is what releases to staging.
+      - dev
   pull_request:
     branches:
       - main
+      - dev
 
 jobs:
   build-and-test:
