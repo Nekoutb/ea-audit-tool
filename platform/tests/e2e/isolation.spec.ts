@@ -67,5 +67,14 @@ test("the version endpoint answers without a session", async ({ request }) => {
   expect(response.status()).toBe(200);
   const body = (await response.json()) as { sha: string | null; buildId: string | null };
   expect(body).toHaveProperty("sha");
+  expect(body).toHaveProperty("commit");
   expect(typeof body.buildId === "string" || body.buildId === null).toBe(true);
+});
+
+// The readable twin of the endpoint, where a browser is sent from /api/version.
+test("the version page answers without a session", async ({ page }) => {
+  const response = await page.goto("/version");
+  expect(response?.status()).toBe(200);
+  await expect(page.getByTestId("version-sha")).toBeVisible();
+  await expect(page.getByTestId("version-json")).toHaveAttribute("href", "/api/version");
 });
