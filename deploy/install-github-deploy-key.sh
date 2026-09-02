@@ -1,27 +1,28 @@
 #!/usr/bin/env bash
 # install-github-deploy-key.sh — set up the GitHub Actions → server key end to
-# end, from YOUR machine, in one run:
+# end, in one run. Self-contained: copy just this file anywhere and run it.
 #
-#   deploy/install-github-deploy-key.sh            do it
-#   deploy/install-github-deploy-key.sh --check    only verify (server + secrets)
+#   install-github-deploy-key.sh            do it
+#   install-github-deploy-key.sh --check    only verify (server + secrets)
 #
 # Runs in either place:
 #   ON THE SERVER, as root (the normal case — it notices deploy-ea-audit is
 #     installed and works locally, no ssh involved):
-#       git clone https://github.com/Nekoutb/ea-audit-tool.git /tmp/ea && bash /tmp/ea/deploy/install-github-deploy-key.sh
+#       curl -fsSL https://raw.githubusercontent.com/Nekoutb/ea-audit-tool/dev/deploy/install-github-deploy-key.sh -o /root/gitkeys.sh && bash /root/gitkeys.sh
 #   FROM A WORKSTATION with ssh access to the server as root (the `ea-audit`
 #     alias from deploy/grant-claude-ssh-access.sh, or SERVER=root@host).
 # Either way `gh` must be able to sign in to an account that may write the
 # repository's secrets; it is installed and signed in on demand.
 #
 # What it does:
-#   1. runs deploy/setup-github-deploy-key.sh ON the server: forced-command
-#      wrapper, dedicated key /root/.ssh/github-deploy-ea-audit, restricted
-#      authorized_keys entry (all idempotent)
+#   1. on the server: installs the forced-command wrapper
+#      /usr/local/sbin/deploy-ea-audit-ssh, creates the dedicated key
+#      /root/.ssh/github-deploy-ea-audit, adds a restricted authorized_keys
+#      entry (all idempotent — re-run any time)
 #   2. self-tests that key on the server: it may run `deploy-ea-audit status`
 #      and is refused anything else
 #   3. sets the repository secrets DEPLOY_HOST, DEPLOY_USER, DEPLOY_KNOWN_HOSTS
-#      and DEPLOY_SSH_KEY — the private key travels ssh → gh through a pipe and
+#      and DEPLOY_SSH_KEY — the private key travels through a pipe into gh and
 #      is never printed or written to disk here
 #
 # Environment: SERVER (ea-audit, or "local" to force running on this host)
@@ -32,7 +33,7 @@ set -euo pipefail
 
 REPO=${REPO:-Nekoutb/ea-audit-tool}
 KEY=/root/.ssh/github-deploy-ea-audit
-HERE=$(cd "$(dirname "$0")" && pwd)
+WRAPPER=/usr/local/sbin/deploy-ea-audit-ssh
 
 say()  { printf '\033[1;34m[github-key]\033[0m %s\n' "$*"; }
 die()  { printf '\033[1;31m[github-key] %s\033[0m\n' "$*" >&2; exit 1; }
@@ -54,6 +55,7 @@ remote() {
   if [ "$LOCAL" = 1 ]; then bash -c "$*"; else ssh -o BatchMode=yes -o ConnectTimeout=20 "$SERVER" "$@"; fi
 }
 
+# ---------------------------------------------------------------- gh ---------
 # gh: on PATH, or installed where its installers put it but not yet on this
 # shell's PATH (Git Bash on Windows is the usual case) — or offer to install it.
 find_gh() {
@@ -73,8 +75,7 @@ find_gh() {
 
 install_gh() {
   say "gh (GitHub CLI) is not installed."
-  local how=""
-  local sudo=""; [ "$(id -u)" = 0 ] || sudo="sudo "
+  local how="" sudo=""; [ "$(id -u)" = 0 ] || sudo="sudo "
   if command -v winget >/dev/null;   then how="winget install --id GitHub.cli -e --accept-source-agreements --accept-package-agreements"
   elif command -v brew >/dev/null;   then how="brew install gh"
   elif command -v apt-get >/dev/null; then how="${sudo}apt-get update -qq && ${sudo}apt-get install -y gh"
@@ -98,7 +99,54 @@ if ! gh auth status >/dev/null 2>&1; then
   gh auth login || die "gh sign-in did not complete"
 fi
 [ "$LOCAL" = 1 ] || remote 'id -un' >/dev/null 2>&1 || die "cannot ssh to $SERVER non-interactively — run deploy/grant-claude-ssh-access.sh first, or set SERVER=root@host"
-remote 'id -un' >/dev/null 2>&1 || die "cannot ssh to $SERVER non-interactively — run deploy/grant-claude-ssh-access.sh first, or set SERVER=root@host"
+
+# ------------------------------------------------ the server-side part -------
+# Emitted as a script and fed to `bash -s` on the server (or locally), so this
+# file has no sibling to depend on. Idempotent.
+server_setup() {
+  cat <<'SETUP'
+set -euo pipefail
+[ "$(id -u)" = 0 ] || { echo "run as root" >&2; exit 1; }
+KEY=/root/.ssh/github-deploy-ea-audit
+WRAPPER=/usr/local/sbin/deploy-ea-audit-ssh
+
+# 1. forced command: validates SSH_ORIGINAL_COMMAND before anything runs
+cat > "$WRAPPER" <<'W'
+#!/usr/bin/env bash
+# Forced command for the github-deploy key: only deploy-ea-audit, only with
+# arguments a deployment can have (dev|prod|gate|status, a ref, --yes).
+# --hotfix is deliberately absent: the hotfix path stays with a person.
+set -euo pipefail
+read -ra ARGS <<< "${SSH_ORIGINAL_COMMAND:-}"
+[ "${ARGS[0]:-}" = "deploy-ea-audit" ] || { echo "refused: ${ARGS[0]:-<empty>}" >&2; exit 1; }
+for a in "${ARGS[@]:1}"; do
+  [[ "$a" =~ ^([A-Za-z0-9._/-]+|--yes)$ ]] || { echo "refused argument: $a" >&2; exit 1; }
+done
+exec /usr/local/sbin/deploy-ea-audit "${ARGS[@]:1}"
+W
+chmod 755 "$WRAPPER"
+echo "wrapper: $WRAPPER installed"
+
+# 2. key
+mkdir -p /root/.ssh && chmod 700 /root/.ssh
+if [ -f "$KEY" ]; then
+  echo "key: $KEY already exists (kept)"
+else
+  ssh-keygen -t ed25519 -N "" -C github-deploy-ea-audit -f "$KEY" -q
+  echo "key: $KEY created"
+fi
+
+# 3. restricted authorized_keys entry
+pub=$(cut -d' ' -f1,2 < "$KEY.pub")
+touch /root/.ssh/authorized_keys && chmod 600 /root/.ssh/authorized_keys
+if grep -qF "$pub" /root/.ssh/authorized_keys; then
+  echo "authorized_keys: entry already present"
+else
+  printf 'restrict,command="%s" %s github-deploy-ea-audit\n' "$WRAPPER" "$pub" >> /root/.ssh/authorized_keys
+  echo "authorized_keys: restricted entry added"
+fi
+SETUP
+}
 
 self_test() {
   say "self-test: the restricted key may run 'deploy-ea-audit status' …"
@@ -132,12 +180,12 @@ fi
 
 # 1. server side
 say "server: installing wrapper, key and restricted authorized_keys entry"
-remote 'bash -s' < "$HERE/setup-github-deploy-key.sh" | grep -E '^(wrapper|key|authorized_keys):' || die "server-side setup failed"
+server_setup | remote 'bash -s' || die "server-side setup failed"
 
 # 2. prove the restriction works before the key goes anywhere
 self_test
 
-# 3. secrets — the private key goes straight from ssh into gh
+# 3. secrets — the private key goes straight from the server into gh
 say "setting repository secrets on $REPO"
 gh secret set DEPLOY_HOST --repo "$REPO" --body "$SERVER_IP"
 gh secret set DEPLOY_USER --repo "$REPO" --body root

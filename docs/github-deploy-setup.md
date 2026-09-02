@@ -56,13 +56,13 @@ Everything else in this step is one idempotent script, which prints the
 secrets to set when it finishes:
 
 ```bash
-ssh root@45.32.150.96 'bash -s' < deploy/setup-github-deploy-key.sh
+bash deploy/install-github-deploy-key.sh   # on the server as root, or from a workstation with ssh access
 ```
 
 By hand, the same thing is: create a dedicated SSH identity for GitHub:
 
 ```bash
-ssh-keygen -t ed25519 -N "" -C github-deploy -f /root/.ssh/github-deploy
+ssh-keygen -t ed25519 -N "" -C github-deploy-ea-audit -f /root/.ssh/github-deploy-ea-audit
 ```
 
 Append the public key to `/root/.ssh/authorized_keys`, restricted so the key
@@ -104,7 +104,7 @@ authorise the same key on the jump host.
 |---|---|
 | `DEPLOY_HOST` | the server's hostname or IP |
 | `DEPLOY_USER` | `root` (or the user carrying the forced-command key) |
-| `DEPLOY_SSH_KEY` | contents of `/root/.ssh/github-deploy` (the private key) |
+| `DEPLOY_SSH_KEY` | contents of `/root/.ssh/github-deploy-ea-audit` (the private key) |
 | `DEPLOY_KNOWN_HOSTS` | output of `ssh-keyscan <host>` — optional but recommended; without it the first connection pins the host key unverified and the job prints a warning |
 | `DEPLOY_JUMP_HOST` | optional — `user@jump-host`, only if port 22 is not reachable from the internet |
 
