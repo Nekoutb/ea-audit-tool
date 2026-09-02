@@ -17,7 +17,11 @@ export const dynamic = "force-dynamic";
 export async function GET(request: Request) {
   const accept = request.headers.get("accept") ?? "";
   if (accept.includes("text/html") && !accept.startsWith("application/json")) {
-    return NextResponse.redirect(new URL("/version", request.url), { status: 303 });
+    // A relative Location, not NextResponse.redirect(): behind Apache the
+    // request URL Next sees is the loopback address it is bound to
+    // (localhost:3201), and an absolute redirect built from it sent browsers
+    // there. The browser resolves "/version" against the address it used.
+    return new NextResponse(null, { status: 303, headers: { Location: "/version" } });
   }
   return NextResponse.json(await releaseInfo(), { headers: { "Cache-Control": "no-store" } });
 }
