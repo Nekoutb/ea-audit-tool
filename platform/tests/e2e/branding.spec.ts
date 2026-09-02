@@ -1,3 +1,4 @@
+import { execSync } from "node:child_process";
 import { expect, test, type Page } from "@playwright/test";
 
 // White-label phase 1: firm branding round-trip — themed UI via the emerald
@@ -6,6 +7,14 @@ import { expect, test, type Page } from "@playwright/test";
 
 const ACCENT = "#7c3aed";
 const ACCENT_RGB = "rgb(124, 58, 237)";
+
+// The seed resets tenant.branding, but the global setup runs it once per
+// suite. This test mutates branding half-way through, so an attempt that dies
+// after the save leaves "Cabinet FOKO & Associés" behind and the retry fails
+// its very first assertion. Re-seed before every attempt instead.
+test.beforeEach(() => {
+  execSync("node scripts/seed.mjs", { stdio: "inherit" });
+});
 
 async function login(page: Page, email: string): Promise<void> {
   await page.context().clearCookies();

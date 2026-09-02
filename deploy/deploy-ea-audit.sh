@@ -6,6 +6,7 @@
 #                                                 refused unless that exact commit was deployed to dev first
 #   deploy-ea-audit.sh prod <ref> --hotfix "why"  the documented way around the gate; the reason is logged
 #   deploy-ea-audit.sh status                     what each target is running
+#   deploy-ea-audit.sh gate [ref]                 would prod accept <ref> (default: main)? exit 0/1, changes nothing
 #   deploy-ea-audit.sh rollback <dev|prod>        re-point at the previous release (no build, no migration)
 #
 # Runs as root on the server. Every release is a `git archive` of the commit,
@@ -74,6 +75,19 @@ cmd_status() {
       printf '%-5s not on the release layout yet\n' "$t"
     fi
   done
+}
+
+# The production gate on its own, for the GitHub pipeline: it asks this before
+# anyone is asked to approve a release, so a commit that never ran on dev is
+# refused with the reason up front rather than after the approval. Read-only —
+# no lock, no build, nothing written.
+cmd_gate() {
+  configure prod
+  REF=${1:-$DEFAULT_REF}; NO_FETCH=0; HOTFIX=""
+  ensure_mirror
+  resolve_ref
+  gate_prod
+  log "$SHORT ($REF) has been deployed to dev — production would accept it"
 }
 
 cmd_rollback() {
@@ -311,7 +325,8 @@ cmd_deploy() {
 
 case "${1:-}" in
   status)   cmd_status ;;
+  gate)     shift; cmd_gate "$@" ;;
   rollback) shift; cmd_rollback "$@" ;;
   dev|prod) cmd_deploy "$@" ;;
-  *) sed -n '2,21p' "$0"; exit 64 ;;
+  *) sed -n '2,22p' "$0"; exit 64 ;;
 esac

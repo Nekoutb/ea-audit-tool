@@ -70,6 +70,11 @@ test("full Phase 2 acceptance → planning → gates → close", async ({ page }
   await page.getByTestId("my-confirmation-link").click();
   await page.waitForURL("**/independence/**");
   await page.getByTestId("q-financial_interest-yes").check(); // exception path
+  // An exception answer requires the circumstances and safeguards (IESBA
+  // §120); the textarea appears the moment "yes" is chosen and is required.
+  await page
+    .getByTestId("q-financial_interest-note")
+    .fill("Holds a small shareholding in the client; divested before fieldwork.");
   await page.getByTestId("signature-input").fill("Alice Alpha");
   await page.getByTestId("submit-confirmation").click();
   await expect(page.getByTestId("confirmation-done")).toBeVisible();

@@ -1,0 +1,204 @@
+name: Deploy
+
+# Two-stage release pipeline for auditisa.com.
+#
+#   CI green on `dev`   ──►  STAGING     https://dev.auditisa.com   automatic
+#   CI green on `main`  ──►  gate check  (was this exact commit on staging?)
+#                       ──►  PRODUCTION  https://www.auditisa.com   after a reviewer
+#                                                                   approves the
+#                                                                   `production`
+#                                                                   environment
+#
+# Every job SSHes to the server and runs the deploy script installed there
+# (/usr/local/sbin/deploy-ea-audit — source: deploy/deploy-ea-audit.sh). The
+# script exports the exact commit CI tested, builds it in its own release
+# directory, backs production up, migrates, switches atomically, health-checks
+# and rolls back on failure. Production carries a second, server-side gate: the
+# script refuses any commit that has not already run on staging — a GitHub
+# approval alone can never skip the staging step.
+#
+# Setup (secrets, environments, the server-side key): docs/github-deploy-setup.md
+#
+# Repository secrets:
+#   DEPLOY_HOST          server hostname or IP
+#   DEPLOY_USER          SSH user allowed to run deploy-ea-audit
+#   DEPLOY_SSH_KEY       that user's private key (dedicated ed25519 key)
+#   DEPLOY_KNOWN_HOSTS   optional — `ssh-keyscan <host>`; pins the host key
+#   DEPLOY_JUMP_HOST     optional — ProxyJump, only if port 22 is not public
+#
+# Environments (Settings → Environments):
+#   staging      url https://dev.auditisa.com  — no protection rules
+#   production   url https://www.auditisa.com  — "Required reviewers" on; the
+#                approval is the statement "checked and working on staging".
+
+on:
+  workflow_run:
+    workflows: ["CI"]
+    types: [completed]
+    branches: [dev, main]
+  # Manual escape hatch: redeploy a ref without a fresh CI run (after a
+  # server-side rollback, or to put a feature branch on staging for a demo).
+  workflow_dispatch:
+    inputs:
+      target:
+        description: "Deploy where?"
+        type: choice
+        options: [staging, production]
+        required: true
+      ref:
+        description: "Branch or commit (default: staging → dev, production → main)"
+        required: false
+        default: ""
+
+permissions: {} # the GITHUB_TOKEN is unused — everything happens over SSH
+
+env:
+  STAGING_URL: https://dev.auditisa.com
+  PRODUCTION_URL: https://www.auditisa.com
+
+jobs:
+  # ---------------------------------------------------------------- staging
+  staging:
+    name: Staging (dev.auditisa.com)
+    if: >
+      (github.event_name == 'workflow_run' &&
+       github.event.workflow_run.conclusion == 'success' &&
+       github.event.workflow_run.event == 'push' &&
+       github.event.workflow_run.head_branch == 'dev') ||
+      (github.event_name == 'workflow_dispatch' && inputs.target == 'staging')
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    environment:
+      name: staging
+      url: ${{ env.STAGING_URL }}
+    concurrency:
+      group: deploy-staging
+      cancel-in-progress: false
+    env:
+      # A workflow_run deploy ships the exact sha CI tested, never the branch
+      # tip — a push racing the deploy cannot smuggle an untested commit out.
+      DEPLOY_REF: >-
+        ${{ github.event_name == 'workflow_run'
+            && github.event.workflow_run.head_sha
+            || (inputs.ref != '' && inputs.ref || 'dev') }}
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: Deploy to staging
+        uses: ./.github/actions/ssh-deploy
+        with:
+          host: ${{ secrets.DEPLOY_HOST }}
+          user: ${{ secrets.DEPLOY_USER }}
+          ssh-key: ${{ secrets.DEPLOY_SSH_KEY }}
+          known-hosts: ${{ secrets.DEPLOY_KNOWN_HOSTS }}
+          jump-host: ${{ secrets.DEPLOY_JUMP_HOST }}
+          args: dev ${{ env.DEPLOY_REF }}
+
+      # The script already health-checked the app port and would have rolled
+      # back; this confirms the public chain (DNS, TLS, vhost) from outside.
+      - name: Verify through the public URL
+        run: |
+          code=$(curl -sS -o /dev/null -w '%{http_code}' --retry 3 --retry-delay 5 --max-time 20 "$STAGING_URL/login")
+          echo "GET $STAGING_URL/login -> $code"
+          [ "$code" = 200 ] || { echo "::error::staging answered $code, not 200"; exit 1; }
+
+      - name: Summary
+        run: |
+          {
+            echo "### Staging — $STAGING_URL"
+            echo
+            echo "| | |"
+            echo "|---|---|"
+            echo "| commit | \`$DEPLOY_REF\` |"
+            echo "| trigger | ${{ github.event_name }} |"
+            echo
+            echo "Test it there. When it is right, merge \`dev\` into \`main\` (fast-forward) and push — CI on \`main\` then offers the production release."
+          } >> "$GITHUB_STEP_SUMMARY"
+
+  # ------------------------------------------------------- production gate
+  # Runs BEFORE anyone is asked to approve: the server answers whether this
+  # exact commit (or a merge commit with the identical tree) has been deployed
+  # to staging. A commit that never ran there fails here, with the reason,
+  # instead of after a reviewer clicked "approve".
+  production-gate:
+    name: Production gate (was it on staging?)
+    if: >
+      (github.event_name == 'workflow_run' &&
+       github.event.workflow_run.conclusion == 'success' &&
+       github.event.workflow_run.event == 'push' &&
+       github.event.workflow_run.head_branch == 'main') ||
+      (github.event_name == 'workflow_dispatch' && inputs.target == 'production')
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    env:
+      DEPLOY_REF: >-
+        ${{ github.event_name == 'workflow_run'
+            && github.event.workflow_run.head_sha
+            || (inputs.ref != '' && inputs.ref || 'main') }}
+    outputs:
+      ref: ${{ env.DEPLOY_REF }}
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: Ask the server whether the staging gate would accept this commit
+        uses: ./.github/actions/ssh-deploy
+        with:
+          host: ${{ secrets.DEPLOY_HOST }}
+          user: ${{ secrets.DEPLOY_USER }}
+          ssh-key: ${{ secrets.DEPLOY_SSH_KEY }}
+          known-hosts: ${{ secrets.DEPLOY_KNOWN_HOSTS }}
+          jump-host: ${{ secrets.DEPLOY_JUMP_HOST }}
+          args: gate ${{ env.DEPLOY_REF }}
+
+  # ------------------------------------------------------------- production
+  production:
+    name: Production (www.auditisa.com)
+    needs: production-gate
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    # The `production` environment carries required reviewers: this job PAUSES
+    # here until someone approves it in the Actions UI. Approving is the
+    # statement "I have checked this on dev.auditisa.com".
+    environment:
+      name: production
+      url: ${{ env.PRODUCTION_URL }}
+    concurrency:
+      group: deploy-production
+      cancel-in-progress: false
+    env:
+      DEPLOY_REF: ${{ needs.production-gate.outputs.ref }}
+    steps:
+      - uses: actions/checkout@v5
+
+      # --yes: stdin is not a terminal here, and the human confirmation already
+      # happened as the environment approval. The script still re-runs the
+      # staging gate, backs the database up first, migrates, switches, and
+      # rolls back on a failed health check.
+      - name: Deploy to production
+        uses: ./.github/actions/ssh-deploy
+        with:
+          host: ${{ secrets.DEPLOY_HOST }}
+          user: ${{ secrets.DEPLOY_USER }}
+          ssh-key: ${{ secrets.DEPLOY_SSH_KEY }}
+          known-hosts: ${{ secrets.DEPLOY_KNOWN_HOSTS }}
+          jump-host: ${{ secrets.DEPLOY_JUMP_HOST }}
+          args: prod ${{ env.DEPLOY_REF }} --yes
+
+      - name: Verify through the public URL
+        run: |
+          code=$(curl -sS -o /dev/null -w '%{http_code}' --retry 3 --retry-delay 5 --max-time 20 "$PRODUCTION_URL/login")
+          echo "GET $PRODUCTION_URL/login -> $code"
+          [ "$code" = 200 ] || { echo "::error::production answered $code, not 200"; exit 1; }
+
+      - name: Summary
+        run: |
+          {
+            echo "### Production — $PRODUCTION_URL"
+            echo
+            echo "| | |"
+            echo "|---|---|"
+            echo "| commit | \`$DEPLOY_REF\` |"
+            echo "| approved by | ${{ github.actor }} |"
+            echo
+            echo "Rollback, if needed, is server-side: \`deploy-ea-audit rollback prod\` (see docs/deployment-workflow.md)."
+          } >> "$GITHUB_STEP_SUMMARY"

@@ -1,16 +1,27 @@
 name: CI
 
+# Typecheck, lint, unit tests, a production build and the Playwright suite
+# against that build. A green run on `dev` is what releases to staging and a
+# green run on `main` is what offers a production release — see deploy.yml.
 on:
   push:
     branches:
       - main
+      - dev
   pull_request:
     branches:
       - main
+      - dev
+
+# A newer push to the same branch supersedes a run still in progress.
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
 
 jobs:
   build-and-test:
     runs-on: ubuntu-latest
+    timeout-minutes: 45
 
     services:
       postgres:
@@ -35,12 +46,16 @@ jobs:
       APP_ROLE_PASSWORD: ${{ github.run_id }}-${{ github.run_attempt }}
       AUTH_SECRET: ci-only-secret-not-used-in-production
       NEXTAUTH_URL: http://localhost:3100
+      # The E2E isolation and notification specs assert on the dashboard's
+      # diagnostics panel. It is hidden on a production build unless this is
+      # set (app/dashboard/page.tsx) — and the suite runs against `next start`.
+      E2E_DIAGNOSTICS: "1"
       CI: "true"
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
 
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v5
         with:
           node-version: "22"
           cache: npm
@@ -66,17 +81,33 @@ jobs:
         working-directory: platform
         run: npm run test
 
-      - name: Install Playwright browser
-        working-directory: platform
-        run: npx playwright install --with-deps chromium
-
       # The end-to-end suite runs against a production build: the dev server
       # compiling every page on demand on this runner produced 300 s page loads
       # and connection resets (playwright.config.ts picks `next start` under CI).
+      # The same `next build` is what the server runs, so a build that fails
+      # here would have failed the deployment.
       - name: Production build
         working-directory: platform
         run: npm run build
 
-      - name: End-to-end tests (cross-tenant isolation, auth, notifications)
+      - name: Install Playwright browser
+        working-directory: platform
+        run: npx playwright install --with-deps chromium
+
+      - name: End-to-end tests (cross-tenant isolation, auth, notifications, phases 1–9)
         working-directory: platform
         run: npm run test:e2e
+
+      # Traces, screenshots and the HTML report of every failed spec — the
+      # evidence that was missing from thirty red runs. Open the report with
+      # `npx playwright show-report <unzipped dir>`.
+      - name: Upload Playwright report and traces
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-${{ github.run_id }}-${{ github.run_attempt }}
+          path: |
+            platform/playwright-report
+            platform/test-results
+          if-no-files-found: ignore
+          retention-days: 14

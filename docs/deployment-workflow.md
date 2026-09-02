@@ -241,3 +241,13 @@ data*); each missing piece makes the script stop before it changes anything.
    (`a2ensite` + `apache2ctl configtest`), the deploy script.
 2. `systemctl reload apache2`.
 3. `deploy-ea-audit dev main` for the first release.
+
+## From GitHub Actions
+
+The same script, driven by CI: `.github/workflows/deploy.yml` deploys every
+green CI run on `dev` to `dev.auditisa.com`, and offers every green CI run on
+`main` as a production release that waits for a reviewer's approval — after
+`deploy-ea-audit gate <sha>` has confirmed the commit ran on dev. Setup
+(the SSH key, the repository secrets, the two GitHub environments) and the
+day-to-day flow are in `docs/github-deploy-setup.md`. The rule above does not
+change: the pipeline is a client of this script, not a way around it.

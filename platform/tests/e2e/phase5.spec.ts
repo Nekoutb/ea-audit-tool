@@ -74,7 +74,10 @@ test("Phase 5: engines run on demo data; projected misstatement lands in C1.1", 
   await page.getByTestId("dataset-analyze").click();
   await page.getByTestId("dataset-confirm").waitFor();
   await page.getByTestId("dataset-upload").click();
-  await expect(page.getByTestId("analyzer-datasets")).toContainText("ar.csv");
+  // The AR analyzer no longer lists its datasets in a table (the aging header
+  // names the file); the upload confirmation and the aging grid are the proof.
+  await expect(page.getByTestId("dataset-done")).toContainText("ar.csv");
+  await expect(page.getByTestId("aging")).toBeVisible();
 
   // E4.1 workspace: run sampling (MUS, seeded) → run recorded + output document.
   await page.goto(engagementUrl);

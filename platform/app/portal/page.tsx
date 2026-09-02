@@ -2,7 +2,7 @@ import { redirect } from "next/navigation";
 import { auth, signOut } from "@/auth";
 import { uploadPbcAction } from "@/app/actions/pbc";
 import { ErrorBanner } from "@/components/GatesPanel";
-import { getBranding } from "@/lib/branding";
+import { getPortalBranding } from "@/lib/branding";
 import { getMessages } from "@/lib/i18n";
 import { getLocale } from "@/lib/locale";
 import { listPortalItems } from "@/lib/pbc";
@@ -20,7 +20,9 @@ export default async function PortalPage(props: {
   const t = getMessages(locale);
   const [items, branding] = await Promise.all([
     listPortalItems(session.user.clientId),
-    getBranding(), // the audit firm's identity — this is their client-facing page
+    // The audit firm's identity — this is their client-facing page. The portal
+    // variant: the firm-side loader refuses client_user sessions outright.
+    getPortalBranding(),
   ]);
 
   return (

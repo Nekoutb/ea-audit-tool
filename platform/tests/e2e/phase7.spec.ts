@@ -180,12 +180,21 @@ test("Phase 7: gates block → complete file → issue report → archive → ro
   await page.getByTestId("issue-report").click();
   await expect(page.getByTestId("planning-error")).toContainText(/gates are not satisfied/i);
 
-  // Conclude the two presumed ISA 240 risks through the register.
-  await page.goto(`${engagementUrl}/risks`);
-  await page.getByTestId("risk-status-revenue_fraud").selectOption("concluded");
-  await page.getByTestId("risk-update-revenue_fraud").click();
-  await page.getByTestId("risk-status-mgmt_override").selectOption("concluded");
-  await page.getByTestId("risk-update-mgmt_override").click();
+  // Conclude the two presumed ISA 240 risks through the register. The
+  // assessment form sits inside a collapsed <details> per risk, so open it
+  // first — the select exists in the DOM either way, but a hidden one cannot
+  // be operated. Each update re-renders the page, collapsing every row again.
+  for (const risk of ["revenue_fraud", "mgmt_override"]) {
+    // A fresh navigation per risk: the update's re-render would otherwise swap
+    // the DOM under the next row's select and discard the chosen value.
+    await page.goto(`${engagementUrl}/risks`);
+    await page.getByTestId(`risk-edit-open-${risk}`).click();
+    await page.getByTestId(`risk-status-${risk}`).selectOption("concluded");
+    await Promise.all([
+      page.waitForResponse((r) => r.url().includes("/risks") && r.request().method() === "POST" && r.ok()),
+      page.getByTestId(`risk-update-${risk}`).click(),
+    ]);
+  }
 
   // Final analytical review + FS tie-out snapshots.
   await page.goto(`${engagementUrl}/conclusion`);
