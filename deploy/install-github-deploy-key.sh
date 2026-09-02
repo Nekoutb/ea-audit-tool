@@ -33,8 +33,43 @@ say()  { printf '\033[1;34m[github-key]\033[0m %s\n' "$*"; }
 die()  { printf '\033[1;31m[github-key] %s\033[0m\n' "$*" >&2; exit 1; }
 remote() { ssh -o BatchMode=yes -o ConnectTimeout=20 "$SERVER" "$@"; }
 
-command -v gh >/dev/null || die "gh (GitHub CLI) is not installed"
-gh auth status >/dev/null 2>&1 || die "gh is not signed in (gh auth login)"
+# gh: on PATH, or installed where its installers put it but not yet on this
+# shell's PATH (Git Bash on Windows is the usual case) — or offer to install it.
+find_gh() {
+  command -v gh >/dev/null && return 0
+  local candidates=(
+    "/c/Program Files/GitHub CLI"
+    "${LOCALAPPDATA:+$(cygpath -u "$LOCALAPPDATA" 2>/dev/null)/Programs/GitHub CLI}"
+    "/opt/homebrew/bin" "/usr/local/bin" "/home/linuxbrew/.linuxbrew/bin"
+  )
+  local d
+  for d in "${candidates[@]}"; do
+    [ -n "$d" ] && [ -x "$d/gh" ] || [ -x "$d/gh.exe" ] 2>/dev/null || continue
+    export PATH="$d:$PATH"; say "gh found at $d (added to PATH for this run)"; return 0
+  done
+  return 1
+}
+
+install_gh() {
+  say "gh (GitHub CLI) is not installed."
+  local how=""
+  if command -v winget >/dev/null;   then how="winget install --id GitHub.cli -e --accept-source-agreements --accept-package-agreements"
+  elif command -v brew >/dev/null;   then how="brew install gh"
+  elif command -v apt-get >/dev/null; then how="sudo apt-get install -y gh"
+  fi
+  [ -n "$how" ] || die "install it from https://cli.github.com and run this script again"
+  printf 'Install it now with:  %s  [y/N] ' "$how"; read -r ans
+  [ "$ans" = y ] || [ "$ans" = Y ] || die "install gh (https://cli.github.com) and run this script again"
+  eval "$how" || die "the install failed — install gh by hand and run this script again"
+  hash -r
+  find_gh || die "gh installed but not found — open a new terminal and run this script again"
+}
+
+find_gh || install_gh
+if ! gh auth status >/dev/null 2>&1; then
+  say "gh is not signed in — starting 'gh auth login' (choose GitHub.com, HTTPS, browser)"
+  gh auth login || die "gh sign-in did not complete"
+fi
 remote 'id -un' >/dev/null 2>&1 || die "cannot ssh to $SERVER non-interactively — run deploy/grant-claude-ssh-access.sh first, or set SERVER=root@host"
 
 self_test() {
