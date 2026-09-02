@@ -70,6 +70,13 @@ jobs:
         working-directory: platform
         run: npx playwright install --with-deps chromium
 
+      # The end-to-end suite runs against a production build: the dev server
+      # compiling every page on demand on this runner produced 300 s page loads
+      # and connection resets (playwright.config.ts picks `next start` under CI).
+      - name: Production build
+        working-directory: platform
+        run: npm run build
+
       - name: End-to-end tests (cross-tenant isolation, auth, notifications)
         working-directory: platform
         run: npm run test:e2e

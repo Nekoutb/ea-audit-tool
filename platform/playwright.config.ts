@@ -5,8 +5,13 @@ loadEnv({ path: ".env" });
 
 const PORT = 3100;
 const BASE_URL = `http://localhost:${PORT}`;
-const NEXT_DEV_COMMAND =
+const NEXT_BIN =
   process.platform === "win32" ? ".\\node_modules\\.bin\\next.cmd" : "./node_modules/.bin/next";
+// Locally the dev server is convenient (no build step, hot reload). In CI it is
+// the reason the suite failed: Turbopack compiling every page on demand on a
+// two-core runner produced 300 s page loads and connection resets. CI builds
+// once (see .github/workflows/ci.yml) and runs the suite against `next start`.
+const NEXT_SERVER_COMMAND = process.env.CI ? `${NEXT_BIN} start -p ${PORT}` : `${NEXT_BIN} dev -p ${PORT}`;
 
 export default defineConfig({
   testDir: "tests/e2e",
@@ -22,7 +27,7 @@ export default defineConfig({
   },
   projects: [{ name: "chromium", use: { ...devices["Desktop Chrome"] } }],
   webServer: {
-    command: `${NEXT_DEV_COMMAND} dev -p ${PORT}`,
+    command: NEXT_SERVER_COMMAND,
     url: `${BASE_URL}/login`,
     reuseExistingServer: !process.env.CI,
     timeout: 120_000,
