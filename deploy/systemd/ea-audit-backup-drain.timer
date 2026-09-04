@@ -1,0 +1,14 @@
+# Every ten minutes: an archived audit file reaches immutable off-site storage
+# within ten minutes of being closed. The run exits immediately when the queue
+# is empty, which is almost always.
+[Unit]
+Description=AuditISA backup drainer (every 10 minutes)
+
+[Timer]
+OnCalendar=*:03/10
+RandomizedDelaySec=60
+Persistent=false
+Unit=ea-audit-backup-drain.service
+
+[Install]
+WantedBy=timers.target

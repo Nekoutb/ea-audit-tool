@@ -10,6 +10,7 @@ import { canPartnerSignoff } from "@/lib/rbac";
 import { assertMutable } from "@/lib/mutability";
 import { requireRole, requireTenant } from "@/lib/tenant";
 import { logArchive, logEngagementFinalised } from "@/lib/activity";
+import { enqueueBackup } from "@/lib/backup-jobs";
 
 export class CompletionError extends Error {
   constructor(public readonly code: string) {
@@ -551,6 +552,11 @@ export async function archiveEngagement(engagementId: string): Promise<void> {
   // After COMMIT: an audit entry must not be rolled back with the work it
   // describes, and recordActivity opens its own transaction.
   await logArchive(engagementId);
+  // And the file leaves the box. Queued rather than uploaded here on purpose:
+  // this function must not wait on object storage, or a storage outage would
+  // stop a partner archiving a file — a compliance failure caused by the
+  // compliance tooling. enqueueBackup never throws.
+  await enqueueBackup({ tenantId, engagementId, kind: "engagement-archive" });
 }
 
 /** Guard used by mutating layers: an archived file is immutable (spec §9.6). */

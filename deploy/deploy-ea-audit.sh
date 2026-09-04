@@ -16,6 +16,7 @@
 # release and exits non-zero.
 #
 # Options: --rebuild   throw away an existing release directory for this sha and build again
+#                      (refused for the release that is running: it would be deleted under the live process)
 #          --no-fetch  do not contact GitHub (use the mirror as it is)
 #          --yes       production only: skip the interactive "type PROD" confirmation
 #                      (required when stdin is not a terminal, e.g. `ssh host deploy-ea-audit prod --yes`)
@@ -63,6 +64,19 @@ sha_of_release() { [ -f "$1/RELEASE" ] && sed -n 's/^sha=//p' "$1/RELEASE" || ba
 # deploy and rollback are mutually exclusive; status needs no lock.
 take_lock() { exec 9>"$LOCK"; flock -n 9 || die "another deployment or rollback is running"; }
 
+# shield <name>: from here on a dropped ssh session cannot kill the run half-way
+# through a switch. Output goes to a run log; a tail mirrors it to the terminal
+# and simply dies with the terminal, while the run itself ignores hang-ups.
+# (Not tee: the uutils tee on Ubuntu 25.10 lingers forever with -p.)
+shield() {
+  RUNLOG=$ROOT/logs/$1-$(date -u +%Y%m%dT%H%M%SZ).log
+  : > "$RUNLOG"
+  tail --pid=$$ -f -n +1 "$RUNLOG" 9>&- &
+  trap "" HUP
+  exec >>"$RUNLOG" 2>&1
+  log "run log: $RUNLOG"
+}
+
 # --- subcommands that need no build -----------------------------------------
 
 cmd_status() {
@@ -102,12 +116,14 @@ cmd_rollback() {
   local cur prev
   cur=$(current_release); [ -n "$cur" ] || die "$TARGET has no current release"
   prev=$(previous_release)
-  [ -n "$prev" ] && [ -d "$prev" ] || die "no previous release recorded for $TARGET"
+  [ -n "$prev" ] && [ -f "$prev/.next/BUILD_ID" ] || die "no built previous release recorded for $TARGET"
+  [ "$prev" != "$cur" ] || die "current.previous points at the running release — nothing to roll back to"
   # Only ever roll back onto something that passed its health check here: a
   # release that never made it into the log is a build that was never good.
   grep -q "^$(sha_of_release "$prev") " "$DEPLOY_LOG" 2>/dev/null \
     || die "$(basename "$prev") was never successfully deployed to $TARGET (not in $DEPLOY_LOG) — refusing to roll back onto it"
   [ "$TARGET" = prod ] && confirm_prod "ROLLBACK production to $(basename "$prev")"
+  shield rollback
   log "$TARGET: $(basename "$cur") -> $(basename "$prev") (migrations are NOT reverted)"
   switch_to "$prev"
   restart_and_check || die "$TARGET is unhealthy after rollback — current is left on $(basename "$prev"); investigate now"
@@ -189,6 +205,9 @@ build_release() {
     log "release $SHORT already built — reusing it (--rebuild to build again)"
     return 0
   fi
+  # --rebuild must never delete the tree the live process is executing from.
+  [ "$REL" != "$(current_release)" ] || die "$SHORT is the release $TARGET is running — rebuilding it would delete it under the live process; deploy another ref (or roll back) first"
+  [ "$REL" != "$(previous_release)" ] || warn "$SHORT is the rollback target: rollback is unavailable until this build finishes"
   check_memory
   rm -rf "$REL"; install -d -o $RUN_AS -g $RUN_AS "$REL"
   log "exporting platform/ at $SHORT"
@@ -205,12 +224,32 @@ build_release() {
   log "built $SHORT (BUILD_ID $(cat "$REL/.next/BUILD_ID"))"
 }
 
+# This is the dump reached for in the worst moment, so it is checked properly.
+# `[ -s ]` — what this used to do — passes on a dump that died mid-stream, and
+# the file is then indistinguishable from a good one by name or by size.
+#
+# Written under .part and renamed only once it verifies, so a partial file never
+# acquires a real backup's name. The verification is deliberately inline rather
+# than sourced from deploy/lib/backup-common.sh: a deployment must not stop
+# working because the backup system is not installed yet. Same table list, same
+# reasoning — a dump that lost document_version has lost the working papers.
 backup_db() {
-  local f=$BACKUP_DIR/$DB-$(date -u +%Y%m%dT%H%M%SZ)-pre-$SHORT.dump
-  log "backing up $DB -> $f"
-  sudo -u postgres pg_dump --format=custom "$DB" > "$f"
-  [ -s "$f" ] || die "backup file is empty"
+  BACKUP_FILE=$BACKUP_DIR/$DB-$(date -u +%Y%m%dT%H%M%SZ)-pre-$SHORT.dump
+  log "backing up $DB -> $BACKUP_FILE"
+  sudo -u postgres pg_dump --format=custom "$DB" > "$BACKUP_FILE.part"
+  [ -s "$BACKUP_FILE.part" ] || die "backup file is empty"
+  local toc
+  toc=$(pg_restore --list "$BACKUP_FILE.part" 2>/dev/null) \
+    || die "the pre-deploy dump is not a readable custom-format dump"
+  local t
+  for t in tenant engagement document_version task_attachment evidence pbc_item activity_log; do
+    printf '%s\n' "$toc" | grep -q "TABLE DATA public $t " \
+      || die "the pre-deploy dump has no data for '$t' — refusing to deploy over an incomplete backup"
+  done
+  mv -T "$BACKUP_FILE.part" "$BACKUP_FILE"
+  log "backup verified ($(printf '%s\n' "$toc" | grep -c 'TABLE DATA') tables with data)"
   find "$BACKUP_DIR" -name "$DB-*-pre-*.dump" -mtime +14 -delete
+  find "$BACKUP_DIR" -name "$DB-*-pre-*.dump.part" -mtime +1 -delete
 }
 
 migrate() {
@@ -224,7 +263,7 @@ migrate() {
   # "Can't determine timestamp" line per file; keep the full output in the log.
   if ! (cd "$REL" && sudo -u postgres env DATABASE_URL="$url" node node_modules/node-pg-migrate/bin/node-pg-migrate.js up) >"$mlog" 2>&1; then
     grep -v "Can't determine timestamp" "$mlog" | tail -n 15 >&2
-    die "migration failed on $DB — current release untouched$( [ "$TARGET" = prod ] && echo '; restore from the pre-deploy backup if the schema is inconsistent')"
+    die "migration failed on $DB — current release untouched$( [ "$TARGET" = prod ] && echo "; if the schema is inconsistent restore it: sudo -u postgres pg_restore --clean --if-exists -d $DB < $BACKUP_FILE")"
   fi
   grep -E '^(> Migrating files|- |No migrations to run|### MIGRATION)' "$mlog" | head -40 | sed 's/^/    /'
   # rls.sql is idempotent and must follow every migration that adds a tenant table.
@@ -237,7 +276,9 @@ migrate() {
 # the automatic rollback passes the pre-deploy value instead, so a failed
 # release never becomes the "previous" one.
 switch_to() {
-  local prev=${2-$(current_release)}
+  local cur; cur=$(current_release)
+  [ "$1" != "$cur" ] || return 0            # already there: keep the rollback record as it is
+  local prev=${2-$cur}
   if [ -n "$prev" ]; then printf 'previous=%s\n' "$prev" > "$ROOT/current.previous"; else rm -f "$ROOT/current.previous"; fi
   ln -sfn "$1" "$ROOT/current.tmp" && mv -Tf "$ROOT/current.tmp" "$ROOT/current"
   chown -h $RUN_AS:$RUN_AS "$ROOT/current"
@@ -297,11 +338,13 @@ cmd_deploy() {
   gate_prod          # an un-tested commit is refused before anything else is looked at
   check_layout
   local cur prev_before; cur=$(current_release); prev_before=$(previous_release)
-  if [ -n "$cur" ] && [ "$(sha_of_release "$cur")" = "$SHA" ] && [ "$REBUILD" = 0 ]; then
-    log "$TARGET already runs $SHORT — nothing to do (--rebuild to force)"; exit 0
+  if [ "$cur" = "$ROOT/releases/$SHORT" ] && [ "$REBUILD" = 0 ]; then
+    grep -q "^$SHA " "$DEPLOY_LOG" 2>/dev/null || warn "$SHORT is not in $DEPLOY_LOG: an earlier run did not finish — check the unit and https://$HOST/"
+    log "$TARGET already runs $SHORT — nothing to do"; exit 0
   fi
   [ "$TARGET" = prod ] && confirm_prod "Deploy $SHORT to PRODUCTION"
   [ -n "$cur" ] || warn "$TARGET has no current release: if the health check fails there is nothing to roll back to"
+  shield deploy-$SHORT
 
   build_release
   [ "$TARGET" = prod ] && backup_db

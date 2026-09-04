@@ -81,7 +81,10 @@ The script is `deploy/deploy-ea-audit.sh` in this repository, installed as
 6. Exports `platform/` at that commit into `<root>/releases/<sha7>/`
    (`git archive`, so nothing uncommitted can ever be deployed), links
    `<root>/shared/.env` into it, `npm ci`, `next build`. An already-built
-   release directory is reused (`--rebuild` to force).
+   release directory is reused (`--rebuild` to force — never for the release
+   that is running, since that would delete it under the live process; deploy
+   another ref or roll back first). If the target already runs that exact
+   release directory the script says so and stops.
 7. Production only: `pg_dump --format=custom` into `/opt/ea-audit-backups/`
    (`ea_audit-<stamp>-pre-<sha7>.dump`; dumps older than 14 days are removed
    by the next production deployment).
@@ -91,6 +94,11 @@ The script is `deploy/deploy-ea-audit.sh` in this repository, installed as
    A failed migration stops the deployment with the current release untouched.
 9. Atomically re-points `<root>/current` at the new release (`mv -T`),
    records the previous one in `<root>/current.previous`, restarts the unit.
+   From the build onwards the run is shielded from a dropped ssh session:
+   it ignores hang-ups and writes to `<root>/logs/deploy-<sha7>-<stamp>.log`,
+   which a `tail` mirrors to the terminal — so a lost connection never leaves
+   `current` re-pointed with the health check unfinished. If your terminal
+   goes away, reconnect and read that log.
 10. Health check: `GET /login` on the app port must return 200 (30 attempts,
     3 s apart, 10 s per request), then the same once through Apache with the
     real host name. On failure the previous release is restored — if there is
@@ -103,7 +111,8 @@ The script is `deploy/deploy-ea-audit.sh` in this repository, installed as
     A rollback appends `<sha> <sha7> rollback <utc time>`. Failed deployments
     are not logged.
 
-Logs: `<root>/logs/build-<sha7>.log` and `<root>/logs/migrate-<sha7>-<stamp>.log`.
+Logs: `<root>/logs/deploy-<sha7>-<stamp>.log` (the run), `<root>/logs/build-<sha7>.log`
+and `<root>/logs/migrate-<sha7>-<stamp>.log`; rollbacks write `<root>/logs/rollback-<stamp>.log`.
 Application logs: `journalctl -u ea-audit` / `journalctl -u ea-audit-dev`.
 
 ## Rollback
@@ -117,14 +126,17 @@ Production asks for `PROD` (or `--yes`). Things to know:
   where you started. After an automatic rollback it is restored to its
   pre-deployment value, never the failed build.
 - The script refuses to roll back onto a release that is not in
-  `deployed-shas.log`, i.e. one that never passed a health check on that target.
+  `deployed-shas.log`, i.e. one that never passed a health check on that target,
+  onto one that has no `.next/BUILD_ID` (a rebuild in progress or failed), and
+  onto the release that is already current.
 - If the health check fails *after* a rollback the script stops with `current`
   left on the rollback target; investigate before doing anything else.
 - Migrations are **not** reverted. If a migration has to be undone, restore the
-  pre-deploy dump:
+  pre-deploy dump — with the file opened by root (`<`): `/opt/ea-audit-backups`
+  is root-only, so `pg_restore` running as `postgres` cannot open a path in it:
 
 ```
-sudo -u postgres pg_restore --clean --if-exists -d ea_audit /opt/ea-audit-backups/ea_audit-<stamp>-pre-<sha7>.dump
+sudo -u postgres pg_restore --clean --if-exists -d ea_audit < /opt/ea-audit-backups/ea_audit-<stamp>-pre-<sha7>.dump
 ```
 
 ## Hotfix path
@@ -141,12 +153,32 @@ dev, which has no gate.)
 
 ## Backups
 
-- Nightly at 02:17 UTC (`/etc/cron.d/ea-audit-backup` → `/usr/local/sbin/ea-audit-backup`,
-  source `deploy/ea-audit-backup.sh`): `pg_dump --format=custom` of `ea_audit`
-  into `/opt/ea-audit-backups/`, 14-day retention, log in `/var/log/ea-audit-backup.log`.
-- Before every production deployment (step 7 above).
-- The backups live on the same disk as the database. Copy them off the server
-  if that matters to you.
+**`docs/disaster-recovery.md` is the runbook.** In outline:
+
+- Every four hours (`ea-audit-backup.timer` at 02:23, 06:23, 10:23, 14:23,
+  18:23, 22:23 UTC → `/usr/local/sbin/ea-audit-backup`, source
+  `deploy/ea-audit-backup.sh`): the whole of `ea_audit`, the cluster globals and
+  a *rebuild set* (both `shared/.env` files, the units, the vhosts, the deploy
+  log and a `state.txt` of installed versions), each verified with
+  `pg_restore --list`, compressed, encrypted with GPG on this box, and copied to
+  Wasabi. A local copy stays in `/opt/ea-audit-backups` for seven days as the
+  fast path, pruned only after the remote copy verifies.
+- Sundays 03:40 UTC: per-firm extracts and per-engagement rolling copies, so one
+  firm or one audit file can be restored without unpacking the whole database.
+  An engagement's archival copy is written once, when it is archived, and is
+  WORM-locked for its retention period.
+- Sundays 04:40 UTC (`ea-audit-restore-drill.timer`): the newest backup is
+  fetched **from Wasabi**, decrypted, restored into a scratch database and
+  checked — including that stored document bytes still match their recorded
+  SHA-256. Results go to `/opt/ea-audit-backups/DRILL-LOG` and to the bucket.
+- Before every production deployment (step 7 above), now written under `.part`
+  and renamed only after it verifies.
+- Failures alert by e-mail, and a dead-man's-switch ping catches the failures
+  that stop the job running at all. Logs are in `/var/log/ea-audit/`, rotated.
+
+Install or update the whole thing with `deploy/ea-audit-backup-install.sh`,
+which refuses unless the encryption key and the two credential files are present
+at mode 0400 and the buckets really have Object Lock enabled.
 
 ## Refreshing dev's data from production
 
@@ -201,7 +233,10 @@ until it is on the release layout, which means (once, as root):
    the running process already uses, so even an unplanned restart before the
    first deployment starts the same build.
 5. `deploy-ea-audit status` shows `prod <sha7> main (active)`; then
-   `deploy-ea-audit prod main` is the first scripted release.
+   `deploy-ea-audit prod main` is the first scripted release — also when `main`
+   is still the commit release zero was built from: only a release directory of
+   the layout counts as "already running", so this builds it under
+   `releases/<sha7>` and switches to it.
 
 Fallback at any point: put `/root/ea-audit.service.pre-layout` back,
 `systemctl daemon-reload`, `systemctl restart ea-audit`. Keep `/opt/ea-audit`

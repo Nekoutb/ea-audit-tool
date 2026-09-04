@@ -67,6 +67,10 @@ test("Phase 9: portal PBC round-trip + dashboards + export", async ({ page }) =>
   await expect(page.getByTestId("pbc-status-Grand livre 2025")).toContainText(/Requested/i);
 
   // --- Switch to the client user: portal only, audit file locked out ---
+  // Leave the document first: a production build prefetches the nav links and
+  // the proxy re-sets the session cookie on every response, so a prefetch
+  // landing after clearCookies() would sign the previous user back in.
+  await page.goto("about:blank");
   await page.context().clearCookies();
   await login(page, contactEmail, "portal-pass-9");
   await page.waitForURL("**/portal");
@@ -88,6 +92,10 @@ test("Phase 9: portal PBC round-trip + dashboards + export", async ({ page }) =>
   await expect(page.getByTestId("portal-status-Grand livre 2025")).toContainText(/Uploaded/i);
 
   // --- Back to the firm: accept + attach to E4.1 as a working paper (9.2) ---
+  // Leave the document first: a production build prefetches the nav links and
+  // the proxy re-sets the session cookie on every response, so a prefetch
+  // landing after clearCookies() would sign the previous user back in.
+  await page.goto("about:blank");
   await page.context().clearCookies();
   await login(page, EMAIL, PASSWORD);
   await page.waitForURL("**/dashboard");

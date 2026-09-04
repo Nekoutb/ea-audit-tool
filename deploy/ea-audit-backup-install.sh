@@ -73,17 +73,20 @@ done
 install -m 750 "$HERE/ea-audit-backup.sh"       /usr/local/sbin/ea-audit-backup
 install -m 750 "$HERE/ea-audit-restore.sh"      /usr/local/sbin/ea-audit-restore
 install -m 750 "$HERE/ea-audit-restore-drill.sh" /usr/local/sbin/ea-audit-restore-drill
+install -m 750 "$HERE/ea-audit-backup-drain.sh"  /usr/local/sbin/ea-audit-backup-drain
 install -d -m 750 /usr/local/lib/ea-audit
 install -m 640 "$HERE/lib/backup-common.sh"     /usr/local/lib/ea-audit/backup-common.sh
 # The installed programs source the installed library, not the repo checkout.
 sed -i 's#^\. "${BACKUP_COMMON:-$HERE/lib/backup-common.sh}"#. "${BACKUP_COMMON:-/usr/local/lib/ea-audit/backup-common.sh}"#' \
-  /usr/local/sbin/ea-audit-backup /usr/local/sbin/ea-audit-restore /usr/local/sbin/ea-audit-restore-drill
-log "installed ea-audit-backup, ea-audit-restore, ea-audit-restore-drill"
+  /usr/local/sbin/ea-audit-backup /usr/local/sbin/ea-audit-restore   /usr/local/sbin/ea-audit-restore-drill /usr/local/sbin/ea-audit-backup-drain
+log "installed ea-audit-backup, ea-audit-restore, ea-audit-restore-drill, ea-audit-backup-drain"
 
 install -m 644 "$HERE/systemd/ea-audit-backup.service"        /etc/systemd/system/
 install -m 644 "$HERE/systemd/ea-audit-backup.timer"          /etc/systemd/system/
 install -m 644 "$HERE/systemd/ea-audit-backup-weekly.service" /etc/systemd/system/
 install -m 644 "$HERE/systemd/ea-audit-backup-weekly.timer"   /etc/systemd/system/
+install -m 644 "$HERE/systemd/ea-audit-backup-drain.service"  /etc/systemd/system/
+install -m 644 "$HERE/systemd/ea-audit-backup-drain.timer"    /etc/systemd/system/
 install -m 644 "$HERE/systemd/ea-audit-restore-drill.service" /etc/systemd/system/
 install -m 644 "$HERE/systemd/ea-audit-restore-drill.timer"   /etc/systemd/system/
 install -m 644 "$HERE/systemd/ea-audit-backup-failure@.service" /etc/systemd/system/
@@ -103,12 +106,12 @@ log "dry run"
 /usr/local/sbin/ea-audit-backup --class daily --dry-run || die "the dry run failed — not enabling anything"
 
 if [ "$ENABLE" = 1 ]; then
-  systemctl enable --now ea-audit-backup.timer ea-audit-backup-weekly.timer ea-audit-restore-drill.timer
+  systemctl enable --now ea-audit-backup.timer ea-audit-backup-weekly.timer \n    ea-audit-backup-drain.timer ea-audit-restore-drill.timer
   log "timers enabled"
 else
   log "timers installed but NOT enabled. Enable them only after a real run and a passing drill:"
   log "  ea-audit-backup --class daily            # one real run"
   log "  ea-audit-restore-drill                   # must pass end to end"
-  log "  systemctl enable --now ea-audit-backup.timer ea-audit-backup-weekly.timer ea-audit-restore-drill.timer"
+  log "  systemctl enable --now ea-audit-backup.timer ea-audit-backup-weekly.timer \n    ea-audit-backup-drain.timer ea-audit-restore-drill.timer"
 fi
 systemctl list-timers 'ea-audit-*' --all --no-pager || true

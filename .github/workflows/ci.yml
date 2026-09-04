@@ -51,6 +51,9 @@ jobs:
       # set (app/dashboard/page.tsx) — and the suite runs against `next start`.
       E2E_DIAGNOSTICS: "1"
       CI: "true"
+      # The dashboard diagnostics panel the isolation and notification suites
+      # rely on is hidden in production builds unless this is set at request time.
+      E2E_DIAGNOSTICS: "1"
 
     steps:
       - uses: actions/checkout@v5

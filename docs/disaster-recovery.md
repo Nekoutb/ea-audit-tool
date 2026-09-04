@@ -30,6 +30,7 @@ All times UTC. `:23` past the hour is clear of the `*/5`, `*/10`, `*/15`, `:10`,
 | When | Unit | What |
 |---|---|---|
 | 02:23, 06:23, 10:23, 14:23, 18:23, 22:23 | `ea-audit-backup.timer` | whole database + globals + rebuild set → Wasabi |
+| every 10 minutes | `ea-audit-backup-drain.timer` | an archived file's immutable copy, within ten minutes of it being closed (exits at once when the queue is empty) |
 | Sundays 03:40 | `ea-audit-backup-weekly.timer` | per-firm extracts, per-engagement rolling copies |
 | Sundays 04:40 | `ea-audit-restore-drill.timer` | restore the newest backup from Wasabi and check it |
 | every production deploy | `deploy-ea-audit prod` | verified pre-deploy dump, local |
@@ -53,8 +54,27 @@ and is the basis of a future "download my firm's data".
 
 **Per engagement** — `tenant/<id>/engagement/<id>/…`. An archived file gets one
 `archive/` copy, written once, WORM-locked for the retention period: this is the
-statutory copy. Open files get a weekly `rolling/` copy, produced only when
-`activity_log` shows the file actually changed.
+statutory copy. Archiving enqueues it in `backup_job` and commits — it never
+waits on Wasabi, because a storage outage must not be able to stop a partner
+closing a file. The drainer picks it up within ten minutes and records the
+object key back on the job, so "was this closed file copied off the box, when,
+and where to?" is answerable from the database.
+
+Open files get a weekly `rolling/` copy, produced only when `activity_log` shows
+the file actually changed — and `activity_log` is append-only, so it cannot be
+rewritten to hide a change.
+
+The standing check, which the drainer runs every ten minutes and alerts on:
+
+```sql
+SELECT e.id, e.archived_at FROM engagement e
+ WHERE e.archived_at IS NOT NULL
+   AND NOT EXISTS (SELECT 1 FROM backup_job j
+                    WHERE j.engagement_id = e.id
+                      AND j.kind = 'engagement-archive' AND j.state = 'done');
+```
+
+Zero rows, or a closed audit file is sitting on one disk.
 
 > The ZIP produced by the in-app export (`lib/export-bundle.ts`) is **not** a
 > backup. It is an excellent readable artefact for a regulator or a successor
@@ -184,6 +204,7 @@ and the approach above makes it unnecessary.
 | Drill failed on a content hash | A document's bytes did not survive | do not prune anything; investigate the source rows |
 | Drill failed on freshness | Runs have silently stopped | as for the heartbeat |
 | `only NNNMB free` | The disk guard refused to start | free space before anything else; a backup must never fill the disk |
+| "N archived engagement(s) have no off-site copy" | A closed audit file exists only on this box | `SELECT * FROM backup_job WHERE state = 'failed'` and read `last_error`; re-queue by setting the job back to `queued` |
 
 A failed drill is not a reason to retry blindly. Read the result at
 `/opt/ea-audit-backups/DRILL-LOG` and in `drill/<Y>/<M>/<runid>.json`.

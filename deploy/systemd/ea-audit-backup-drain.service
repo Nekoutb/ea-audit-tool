@@ -1,0 +1,15 @@
+[Unit]
+Description=AuditISA archived-engagement backup drainer
+After=network-online.target postgresql.service
+Wants=network-online.target
+OnFailure=ea-audit-backup-failure@%n.service
+
+[Service]
+Type=oneshot
+ExecStart=/usr/local/sbin/ea-audit-backup-drain
+TimeoutStartSec=1800
+Nice=15
+IOSchedulingClass=best-effort
+IOSchedulingPriority=7
+CPUWeight=15
+MemoryMax=512M
