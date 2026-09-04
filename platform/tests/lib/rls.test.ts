@@ -80,3 +80,38 @@ describe("Row-Level Security tenant isolation", () => {
     expect(r.rows[0].n).toBe("0");
   });
 });
+
+// Coverage, not just behaviour.
+//
+// db/rls.sql carries a literal list of table names and a comment (db/rls.sql:17-18)
+// asking later phases to add to it. Eleven migrations went on to apply policies
+// in their own FOREACH loops instead, and nothing anywhere asserted that the
+// union of all that actually covers the schema — a table could be added with a
+// tenant_id and no policy, and every test would still pass while one firm's rows
+// were readable by another. This is that assertion.
+describe("row-level security covers every tenant-scoped table", () => {
+  // membership is read during authentication, before a tenant context exists,
+  // and is scoped by user_id in application code. Any addition to this list is
+  // a deliberate decision that belongs in review.
+  const DELIBERATELY_GLOBAL = ["membership"];
+
+  it("leaves no tenant-scoped table without ENABLE + FORCE and a policy", async () => {
+    const { rows } = await admin.query<{ relname: string }>(
+      `SELECT c.relname
+         FROM pg_class c JOIN pg_namespace n ON n.oid = c.relnamespace
+        WHERE n.nspname = 'public' AND c.relkind = 'r'
+          AND EXISTS (SELECT 1 FROM pg_attribute a
+                       WHERE a.attrelid = c.oid AND a.attname = 'tenant_id'
+                         AND a.attnum > 0 AND NOT a.attisdropped)
+          AND (NOT c.relrowsecurity
+               OR NOT c.relforcerowsecurity
+               OR NOT EXISTS (SELECT 1 FROM pg_policy p WHERE p.polrelid = c.oid))
+        ORDER BY c.relname`,
+    );
+    const unprotected = rows.map((r) => r.relname).filter((t) => !DELIBERATELY_GLOBAL.includes(t));
+    expect(
+      unprotected,
+      `these tables carry tenant_id but no enforced policy — add one in the migration that creates them`,
+    ).toEqual([]);
+  });
+});

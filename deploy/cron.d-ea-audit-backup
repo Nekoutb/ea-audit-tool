@@ -1,2 +1,0 @@
-# nightly logical backup of the AuditISA production database (14-day retention)
-17 2 * * * root /usr/local/sbin/ea-audit-backup >> /var/log/ea-audit-backup.log 2>&1

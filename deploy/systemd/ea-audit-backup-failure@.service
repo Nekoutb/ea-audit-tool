@@ -1,0 +1,15 @@
+# Fires when a backup or drill unit fails, including when it never got as far as
+# running its own error handler.
+[Unit]
+Description=Report the failure of %i
+
+[Service]
+Type=oneshot
+ExecStart=/bin/bash -c '. /etc/ea-audit/alert.env; \
+  [ -n "$MAILERSEND_API_KEY" ] && [ -n "$ALERT_TO" ] || exit 0; \
+  body=$(systemctl status --no-pager -n 20 %i 2>&1 | sed -E "s/((pass|secret|key|token)[^ =]*[=:])[^ ]*/\1<redacted>/gi"); \
+  curl -sS --max-time 20 -X POST https://api.mailersend.com/v1/email \
+    -H "Authorization: Bearer $MAILERSEND_API_KEY" -H "Content-Type: application/json" \
+    -d "$(jq -n --arg to "$ALERT_TO" --arg from "${ALERT_FROM:-support@auditisa.com}" \
+            --arg subject "[AuditISA backup] unit %i failed" --arg text "$body" \
+            "{from:{email:\$from,name:\"AuditISA backup\"},to:[{email:\$to}],subject:\$subject,text:\$text}")" >/dev/null'

@@ -1,0 +1,22 @@
+# One tier-1 backup run: the whole database, the globals and the rebuild set,
+# encrypted here and copied to Wasabi.
+[Unit]
+Description=AuditISA backup (database + rebuild set)
+Documentation=file:///opt/ea-audit-prod/current/../../docs/disaster-recovery.md
+After=network-online.target postgresql.service
+Wants=network-online.target
+# Alerting even when the script cannot run at all — the case a trap inside it
+# can never cover.
+OnFailure=ea-audit-backup-failure@%n.service
+
+[Service]
+Type=oneshot
+ExecStart=/usr/local/sbin/ea-audit-backup --class auto
+TimeoutStartSec=900
+# The box carries five other applications. A backup is never the most important
+# thing running on it.
+Nice=10
+IOSchedulingClass=best-effort
+IOSchedulingPriority=7
+CPUWeight=20
+MemoryMax=512M

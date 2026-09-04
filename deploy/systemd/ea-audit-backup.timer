@@ -1,0 +1,16 @@
+# Every four hours, so at most four hours of documented audit work is at risk.
+# :23 past is clear of the */5, */10, */15, :10, :15, :17 and :30 jobs the other
+# applications on this box already use.
+[Unit]
+Description=AuditISA backup every 4 hours
+
+[Timer]
+OnCalendar=*-*-* 02,06,10,14,18,22:23:00 UTC
+# Five applications' timers must not all fire on the same second.
+RandomizedDelaySec=180
+# A run missed while the box was down happens at boot rather than being lost.
+Persistent=true
+Unit=ea-audit-backup.service
+
+[Install]
+WantedBy=timers.target

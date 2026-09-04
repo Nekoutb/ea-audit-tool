@@ -1,0 +1,60 @@
+{
+  "_comment": [
+    "Two sub-users, and the server gets no delete permission at all.",
+    "",
+    "Pruning is done by BUCKET LIFECYCLE RULES, configured once in the Wasabi",
+    "console — never by the box. That is the whole point: ransomware, or a bug,",
+    "or a careless command on this server cannot erase the backup history,",
+    "because the credential it holds is physically unable to delete an object.",
+    "",
+    "Neither user gets BypassGovernanceRetention: GOVERNANCE mode protects the",
+    "objects from everything except a deliberate act by the account root, which",
+    "is the escape hatch that COMPLIANCE mode would not leave us.",
+    "",
+    "Lifecycle rules to configure on auditisa-dr (console):",
+    "  db/daily/    expire after 90 days   (~540 restore points at 6 runs/day)",
+    "  db/weekly/   expire after 400 days",
+    "  db/monthly/  expire after 2557 days (7 years)",
+    "  tenant/      expire after 400 days",
+    "  drill/       expire after 400 days",
+    "  all prefixes NoncurrentVersionExpiration 90 days  (Object Lock forces",
+    "               versioning on, and _LATEST.json is rewritten 6x a day)",
+    "Nothing is shorter than 90 days: Wasabi bills a 90-day minimum per object,",
+    "so a 14- or 30-day expiry costs exactly the same and only loses recoverability.",
+    "auditisa-archive holds the WORM copies and expires nothing."
+  ],
+  "writer": {
+    "Version": "2012-10-17",
+    "Statement": [
+      {
+        "Sid": "WriteBackupObjects",
+        "Effect": "Allow",
+        "Action": ["s3:PutObject", "s3:PutObjectRetention", "s3:AbortMultipartUpload"],
+        "Resource": ["arn:aws:s3:::auditisa-dr/*", "arn:aws:s3:::auditisa-archive/*"]
+      },
+      {
+        "Sid": "ListForVerification",
+        "Effect": "Allow",
+        "Action": ["s3:ListBucket", "s3:ListBucketMultipartUploads", "s3:GetBucketObjectLockConfiguration", "s3:GetBucketVersioning"],
+        "Resource": ["arn:aws:s3:::auditisa-dr", "arn:aws:s3:::auditisa-archive"]
+      }
+    ]
+  },
+  "reader": {
+    "Version": "2012-10-17",
+    "Statement": [
+      {
+        "Sid": "ReadForRestoreAndDrill",
+        "Effect": "Allow",
+        "Action": ["s3:GetObject", "s3:GetObjectVersion"],
+        "Resource": ["arn:aws:s3:::auditisa-dr/*", "arn:aws:s3:::auditisa-archive/*"]
+      },
+      {
+        "Sid": "ListForRestore",
+        "Effect": "Allow",
+        "Action": ["s3:ListBucket", "s3:ListBucketVersions"],
+        "Resource": ["arn:aws:s3:::auditisa-dr", "arn:aws:s3:::auditisa-archive"]
+      }
+    ]
+  }
+}

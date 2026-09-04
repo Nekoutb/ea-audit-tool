@@ -1,0 +1,17 @@
+# The weekly pass: per-firm extracts and per-engagement rolling copies, which
+# are what make a single firm or a single audit file restorable on its own.
+[Unit]
+Description=AuditISA weekly per-firm and per-engagement backup
+After=network-online.target postgresql.service
+Wants=network-online.target
+OnFailure=ea-audit-backup-failure@%n.service
+
+[Service]
+Type=oneshot
+ExecStart=/usr/local/sbin/ea-audit-backup --class weekly --tenants --rolling
+TimeoutStartSec=3600
+Nice=15
+IOSchedulingClass=best-effort
+IOSchedulingPriority=7
+CPUWeight=15
+MemoryMax=768M

@@ -1,0 +1,20 @@
+# The non-secret half of the Wasabi remote. Copy to /root/.config/rclone/rclone.conf.
+#
+# The access key and secret are DELIBERATELY ABSENT. `rclone config show` prints
+# whatever is in this file, and config files get copied around; the credentials
+# live in /etc/ea-audit/wasabi.env (root:root 0400) and reach rclone as
+# RCLONE_S3_ACCESS_KEY_ID / RCLONE_S3_SECRET_ACCESS_KEY, exported by
+# deploy/lib/backup-common.sh at run time.
+#
+# Region: an EU region is the default here. AuditISA serves OHADA/CEMAC firms
+# and the product's own residency note says those clients may require in-region
+# or EU hosting; Wasabi has no African region, so EU is the defensible choice.
+# It cannot be changed after the buckets are created.
+
+[wasabi]
+type = s3
+provider = Wasabi
+region = eu-central-2
+endpoint = s3.eu-central-2.wasabisys.com
+acl = private
+no_check_bucket = true

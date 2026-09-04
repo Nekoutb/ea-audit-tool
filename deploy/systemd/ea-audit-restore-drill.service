@@ -1,0 +1,18 @@
+# Restores the newest backup FROM WASABI into a scratch database and checks it,
+# including that the stored document bytes still match their recorded hashes.
+# This is the control that turns "we take backups" into "we have restores".
+[Unit]
+Description=AuditISA weekly restore drill
+After=network-online.target postgresql.service
+Wants=network-online.target
+OnFailure=ea-audit-backup-failure@%n.service
+
+[Service]
+Type=oneshot
+ExecStart=/usr/local/sbin/ea-audit-restore-drill
+TimeoutStartSec=2700
+Nice=15
+IOSchedulingClass=best-effort
+IOSchedulingPriority=7
+CPUWeight=15
+MemoryMax=768M

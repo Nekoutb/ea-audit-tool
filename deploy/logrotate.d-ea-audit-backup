@@ -1,0 +1,11 @@
+# The old /var/log/ea-audit-backup.log was appended to nightly and rotated by
+# nothing.
+/var/log/ea-audit/*.log {
+  daily
+  rotate 30
+  compress
+  delaycompress
+  missingok
+  notifempty
+  create 0640 root adm
+}

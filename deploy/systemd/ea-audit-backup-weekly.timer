@@ -1,0 +1,11 @@
+[Unit]
+Description=AuditISA weekly per-firm backup (Sundays)
+
+[Timer]
+OnCalendar=Sun *-*-* 03:40:00 UTC
+RandomizedDelaySec=300
+Persistent=true
+Unit=ea-audit-backup-weekly.service
+
+[Install]
+WantedBy=timers.target
