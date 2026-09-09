@@ -2,8 +2,9 @@
 // substantive-procedures guide (one procedure set per significant account,
 // indexed with the SAME letters as the significant accounts); wording is
 // original and anchored to the ISAs. Generated steps live in program_step
-// (source 'psp'); user-added "other substantive procedures" use source
-// 'manual'. Per-step results save under form_response code 'psp:<task code>'.
+// (source 'psp'); "other substantive procedures" — designed in S5.5 or added
+// in the paper — use source 'custom'. Per-step results save under
+// form_response code 'psp:<task code>'.
 
 import { withTenant } from "@/lib/db";
 import { requireTenant } from "@/lib/tenant";
@@ -151,10 +152,65 @@ async function dspSelectedIdx(
 }
 
 /**
- * Generate the PSPs for the task's in-index accounts (idempotent). Only the
- * procedures selected per assertion in the S5.5 design are generated — an
- * index with no recorded selection generates nothing and returns -1 so the
- * paper can point the preparer to S5.5.
+ * The custom ("other") substantive procedures written for an index in the S5.5
+ * design. The shape is re-read here rather than imported from the design
+ * module: that module already imports this one for the catalog, and a cycle
+ * between the two is not worth the shared type. Anything malformed is dropped —
+ * saveDsp is where bad input is refused, this side only executes what stands.
+ */
+async function dspOspList(
+  tx: { query: <T>(sql: string, params?: unknown[]) => Promise<{ rows: T[] }> },
+  engagementId: string,
+  indexCode: string,
+): Promise<{ en: string; fr: string; assertions: string[] }[]> {
+  const r = await tx.query<{ value: unknown }>(
+    "SELECT value FROM form_response WHERE engagement_id = $1 AND code = 'dsp' AND field_key = $2",
+    [engagementId, `${indexCode}_osp_list`],
+  );
+  if (r.rows.length === 0) return [];
+  let arr: unknown;
+  try {
+    arr = JSON.parse(typeof r.rows[0].value === "string" ? r.rows[0].value : String(r.rows[0].value ?? ""));
+  } catch {
+    return [];
+  }
+  if (!Array.isArray(arr)) return [];
+  const out: { en: string; fr: string; assertions: string[] }[] = [];
+  for (const raw of arr) {
+    if (typeof raw !== "object" || raw === null) continue;
+    const o = raw as Record<string, unknown>;
+    const en = typeof o.en === "string" ? o.en.trim() : "";
+    const fr = typeof o.fr === "string" ? o.fr.trim() : "";
+    if (!en && !fr) continue;
+    const assertions = Array.isArray(o.assertions)
+      ? o.assertions.filter((a): a is string => typeof a === "string" && "CEAVP".includes(a))
+      : [];
+    out.push({ en, fr, assertions });
+  }
+  return out;
+}
+
+/** The text of a step after its numbering prefix — what two steps are compared on. */
+function stepBody(description: string): string {
+  const cut = description.indexOf(" — ");
+  return (cut < 0 ? description : description.slice(cut + 3)).trim();
+}
+
+/**
+ * Generate the procedures designed in S5.5 for the task's in-index accounts
+ * (idempotent). Only what the preparer selected per assertion is generated,
+ * alongside the custom procedures written for the account — an index with no
+ * design at all generates nothing and returns -1 so the paper can point the
+ * preparer to S5.5.
+ *
+ * The catalog half runs once: the guard on an existing 'psp' step stops a
+ * second pass from duplicating the library wording. The custom half is not
+ * covered by that guard, because a procedure written in S5.5 after the paper
+ * was first opened would otherwise never reach it; it is de-duplicated on its
+ * own wording instead. Custom procedures are inserted with source 'custom' —
+ * the value program_step_source_check already permits for hand-written
+ * procedures (migrations/20260817000006_psp_source.sql) — and with the "OSP-"
+ * numbering the E4 paper filters and labels on.
  */
 export async function generatePsp(
   engagementId: string,
@@ -166,36 +222,64 @@ export async function generatePsp(
   const indexes = indexesForTask(taskCode).filter((i) => presentIndexes.includes(i));
   if (indexes.length === 0) return 0;
   return withTenant(tenantId, async (tx) => {
-    const existing = await tx.query(
-      "SELECT 1 FROM program_step WHERE file_item_id = $1 AND source = 'psp' LIMIT 1",
+    const existing = await tx.query<{ description: string; source: string }>(
+      "SELECT description, source FROM program_step WHERE file_item_id = $1",
       [fileItemId],
     );
-    if (existing.rows[0]) return 0;
-    let seq = 0;
+    const catalogDone = existing.rows.some((row) => row.source === "psp");
+    // steps added since the last pass keep their numbering: seq continues past
+    // whatever the paper already holds, and the OSP counter past its own rows
+    const seqRow = await tx.query<{ v: number }>(
+      "SELECT coalesce(max(seq), 0)::int AS v FROM program_step WHERE file_item_id = $1",
+      [fileItemId],
+    );
+    let seq = seqRow.rows[0]?.v ?? 0;
+    let ospNo = existing.rows.filter((row) => row.description.startsWith("OSP-")).length;
+    const bodies = new Set(existing.rows.map((row) => stepBody(row.description)));
     let n = 0;
-    let sawSelection = false;
+    let sawDesign = false;
     let firstStepId: string | null = null;
     for (const idx of indexes) {
       const chosen = await dspSelectedIdx(tx, engagementId, idx);
-      if (chosen === null) continue;
-      sawSelection = true;
-      const catalog = pspFor(idx);
-      let i = 0;
-      for (const pos of chosen) {
-        const proc = catalog[pos];
-        if (!proc) continue;
-        i += 1;
+      const osps = await dspOspList(tx, engagementId, idx);
+      if (chosen === null && osps.length === 0) continue;
+      sawDesign = true;
+      if (chosen !== null && !catalogDone) {
+        const catalog = pspFor(idx);
+        let i = 0;
+        for (const pos of chosen) {
+          const proc = catalog[pos];
+          if (!proc) continue;
+          i += 1;
+          seq += 10;
+          n += 1;
+          const inserted = await tx.query<{ id: string }>(
+            `INSERT INTO program_step (tenant_id, engagement_id, file_item_id, seq, description, assertions, source)
+             VALUES ($1, $2, $3, $4, $5, $6, 'psp') RETURNING id`,
+            [tenantId, engagementId, fileItemId, seq, `${idx}${i} — ${proc.en}`, proc.a.split(","), ],
+          );
+          if (!firstStepId) firstStepId = inserted.rows[0].id;
+        }
+      }
+      for (const osp of osps) {
+        const body = (osp.en || osp.fr).trim();
+        // the wording IS the identity: an OSP whose text already stands in the
+        // paper is left alone, and one reworded in S5.5 arrives as a new step
+        // rather than silently rewriting work the preparer may have signed off
+        if (bodies.has(body)) continue;
+        bodies.add(body);
+        ospNo += 1;
         seq += 10;
         n += 1;
         const inserted = await tx.query<{ id: string }>(
           `INSERT INTO program_step (tenant_id, engagement_id, file_item_id, seq, description, assertions, source)
-           VALUES ($1, $2, $3, $4, $5, $6, 'psp') RETURNING id`,
-          [tenantId, engagementId, fileItemId, seq, `${idx}${i} — ${proc.en}`, proc.a.split(","), ],
+           VALUES ($1, $2, $3, $4, $5, $6, 'custom') RETURNING id`,
+          [tenantId, engagementId, fileItemId, seq, `OSP-${ospNo} — ${body}`, osp.assertions],
         );
         if (!firstStepId) firstStepId = inserted.rows[0].id;
       }
     }
-    if (!sawSelection) return -1;
+    if (!sawDesign) return -1;
     // the procedures ARE the response: link the account's live significant
     // risks so the planning stand-back sees them answered
     if (firstStepId) await linkSectionRisks(tx, tenantId, fileItemId, firstStepId);

@@ -94,6 +94,8 @@ export interface AnalyticParams {
   minOccurrences?: number;
   /** 15 rare-accounts: at most this many postings in the year. Default 3. */
   rareMax?: number;
+  /** 17 unusual-combinations: at most this many entries pair two accounts. Default 3. */
+  pairMax?: number;
   /** 20 third-party-attribution: in-scope account prefixes. Default 40, 41. */
   prefixes?: string[];
   /** 21/22/23: how many named people get their own column. Default 10. */
@@ -264,7 +266,6 @@ export const ANALYTICS: AnalyticDef[] = [
     assertions: ["A", "C"], requiredFields: ["account", "jeNumber"],
     exceptionEn: "An entry pairing accounts that rarely appear together.",
     exceptionFr: "Une écriture associant des comptes rarement réunis.",
-    unavailableEn: NOT_BUILT_EN, unavailableFr: NOT_BUILT_FR,
   },
   {
     id: 18, key: "missing-mandatory-fields", category: "completeness",
@@ -328,7 +329,6 @@ export const ANALYTICS: AnalyticDef[] = [
     assertions: ["P"], requiredFields: ["preparer", "approvedBy"],
     exceptionEn: "An entry whose preparer and approver are the same person.",
     exceptionFr: "Une écriture dont le préparateur et l'approbateur sont la même personne.",
-    unavailableEn: NOT_BUILT_EN, unavailableFr: NOT_BUILT_FR,
   },
   {
     id: 25, key: "out-of-hours-postings", category: "timing",
@@ -439,6 +439,15 @@ export function pearson(xs: number[], ys: number[]): number | null {
   if (vx === 0 || vy === 0) return null;
   return round2(cov / Math.sqrt(vx * vy));
 }
+
+/**
+ * Analytic 17 pairs every account in an entry with every other one, which is
+ * quadratic in the entry's width. A consolidation entry touching four hundred
+ * accounts would alone produce eighty thousand pairs and tell the auditor
+ * nothing, because everything in it looks rare. Entries wider than this are
+ * outside that analytic's population, and its note says so.
+ */
+const PAIR_ACCOUNT_CAP = 30;
 
 /** Benford expected share of each leading digit, in percent. */
 const BENFORD = Array.from({ length: 9 }, (_, i) => Math.log10(1 + 1 / (i + 1)) * 100);
@@ -1026,6 +1035,59 @@ const IMPL: Record<string, Impl> = {
     };
   },
 
+  // 17 -----------------------------------------------------------------
+  "unusual-account-combinations": async (tx, { datasetId, engagementId, locale, params }) => {
+    const pairMax = clampInt(params.pairMax, 1, 100, 3);
+    const q = await tx.query<{ m: string; entries: number; hits: number; pairs: number; rare: number }>(
+      `WITH ent AS (
+         SELECT je_number, min(journal_date) AS jd, array_agg(DISTINCT account) AS accounts
+           FROM gl_line WHERE ${SCOPE} GROUP BY je_number),
+       scoped AS (
+         SELECT * FROM ent
+          WHERE coalesce(array_length(accounts, 1), 0) BETWEEN 2 AND ${PAIR_ACCOUNT_CAP}),
+       pair AS (
+         SELECT s.je_number, s.jd, a.account AS a1, b.account AS a2
+           FROM scoped s
+           CROSS JOIN LATERAL unnest(s.accounts) AS a(account)
+           CROSS JOIN LATERAL unnest(s.accounts) AS b(account)
+          WHERE a.account < b.account),
+       freq AS (
+         SELECT a1, a2, count(DISTINCT je_number) AS n FROM pair GROUP BY 1, 2),
+       scored AS (
+         SELECT p.je_number, p.jd, count(*)::int AS pairs,
+                count(*) FILTER (WHERE f.n <= $3::int)::int AS rare
+           FROM pair p JOIN freq f ON f.a1 = p.a1 AND f.a2 = p.a2
+          GROUP BY 1, 2)
+       SELECT coalesce(to_char(jd, 'YYYY-MM'), 'n/a') AS m,
+              count(*)::int AS entries,
+              count(*) FILTER (WHERE rare > 0)::int AS hits,
+              coalesce(sum(pairs), 0)::int AS pairs,
+              coalesce(sum(rare), 0)::int AS rare
+         FROM scored GROUP BY 1 ORDER BY 1`,
+      [datasetId, engagementId, pairMax],
+    );
+    const rows = q.rows.map((r) => ({
+      month: r.m,
+      cells: [r.entries, r.hits, r.pairs, r.rare, pct(r.hits, r.entries)] as Cell[],
+    }));
+    return {
+      columns: [
+        { key: "entries", label: t(locale, "Entries", "Écritures") },
+        { key: "hits", label: t(locale, "With a rare pairing", "Avec un couple rare") },
+        { key: "pairs", label: t(locale, "Account pairs", "Couples de comptes") },
+        { key: "rare", label: t(locale, "Rare pairs", "Couples rares") },
+        { key: "sharePct", label: t(locale, "% of entries", "% des écritures") },
+      ],
+      rows,
+      totals: [sum(rows, 0), sum(rows, 1), sum(rows, 2), sum(rows, 3), pct(sum(rows, 1), sum(rows, 0))],
+      exceptions: sum(rows, 1),
+      population: sum(rows, 0),
+      note: t(locale,
+        `Rarity is counted across the whole ledger: a pairing of two accounts is rare when it appears in at most ${pairMax} entries all year. Entries touching a single account, or more than ${PAIR_ACCOUNT_CAP} of them, are outside the population — the first offer no pairing to score, the second would make everything look rare. A rare pairing is a risk indicator requiring audit consideration, not a finding: the first entry of a new kind is rare by definition.`,
+        `La rareté est mesurée sur l'ensemble du grand livre : un couple de comptes est rare lorsqu'il apparaît dans au plus ${pairMax} écritures sur l'année. Les écritures ne touchant qu'un compte, ou plus de ${PAIR_ACCOUNT_CAP}, sont hors population — les premières n'offrent aucun couple, les secondes rendraient tout rare. Un couple rare est un indicateur de risque à examiner, non un constat : la première écriture d'un type nouveau est rare par définition.`),
+    };
+  },
+
   // 18 -----------------------------------------------------------------
   "missing-mandatory-fields": async (tx, { datasetId, engagementId, locale }) => {
     const q = await tx.query<{ m: string; lines: number; noAccount: number; noJe: number; noDesc: number; noDate: number; noAmount: number }>(
@@ -1134,6 +1196,50 @@ const IMPL: Record<string, Impl> = {
   "preparer-value": (tx, args) => byPerson(tx, args, "preparer", "value"),
   // 23 -----------------------------------------------------------------
   "reviewer-workload": (tx, args) => byPerson(tx, args, "reviewer", "count"),
+
+  // 24 -----------------------------------------------------------------
+  "self-review": async (tx, { datasetId, engagementId, locale }) => {
+    const q = await tx.query<{ m: string; entries: number; attributed: number; same: number; none: number; value: number }>(
+      `WITH scoped AS (
+         SELECT ${MONTH} AS m, je_number, abs(signed) AS gross,
+                nullif(lower(trim(preparer)), '') AS prep,
+                nullif(lower(trim(approver)), '') AS appr
+           FROM gl_line WHERE ${SCOPE}),
+       je AS (
+         SELECT je_number, min(m) AS m, coalesce(sum(gross), 0)::float8 AS value,
+                count(*) FILTER (WHERE prep IS NOT NULL AND appr IS NOT NULL)::int AS named,
+                count(*) FILTER (WHERE prep IS NOT NULL AND appr IS NOT NULL AND prep = appr)::int AS self
+           FROM scoped GROUP BY je_number)
+       SELECT m, count(*)::int AS entries,
+              count(*) FILTER (WHERE named > 0)::int AS attributed,
+              count(*) FILTER (WHERE self > 0)::int AS same,
+              count(*) FILTER (WHERE named = 0)::int AS none,
+              coalesce(sum(value) FILTER (WHERE self > 0), 0)::float8 AS value
+         FROM je GROUP BY 1 ORDER BY 1`,
+      [datasetId, engagementId],
+    );
+    const rows = q.rows.map((r) => ({
+      month: r.m,
+      cells: [r.entries, r.attributed, r.same, pct(r.same, r.attributed), r.none, round2(r.value)] as Cell[],
+    }));
+    return {
+      columns: [
+        { key: "entries", label: t(locale, "Entries", "Écritures") },
+        { key: "attributed", label: t(locale, "Both names recorded", "Deux noms enregistrés") },
+        { key: "same", label: t(locale, "Same person", "Même personne") },
+        { key: "sharePct", label: t(locale, "% of attributed", "% des écritures nominatives") },
+        { key: "none", label: t(locale, "Neither name recorded", "Aucun nom enregistré") },
+        { key: "value", label: t(locale, "Their gross value", "Leur valeur brute") },
+      ],
+      rows,
+      totals: [sum(rows, 0), sum(rows, 1), sum(rows, 2), pct(sum(rows, 2), sum(rows, 1)), sum(rows, 4), round2(sum(rows, 5))],
+      exceptions: sum(rows, 2),
+      population: sum(rows, 1),
+      note: t(locale,
+        "The population is entries carrying BOTH a preparer and an approver: segregation of duties can only be tested where the file records who did each part. Entries with neither name have their own column, because that is a gap in the audit trail rather than a self-approval, and folding it in here would overstate this exception. Names are compared trimmed and without regard to case, so one person spelt two ways is still one person; an entry counts once however many of its lines are self-approved.",
+        "La population est constituée des écritures portant À LA FOIS un préparateur et un approbateur : la séparation des tâches ne peut être testée que là où le dossier indique qui a fait quoi. Les écritures sans aucun nom disposent de leur propre colonne, car il s'agit d'une rupture de piste d'audit et non d'une auto-approbation ; les y fondre surestimerait cette exception. Les noms sont comparés sans espaces de bord ni distinction de casse : une même personne écrite de deux façons reste une seule personne ; une écriture compte une fois quel que soit le nombre de ses lignes auto-approuvées."),
+    };
+  },
 
   // 29 -----------------------------------------------------------------
   "debit-credit-correlation": async (tx, { datasetId, engagementId, locale }) => {

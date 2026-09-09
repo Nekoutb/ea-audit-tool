@@ -13,6 +13,8 @@ import { requireTenant } from "@/lib/tenant";
 import { ACCEPTANCE_PAPERS } from "@/lib/papers/acceptance";
 import { STRATEGY_PAPERS } from "@/lib/papers/strategy";
 import { EXECUTION_PAPERS } from "@/lib/papers/execution";
+import { ITGC_PAPERS } from "@/lib/papers/itgc";
+import { JOURNAL_ENTRY_PAPERS } from "@/lib/papers/journal-entries";
 import { CONCLUSION_PAPERS } from "@/lib/papers/conclusion";
 import { GAM_PAPERS } from "@/lib/papers/gam";
 import { paperKeys, requiredKeys, type PaperDef, type PaperField } from "@/lib/papers/types";
@@ -60,11 +62,14 @@ const GROUP_DEFAULT: Record<string, { std: string; en: string; fr: string }> = {
   s4: { std: "ISA 402 · ISA 610 (Revised) · ISA 620", en: "the reliance on others' work", fr: "l'utilisation des travaux de tiers" },
   s5: { std: "ISA 300 ¶7–12", en: "the audit strategies memorandum", fr: "le mémorandum de stratégie d'audit" },
   e1: { std: "ISA 330 ¶8–17 · ISA 315 (Revised 2019) ¶26(b)–(c)", en: "the controls testing conclusion", fr: "la conclusion des tests de contrôles" },
-  e2: { std: "ISA 240 ¶32–33 · ISA 450", en: "the journal-entry and fraud response", fr: "la réponse écritures comptables et fraude" },
-  e3: { std: "ISA 315 (Revised 2019) ¶25–26 · ISA 330", en: "the flow understanding and its testing", fr: "la compréhension du flux et ses tests" },
+  e2: { std: "ISA 330 ¶12–14 · ISA 315 (Revised 2019) ¶26(b)", en: "the controls conclusion carried from the interim to the year end", fr: "la conclusion sur les contrôles reportée de l'intérim à la clôture" },
+  // There is no e3 here because there is no e3 group: journal-entry testing was
+  // the whole of it, and that work now sits with the other general procedures in
+  // e5. What stayed behind in e6 is the records, the opening balances and the
+  // reassessment, which is why neither anchor reads as it did before.
   e4: { std: "ISA 330 ¶18–23 · ISA 500 · ISA 520", en: "the evidence obtained on the account", fr: "les éléments probants du compte" },
-  e5: { std: "ISA 330 · ISA 500", en: "the evidence obtained", fr: "les éléments probants obtenus" },
-  e6: { std: "ISA 330 ¶25–27 · ISA 450", en: "the response and its outcome", fr: "la réponse et son résultat" },
+  e5: { std: "ISA 240 ¶32–33 · ISA 501 · ISA 540 · ISA 550 · ISA 560 · ISA 570 (Revised)", en: "the general audit procedure and what it found", fr: "la procédure générale d'audit et ses constats" },
+  e6: { std: "ISA 230 ¶8–11 · ISA 510 · ISA 710 · ISA 315 (Revised 2019) ¶37", en: "the statutory records, the opening balances and the reassessed risks", fr: "les registres légaux, les soldes d'ouverture et les risques réévalués" },
   c1: { std: "ISA 450 ¶10–15 · ISA 701", en: "the evaluation of audit differences", fr: "l'évaluation des écarts d'audit" },
   c2: { std: "ISA 520 ¶6 · ISA 560 · ISA 570 (Revised)", en: "the final review conclusion", fr: "la conclusion de revue finale" },
   c3: { std: "ISA 580 · ISA 505", en: "the representations obtained", fr: "les déclarations obtenues" },
@@ -78,6 +83,8 @@ const ALL_PAPERS: Record<string, PaperDef> = {
   ...ACCEPTANCE_PAPERS,
   ...STRATEGY_PAPERS,
   ...EXECUTION_PAPERS,
+  ...ITGC_PAPERS,
+  ...JOURNAL_ENTRY_PAPERS,
   ...CONCLUSION_PAPERS,
   ...GAM_PAPERS,
 };

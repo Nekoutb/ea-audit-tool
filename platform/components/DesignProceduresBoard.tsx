@@ -5,26 +5,16 @@
 // timing and extent (ISA 330 ¶6–7: procedures are designed per assertion,
 // responsive to that assertion's assessed risk). The badge on each account row
 // is its worst relevant-assertion CRA; the grid inside designs each assertion
-// against its own level. OSPs stay at account level.
+// against its own level. OSPs stay at account level, and each one is a record
+// carrying the same parameters a library procedure carries.
 
-import { useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import type { DspRow, DspView } from "@/lib/design-procedures";
-import { craTone, thresholdSuggestion, timingSuggestion, todLabel, type CraLevel, type CraTod } from "@/lib/cra-model";
+import { NATURE_OPTIONS, TIMING_OPTIONS, type DspRow, type DspView, type OspProcedure } from "@/lib/design-procedures";
+import { craTone, thresholdSuggestion, timingSuggestion, todLabel, worstTod, type CraLevel, type CraTod } from "@/lib/cra-model";
 import { Chip } from "@/components/ui/atlas";
-
-const NATURE_OPTIONS = [
-  { value: "combined", en: "SAPs + tests of details", fr: "Analytiques + tests de détail" },
-  { value: "tod_led", en: "Tests of details led", fr: "Tests de détail en priorité" },
-  { value: "sap_led", en: "Analytics led, data tested", fr: "Analytiques en priorité, données testées" },
-] as const;
-
-const TIMING_OPTIONS = [
-  { value: "period_end", en: "At / near period end", fr: "À / près de la clôture" },
-  { value: "interim_3", en: "Interim ≤ 3 months + rollforward", fr: "Intercalaire ≤ 3 mois + liaison" },
-  { value: "interim_6", en: "Interim ≤ 6 months + rollforward", fr: "Intercalaire ≤ 6 mois + liaison" },
-] as const;
 
 /** The widest interim window the CRA level permits. */
 function timingAllowed(level: CraLevel | null): string[] {
@@ -34,6 +24,20 @@ function timingAllowed(level: CraLevel | null): string[] {
 }
 
 const levelOf = (tod: CraTod): CraLevel => tod.replace("_sr", "") as CraLevel;
+
+/** Short, stable enough to key one account's handful of custom procedures. */
+const newOspId = (): string => Math.random().toString(36).slice(2, 10);
+
+/** Where a selection panel is pinned, in viewport coordinates. */
+interface SelPanel {
+  key: string;
+  left: number;
+  top?: number;
+  bottom?: number;
+  maxHeight: number;
+}
+
+const PANEL_WIDTH = 340;
 
 export function DesignProceduresBoard({
   engagementId,
@@ -47,7 +51,13 @@ export function DesignProceduresBoard({
   const fr = locale === "fr";
   const pathname = usePathname();
   const [open, setOpen] = useState<string | null>(null);
-  const [openSel, setOpenSel] = useState<string | null>(null);
+  // The panel is positioned against the viewport rather than the cell: the
+  // design grid scrolls horizontally, and an overflow-x scroller clips a
+  // positioned child on BOTH axes — the lower checkboxes were unreachable.
+  const [panel, setPanel] = useState<SelPanel | null>(null);
+  const panelRef = useRef<HTMLDivElement | null>(null);
+  const triggerRef = useRef<HTMLElement | null>(null);
+  const chosenRefs = useRef<Record<string, HTMLUListElement | null>>({});
   const [error, setError] = useState<string | null>(null);
   const [values, setValues] = useState<Record<string, string>>(() => {
     const out: Record<string, string> = {};
@@ -60,24 +70,68 @@ export function DesignProceduresBoard({
     for (const r of view.rows) for (const [a, arr] of Object.entries(r.selected)) out[`${r.indexCode}|${a}`] = arr;
     return out;
   });
+  // index → the account's custom procedures, saved as one list per account
+  const [osps, setOsps] = useState<Record<string, OspProcedure[]>>(() => {
+    const out: Record<string, OspProcedure[]> = {};
+    for (const r of view.rows) out[r.indexCode] = r.osps;
+    return out;
+  });
+  // the same lists, readable synchronously: two fields blurred in quick
+  // succession both edit the list as it stands, not as the last render saw it
+  const ospsRef = useRef(osps);
 
-  function toggleSel(indexCode: string, assertion: string, pos: number) {
-    const key = `${indexCode}|${assertion}`;
-    const cur = sels[key] ?? [];
-    const next = cur.includes(pos) ? cur.filter((n) => n !== pos) : [...cur, pos].sort((a, b) => a - b);
-    setSels((s) => ({ ...s, [key]: next }));
-    void save(indexCode, `sel_${assertion}`, JSON.stringify(next));
+  const closePanel = useCallback(() => { triggerRef.current = null; setPanel(null); }, []);
+
+  /** Pin the panel to the trigger's current place on screen. */
+  const place = useCallback((key: string, trigger: HTMLElement) => {
+    const rect = trigger.getBoundingClientRect();
+    const left = Math.max(8, Math.min(rect.left, window.innerWidth - PANEL_WIDTH - 8));
+    const below = window.innerHeight - rect.bottom - 12;
+    // when the row sits low in the paper pane the list opens upwards instead,
+    // so the last checkbox is reachable without scrolling anything
+    if (below < 220 && rect.top > below) {
+      setPanel({ key, left, bottom: window.innerHeight - rect.top + 4, maxHeight: rect.top - 12 });
+      return;
+    }
+    setPanel({ key, left, top: rect.bottom + 4, maxHeight: below });
+  }, []);
+
+  // Viewport coordinates go stale as soon as anything scrolls, and ticking a
+  // box scrolls the paper pane itself, so the panel follows its trigger rather
+  // than closing under the preparer mid-selection.
+  const panelKey = panel?.key;
+  useEffect(() => {
+    if (!panelKey) return;
+    const onDown = (e: MouseEvent) => {
+      const target = e.target as Element | null;
+      if (target?.closest("[data-dsp-sel-trigger]")) return; // the trigger toggles itself
+      if (panelRef.current?.contains(target as Node)) return;
+      closePanel();
+    };
+    const onKey = (e: KeyboardEvent) => { if (e.key === "Escape") closePanel(); };
+    const follow = () => {
+      const el = triggerRef.current;
+      const rect = el?.getBoundingClientRect();
+      if (!el?.isConnected || !rect || rect.bottom < 0 || rect.top > window.innerHeight) { closePanel(); return; }
+      place(panelKey, el);
+    };
+    document.addEventListener("mousedown", onDown);
+    document.addEventListener("keydown", onKey);
+    window.addEventListener("scroll", follow, true);
+    window.addEventListener("resize", follow);
+    return () => {
+      document.removeEventListener("mousedown", onDown);
+      document.removeEventListener("keydown", onKey);
+      window.removeEventListener("scroll", follow, true);
+      window.removeEventListener("resize", follow);
+    };
+  }, [panelKey, closePanel, place]);
+
+  function openPanel(key: string, trigger: HTMLElement) {
+    if (panelKey === key) { closePanel(); return; }
+    triggerRef.current = trigger;
+    place(key, trigger);
   }
-
-  const rowSelectedCount = (row: DspRow) => {
-    const all = new Set<number>();
-    for (const c of row.cells) for (const n of sels[`${row.indexCode}|${c.assertion}`] ?? []) all.add(n);
-    return all.size;
-  };
-
-  const label = "text-[10px] font-extrabold uppercase tracking-[0.07em] text-muted";
-  const select = "w-full rounded-[var(--radius-atlas-sm)] border border-line-strong bg-surface px-1.5 py-1 text-[11.8px] text-ink outline-none focus:border-emerald-600";
-  const area = "w-full resize-none rounded-[var(--radius-atlas-sm)] border border-line bg-[color:var(--wp-input)] px-2.5 py-1.5 text-[12.5px] leading-relaxed text-ink outline-none placeholder:text-muted focus:border-emerald-600";
 
   async function save(indexCode: string, field: string, value: string) {
     setError(null);
@@ -89,6 +143,39 @@ export function DesignProceduresBoard({
     }).catch(() => null);
     if (!r?.ok) setError(fr ? "Échec de l'enregistrement." : "Save failed.");
   }
+
+  function toggleSel(indexCode: string, assertion: string, pos: number) {
+    const key = `${indexCode}|${assertion}`;
+    const cur = sels[key] ?? [];
+    const next = cur.includes(pos) ? cur.filter((n) => n !== pos) : [...cur, pos].sort((a, b) => a - b);
+    setSels((s) => ({ ...s, [key]: next }));
+    void save(indexCode, `sel_${assertion}`, JSON.stringify(next));
+    // the chosen list grows the row inside the paper's fixed-height pane, so
+    // pull it back into view after the tick rather than leaving it below the fold
+    requestAnimationFrame(() => chosenRefs.current[key]?.scrollIntoView({ block: "nearest" }));
+  }
+
+  /** Every custom-procedure edit rewrites the account's whole list — one field, one row. */
+  function updateOsps(indexCode: string, mutate: (list: OspProcedure[]) => OspProcedure[]) {
+    const next = mutate(ospsRef.current[indexCode] ?? []);
+    ospsRef.current = { ...ospsRef.current, [indexCode]: next };
+    setOsps(ospsRef.current);
+    void save(indexCode, "osp_list", JSON.stringify(next));
+  }
+
+  function patchOsp(indexCode: string, id: string, patch: Partial<OspProcedure>) {
+    updateOsps(indexCode, (list) => list.map((o) => (o.id === id ? { ...o, ...patch } : o)));
+  }
+
+  const rowSelectedCount = (row: DspRow) => {
+    const all = new Set<number>();
+    for (const c of row.cells) for (const n of sels[`${row.indexCode}|${c.assertion}`] ?? []) all.add(n);
+    return all.size;
+  };
+
+  const label = "text-[10px] font-extrabold uppercase tracking-[0.07em] text-muted";
+  const select = "w-full rounded-[var(--radius-atlas-sm)] border border-line-strong bg-surface px-1.5 py-1 text-[11.8px] text-ink outline-none focus:border-emerald-600";
+  const area = "w-full resize-none rounded-[var(--radius-atlas-sm)] border border-line bg-[color:var(--wp-input)] px-2.5 py-1.5 text-[12.5px] leading-relaxed text-ink outline-none placeholder:text-muted focus:border-emerald-600";
 
   if (view.rows.length === 0) {
     return (
@@ -122,8 +209,12 @@ export function DesignProceduresBoard({
       {error ? <p className="text-[12px] font-semibold text-rose">{error}</p> : null}
 
       {(() => {
+        // an account designed only with custom procedures is designed: the gap
+        // banner counts the same way the server-side gate does
         const gaps = view.rows
-          .filter((row) => row.cells.length > 0 && !Object.values(row.selected).some((a) => a.length > 0))
+          .filter((row) => row.cells.length > 0
+            && !Object.values(row.selected).some((a) => a.length > 0)
+            && (osps[row.indexCode] ?? []).length === 0)
           .map((row) => row.indexCode);
         return gaps.length > 0 ? (
           <div className="rounded-[var(--radius-atlas-sm)] border border-amber-300 bg-amber-50 px-3 py-2 text-[12px] font-medium text-amber-900 dark:border-amber-900 dark:bg-amber-950/40 dark:text-amber-300" data-testid="dsp-gaps">
@@ -138,6 +229,7 @@ export function DesignProceduresBoard({
         const isOpen = open === row.indexCode;
         const level = row.worst ? levelOf(row.worst) : null;
         const v = (f: string) => values[`${row.indexCode}_${f}`] ?? "";
+        const rowOsps = osps[row.indexCode] ?? [];
         return (
           <div key={row.indexCode} className="rounded-[var(--radius-atlas-sm)] border border-line bg-surface">
             <button
@@ -161,6 +253,7 @@ export function DesignProceduresBoard({
                   {fr
                     ? "procédures substantives primaires retenues — seules les procédures retenues sont générées dans le papier E4"
                     : "primary substantive procedures selected — only selected procedures are generated in the E4 paper"}
+                  {rowOsps.length > 0 ? (fr ? ` · ${rowOsps.length} OSP conçue(s)` : ` · ${rowOsps.length} custom procedure(s)`) : null}
                   {" · "}
                   {row.generated > 0
                     ? fr ? `${row.done}/${row.generated} exécutées dans le papier` : `${row.done}/${row.generated} executed in the workpaper`
@@ -202,7 +295,7 @@ export function DesignProceduresBoard({
                         const selKey = `${row.indexCode}|${c.assertion}`;
                         const covering = row.catalog.filter((p) => p.a.includes(c.assertion));
                         const chosen = sels[selKey] ?? [];
-                        const selOpen = openSel === selKey;
+                        const selOpen = panelKey === selKey;
                         return (
                           <tr key={c.assertion} className="border-t border-line align-top">
                             <td className="px-1.5 py-1.5">
@@ -212,40 +305,16 @@ export function DesignProceduresBoard({
                             <td className="px-1.5 py-1.5">
                               <Chip tone={craTone(cellLevel)}>{todLabel(c.tod, fr ? "fr" : "en")}</Chip>
                             </td>
-                            <td className="relative px-1.5 py-1.5">
-                              <button
-                                type="button"
-                                onClick={() => setOpenSel(selOpen ? null : selKey)}
-                                className="w-full min-w-[150px] rounded-[var(--radius-atlas-sm)] border border-line-strong bg-surface px-2 py-1 text-left text-[11.8px] text-ink hover:border-emerald-600"
-                                data-testid={`dsp-sel-${row.indexCode}-${c.assertion}`}
-                              >
-                                {chosen.length > 0
-                                  ? `${chosen.length}/${covering.length} ${fr ? "retenues" : "selected"}`
-                                  : fr ? `— retenir (${covering.length})` : `— select (${covering.length})`}
-                                <span className="float-right text-muted">{selOpen ? "▴" : "▾"}</span>
-                              </button>
-                              {selOpen ? (
-                                <div className="absolute left-0 top-full z-20 mt-1 w-[340px] rounded-[var(--radius-atlas-sm)] border border-line-strong bg-surface-pop p-2 shadow-atlas-sm" data-testid={`dsp-sel-list-${row.indexCode}-${c.assertion}`}>
-                                  {covering.length === 0 ? (
-                                    <p className="text-[11.5px] text-muted">{fr ? "Aucune procédure de la bibliothèque ne couvre cette assertion — ajouter une OSP." : "No library procedure covers this assertion — add an OSP."}</p>
-                                  ) : (
-                                    covering.map((p) => (
-                                      <label key={p.i} className="flex cursor-pointer items-start gap-2 rounded px-1.5 py-1 text-[11.8px] leading-snug text-ink-soft hover:bg-surface-2">
-                                        <input
-                                          type="checkbox"
-                                          checked={chosen.includes(p.i)}
-                                          onChange={() => toggleSel(row.indexCode, c.assertion, p.i)}
-                                          className="mt-0.5 h-3.5 w-3.5 accent-emerald-700"
-                                          data-testid={`dsp-sel-${row.indexCode}-${c.assertion}-${p.i}`}
-                                        />
-                                        <span>{fr ? p.fr : p.en}</span>
-                                      </label>
-                                    ))
-                                  )}
-                                </div>
-                              ) : null}
+                            <td className="px-1.5 py-1.5">
+                              {/* the chosen procedures sit ABOVE the trigger: a tick
+                                  then reads at the top of the cell instead of pushing
+                                  the row down out of the paper pane */}
                               {chosen.length > 0 ? (
-                                <ul className="mt-1.5 flex flex-col gap-1" data-testid={`dsp-chosen-${row.indexCode}-${c.assertion}`}>
+                                <ul
+                                  ref={(el) => { chosenRefs.current[selKey] = el; }}
+                                  className="mb-1.5 flex flex-col gap-1"
+                                  data-testid={`dsp-chosen-${row.indexCode}-${c.assertion}`}
+                                >
                                   {chosen.map((n) => {
                                     const p = row.catalog[n];
                                     return p ? (
@@ -257,6 +326,46 @@ export function DesignProceduresBoard({
                                   })}
                                 </ul>
                               ) : null}
+                              <button
+                                type="button"
+                                data-dsp-sel-trigger=""
+                                onClick={(e) => openPanel(selKey, e.currentTarget)}
+                                className="w-full min-w-[150px] rounded-[var(--radius-atlas-sm)] border border-line-strong bg-surface px-2 py-1 text-left text-[11.8px] text-ink hover:border-emerald-600"
+                                data-testid={`dsp-sel-${row.indexCode}-${c.assertion}`}
+                              >
+                                {chosen.length > 0
+                                  ? `${chosen.length}/${covering.length} ${fr ? "retenues" : "selected"}`
+                                  : fr ? `— retenir (${covering.length})` : `— select (${covering.length})`}
+                                <span className="float-right text-muted">{selOpen ? "▴" : "▾"}</span>
+                              </button>
+                              {selOpen && panel
+                                ? createPortal(
+                                    <div
+                                      ref={panelRef}
+                                      style={{ position: "fixed", left: panel.left, top: panel.top, bottom: panel.bottom, width: PANEL_WIDTH, maxHeight: panel.maxHeight }}
+                                      className="z-50 overflow-y-auto rounded-[var(--radius-atlas-sm)] border border-line-strong bg-surface-pop p-2 shadow-atlas-sm"
+                                      data-testid={`dsp-sel-list-${row.indexCode}-${c.assertion}`}
+                                    >
+                                      {covering.length === 0 ? (
+                                        <p className="text-[11.5px] text-muted">{fr ? "Aucune procédure de la bibliothèque ne couvre cette assertion — ajouter une OSP." : "No library procedure covers this assertion — add a custom procedure."}</p>
+                                      ) : (
+                                        covering.map((p) => (
+                                          <label key={p.i} className="flex cursor-pointer items-start gap-2 rounded px-1.5 py-1 text-[11.8px] leading-snug text-ink-soft hover:bg-surface-2">
+                                            <input
+                                              type="checkbox"
+                                              checked={chosen.includes(p.i)}
+                                              onChange={() => toggleSel(row.indexCode, c.assertion, p.i)}
+                                              className="mt-0.5 h-3.5 w-3.5 accent-emerald-700"
+                                              data-testid={`dsp-sel-${row.indexCode}-${c.assertion}-${p.i}`}
+                                            />
+                                            <span>{fr ? p.fr : p.en}</span>
+                                          </label>
+                                        ))
+                                      )}
+                                    </div>,
+                                    document.body,
+                                  )
+                                : null}
                             </td>
                             <td className="px-1.5 py-1.5">
                               <select
@@ -308,117 +417,179 @@ export function DesignProceduresBoard({
                   </table>
                 </div>
 
-                <div>
-                  <p className={label}>
-                    {fr ? "Autres procédures substantives (OSP)" : "Other substantive procedures (OSPs)"}
-                    {row.ospRequired ? <span className="ml-1.5 font-bold normal-case text-amber-700 dark:text-amber-400">{fr ? "— requises" : "— required"}</span> : null}
-                  </p>
-                  <textarea
-                    rows={2}
-                    spellCheck={false}
-                    defaultValue={v("osp")}
-                    placeholder={
-                      row.ospRequired
+                <div data-testid={`dsp-osp-list-${row.indexCode}`}>
+                  <div className="flex items-center justify-between gap-2">
+                    <p className={label}>
+                      {fr ? "Autres procédures substantives (OSP)" : "Other substantive procedures (OSPs)"}
+                      {row.ospRequired ? <span className="ml-1.5 font-bold normal-case text-amber-700 dark:text-amber-400">{fr ? "— requises" : "— required"}</span> : null}
+                    </p>
+                    <button
+                      type="button"
+                      onClick={() => updateOsps(row.indexCode, (list) => [...list, { id: newOspId(), en: "", fr: "", assertions: [], nature: "", timing: "", extent: "" }])}
+                      className="rounded-[var(--radius-atlas-sm)] border border-line-strong bg-surface px-2 py-1 text-[11.5px] font-semibold text-ink hover:border-emerald-600"
+                      data-testid={`dsp-osp-add-${row.indexCode}`}
+                    >
+                      {fr ? "+ Ajouter une procédure" : "+ Add a procedure"}
+                    </button>
+                  </div>
+
+                  {rowOsps.length === 0 ? (
+                    <p className="mt-1 text-[11.5px] text-muted" data-testid={`dsp-osp-empty-${row.indexCode}`}>
+                      {row.ospRequired
                         ? fr
-                          ? "Un risque important ou une assertion sans appui appelle des procédures au-delà du socle : test de détail répondant spécifiquement au risque…"
-                          : "A significant risk or a no-reliance assertion calls for procedures beyond the baseline: a test of details specifically responsive to the risk…"
-                        : fr ? "Aucune requise — consigner si ajoutées." : "None required — record any added."
-                    }
-                    onInput={(e) => { const el = e.currentTarget; el.style.height = "auto"; el.style.height = `${el.scrollHeight}px`; }}
-                    onBlur={(e) => { if (e.target.value !== v("osp")) void save(row.indexCode, "osp", e.target.value); }}
-                    className={`${area} mt-1`}
-                    data-testid={`dsp-osp-${row.indexCode}`}
-                  />
-                  {/* OSPs are designed like the library procedures: pick the
-                      assertions they answer (their CRA fills in), then set
-                      nature, timing and extent. */}
-                  {(() => {
-                    let ospAsserts: string[] = [];
-                    try { const a = JSON.parse(v("osp_assertions") || "[]"); if (Array.isArray(a)) ospAsserts = a; } catch { /* none */ }
-                    const toggleOspAssert = (assertion: string) => {
-                      const next = ospAsserts.includes(assertion)
-                        ? ospAsserts.filter((x) => x !== assertion)
-                        : [...ospAsserts, assertion];
-                      void save(row.indexCode, "osp_assertions", JSON.stringify(next));
-                    };
-                    return (
-                      <div className="mt-2 flex flex-col gap-1.5" data-testid={`dsp-osp-design-${row.indexCode}`}>
-                        <span className="flex flex-wrap items-center gap-1.5 text-[11px] text-muted">
-                          {fr ? "Assertions couvertes :" : "Assertions answered:"}
-                          {row.cells.map((c) => (
-                            <label key={c.assertion} className={`flex cursor-pointer items-center gap-1 rounded-full border px-2 py-0.5 text-[11px] ${ospAsserts.includes(c.assertion) ? "border-emerald-600 bg-emerald-50 text-emerald-800 dark:bg-emerald-950/40 dark:text-emerald-300" : "border-line text-ink-soft"}`}>
-                              <input
-                                type="checkbox"
-                                className="hidden"
-                                checked={ospAsserts.includes(c.assertion)}
-                                onChange={() => toggleOspAssert(c.assertion)}
-                                data-testid={`dsp-osp-assert-${row.indexCode}-${c.assertion}`}
-                              />
-                              {c.assertion}
-                            </label>
-                          ))}
-                        </span>
-                        {ospAsserts.length > 0 ? (
-                          <span className="flex flex-wrap items-center gap-2 text-[11px] text-muted" data-testid={`dsp-osp-cra-${row.indexCode}`}>
-                            {fr ? "ECR de ces assertions :" : "CRA of those assertions:"}
-                            {row.cells.filter((c) => ospAsserts.includes(c.assertion)).map((c) => (
-                              <span key={c.assertion} className="inline-flex items-center gap-1">
-                                <b className="text-ink">{c.assertion}</b>
-                                <Chip tone={craTone(levelOf(c.tod))}>{todLabel(c.tod, fr ? "fr" : "en")}</Chip>
-                              </span>
-                            ))}
+                          ? "Un risque important ou une assertion sans appui appelle des procédures au-delà du socle : ajouter un test de détail répondant spécifiquement au risque."
+                          : "A significant risk or a no-reliance assertion calls for procedures beyond the baseline: add a test of details specifically responsive to the risk."
+                        : fr ? "Aucune requise — ajouter celles qui sont conçues pour ce compte." : "None required — add any designed for this account."}
+                    </p>
+                  ) : null}
+
+                  <div className="mt-1.5 flex flex-col gap-2">
+                    {rowOsps.map((osp, i) => {
+                      const covered = row.cells.filter((c) => osp.assertions.includes(c.assertion));
+                      // the procedure answers a set of assertions, so it is bound
+                      // by the worst CRA among them; before any assertion is
+                      // ticked the account's own worst CRA holds the line
+                      const basis = worstTod(covered.map((c) => c.tod)) ?? row.worst;
+                      const ospLevel = basis ? levelOf(basis) : null;
+                      const ospAllowed = timingAllowed(ospLevel);
+                      const ospSignificant = covered.length > 0
+                        ? covered.some((c) => c.significant)
+                        : (row.worst?.endsWith("_sr") ?? false);
+                      return (
+                        <div key={osp.id} className="flex flex-col gap-1.5 rounded-[var(--radius-atlas-sm)] border border-line bg-surface-2 p-2" data-testid={`dsp-osp-${row.indexCode}-${osp.id}`}>
+                          <div className="flex items-center justify-between gap-2">
+                            <span className="text-[10.5px] font-extrabold uppercase tracking-[0.07em] text-muted">
+                              {fr ? `OSP ${i + 1}` : `OSP ${i + 1}`}
+                            </span>
+                            <button
+                              type="button"
+                              onClick={() => updateOsps(row.indexCode, (list) => list.filter((o) => o.id !== osp.id))}
+                              className="rounded px-1.5 py-0.5 text-[11px] font-semibold text-rose hover:bg-rose/10"
+                              data-testid={`dsp-osp-${row.indexCode}-${osp.id}-delete`}
+                            >
+                              {fr ? "Supprimer" : "Delete"}
+                            </button>
+                          </div>
+                          <label className="flex flex-col text-[10.5px] text-muted">
+                            {fr ? "Description (EN)" : "Description (EN)"}
+                            <textarea
+                              rows={2}
+                              spellCheck={false}
+                              defaultValue={osp.en}
+                              placeholder={fr ? "ex. Vouch each item above the SAD to the signed contract…" : "e.g. Vouch each item above the SAD to the signed contract…"}
+                              onBlur={(e) => { if (e.target.value !== osp.en) patchOsp(row.indexCode, osp.id, { en: e.target.value }); }}
+                              className={area}
+                              data-testid={`dsp-osp-${row.indexCode}-${osp.id}-en`}
+                            />
+                          </label>
+                          <label className="flex flex-col text-[10.5px] text-muted">
+                            {fr ? "Description (FR)" : "Description (FR)"}
+                            <textarea
+                              rows={2}
+                              spellCheck={false}
+                              defaultValue={osp.fr}
+                              placeholder={fr ? "ex. Justifier chaque élément supérieur au SAD par le contrat signé…" : "e.g. Justifier chaque élément supérieur au SAD par le contrat signé…"}
+                              onBlur={(e) => { if (e.target.value !== osp.fr) patchOsp(row.indexCode, osp.id, { fr: e.target.value }); }}
+                              className={area}
+                              data-testid={`dsp-osp-${row.indexCode}-${osp.id}-fr`}
+                            />
+                          </label>
+                          <span className="flex flex-wrap items-center gap-1.5 text-[11px] text-muted">
+                            {fr ? "Assertions couvertes :" : "Assertions answered:"}
+                            {row.cells.length === 0 ? (
+                              <span>{fr ? "aucune assertion clé sur ce compte" : "no key assertion on this account"}</span>
+                            ) : null}
+                            {row.cells.map((c) => {
+                              const on = osp.assertions.includes(c.assertion);
+                              return (
+                                <label key={c.assertion} className={`flex cursor-pointer items-center gap-1 rounded-full border px-2 py-0.5 text-[11px] ${on ? "border-emerald-600 bg-emerald-50 text-emerald-800 dark:bg-emerald-950/40 dark:text-emerald-300" : "border-line text-ink-soft"}`}>
+                                  <input
+                                    type="checkbox"
+                                    className="hidden"
+                                    checked={on}
+                                    onChange={() => patchOsp(row.indexCode, osp.id, {
+                                      assertions: on ? osp.assertions.filter((a) => a !== c.assertion) : [...osp.assertions, c.assertion],
+                                    })}
+                                    data-testid={`dsp-osp-${row.indexCode}-${osp.id}-assert-${c.assertion}`}
+                                  />
+                                  {c.assertion}
+                                </label>
+                              );
+                            })}
                           </span>
-                        ) : null}
-                        {ospAsserts.length > 0 ? (
+                          {covered.length > 0 ? (
+                            <span className="flex flex-wrap items-center gap-2 text-[11px] text-muted" data-testid={`dsp-osp-${row.indexCode}-${osp.id}-cra`}>
+                              {fr ? "ECR de ces assertions :" : "CRA of those assertions:"}
+                              {covered.map((c) => (
+                                <span key={c.assertion} className="inline-flex items-center gap-1">
+                                  <b className="text-ink">{c.assertion}</b>
+                                  <Chip tone={craTone(levelOf(c.tod))}>{todLabel(c.tod, fr ? "fr" : "en")}</Chip>
+                                </span>
+                              ))}
+                            </span>
+                          ) : null}
                           <span className="flex flex-wrap items-end gap-2.5">
                             <label className="flex flex-col text-[10.5px] text-muted">
                               {fr ? "Nature" : "Nature"}
                               <select
-                                value={v("osp_nature")}
-                                onChange={(e) => void save(row.indexCode, "osp_nature", e.target.value)}
+                                value={osp.nature}
+                                onChange={(e) => patchOsp(row.indexCode, osp.id, { nature: e.target.value })}
                                 className={select}
-                                data-testid={`dsp-osp-nature-${row.indexCode}`}
+                                data-testid={`dsp-osp-${row.indexCode}-${osp.id}-nature`}
                               >
                                 <option value="">{fr ? "— choisir" : "— choose"}</option>
                                 {NATURE_OPTIONS.map((o) => (
-                                  <option key={o.value} value={o.value}>{fr ? o.fr : o.en}</option>
+                                  <option key={o.value} value={o.value} disabled={o.value === "sap_led" && ospSignificant}>
+                                    {(fr ? o.fr : o.en) + (o.value === "sap_led" && ospSignificant ? (fr ? " — interdit (risque important)" : " — barred (significant risk)") : "")}
+                                  </option>
                                 ))}
                               </select>
                             </label>
                             <label className="flex flex-col text-[10.5px] text-muted">
                               {fr ? "Calendrier" : "Timing"}
                               <select
-                                value={v("osp_timing")}
-                                onChange={(e) => void save(row.indexCode, "osp_timing", e.target.value)}
+                                value={osp.timing}
+                                onChange={(e) => patchOsp(row.indexCode, osp.id, { timing: e.target.value })}
                                 className={select}
-                                data-testid={`dsp-osp-timing-${row.indexCode}`}
+                                title={ospLevel ? timingSuggestion(ospLevel, fr ? "fr" : "en") : undefined}
+                                data-testid={`dsp-osp-${row.indexCode}-${osp.id}-timing`}
                               >
                                 <option value="">{fr ? "— choisir" : "— choose"}</option>
                                 {TIMING_OPTIONS.map((o) => (
-                                  <option key={o.value} value={o.value}>{fr ? o.fr : o.en}</option>
+                                  <option key={o.value} value={o.value} disabled={!ospAllowed.includes(o.value)}>
+                                    {(fr ? o.fr : o.en) + (!ospAllowed.includes(o.value) ? (fr ? " — indisponible à cet ECR" : " — unavailable at this CRA") : "")}
+                                  </option>
                                 ))}
                               </select>
                             </label>
                             <label className="flex min-w-[220px] flex-1 flex-col text-[10.5px] text-muted">
                               {fr ? "Étendue" : "Extent"}
                               <input
-                                defaultValue={v("osp_extent")}
-                                placeholder={fr ? "ex. 100 % des éléments > SAD nominal…" : "e.g. 100% of items > SAD Nominal…"}
-                                onBlur={(e) => { if (e.target.value !== v("osp_extent")) void save(row.indexCode, "osp_extent", e.target.value); }}
+                                defaultValue={osp.extent}
+                                placeholder={ospLevel ? thresholdSuggestion(ospLevel, fr ? "fr" : "en") : (fr ? "ex. 100 % des éléments > SAD nominal…" : "e.g. 100% of items > SAD Nominal…")}
+                                onBlur={(e) => { if (e.target.value !== osp.extent) patchOsp(row.indexCode, osp.id, { extent: e.target.value }); }}
                                 className={select}
-                                data-testid={`dsp-osp-extent-${row.indexCode}`}
+                                data-testid={`dsp-osp-${row.indexCode}-${osp.id}-extent`}
                               />
                             </label>
                           </span>
-                        ) : null}
-                      </div>
-                    );
-                  })()}
-                  {row.ospRequired ? (
-                    <p className="mt-0.5 text-[10.5px] text-muted">
+                          {osp.nature === "sap_led" && ospSignificant ? (
+                            <p className="text-[10px] font-semibold text-amber-700 dark:text-amber-400">
+                              {fr
+                                ? "Les analytiques seules ne portent jamais un risque important (ISA 330 ¶21) — passer à un test de détail."
+                                : "Analytics alone never carry a significant risk (ISA 330 ¶21) — move to a test of details."}
+                            </p>
+                          ) : null}
+                        </div>
+                      );
+                    })}
+                  </div>
+
+                  {rowOsps.length > 0 ? (
+                    <p className="mt-1 text-[10.5px] text-muted">
                       {fr
-                        ? "Ajouter les OSP dans le papier E4 (« + Ajouter des procédures substantives ») — les analytiques seules ne portent jamais un risque important."
-                        : "Add the OSPs in the E4 workpaper (\"+ Add substantive procedures\") — analytics alone never carry a significant risk."}
+                        ? "Ces procédures sont générées dans le papier E4 avec les procédures primaires retenues — inutile de les ressaisir."
+                        : "These procedures are generated into the E4 paper alongside the selected primary ones — no need to retype them."}
                     </p>
                   ) : null}
                 </div>

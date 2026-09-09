@@ -27,6 +27,33 @@ export function TocBoard({
   const router = useRouter();
   const [error, setError] = useState<string | null>(null);
 
+  // The conclusion the user just chose, before the server round-trip lands.
+  // Without it the <select> is controlled straight off the server props, so
+  // React restores the previous option the moment the user picks a new one and
+  // the choice appears to be ignored until the refreshed page arrives.
+  const [chosen, setChosen] = useState<Record<string, string>>({});
+
+  // Whenever a fresh set of conclusions arrives from the server, drop the
+  // optimistic values it has caught up with, so a conclusion changed elsewhere
+  // (another tab, another member of the team) is never masked by a stale one.
+  // Adjusting state during render is React's own pattern for this; an effect
+  // would repaint the old value first.
+  const serverEvals = view.scots
+    .flatMap((s) => s.controls)
+    .map((c) => `${c.id}=${c.operatingEval ?? ""}`)
+    .join("|");
+  const [settledAt, setSettledAt] = useState(serverEvals);
+  if (settledAt !== serverEvals) {
+    setSettledAt(serverEvals);
+    const settled = new Map(
+      view.scots.flatMap((s) => s.controls).map((c) => [c.id, c.operatingEval ?? ""]),
+    );
+    const remaining = Object.fromEntries(
+      Object.entries(chosen).filter(([id, v]) => settled.get(id) !== v),
+    );
+    if (Object.keys(remaining).length !== Object.keys(chosen).length) setChosen(remaining);
+  }
+
   async function patch(controlId: string, body: Record<string, unknown>) {
     setError(null);
     const r = await fetch(`/api/engagements/${engagementId}/scots`, {
@@ -37,6 +64,13 @@ export function TocBoard({
     if (!r?.ok) { setError(fr ? "Échec de l'enregistrement." : "Save failed."); return false; }
     router.refresh();
     return true;
+  }
+
+  /** Show the new conclusion at once; put the old one back if the save fails. */
+  async function chooseEval(controlId: string, value: string, previous: string) {
+    setChosen((p) => ({ ...p, [controlId]: value }));
+    const ok = await patch(controlId, { operatingEval: value });
+    if (!ok) setChosen((p) => ({ ...p, [controlId]: previous }));
   }
 
   /** union of the assertions of the WCGWs a control answers */
@@ -81,7 +115,7 @@ export function TocBoard({
               <span className="ml-auto text-[11px] text-muted">
                 {fr ? "Contrôles testés" : "Controls tested"}: <b className="text-ink tnum">{tested.length}</b>
                 <span className="px-1.5 text-line-strong">·</span>
-                {fr ? "conclus" : "concluded"}: <b className="text-ink tnum">{tested.filter((c) => c.operatingEval).length}</b>
+                {fr ? "conclus" : "concluded"}: <b className="text-ink tnum">{tested.filter((c) => (chosen[c.id] ?? c.operatingEval ?? "") !== "").length}</b>
               </span>
             </div>
 
@@ -98,6 +132,7 @@ export function TocBoard({
                 <tbody>
                   {tested.map((c) => {
                     const asserts = assertionsOf(scot.id, c.wcgwIds);
+                    const evaluation = chosen[c.id] ?? c.operatingEval ?? "";
                     return (
                       <tr key={c.id} className="border-b border-line align-top" data-testid={`toc-control-${c.id}`}>
                         <td className={td}>
@@ -114,16 +149,16 @@ export function TocBoard({
                         </td>
                         <td className={td}>
                           <select
-                            value={c.operatingEval ?? ""}
-                            onChange={(e) => void patch(c.id, { operatingEval: e.target.value })}
-                            className={`${input} w-full font-semibold ${c.operatingEval === "effective" ? "text-emerald-700 dark:text-emerald-400" : c.operatingEval === "not_effective" ? "text-rose" : "text-muted"}`}
+                            value={evaluation}
+                            onChange={(e) => void chooseEval(c.id, e.target.value, evaluation)}
+                            className={`${input} w-full font-semibold ${evaluation === "effective" ? "text-emerald-700 dark:text-emerald-400" : evaluation === "not_effective" ? "text-rose" : "text-muted"}`}
                             data-testid={`toc-eval-${c.id}`}
                           >
-                            {c.operatingEval === null ? <option value="" disabled hidden /> : null}
+                            {evaluation === "" ? <option value="" disabled hidden /> : null}
                             <option value="effective">{fr ? "Efficace" : "Effective"}</option>
                             <option value="not_effective">{fr ? "Non efficace" : "Not effective"}</option>
                           </select>
-                          {c.operatingEval === "not_effective" ? (
+                          {evaluation === "not_effective" ? (
                             <span className="mt-0.5 block text-[10px] leading-snug text-amber-700 dark:text-amber-400">
                               {fr
                                 ? "S3.1 passé à « pas d'appui » pour les assertions couvertes."

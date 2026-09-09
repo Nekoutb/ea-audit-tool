@@ -735,6 +735,55 @@ export async function updateControl(
         [tenantId, controlId, CR_DEFICIENT_BASIS, userId],
       );
     }
+
+    // The same conclusion in reverse. Concluding a control effective after it
+    // had been concluded not effective has to lift the not-rely this function
+    // stamped, or S3.1 keeps a reliance decision the test result no longer
+    // supports. Three things keep it honest: only rows carrying the E1.2 basis
+    // are touched, so a not-rely reached on other grounds stands; where E1.2's
+    // reason was appended to another one, only E1.2's clause is removed and the
+    // row stays not-rely; and a pair is released only when no OTHER control
+    // answering it is still concluded not effective.
+    if (patch.operatingEval === "effective") {
+      await tx.query(
+        `UPDATE cra_assessment ca SET
+           cr = CASE WHEN coalesce(ca.cr_basis, '') = $3 THEN NULL ELSE ca.cr END,
+           cr_basis = CASE
+             WHEN coalesce(ca.cr_basis, '') = $3 THEN NULL
+             WHEN ca.cr_basis LIKE '% · ' || $3
+               THEN left(ca.cr_basis, length(ca.cr_basis) - length(' · ' || $3))
+             ELSE ca.cr_basis
+           END,
+           updated_by = $4,
+           updated_at = now()
+         WHERE ca.tenant_id = $1
+           AND ca.cr = 'not_rely'
+           AND coalesce(ca.cr_basis, '') LIKE '%' || $3 || '%'
+           AND (ca.engagement_id, ca.index_code, ca.assertion) IN (
+                 SELECT s.engagement_id, si.index_code, a.assertion
+                   FROM scot_control c
+                   JOIN scot s ON s.id = c.scot_id
+                   JOIN scot_index si ON si.scot_id = s.id
+                   JOIN wcgw_control wc ON wc.control_id = c.id
+                   JOIN wcgw w ON w.id = wc.wcgw_id
+                   CROSS JOIN LATERAL unnest(w.assertions) AS a(assertion)
+                  WHERE c.id = $2)
+           AND NOT EXISTS (
+                 SELECT 1
+                   FROM scot_control c2
+                   JOIN scot s2 ON s2.id = c2.scot_id
+                   JOIN scot_index si2 ON si2.scot_id = s2.id
+                   JOIN wcgw_control wc2 ON wc2.control_id = c2.id
+                   JOIN wcgw w2 ON w2.id = wc2.wcgw_id
+                   CROSS JOIN LATERAL unnest(w2.assertions) AS a2(assertion)
+                  WHERE c2.id <> $2
+                    AND c2.operating_eval = 'not_effective'
+                    AND s2.engagement_id = ca.engagement_id
+                    AND si2.index_code = ca.index_code
+                    AND a2.assertion = ca.assertion)`,
+        [tenantId, controlId, CR_DEFICIENT_BASIS, userId],
+      );
+    }
   });
 }
 

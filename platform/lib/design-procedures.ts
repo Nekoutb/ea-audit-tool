@@ -14,13 +14,102 @@ export const DSP_FIELDS = ["nature", "timing", "extent", "osp"] as const;
 export type DspField = (typeof DSP_FIELDS)[number];
 
 /**
+ * The nature and timing a procedure may be designed with. They live here, not
+ * in the board, because the same two sets bound the primary procedures on
+ * screen AND the custom ones on the way into storage — a drop-down the browser
+ * constrains is not a control until the server refuses the values it barred.
+ */
+export const NATURE_OPTIONS = [
+  { value: "combined", en: "SAPs + tests of details", fr: "Analytiques + tests de détail" },
+  { value: "tod_led", en: "Tests of details led", fr: "Tests de détail en priorité" },
+  { value: "sap_led", en: "Analytics led, data tested", fr: "Analytiques en priorité, données testées" },
+] as const;
+
+export const TIMING_OPTIONS = [
+  { value: "period_end", en: "At / near period end", fr: "À / près de la clôture" },
+  { value: "interim_3", en: "Interim ≤ 3 months + rollforward", fr: "Intercalaire ≤ 3 mois + liaison" },
+  { value: "interim_6", en: "Interim ≤ 6 months + rollforward", fr: "Intercalaire ≤ 6 mois + liaison" },
+] as const;
+
+/**
  * Storage keys: `<index>_<field>` for the account level (osp), and
  * `<index>_<assertion>_<field>` for the per-assertion design — procedures are
  * designed per relevant assertion against that assertion's CRA (ISA 330 ¶6–7).
  * `sel_<assertion>` holds the JSON array of catalog indices the preparer
  * selected for that assertion — only selected procedures reach the E4 paper.
+ * `osp_list` holds the JSON array of custom ("other") procedures the preparer
+ * wrote for the account, each one carrying the same parameters a library
+ * procedure carries.
  */
-const FIELD_KEY = /^(?:[CEAVP]_)?(nature|timing|extent|osp)$|^sel_[CEAVP]$/;
+const FIELD_KEY = /^(?:[CEAVP]_)?(nature|timing|extent|osp)$|^sel_[CEAVP]$|^osp_list$/;
+
+/** A custom substantive procedure: everything a library procedure has, written by hand. */
+export interface OspProcedure {
+  id: string;
+  en: string;
+  fr: string;
+  /** the assertions this procedure answers, a subset of C,E,A,V,P */
+  assertions: string[];
+  nature: string;
+  timing: string;
+  extent: string;
+}
+
+/** Caps on the stored `osp_list` — a design, not a document store. */
+const OSP_MAX = 20;
+const OSP_TEXT_MAX = 800;
+const OSP_EXTENT_MAX = 400;
+const OSP_ID = /^[A-Za-z0-9_-]{1,40}$/;
+const ASSERTIONS = ["C", "E", "A", "V", "P"];
+
+const NATURE_VALUES: string[] = NATURE_OPTIONS.map((o) => o.value);
+const TIMING_VALUES: string[] = TIMING_OPTIONS.map((o) => o.value);
+
+/**
+ * Read one custom procedure out of raw JSON, refusing anything the board could
+ * not have produced. Everything here reaches the E4 program and the archived
+ * file, so the values are pinned to the option sets rather than trusted.
+ */
+function readOsp(raw: unknown): OspProcedure {
+  if (typeof raw !== "object" || raw === null || Array.isArray(raw)) throw new Error("invalid-osp");
+  const o = raw as Record<string, unknown>;
+  const str = (v: unknown, max: number): string => {
+    if (typeof v !== "string" || v.length > max) throw new Error("invalid-osp");
+    return v;
+  };
+  const id = str(o.id, 40);
+  if (!OSP_ID.test(id)) throw new Error("invalid-osp");
+  if (!Array.isArray(o.assertions) || o.assertions.length > ASSERTIONS.length) throw new Error("invalid-osp");
+  const assertions = o.assertions.map((a) => {
+    if (typeof a !== "string" || !ASSERTIONS.includes(a)) throw new Error("invalid-osp");
+    return a;
+  });
+  const nature = str(o.nature ?? "", 40);
+  const timing = str(o.timing ?? "", 40);
+  if (nature !== "" && !NATURE_VALUES.includes(nature)) throw new Error("invalid-osp");
+  if (timing !== "" && !TIMING_VALUES.includes(timing)) throw new Error("invalid-osp");
+  return {
+    id,
+    en: str(o.en ?? "", OSP_TEXT_MAX),
+    fr: str(o.fr ?? "", OSP_TEXT_MAX),
+    assertions: [...new Set(assertions)],
+    nature,
+    timing,
+    extent: str(o.extent ?? "", OSP_EXTENT_MAX),
+  };
+}
+
+/** Parse and validate a stored `osp_list` value; throws `invalid-osp` on any violation. */
+export function parseOspList(value: string): OspProcedure[] {
+  let arr: unknown;
+  try {
+    arr = JSON.parse(value);
+  } catch {
+    throw new Error("invalid-osp");
+  }
+  if (!Array.isArray(arr) || arr.length > OSP_MAX) throw new Error("invalid-osp");
+  return arr.map(readOsp);
+}
 
 export interface DspRow {
   indexCode: string;
@@ -37,6 +126,8 @@ export interface DspRow {
   catalog: { i: number; en: string; fr: string; a: string[] }[];
   /** assertion → selected catalog positions (what E4 will generate) */
   selected: Record<string, number[]>;
+  /** the custom procedures written for this account (also generated into E4) */
+  osps: OspProcedure[];
   /** procedures already generated / completed in the E4 workpaper */
   generated: number;
   done: number;
@@ -52,6 +143,30 @@ export interface DspView {
 }
 
 const CODE = "dsp";
+
+/** The id carried by an answer that predates `osp_list`, so the board can show it. */
+const LEGACY_OSP_ID = "legacy";
+
+/**
+ * The account's custom procedures as the board should show them. Files answered
+ * before `osp_list` existed hold one free-text `osp` field: it is surfaced as a
+ * single procedure so no work disappears, and storage is left alone until the
+ * preparer edits — the first save from the board writes the whole list, which
+ * is where that legacy answer becomes a real record.
+ */
+function readOspList(values: Record<string, string>): OspProcedure[] {
+  const stored = values.osp_list;
+  if (stored) {
+    try {
+      return parseOspList(stored);
+    } catch {
+      return [];
+    }
+  }
+  const legacy = (values.osp ?? "").trim();
+  if (!legacy) return [];
+  return [{ id: LEGACY_OSP_ID, en: legacy, fr: legacy, assertions: [], nature: "", timing: "", extent: "" }];
+}
 
 export async function dspView(engagementId: string): Promise<DspView> {
   const { tenantId } = await requireTenant();
@@ -115,6 +230,7 @@ export async function dspView(engagementId: string): Promise<DspView> {
       pspCount: catalog.length,
       catalog,
       selected,
+      osps: readOspList(rowValues),
       generated: st?.total ?? 0,
       done: st?.done ?? 0,
       ospRequired: cells.some((c) => c.significant || c.notRely),
@@ -137,19 +253,45 @@ export async function s55ItemId(engagementId: string): Promise<string | null> {
   });
 }
 
-/** Whether S5.5 has recorded any procedure selection for the index. */
+/** A stored `osp_list` value that holds at least one procedure. */
+function hasOspProcedures(value: unknown): boolean {
+  try {
+    return parseOspList(typeof value === "string" ? value : String(value ?? "")).length > 0;
+  } catch {
+    return false;
+  }
+}
+
+/** Split a dsp field key into its index code and the design it records. */
+function keyKind(fieldKey: string): { indexCode: string; kind: "sel" | "osp_list" } | null {
+  if (fieldKey.endsWith("_osp_list")) return { indexCode: fieldKey.slice(0, -"_osp_list".length), kind: "osp_list" };
+  const cut = fieldKey.indexOf("_sel_");
+  if (cut > 0) return { indexCode: fieldKey.slice(0, cut), kind: "sel" };
+  return null;
+}
+
+/**
+ * Whether S5.5 has recorded any procedure selection for the index. Custom
+ * procedures are a design in their own right: an account answered only with
+ * hand-written procedures counts, or the E4 paper would keep asking for a
+ * design that is already there.
+ */
 export async function dspHasSelection(engagementId: string, indexCode: string): Promise<boolean> {
   const { tenantId } = await requireTenant();
   return withTenant(tenantId, async (tx) => {
-    const r = await tx.query(
-      "SELECT 1 FROM form_response WHERE engagement_id = $1 AND code = 'dsp' AND field_key LIKE $2 LIMIT 1",
-      [engagementId, `${indexCode}\\_sel\\_%`],
+    const r = await tx.query<{ field_key: string; value: unknown }>(
+      "SELECT field_key, value FROM form_response WHERE engagement_id = $1 AND code = $2",
+      [engagementId, CODE],
     );
-    return r.rows.length > 0;
+    return r.rows.some((row) => {
+      const k = keyKind(row.field_key);
+      if (!k || k.indexCode !== indexCode) return false;
+      return k.kind === "sel" || hasOspProcedures(row.value);
+    });
   });
 }
 
-/** Persist one design field — account-level (`osp`) or per-assertion (`E_nature`). */
+/** Persist one design field — account-level (`osp_list`) or per-assertion (`E_nature`). */
 export async function saveDsp(engagementId: string, indexCode: string, field: string, value: string): Promise<void> {
   if (!FIELD_KEY.test(field)) throw new Error("invalid-field");
   if (!/^[A-Z][A-Z0-9]{0,2}$/.test(indexCode)) throw new Error("invalid-index");
@@ -164,6 +306,7 @@ export async function saveDsp(engagementId: string, indexCode: string, field: st
       throw new Error("invalid-selection");
     }
   }
+  if (field === "osp_list") parseOspList(value);
   const { tenantId, userId } = await requireTenant();
   await withTenant(tenantId, async (tx) => {
     await tx.query(
@@ -177,21 +320,25 @@ export async function saveDsp(engagementId: string, indexCode: string, field: st
   });
 }
 
-/** Index codes with at least one procedure selected in the S5.5 design. */
+/** Index codes with at least one procedure — library or custom — in the S5.5 design. */
 export async function dspDesignedIndexes(engagementId: string): Promise<Set<string>> {
   const { tenantId } = await requireTenant();
   return withTenant(tenantId, async (tx) => {
     const r = await tx.query<{ field_key: string; value: unknown }>(
-      `SELECT field_key, value FROM form_response
-        WHERE engagement_id = $1 AND code = $2 AND field_key LIKE '%\_sel\_%'`,
+      "SELECT field_key, value FROM form_response WHERE engagement_id = $1 AND code = $2",
       [engagementId, CODE],
     );
     const out = new Set<string>();
     for (const row of r.rows) {
-      const idx = row.field_key.split("_sel_")[0];
+      const k = keyKind(row.field_key);
+      if (!k) continue;
+      if (k.kind === "osp_list") {
+        if (hasOspProcedures(row.value)) out.add(k.indexCode);
+        continue;
+      }
       try {
         const arr = JSON.parse(typeof row.value === "string" ? row.value : String(row.value ?? "[]"));
-        if (Array.isArray(arr) && arr.length > 0) out.add(idx);
+        if (Array.isArray(arr) && arr.length > 0) out.add(k.indexCode);
       } catch { /* unreadable — not designed */ }
     }
     return out;
@@ -205,7 +352,10 @@ export async function dspDesignedIndexes(engagementId: string): Promise<Set<stri
  */
 export async function dspDesignGaps(engagementId: string): Promise<string[]> {
   const view = await dspView(engagementId);
-  return view.rows
-    .filter((row) => row.cells.length > 0 && !Object.values(row.selected).some((arr) => arr.length > 0))
-    .map((row) => row.indexCode);
+  return view.rows.filter((row) => row.cells.length > 0 && !rowIsDesigned(row)).map((row) => row.indexCode);
+}
+
+/** A row is designed once it carries a library selection or a custom procedure. */
+export function rowIsDesigned(row: Pick<DspRow, "selected" | "osps">): boolean {
+  return Object.values(row.selected).some((arr) => arr.length > 0) || row.osps.length > 0;
 }

@@ -99,7 +99,7 @@ export const DEFAULT_FILE_INDEX: readonly FileIndexEntry[] = [
   { code: "S3.1", section: "D", titleEn: "Make Combined Risk Assessments (Risk Register)", titleFr: "Établir l'évaluation combinée des risques (registre des risques)" },
 
   // E — Execution: default audit cycles (E4.1…) then standard cross-cutting
-  // sections with pre-built programs (E4.15–E6.7).
+  // sections with pre-built programs (E6.1–E6.9).
   // One account working paper per lead index — the task IS the index.
   { code: "E4.1", section: "E", titleEn: "Trade Receivables (E)", titleFr: "Créances clients (E)" },
   { code: "E4.2", section: "E", titleEn: "Trade Payables (N)", titleFr: "Dettes fournisseurs (N)" },
@@ -146,16 +146,29 @@ export const DEFAULT_FILE_INDEX: readonly FileIndexEntry[] = [
   { code: "E6.5", section: "E", titleEn: "Opening Balances & Comparatives (ISA 510/710)", titleFr: "Soldes d'ouverture et chiffres comparatifs (ISA 510/710)" },
   { code: "E6.6", section: "E", titleEn: "Subsequent Events (ISA 560)", titleFr: "Événements postérieurs à la clôture (ISA 560)" },
   { code: "E6.7", section: "E", titleEn: "Accounting Estimates (ISA 540)", titleFr: "Estimations comptables (ISA 540)" },
+  // ISA 501 ¶9–12 has always been performed on this file — the paper existed
+  // from the start — but it had no index entry of its own and was reached
+  // through the tax payables task by mistake. It gets its own code here.
+  { code: "E6.9", section: "E", titleEn: "Litigation & Claims (ISA 501)", titleFr: "Litiges et réclamations (ISA 501)" },
   // E2 (IT) group of the ST/E/C hierarchy — general and application IT controls.
   { code: "E1.1", section: "E", titleEn: "ITGC Testing", titleFr: "Tests des contrôles généraux informatiques" },
   { code: "E1.2", section: "E", titleEn: "Test Controls over Significant Classes of Transactions", titleFr: "Tests des contrôles sur les flux significatifs (SCOT)" },
 
-  // P&L lead schedules — the class 6/7 groupings of the audit file.
-  { code: "E5.1", section: "E", titleEn: "Operating Expenditures", titleFr: "Charges opérationnelles" },
-  { code: "E5.2", section: "E", titleEn: "Administrative Expenditures", titleFr: "Charges administratives" },
-  { code: "E5.3", section: "E", titleEn: "Other Expenses", titleFr: "Autres charges" },
-  { code: "E5.4", section: "E", titleEn: "Finance Cost", titleFr: "Charges financières" },
-  { code: "E5.5", section: "E", titleEn: "Other Income", titleFr: "Autres produits" },
+  // P&L lead schedules — the class 6/7 groupings of the audit file, from before
+  // the file was rebuilt on the SYSCOHADA lead codes. Every one of them is now
+  // covered by a properly coded account paper: other income by E4.21 (UB2),
+  // other expenses by E4.31 (VD4), finance cost by E4.32 (VD5), and the two
+  // expenditure schedules across purchases E4.24 (VA1) and external services
+  // E4.28 (VD1). They are therefore conditional: out of the phase count and the
+  // ordinary task list, but still offered on the phase screen, because
+  // engagements already carry them with their documents, sign-offs, time
+  // entries, attachments and review notes, and deleting a row would take that
+  // evidence with it. 20260909000003 retires them on existing engagements.
+  { code: "E5.1", section: "E", titleEn: "Operating Expenditures", titleFr: "Charges opérationnelles", conditional: true },
+  { code: "E5.2", section: "E", titleEn: "Administrative Expenditures", titleFr: "Charges administratives", conditional: true },
+  { code: "E5.3", section: "E", titleEn: "Other Expenses", titleFr: "Autres charges", conditional: true },
+  { code: "E5.4", section: "E", titleEn: "Finance Cost", titleFr: "Charges financières", conditional: true },
+  { code: "E5.5", section: "E", titleEn: "Other Income", titleFr: "Autres produits", conditional: true },
   { code: "E2.1", section: "E", titleEn: "Update Tests of Controls and ITGCs (post-interim)", titleFr: "Mettre à jour les tests de contrôles et des ITGC (post-intérim)" },
 
   // F — OHADA statutory section
@@ -272,6 +285,7 @@ const SHORT_TITLES: Record<string, { en: string; fr: string }> = {
   "E6.5": { en: "Opening Balances (ISA 510/710)", fr: "Soldes d'ouverture (ISA 510/710)" },
   "E6.6": { en: "Subsequent Events (ISA 560)", fr: "Événements postérieurs (ISA 560)" },
   "E6.7": { en: "Accounting Estimates (ISA 540)", fr: "Estimations comptables (ISA 540)" },
+  "E6.9": { en: "Litigation & Claims (ISA 501)", fr: "Litiges et réclamations (ISA 501)" },
   "E1.1": { en: "ITGC Testing", fr: "Contrôles généraux informatiques" },
   "E1.2": { en: "Test Controls over SCOTs", fr: "Tests des contrôles (SCOT)" },
   "E2.1": { en: "Update ToC & ITGCs (post-interim)", fr: "MAJ tests de contrôles & ITGC" },
@@ -311,7 +325,10 @@ const CORE_CODES = new Set([
   // whole D3 family is core. P1.2 stays conditional (initial engagements only).
   "S6.1", "P1.1", "P2.1", "P1.3", "P1.2", "P1.4", "P1.5",
   "S6.2", "P3.1", "P3.2", "P6.1", "P5.1", "S4.2", "P5.2", "S3.1",
-  "E4.1", "E4.2", "E4.3", "E4.8", "E4.9", "E6.3", "E6.4", "E6.5", "E6.6",
+  // ISA 501 ¶9 asks for litigation and claims procedures on every audit, with no
+  // relief for a simple entity, so E6.9 is core alongside going concern and
+  // subsequent events.
+  "E4.1", "E4.2", "E4.3", "E4.8", "E4.9", "E6.3", "E6.4", "E6.5", "E6.6", "E6.9",
   "C5.2",
 ]);
 

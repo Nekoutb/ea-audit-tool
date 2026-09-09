@@ -22,10 +22,12 @@ import path from "node:path";
 import { withTenant } from "@/lib/db";
 import { ArchivedError, assertMutable } from "@/lib/mutability";
 import { requireTenant } from "@/lib/tenant";
+import { blankItgcTemplate, buildItgcWorkbook } from "@/lib/itgc-workbook";
+import { blankJeTemplate, buildJeWorkbook } from "@/lib/je-workbook";
 import { blankTocTemplate, buildTocWorkbook } from "@/lib/toc-workbook";
 
 /** The subsections of the methodology a standard paper belongs to. */
-export type TemplateCategory = "test-of-controls" | "substantive";
+export type TemplateCategory = "test-of-controls" | "substantive" | "general-procedures";
 
 export const TEMPLATE_CATEGORIES: readonly {
   category: TemplateCategory;
@@ -34,6 +36,11 @@ export const TEMPLATE_CATEGORIES: readonly {
 }[] = [
   { category: "test-of-controls", titleEn: "Tests of controls", titleFr: "Tests des contrôles" },
   { category: "substantive", titleEn: "Substantive procedures", titleFr: "Procédures de substance" },
+  {
+    category: "general-procedures",
+    titleEn: "General audit procedures",
+    titleFr: "Procédures générales d'audit",
+  },
 ] as const;
 
 export interface WpTemplate {
@@ -71,6 +78,18 @@ export const TEMPLATES: readonly WpTemplate[] = [
     descriptionFr:
       "Page de garde saisie une seule fois, onglet IPE pour l'exhaustivité et l'exactitude des données testées, un papier de travail par contrôle avec sa grille d'attributs, et le registre des exceptions.",
     defaultFor: ["E1.2"],
+  },
+  {
+    key: "itgc-e11",
+    category: "test-of-controls",
+    name: "E1.1 ITGC Testing.xlsx",
+    titleEn: "Tests of the general IT controls",
+    titleFr: "Tests des contrôles généraux informatiques",
+    descriptionEn:
+      "The applications the audit depends on, a tab for each IT process — change, access, operations and support — with the controls tested and their attributes, and the deficiency diagnostic with the response taken to each.",
+    descriptionFr:
+      "Les applications dont l'audit dépend, un onglet par processus informatique — changements, accès, exploitation et support — avec les contrôles testés et leurs attributs, et le diagnostic des déficiences avec la réponse apportée à chacune.",
+    defaultFor: ["E1.1"],
   },
   {
     key: "sub-trade-receivables",
@@ -120,6 +139,18 @@ export const TEMPLATES: readonly WpTemplate[] = [
     defaultFor: ["E4.4"],
     file: "K_Fixed Assets.xlsx",
   },
+  {
+    key: "je-testing",
+    category: "general-procedures",
+    name: "E3.1 Journal Entries.xlsx",
+    titleEn: "Tests of journal entries and other adjustments",
+    titleFr: "Tests des écritures comptables et autres ajustements",
+    descriptionEn:
+      "The entry population and the work done to establish it, the risk-directed criteria applied and what each matched, the items selected with the reason for each, and the exceptions register.",
+    descriptionFr:
+      "La population des écritures et les travaux qui l'établissent, les critères orientés par le risque appliqués et ce que chacun a relevé, les éléments sélectionnés avec leur motif, et le registre des exceptions.",
+    defaultFor: ["E3.1"],
+  },
 ] as const;
 
 export function findTemplate(key: string): WpTemplate | undefined {
@@ -136,6 +167,16 @@ export function listTemplates(): WpTemplate[] {
   return [...TEMPLATES];
 }
 
+/**
+ * The papers the product builds rather than ships. Keyed so adding one is an
+ * entry here and an entry in TEMPLATES, not another branch to read past.
+ */
+const GENERATED: Record<string, () => Promise<Buffer>> = {
+  "toc-scot": () => buildTocWorkbook(blankTocTemplate()),
+  "itgc-e11": () => buildItgcWorkbook(blankItgcTemplate()),
+  "je-testing": () => buildJeWorkbook(blankJeTemplate()),
+};
+
 /** Static template bytes, read once per process — the shipped files never change. */
 const CACHE = new Map<string, Buffer>();
 
@@ -151,9 +192,8 @@ export async function templateContent(
   if (!template) return null;
 
   if (!template.file) {
-    if (template.key === "toc-scot") {
-      return { name: template.name, mime: XLSX_MIME, content: await buildTocWorkbook(blankTocTemplate()) };
-    }
+    const build = GENERATED[template.key];
+    if (build) return { name: template.name, mime: XLSX_MIME, content: await build() };
     return null;
   }
 
