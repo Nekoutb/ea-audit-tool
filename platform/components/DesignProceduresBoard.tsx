@@ -12,7 +12,8 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { NATURE_OPTIONS, TIMING_OPTIONS, type DspRow, type DspView, type OspProcedure } from "@/lib/design-procedures";
+import { NATURE_OPTIONS, TIMING_OPTIONS, type OspProcedure } from "@/lib/design-procedures-model";
+import type { DspRow, DspView } from "@/lib/design-procedures";
 import { craTone, thresholdSuggestion, timingSuggestion, todLabel, worstTod, type CraLevel, type CraTod } from "@/lib/cra-model";
 import { Chip } from "@/components/ui/atlas";
 

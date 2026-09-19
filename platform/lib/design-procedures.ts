@@ -9,27 +9,27 @@ import { requireTenant } from "@/lib/tenant";
 import { craBoard, rowWorstTod, type CraAccountRow } from "@/lib/cra";
 import { craOf, toTod, type CraTod } from "@/lib/cra-model";
 import { pspFor } from "@/lib/psp";
+import {
+  ASSERTIONS,
+  NATURE_VALUES,
+  OSP_EXTENT_MAX,
+  OSP_ID,
+  OSP_MAX,
+  OSP_TEXT_MAX,
+  TIMING_VALUES,
+  type OspProcedure,
+} from "@/lib/design-procedures-model";
+
+// Re-exported so the server side of S5.5 still has one module to import from.
+export {
+  NATURE_OPTIONS,
+  TIMING_OPTIONS,
+  type OspProcedure,
+} from "@/lib/design-procedures-model";
 
 export const DSP_FIELDS = ["nature", "timing", "extent", "osp"] as const;
 export type DspField = (typeof DSP_FIELDS)[number];
 
-/**
- * The nature and timing a procedure may be designed with. They live here, not
- * in the board, because the same two sets bound the primary procedures on
- * screen AND the custom ones on the way into storage — a drop-down the browser
- * constrains is not a control until the server refuses the values it barred.
- */
-export const NATURE_OPTIONS = [
-  { value: "combined", en: "SAPs + tests of details", fr: "Analytiques + tests de détail" },
-  { value: "tod_led", en: "Tests of details led", fr: "Tests de détail en priorité" },
-  { value: "sap_led", en: "Analytics led, data tested", fr: "Analytiques en priorité, données testées" },
-] as const;
-
-export const TIMING_OPTIONS = [
-  { value: "period_end", en: "At / near period end", fr: "À / près de la clôture" },
-  { value: "interim_3", en: "Interim ≤ 3 months + rollforward", fr: "Intercalaire ≤ 3 mois + liaison" },
-  { value: "interim_6", en: "Interim ≤ 6 months + rollforward", fr: "Intercalaire ≤ 6 mois + liaison" },
-] as const;
 
 /**
  * Storage keys: `<index>_<field>` for the account level (osp), and
@@ -43,27 +43,6 @@ export const TIMING_OPTIONS = [
  */
 const FIELD_KEY = /^(?:[CEAVP]_)?(nature|timing|extent|osp)$|^sel_[CEAVP]$|^osp_list$/;
 
-/** A custom substantive procedure: everything a library procedure has, written by hand. */
-export interface OspProcedure {
-  id: string;
-  en: string;
-  fr: string;
-  /** the assertions this procedure answers, a subset of C,E,A,V,P */
-  assertions: string[];
-  nature: string;
-  timing: string;
-  extent: string;
-}
-
-/** Caps on the stored `osp_list` — a design, not a document store. */
-const OSP_MAX = 20;
-const OSP_TEXT_MAX = 800;
-const OSP_EXTENT_MAX = 400;
-const OSP_ID = /^[A-Za-z0-9_-]{1,40}$/;
-const ASSERTIONS = ["C", "E", "A", "V", "P"];
-
-const NATURE_VALUES: string[] = NATURE_OPTIONS.map((o) => o.value);
-const TIMING_VALUES: string[] = TIMING_OPTIONS.map((o) => o.value);
 
 /**
  * Read one custom procedure out of raw JSON, refusing anything the board could
