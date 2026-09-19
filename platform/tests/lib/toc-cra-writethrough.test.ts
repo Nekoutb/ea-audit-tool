@@ -111,3 +111,64 @@ describe("E1.2 conclusion writes through to S3.1", () => {
     expect(r.rows[0].cr_basis).toContain("E1.2");
   });
 });
+
+// The same conclusion in reverse. Concluding a control effective again has to
+// lift the not-rely E1.2 stamped, or S3.1 keeps a reliance decision the test
+// result no longer supports — and the auditor has no way to correct it from the
+// screen where the mistake was made.
+describe("concluding a control effective again lifts what E1.2 stamped", () => {
+  it("clears its own stamp, and strips only its clause from a shared basis", async () => {
+    // Carried over from the block above: 'E' holds the E1.2 reason alone, 'A'
+    // holds a reason somebody reached themselves with E1.2's appended to it.
+    await updateControl(controlId, { operatingEval: "effective" });
+
+    const alone = await admin.query<{ cr: string | null; cr_basis: string | null }>(
+      "SELECT cr, cr_basis FROM cra_assessment WHERE engagement_id = $1 AND assertion = 'E'",
+      [engagementId],
+    );
+    expect(alone.rows[0].cr).toBeNull();
+    expect(alone.rows[0].cr_basis).toBeNull();
+
+    const shared = await admin.query<{ cr: string; cr_basis: string }>(
+      "SELECT cr, cr_basis FROM cra_assessment WHERE engagement_id = $1 AND assertion = 'A'",
+      [engagementId],
+    );
+    expect(shared.rows[0].cr).toBe("not_rely");
+    expect(shared.rows[0].cr_basis).toBe("Walkthrough supported reliance");
+    expect(shared.rows[0].cr_basis).not.toContain("E1.2");
+  });
+
+  it("will not release an assertion another failing control still covers", async () => {
+    const scot = await admin.query<{ scot_id: string }>(
+      "SELECT scot_id FROM scot_control WHERE id = $1",
+      [controlId],
+    );
+    const wcgw = await admin.query<{ wcgw_id: string }>(
+      "SELECT wcgw_id FROM wcgw_control WHERE control_id = $1",
+      [controlId],
+    );
+    const second = await admin.query<{ id: string }>(
+      `INSERT INTO scot_control (tenant_id, scot_id, name, control_type, frequency, objective, selected_for_testing)
+       VALUES ($1, $2, 'Credit limit check', 'manual', 'daily', 'prevent', true) RETURNING id`,
+      [TENANT, scot.rows[0].scot_id],
+    );
+    await admin.query("INSERT INTO wcgw_control (tenant_id, wcgw_id, control_id) VALUES ($1, $2, $3)", [
+      TENANT,
+      wcgw.rows[0].wcgw_id,
+      second.rows[0].id,
+    ]);
+
+    await updateControl(controlId, { operatingEval: "not_effective" });
+    await updateControl(second.rows[0].id, { operatingEval: "not_effective" });
+    // One of the two is put right; the other still fails, so the assertions
+    // they share cannot go back to being relied upon.
+    await updateControl(controlId, { operatingEval: "effective" });
+
+    const r = await admin.query<{ cr: string; cr_basis: string }>(
+      "SELECT cr, cr_basis FROM cra_assessment WHERE engagement_id = $1 AND assertion = 'E'",
+      [engagementId],
+    );
+    expect(r.rows[0].cr).toBe("not_rely");
+    expect(r.rows[0].cr_basis).toBe(CR_DEFICIENT_BASIS);
+  });
+});

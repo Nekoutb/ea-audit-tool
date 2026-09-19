@@ -10,12 +10,18 @@ const T1 = "b8b8b8b8-b8b8-4b8b-8b8b-b8b8b8b8b801"; // deletable firm
 const T2 = "b8b8b8b8-b8b8-4b8b-8b8b-b8b8b8b8b802"; // survivor firm
 const U_ONLY = "b8b8b8b8-b8b8-4b8b-8b8b-b8b8b8b8b811"; // member of T1 only
 const U_BOTH = "b8b8b8b8-b8b8-4b8b-8b8b-b8b8b8b8b812"; // member of T1 and T2
+const T_PROT = "b8b8b8b8-b8b8-4b8b-8b8b-b8b8b8b8b820"; // protected firm
 
 const admin = new pg.Pool({ connectionString: process.env.DATABASE_URL });
 const app = new pg.Pool({ connectionString: process.env.APP_DATABASE_URL });
 
 async function removeFixture(): Promise<void> {
-  await admin.query("DELETE FROM tenant WHERE id = ANY($1)", [[T1, T2]]);
+  // The protected firm is cleared first and unprotected on the way: a run that
+  // stopped between creating it and the two lines that take the flag off again
+  // leaves a row nothing can delete, and every later run of this file then
+  // fails on the duplicate key rather than on anything it meant to test.
+  await admin.query("UPDATE tenant SET protected = false WHERE id = $1", [T_PROT]);
+  await admin.query("DELETE FROM tenant WHERE id = ANY($1)", [[T1, T2, T_PROT]]);
   await admin.query("DELETE FROM app_user WHERE id = ANY($1)", [[U_ONLY, U_BOTH]]);
 }
 
@@ -101,7 +107,7 @@ describe("admin_delete_firm", () => {
   });
 
   it("a protected tenant is undeletable by the function AND by raw owner SQL", async () => {
-    const P = "b8b8b8b8-b8b8-4b8b-8b8b-b8b8b8b8b820";
+    const P = T_PROT;
     await admin.query("INSERT INTO tenant (id, name, slug, protected) VALUES ($1, 'Operator Home', 'op-home-test', true)", [P]);
     await expect(app.query("SELECT admin_delete_firm($1)", [P])).rejects.toThrow("firm-protected");
     await expect(admin.query("DELETE FROM tenant WHERE id = $1", [P])).rejects.toThrow("firm-protected");
