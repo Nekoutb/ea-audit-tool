@@ -647,6 +647,10 @@ export default async function SectionPage(props: {
             embedTitle={
               section.code === "S1.1"
                 ? fr ? "Registre des SCOT" : "SCOT register"
+                : section.code === "C6.1"
+                  ? fr ? "Portes d'archivage et points ouverts" : "Archive gates and open items"
+                  : section.code === "C6.2"
+                    ? fr ? "Portes d'archivage et archivage" : "Archive gates and the archive"
                 : section.code === "S1.3"
                   ? fr ? "Cheminements par SCOT" : "Walkthroughs by SCOT"
                   : section.code === "S1.4"

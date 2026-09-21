@@ -315,8 +315,8 @@ export const JOURNAL_ENTRIES_PAPER: PaperDef = {
         {
           key: "carried",
           kind: "input",
-          labelEn: "Matters carried to C1.2 significant matters, or to C6.1 points forward, including any effect on the reliability of management's representations",
-          labelFr: "Points reportés en C1.2 (points significatifs) ou en C6.1 (points reportés), y compris l'incidence sur la fiabilité des déclarations de la direction",
+          labelEn: "Matters carried to C1.2 significant matters, or to the points forward on the Conclusion screen, including any effect on the reliability of management's representations",
+          labelFr: "Points reportés en C1.2 (points significatifs) ou en points reportés (écran Conclusion), y compris l'incidence sur la fiabilité des déclarations de la direction",
         },
       ],
     },

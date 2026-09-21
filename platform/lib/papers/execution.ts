@@ -72,7 +72,7 @@ function mk(args: {
         titleFr: "Partie C — Résultat",
         fields: [
           { key: "exceptions", kind: "input", labelEn: "Exceptions identified, the misstatement raised in C1.1 for each, and how each was resolved", labelFr: "Exceptions relevées, anomalie portée en C1.1 pour chacune, et leur résolution" },
-          { key: "carried", kind: "input", labelEn: "Matters carried to C1.2 significant matters, or to C6.1 points forward", labelFr: "Points reportés en C1.2 (points significatifs) ou en C6.1 (points reportés)" },
+          { key: "carried", kind: "input", labelEn: "Matters carried to C1.2 significant matters, or to the points forward on the Conclusion screen", labelFr: "Points reportés en C1.2 (points significatifs) ou en points reportés (écran Conclusion)" },
         ],
       },
     ],

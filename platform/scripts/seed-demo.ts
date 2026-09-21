@@ -14,8 +14,15 @@ async function main() {
   const c = new pg.Client({ connectionString });
   await c.connect();
 
-  const tenant = (await c.query<{ id: string }>("SELECT id FROM tenant ORDER BY created_at LIMIT 1")).rows[0];
-  if (!tenant) throw new Error("No tenant — run npm run seed:dev first.");
+  // DEMO_TENANT_SLUG picks the firm the demo file lands in; without it the
+  // oldest tenant is used, as before.
+  const slug = process.env.DEMO_TENANT_SLUG;
+  const tenant = (
+    slug
+      ? await c.query<{ id: string }>("SELECT id FROM tenant WHERE slug = $1", [slug])
+      : await c.query<{ id: string }>("SELECT id FROM tenant ORDER BY created_at LIMIT 1")
+  ).rows[0];
+  if (!tenant) throw new Error(slug ? `No tenant with slug ${slug}.` : "No tenant — run npm run seed:dev first.");
   const user = (
     await c.query<{ user_id: string }>(
       "SELECT user_id FROM membership WHERE tenant_id = $1 AND role <> 'client_user' LIMIT 1",

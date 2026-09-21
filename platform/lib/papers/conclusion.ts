@@ -73,7 +73,7 @@ function mk(args: {
       titleEn: "Part C — Outcome",
       titleFr: "Partie C — Résultat",
       fields: [
-        { key: "matters", kind: "input", labelEn: "Matters arising, and where each is carried: C1.2 significant matters, C1.1 misstatements, or C6.1 points forward", labelFr: "Points relevés et leur report : C1.2 points significatifs, C1.1 anomalies, ou C6.1 points reportés" },
+        { key: "matters", kind: "input", labelEn: "Matters arising, and where each is carried: C1.2 significant matters, C1.1 misstatements, or the points forward on the Conclusion screen", labelFr: "Points relevés et leur report : C1.2 points significatifs, C1.1 anomalies, ou points reportés sur l'écran Conclusion" },
         { key: "effect", kind: "input", labelEn: "Effect on the auditor's report, if any", labelFr: "Incidence éventuelle sur le rapport de l'auditeur" },
       ],
     });

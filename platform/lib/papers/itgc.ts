@@ -360,8 +360,8 @@ export const E1_1_ITGC: PaperDef = {
         {
           key: "carried",
           kind: "input",
-          labelEn: "Matters carried to C1.2 significant matters, or to C6.1 points forward",
-          labelFr: "Points reportés en C1.2 (points significatifs) ou en C6.1 (points reportés)",
+          labelEn: "Matters carried to C1.2 significant matters, or to the points forward on the Conclusion screen",
+          labelFr: "Points reportés en C1.2 (points significatifs) ou en points reportés (écran Conclusion)",
         },
       ],
     },
