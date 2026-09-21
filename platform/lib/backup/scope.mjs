@@ -41,8 +41,17 @@ export const BY_MEMBERSHIP = {
 /** The firm itself. */
 export const TENANT_ROW = { tenant: { predicate: (tenant) => (a) => `${a}."id" = ${tenant}` } };
 
-/** Global reference data with no owner. Small, and a restore into a fresh cluster needs it. */
-export const REFERENCE = ["syscohada_grouping_rule"];
+/**
+ * Global reference data with no owner. Small, and a restore into a fresh cluster needs it.
+ *
+ * `public_holiday` is the national calendar the journal-entry selection reads to
+ * pick out entries posted on a public holiday. It belongs to nobody, so there is
+ * no tenant to scope it by, and a restore without it would leave that criterion
+ * matching nothing while still reporting itself as applied — the worst way for a
+ * test to be wrong. A firm's own dates are separate: `firm_holiday` carries a
+ * tenant_id and travels with the firm.
+ */
+export const REFERENCE = ["syscohada_grouping_rule", "public_holiday"];
 
 /** Deliberately not backed up, with the reason. */
 export const NOT_BACKED_UP = {
