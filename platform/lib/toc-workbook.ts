@@ -128,21 +128,23 @@ export function blankTocTemplate(): TocView {
     preparer: null,
     reviewer: null,
     partner: null,
-    controls: [
-      {
-        ref: "C-1",
+    // Empty of client data, but not empty of paper: three blocks to fill with
+    // four attribute slots apiece, so the grid can be worked in as it stands.
+    // Nothing here asserts that any control exists.
+    controls: [1, 2, 3].map((n) => ({
+        ref: `C-${n}`,
         scot: "",
         wcgws: [],
         assertions: [],
         name: "",
         description: null,
         owner: null,
-        controlType: "manual",
+        controlType: "manual" as const,
         frequency: null,
         population: null,
         soleControl: false,
         itgcEffective: false,
-        attributes: [],
+        attributes: ["", "", "", ""],
         rows: Array.from({ length: 25 }, () => ({
           ref: "", date: "", desc: "", results: {} as TocGridRow["results"],
         })),
@@ -150,8 +152,7 @@ export function blankTocTemplate(): TocView {
         testDesign: null,
         rotation: null,
         ipe: [],
-      },
-    ],
+      })),
     exceptions: [],
   };
 }
@@ -293,6 +294,8 @@ const NA = "n/a";
  *  use are grouped and collapsed, so Excel draws its own clickable "+" above
  *  them; expanding brings the next attribute column into view. */
 const MAX_ATTRS = 10;
+/** Attribute slots an unfilled block offers, so the Result formula has a real span. */
+const BLANK_ATTRS = 4;
 
 const fill = (cell: ExcelJS.Cell, argb: string) => {
   cell.fill = { type: "pattern", pattern: "solid", fgColor: { argb } };
@@ -693,7 +696,8 @@ export async function buildTocWorkbook(view: TocView): Promise<Buffer> {
   const legend = tests.addRow([
     `Legend:  ${TICK} attribute present   ${CROSS} attribute absent — the row is a deviation   ${NA} not applicable to this item.`
     + `   Pick from the drop-down in each attribute cell; Result is a formula — Fail if any attribute is ${CROSS}, blank until every attribute is answered.`
-    + `   To add an attribute: click the + above the attribute columns to reveal the next one, then describe it in the block's attribute list.`,
+    + `   To add an attribute: click the + above the attribute columns to reveal the next one, describe it in the block's attribute list,`
+    + ` and extend the Result formula to cover its column — Result spans only the attribute columns it was written for.`,
   ]);
   tests.mergeCells(legend.number, 1, legend.number, SPAN);
   legend.getCell(1).alignment = { wrapText: true, vertical: "top" };
@@ -708,10 +712,16 @@ export async function buildTocWorkbook(view: TocView): Promise<Buffer> {
 
   for (const control of view.controls) {
     const r = results.get(control.ref)!;
-    const used = Math.max(1, Math.min(control.attributes.length, MAX_ATTRS));
+    // Without attribute slots the Result formula spans a single column and
+    // silently ignores everything ticked beside it.
+    const used = Math.max(BLANK_ATTRS, Math.min(control.attributes.length, MAX_ATTRS));
 
     const title = tests.addRow([
-      `${control.ref}  ·  ${control.scot}  ·  ${control.assertions.join(", ")}  ·  ${control.name}`,
+      // Only the parts that have something in them: an unfilled block would
+      // otherwise read "C-1  ·    ·    ·  ".
+      [control.ref, control.scot, control.assertions.join(", "), control.name]
+        .filter((part) => part && part.trim())
+        .join("  ·  "),
     ]);
     tests.mergeCells(title.number, 1, title.number, SPAN);
     fill(title.getCell(1), BAND);
@@ -720,14 +730,20 @@ export async function buildTocWorkbook(view: TocView): Promise<Buffer> {
     title.getCell(1).alignment = { vertical: "middle", wrapText: true };
     title.height = 22;
 
+    // A block with nothing recorded is a paper waiting to be filled in, not a
+    // control with something wrong with it. Saying "Frequency not recognised"
+    // on a blank template reads as a fault in the template.
+    const unfilled = !control.name && !control.frequency && control.population === null;
+    const entry = (value: string) => (unfilled ? "" : value);
+
     const meta: [string, string][] = [
       ["Control", control.description ?? control.name],
-      ["Type · Frequency · Performed by", `${TYPE_LABEL[control.controlType]} · ${control.frequency ?? "—"} · ${control.owner ?? "—"}`],
-      ["WCGW addressed", control.wcgws.join(" · ") || "—"],
-      ["Population · completeness", control.population === null ? "—" : `${control.population} occurrences over the period of reliance`],
-      ["Sole control · Min sample · Basis", `${control.soleControl ? "Yes" : "No"}  ·  ${r.planProblem ? "—" : r.planSize ?? "—"}  ·  ${r.planProblem ? PROBLEM_LABEL[r.planProblem] : r.basis ?? "—"}`],
-      ["Nature of test", control.testDesign ?? "Inquiry combined with inspection, observation, reperformance or data analysis."],
-      ["IPE relied on", (control.ipe ?? []).join(" · ") || "None"],
+      ["Type · Frequency · Performed by", entry(`${TYPE_LABEL[control.controlType]} · ${control.frequency ?? "—"} · ${control.owner ?? "—"}`)],
+      ["WCGW addressed", entry(control.wcgws.join(" · ") || "—")],
+      ["Population · completeness", entry(control.population === null ? "—" : `${control.population} occurrences over the period of reliance`)],
+      ["Sole control · Min sample · Basis", entry(`${control.soleControl ? "Yes" : "No"}  ·  ${r.planProblem ? "—" : r.planSize ?? "—"}  ·  ${r.planProblem ? PROBLEM_LABEL[r.planProblem] : r.basis ?? "—"}`)],
+      ["Nature of test", control.testDesign ?? entry("Inquiry combined with inspection, observation, reperformance or data analysis.")],
+      ["IPE relied on", entry((control.ipe ?? []).join(" · ") || "None")],
     ];
     if (control.rotation) {
       const rot = control.rotation;

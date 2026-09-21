@@ -43,10 +43,10 @@ import ExcelJS from "exceljs";
  * Excel forbids in a sheet name.
  */
 export const ITGC_DOMAINS = [
-  { key: "changes", sheet: "Changes", en: "Changes", fr: "Changements" },
-  { key: "access", sheet: "Access", en: "Access", fr: "Accès" },
-  { key: "operations", sheet: "IT Operations", en: "IT Operations", fr: "Exploitation informatique" },
-  { key: "support", sheet: "Support", en: "Support", fr: "Support" },
+  { key: "changes", sheet: "Changes", code: "CHG", en: "Changes", fr: "Changements" },
+  { key: "access", sheet: "Access", code: "ACC", en: "Access", fr: "Accès" },
+  { key: "operations", sheet: "IT Operations", code: "OPS", en: "IT Operations", fr: "Exploitation informatique" },
+  { key: "support", sheet: "Support", code: "SUP", en: "Support", fr: "Support" },
 ] as const;
 
 export type ItgcDomain = (typeof ITGC_DOMAINS)[number]["key"];
@@ -254,8 +254,32 @@ export function blankItgcTemplate(): ItgcView {
     partner: null,
     conclusion: null,
     itProcess: null,
+    // Empty of client data, but not empty of paper: each domain opens with two
+    // blocks to fill and four attribute slots apiece, so the grid can be worked
+    // in as it stands. Nothing here asserts that any control exists.
     applications: [],
-    controls: [],
+    controls: ITGC_DOMAINS.flatMap<ItgcControl>((d) =>
+      [1, 2].map((n) => ({
+        ref: `${d.code}-${n}`,
+        domain: d.key,
+        application: "",
+        name: "",
+        description: null,
+        owner: null,
+        frequency: null,
+        population: null,
+        populationSource: null,
+        risksAddressed: [],
+        extentBasis: null,
+        attributes: ["", "", "", ""],
+        rows: Array.from({ length: 10 }, () => ({
+          ref: "", date: "", desc: "", evidence: "", results: {} as ItgcGridRow["results"],
+        })),
+        designImplemented: null,
+        operatingEval: null,
+        ipe: [],
+      })),
+    ),
     domains: ITGC_DOMAINS.map((d) => ({ domain: d.key, state: null, basis: "" })),
     deficiencies: [],
   };
@@ -341,6 +365,8 @@ const NA = "n/a";
  *  use are grouped and collapsed, so Excel draws its own clickable "+" above
  *  them; expanding brings the next attribute column into view. */
 const MAX_ATTRS = 8;
+/** Attribute slots an unfilled block offers — the six-question walkthrough, less the two spare. */
+const BLANK_ATTRS = 4;
 
 /** Grid rows written for a control the tool holds no items for. */
 const BLANK_GRID_ROWS = 10;
@@ -840,14 +866,23 @@ export async function buildItgcWorkbook(view: ItgcView): Promise<Buffer> {
     const blocks: (ItgcControl | null)[] = controls.length > 0 ? controls : [null];
 
     for (const [index, control] of blocks.entries()) {
-      const ref = control?.ref ?? `${domain.sheet.slice(0, 3).toUpperCase()}-${index + 1}`;
+      // The domain carries its own code: slicing the sheet name gave "IT " for IT
+      // Operations, and the blocks came out referenced "IT -1".
+      const ref = control?.ref ?? `${domain.code}-${index + 1}`;
       const result = control
         ? evaluateItgcControl(control)
         : { tested: 0, deviations: 0, unanswered: 0 };
-      const used = Math.max(1, Math.min(control?.attributes.length ?? 0, MAX_ATTRS));
+      // A block with nothing recorded still offers somewhere to test: without
+      // attribute slots the Result formula spans one column and silently
+      // ignores everything ticked beside it.
+      const used = Math.max(BLANK_ATTRS, Math.min(control?.attributes.length ?? 0, MAX_ATTRS));
 
       const title = ws.addRow([
-        `${ref}  ·  ${domain.en} / ${domain.fr}  ·  ${control?.application ?? ""}  ·  ${control?.name ?? ""}`,
+        // Only the parts that have something in them: an unfilled block would
+      // otherwise read "CHG-1  ·  Changes / Changements  ·    ·  ".
+      [ref, `${domain.en} / ${domain.fr}`, control?.application, control?.name]
+        .filter((part) => part && String(part).trim())
+        .join("  ·  "),
       ]);
       ws.mergeCells(title.number, 1, title.number, SPAN);
       fill(title.getCell(1), BAND);
@@ -862,7 +897,11 @@ export async function buildItgcWorkbook(view: ItgcView): Promise<Buffer> {
         ["Application · layer", control?.application ?? ""],
         [
           "Frequency · performed by",
-          control ? `${control.frequency ?? "—"} · ${control.owner ?? "—"}` : "",
+          // An em-dash pair on a block nobody has filled in yet says nothing;
+          // an empty entry cell says where to write.
+          control && (control.frequency || control.owner)
+            ? `${control.frequency ?? "—"} · ${control.owner ?? "—"}`
+            : "",
         ],
         [
           "Generic IT risk addressed",
