@@ -22,6 +22,7 @@ import path from "node:path";
 import { withTenant } from "@/lib/db";
 import { ArchivedError, assertMutable } from "@/lib/mutability";
 import { requireTenant } from "@/lib/tenant";
+import { blankFsChecklistTemplate, buildFsChecklistWorkbook } from "@/lib/fs-checklist-workbook";
 import { blankItgcTemplate, buildItgcWorkbook } from "@/lib/itgc-workbook";
 import { blankJeTemplate, buildJeWorkbook } from "@/lib/je-workbook";
 import { blankTocTemplate, buildTocWorkbook } from "@/lib/toc-workbook";
@@ -151,6 +152,18 @@ export const TEMPLATES: readonly WpTemplate[] = [
       "La population des écritures et les travaux qui l'établissent, les critères orientés par le risque appliqués et ce que chacun a relevé, les éléments sélectionnés avec leur motif, et le registre des exceptions.",
     defaultFor: ["E3.1"],
   },
+  {
+    key: "fs-checklist-ohada",
+    category: "general-procedures",
+    name: "E6.10 OHADA Financial Statement Checklist.xlsx",
+    titleEn: "OHADA financial statement checklist",
+    titleFr: "Contrôle des états financiers OHADA",
+    descriptionEn:
+      "Every requirement of the revised Uniform Act and the SYSCOHADA révisé on the content and presentation of the annual financial statements — the statements and the system that applies, the principles, the balance sheet, income statement and cash-flow statement, all 36 notes with their sub-notes, the other mandatory disclosures and the approval — one row each with the article beside it, applicable and presented recorded per row, and the gaps counted on the cover.",
+    descriptionFr:
+      "Chaque exigence de l'Acte uniforme révisé et du SYSCOHADA révisé sur le contenu et la présentation des états financiers annuels — les états et le système applicable, les principes, le bilan, le compte de résultat et le tableau des flux de trésorerie, les 36 notes annexes et leurs sous-notes, les autres informations obligatoires et l'arrêté — une ligne par exigence avec l'article en regard, applicable et présenté renseignés ligne à ligne, et les écarts comptés en page de garde.",
+    defaultFor: ["E6.10"],
+  },
 ] as const;
 
 export function findTemplate(key: string): WpTemplate | undefined {
@@ -175,6 +188,7 @@ const GENERATED: Record<string, () => Promise<Buffer>> = {
   "toc-scot": () => buildTocWorkbook(blankTocTemplate()),
   "itgc-e11": () => buildItgcWorkbook(blankItgcTemplate()),
   "je-testing": () => buildJeWorkbook(blankJeTemplate()),
+  "fs-checklist-ohada": () => buildFsChecklistWorkbook(blankFsChecklistTemplate()),
 };
 
 /** Static template bytes, read once per process — the shipped files never change. */

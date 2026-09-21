@@ -81,6 +81,7 @@ const LETTER_OF: Record<string, string> = {
   "E4.36": "G", // Cash Flow (TFT) Tie-out
   "E6.1": "G", "E6.2": "G", "E6.3": "G", "E3.1": "G", "E6.4": "G", "E6.5": "G", "E6.6": "G", "E6.7": "G",
   "E6.9": "G", // Litigation & Claims (ISA 501)
+  "E6.10": "G", // Financial Statement Procedures — tie-out of accounts and notes
   "E1.1": "G", "E1.2": "G", // IT overlay
 };
 

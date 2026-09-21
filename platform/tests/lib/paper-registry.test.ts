@@ -3,6 +3,8 @@ import { DEFAULT_FILE_INDEX } from "@/lib/file-index";
 import { EXECUTION_PAPERS } from "@/lib/papers/execution";
 import { ITGC_PAPERS } from "@/lib/papers/itgc";
 import { JOURNAL_ENTRY_PAPERS } from "@/lib/papers/journal-entries";
+import { FINANCIAL_STATEMENT_PAPERS } from "@/lib/papers/financial-statements";
+import { STATUTORY_525_PAPERS } from "@/lib/papers/statutory-525";
 import { paperKeys, requiredKeys, type PaperDef } from "@/lib/papers/types";
 
 // The registry is a plain object spread, so a paper can stop being reached
@@ -19,6 +21,8 @@ const REGISTERED: Record<string, PaperDef> = {
   ...EXECUTION_PAPERS,
   ...ITGC_PAPERS,
   ...JOURNAL_ENTRY_PAPERS,
+  ...FINANCIAL_STATEMENT_PAPERS,
+  ...STATUTORY_525_PAPERS,
 };
 
 const codes = new Set(DEFAULT_FILE_INDEX.map((entry) => entry.code));
@@ -48,6 +52,13 @@ describe("the execution paper registry", () => {
     expect(REGISTERED["E1.1"].reqEn?.join(" ").toLowerCase()).toMatch(/\bit\b|information technology|itgc/);
 
     expect(REGISTERED["E3.1"].std).toMatch(/ISA 240/);
+
+    // The two papers added on 2026-09-21: the tie-out of the accounts and
+    // notes, and the article 525 certification.
+    expect(REGISTERED["E6.10"].std).toMatch(/ISA 700/);
+    expect(REGISTERED["E6.10"].reqEn?.join(" ")).toMatch(/lead schedules/);
+    expect(REGISTERED["C5.10"].std).toMatch(/525/);
+    expect(REGISTERED["C5.10"].reqEn?.join(" ").toLowerCase()).toMatch(/highest-paid/);
     expect(REGISTERED["E3.1"].reqEn?.join(" ").toLowerCase()).toMatch(/journal/);
   });
 

@@ -1,5 +1,6 @@
 import ExcelJS from "exceljs";
 import { describe, expect, it } from "vitest";
+import { blankFsChecklistTemplate, buildFsChecklistWorkbook } from "@/lib/fs-checklist-workbook";
 import { blankItgcTemplate, buildItgcWorkbook } from "@/lib/itgc-workbook";
 import { blankJeTemplate, buildJeWorkbook } from "@/lib/je-workbook";
 import { blankTocTemplate, buildTocWorkbook } from "@/lib/toc-workbook";
@@ -18,6 +19,7 @@ const WORKBOOKS = [
   ["E1.1 ITGC", () => buildItgcWorkbook(blankItgcTemplate())],
   ["E1.2 tests of controls", () => buildTocWorkbook(blankTocTemplate())],
   ["E3.1 journal entries", () => buildJeWorkbook(blankJeTemplate())],
+  ["E6.10 OHADA financial statement checklist", () => buildFsChecklistWorkbook(blankFsChecklistTemplate())],
 ] as const;
 
 describe("every generated workbook opens undamaged", () => {

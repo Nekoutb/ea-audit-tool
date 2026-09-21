@@ -16,6 +16,8 @@ import { STRATEGY_PAPERS } from "@/lib/papers/strategy";
 import { EXECUTION_PAPERS } from "@/lib/papers/execution";
 import { ITGC_PAPERS } from "@/lib/papers/itgc";
 import { JOURNAL_ENTRY_PAPERS } from "@/lib/papers/journal-entries";
+import { FINANCIAL_STATEMENT_PAPERS } from "@/lib/papers/financial-statements";
+import { STATUTORY_525_PAPERS } from "@/lib/papers/statutory-525";
 import { CONCLUSION_PAPERS } from "@/lib/papers/conclusion";
 import { GAM_PAPERS } from "@/lib/papers/gam";
 import { paperKeys, requiredKeys, type PaperDef, type PaperField, conclKey } from "@/lib/papers/types";
@@ -86,6 +88,8 @@ const ALL_PAPERS: Record<string, PaperDef> = {
   ...EXECUTION_PAPERS,
   ...ITGC_PAPERS,
   ...JOURNAL_ENTRY_PAPERS,
+  ...FINANCIAL_STATEMENT_PAPERS,
+  ...STATUTORY_525_PAPERS,
   ...CONCLUSION_PAPERS,
   ...GAM_PAPERS,
 };

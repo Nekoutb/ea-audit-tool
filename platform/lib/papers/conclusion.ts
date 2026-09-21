@@ -481,7 +481,7 @@ const C5_1 = mk({
     P("kam", "Where key audit matters apply, include the description of each drafted in C1.2, explaining why the matter was of most significance and how it was addressed.", "Lorsque des questions clés s'appliquent, inclure la description rédigée en C1.2, en expliquant l'importance du point et la façon dont il a été traité.", "C1.2 · ISA 701 ¶13", "C1.2 · ISA 701 ¶13"),
     P("emphasis", "Determine whether an emphasis of matter or other matter paragraph is required, and confirm it does not substitute for a modification or a required disclosure.", "Déterminer si un paragraphe d'observation ou sur d'autres points est requis et vérifier qu'il ne se substitue pas à une modification ou à une information requise.", "ISA 706 (Revised) ¶8–10", "ISA 706 révisée ¶8–10"),
     P("other_info", "Include the other information section, stating what was read and whether a material inconsistency was identified.", "Inclure la section sur les autres informations, en indiquant ce qui a été examiné et si une incohérence significative a été relevée.", "C2.1 · ISA 720 (Revised) ¶21–24", "C2.1 · ISA 720 révisée ¶21–24"),
-    P("statutory", "Include the report on other legal and regulatory requirements required of a commissaire aux comptes, and cross-refer to the statutory papers C5.2 to C5.9.", "Inclure le rapport sur les autres obligations légales et réglementaires incombant au commissaire aux comptes et renvoyer aux feuilles statutaires C5.2 à C5.9.", "OHADA Uniform Act · C5.2–C5.9", "Acte uniforme OHADA · C5.2–C5.9"),
+    P("statutory", "Include the report on other legal and regulatory requirements required of a statutory auditor, and cross-refer to the statutory papers C5.2 to C5.9.", "Inclure le rapport sur les autres obligations légales et réglementaires incombant au statutory auditor et renvoyer aux feuilles statutaires C5.2 à C5.9.", "OHADA Uniform Act · C5.2–C5.9", "Acte uniforme OHADA · C5.2–C5.9"),
     P("date", "Date the report no earlier than the date on which sufficient appropriate evidence was obtained, including the approval of the financial statements by those with authority.", "Dater le rapport au plus tôt à la date d'obtention des éléments suffisants, y compris l'approbation des états financiers par l'organe compétent.", "ISA 700 (Revised) ¶49 · approval minutes · C3.1", "ISA 700 révisée ¶49 · procès-verbal d'approbation · C3.1"),
   ],
   items: [
@@ -507,7 +507,7 @@ const C5_2 = mk({
   ownsFr: "les échéances légales et leur respect",
   reqEn: [
     "The Uniform Act fixes the dates by which the accounts must be drawn up, the general meeting held, the accounts approved and the filing made. A missed deadline is a matter to report, and may engage the liability of the directors.",
-    "The calendar is maintained through the engagement so that the reporting obligations of the commissaire aux comptes are met on time.",
+    "The calendar is maintained through the engagement so that the reporting obligations of the statutory auditor are met on time.",
   ],
   reqFr: [
     "L'Acte uniforme fixe les dates d'arrêté des comptes, de tenue de l'assemblée, d'approbation et de dépôt. Une échéance manquée est un point à signaler et peut engager la responsabilité des dirigeants.",
@@ -574,7 +574,7 @@ const C5_4 = mk({
   ownsEn: "the report of our observations to the board",
   ownsFr: "le rapport de nos observations au conseil",
   reqEn: [
-    "The commissaire aux comptes reports to the board on the verifications carried out, the items examined, the irregularities and inaccuracies identified, and the conclusions drawn from those observations on the results of the period compared with the prior period.",
+    "The statutory auditor reports to the board on the verifications carried out, the items examined, the irregularities and inaccuracies identified, and the conclusions drawn from those observations on the results of the period compared with the prior period.",
     "The report is made in writing so that the board has the matters before it before the accounts are put to the general meeting.",
   ],
   reqFr: [
@@ -606,7 +606,7 @@ const C5_5 = mk({
   ownsEn: "the alert procedure file and the position at each stage",
   ownsFr: "le dossier de la procédure d'alerte et la situation à chaque étape",
   reqEn: [
-    "Where the commissaire aux comptes identifies facts of a nature to compromise the continuity of the undertaking, the alert procedure is engaged. The procedure runs in defined stages, each with its own deadline for a response.",
+    "Where the statutory auditor identifies facts of a nature to compromise the continuity of the undertaking, the alert procedure is engaged. The procedure runs in defined stages, each with its own deadline for a response.",
     "The file records what was identified, when each stage was engaged, what response was received, and the decision taken at the end of each stage.",
   ],
   reqFr: [
@@ -640,7 +640,7 @@ const C5_6 = mk({
   ownsEn: "the assessment of whether facts require disclosure to the public prosecutor",
   ownsFr: "l'appréciation de l'obligation de révélation des faits délictueux",
   reqEn: [
-    "The commissaire aux comptes is required to disclose to the public prosecutor the criminal offences of which they become aware in the course of the engagement. The obligation is personal and is not discharged by reporting the matter to management.",
+    "The statutory auditor is required to disclose to the public prosecutor the criminal offences of which they become aware in the course of the engagement. The obligation is personal and is not discharged by reporting the matter to management.",
     "The assessment records the facts, why they are or are not characterised as an offence, the advice obtained, and the decision taken with its date.",
   ],
   reqFr: [
@@ -675,7 +675,7 @@ const C5_7 = mk({
   ownsEn: "the attestation on the register of registered securities",
   ownsFr: "l'attestation sur le registre des titres nominatifs",
   reqEn: [
-    "The commissaire aux comptes verifies that the register of registered securities is kept, that it records the transfers made, and that it agrees with the share capital shown in the financial statements.",
+    "The statutory auditor verifies that the register of registered securities is kept, that it records the transfers made, and that it agrees with the share capital shown in the financial statements.",
     "The register evidences who owns the company. An entry not made, or made without the transfer document behind it, undermines the ownership disclosed in the accounts and the identification of related parties.",
   ],
   reqFr: [

@@ -80,7 +80,7 @@ export const TASK_GROUPS: TaskGroupDef[] = [
   { id: "e1", code: "E1", section: "execution", titleEn: "Execute Tests of Controls", titleFr: "Exécution des tests de contrôles", members: ["E1.1", "E1.2"] },
   { id: "e2", code: "E2", section: "execution", titleEn: "Updates to Controls", titleFr: "Mises à jour des contrôles", members: ["E2.1"] },
   { id: "e4", code: "E4", section: "execution", titleEn: "Perform Substantive Procedures", titleFr: "Exécution des procédures substantives", members: ["E4.1", "E4.2", "E4.3", "E4.4", "E4.5", "E4.6", "E4.7", "E4.8", "E4.9", "E4.10", "E4.11", "E4.12", "E4.13", "E4.14", "E4.15", "E4.16", "E4.17", "E4.18", "E4.19", "E4.20", "E4.21", "E4.22", "E4.23", "E4.24", "E4.25", "E4.26", "E4.27", "E4.28", "E4.29", "E4.30", "E4.31", "E4.32", "E4.33", "E4.34", "E4.35", "E4.36", "E5.1", "E5.2", "E5.3", "E5.4", "E5.5"] },
-  { id: "e5", code: "E5", section: "execution", titleEn: "Perform General Audit Procedures", titleFr: "Exécution des procédures générales d'audit", members: ["E3.1", "E6.7", "E6.2", "E6.3", "E6.1", "E6.9", "E6.6"] },
+  { id: "e5", code: "E5", section: "execution", titleEn: "Perform General Audit Procedures", titleFr: "Exécution des procédures générales d'audit", members: ["E3.1", "E6.7", "E6.2", "E6.3", "E6.1", "E6.9", "E6.6", "E6.10"] },
   { id: "e6", code: "E6", section: "execution", titleEn: "Records, Opening Balances & Reassessment", titleFr: "Registres, soldes d'ouverture & réévaluation", members: ["E6.4", "E6.5", "E6.8"] },
 
   // ---- Conclusion & Reporting ----
@@ -88,7 +88,7 @@ export const TASK_GROUPS: TaskGroupDef[] = [
   { id: "c2", code: "C2", section: "conclusion", titleEn: "Final Financial Statement Review", titleFr: "Revue finale des états financiers", members: ["C2.1", "C2.2"] },
   { id: "c3", code: "C3", section: "conclusion", titleEn: "Representations", titleFr: "Déclarations", members: ["C3.1"] },
   { id: "c4", code: "C4", section: "conclusion", titleEn: "Review & Approval", titleFr: "Revue & approbation", members: ["C4.1", "C4.2", "C4.3"] },
-  { id: "c5", code: "C5", section: "conclusion", titleEn: "Communications & Statutory Reports", titleFr: "Communications & rapports légaux", members: ["C5.1", "C5.2", "C5.3", "C5.4", "C5.5", "C5.6", "C5.7", "C5.8", "C5.9"] },
+  { id: "c5", code: "C5", section: "conclusion", titleEn: "Comms & Statutory Reports", titleFr: "Communications & rapports légaux", members: ["C5.1", "C5.2", "C5.3", "C5.4", "C5.5", "C5.6", "C5.7", "C5.8", "C5.9", "C5.10"] },
   { id: "c6", code: "C6", section: "conclusion", titleEn: "Documentation & Archive", titleFr: "Documentation & archivage", members: ["C6.1", "C6.2"] },
 ];
 

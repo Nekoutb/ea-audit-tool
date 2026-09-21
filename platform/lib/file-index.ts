@@ -150,6 +150,7 @@ export const DEFAULT_FILE_INDEX: readonly FileIndexEntry[] = [
   // from the start — but it had no index entry of its own and was reached
   // through the tax payables task by mistake. It gets its own code here.
   { code: "E6.9", section: "E", titleEn: "Litigation & Claims (ISA 501)", titleFr: "Litiges et réclamations (ISA 501)" },
+  { code: "E6.10", section: "E", titleEn: "Financial Statement Procedures (tie-out of accounts and notes)", titleFr: "Procédures sur les états financiers (pointage des comptes et annexes)" },
   // E2 (IT) group of the ST/E/C hierarchy — general and application IT controls.
   { code: "E1.1", section: "E", titleEn: "ITGC Testing", titleFr: "Tests des contrôles généraux informatiques" },
   { code: "E1.2", section: "E", titleEn: "Test Controls over Significant Classes of Transactions", titleFr: "Tests des contrôles sur les flux significatifs (SCOT)" },
@@ -173,13 +174,14 @@ export const DEFAULT_FILE_INDEX: readonly FileIndexEntry[] = [
 
   // F — OHADA statutory section
   { code: "C5.2", section: "F", titleEn: "Statutory Deadlines Calendar", titleFr: "Calendrier des échéances légales" },
-  { code: "C5.3", section: "F", titleEn: "Conventions Réglementées Register & Rapport Spécial", titleFr: "Registre des conventions réglementées et rapport spécial" },
+  { code: "C5.3", section: "F", titleEn: "Regulated Agreements Register & Special Report", titleFr: "Registre des conventions réglementées et rapport spécial" },
   { code: "C5.4", section: "F", titleEn: "Article 715 Report to the Board", titleFr: "Rapport article 715 au conseil d'administration" },
-  { code: "C5.5", section: "F", titleEn: "Procédure d'Alerte File", titleFr: "Dossier de procédure d'alerte" },
-  { code: "C5.6", section: "F", titleEn: "Révélation des Faits Délictueux", titleFr: "Révélation des faits délictueux" },
-  { code: "C5.7", section: "F", titleEn: "Registres de Titres Nominatifs Attestation", titleFr: "Attestation sur les registres de titres nominatifs" },
+  { code: "C5.5", section: "F", titleEn: "Alert Procedure File", titleFr: "Dossier de procédure d'alerte" },
+  { code: "C5.6", section: "F", titleEn: "Disclosure of Criminal Offences to the Prosecutor", titleFr: "Révélation des faits délictueux" },
+  { code: "C5.7", section: "F", titleEn: "Registered Securities Register Attestation", titleFr: "Attestation sur les registres de titres nominatifs" },
   { code: "C5.8", section: "F", titleEn: "Equity vs Half-of-Share-Capital Monitoring", titleFr: "Suivi capitaux propres / moitié du capital social" },
-  { code: "C5.9", section: "F", titleEn: "Co-CAC Coordination File", titleFr: "Dossier de coordination co-commissariat" },
+  { code: "C5.9", section: "F", titleEn: "Joint Auditor Coordination File", titleFr: "Dossier de coordination co-commissariat" },
+  { code: "C5.10", section: "F", titleEn: "Article 525 Certification — Highest-Paid Persons' Remuneration", titleFr: "Attestation article 525 — rémunérations des personnes les mieux rémunérées" },
 ] as const;
 
 // Concise task labels for the dashboard/phase task lists, keyed by the stable
@@ -286,6 +288,7 @@ const SHORT_TITLES: Record<string, { en: string; fr: string }> = {
   "E6.6": { en: "Subsequent Events (ISA 560)", fr: "Événements postérieurs (ISA 560)" },
   "E6.7": { en: "Accounting Estimates (ISA 540)", fr: "Estimations comptables (ISA 540)" },
   "E6.9": { en: "Litigation & Claims (ISA 501)", fr: "Litiges et réclamations (ISA 501)" },
+  "E6.10": { en: "Financial statement procedures", fr: "Procédures états financiers" },
   "E1.1": { en: "ITGC Testing", fr: "Contrôles généraux informatiques" },
   "E1.2": { en: "Test Controls over SCOTs", fr: "Tests des contrôles (SCOT)" },
   "E2.1": { en: "Update ToC & ITGCs (post-interim)", fr: "MAJ tests de contrôles & ITGC" },
@@ -295,13 +298,14 @@ const SHORT_TITLES: Record<string, { en: string; fr: string }> = {
   "E5.4": { en: "Finance Cost", fr: "Charges financières" },
   "E5.5": { en: "Other Income", fr: "Autres produits" },
   "C5.2": { en: "Statutory Deadlines Calendar", fr: "Calendrier des échéances légales" },
-  "C5.3": { en: "Conventions Réglementées", fr: "Conventions réglementées" },
+  "C5.3": { en: "Regulated Agreements", fr: "Conventions réglementées" },
   "C5.4": { en: "Article 715 Board Report", fr: "Rapport article 715" },
-  "C5.5": { en: "Procédure d'Alerte", fr: "Procédure d'alerte" },
-  "C5.6": { en: "Révélation des Faits Délictueux", fr: "Révélation des faits délictueux" },
-  "C5.7": { en: "Titres Nominatifs Attestation", fr: "Attestation titres nominatifs" },
+  "C5.5": { en: "Alert Procedure", fr: "Procédure d'alerte" },
+  "C5.6": { en: "Criminal Offences Disclosure", fr: "Révélation des faits délictueux" },
+  "C5.7": { en: "Registered Securities Attestation", fr: "Attestation titres nominatifs" },
   "C5.8": { en: "Equity vs Half-Capital", fr: "Capitaux propres / demi-capital" },
-  "C5.9": { en: "Co-CAC Coordination", fr: "Coordination co-commissariat" },
+  "C5.9": { en: "Joint Auditor Coordination", fr: "Coordination co-commissariat" },
+  "C5.10": { en: "Article 525 Attestation", fr: "Attestation article 525" },
 };
 
 /** Concise task label for lists; falls back to the provided full title. */
@@ -328,7 +332,7 @@ const CORE_CODES = new Set([
   // ISA 501 ¶9 asks for litigation and claims procedures on every audit, with no
   // relief for a simple entity, so E6.9 is core alongside going concern and
   // subsequent events.
-  "E4.1", "E4.2", "E4.3", "E4.8", "E4.9", "E6.3", "E6.4", "E6.5", "E6.6", "E6.9",
+  "E4.1", "E4.2", "E4.3", "E4.8", "E4.9", "E6.3", "E6.4", "E6.5", "E6.6", "E6.9", "E6.10",
   "C5.2",
 ]);
 
