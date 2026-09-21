@@ -1,4 +1,6 @@
 import Link from "next/link";
+import { ArchiveChecklist } from "@/components/ArchiveChecklist";
+import { archiveChecklist } from "@/lib/archive-checklist";
 import { notFound, redirect } from "next/navigation";
 import { auth } from "@/auth";
 import { reviewConclusionAction, saveConclusionAction } from "@/app/actions/execution";
@@ -11,7 +13,7 @@ import { ReviewNotes } from "@/components/ReviewNotes";
 import { SignificantAccounts } from "@/components/SignificantAccounts";
 import { PlanningRas } from "@/components/PlanningRas";
 import { SECTION_A, SECTION_B, SECTION_C, SIGNATURE_ROLES, planningRas } from "@/lib/planning-ras";
-import { atLeast, isRole } from "@/lib/rbac";
+import { atLeast, isRole, canPartnerSignoff } from "@/lib/rbac";
 import { listTaskNotes } from "@/lib/task-notes";
 import { significantAccounts, specificThresholds } from "@/lib/significant-accounts";
 import { craBoard, craRollupByIndex } from "@/lib/cra";
@@ -171,6 +173,10 @@ export default async function SectionPage(props: {
   const dspV = section.code === "S5.5" ? await dspView(id) : null;
   // S2.3 — the IT-applications register (editable); S2.5 reads the same record
   const itApps = section.code === "S2.3" || section.code === "S2.5" ? await itAppsView(id) : null;
+  // C6.1 is the archive checklist; C6.2 carries the same board with the
+  // Archive button, so the decision sits beside the list of what would stop it.
+  const archiveView =
+    section.code === "C6.1" || section.code === "C6.2" ? await archiveChecklist(id, isFr ? "fr" : "en") : null;
   // S4.3/S4.4 — the planning sub-registers ride with the paper
   const relatedParties = section.code === "S4.3" ? await listRelatedParties(id) : null;
   const estimates = section.code === "S4.4" ? await listEstimates(id) : null;
@@ -616,6 +622,13 @@ export default async function SectionPage(props: {
                 />
               ) : scotView && wtValues && section.code === "S1.3" ? (
                 <WalkthroughBoard engagementId={id} view={scotView} values={wtValues} locale={isFr ? "fr" : "en"} />
+              ) : archiveView ? (
+                <ArchiveChecklist
+                  engagementId={id}
+                  checklist={archiveView}
+                  locale={isFr ? "fr" : "en"}
+                  archive={section.code === "C6.2" ? { canArchive: canPartnerSignoff(session.user.role), fiscalYear: engagement.fiscalYear } : undefined}
+                />
               ) : scotView && isToc ? (
                 <TocBoard engagementId={id} view={scotView} locale={isFr ? "fr" : "en"} />
               ) : scotView && section.code in SCOT_MODES ? (

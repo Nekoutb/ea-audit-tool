@@ -4,6 +4,7 @@
 // produced, and a conclusion the preparer answers.
 
 import type { PaperDef, PaperItem, PaperProc } from "@/lib/papers/types";
+import { ARCHIVE_CHECKLIST_PAPER } from "@/lib/papers/archive-checklist";
 
 const P = (
   key: string,
@@ -190,38 +191,6 @@ const C4_3 = mk({
   outcome: false,
 });
 
-const C6_1 = mk({
-  std: "ISA 300 ¶12 · ISA 230 ¶8",
-  ownsEn: "the matters to be carried into the next engagement",
-  ownsFr: "les points à reporter sur la mission suivante",
-  reqEn: [
-    "Points forward record what the next engagement needs to know: the matters that took longer than expected, the deficiencies not yet remediated, the balances whose evidence was hard to obtain, and the judgements that will need revisiting.",
-    "The record is made at completion, while the reasons are known, and is read when the next engagement's strategy is set in S6.1.",
-  ],
-  reqFr: [
-    "Les points reportés consignent ce que la mission suivante doit savoir : travaux plus longs que prévu, déficiences non corrigées, soldes dont les éléments ont été difficiles à obtenir, et jugements à réexaminer.",
-    "Le relevé est établi à l'achèvement, pendant que les motifs sont connus, et lu lors de l'établissement de la stratégie suivante en S6.1.",
-  ],
-  procs: [
-    P("deficiencies", "Record the control deficiencies communicated to the entity that have not been remediated, and the effect each will have on next period's strategy.", "Consigner les déficiences de contrôle communiquées et non corrigées, et leur effet sur la stratégie de l'exercice suivant.", "C4.2 · management letter · P4.1", "C4.2 · lettre de recommandations · P4.1"),
-    P("uncorrected", "Record the uncorrected misstatements carried forward and their effect on the opening balances of the next period.", "Consigner les anomalies non corrigées reportées et leur effet sur les soldes d'ouverture suivants.", "C1.1 · E6.5", "C1.1 · E6.5"),
-    P("difficulties", "Record the areas where evidence was difficult to obtain, and what would make it easier next period.", "Consigner les zones où les éléments ont été difficiles à obtenir et ce qui les rendrait plus accessibles.", "Working papers · team debrief", "Feuilles de travail · débriefing d'équipe"),
-    P("budget", "Compare the time taken by area with the budget, and record where the budget needs to change.", "Comparer les temps passés par zone au budget et consigner les ajustements nécessaires.", "Time records · budget · P2.2", "Temps passés · budget · P2.2"),
-    P("judgements", "Record the significant judgements that will need revisiting, including the estimates whose outcome is not yet known.", "Consigner les jugements importants à réexaminer, dont les estimations dont l'issue n'est pas encore connue.", "C1.2 · E6.7 · S4.4", "C1.2 · E6.7 · S4.4"),
-    P("statutory", "Record the statutory matters carried forward, including any deadline missed and any procedure engaged under the Uniform Act.", "Consigner les points statutaires reportés, dont toute échéance manquée et toute procédure engagée au titre de l'Acte uniforme.", "C5.2 · C5.5 · C5.8", "C5.2 · C5.5 · C5.8"),
-  ],
-  items: [
-    Q("recorded", "Every matter the next engagement needs to know is recorded here (procedures 1 to 6).", "Chaque point utile à la mission suivante est consigné ici (procédures 1 à 6)."),
-    Q("reasons", "Each point records the reason and the action proposed, not only the observation (procedures 3, 4).", "Chaque point consigne le motif et l'action proposée, et pas seulement le constat (procédures 3, 4)."),
-  ],
-  conclEn: [
-    "The matters to be carried into the next engagement are recorded, and will be read when the strategy for that engagement is set.",
-  ],
-  conclFr: [
-    "Les points à reporter sur la mission suivante sont consignés et seront lus lors de l'établissement de sa stratégie.",
-  ],
-  outcome: false,
-});
 
 /* ============================= misstatements & significant matters (C2) == */
 
@@ -817,7 +786,7 @@ export const CONCLUSION_PAPERS: Record<string, PaperDef> = {
   "C6.2": C6_2,
   "C4.1": C4_1,
   "C4.3": C4_3,
-  "C6.1": C6_1,
+  "C6.1": ARCHIVE_CHECKLIST_PAPER,
   "C1.1": C1_1,
   "C1.2": C1_2,
   "C1.3": C1_3,

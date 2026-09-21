@@ -3,6 +3,8 @@
 // (spec §19.2): the report cannot be issued until every gate passes.
 
 import type { PoolClient } from "pg";
+import { createNotification } from "@/lib/notifications";
+import { listTeam } from "@/lib/team";
 import { MGMT_OVERRIDE_PROCEDURE } from "@/lib/risks";
 import { withTenant } from "@/lib/db";
 import { carryForwardFromPriorYear } from "@/lib/forms";
@@ -567,6 +569,26 @@ export async function archiveEngagement(engagementId: string): Promise<void> {
   // stop a partner archiving a file — a compliance failure caused by the
   // compliance tooling. enqueueBackup never throws.
   await enqueueBackup({ tenantId, engagementId, kind: "engagement-archive" });
+  // Everyone invited to the engagement hears that the file has closed. Best
+  // effort, and after the lock: a notification that fails must never undo an
+  // archive that succeeded, and the archive must never wait on one.
+  try {
+    const members = await listTeam(engagementId);
+    await Promise.all(
+      members.map((m) =>
+        createNotification({
+          tenantId,
+          userId: m.userId,
+          kind: "engagement_archived",
+          title: "Engagement archived · Mission archivée",
+          body: "The file is now frozen: nothing on it can be changed. It stays readable and can be rolled forward from the archived register. · Le dossier est figé : plus aucune modification n'est possible. Il reste consultable et peut être reconduit depuis la liste des missions archivées.",
+          href: `/engagements/${engagementId}/dashboard`,
+        }),
+      ),
+    );
+  } catch (error) {
+    console.error("[archive] notifications failed:", error instanceof Error ? error.message : error);
+  }
 }
 
 /** Guard used by mutating layers: an archived file is immutable (spec §9.6). */
