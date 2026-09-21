@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { saveFailed } from "@/lib/api-errors";
 import { assertMutable, ArchivedError } from "@/lib/mutability";
 import { withTenant } from "@/lib/db";
 import { completeStep, uncompleteStep } from "@/lib/execution";
@@ -72,7 +73,6 @@ export async function POST(request: Request, context: { params: Promise<{ id: st
     }
     return NextResponse.json({ ok: true });
   } catch (error) {
-    const code = error instanceof Error && /^[a-z0-9-]+$/.test(error.message) ? error.message : "save-failed";
-    return NextResponse.json({ error: code }, { status: 400 });
+    return saveFailed("psp", error);
   }
 }

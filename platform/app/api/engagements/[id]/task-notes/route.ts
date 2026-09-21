@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { saveFailed } from "@/lib/api-errors";
 import { addTaskNote } from "@/lib/task-notes";
 
 /** Raise a review note on a task; it reaches the assignee's dashboard. */
@@ -11,7 +12,7 @@ export async function POST(request: Request, context: { params: Promise<{ id: st
     }
     await addTaskNote(id, body.fileItemId, body.body);
     return NextResponse.json({ ok: true });
-  } catch {
-    return NextResponse.json({ error: "save-failed" }, { status: 400 });
+  } catch (error) {
+    return saveFailed("task-notes", error);
   }
 }

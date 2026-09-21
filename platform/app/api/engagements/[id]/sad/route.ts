@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { saveFailed } from "@/lib/api-errors";
 import { assertMutable, ArchivedError } from "@/lib/mutability";
 import { postSadEntry, saveSad, saveSadMeta } from "@/lib/sad";
 
@@ -23,7 +24,6 @@ export async function POST(request: Request, context: { params: Promise<{ id: st
     }
     return NextResponse.json({ ok: true });
   } catch (error) {
-    const code = error instanceof Error && /^[a-z0-9-]+$/.test(error.message) ? error.message : "save-failed";
-    return NextResponse.json({ error: code }, { status: 400 });
+    return saveFailed("sad", error);
   }
 }

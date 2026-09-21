@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { saveFailed } from "@/lib/api-errors";
 import { assertMutable, ArchivedError } from "@/lib/mutability";
 import { saveDsp } from "@/lib/design-procedures";
 
@@ -12,7 +13,6 @@ export async function POST(request: Request, context: { params: Promise<{ id: st
     await saveDsp(id, String(body.indexCode), String(body.field), String(body.value ?? ""));
     return NextResponse.json({ ok: true });
   } catch (error) {
-    const code = error instanceof Error && /^[a-z0-9-]+$/.test(error.message) ? error.message : "save-failed";
-    return NextResponse.json({ error: code }, { status: 400 });
+    return saveFailed("dsp", error);
   }
 }

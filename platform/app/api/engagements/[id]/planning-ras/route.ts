@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { saveFailed } from "@/lib/api-errors";
 import { auth } from "@/auth";
 import { atLeast, isRole } from "@/lib/rbac";
 import { SIGNATURE_ROLES, saveRasAnswer, signRas, type SignatureRole } from "@/lib/planning-ras";
@@ -39,7 +40,7 @@ export async function POST(request: Request, context: { params: Promise<{ id: st
     if (!body.key) return NextResponse.json({ error: "invalid-body" }, { status: 400 });
     await saveRasAnswer(id, body.key, body.value ?? "");
     return NextResponse.json({ ok: true });
-  } catch {
-    return NextResponse.json({ error: "save-failed" }, { status: 400 });
+  } catch (error) {
+    return saveFailed("planning-ras", error);
   }
 }

@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { saveFailed } from "@/lib/api-errors";
 import { auth } from "@/auth";
 import { correlationMatrix } from "@/lib/gl-insights";
 
@@ -17,7 +18,6 @@ export async function POST(request: Request, context: { params: Promise<{ id: st
     }
     return NextResponse.json({ error: "invalid-op" }, { status: 400 });
   } catch (error) {
-    const code = error instanceof Error && /^[a-z0-9-]+$/.test(error.message) ? error.message : "save-failed";
-    return NextResponse.json({ error: code }, { status: 400 });
+    return saveFailed("gl-insights", error);
   }
 }

@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { saveFailed } from "@/lib/api-errors";
 import { saveSignificance } from "@/lib/significant-accounts";
 
 /**
@@ -30,7 +31,7 @@ export async function POST(request: Request, context: { params: Promise<{ id: st
       body.specificTe,
     );
     return NextResponse.json({ ok: true });
-  } catch {
-    return NextResponse.json({ error: "save-failed" }, { status: 400 });
+  } catch (error) {
+    return saveFailed("significance", error);
   }
 }

@@ -61,7 +61,35 @@ export function TocBoard({
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ op: "updateControl", controlId, ...body }),
     }).catch(() => null);
-    if (!r?.ok) { setError(fr ? "Échec de l'enregistrement." : "Save failed."); return false; }
+
+    // "Save failed" said the same thing whether the file was closed, the
+    // connection had gone, or the server had refused the value — and left the
+    // reader unable to tell whether trying again was worth anything.
+    if (r === null) {
+      setError(
+        fr
+          ? "Connexion interrompue — la conclusion n'a pas été enregistrée. Réessayer."
+          : "The connection dropped — the conclusion was not saved. Try again.",
+      );
+      return false;
+    }
+    if (r.status === 423) {
+      setError(
+        fr
+          ? "Ce dossier est archivé : il ne peut plus être modifié."
+          : "This file is archived and can no longer be changed.",
+      );
+      return false;
+    }
+    if (!r.ok) {
+      const code = await r.json().then((d: { error?: string }) => d.error).catch(() => undefined);
+      setError(
+        fr
+          ? `Échec de l'enregistrement${code ? ` (${code})` : ""}.`
+          : `Save failed${code ? ` (${code})` : ""}.`,
+      );
+      return false;
+    }
     router.refresh();
     return true;
   }
