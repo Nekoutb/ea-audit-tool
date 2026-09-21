@@ -3,6 +3,7 @@
 // (spec §19.2): the report cannot be issued until every gate passes.
 
 import type { PoolClient } from "pg";
+import { MGMT_OVERRIDE_PROCEDURE } from "@/lib/risks";
 import { withTenant } from "@/lib/db";
 import { carryForwardFromPriorYear } from "@/lib/forms";
 import type { GateResult } from "@/lib/gates";
@@ -88,17 +89,26 @@ async function recordExists(tx: PoolClient, engagementId: string, key: string): 
 
 /** C4.1 completion gates (spec §7, items 1–13 mapped to computable checks). */
 async function completionGatesTx(tx: PoolClient, engagementId: string): Promise<GateResult[]> {
-  // 1. Every E-section with program steps has a REVIEWED conclusion.
+  // 1. Every E-section with a designed program has a REVIEWED conclusion.
+  //
+  // The one step that does not count as a designed program is the ISA 240 ¶32
+  // procedure seeded on E3.1 with the management-override risk. That task's
+  // conclusion is its own working paper — the step is completed by concluding
+  // the paper, and the paper's review is what the papers-signed gates below
+  // enforce. Counting it here as well would demand a second, separate section
+  // conclusion that no screen can write since the panel that wrote them was
+  // retired. The step itself is still held to 1b: it must be completed.
   const unconcluded = await count(
     tx,
     `SELECT count(DISTINCT ps.file_item_id)::text AS n
        FROM program_step ps
       WHERE ps.engagement_id = $1 AND ps.status <> 'na'
+        AND NOT (ps.source = 'risk_extension' AND ps.description = $2)
         AND NOT EXISTS (
           SELECT 1 FROM section_conclusion sc
            WHERE sc.file_item_id = ps.file_item_id AND sc.reviewed_by IS NOT NULL
         )`,
-    [engagementId],
+    [engagementId, MGMT_OVERRIDE_PROCEDURE],
   );
   // 1b. No program step left in 'planned'.
   const openSteps = await count(

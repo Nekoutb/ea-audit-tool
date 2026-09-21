@@ -111,8 +111,39 @@ export async function seedPresumedRisks(
         [tenantId, risk.rows[0].id, entry.section, entry.assertions],
       );
     }
+    // Management override is the one presumed risk whose response the standard
+    // prescribes outright: ISA 240 ¶32 requires the journal-entry and adjustment
+    // testing whatever the auditor thinks, and the risk cannot be rebutted. So
+    // the procedure is written into E3.1's program here and the risk linked to
+    // it, exactly as lib/psp.ts links an account's risks to the procedures it
+    // generates — the procedures ARE the response. Without this the planning
+    // gate "every significant risk linked to at least one program step" could
+    // only be satisfied through a screen that no longer exists, and no file
+    // could leave planning. Revenue fraud is different: it is rebuttable and its
+    // procedures come from the S5.5 design, so the gate rightly waits on those.
+    if (entry.presumed === "mgmt_override" && entry.section) {
+      const step = await tx.query<{ id: string }>(
+        `INSERT INTO program_step (tenant_id, engagement_id, file_item_id, seq, description, assertions, source)
+         VALUES ($1, $2, $3, 10, $4, $5, 'risk_extension') RETURNING id`,
+        [tenantId, engagementId, entry.section, MGMT_OVERRIDE_PROCEDURE, entry.assertions],
+      );
+      await tx.query(
+        "INSERT INTO risk_response (tenant_id, risk_id, program_step_id) VALUES ($1, $2, $3) ON CONFLICT DO NOTHING",
+        [tenantId, risk.rows[0].id, step.rows[0].id],
+      );
+      await tx.query("UPDATE risk SET status = 'response_planned' WHERE id = $1", [risk.rows[0].id]);
+    }
   }
 }
+
+/**
+ * The mandatory response to the presumed management-override risk, as the
+ * program step E3.1 opens with. Kept as one constant because the backfill
+ * migration for engagements created before it existed carries the same words,
+ * and the two must stay identical for the backfill to know the step is there.
+ */
+export const MGMT_OVERRIDE_PROCEDURE =
+  "Test the appropriateness of journal entries and other adjustments made in the preparation of the financial statements, review accounting estimates for bias, and evaluate the business rationale of significant unusual transactions (ISA 240 ¶32).";
 
 export async function raisePotentialRisk(
   engagementId: string,

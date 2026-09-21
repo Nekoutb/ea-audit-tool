@@ -233,8 +233,20 @@ describe("planning-close gates (2.9, 2.10, 2.13)", () => {
     await expect(closePlanning(engagementId)).rejects.toThrow(GateError);
     const gates = await planningCloseGates(engagementId);
     expect(gates.find((g) => g.key === "materiality_approved")?.ok).toBe(false);
-    // mgmt_override (E3.1) has no program yet → unlinked significant risk.
-    expect(gates.find((g) => g.key === "significant_risks_linked")?.ok).toBe(false);
+    // The presumed management-override risk arrives with its ISA 240 ¶32
+    // response already linked — the standard prescribes it and it cannot be
+    // rebutted, so it is not the auditor's to decide and no longer holds this
+    // gate. A significant risk the auditor raises still does.
+    const raised = await admin.query<{ id: string }>(
+      `INSERT INTO risk (tenant_id, engagement_id, description, level, likelihood, magnitude, significant, source, category)
+       VALUES ($1, $2, 'Unusual related-party financing', 'assertion', 'high', 'high', true, 'test', 'fraud') RETURNING id`,
+      [TENANT, engagementId],
+    );
+    let linked = await planningCloseGates(engagementId);
+    expect(linked.find((g) => g.key === "significant_risks_linked")?.ok).toBe(false);
+    await admin.query("DELETE FROM risk WHERE id = $1", [raised.rows[0].id]);
+    linked = await planningCloseGates(engagementId);
+    expect(linked.find((g) => g.key === "significant_risks_linked")?.ok).toBe(true);
   });
 
   it("materiality versioning + partner approval", async () => {

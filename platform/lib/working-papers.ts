@@ -9,6 +9,7 @@ import type { PoolClient } from "pg";
 import { recordActivity } from "@/lib/activity";
 import { withTenant } from "@/lib/db";
 import { createNotification } from "@/lib/notifications";
+import { MGMT_OVERRIDE_PROCEDURE } from "@/lib/risks";
 import { requireTenant } from "@/lib/tenant";
 import { ACCEPTANCE_PAPERS } from "@/lib/papers/acceptance";
 import { STRATEGY_PAPERS } from "@/lib/papers/strategy";
@@ -17,7 +18,7 @@ import { ITGC_PAPERS } from "@/lib/papers/itgc";
 import { JOURNAL_ENTRY_PAPERS } from "@/lib/papers/journal-entries";
 import { CONCLUSION_PAPERS } from "@/lib/papers/conclusion";
 import { GAM_PAPERS } from "@/lib/papers/gam";
-import { paperKeys, requiredKeys, type PaperDef, type PaperField } from "@/lib/papers/types";
+import { paperKeys, requiredKeys, type PaperDef, type PaperField, conclKey } from "@/lib/papers/types";
 import { groupOfTask, type SectionKey } from "@/lib/task-groups";
 
 export type { PaperField, PaperDef, PaperSection, PaperProc, PaperItem } from "@/lib/papers/types";
@@ -260,6 +261,57 @@ export async function loadPaper(
   });
 }
 
+/**
+ * The presumed management-override risk arrives with a program step already
+ * linked to it — the ISA 240 ¶32 procedures, seeded with the risk because the
+ * standard prescribes them and the risk cannot be rebutted. That step has no
+ * screen of its own: the work it stands for is E3.1's paper. So the paper's
+ * conclusion is what completes it, and clearing the conclusion reopens it.
+ * Without this the completion gate, which refuses to issue while any step is
+ * still planned, would wait on a step nothing could ever complete.
+ *
+ * Only the seeded step is touched, found by its exact wording. The
+ * risk-extension steps an account's program generates live on the E4 screen
+ * and are completed there by hand.
+ */
+async function syncSeededResponseStep(
+  tx: PoolClient,
+  tenantId: string,
+  engagementId: string,
+  code: string,
+  userId: string,
+): Promise<void> {
+  void tenantId; // the pool client is already scoped; kept for symmetry with its neighbours
+  const total = paperFor(code).conclEn?.length ?? 0;
+  if (total === 0) return;
+  const keys = Array.from({ length: total }, (_, i) => conclKey(i));
+  // `value` is jsonb, so the driver hands it back already decoded — the same
+  // reading loadPaper makes. A Yes or a No is an answer; anything else is not.
+  const rows = await tx.query<{ value: unknown }>(
+    "SELECT value FROM form_response WHERE engagement_id = $1 AND code = $2 AND field_key = ANY($3)",
+    [engagementId, WP(code), keys],
+  );
+  const answered = rows.rows.filter((r) => r.value === "yes" || r.value === "no").length;
+  const where = `engagement_id = $1
+       AND file_item_id IN (SELECT id FROM file_item WHERE engagement_id = $1 AND code = $2)
+       AND source = 'risk_extension' AND description = $3`;
+  if (answered === total) {
+    await tx.query(
+      `UPDATE program_step
+          SET status = 'complete', conclusion = $4, completed_by = $5, completed_at = now()
+        WHERE ${where} AND status = 'planned'`,
+      [engagementId, code, MGMT_OVERRIDE_PROCEDURE, `Concluded on the ${code} working paper.`, userId],
+    );
+  } else {
+    await tx.query(
+      `UPDATE program_step
+          SET status = 'planned', conclusion = NULL, completed_by = NULL, completed_at = NULL
+        WHERE ${where} AND status = 'complete'`,
+      [engagementId, code, MGMT_OVERRIDE_PROCEDURE],
+    );
+  }
+}
+
 export async function savePaper(
   engagementId: string,
   code: string,
@@ -281,6 +333,7 @@ export async function savePaper(
         [tenantId, engagementId, WP(code), key, JSON.stringify(value), userId],
       );
     }
+    await syncSeededResponseStep(tx, tenantId, engagementId, code, userId);
     // A signature attests to the content it was given over: an edit that moves
     // the content out from under it voids it rather than inheriting it.
     return invalidateStaleSignoffs(tx, engagementId, code);

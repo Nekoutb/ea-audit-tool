@@ -1,9 +1,16 @@
 import { expect, test, type Page } from "@playwright/test";
 
 // Phase 2 acceptance (master spec §17): complete a full planning phase on the
-// demo client; a significant risk on revenue appears in the E4.1 header;
+// demo client; the presumed revenue risk shows its rating on the register;
 // planning cannot close with an unlinked significant risk or an uncovered
 // material FSLI.
+//
+// The audit-program generator left the working-paper section screen on
+// 2026-09-21, so closing planning green is no longer reachable: the
+// management-override risk is seeded against E3.1, which is not an E4 account
+// and so has no procedure list to answer it with. The run that carries planning
+// all the way to execution is kept, whole, in the fixme test at the foot of this
+// file; what runs above it is the planning work that still has a screen.
 
 const EMAIL = "alice@firm-a.test";
 const PASSWORD = "password";
@@ -27,12 +34,12 @@ async function partnerSignCode(page: Page, engagementUrl: string, code: string):
   await expect(page.getByTestId("signed-partner")).toBeVisible();
 }
 
-test("full Phase 2 acceptance → planning → gates → close", async ({ page }) => {
-  test.setTimeout(300_000);
-  await login(page);
-
+/**
+ * A new file carried from acceptance to an approved materiality — the stretch
+ * both tests below need before they part company. Returns the engagement URL.
+ */
+async function planningFile(page: Page, clientName: string): Promise<string> {
   // Client + engagement.
-  const clientName = `Planning SA ${Date.now()}`;
   await page.goto("/clients");
   await page.getByTestId("client-name").fill(clientName);
   await page.getByTestId("create-client").click();
@@ -107,6 +114,30 @@ test("full Phase 2 acceptance → planning → gates → close", async ({ page }
   await page.getByTestId("approve-materiality").click();
   await expect(page.getByTestId("materiality-status-1")).toContainText(/Approved/i);
 
+  return engagementUrl;
+}
+
+/** Add one free-text substantive procedure to an E4 account paper. */
+async function addOtherProcedure(
+  page: Page,
+  engagementUrl: string,
+  code: string,
+  text: string,
+): Promise<void> {
+  await page.goto(engagementUrl);
+  await page.getByTestId(`open-section-${code}`).click();
+  await page.waitForURL("**/sections/**");
+  await page.getByTestId("psp-add-row").click();
+  await page.getByTestId("psp-other-text").fill(text);
+  await page.getByTestId("psp-other-add").click();
+  await expect(page.getByTestId("psp-row-OSP-1")).toBeVisible();
+}
+
+test("Phase 2 acceptance → planning → the close gates hold the file", async ({ page }) => {
+  test.setTimeout(300_000);
+  await login(page);
+  const engagementUrl = await planningFile(page, `Planning SA ${Date.now()}`);
+
   // Mark E4.2 material with no coverage → stand-back must block.
   await page.getByTestId("toggle-material-E4.2").click();
 
@@ -124,34 +155,60 @@ test("full Phase 2 acceptance → planning → gates → close", async ({ page }
   await expect(page.getByTestId("risk-revenue_fraud")).toContainText(/revenue recognition/i);
   await expect(page.getByTestId("risk-revenue_fraud")).toContainText(/Significant/i);
 
+  // --- E4.2 (material): substantive coverage is a procedure on the account paper ---
+  // A procedure row is a program step (source 'psp'), which is what the
+  // stand-back gate counts as coverage.
+  await addOtherProcedure(page, engagementUrl, "E4.2", "Substantive coverage for purchases & payables.");
+
+  // --- E4.20 (Revenue): a substantive procedure answers the presumed revenue
+  // risk — the procedure links as the risk's response, which the
+  // significant-risks gate requires (the E4 program generator used to do this).
+  await addOtherProcedure(
+    page,
+    engagementUrl,
+    "E4.20",
+    "Substantive testing of revenue recognition and cut-off.",
+  );
+
+  // Both procedures are program steps on their own account, so a second close
+  // attempt no longer complains about the uncovered material section — which is
+  // how this run proves the coverage landed. The significant-risks gate stays
+  // red on purpose: revenue is answered by the E4.20 procedure, but management
+  // override is mapped to E3.1, and E3.1 is not an account, so nothing on the
+  // file can answer it now the program generator is gone.
+  await page.goto(`${engagementUrl}/planning`);
+  await page.getByTestId("close-planning").click();
+  await expect(page.getByTestId("planning-error")).toBeVisible();
+  await expect(page.getByTestId("planning-error")).toContainText(/significant risk/i);
+  await expect(page.getByTestId("planning-error")).not.toContainText(/material section/i);
+});
+
+test("Phase 2: the E3.1 program answers management override → planning closes → execution", async ({ page }) => {
+  test.fixme(
+    true,
+    "The audit-program generator (generate-program / program-table) was removed from the working-paper section screen on 2026-09-21 at the user's request, and it has no home anywhere else. It was the only way to put a program step on E3.1, so the presumed management-override risk can no longer be linked to a response, the significant-risks gate can never go green, and planning cannot be closed.",
+  );
+  test.setTimeout(300_000);
+  await login(page);
+  const engagementUrl = await planningFile(page, `Planning close SA ${Date.now()}`);
+
+  // The two gates the running test above leaves red: a material section to
+  // cover, and the presumed revenue risk to answer.
+  await page.getByTestId("toggle-material-E4.2").click();
+  await addOtherProcedure(page, engagementUrl, "E4.2", "Substantive coverage for purchases & payables.");
+  await addOtherProcedure(
+    page,
+    engagementUrl,
+    "E4.20",
+    "Substantive testing of revenue recognition and cut-off.",
+  );
+
   // --- E3.1: the generated program links the management-override risk ---
   await page.goto(engagementUrl);
   await page.getByTestId("open-section-E3.1").click();
   await page.waitForURL("**/sections/**");
   await page.getByTestId("generate-program").click();
   await expect(page.getByTestId("program-table")).toBeVisible();
-
-  // --- E4.2 (material): substantive coverage is a procedure on the account paper ---
-  // A procedure row is a program step (source 'psp'), which is what the
-  // stand-back gate counts as coverage.
-  await page.goto(engagementUrl);
-  await page.getByTestId("open-section-E4.2").click();
-  await page.waitForURL("**/sections/**");
-  await page.getByTestId("psp-add-row").click();
-  await page.getByTestId("psp-other-text").fill("Substantive coverage for purchases & payables.");
-  await page.getByTestId("psp-other-add").click();
-  await expect(page.getByTestId("psp-row-OSP-1")).toBeVisible();
-
-  // --- E4.20 (Revenue): a substantive procedure answers the presumed revenue
-  // risk — the procedure links as the risk's response, which the
-  // significant-risks gate requires (the E4 program generator used to do this).
-  await page.goto(engagementUrl);
-  await page.getByTestId("open-section-E4.20").click();
-  await page.waitForURL("**/sections/**");
-  await page.getByTestId("psp-add-row").click();
-  await page.getByTestId("psp-other-text").fill("Substantive testing of revenue recognition and cut-off.");
-  await page.getByTestId("psp-other-add").click();
-  await expect(page.getByTestId("psp-row-OSP-1")).toBeVisible();
 
   // --- Partner sign-offs on the gate documents ---
   for (const code of ["P2.2", "P5.2", "S3.1"]) {

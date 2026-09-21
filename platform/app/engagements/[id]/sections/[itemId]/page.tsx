@@ -33,22 +33,19 @@ import { FscpForm } from "@/components/FscpForm";
 import { EstimatesRegister, RelatedPartyRegister } from "@/components/PlanningRegisters";
 import { TriggerPanel } from "@/components/TriggerPanel";
 import { FORM_DEFINITIONS, loadForm } from "@/lib/forms";
-import { listRisks, risksForSection } from "@/lib/risks";
+import { listRisks } from "@/lib/risks";
 import { CraBoard } from "@/components/CraBoard";
-import { ExecutionPanels } from "@/components/ExecutionPanels";
 import { SubmitButton } from "@/components/SubmitButton";
 import { TaskAttachments } from "@/components/TaskAttachments";
 import { ErrorBanner } from "@/components/GatesPanel";
 import { Panel, PanelHeader, Chip } from "@/components/ui/atlas";
 import { withTenant } from "@/lib/db";
 import { getEngagement } from "@/lib/engagements";
-import { listRuns } from "@/lib/engines";
-import { getSectionConclusion, listControlTests } from "@/lib/execution";
-import { listDatasets } from "@/lib/subledgers";
+import { getSectionConclusion } from "@/lib/execution";
 import { getMessages } from "@/lib/i18n";
 import { getLocale } from "@/lib/locale";
 import { approvedMateriality } from "@/lib/materiality";
-import { groupOfTask, type SectionKey } from "@/lib/task-groups";
+import { groupOfTask } from "@/lib/task-groups";
 import { signOffPreparerAction, signOffReviewerAction } from "@/app/actions/audit-file";
 import { listAttachments } from "@/lib/attachments";
 import { ensureDefaultWorkpaper, templateForCode } from "@/lib/wp-templates";
@@ -56,7 +53,7 @@ import { taskForItem, engagementTasks } from "@/lib/engagement-dashboard";
 import { listConfirmations, sendDueReminders } from "@/lib/independence";
 import { listTeam as listEngagementTeam } from "@/lib/team";
 import { loadPaper, paperFor } from "@/lib/working-papers";
-import { listProgramSteps, sectionCoverage } from "@/lib/programs";
+import { listProgramSteps } from "@/lib/programs";
 import { canReview } from "@/lib/rbac";
 import { getTaskAssignee, listTeam } from "@/lib/team";
 import { requireTenant } from "@/lib/tenant";
@@ -98,11 +95,7 @@ export default async function SectionPage(props: {
   if (!engagement || !section || section.engagement_id !== id) notFound();
 
   const group = groupOfTask(section.code);
-  const phaseKey: SectionKey = group?.section ?? "strategy";
   const paperDef = paperFor(section.code);
-  // Execution constructs belong to execution work. They stay visible on any
-  // task that already holds one, so nothing recorded elsewhere is lost.
-  const isExecution = phaseKey === "execution";
   const paperValues = await loadPaper(id, section.code);
   const attachments = await listAttachments(itemId);
   // The Independence task (P2.1) embeds the campaign. Rendering it also runs
@@ -186,11 +179,15 @@ export default async function SectionPage(props: {
   const triggerValues = triggerDef ? (await loadForm(id, section.code)).values : {};
   // S1.x/S2.x + E1.1 — the SCOT Studio rides on the working papers: register
   // on S1.1, WCGW/controls builder on S1.2, walkthroughs on S1.3, selection on
-  // S2.1, test design on S2.2, and on E1.1 the results view of everything
-  // tested. Each of them takes the wizard's embed slot, so the board is the
-  // first page of the paper rather than a screen beside it.
+  // S2.1 and test design on S2.2. Each takes the wizard's embed slot, so the
+  // board is the first page of the paper rather than a screen beside it.
+  //
+  // E1.1 is not among them. It used to open on the tested-controls board, which
+  // lists the business cycles — order to cash, purchase to pay — and those are
+  // not what an ITGC paper is about: it tests change, access, operations and
+  // support over the applications the audit depends on.
   const SCOT_MODES: Record<string, "wcgw" | "select" | "design" | "results"> = {
-    "S1.2": "wcgw", "S2.1": "select", "S2.2": "design", "E1.1": "results",
+    "S1.2": "wcgw", "S2.1": "select", "S2.2": "design",
   };
   // E1.2 embeds the test-of-controls board (SCOTs -> selected controls).
   const isToc = section.code === "E1.2";
@@ -277,31 +274,12 @@ export default async function SectionPage(props: {
         href: `/engagements/${id}/sections/${x.id}`,
       }));
   }
-
-  // The execution panels — risks, program, coverage, matters arising, control
-  // tests, engines, conclusion — used to live on a screen of their own that
-  // only execution tasks reached, and that E1.2 and the E4 account family never
-  // did. Applying that same test here means no task gains a panel it never had
-  // and none of the tasks that had them lose them.
-  const showExecutionPanels = isExecution && section.code !== "E1.2" && !isAccountTask;
-
   const [steps, conclusion, team, assignee] = await Promise.all([
     listProgramSteps(itemId),
     getSectionConclusion(itemId),
     listTeam(id),
     getTaskAssignee(itemId),
   ]);
-  // Nothing but those panels reads these five, so every other task is spared
-  // the queries.
-  const panelData = showExecutionPanels
-    ? await Promise.all([
-        risksForSection(itemId),
-        sectionCoverage(itemId),
-        listControlTests(itemId),
-        listRuns(itemId),
-        listDatasets(id),
-      ])
-    : null;
   const te = t.planning.execution;
   const fr = locale === "fr";
   const canAssign = canReview(session.user.role);
@@ -640,10 +618,6 @@ export default async function SectionPage(props: {
                 <WalkthroughBoard engagementId={id} view={scotView} values={wtValues} locale={isFr ? "fr" : "en"} />
               ) : scotView && isToc ? (
                 <TocBoard engagementId={id} view={scotView} locale={isFr ? "fr" : "en"} />
-              ) : scotView && section.code === "E1.1" ? (
-                <div data-testid="wp-scot-results">
-                  <WcgwBuilder engagementId={id} view={scotView} mode="results" locale={isFr ? "fr" : "en"} />
-                </div>
               ) : scotView && section.code in SCOT_MODES ? (
                 <WcgwBuilder engagementId={id} view={scotView} mode={SCOT_MODES[section.code]} locale={isFr ? "fr" : "en"} />
               ) : fscpVals ? (
@@ -658,9 +632,7 @@ export default async function SectionPage(props: {
             }
             embedOnly={["S1.2", "S1.3", "S2.1", "S2.2"].includes(section.code)}
             embedTitle={
-              section.code === "E1.1"
-                ? fr ? "Résultats des tests de contrôles" : "Control test results"
-                : section.code === "S1.1"
+              section.code === "S1.1"
                 ? fr ? "Registre des SCOT" : "SCOT register"
                 : section.code === "S1.3"
                   ? fr ? "Cheminements par SCOT" : "Walkthroughs by SCOT"
@@ -683,29 +655,6 @@ export default async function SectionPage(props: {
           />
           )}
           </div>
-          {panelData ? (
-            <div className="mt-3 min-h-0 flex-1 overflow-y-auto border-t border-line pt-3" data-testid="wp-execution-panels">
-              <ExecutionPanels
-                engagementId={id}
-                fileItemId={itemId}
-                locale={fr ? "fr" : "en"}
-                messages={t}
-                isExecution={isExecution}
-                risks={panelData[0]}
-                steps={steps}
-                coverage={panelData[1]}
-                controlTests={panelData[2]}
-                runs={panelData[3]}
-                conclusion={conclusion}
-                datasets={panelData[4]}
-                scotView={scotView}
-                // E1.1 already shows the tested-controls board in the wizard
-                // above, so the control-tests panel does not repeat it.
-                showScotResults={section.code !== "E1.1"}
-                periodEnd={engagement.periodEnd}
-              />
-            </div>
-          ) : null}
         </section>
 
         {wideBoard ? null : (

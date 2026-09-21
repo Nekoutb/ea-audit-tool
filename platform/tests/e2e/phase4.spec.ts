@@ -2,6 +2,12 @@ import { expect, test, type Page } from "@playwright/test";
 
 // Phase 4 acceptance (spec §17): run execution; raise misstatements; C1.1 totals
 // live against materiality; revise-approach adds a dated risk to S3.1.
+//
+// The matters-arising router and the control-test recorder both sat in the pane
+// below the paper wizard, and that pane was removed on 2026-09-21. What is left
+// of Phase 4 on a screen is the account paper: a substantive procedure
+// performed, concluded and reviewed. The routing half of the phase is kept,
+// whole, in the fixme test at the foot of this file.
 
 const EMAIL = "alice@firm-a.test";
 const PASSWORD = "password";
@@ -30,11 +36,12 @@ async function concludePsp(page: Page, ref: string, text: string): Promise<void>
   ]);
 }
 
-test("Phase 4: step execution → findings routing → C1.1 vs materiality → revise-approach", async ({ page }) => {
-  test.setTimeout(300_000);
-  await login(page);
-
-  const clientName = `Exec SA ${Date.now()}`;
+/**
+ * A new file with an approved materiality (overall 1.5M / trivial 75k) so the
+ * C1.1 verdicts are live — the setup both tests share. Returns the engagement
+ * URL.
+ */
+async function executionFile(page: Page, clientName: string): Promise<string> {
   await page.goto("/clients");
   await page.getByTestId("client-name").fill(clientName);
   await page.getByTestId("create-client").click();
@@ -51,7 +58,6 @@ test("Phase 4: step execution → findings routing → C1.1 vs materiality → r
   const engagementUrl = page.url().replace(/\/team$/, "");
   await page.goto(engagementUrl);
 
-  // Materiality (overall 1.5M / trivial 75k) so C1.1 verdicts are live.
   await page.goto(`${engagementUrl}/planning`);
   await page.getByTestId("materiality-benchmark").selectOption("revenue");
   await page.getByTestId("materiality-amount").fill("150000000");
@@ -59,6 +65,14 @@ test("Phase 4: step execution → findings routing → C1.1 vs materiality → r
   await page.getByTestId("materiality-justification").fill("Revenue.");
   await page.getByTestId("create-materiality").click();
   await page.getByTestId("approve-materiality").click();
+
+  return engagementUrl;
+}
+
+test("Phase 4: a substantive procedure is performed, concluded and reviewed", async ({ page }) => {
+  test.setTimeout(300_000);
+  await login(page);
+  const engagementUrl = await executionFile(page, `Exec SA ${Date.now()}`);
 
   // E4.2 account workpaper: add a substantive procedure and complete it (4.2).
   await page.goto(engagementUrl);
@@ -75,7 +89,30 @@ test("Phase 4: step execution → findings routing → C1.1 vs materiality → r
   await page.locator("[data-testid^=psp-done-]").check();
   await expect(page.getByTestId("psp-row-OSP-1")).toContainText("✓");
 
-  // Findings and control tests live on the general-procedures task (E5.1).
+  // Section conclusion: prepare + review (4.11). The E4 account paper keeps a
+  // conclusion footer of its own, which is why this half of 4.11 still has a
+  // screen; the same box on every other task went with the pane below the
+  // wizard on 2026-09-21.
+  await page.goto(sectionUrl);
+  await page.getByTestId("section-conclusion").fill("Objectives achieved for payables.");
+  await page.getByTestId("save-conclusion").click();
+  await page.getByTestId("review-conclusion").click();
+  await expect(page.getByTestId("conclusion-state")).toContainText("Objectives achieved for payables.");
+});
+
+test("Phase 4: findings routing → C1.1 vs materiality → control tests → revise-approach", async ({ page }) => {
+  test.fixme(
+    true,
+    "The matter-arising router (finding-route / route-finding) and control-test recording (record-control) were removed from the working-paper section screen on 2026-09-21 at the user's request. Audit differences are raised through Tools → Summary of Audit Differences and a paper states its own key findings on page 1 of the wizard, but routing a matter to C1.1 or C5.1, recording a control test, and the revise-approach path that puts a dated risk on the register have no screen at all today.",
+  );
+  test.setTimeout(300_000);
+  await login(page);
+  const engagementUrl = await executionFile(page, `Exec routing SA ${Date.now()}`);
+
+  // The panels rendered on every execution task that was not an E4 account, so
+  // the file item stored as E5.1 is where this run found them. That code is
+  // Operating Expenditures — the framework shows it inside E4 now — and not the
+  // general audit procedures, which are stored under E3.1.
   await page.goto(engagementUrl);
   await page.getByTestId("open-section-E5.1").click();
   await page.waitForURL("**/sections/**");
@@ -99,13 +136,6 @@ test("Phase 4: step execution → findings routing → C1.1 vs materiality → r
   await page.getByTestId("finding-route").selectOption("revise");
   await page.getByTestId("finding-title").fill("New inventory obsolescence risk identified");
   await page.getByTestId("route-finding").click();
-
-  // Section conclusion: prepare + review (4.11) — on the E4.2 account page.
-  await page.goto(sectionUrl);
-  await page.getByTestId("section-conclusion").fill("Objectives achieved for payables.");
-  await page.getByTestId("save-conclusion").click();
-  await page.getByTestId("review-conclusion").click();
-  await expect(page.getByTestId("conclusion-state")).toContainText("Objectives achieved for payables.");
 
   // Findings tab: C1.1 totals vs materiality — exceeds, then correct → within (4.6).
   await page.goto(`${engagementUrl}/findings`);

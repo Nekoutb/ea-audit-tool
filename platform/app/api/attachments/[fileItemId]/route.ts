@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
-import { copyAttachment, listEngagementAttachments, saveAttachment } from "@/lib/attachments";
+import { assignTemplate, listTemplates } from "@/lib/wp-templates";
+import { copyAttachment, listAttachments, listEngagementAttachments, saveAttachment } from "@/lib/attachments";
 import { atLeast } from "@/lib/rbac";
 import { requireTenant } from "@/lib/tenant";
 import { allowedExtensions, checkUpload, UnsafeFileError } from "@/lib/upload-safety";
@@ -22,7 +23,17 @@ export async function GET(_request: Request, context: { params: Promise<{ fileIt
     if (!atLeast(role, "staff")) {
       return NextResponse.json({ error: "forbidden" }, { status: 403 });
     }
-    return NextResponse.json({ files: await listEngagementAttachments(fileItemId) });
+    // The blank working papers travel with the engagement files, so the picker
+    // can offer both without a second request. Metadata only — never the bytes.
+    return NextResponse.json({
+      files: await listEngagementAttachments(fileItemId),
+      templates: listTemplates().map((t) => ({
+        key: t.key,
+        name: t.name,
+        titleEn: t.titleEn,
+        titleFr: t.titleFr,
+      })),
+    });
   } catch {
     return NextResponse.json({ error: "unauthenticated" }, { status: 401 });
   }
@@ -35,10 +46,23 @@ export async function POST(request: Request, context: { params: Promise<{ fileIt
     if (!atLeast(role, "staff")) {
       return NextResponse.json({ error: "forbidden" }, { status: 403 });
     }
-    // JSON body = attach an existing engagement file (copy its latest bytes
-    // here); multipart = a fresh upload from the computer.
+    // JSON body = attach something the engagement already holds: another task's
+    // file copied here, or a blank working paper taken from the Tools shelf.
+    // Multipart = a fresh upload from the computer.
     if ((request.headers.get("content-type") ?? "").includes("application/json")) {
-      const body = (await request.json().catch(() => ({}))) as { copyFrom?: string };
+      const body = (await request.json().catch(() => ({}))) as {
+        copyFrom?: string;
+        template?: string;
+      };
+      if (body.template) {
+        // assignTemplate checks the key, finds the engagement and refuses an
+        // archived file before it writes anything.
+        const { name } = await assignTemplate(fileItemId, body.template);
+        const rows = await listAttachments(fileItemId);
+        const saved = rows.find((r) => r.name === name);
+        if (!saved) return NextResponse.json({ error: "template-unavailable" }, { status: 400 });
+        return NextResponse.json({ attachment: saved });
+      }
       if (!body.copyFrom) return NextResponse.json({ error: "file-required" }, { status: 400 });
       const saved = await copyAttachment(fileItemId, body.copyFrom);
       return NextResponse.json({ attachment: saved });

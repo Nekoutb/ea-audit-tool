@@ -49,6 +49,14 @@ function FileIcon({ name }: { name: string }) {
 }
 
 /** A file living on another task of this engagement, offered by the picker. */
+/** A blank working paper from the Tools shelf, offered beside the engagement's own files. */
+interface TemplateChoice {
+  key: string;
+  name: string;
+  titleEn: string;
+  titleFr: string;
+}
+
 interface ExistingFile {
   id: string;
   name: string;
@@ -87,6 +95,10 @@ export function TaskAttachments({
   const [menuOpen, setMenuOpen] = useState(false);
   const menuRef = useRef<HTMLSpanElement>(null);
   const [pickerFiles, setPickerFiles] = useState<ExistingFile[] | null>(null);
+  const [templates, setTemplates] = useState<TemplateChoice[] | null>(null);
+  // Which half of the picker is showing: the engagement's files, or the blank
+  // papers. They come back in one response, so switching costs nothing.
+  const [pickerMode, setPickerMode] = useState<"files" | "templates">("files");
   /** attachment name → watcher state */
   const [watching, setWatching] = useState<Record<string, number>>({});
   const [renaming, setRenaming] = useState<string | null>(null);
@@ -162,17 +174,43 @@ export function TaskAttachments({
     setDone(ok > 0 ? (fr ? `✓ ${ok} fichier(s) ajouté(s)` : `✓ ${ok} file(s) added`) : null);
   }
 
-  /** "Attach an existing engagement file": fetch the candidates, copy one here. */
-  async function openPicker() {
+  /** The candidates for both halves of the picker, in one request. */
+  async function openPicker(mode: "files" | "templates") {
     setPickerOpen(true);
+    setPickerMode(mode);
     setPickerFiles(null);
+    setTemplates(null);
     const res = await fetch(`/api/attachments/${fileItemId}`);
     if (!res.ok) {
       setPickerFiles([]);
+      setTemplates([]);
       return;
     }
-    const j = (await res.json()) as { files: ExistingFile[] };
+    const j = (await res.json()) as { files: ExistingFile[]; templates: TemplateChoice[] };
     setPickerFiles(j.files);
+    setTemplates(j.templates ?? []);
+  }
+
+  /** Take a blank working paper from the Tools shelf and file it on this task. */
+  async function attachTemplate(t: TemplateChoice) {
+    setBusy(true);
+    setError(null);
+    const res = await fetch(`/api/attachments/${fileItemId}`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ template: t.key }),
+    });
+    setBusy(false);
+    if (!res.ok) {
+      setError(`${t.name}: ${fr ? "l'ajout a échoué" : "could not attach"}`);
+      return;
+    }
+    const j = (await res.json()) as { attachment: AttachmentRow };
+    setRows((prev) => [
+      { ...j.attachment, uploadedBy: fr ? "moi" : "me" },
+      ...prev.filter((r) => r.name !== j.attachment.name),
+    ]);
+    setPickerOpen(false);
   }
 
   async function attachExisting(f: ExistingFile) {
@@ -316,11 +354,19 @@ export function TaskAttachments({
                 </label>
                 <button
                   type="button"
-                  onClick={() => { setMenuOpen(false); void openPicker(); }}
+                  onClick={() => { setMenuOpen(false); void openPicker("files"); }}
                   className="rounded px-2.5 py-1.5 text-left text-xs text-ink hover:bg-surface-2"
                   data-testid="attachment-from-existing"
                 >
-                  {fr ? "Un fichier déjà dans la mission…" : "A file already in the engagement…"}
+                  {fr ? "Fichier de la mission…" : "File in engagement…"}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => { setMenuOpen(false); void openPicker("templates"); }}
+                  className="rounded px-2.5 py-1.5 text-left text-xs text-ink hover:bg-surface-2"
+                  data-testid="attachment-from-template"
+                >
+                  {fr ? "Modèle de papier de travail…" : "Working paper from Tools…"}
                 </button>
               </div>
             ) : null}
@@ -333,11 +379,39 @@ export function TaskAttachments({
         <div className="mt-2 rounded-[var(--radius-atlas-sm)] border border-line-strong bg-surface-2/60 p-2" data-testid="attachment-picker">
           <div className="flex items-center justify-between px-1 pb-1">
             <span className="text-[11px] font-extrabold uppercase tracking-[0.07em] text-muted">
-              {fr ? "Fichiers de la mission" : "Engagement files"}
+              {pickerMode === "templates"
+                ? fr ? "Modèles de papiers de travail" : "Sample working papers"
+                : fr ? "Fichiers de la mission" : "Engagement files"}
             </span>
             <button type="button" onClick={() => setPickerOpen(false)} className="text-xs text-muted hover:text-ink">✕</button>
           </div>
-          {pickerFiles === null ? (
+          {pickerMode === "templates" ? (
+            templates === null ? (
+              <p className="px-1 py-1 text-xs text-muted">{fr ? "Chargement…" : "Loading…"}</p>
+            ) : templates.length === 0 ? (
+              <p className="px-1 py-1 text-xs text-muted">
+                {fr ? "Aucun modèle disponible." : "No working papers available."}
+              </p>
+            ) : (
+              <ul className="max-h-44 overflow-y-auto">
+                {templates.map((t) => (
+                  <li key={t.key}>
+                    <button
+                      type="button"
+                      onClick={() => void attachTemplate(t)}
+                      disabled={busy}
+                      className="flex w-full items-center gap-2 rounded px-1.5 py-1 text-left text-xs text-ink-soft hover:bg-surface-2 hover:text-ink disabled:opacity-50"
+                      data-testid={`attachment-template-${t.key}`}
+                    >
+                      <FileIcon name={t.name} />
+                      <span className="min-w-0 flex-1 truncate">{fr ? t.titleFr : t.titleEn}</span>
+                      <span className="flex-shrink-0 font-mono text-[10px] text-muted">{t.name}</span>
+                    </button>
+                  </li>
+                ))}
+              </ul>
+            )
+          ) : pickerFiles === null ? (
             <p className="px-1 py-1 text-xs text-muted">{fr ? "Chargement…" : "Loading…"}</p>
           ) : pickerFiles.length === 0 ? (
             <p className="px-1 py-1 text-xs text-muted">{fr ? "Aucun autre fichier dans la mission." : "No other files in this engagement."}</p>

@@ -2,6 +2,11 @@ import { expect, test, type Page } from "@playwright/test";
 
 // Phase 5 acceptance (spec §17): each engine runs on demo datasets producing
 // indexed working papers; a projected misstatement lands in C1.1 automatically.
+//
+// The engine runners sat in the pane below the paper wizard, and that pane was
+// removed on 2026-09-21. The import half of the phase is untouched and runs
+// below; the runs themselves, and the findings they raise, are kept whole in
+// the fixme test at the foot of this file.
 
 const EMAIL = "alice@firm-a.test";
 const PASSWORD = "password";
@@ -15,11 +20,12 @@ async function login(page: Page): Promise<void> {
   await page.waitForURL("**/dashboard");
 }
 
-test("Phase 5: engines run on demo data; projected misstatement lands in C1.1", async ({ page }) => {
-  test.setTimeout(300_000);
-  await login(page);
-
-  const clientName = `Engines SA ${Date.now()}`;
+/**
+ * A new file with an imported trial balance and an approved materiality
+ * (overall 2M / trivial 100k) — the ground both tests stand on. Returns the
+ * engagement URL.
+ */
+async function enginesFile(page: Page, clientName: string): Promise<string> {
   await page.goto("/clients");
   await page.getByTestId("client-name").fill(clientName);
   await page.getByTestId("create-client").click();
@@ -61,7 +67,11 @@ test("Phase 5: engines run on demo data; projected misstatement lands in C1.1", 
   await page.getByTestId("create-materiality").click();
   await page.getByTestId("approve-materiality").click();
 
-  // AR open items dataset via the Data tab (12.6M vs TB 10M).
+  return engagementUrl;
+}
+
+/** AR open items via the Data tab (12.6M against a TB of 10M). */
+async function uploadArOpenItems(page: Page, engagementUrl: string): Promise<void> {
   await page.goto(`${engagementUrl}/analyzers/ar_open_items`);
   await page.getByTestId("dataset-file").setInputFiles({
     name: "ar.csv",
@@ -74,14 +84,37 @@ test("Phase 5: engines run on demo data; projected misstatement lands in C1.1", 
   await page.getByTestId("dataset-analyze").click();
   await page.getByTestId("dataset-confirm").waitFor();
   await page.getByTestId("dataset-upload").click();
+}
+
+test("Phase 5: the AR open-items dataset imports and ages against the trial balance", async ({ page }) => {
+  test.setTimeout(300_000);
+  await login(page);
+  const engagementUrl = await enginesFile(page, `Engines SA ${Date.now()}`);
+
+  await uploadArOpenItems(page, engagementUrl);
   // The AR analyzer no longer lists its datasets in a table (the aging header
   // names the file); the upload confirmation and the aging grid are the proof.
   await expect(page.getByTestId("dataset-done")).toContainText("ar.csv");
   await expect(page.getByTestId("aging")).toBeVisible();
+});
 
-  // E5.1 (general audit procedures) workspace: run sampling (MUS, seeded) →
-  // run recorded + output document. The engines panel lives on the execution
-  // tasks; E4 accounts became index-per-account papers without it.
+test("Phase 5: engines run on demo data; projected misstatement lands in C1.1", async ({ page }) => {
+  test.fixme(
+    true,
+    "The engine runners — sampling (run-sampling), subledger reconciliation (run-recon), substantive analytics (run-analytic) and the run list (engine-runs) — were removed from the working-paper section screen on 2026-09-21 at the user's request. Sampling lives on under Tools → Sampling and analytics under Tools → GL Correlation Console, but running them from a task, evaluating a sample so the projected misstatement is raised, and the reconciliation engine itself have no screen today.",
+  );
+  test.setTimeout(300_000);
+  await login(page);
+  const engagementUrl = await enginesFile(page, `Engines run SA ${Date.now()}`);
+
+  // The engines sample and reconcile this dataset, so it is imported first.
+  await uploadArOpenItems(page, engagementUrl);
+  await expect(page.getByTestId("dataset-done")).toContainText("ar.csv");
+
+  // E5.1 workspace: run sampling (MUS, seeded) → run recorded + output
+  // document. The engines panel lived on the execution tasks that are not E4
+  // accounts; the file item stored as E5.1 is Operating Expenditures, and it is
+  // the one this run opened them on.
   await page.goto(engagementUrl);
   await page.getByTestId("open-section-E5.1").click();
   await page.waitForURL("**/sections/**");

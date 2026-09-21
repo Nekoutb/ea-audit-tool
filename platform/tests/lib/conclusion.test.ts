@@ -166,9 +166,16 @@ describe("7.1/7.10 completion gates block issuance", () => {
     await recordCompletion(engagementId, "partner_conclusion", { independenceReconfirmed: true });
     await generateLetter(engagementId, "rep_affirmation", "fr");
     await generateLetter(engagementId, "rep_complementary", "fr");
+    // The ISA 240 ¶32 step seeded on E3.1 completes when that paper is concluded.
+    await savePaper(
+      engagementId,
+      "E3.1",
+      Object.fromEntries((paperFor("E3.1").conclEn ?? []).map((_, i) => [`c_${i}`, "yes"])),
+    );
 
     const gates = await completionGates(engagementId);
-    expect(gates.every((gate) => gate.ok)).toBe(true);
+    // Named, so a failure says which gate held rather than "false".
+    expect(gates.filter((gate) => !gate.ok).map((gate) => gate.key)).toEqual([]);
 
     await issueReport(engagementId, "unmodified", "2026-03-31");
     const state = await getConclusionState(engagementId);
@@ -208,8 +215,10 @@ describe("7.10 OHADA statutory report", () => {
 describe("7.11/7.12 archive immutability + rollforward", () => {
   it("archives with a manifest, then blocks any document mutation", async () => {
     // the ISA 230 archive gates demand the C6.2 assembly checklist AND the
-    // C4.1 review & approval summary concluded
-    for (const code of ["C6.2", "C4.1"]) {
+    // C4.1 review & approval summary concluded. E3.1 joins them: it carries the
+    // ISA 240 ¶32 step seeded with the management-override risk, so it holds
+    // work on every engagement and owes a signed paper before the file closes.
+    for (const code of ["C6.2", "C4.1", "E3.1"]) {
       await savePaper(
         engagementId,
         code,
@@ -223,7 +232,7 @@ describe("7.11/7.12 archive immutability + rollforward", () => {
     // C4.1 now hold saved working-paper values, so each owes a signed document.
     // (The rep letters and the statutory report are deliverables, not papers —
     // they answer their own gates.)
-    for (const code of ["C6.2", "C4.1"]) {
+    for (const code of ["C6.2", "C4.1", "E3.1"]) {
       const item = await admin.query<{ id: string }>(
         "SELECT id FROM file_item WHERE engagement_id = $1 AND code = $2",
         [engagementId, code],
