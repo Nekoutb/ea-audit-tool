@@ -350,3 +350,7 @@ select.border-line,
 textarea.border-line {
   border-color: var(--line-control);
 }
+
+/* scrolls on wheel and touch, shows no scrollbar: a list that fits its box on a normal screen and still reaches every row on a small one */
+.scrollbar-none { scrollbar-width: none; -ms-overflow-style: none; }
+.scrollbar-none::-webkit-scrollbar { display: none; }

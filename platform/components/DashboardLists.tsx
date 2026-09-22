@@ -5,10 +5,12 @@ import { shortTitle } from "@/lib/file-index";
 import { displayCode } from "@/lib/task-groups";
 import type { PhaseTask, PhaseTaskStatus } from "@/lib/engagement-dashboard";
 
-// The dashboard's summary row, as three lists of equal height that scroll
-// inside their box: the tasks still open for the person reading, the file's
-// timetable with what is overdue on top, and the feed of what the team did
-// last. Counts stay in the headers; the lists are what the person acts on.
+// The dashboard's summary block: five boxes in three columns, filling the
+// rest of the screen so the page itself never scrolls. My tasks stands alone
+// on the left; review notes sit above the engagement timetable; findings sit
+// above the engagement feed. The task lists show no scrollbar — they fit the
+// box on a normal screen and still reach every row on a small one — while the
+// feed, which is long by nature, keeps its scroller.
 
 export interface DashboardListsProps {
   engagementId: string;
@@ -24,10 +26,11 @@ export interface DashboardListsProps {
   feed: ActivityRow[];
 }
 
-const PANEL = "flex h-[460px] flex-col px-5 py-4";
-const LIST = "mt-2 min-h-0 flex-1 overflow-y-auto overscroll-contain pr-1";
+const PANEL = "flex min-h-0 flex-col px-5 py-4";
+const LIST = "mt-2 min-h-0 flex-1 overflow-y-auto overscroll-contain pr-1 scrollbar-none";
+const FEED = "mt-2 min-h-0 flex-1 overflow-y-auto overscroll-contain pr-1";
 const ROW = "flex items-start justify-between gap-3 border-b border-line py-1.5 text-[12.5px] last:border-b-0";
-const SUB = "mt-3 border-t border-line pt-2 text-[10.5px] font-extrabold uppercase tracking-[0.07em] text-muted";
+const SUB = "text-[10.5px] font-extrabold uppercase tracking-[0.07em] text-muted";
 
 const STATUS: Record<PhaseTaskStatus, { en: string; fr: string; cls: string }> = {
   not_started: { en: "Not started", fr: "Non commencée", cls: "bg-surface-2 text-muted" },
@@ -86,9 +89,9 @@ export function DashboardLists({ engagementId, locale, today, tasks, deadlineOf,
   );
 
   return (
-    <section className="grid grid-cols-1 gap-3 sm:grid-cols-3" data-testid="dashboard-lists">
+    <section className="grid min-h-0 flex-1 grid-cols-1 gap-3 sm:grid-cols-3 sm:grid-rows-[auto_minmax(0,1fr)]" data-testid="dashboard-lists">
       {/* 1. My tasks */}
-      <Panel className={PANEL} data-testid="my-tasks-box">
+      <Panel className={`${PANEL} sm:row-span-2`} data-testid="my-tasks-box">
         <PanelHeader
           title={T("My tasks", "Mes tâches")}
           hint={T("open, assigned to me", "ouvertes, qui me sont affectées")}
@@ -109,8 +112,8 @@ export function DashboardLists({ engagementId, locale, today, tasks, deadlineOf,
         </div>
       </Panel>
 
-      {/* 2. Review notes + timetable */}
-      <Panel className={PANEL} data-testid="review-notes-box">
+      {/* 2. Review notes */}
+      <Panel className="px-5 py-4" data-testid="review-notes-box">
         <PanelHeader title={T("Review notes", "Notes de revue")} />
         <div className="mt-2 flex flex-col">
           <Link href={`${base}/tools/review-notes?scope=for_me`} className={`${ROW} transition hover:text-emerald-700`} data-testid="notes-for-me">
@@ -120,26 +123,10 @@ export function DashboardLists({ engagementId, locale, today, tasks, deadlineOf,
             {T("By me", "Par moi")} <b className="tnum">{notes.byMe}</b>
           </Link>
         </div>
-        <p className={SUB}>
-          {T("Engagement timetable", "Calendrier de la mission")}
-          {overdue.length > 0 ? <span className="ml-1.5 rounded-full bg-rose/10 px-1.5 text-rose tnum" data-testid="timetable-overdue-count">{overdue.length} {T("overdue", "en retard")}</span> : null}
-        </p>
-        <div className={LIST} data-testid="timetable-list">
-          {overdue.length === 0 && soon.length === 0 ? (
-            <p className="py-4 text-center text-[12px] text-muted" data-testid="timetable-empty">
-              {T("Nothing overdue and nothing due in the next 30 days.", "Rien en retard ni à échéance dans les 30 prochains jours.")}
-            </p>
-          ) : null}
-          {overdue.map(({ t, due }) => <TaskRow key={t.id} t={t} due={due} late />)}
-          {soon.length > 0 ? (
-            <p className="pt-2 text-[10px] font-bold uppercase tracking-[0.07em] text-muted">{T("Next 30 days", "30 prochains jours")}</p>
-          ) : null}
-          {soon.map(({ t, due }) => <TaskRow key={t.id} t={t} due={due} />)}
-        </div>
       </Panel>
 
-      {/* 3. Findings + feed */}
-      <Panel className={PANEL} data-testid="findings-band">
+      {/* 3. Findings */}
+      <Panel className="px-5 py-4" data-testid="findings-band">
         <PanelHeader title={T("Findings", "Constats")} />
         <div className="mt-2 flex flex-col">
           <Link href={`${base}/findings`} className={`${ROW} hover:text-emerald-700`}>
@@ -149,8 +136,32 @@ export function DashboardLists({ engagementId, locale, today, tasks, deadlineOf,
             {T("Misstatements", "Anomalies")} <b className="tnum">{findings.misstatements}</b>
           </Link>
         </div>
-        <p className={SUB}>{T("Engagement feed", "Fil de la mission")}</p>
-        <div className={LIST} data-testid="engagement-feed">
+      </Panel>
+
+      {/* 4. Engagement timetable */}
+      <Panel className={PANEL} data-testid="timetable-box">
+        <PanelHeader
+          title={T("Engagement timetable", "Calendrier de la mission")}
+          right={overdue.length > 0 ? <span className="rounded-full bg-rose/10 px-2 py-px text-[11px] font-bold text-rose tnum" data-testid="timetable-overdue-count">{overdue.length} {T("overdue", "en retard")}</span> : null}
+        />
+        <div className={LIST} data-testid="timetable-list">
+          {overdue.length === 0 && soon.length === 0 ? (
+            <p className="py-4 text-center text-[12px] text-muted" data-testid="timetable-empty">
+              {T("Nothing overdue and nothing due in the next 30 days.", "Rien en retard ni à échéance dans les 30 prochains jours.")}
+            </p>
+          ) : null}
+          {overdue.map(({ t, due }) => <TaskRow key={t.id} t={t} due={due} late />)}
+          {soon.length > 0 ? (
+            <p className={`pt-2 ${SUB}`}>{T("Next 30 days", "30 prochains jours")}</p>
+          ) : null}
+          {soon.map(({ t, due }) => <TaskRow key={t.id} t={t} due={due} />)}
+        </div>
+      </Panel>
+
+      {/* 5. Engagement feed — the one list that keeps its scroller */}
+      <Panel className={PANEL} data-testid="feed-box">
+        <PanelHeader title={T("Engagement feed", "Fil de la mission")} hint={T("latest actions of the team", "dernières actions de l'équipe")} />
+        <div className={FEED} data-testid="engagement-feed">
           {feed.length === 0 ? (
             <p className="py-4 text-center text-[12px] text-muted" data-testid="feed-empty">
               {T("No action recorded on this file yet.", "Aucune action enregistrée sur ce dossier pour l'instant.")}

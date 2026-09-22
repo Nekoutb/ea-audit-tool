@@ -129,7 +129,7 @@ export default async function EngagementDashboardPage(props: {
   const phaseLabel = t.engagements.stages[engagement.phase];
 
   return (
-    <main className="flex min-h-screen w-full flex-col gap-4 px-6 py-8">
+    <main className="flex h-screen w-full flex-col gap-4 overflow-hidden px-6 py-6">
       <AppNav locale={locale} current={{ id, label: engagement.name ?? engagement.clientName }} hideLinks />
 
       {myStatus === "invited" ? (
