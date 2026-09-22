@@ -29,6 +29,7 @@ import {
   type SelectionParams,
   type SelectionResult,
   type UserRule,
+  SELECTION_CAP,
 } from "@/lib/je-selection";
 import {
   buildJeWorkbook,
@@ -49,6 +50,27 @@ export interface JeExportOptions {
   params?: SelectionParams;
   userRules?: UserRule[];
   limit?: number;
+}
+
+const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+/**
+ * The run the studio just made, as export options: the same dataset, criteria,
+ * thresholds and rules the auditor saw on screen, so the workbook is the
+ * selection they ran and not a fresh one over the whole catalogue. The page
+ * size is not carried over — the paper holds the whole selection, up to the
+ * engine's own cap, and says on its Selection tab if it had to stop there.
+ * Anything malformed falls back to the export's defaults rather than failing:
+ * a wrong criterion key is dropped by the engine, a missing dataset means the
+ * current ledger.
+ */
+export function exportOptionsFrom(body: unknown, locale: "en" | "fr"): JeExportOptions {
+  const b = (body && typeof body === "object" ? body : {}) as Record<string, unknown>;
+  const datasetId = typeof b.datasetId === "string" && UUID_RE.test(b.datasetId) ? b.datasetId : undefined;
+  const criteria = Array.isArray(b.criteria) ? b.criteria.map((k) => String(k)) : undefined;
+  const params = b.params && typeof b.params === "object" ? (b.params as SelectionParams) : undefined;
+  const userRules = Array.isArray(b.userRules) ? (b.userRules as UserRule[]) : undefined;
+  return { locale, datasetId, criteria, params, userRules, limit: SELECTION_CAP };
 }
 
 /** Every built-in criterion. "user-defined" is not one of them: it is the shape of a rule the auditor writes. */

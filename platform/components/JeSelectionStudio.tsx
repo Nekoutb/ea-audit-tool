@@ -136,6 +136,7 @@ export function JeSelectionStudio({
   const [pending, setPending] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [result, setResult] = useState<SelectionResult | null>(null);
+  const [exporting, setExporting] = useState(false);
 
   const ruleSeq = useRef(0);
 
@@ -182,6 +183,11 @@ export function JeSelectionStudio({
         );
       case "not-on-this-engagement":
         return T("You are not on this engagement.", "Vous n'êtes pas affecté à cette mission.");
+      case "export-failed":
+        return T(
+          "The workbook could not be built. The selection on screen is unaffected — try the export again.",
+          "Le classeur n'a pas pu être construit. La sélection à l'écran n'est pas affectée — relancez l'export.",
+        );
       case "unauthenticated":
         return T("Your session has expired. Sign in again.", "Votre session a expiré. Reconnectez-vous.");
       case "network":
@@ -208,6 +214,20 @@ export function JeSelectionStudio({
     return payload;
   };
 
+  /** The run as the engine receives it — the same body whether it is run on screen or written to the workbook. */
+  const runBody = () => ({
+    datasetId,
+    criteria: chosen,
+    params: paramsPayload(),
+    userRules: rules.map((rule) => ({
+      id: rule.id,
+      field: rule.field,
+      operator: rule.operator,
+      value: rule.value,
+      value2: rule.value2,
+    })),
+  });
+
   const run = async (offset: number) => {
     setPending(true);
     setError(null);
@@ -216,20 +236,7 @@ export function JeSelectionStudio({
       response = await fetch(`/api/engagements/${engagementId}/je-selection`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          datasetId,
-          criteria: chosen,
-          params: paramsPayload(),
-          userRules: rules.map((rule) => ({
-            id: rule.id,
-            field: rule.field,
-            operator: rule.operator,
-            value: rule.value,
-            value2: rule.value2,
-          })),
-          limit,
-          offset,
-        }),
+        body: JSON.stringify({ ...runBody(), limit, offset }),
       });
     } catch {
       response = null;
@@ -248,6 +255,49 @@ export function JeSelectionStudio({
       return;
     }
     setResult(body.result);
+  };
+
+  // The selection as an Excel working paper: the same criteria, thresholds and
+  // rules as the run on screen, every line selected (not just this page), on
+  // the E3.1 paper's tabs. The file arrives as a download named by the server.
+  const exportRun = async () => {
+    setExporting(true);
+    setError(null);
+    let response: Response | null = null;
+    try {
+      response = await fetch(`/api/engagements/${engagementId}/je/export`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ ...runBody(), locale }),
+      });
+    } catch {
+      response = null;
+    }
+    if (!response) {
+      setExporting(false);
+      setError(messageFor("network"));
+      return;
+    }
+    if (!response.ok) {
+      const body = (await response.json().catch(() => ({}))) as { error?: string };
+      setExporting(false);
+      setError(messageFor(String(body.error ?? "export-failed")));
+      return;
+    }
+    const blob = await response.blob();
+    const disposition = response.headers.get("Content-Disposition") ?? "";
+    const encoded = /filename\*=UTF-8''([^;]+)/.exec(disposition)?.[1];
+    const plain = /filename="([^"]+)"/.exec(disposition)?.[1];
+    const filename = encoded ? decodeURIComponent(encoded) : (plain ?? "E3.1-journal-entries.xlsx");
+    const url = URL.createObjectURL(blob);
+    const anchor = document.createElement("a");
+    anchor.href = url;
+    anchor.download = filename;
+    document.body.appendChild(anchor);
+    anchor.click();
+    anchor.remove();
+    URL.revokeObjectURL(url);
+    setExporting(false);
   };
 
   // -- criteria -----------------------------------------------------------
@@ -523,6 +573,20 @@ export function JeSelectionStudio({
             data-testid="je-run"
           >
             {pending ? T("Selecting…", "Sélection en cours…") : T("Run the selection", "Exécuter la sélection")}
+          </button>
+          <button
+            type="button"
+            onClick={() => void exportRun()}
+            disabled={exporting || pending || result === null || result.population.lines === 0}
+            className={`${btnGhost} disabled:opacity-50`}
+            title={
+              result === null
+                ? T("Run the selection first", "Exécutez d'abord la sélection")
+                : T("Every selected line, with its reasons, on the E3.1 working paper", "Chaque ligne retenue, avec ses motifs, sur le papier de travail E3.1")
+            }
+            data-testid="je-export"
+          >
+            {exporting ? T("Building the workbook…", "Construction du classeur…") : T("Export the selection to Excel", "Exporter la sélection vers Excel")}
           </button>
           <span className="text-[11.5px] text-muted" data-testid="je-run-summary">
             {T(
