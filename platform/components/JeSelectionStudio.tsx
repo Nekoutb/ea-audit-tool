@@ -897,8 +897,7 @@ export function JeSelectionStudio({
                             the full account of each is the tooltip, and the workbook */}
                         <span
                           className="text-ink"
-                          title={line.reasons.map((reason) => `${reason.label} — ${reason.detail}`).join("
-")}
+                          title={line.reasons.map((reason) => `${reason.label} — ${reason.detail}`).join("\n")}
                         >
                           {line.reasons.map((reason) => reason.label.charAt(0).toLowerCase() + reason.label.slice(1)).join(", ")}
                         </span>
