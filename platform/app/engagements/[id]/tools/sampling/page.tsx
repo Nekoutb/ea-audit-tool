@@ -12,7 +12,6 @@ import { listScots } from "@/lib/scots";
 export const metadata = { title: "Sampling · AuditISA" };
 
 /** Cycle tasks that carry the sampling engine. */
-const SAMPLING_CODES = ["E4.1", "E4.2", "E4.3", "E4.4", "E4.5", "E4.8"];
 
 /**
  * The Sampling screen: sizes are computed, never typed — MUS from confidence
@@ -29,9 +28,6 @@ export default async function SamplingPage(props: { params: Promise<{ id: string
   const engagement = await getEngagement(id);
   if (!engagement) notFound();
   const [tasks, scots] = await Promise.all([engagementTasks(id), listScots(id)]);
-  const rows = SAMPLING_CODES.map((code) => tasks.find((x) => x.code === code)).filter(
-    (x): x is NonNullable<typeof x> => Boolean(x),
-  );
   // the purpose list: every control selected for testing on S2.1, with the
   // attributes the frequency table needs — and whether it is the ONLY selected
   // control covering one of its assertions (larger minimum sample).
@@ -91,30 +87,6 @@ export default async function SamplingPage(props: { params: Promise<{ id: string
         </div>
       </Panel>
 
-      <Panel className="mt-4">
-        <p className="text-[13px] text-ink-soft">
-          {fr
-            ? "Sondages substantifs sur les cycles : les tailles sont calculées, jamais saisies — MUS à partir de la confiance et de l'anomalie tolérable. Ils se lancent depuis la tâche de cycle concernée — ci-dessous."
-            : "Substantive sampling on the cycles: sizes are computed, never typed — MUS from confidence and tolerable misstatement. Runs launch from the cycle task concerned — below."}
-        </p>
-        <ul className="mt-3 divide-y divide-line" data-testid="sampling-tasks">
-          {rows.map((task) => (
-            <li key={task.code}>
-              <Link
-                href={`/engagements/${id}/sections/${task.id}`}
-                className="flex items-center gap-3 py-2.5 transition hover:bg-surface-2"
-                data-testid={`sampling-${task.code}`}
-              >
-                <span className="font-mono text-[11px] font-semibold text-muted">{task.code}</span>
-                <span className="min-w-0 flex-1 truncate text-sm font-medium text-ink">
-                  {fr ? task.titleFr : task.titleEn}
-                </span>
-                <span className="flex-shrink-0 text-muted" aria-hidden>›</span>
-              </Link>
-            </li>
-          ))}
-        </ul>
-      </Panel>
     </main>
   );
 }
