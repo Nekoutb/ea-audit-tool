@@ -4,13 +4,15 @@ import { auth } from "@/auth";
 import { AppNav } from "@/components/AppNav";
 import { SectionStage, type StageSection } from "@/components/SectionStage";
 import { TilesToggle } from "@/components/TilesToggle";
-import { Panel, PanelHeader } from "@/components/ui/atlas";
 import { engagementDashboard } from "@/lib/dashboards";
+import { DashboardLists } from "@/components/DashboardLists";
+import { listActivity } from "@/lib/activity";
 import {
   dashboardStats,
   engagementAttention,
   engagementTasks,
   phaseDeadline,
+  phaseOfTask,
   type AttentionTone,
   type DashboardPhase,
   type PhaseTask,
@@ -106,12 +108,13 @@ export default async function EngagementDashboardPage(props: {
   if (!engagement) notFound();
 
   const myStatus = await myTeamStatus(id);
-  const [tasks, attention, dash, stats, unassigned] = await Promise.all([
+  const [tasks, attention, dash, stats, unassigned, feed] = await Promise.all([
     engagementTasks(id),
     engagementAttention(id, locale),
     engagementDashboard(id),
     dashboardStats(id),
     unassignedTaskCount(id),
+    listActivity(id, 50),
   ]);
 
   // An engagement with no file items has not been classified yet — the
@@ -208,49 +211,19 @@ export default async function EngagementDashboardPage(props: {
         </Link>
       ) : null}
 
-      {/* The sketch's summary row: my tasks · review notes · findings.
-          Tools moved to the header icon (nav-tools). */}
-      <section className="grid grid-cols-1 gap-3 sm:grid-cols-3">
-        <Link href={`/engagements/${id}/tasks?filter=mine`} className="block">
-          <Panel className="h-full px-5 py-4 transition hover:border-emerald-600/40">
-            <PanelHeader title={fr ? "Mes tâches" : "My tasks"} />
-            <div className="mt-2 text-[30px] font-extrabold leading-tight tracking-[-0.03em] text-ink tnum">
-              {stats.my.myTasks}
-            </div>
-            <div className="text-[11.5px] text-muted">{fr ? "qui me sont affectées" : "assigned to me"}</div>
-          </Panel>
-        </Link>
-        <Panel className="px-5 py-4" data-testid="review-notes-box">
-          <PanelHeader title={fr ? "Notes de revue" : "Review notes"} />
-          <div className="mt-2 flex flex-col">
-            <Link
-              href={`/engagements/${id}/tools/review-notes?scope=for_me`}
-              className="flex items-center justify-between border-b border-line py-1.5 text-[12.5px] text-ink-soft transition hover:text-emerald-700"
-              data-testid="notes-for-me"
-            >
-              {fr ? "Pour moi" : "For me"} <b className="tnum">{stats.my.notesForMe}</b>
-            </Link>
-            <Link
-              href={`/engagements/${id}/tools/review-notes?scope=by_me`}
-              className="flex items-center justify-between py-1.5 text-[12.5px] text-ink-soft transition hover:text-emerald-700"
-              data-testid="notes-by-me"
-            >
-              {fr ? "Par moi" : "By me"} <b className="tnum">{stats.my.notesByMe}</b>
-            </Link>
-          </div>
-        </Panel>
-        <Panel className="px-5 py-4" data-testid="findings-band">
-          <PanelHeader title={td.findingsBand.title} />
-          <div className="mt-2 flex flex-col">
-            <Link href={`/engagements/${id}/findings`} className="flex items-center justify-between border-b border-line py-1.5 text-[12.5px] text-ink-soft hover:text-emerald-700">
-              {td.findingsBand.deficiencies} <b className="tnum">{dash.deficiencyCount}</b>
-            </Link>
-            <Link href={`/engagements/${id}/findings`} className="flex items-center justify-between py-1.5 text-[12.5px] text-ink-soft hover:text-emerald-700">
-              {td.findingsBand.misstatements} <b className="tnum">{dash.misstatementCount}</b>
-            </Link>
-          </div>
-        </Panel>
-      </section>
+      {/* The summary row: my open tasks · review notes and the timetable ·
+          findings and the team's feed — three equal boxes that scroll inside. */}
+      <DashboardLists
+        engagementId={id}
+        locale={locale}
+        today={new Date().toISOString().slice(0, 10)}
+        tasks={tasks}
+        deadlineOf={(task) => task.dueDate ?? phaseDeadline(engagement.periodEnd, phaseOfTask(task.section, task.code))}
+        userId={session.user.id}
+        notes={{ forMe: stats.my.notesForMe, byMe: stats.my.notesByMe }}
+        findings={{ deficiencies: dash.deficiencyCount, misstatements: dash.misstatementCount }}
+        feed={feed}
+      />
     </main>
   );
 }

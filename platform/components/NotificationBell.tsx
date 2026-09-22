@@ -1,13 +1,12 @@
 "use client";
 
-// The bell in the app nav: hovering (or focusing) it drops the latest
-// notifications, each a link to the thing that changed — a task, a paper, a
-// register. Assignments and review notes arrive here rather than by email, so
-// this panel is the delivery surface, not a decoration. Opening one marks it
-// read on the way through.
+// The bell in the app nav: hovering (or focusing) it drops the notifications
+// in a panel that scrolls, each a link to the thing that changed — a task, a
+// paper, a register. Assignments and review notes arrive here rather than by
+// email, so this panel is the delivery surface, not a decoration; there is no
+// notifications page behind it. Opening one marks it read on the way through.
 
 import { useRef, useState } from "react";
-import Link from "next/link";
 import { useRouter } from "next/navigation";
 import type { Notification } from "@/lib/notifications";
 
@@ -44,7 +43,7 @@ export function NotificationBell({
         body: JSON.stringify({ id: n.id }),
       }).catch(() => null);
     }
-    router.push(n.href ?? "/notifications");
+    if (n.href) router.push(n.href);
     router.refresh();
   }
 
@@ -63,10 +62,11 @@ export function NotificationBell({
 
   return (
     <div className="relative" onMouseEnter={show} onMouseLeave={hide}>
-      <Link
-        href="/notifications"
+      <button
+        type="button"
         className="relative grid h-9 w-9 place-items-center rounded-[var(--radius-atlas-sm)] border border-line-strong bg-surface text-ink-soft transition hover:bg-surface-2"
         onFocus={show}
+        onClick={() => setOpen((o) => !o)}
         aria-haspopup="true"
         aria-expanded={open}
         aria-label={
@@ -88,7 +88,7 @@ export function NotificationBell({
             {unread}
           </span>
         ) : null}
-      </Link>
+      </button>
 
       {open ? (
         <div
@@ -103,11 +103,11 @@ export function NotificationBell({
           </p>
 
           {items.length === 0 ? (
-            <p className="px-3 py-4 text-center text-[12px] text-muted" data-testid="notif-empty">
+            <p className="px-3 py-4 text-center text-[12px] text-muted" data-testid="notifications-empty">
               {fr ? "Rien à signaler." : "Nothing to report."}
             </p>
           ) : (
-            <ul className="max-h-[320px] overflow-y-auto">
+            <ul className="max-h-[360px] overflow-y-auto overscroll-contain" data-testid="notifications-list">
               {items.map((n) => (
                 <li key={n.id} className="border-b border-line last:border-b-0">
                   <button
@@ -140,13 +140,11 @@ export function NotificationBell({
             </ul>
           )}
 
-          <Link
-            href="/notifications"
-            className="block border-t border-line px-3 py-1.5 text-center text-[11.5px] font-semibold text-emerald-700 transition hover:bg-surface-2 dark:text-emerald-400"
-            data-testid="notif-see-all"
-          >
-            {fr ? "Tout voir" : "See all"}
-          </Link>
+          <p className="border-t border-line px-3 py-1.5 text-center text-[10.5px] text-muted" data-testid="notif-footer">
+            {items.length === 0
+              ? ""
+              : fr ? `${items.length} notification(s) — faire défiler pour voir la suite` : `${items.length} notification(s) — scroll for more`}
+          </p>
         </div>
       ) : null}
     </div>

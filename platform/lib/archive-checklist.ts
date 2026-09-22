@@ -9,7 +9,7 @@
 // twenty codes. A reviewer facing "papers_signed (37)" has a number, not a list.
 // This module runs the same questions again for their answers rather than their
 // counts, uncapped, and turns each answer into a link to the task, the risk
-// register, the confirmations screen or the conclusion page where it is fixed.
+// register or the conclusion page where it is fixed.
 //
 // Every gate is shown, green or red, because a reviewer has to see the whole
 // wall, not only the holes in it.
@@ -76,7 +76,6 @@ const LABELS: Record<string, { en: string; fr: string }> = {
   subsequent_events: { en: "Subsequent events reviewed to the report date", fr: "Événements postérieurs revus jusqu'à la date du rapport" },
   rep_letters_generated: { en: "Both representation letters generated (C3.1)", fr: "Les deux lettres d'affirmation générées (C3.1)" },
   b4_cleared: { en: "Every significant matter in C1.2 cleared", fr: "Chaque point significatif de C1.2 levé" },
-  b6_confirmations_closed: { en: "No confirmation still outstanding", fr: "Aucune circularisation encore en attente" },
   partner_conclusion: { en: "Partner overall conclusion and independence reconfirmation (C4.1)", fr: "Conclusion générale de l'associé et reconfirmation d'indépendance (C4.1)" },
   completion_gates: { en: "Every completion gate green", fr: "Toutes les portes d'achèvement au vert" },
   controls_concluded: { en: "Every control selected for testing designed, tested and concluded", fr: "Chaque contrôle retenu pour test conçu, testé et conclu" },
@@ -92,7 +91,7 @@ const GROUP_OF: Record<string, ChecklistGroup["key"]> = {
   sections_concluded: "completion", risks_concluded: "completion", b5_within_materiality: "completion",
   final_analytical_review: "completion", fs_tieout_passed: "completion", disclosure_checklist: "completion",
   subsequent_events: "completion", rep_letters_generated: "completion", b4_cleared: "completion",
-  b6_confirmations_closed: "completion", partner_conclusion: "completion", completion_gates: "completion",
+  partner_conclusion: "completion", completion_gates: "completion",
   controls_concluded: "completion",
   papers_signed: "papers", reviews_complete: "papers",
   review_notes_cleared: "review", review_approval: "review",
@@ -213,13 +212,6 @@ async function itemise(
     };
   });
 
-  const confirmations = await tx.query<{ n: string }>(
-    "SELECT count(*)::text AS n FROM confirmation WHERE engagement_id = $1 AND status IN ('prepared', 'approved', 'sent')",
-    [engagementId],
-  );
-  const confirmationItems: ChecklistItem[] = Number(confirmations.rows[0]?.n ?? 0) > 0
-    ? [{ label: locale === "fr" ? `${confirmations.rows[0].n} circularisation(s) en attente` : `${confirmations.rows[0].n} confirmation(s) outstanding`, href: `${base}/confirmations` }]
-    : [];
 
   const findings = await tx.query<{ n: string }>(
     "SELECT count(*)::text AS n FROM finding WHERE engagement_id = $1 AND route = 'b4' AND status = 'open'",
@@ -242,7 +234,6 @@ async function itemise(
     risks_concluded: riskItems,
     controls_concluded: controlItems,
     review_notes_cleared: noteItems,
-    b6_confirmations_closed: confirmationItems,
     b4_cleared: findingItems,
     // Single-destination gates: the item is the place itself.
     review_approval: [{ label: locale === "fr" ? "C4.1 — récapitulatif de revue et d'approbation" : "C4.1 — review and approval summary", href: link("C4.1", `${base}/groups/c4`), code: "C4.1" }],
@@ -263,7 +254,6 @@ const HREF_OF = (engagementId: string): Record<string, string> => {
     subsequent_events: `${base}/conclusion`,
     rep_letters_generated: `${base}/conclusion`,
     b4_cleared: `${base}/findings`,
-    b6_confirmations_closed: `${base}/confirmations`,
     partner_conclusion: `${base}/conclusion`,
     completion_gates: `${base}/conclusion`,
     controls_concluded: `${base}/groups/e1`,

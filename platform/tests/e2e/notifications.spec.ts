@@ -1,56 +1,68 @@
 import { expect, test, type Page } from "@playwright/test";
 
+// Notifications live in the bell's panel and nowhere else: hovering the bell
+// drops a scrolling list, opening one marks it read, and a notification is
+// seen only by the user it was created for.
+
 const FIRM_A_EMAIL = "alice@firm-a.test";
 const FIRM_B_EMAIL = "bob@firm-b.test";
 const PASSWORD = "password";
 
 async function login(page: Page, email: string): Promise<void> {
+  await page.context().addCookies([{ name: "locale", value: "en", url: "http://localhost:3100" }]);
   await page.goto("/login");
   await page.fill("input[name=email]", email);
   await page.fill("input[name=password]", PASSWORD);
-  await page.getByTestId("login-submit").click();
-  // Login lands on the most-recently-worked engagement's dashboard (or the firm
-  // dashboard when the tenant has none) — both end in /dashboard.
-  await page.waitForURL("**/dashboard");
-  // These tests use the FIRM dashboard (send-test-notification), so go there.
-  await page.goto("/dashboard");
+  await page.click("button[type=submit]");
+  await page.waitForURL(/\/dashboard/);
 }
 
-test("a notification reaches only the user it was created for", async ({ browser }) => {
-  // Alice sends herself a test notification.
+async function openBell(page: Page): Promise<void> {
+  await page.getByTestId("nav-notifications").hover();
+  await expect(page.getByTestId("notif-panel")).toBeVisible();
+}
+
+test("a notification reaches only the user it was created for, in the bell panel", async ({ browser }) => {
   const aliceContext = await browser.newContext();
   const alice = await aliceContext.newPage();
   await login(alice, FIRM_A_EMAIL);
   await alice.getByTestId("send-test-notification").click();
   await expect(alice.getByTestId("unread-badge")).toHaveText("1");
 
-  await alice.goto("/notifications");
+  await openBell(alice);
   await expect(alice.getByTestId("notifications-list")).toContainText("Test notification");
 
-  // Bob (a different firm and user) must see an empty inbox.
+  // Bob (a different firm and user) sees nothing.
   const bobContext = await browser.newContext();
   const bob = await bobContext.newPage();
   await login(bob, FIRM_B_EMAIL);
-  await bob.goto("/notifications");
+  await openBell(bob);
   await expect(bob.getByTestId("notifications-empty")).toBeVisible();
 
   await aliceContext.close();
   await bobContext.close();
 });
 
-test("marking notifications read clears the unread badge", async ({ page }) => {
+test("the bell never navigates to a page of its own", async ({ page }) => {
+  await login(page, FIRM_A_EMAIL);
+  await page.getByTestId("nav-notifications").click();
+  await expect(page).toHaveURL(/\/dashboard/);
+  const gone = await page.goto("/notifications");
+  expect(gone?.status()).toBe(404);
+});
+
+test("opening a notification marks it read and clears the badge", async ({ page }) => {
   await login(page, FIRM_A_EMAIL);
   await page.getByTestId("send-test-notification").click();
-  await page.goto("/notifications");
+  await expect(page.getByTestId("unread-badge")).toBeVisible();
 
-  // Clear every unread notification (other tests may have left some behind).
-  let remaining = await page.getByTestId("mark-read").count();
-  while (remaining > 0) {
-    await page.getByTestId("mark-read").first().click();
-    await expect(page.getByTestId("mark-read")).toHaveCount(remaining - 1);
-    remaining -= 1;
+  // Open every unread notification (other tests may have left some behind).
+  for (let guard = 0; guard < 60; guard += 1) {
+    if ((await page.getByTestId("unread-badge").count()) === 0) break;
+    await openBell(page);
+    await page.locator('[data-testid^="notif-row-"]').filter({ hasText: "unread" }).first().click();
+    await page.waitForLoadState("networkidle");
   }
-
   await page.goto("/dashboard");
   await expect(page.getByTestId("unread-badge")).toHaveCount(0);
 });

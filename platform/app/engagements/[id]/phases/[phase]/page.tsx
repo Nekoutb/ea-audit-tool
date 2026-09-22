@@ -148,7 +148,6 @@ export default async function PhaseTasksPage(props: {
     execution: [
       { href: `/engagements/${id}/data`, label: t.planning.dataTitle },
       { href: `/engagements/${id}/analytics`, label: t.planning.analyticsTitle },
-      { href: `/engagements/${id}/confirmations`, label: t.planning.confirmations.title },
       { href: `/engagements/${id}/pbc`, label: t.pbc.title },
     ],
     conclusion: [

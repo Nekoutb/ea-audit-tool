@@ -293,6 +293,7 @@ export interface ActivityRow {
   /** the acting user's role at the time of the action */
   actingRole: string | null;
   entityType: string;
+  entityId: string | null;
   action: string;
   summary: string | null;
   outcome: ActivityOutcome;
@@ -307,12 +308,13 @@ export async function listActivity(engagementId: string, limit = 200): Promise<A
       user_name: string | null;
       acting_role: string | null;
       entity_type: string;
+      entity_id: string | null;
       action: string;
       summary: string | null;
       outcome: ActivityOutcome;
       at: string;
     }>(
-      `SELECT a.id,
+      `SELECT a.id, a.entity_id,
               (SELECT coalesce(name, email) FROM app_user WHERE id = a.user_id) AS user_name,
               a.acting_role, a.entity_type, a.action, a.summary, a.outcome,
               to_char(a.created_at, 'YYYY-MM-DD HH24:MI') AS at
@@ -327,6 +329,7 @@ export async function listActivity(engagementId: string, limit = 200): Promise<A
       userName: row.user_name,
       actingRole: row.acting_role,
       entityType: row.entity_type,
+      entityId: row.entity_id,
       action: row.action,
       summary: row.summary,
       outcome: row.outcome ?? "success",

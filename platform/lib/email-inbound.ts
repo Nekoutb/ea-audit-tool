@@ -11,7 +11,7 @@
 import { pool, withTenant } from "@/lib/db";
 import { parseAmount } from "@/lib/amount";
 
-const REF = /\[ref:(IND|CONF)-([A-Za-z0-9_-]+)\]/;
+const REF = /\[ref:(IND)-([A-Za-z0-9_-]+)\]/;
 
 /** The largest plausible monetary figure in a reply body. */
 export function extractAmount(text: string): number | null {
@@ -47,38 +47,6 @@ export async function ingestInboundEmail(input: {
         return (r.rowCount ?? 0) > 0;
       });
       if (done) return { handled: `independence:${token}` };
-    } else {
-      const result = await withTenant(t.id, async (tx) => {
-        const row = await tx.query<{ id: string; book_amount: string | null }>(
-          "SELECT id, book_amount::text FROM confirmation WHERE reply_token = $1 AND status = 'sent' FOR UPDATE",
-          [token],
-        );
-        if (!row.rows[0]) return null;
-        const { id } = row.rows[0];
-        const book = row.rows[0].book_amount === null ? 0 : Number(row.rows[0].book_amount);
-        // closed-form agreement ("we agree / conforme") confirms the stated
-        // balance; otherwise the reply's amount is taken (open / blank form)
-        const disagrees = /\b(disagree|do not agree|not agree|pas d'accord|non conforme|incorrect)\b/i.test(input.text);
-        const agrees = !disagrees && /\b(agree|agreed|confirm|confirmed|conforme|d'accord|exact)\b/i.test(input.text);
-        const amount = agrees && book !== 0 ? book : extractAmount(input.text);
-        if (amount === null) {
-          await tx.query(
-            "UPDATE confirmation SET status = 'exception', replied_at = now() WHERE id = $1",
-            [id],
-          );
-          return "exception:unparsed";
-        }
-        const difference = Math.round(amount - book);
-        const status = difference === 0 ? "reconciled" : "exception";
-        await tx.query(
-          `UPDATE confirmation
-              SET status = $2, replied_at = now(), confirmed_amount = $3, difference = $4
-            WHERE id = $1`,
-          [id, status, Math.round(amount), difference],
-        );
-        return status;
-      });
-      if (result) return { handled: `confirmation:${token}:${result}` };
     }
   }
   return { handled: null };

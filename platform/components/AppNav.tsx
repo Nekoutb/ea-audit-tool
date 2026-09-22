@@ -46,7 +46,7 @@ export async function AppNav({
       getBranding(),
       recentEngagements(6),
       unreadCount(),
-      listMyNotifications(8),
+      listMyNotifications(50),
     ]);
     branding = b;
     unread = u;

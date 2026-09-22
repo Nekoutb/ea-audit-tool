@@ -152,13 +152,6 @@ async function completionGatesTx(tx: PoolClient, engagementId: string): Promise<
     "SELECT count(*)::text AS n FROM finding WHERE engagement_id = $1 AND route = 'b4' AND status = 'open'",
     [engagementId],
   );
-  // 11. C4.3: no confirmations still outstanding.
-  const outstandingConfirmations = await count(
-    tx,
-    `SELECT count(*)::text AS n FROM confirmation
-      WHERE engagement_id = $1 AND status IN ('prepared', 'approved', 'sent')`,
-    [engagementId],
-  );
   // 9. OHADA two-letter representation layering generated under C3.1.
   const repLetters = await count(
     tx,
@@ -178,7 +171,6 @@ async function completionGatesTx(tx: PoolClient, engagementId: string): Promise<
     { key: "subsequent_events", ok: await recordExists(tx, engagementId, "subsequent_events") },
     { key: "rep_letters_generated", ok: repLetters >= 2 },
     { key: "b4_cleared", ok: openB4 === 0 },
-    { key: "b6_confirmations_closed", ok: outstandingConfirmations === 0 },
     { key: "partner_conclusion", ok: await recordExists(tx, engagementId, "partner_conclusion") },
   ];
 }
