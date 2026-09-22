@@ -49,6 +49,30 @@ export function tocSuggested(
   return { size: capped, rule: fr ? `Manuel ${frequency ?? ""} → minimum ${size}` : `Manual, ${frequency ?? "?"} → minimum ${size}` };
 }
 
+/**
+ * The random selection: `size` distinct occurrence numbers from 1 to
+ * `population`, ascending. Every call draws afresh — two generations never
+ * mean to agree — and a population smaller than the size yields all of it.
+ * `rng` is injectable so a test can hold the draw still.
+ */
+export function drawTocSample(population: number, size: number, rng: () => number = Math.random): number[] {
+  const n = Math.max(0, Math.floor(population));
+  const k = Math.min(Math.max(0, Math.floor(size)), n);
+  if (k === 0) return [];
+  // partial Fisher–Yates over 1..n: exact, unbiased, and cheap for a large population
+  const picked = new Map<number, number>();
+  const out: number[] = [];
+  for (let i = 0; i < k; i += 1) {
+    const j = i + Math.floor(rng() * (n - i));
+    const vi = picked.get(i) ?? i + 1;
+    const vj = picked.get(j) ?? j + 1;
+    out.push(vj);
+    picked.set(j, vi);
+    picked.set(i, vj);
+  }
+  return out.sort((a, b) => a - b);
+}
+
 /** The size a 25-item plan extends to after a single deviation. */
 export const TOC_EXTENDED_SIZE = 60;
 

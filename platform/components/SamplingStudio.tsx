@@ -2,12 +2,14 @@
 
 // The Sampling tool, structured like the methodology chapter:
 //   1 — Sampling for TESTS OF CONTROLS: the controls selected for testing
-//       arrive with their attributes straight from S2.1/S2.2; the user only
-//       supplies the population of occurrences and the minimum sample follows
-//       the frequency table (manual daily 25 — or 60 when it is the only
-//       control covering an assertion — weekly 5, monthly/quarterly 2,
+//       arrive with their attributes straight from S2.1/S2.2; the user
+//       supplies and saves the population of occurrences, the minimum sample
+//       follows the frequency table (manual daily 25 — or 60 when it is the
+//       only control covering an assertion — weekly 5, monthly/quarterly 2,
 //       annually 1; 50–250 occurrences → 10%, under 50 → 5, under 5 → all;
-//       automated → test of one). Confirming assigns the size to the control.
+//       automated → test of one), and "Generate" draws that many occurrence
+//       numbers at random — afresh every time — saved on the control and
+//       extracted to Excel, one tab per control.
 //   2 — Sampling for TESTS OF DETAILS: every account of one side of the
 //       financial statements, as a workbook with one tab per lead index —
 //       the CRA from S3.1 and the key-item threshold set there, key items in
@@ -17,13 +19,17 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { normFreq, tocSuggested } from "@/lib/toc-sampling";
+import { drawTocSample, normFreq, tocSuggested } from "@/lib/toc-sampling";
 
 export interface SamplingPurpose {
   controlId: string;
   controlName: string;
   scotName: string;
   sampleSize: number | null;
+  /** saved population of occurrences, and the items last drawn */
+  population: number | null;
+  sampleItems: number[];
+  drawnAt: string | null;
   frequency: string | null;
   controlType: string;
   assertions: string[];
@@ -54,7 +60,14 @@ export function SamplingStudio({
   const router = useRouter();
   const [error, setError] = useState<string | null>(null);
   const [done, setDone] = useState<string | null>(null);
-  const [populations, setPopulations] = useState<Record<string, string>>({});
+  const [populations, setPopulations] = useState<Record<string, string>>(() =>
+    Object.fromEntries(purposes.filter((p) => p.population !== null).map((p) => [p.controlId, String(p.population)])),
+  );
+  const [drawn, setDrawn] = useState<Record<string, { items: number[]; at: string }>>(() =>
+    Object.fromEntries(purposes.filter((p) => p.sampleItems.length > 0).map((p) => [p.controlId, { items: p.sampleItems, at: p.drawnAt ?? "" }])),
+  );
+  const [busy, setBusy] = useState<string | null>(null);
+  const [tocExporting, setTocExporting] = useState(false);
 
   // one workbook per side of the statements
   const [side, setSide] = useState<"bs" | "is">("is");
@@ -103,32 +116,49 @@ export function SamplingStudio({
     return r.json().catch(() => ({}));
   }
 
-  async function assignToc(p: SamplingPurpose) {
-    const pop = Number((populations[p.controlId] ?? "").replace(/[\s  ]/g, "")) || null;
+  const popOf = (p: SamplingPurpose): number | null => Number((populations[p.controlId] ?? "").replace(/[\s\u00a0\u202f]/g, "")) || null;
+
+  async function savePopulation(p: SamplingPurpose) {
+    const pop = popOf(p);
+    if (!pop) { setError(fr ? "Saisir la population avant d'enregistrer." : "Enter the population before saving."); return; }
+    setDone(null); setBusy(p.controlId);
+    const r = await op({ op: "updateControl", controlId: p.controlId, tocPopulation: pop });
+    setBusy(null);
+    if (r) { setDone(`${fr ? "Population enregistrée pour" : "Population saved for"} « ${p.controlName} » : ${n(pop)}.`); router.refresh(); }
+  }
+
+  async function generateSample(p: SamplingPurpose) {
+    const pop = popOf(p);
     const suggestion = tocSuggested(p.controlType, p.frequency, pop, p.sole, fr);
     if (!suggestion || "needPopulation" in suggestion) return;
-    // random selection: with the population known, draw the actual occurrence
-    // numbers (1..population) without bias and disclose them
-    let drawn: number[] = [];
-    if (pop && pop > 0 && p.controlType === "manual") {
-      const size = Math.min(suggestion.size, pop);
-      const picked = new Set<number>();
-      // eslint-disable-next-line react-hooks/purity -- event handler, not render: the random draw happens once per click and is persisted in the note
-      while (picked.size < size) picked.add(1 + Math.floor(Math.random() * pop));
-      drawn = [...picked].sort((a, b) => a - b);
-    }
-    const note =
-      `${fr ? "Test de contrôles" : "Test of controls"} — ${suggestion.rule}` +
-      (pop ? ` · ${fr ? "population" : "population"} ${n(pop)}` : "") +
-      (drawn.length > 0 ? ` · ${fr ? "éléments tirés au hasard" : "randomly drawn items"}: ${drawn.join(", ")}` : "");
-    const r = await op({ op: "updateControl", controlId: p.controlId, sampleSize: suggestion.size, sampleNote: note });
+    setDone(null); setBusy(p.controlId);
+    // the draw is random and afresh on every click; what was drawn is saved
+    // with the control so the Excel extract shows exactly these items
+    const items = pop && p.controlType !== "automated" ? drawTocSample(pop, suggestion.size) : pop ? drawTocSample(pop, 1) : [];
+    const note = `${fr ? "Test de contrôles" : "Test of controls"} — ${suggestion.rule}` + (pop ? ` · ${fr ? "population" : "population"} ${n(pop)}` : "");
+    const r = await op({ op: "updateControl", controlId: p.controlId, tocPopulation: pop, sampleSize: suggestion.size, sampleNote: note, tocSampleItems: items });
+    setBusy(null);
     if (r) {
-      setDone(
-        `${fr ? "Échantillon de" : "Sample of"} ${suggestion.size} ${fr ? "assigné à" : "assigned to"} « ${p.controlName} » — ${fr ? "visible sur S2.2" : "now on S2.2"}.` +
-        (drawn.length > 0 ? ` ${fr ? "Éléments" : "Items"}: ${drawn.join(", ")}.` : ` ${fr ? "Saisir la population pour tirer les éléments au hasard." : "Enter the population to draw the items at random."}`),
-      );
+      setDrawn((d) => ({ ...d, [p.controlId]: { items, at: new Date().toISOString() } }));
+      setDone(`${fr ? "Échantillon de" : "Sample of"} ${items.length || suggestion.size} ${fr ? "tiré au hasard pour" : "drawn at random for"} « ${p.controlName} » — ${fr ? "visible sur S2.2 et dans l'extrait Excel" : "on S2.2 and in the Excel extract"}.`);
       router.refresh();
     }
+  }
+
+  async function exportToc() {
+    setError(null); setTocExporting(true);
+    const r = await fetch(`/api/engagements/${engagementId}/sampling/toc-export?locale=${locale}`).catch(() => null);
+    setTocExporting(false);
+    if (!r?.ok) { setError(fr ? "L'extrait n'a pas pu être construit." : "The extract could not be built."); return; }
+    const blob = await r.blob();
+    const disposition = r.headers.get("Content-Disposition") ?? "";
+    const encoded = /filename\*=UTF-8''([^;]+)/.exec(disposition)?.[1];
+    const plain = /filename="([^"]+)"/.exec(disposition)?.[1];
+    const filename = encoded ? decodeURIComponent(encoded) : (plain ?? "Tests-of-controls-samples.xlsx");
+    const href = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = href; a.download = filename; document.body.appendChild(a); a.click(); a.remove();
+    URL.revokeObjectURL(href);
   }
 
   const sectionTitle = "text-[11px] font-extrabold uppercase tracking-[0.07em] text-emerald-700 dark:text-emerald-400";
@@ -146,24 +176,35 @@ export function SamplingStudio({
       {/* ------------------------------------------- 1 · tests of controls -- */}
       <div className="flex flex-col gap-1.5" data-testid="sampling-toc">
         <p className={sectionTitle}>{fr ? "1 · Échantillonnage — tests de contrôles" : "1 · Sampling for tests of controls"}</p>
-        <p className="text-[11.5px] text-muted">
-          {fr
-            ? "Les contrôles sélectionnés pour test (S2.1) arrivent avec leurs attributs ; saisissez la population d'occurrences et la taille minimale suit la table des fréquences."
-            : "The controls selected for testing (S2.1) arrive with their attributes; enter the population of occurrences and the minimum size follows the frequency table."}
-        </p>
+        <div className="flex flex-wrap items-start justify-between gap-2">
+          <p className="max-w-[820px] text-[11.5px] text-muted">
+            {fr
+              ? "Les contrôles sélectionnés pour test (S2.1) arrivent avec leurs attributs ; saisissez et enregistrez la population d'occurrences, la taille minimale suit la table des fréquences, et « Générer » tire au hasard les occurrences à tester — un nouveau tirage à chaque fois."
+              : "The controls selected for testing (S2.1) arrive with their attributes; enter and save the population of occurrences, the minimum size follows the frequency table, and Generate draws the occurrences to test at random — a fresh draw every time."}
+          </p>
+          <button
+            type="button"
+            onClick={() => void exportToc()}
+            disabled={tocExporting || purposes.length === 0}
+            className="rounded-[var(--radius-atlas-sm)] border border-line-strong bg-surface px-3 py-1.5 text-[12px] font-semibold text-ink-soft hover:bg-surface-2 disabled:opacity-50"
+            data-testid="toc-export"
+          >
+            {tocExporting ? (fr ? "Construction…" : "Building…") : fr ? "Extraire les échantillons (Excel, un onglet par contrôle)" : "Extract the samples (Excel, one tab per control)"}
+          </button>
+        </div>
         {purposes.length === 0 ? (
           <p className="text-[12px] text-warn">{fr ? "Aucun contrôle sélectionné pour test — voir S2.1." : "No control selected for testing yet — see S2.1."}</p>
         ) : (
           <div className="overflow-x-auto rounded-[var(--radius-atlas-sm)] border border-line">
             <table className="w-full table-fixed">
               <colgroup>
-                <col style={{ width: "26%" }} />
-                <col style={{ width: "15%" }} />
-                <col style={{ width: "11%" }} />
+                <col style={{ width: "22%" }} />
+                <col style={{ width: "12%" }} />
                 <col style={{ width: "9%" }} />
-                <col style={{ width: "13%" }} />
+                <col style={{ width: "7%" }} />
                 <col style={{ width: "16%" }} />
-                <col style={{ width: "10%" }} />
+                <col style={{ width: "14%" }} />
+                <col style={{ width: "20%" }} />
               </colgroup>
               <thead>
                 <tr>
@@ -173,7 +214,7 @@ export function SamplingStudio({
                   <th className={th}>{fr ? "Assertions" : "Assertions"}</th>
                   <th className={th}>{fr ? "Population" : "Population"}</th>
                   <th className={th}>{fr ? "Taille minimale" : "Minimum sample"}</th>
-                  <th className={th} />
+                  <th className={th}>{fr ? "Éléments tirés" : "Items drawn"}</th>
                 </tr>
               </thead>
               <tbody>
@@ -197,13 +238,25 @@ export function SamplingStudio({
                       <td className={`${td} text-ink-soft`}>{p.frequency ?? "—"}</td>
                       <td className={`${td} font-mono text-[10.5px] font-bold text-emerald-800 dark:text-emerald-300`}>{p.assertions.join("") || "—"}</td>
                       <td className={`${td} p-1`}>
-                        <input
-                          value={populations[p.controlId] ?? ""}
-                          onChange={(e) => setPopulations((s) => ({ ...s, [p.controlId]: e.target.value }))}
-                          placeholder={normFreq(p.frequency) === "daily" ? "250+" : fr ? "optionnel" : "optional"}
-                          className="w-full rounded-[var(--radius-atlas-xs)] border border-line-strong bg-surface px-2 py-1 text-[12px] outline-none focus:border-emerald-600 tnum"
-                          data-testid={`toc-pop-${p.controlName.replace(/[^A-Za-z0-9]/g, "_").slice(0, 24)}`}
-                        />
+                        <div className="flex items-center gap-1">
+                          <input
+                            value={populations[p.controlId] ?? ""}
+                            onChange={(e) => setPopulations((s) => ({ ...s, [p.controlId]: e.target.value }))}
+                            placeholder={normFreq(p.frequency) === "daily" ? "250+" : fr ? "occurrences" : "occurrences"}
+                            className="w-full min-w-0 rounded-[var(--radius-atlas-xs)] border border-line-strong bg-surface px-2 py-1 text-[12px] outline-none focus:border-emerald-600 tnum"
+                            data-testid={`toc-pop-${p.controlName.replace(/[^A-Za-z0-9]/g, "_").slice(0, 24)}`}
+                          />
+                          <button
+                            type="button"
+                            onClick={() => void savePopulation(p)}
+                            disabled={busy === p.controlId || !popOf(p) || popOf(p) === p.population}
+                            className="rounded-[var(--radius-atlas-xs)] border border-line-strong px-2 py-1 text-[11px] font-semibold text-ink-soft hover:bg-surface-2 disabled:opacity-40"
+                            title={fr ? "Enregistrer la population sur le contrôle" : "Save the population on the control"}
+                            data-testid={`toc-save-${p.controlName.replace(/[^A-Za-z0-9]/g, "_").slice(0, 24)}`}
+                          >
+                            {popOf(p) === p.population && p.population ? "✓" : fr ? "Enregistrer" : "Save"}
+                          </button>
+                        </div>
                       </td>
                       <td className={td}>
                         {suggestion === null ? (
@@ -217,16 +270,24 @@ export function SamplingStudio({
                           </span>
                         )}
                       </td>
-                      <td className={`${td} text-right`}>
-                        <button
-                          type="button"
-                          onClick={() => void assignToc(p)}
-                          disabled={!suggestion || "needPopulation" in suggestion}
-                          className="rounded-[var(--radius-atlas-xs)] bg-emerald-700 px-2.5 py-1 text-[11.5px] font-semibold text-white hover:bg-emerald-800 disabled:opacity-40"
-                          data-testid={`toc-assign-${p.controlName.replace(/[^A-Za-z0-9]/g, "_").slice(0, 24)}`}
-                        >
-                          {fr ? "Assigner" : "Assign"}
-                        </button>
+                      <td className={`${td} whitespace-normal`}>
+                        <div className="flex flex-col gap-1">
+                          <button
+                            type="button"
+                            onClick={() => void generateSample(p)}
+                            disabled={busy === p.controlId || !suggestion || "needPopulation" in suggestion || !popOf(p)}
+                            className="self-start rounded-[var(--radius-atlas-xs)] bg-emerald-700 px-2.5 py-1 text-[11.5px] font-semibold text-white hover:bg-emerald-800 disabled:opacity-40"
+                            title={fr ? "Tirer au hasard les occurrences à tester (nouveau tirage à chaque clic)" : "Draw the occurrences to test at random (a fresh draw every click)"}
+                            data-testid={`toc-generate-${p.controlName.replace(/[^A-Za-z0-9]/g, "_").slice(0, 24)}`}
+                          >
+                            {drawn[p.controlId] ? (fr ? "Régénérer" : "Regenerate") : fr ? "Générer" : "Generate"}
+                          </button>
+                          {drawn[p.controlId] ? (
+                            <span className="text-[10.5px] leading-snug text-ink-soft tnum" data-testid={`toc-items-${p.controlName.replace(/[^A-Za-z0-9]/g, "_").slice(0, 24)}`}>
+                              <b className="text-ink">{drawn[p.controlId].items.length}</b> {fr ? "sur" : "of"} {n(p.population ?? popOf(p) ?? 0)}: {drawn[p.controlId].items.join(", ")}
+                            </span>
+                          ) : null}
+                        </div>
                       </td>
                     </tr>
                   );

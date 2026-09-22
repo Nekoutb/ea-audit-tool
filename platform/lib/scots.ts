@@ -38,6 +38,9 @@ export interface ScotControl {
   operatingEval: "effective" | "not_effective" | null;
   /** occurrences of the control in the period — drives the SAMPLE 3.3 minimum */
   tocPopulation: number | null;
+  /** occurrence numbers drawn at random by the Sampling tool, ascending */
+  tocSampleItems: number[] | null;
+  tocSampleDrawnAt: string | null;
   /** transactions tested: {attributes: string[], rows: [{ref,date,desc,results}]} */
   tocGrid: TocGrid | null;
 }
@@ -121,6 +124,7 @@ export async function listScots(engagementId: string): Promise<Scot[]> {
                        'operatingNotes', c.operating_notes,
                        'sampleSize', c.sample_size, 'sampleNote', c.sample_note,
                        'operatingEval', c.operating_eval, 'tocPopulation', c.toc_population,
+                       'tocSampleItems', c.toc_sample_items, 'tocSampleDrawnAt', c.toc_sample_drawn_at,
                        'tocGrid', c.toc_grid,
                        'operating', tst.operating, 'testsCount', tst.tests_count,
                        'wcgwIds', coalesce((SELECT json_agg(wc.wcgw_id) FROM wcgw_control wc WHERE wc.control_id = c.id), '[]'::json))
@@ -628,6 +632,8 @@ export async function updateControl(
     operatingEval?: "effective" | "not_effective" | "";
     tocPopulation?: number | null;
     tocGrid?: TocGrid;
+    /** a fresh random draw replaces the previous one and dates it */
+    tocSampleItems?: number[];
   },
 ): Promise<void> {
   const { tenantId, userId } = await requireTenant();
@@ -643,7 +649,9 @@ export async function updateControl(
          sample_note = coalesce($8, sample_note),
          operating_eval = CASE WHEN $9 = '' THEN NULL WHEN $9 IN ('effective','not_effective') THEN $9 ELSE operating_eval END,
          toc_population = coalesce($10, toc_population),
-         toc_grid = coalesce($11::jsonb, toc_grid)
+         toc_grid = coalesce($11::jsonb, toc_grid),
+         toc_sample_items = coalesce($12::int[], toc_sample_items),
+         toc_sample_drawn_at = CASE WHEN $12::int[] IS NOT NULL THEN now() ELSE toc_sample_drawn_at END
        WHERE id = $1`,
       [
         controlId,
@@ -657,6 +665,7 @@ export async function updateControl(
         patch.operatingEval ?? null,
         Number.isFinite(patch.tocPopulation as number) ? Math.max(0, Math.round(patch.tocPopulation as number)) : null,
         patch.tocGrid ? JSON.stringify(patch.tocGrid) : null,
+        Array.isArray(patch.tocSampleItems) ? patch.tocSampleItems.map((v) => Math.max(1, Math.round(Number(v)))).filter((v) => Number.isFinite(v)) : null,
       ],
     );
 
