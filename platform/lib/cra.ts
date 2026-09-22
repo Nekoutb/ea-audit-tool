@@ -49,6 +49,8 @@ export interface CraCell {
 
 export interface CraAccountRow {
   indexCode: string;
+  /** key-item threshold set on S3.1 for this account; null = TE applies */
+  keyItemThreshold: number | null;
   taskCode: string | null;
   taskItemId: string | null;
   label: string;
@@ -60,6 +62,8 @@ export interface CraAccountRow {
 
 export interface CraBoardView {
   rows: CraAccountRow[];
+  /** tolerable error, the default key-item threshold; null before materiality is approved */
+  te: number | null;
   /** S2.5 conclusion: support / not_support / mixed — null until concluded */
   itgcState: string | null;
   glAvailable: boolean;
@@ -76,7 +80,7 @@ export async function craBoard(engagementId: string): Promise<CraBoardView> {
   const itgcState = s25.itgc_state && ["support", "not_support", "mixed"].includes(s25.itgc_state) ? s25.itgc_state : null;
 
   // risks per index+assertion, and the saved assessments
-  const { riskLinks, saved, taskItems } = await withTenant(tenantId, async (tx) => {
+  const { riskLinks, saved, taskItems, settings } = await withTenant(tenantId, async (tx) => {
     const riskLinks = await tx.query<{ index_code: string; assertions: string[]; significant: boolean; fraud: boolean }>(
       `SELECT li.index_code, li.assertions, rk.significant,
               (rk.category = 'fraud' OR rk.presumed_type IS NOT NULL) AS fraud
@@ -96,7 +100,11 @@ export async function craBoard(engagementId: string): Promise<CraBoardView> {
       "SELECT id, code FROM file_item WHERE engagement_id = $1 AND code LIKE 'E4.%'",
       [engagementId],
     );
-    return { riskLinks: riskLinks.rows, saved: saved.rows, taskItems: taskItems.rows };
+    const settings = await tx.query<{ index_code: string; key_item_threshold: string | null }>(
+      "SELECT index_code, key_item_threshold FROM cra_index_setting WHERE engagement_id = $1",
+      [engagementId],
+    );
+    return { riskLinks: riskLinks.rows, saved: saved.rows, taskItems: taskItems.rows, settings: settings.rows };
   });
 
   const itemByCode = new Map(taskItems.map((t) => [t.code, t.id]));
@@ -185,8 +193,10 @@ export async function craBoard(engagementId: string): Promise<CraBoardView> {
       };
     });
     const taskCode = INDEX_SECTION[indexCode] ?? null;
+    const setting = settings.find((x) => x.index_code === indexCode);
     return {
       indexCode,
+      keyItemThreshold: setting?.key_item_threshold ? Number(setting.key_item_threshold) : null,
       taskCode,
       taskItemId: taskCode ? (itemByCode.get(taskCode) ?? null) : null,
       label,
@@ -202,7 +212,7 @@ export async function craBoard(engagementId: string): Promise<CraBoardView> {
     ...extraIndexes.map((i) => buildRow(i, LEAD_INDEX_BY_CODE[i]?.labelEn ?? i, 0, [], [])),
   ];
 
-  return { rows, itgcState, glAvailable: sig?.glAvailable ?? false };
+  return { rows, te: sig?.tolerableError ?? null, itgcState, glAvailable: sig?.glAvailable ?? false };
 }
 
 /** The effective (recorded, else suggested) sampling-tool value of one cell. */
@@ -231,6 +241,22 @@ export async function craRollupByIndex(engagementId: string): Promise<Record<str
 }
 
 /** Persist one cell of the matrix. */
+/** The key-item threshold of one account, set on S3.1; null clears it so TE applies again. */
+export async function saveIndexThreshold(engagementId: string, indexCode: string, threshold: number | null): Promise<void> {
+  if (!/^[A-Z][A-Z0-9]{0,2}$/.test(indexCode)) throw new Error("invalid-index");
+  if (threshold !== null && !(Number.isFinite(threshold) && threshold > 0)) throw new Error("invalid-threshold");
+  const { tenantId, userId } = await requireTenant();
+  await withTenant(tenantId, async (tx) => {
+    await tx.query(
+      `INSERT INTO cra_index_setting (tenant_id, engagement_id, index_code, key_item_threshold, updated_by)
+       VALUES ($1, $2, $3, $4, $5)
+       ON CONFLICT (engagement_id, index_code) DO UPDATE SET
+         key_item_threshold = EXCLUDED.key_item_threshold, updated_by = EXCLUDED.updated_by, updated_at = now()`,
+      [tenantId, engagementId, indexCode, threshold === null ? null : Math.round(threshold), userId],
+    );
+  });
+}
+
 export async function saveCraCell(
   engagementId: string,
   indexCode: string,

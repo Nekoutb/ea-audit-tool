@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { saveFailed } from "@/lib/api-errors";
 import { assertMutable, ArchivedError } from "@/lib/mutability";
-import { saveCraCell } from "@/lib/cra";
+import { saveCraCell, saveIndexThreshold } from "@/lib/cra";
 
 /** S3.1 CRA matrix mutations: one cell of the assessment at a time. */
 export async function POST(request: Request, context: { params: Promise<{ id: string }> }) {
@@ -9,6 +9,12 @@ export async function POST(request: Request, context: { params: Promise<{ id: st
   try { await assertMutable(id); } catch (e) { if (e instanceof ArchivedError) return NextResponse.json({ error: "archived" }, { status: 423 }); throw e; }
   try {
     const body = (await request.json()) as { op?: string } & Record<string, unknown>;
+    if (body.op === "saveThreshold") {
+      const raw = body.threshold;
+      const threshold = raw === null || raw === "" || raw === undefined ? null : Number(String(raw).replace(/[\s\u00a0\u202f]/g, ""));
+      await saveIndexThreshold(id, String(body.indexCode), threshold);
+      return NextResponse.json({ ok: true });
+    }
     if (body.op !== "saveCell") return NextResponse.json({ error: "invalid-op" }, { status: 400 });
     await saveCraCell(id, String(body.indexCode), String(body.assertion), {
       relevant: typeof body.relevant === "boolean" ? body.relevant : undefined,

@@ -323,29 +323,9 @@ export async function saveFscp(engagementId: string, key: string, value: string)
 
 // ------------------------------------------------- tests of details sampling --
 
-export type TodCra = "minimal" | "low" | "low_sr" | "moderate" | "high" | "high_sr";
-export type TodAssurance = "little" | "some" | "corroborative" | "persuasive";
-
-// The audit risk tables: the multiple applied to the base sample size
-// (population excluding key items ÷ TE) per CRA × assurance from other
-// substantive procedures × key-item coverage (columns 0/10/30/50/70/90/100%).
-// null = no representative sample required at that combination.
-const ART_COLS = [0, 10, 30, 50, 70, 90, 100];
-const N = null;
-const ART_MUS: Record<TodCra, Record<TodAssurance, (number | null)[]>> = {
-  minimal:  { little: [0.5, 0.4, 0.1, N, N, N, N], some: [0.2, 0.1, N, N, N, N, N], corroborative: [N, N, N, N, N, N, N], persuasive: [N, N, N, N, N, N, N] },
-  low:      { little: [1.0, 0.9, 0.7, 0.3, N, N, N], some: [0.7, 0.6, 0.4, N, N, N, N], corroborative: [0.3, 0.2, N, N, N, N, N], persuasive: [N, N, N, N, N, N, N] },
-  low_sr:   { little: [1.4, 1.3, 1.0, 0.7, 0.2, N, N], some: [1.1, 1.0, 0.7, 0.4, N, N, N], corroborative: [0.7, 0.6, 0.3, N, N, N, N], persuasive: [N, N, N, N, N, N, N] },
-  moderate: { little: [2.1, 2.0, 1.7, 1.4, 0.9, N, N], some: [1.8, 1.7, 1.4, 1.1, 0.6, N, N], corroborative: [1.4, 1.3, 1.0, 0.7, 0.2, N, N], persuasive: [N, N, N, N, N, N, N] },
-  high:     { little: [2.6, 2.5, 2.3, 1.9, 1.4, 0.3, N], some: [2.4, 2.2, 2.0, 1.7, 1.1, N, N], corroborative: [1.9, 1.8, 1.6, 1.3, 0.7, N, N], persuasive: [0.3, 0.2, N, N, N, N, N] },
-  high_sr:  { little: [3.0, 2.9, 2.6, 2.3, 1.8, 0.7, N], some: [2.7, 2.6, 2.4, 2.0, 1.5, 0.4, N], corroborative: [2.3, 2.2, 1.9, 1.6, 1.1, N, N], persuasive: [0.7, 0.6, 0.3, N, N, N, N] },
-};
-
-interface GlLine {
-  ref: string;
-  account: string;
-  amount: number;
-}
+export type { TodAssurance, TodCra } from "@/lib/tod-plan";
+import { planTod, type GlLine, type TodAssurance, type TodCra } from "@/lib/tod-plan";
+import { jeIdentity, jeKeyColumns } from "@/lib/dataset-mapping";
 
 async function glLines(
   tx: { query: <T>(sql: string, params?: unknown[]) => Promise<{ rows: T[] }> },
@@ -366,6 +346,9 @@ async function glLines(
     [gl.rows[0].id],
   );
   const clean = prefix.replace(/[^0-9]/g, "");
+  const keyCols = jeKeyColumns(mapping);
+  const jeHeader = typeof mapping.jeNumber === "string" ? mapping.jeNumber : null;
+  const text = (v: unknown): string | null => (v === null || v === undefined ? null : String(v).trim() || null);
   const out: GlLine[] = [];
   for (const { data } of rows.rows) {
     const account = String(data[mapping.account] ?? "").trim();
@@ -373,7 +356,7 @@ async function glLines(
     const n = amountOr(data[mapping.amount], 0);
     if (!Number.isFinite(n) || n === 0) continue;
     out.push({
-      ref: String(data[mapping.jeNumber ?? ""] ?? "").trim() || account,
+      ref: jeIdentity(data, keyCols, jeHeader, text) ?? account,
       account,
       amount: Math.abs(n),
     });
@@ -446,52 +429,23 @@ export async function todPreview(
     if (typeof lines === "string") return { ok: false, error: lines };
     if (lines.length === 0) return { ok: false, error: "empty-population" };
 
-    const populationValue = lines.reduce((s, l) => s + l.amount, 0);
-    const threshold = thresholdInput && thresholdInput > 0 ? Math.round(thresholdInput) : te;
-    const keyItems = lines.filter((l) => l.amount >= threshold);
-    const rest = lines.filter((l) => l.amount < threshold);
-    const keyItemValue = keyItems.reduce((s, l) => s + l.amount, 0);
-    const remaining = populationValue - keyItemValue;
-    const coveragePct = populationValue > 0 ? (keyItemValue / populationValue) * 100 : 0;
-    // nearest coverage column at or below the achieved coverage (conservative)
-    let col = 0;
-    for (let i = 0; i < ART_COLS.length; i += 1) if (coveragePct >= ART_COLS[i]) col = i;
-    const factor = ART_MUS[cra][assurance][col];
-    const baseSize = te > 0 ? remaining / te : 0;
-    const sampleSize = factor === null ? 0 : Math.ceil(baseSize * factor);
-    const interval = sampleSize > 0 ? Math.round(remaining / sampleSize) : null;
-
-    // systematic (MUS) selection over the remaining population, random start
-    const selected: GlLine[] = [];
-    if (interval && sampleSize > 0) {
-      const start = Math.floor(Math.random() * interval) + 1;
-      let cumulative = 0;
-      let nextHook = start;
-      for (const l of rest) {
-        cumulative += l.amount;
-        while (cumulative >= nextHook && selected.length < sampleSize) {
-          selected.push(l);
-          nextHook += interval;
-        }
-        if (selected.length >= sampleSize) break;
-      }
-    }
+    const p = planTod({ lines, te, threshold: thresholdInput, cra, assurance });
     return {
       ok: true,
-      populationValue: Math.round(populationValue),
-      populationCount: lines.length,
+      populationValue: p.populationValue,
+      populationCount: p.populationCount,
       te,
-      threshold,
-      keyItemCount: keyItems.length,
-      keyItemValue: Math.round(keyItemValue),
-      coveragePct: Math.round(coveragePct * 10) / 10,
-      baseSize: Math.round(baseSize * 10) / 10,
-      factor,
-      sampleSize,
-      interval,
+      threshold: p.threshold,
+      keyItemCount: p.keyItems.length,
+      keyItemValue: p.keyItemValue,
+      coveragePct: p.coveragePct,
+      baseSize: p.baseSize,
+      factor: p.factor,
+      sampleSize: p.sampleSize,
+      interval: p.interval,
       items: [
-        ...keyItems.slice(0, 30).map((l) => ({ ...l, amount: Math.round(l.amount), kind: "key" as const })),
-        ...selected.slice(0, 60).map((l) => ({ ...l, amount: Math.round(l.amount), kind: "sample" as const })),
+        ...p.keyItems.slice(0, 30).map((l) => ({ ref: l.ref, account: l.account, amount: Math.round(l.amount), kind: "key" as const })),
+        ...p.sample.slice(0, 60).map((l) => ({ ref: l.ref, account: l.account, amount: Math.round(l.amount), kind: "sample" as const })),
       ],
     };
   });

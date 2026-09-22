@@ -155,7 +155,7 @@ export const TEMPLATES: readonly WpTemplate[] = [
   {
     key: "fs-checklist-ohada",
     category: "general-procedures",
-    name: "E6.10 OHADA Financial Statement Checklist.xlsx",
+    name: "C2.1.1_Ohada Financial Statement Checklist.xlsx",
     titleEn: "OHADA financial statement checklist",
     titleFr: "Contrôle des états financiers OHADA",
     descriptionEn:

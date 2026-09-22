@@ -12,6 +12,10 @@
 //       base sample = (population − key items) ÷ TE, multiplied by the
 //       audit-risk-table factor (CRA × assurance × key-item coverage); the
 //       sample is drawn systematically (MUS) and revealed item by item.
+//   3 — The same plan for EVERY account of one side of the financial
+//       statements, as a workbook with one tab per lead index: the CRA from
+//       S3.1 and the key-item threshold set there, key items in full, the
+//       sample beneath, entry columns for the tester.
 
 import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
@@ -93,6 +97,39 @@ export function SamplingStudio({
   }, [s31]);
   const [assurance, setAssurance] = useState("little");
   const [threshold, setThreshold] = useState("");
+
+  // one workbook per side of the statements
+  const [side, setSide] = useState<"bs" | "is">("is");
+  const [sideAssurance, setSideAssurance] = useState("little");
+  const [sideError, setSideError] = useState<string | null>(null);
+  const [sidePending, setSidePending] = useState(false);
+
+  async function exportSide() {
+    setSideError(null); setSidePending(true);
+    const url = `/api/engagements/${engagementId}/sampling/tod-export?side=${side}&assurance=${sideAssurance}&locale=${locale}`;
+    const r = await fetch(url).catch(() => null);
+    setSidePending(false);
+    if (!r) { setSideError(fr ? "Connexion perdue." : "The connection dropped."); return; }
+    if (!r.ok) {
+      const body = (await r.json().catch(() => ({}))) as { error?: string };
+      setSideError(
+        body.error === "no-materiality" ? (fr ? "Seuil de signification non approuvé (P6.1)." : "Materiality not approved yet (P6.1).")
+        : body.error === "no-gl" ? (fr ? "Aucun grand livre — importer le GL dans l'analyseur." : "No general ledger — upload it in the GL Analyzer.")
+        : body.error === "no-mapping" ? (fr ? "Colonnes du GL non mappées (compte, montant)." : "GL columns not mapped (account, amount).")
+        : fr ? "Le classeur n'a pas pu être construit." : "The workbook could not be built.",
+      );
+      return;
+    }
+    const blob = await r.blob();
+    const disposition = r.headers.get("Content-Disposition") ?? "";
+    const encoded = /filename\*=UTF-8''([^;]+)/.exec(disposition)?.[1];
+    const plain = /filename="([^"]+)"/.exec(disposition)?.[1];
+    const filename = encoded ? decodeURIComponent(encoded) : (plain ?? "Tests-of-details.xlsx");
+    const href = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = href; a.download = filename; document.body.appendChild(a); a.click(); a.remove();
+    URL.revokeObjectURL(href);
+  }
   const [todPending, setTodPending] = useState(false);
   const [tod, setTod] = useState<{
     populationValue: number; populationCount: number; te: number; threshold: number;
@@ -370,6 +407,52 @@ export function SamplingStudio({
             ) : null}
           </div>
         ) : null}
+      </div>
+
+      {/* ------------------------- 3 · tests of details, one side at a time -- */}
+      <div className="flex flex-col gap-1.5" data-testid="sampling-tod-side">
+        <p className={sectionTitle}>{fr ? "3 · Tests de détail — un classeur par côté des états financiers" : "3 · Tests of details — one workbook per side of the financial statements"}</p>
+        <p className="text-[11.5px] text-muted">
+          {fr
+            ? "Choisissez le bilan ou le compte de résultat : chaque indice de ce côté reçoit un onglet avec ses éléments clés (≥ seuil fixé sur S3.1, TE à défaut) et son échantillon représentatif dimensionné par la CRA de S3.1 — colonnes de test à remplir."
+            : "Choose the balance sheet or the income statement: every lead index of that side gets a tab with its key items (≥ the threshold set on S3.1, TE by default) and its representative sample sized by the S3.1 CRA — with the columns the tester fills."}
+        </p>
+        <div className="flex flex-wrap items-end gap-2.5">
+          <div className="flex flex-col gap-0.5 text-[11px] text-muted">
+            {fr ? "Côté des états financiers" : "Financial statements side"}
+            <div className="flex overflow-hidden rounded-[var(--radius-atlas-sm)] border border-line-strong" role="radiogroup" data-testid="tod-side">
+              {([["bs", fr ? "Bilan" : "Balance sheet"], ["is", fr ? "Compte de résultat" : "Income statement"]] as const).map(([value, label]) => (
+                <button
+                  key={value}
+                  type="button"
+                  role="radio"
+                  aria-checked={side === value}
+                  onClick={() => setSide(value)}
+                  className={`px-3 py-1.5 text-[12px] font-semibold transition ${side === value ? "bg-emerald-700 text-white" : "bg-surface text-ink-soft hover:bg-surface-2"}`}
+                  data-testid={`tod-side-${value}`}
+                >
+                  {label}
+                </button>
+              ))}
+            </div>
+          </div>
+          <label className="flex flex-col gap-0.5 text-[11px] text-muted">
+            {fr ? "Assurance des autres procédures" : "Assurance from other procedures"}
+            <select value={sideAssurance} onChange={(e) => setSideAssurance(e.target.value)} className={input} data-testid="tod-side-assurance">
+              {ASSURANCES.map((a) => <option key={a.value} value={a.value}>{fr ? a.fr : a.en}</option>)}
+            </select>
+          </label>
+          <button
+            type="button"
+            onClick={() => void exportSide()}
+            disabled={sidePending}
+            className="rounded-[var(--radius-atlas-sm)] bg-emerald-700 px-3.5 py-1.5 text-[13px] font-semibold text-white hover:bg-emerald-800 disabled:opacity-50"
+            data-testid="tod-side-export"
+          >
+            {sidePending ? (fr ? "Construction du classeur…" : "Building the workbook…") : fr ? "Générer le classeur Excel (un onglet par indice)" : "Generate the Excel workbook (one tab per index)"}
+          </button>
+        </div>
+        {sideError ? <p role="alert" className="text-[12px] font-semibold text-rose" data-testid="tod-side-error">{sideError}</p> : null}
       </div>
     </div>
   );

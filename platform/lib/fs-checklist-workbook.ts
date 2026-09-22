@@ -47,7 +47,7 @@ export interface FsChecklistView {
   answers: Record<string, FsChecklistAnswer>;
 }
 
-const PAPER = "E6.10 OHADA Financial Statement Checklist";
+const PAPER = "C2.1.1 OHADA Financial Statement Checklist";
 
 const HDR = "FFD9D9D9";
 const BAND = "FFC0C0C0";
