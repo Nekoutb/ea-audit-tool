@@ -4,6 +4,7 @@ import { auth } from "@/auth";
 import { AppNav } from "@/components/AppNav";
 import { ErrorBanner } from "@/components/GatesPanel";
 import { TbAnalyzer } from "@/components/TbAnalyzer";
+import { TbValidationReasons } from "@/components/TbValidationReasons";
 import { Chip, Panel } from "@/components/ui/atlas";
 import { getEngagement } from "@/lib/engagements";
 import { getMessages } from "@/lib/i18n";
@@ -93,6 +94,7 @@ export default async function DataPage(props: {
                     {fr ? "Aucun fichier — importer ci-dessus." : "No file yet — upload above."}
                   </p>
                 )}
+                {slot ? <TbValidationReasons summary={slot.summary} locale={fr ? "fr" : "en"} testId={`tb-reasons-${timing}`} /> : null}
               </div>
             );
           })}

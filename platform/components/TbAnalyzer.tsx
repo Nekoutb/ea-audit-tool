@@ -8,6 +8,8 @@
 import { useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import type { Messages } from "@/lib/i18n";
+import type { TbValidationSummary } from "@/lib/tb";
+import { TbValidationReasons } from "@/components/TbValidationReasons";
 import { ACCOUNT_CLASSES, INDEX_SECTION, LEAD_INDEXES, LEAD_INDEX_BY_CODE, defaultIndexForClass } from "@/lib/lead-classes";
 
 type TbColumn =
@@ -79,6 +81,7 @@ export function TbAnalyzer({
   // the file starts straight with data and columns become col_1..col_N.
   const [headerRow, setHeaderRow] = useState(true);
   const [status, setStatus] = useState<string | null>(null);
+  const [lastSummary, setLastSummary] = useState<TbValidationSummary | null>(null);
   const [pending, setPending] = useState<"analyze" | "ingest" | null>(null);
 
   async function analyze(withMapping?: Partial<Record<TbColumn, string>>) {
@@ -139,6 +142,7 @@ export function TbAnalyzer({
       : timing === "post_audit" ? (fr ? "TB post-audit" : "Post-audit TB")
       : fr ? "TB exercice précédent" : "Prior year TB";
     setStatus(`${timingLabel}: ${body.status}`);
+    setLastSummary((body.summary as TbValidationSummary | undefined) ?? null);
     setPreview(null);
     router.refresh();
   }
@@ -195,12 +199,14 @@ export function TbAnalyzer({
           {pending === "analyze" ? "…" : fr ? "Analyser" : "Analyze"}
         </button>
         {status ? (
-          <span className="text-sm text-emerald-700 tnum" data-testid="tb-import-status">{status}</span>
+          <span className={`text-sm tnum ${lastSummary?.status === "invalid" ? "font-semibold text-rose" : "text-emerald-700"}`} data-testid="tb-import-status">{status}</span>
         ) : null}
         {error ? (
           <p role="alert" className="text-sm text-rose">{error}</p>
         ) : null}
       </div>
+
+      {lastSummary && !preview ? <TbValidationReasons summary={lastSummary} locale={locale} testId="tb-import-reasons" /> : null}
 
       {preview ? (
         <div className="flex flex-col gap-4 rounded-[var(--radius-atlas)] border border-line bg-surface-2/50 p-4" data-testid="tb-confirm">

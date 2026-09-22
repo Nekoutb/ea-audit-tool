@@ -81,6 +81,51 @@ function parseAmount(value: unknown): number {
   return amountOr(value, 0);
 }
 
+/** A cell that holds something but not an amount. */
+const unreadable = (value: unknown): boolean =>
+  value !== null && value !== undefined && String(value).trim() !== "" && parseAmountOrNull(value) === null;
+
+export interface TbUnreadableColumn {
+  /** the TB field the column was mapped to */
+  column: TbColumn;
+  /** the header in the file */
+  header: string;
+  count: number;
+  /** the first few offending values, with the file row (1-based, after the header) */
+  examples: { row: number; account: string; value: string }[];
+}
+
+export interface TbReadability {
+  /** rows in the file */
+  rows: number;
+  /** rows dropped because the account cell was empty */
+  rowsWithoutAccount: number;
+  /** mapped amount columns holding values that are not amounts (read as 0) */
+  unreadable: TbUnreadableColumn[];
+}
+
+/** Collected while the rows are extracted; validateTbRows folds it into the summary. */
+export function readabilityOf(table: ParsedTable, mapping: TbMapping): TbReadability {
+  const columns: TbColumn[] = ["openingDebit", "openingCredit", "opening", "debit", "credit", "closingDebit", "closingCredit", "closing"];
+  const found = new Map<TbColumn, TbUnreadableColumn>();
+  let rowsWithoutAccount = 0;
+  table.rows.forEach((raw, i) => {
+    const account = String(raw[mapping.account!] ?? "").trim();
+    if (!account) { rowsWithoutAccount += 1; return; }
+    for (const column of columns) {
+      const header = mapping[column];
+      if (!header) continue;
+      const value = raw[header];
+      if (!unreadable(value)) continue;
+      const entry = found.get(column) ?? { column, header, count: 0, examples: [] };
+      entry.count += 1;
+      if (entry.examples.length < 5) entry.examples.push({ row: i + 1, account, value: String(value).slice(0, 40) });
+      found.set(column, entry);
+    }
+  });
+  return { rows: table.rows.length, rowsWithoutAccount, unreadable: [...found.values()] };
+}
+
 export interface TbImportRow {
   account: string;
   label: string | null;
@@ -145,9 +190,12 @@ export interface TbValidationSummary {
     openingTiesToPrior: { checked: boolean; exceptions: { account: string; opening: number; priorClosing: number }[] };
   };
   mapping: TbMapping;
+  /** what the parser could and could not read; absent on summaries stored before it existed */
+  readability?: TbReadability;
 }
 
 const EPSILON = 0.01;
+
 
 /** The 3.2 validation engine (spec §10.1). */
 export function validateTbRows(
@@ -155,6 +203,7 @@ export function validateTbRows(
   knownPrefixes: string[],
   priorClosings: Map<string, number> | null,
   mapping: TbMapping,
+  readability?: TbReadability,
 ): TbValidationSummary {
   const totalDebit = rows.reduce((sum, row) => sum + row.debit, 0);
   const totalCredit = rows.reduce((sum, row) => sum + row.credit, 0);
@@ -201,9 +250,11 @@ export function validateTbRows(
   const balancedOk = Math.abs(totalDebit - totalCredit) <= EPSILON;
   const openingOk = Math.abs(totalOpeningDebit - totalOpeningCredit) <= EPSILON;
   const closingOk = closingFailures.length === 0;
+  // a figure the parser could not read went in as 0: the balance is not the file's
+  const readableOk = !readability || readability.unreadable.length === 0;
 
   return {
-    status: balancedOk && openingOk && closingOk ? "valid" : "invalid",
+    status: balancedOk && openingOk && closingOk && readableOk ? "valid" : "invalid",
     checks: {
       balanced: { ok: balancedOk, totalDebit, totalCredit },
       openingBalanced: { ok: openingOk, totalDebit: totalOpeningDebit, totalCredit: totalOpeningCredit },
@@ -213,6 +264,7 @@ export function validateTbRows(
       openingTiesToPrior: { checked: priorClosings !== null, exceptions: openingExceptions.slice(0, 50) },
     },
     mapping,
+    readability,
   };
 }
 
@@ -273,7 +325,7 @@ export async function importTrialBalance(
       [meta.rows[0].client_id],
     );
     const priorClosings = await priorClosingsMap(tx, engagementId);
-    const summary = validateTbRows(rows, prefixes.rows.map((r) => r.p), priorClosings, mapping);
+    const summary = validateTbRows(rows, prefixes.rows.map((r) => r.p), priorClosings, mapping, readabilityOf(table, mapping));
 
     const tb = await tx.query<{ id: string }>(
       `INSERT INTO trial_balance (tenant_id, client_id, engagement_id, period_end)

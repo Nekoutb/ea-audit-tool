@@ -95,7 +95,7 @@ export async function AppNav({
         {minimal || hideLinks ? null : current ? (
           /* inside an engagement the primary links are the four phases —
              each opens the dashboard with that phase's sub-tasks revealed */
-          <nav className="hidden items-center gap-1 lg:flex" data-testid="nav-phases">
+          <nav className="hidden items-center gap-1 xl:flex" data-testid="nav-phases">
             {SECTION_ORDER.map((key) => (
               <Link
                 key={key}
@@ -124,7 +124,7 @@ export async function AppNav({
         )}
       </div>
 
-      <div className="flex min-w-0 flex-wrap items-center justify-end gap-2.5">
+      <div className="flex min-w-0 flex-1 flex-wrap items-center justify-end gap-2.5">
         <ThemeToggle />
         {recent.length > 0 && !minimal ? (
           <EngagementSelector
@@ -190,7 +190,7 @@ export async function AppNav({
             placeholder={locale === "fr" ? "Rechercher…" : "Search…"}
             aria-label={locale === "fr" ? "Rechercher dans le dossier" : "Search the audit file"}
             data-testid="nav-search"
-            className="h-9 w-[190px] rounded-[var(--radius-atlas-sm)] border border-line-strong bg-surface px-2.5 text-[12.5px] text-ink outline-none transition focus:w-[240px] focus:border-emerald-600"
+            className="h-9 w-[150px] rounded-[var(--radius-atlas-sm)] border border-line-strong bg-surface px-2.5 text-[12.5px] text-ink outline-none transition focus:w-[240px] focus:border-emerald-600 xl:w-[190px]"
           />
         </form>
 
