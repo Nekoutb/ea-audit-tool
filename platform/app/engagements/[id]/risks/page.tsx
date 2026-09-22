@@ -3,7 +3,7 @@ import { notFound, redirect } from "next/navigation";
 import { auth } from "@/auth";
 import { approveRiskAdditionAction } from "@/app/actions/execution";
 import {
-  decideLeadAction,
+  addRiskAction,
   dismissPotentialAction,
   linkRiskIndexAction,
   mapRiskAction,
@@ -21,16 +21,16 @@ import { getMessages } from "@/lib/i18n";
 import { getLocale } from "@/lib/locale";
 import { LEAD_INDEXES } from "@/lib/lead-classes";
 import { ASSERTIONS, inherentRating, listPotentialRisks, listRisks, type Risk } from "@/lib/risks";
-import { riskLeads } from "@/lib/risk-leads";
 import { significantAccounts } from "@/lib/significant-accounts";
 
 export const metadata = { title: "Risk console · AuditISA" };
 
-// The Risk Console (ISA 315 Revised 2019): Sources — everything the file knows
-// that feeds risk identification, as promotable leads; Canvas — each risk
-// assessed on the spectrum of inherent risk with its inherent risk factors;
-// Linkage — risks carried onto lead-schedule indexes and assertions, from
-// which P6.2 derives relevant assertions and significance.
+// The Risk Console (ISA 315 Revised 2019): the two presumed ISA 240 risks,
+// the risks the auditor adds and documents by hand, and the potential risks
+// the team raises from their tasks (P5.2); Canvas — each risk assessed on the
+// spectrum of inherent risk with its inherent risk factors; Linkage — risks
+// carried onto lead-schedule indexes and assertions, from which P6.2 derives
+// relevant assertions and significance.
 
 const FACTORS = [
   { key: "complexity", en: "Complexity", fr: "Complexité" },
@@ -91,15 +91,13 @@ export default async function RisksPage(props: {
 
   const engagement = await getEngagement(id);
   if (!engagement) notFound();
-  const [potential, risks, items, leads, sigView] = await Promise.all([
+  const [potential, risks, items, sigView] = await Promise.all([
     listPotentialRisks(id),
     listRisks(id),
     listFileItems(id),
-    riskLeads(id),
     significantAccounts(id).catch(() => null),
   ]);
   const eSections = items.filter((item) => item.section === "E");
-  const openLeads = leads.filter((lead) => lead.status === "open");
 
   // coverage: the orphans planning should not close with
   const liveAssertion = risks.filter((r) => !r.rebutted && r.level === "assertion");
@@ -156,68 +154,100 @@ export default async function RisksPage(props: {
       <ErrorBanner error={error} locale={locale} />
 
       <div className="mt-4 flex flex-col gap-6 lg:flex-row lg:items-start">
-        {/* ------------------------------------------------ Lane 1 — Sources */}
+        {/* ------------------------------------------- Lane 1 — Add a risk */}
         <div className="flex w-full flex-col gap-4 lg:w-[360px] lg:flex-shrink-0">
-          <Panel>
-            <PanelHeader title={fr ? "Sources — pistes de risque" : "Sources — risk leads"} />
+          <Panel data-testid="add-risk-panel">
+            <PanelHeader title={fr ? "Ajouter un risque" : "Add a risk"} />
             <p className="mt-1 text-xs text-muted">
               {fr
-                ? "Ce que le dossier sait déjà : acceptation, connaissance de l'activité, analyses, déficiences. Promouvoir au registre ou écarter avec motif."
-                : "What the file already knows: acceptance, the understanding, analytics, deficiencies. Promote to the register or dismiss with a rationale."}
+                ? "Un risque identifié par l'équipe, documenté à l'ajout : de quoi il s'agit, d'où il vient, sa catégorie, son niveau et son évaluation. Les deux risques présumés ISA 240 sont déjà au registre."
+                : "A risk the team identified, documented as it is added: what it is, where it came from, its category, level and assessment. The two presumed ISA 240 risks are already on the register."}
             </p>
-            {openLeads.length === 0 ? (
-              <p className="mt-2 text-sm text-muted" data-testid="leads-empty">
-                {fr ? "Aucune piste ouverte." : "No open leads."}
-              </p>
-            ) : (
-              <ul className="mt-3 flex flex-col gap-2" data-testid="risk-leads">
-                {openLeads.map((lead) => (
-                  <li key={lead.key} className="rounded-[var(--radius-atlas)] border border-line bg-surface-2 p-2.5 text-sm" data-testid={`lead-${lead.key.replace(/[^A-Za-z0-9-]/g, "_")}`}>
-                    <p className="text-[12.5px] font-medium leading-snug text-ink">{fr ? lead.labelFr : lead.labelEn}</p>
-                    <p className="mt-0.5 text-[11px] text-muted">
-                      {lead.source} · {lead.detail.slice(0, 140)}
-                    </p>
-                    <details className="mt-1.5">
-                      <summary className="cursor-pointer text-[11.5px] font-semibold text-emerald-700 dark:text-emerald-400">
-                        {fr ? "Promouvoir / écarter" : "Promote / dismiss"}
-                      </summary>
-                      <form action={decideLeadAction.bind(null, id, lead.key)} className="mt-2 flex flex-col gap-1.5">
-                        <input type="hidden" name="source" value={lead.source} />
-                        {lead.index ? <input type="hidden" name="index" value={lead.index} /> : null}
-                        <textarea name="description" rows={2} defaultValue={`${fr ? lead.labelFr : lead.labelEn} — ${lead.detail.slice(0, 120)}`} className={`${input} text-xs`} />
-                        <span className="flex gap-1.5">
-                          <select name="category" defaultValue={lead.suggestedCategory} className={`${input} flex-1 text-xs`}>
-                            <option value="business">{fr ? "Activité" : "Business"}</option>
-                            <option value="fraud">{fr ? "Fraude" : "Fraud"}</option>
-                            <option value="error">{fr ? "Erreur" : "Error"}</option>
-                          </select>
-                          <select name="level" defaultValue={lead.suggestedLevel} className={`${input} flex-1 text-xs`}>
-                            <option value="assertion">{fr ? "Assertion" : "Assertion"}</option>
-                            <option value="fs">{fr ? "États financiers" : "FS level"}</option>
-                          </select>
-                        </span>
-                        <input
-                          name="managementMissed"
-                          placeholder={fr ? "Non identifié par la direction ? Pourquoi (¶23)…" : "Missed by management's process? Why (¶23)…"}
-                          className={`${input} text-xs`}
-                        />
-                        <span className="flex gap-1.5">
-                          <button type="submit" name="leadAction" value="promote" className={`${btn} bg-emerald-700 !text-white hover:bg-emerald-800`} data-testid={`lead-promote-${lead.key.replace(/[^A-Za-z0-9-]/g, "_")}`}>
-                            {fr ? "Promouvoir" : "Promote"}
-                          </button>
-                        </span>
-                        <span className="flex gap-1.5">
-                          <input name="rationale" placeholder={fr ? "Motif d'écart…" : "Dismissal rationale…"} className={`${input} flex-1 text-xs`} />
-                          <button type="submit" name="leadAction" value="dismiss" className={btn}>
-                            {fr ? "Écarter" : "Dismiss"}
-                          </button>
-                        </span>
-                      </form>
-                    </details>
-                  </li>
-                ))}
-              </ul>
-            )}
+            <form action={addRiskAction.bind(null, id)} className="mt-3 flex flex-col gap-2" data-testid="add-risk-form">
+              <textarea
+                name="description"
+                rows={3}
+                required
+                minLength={3}
+                placeholder={fr ? "Le risque d'anomalie significative : quoi, sur quoi, pourquoi…" : "The risk of material misstatement: what, on what, why…"}
+                className={`${input} text-xs`}
+                data-testid="add-risk-description"
+              />
+              <input
+                name="source"
+                placeholder={fr ? "Où il a été identifié (réunion, papier, analyse)…" : "Where it was identified (meeting, paper, analytic)…"}
+                className={`${input} text-xs`}
+                data-testid="add-risk-source"
+              />
+              <span className="flex gap-1.5">
+                <select name="category" defaultValue="business" className={`${input} flex-1 text-xs`} data-testid="add-risk-category">
+                  <option value="business">{fr ? "Risque d'activité" : "Business risk"}</option>
+                  <option value="fraud">{fr ? "Fraude" : "Fraud"}</option>
+                  <option value="error">{fr ? "Erreur" : "Error"}</option>
+                </select>
+                <select name="level" defaultValue="assertion" className={`${input} flex-1 text-xs`} data-testid="add-risk-level">
+                  <option value="assertion">{fr ? "Assertion" : "Assertion level"}</option>
+                  <option value="fs">{fr ? "États financiers" : "FS level"}</option>
+                </select>
+              </span>
+              <span className="flex gap-1.5">
+                <label className="flex flex-1 flex-col text-[11px] text-muted">
+                  {tr.likelihood}
+                  <select name="likelihood" defaultValue="medium" className={`${input} text-xs`}>
+                    <option value="low">low</option>
+                    <option value="medium">medium</option>
+                    <option value="high">high</option>
+                  </select>
+                </label>
+                <label className="flex flex-1 flex-col text-[11px] text-muted">
+                  {tr.magnitude}
+                  <select name="magnitude" defaultValue="medium" className={`${input} text-xs`}>
+                    <option value="low">low</option>
+                    <option value="medium">medium</option>
+                    <option value="high">high</option>
+                  </select>
+                </label>
+              </span>
+              <DropdownChecklist
+                label={fr ? "Facteurs de risque inhérent" : "Inherent risk factors"}
+                name="factors"
+                options={FACTORS.map((factor) => ({ value: factor.key, label: fr ? factor.fr : factor.en }))}
+                testIdPrefix="add-risk-factor"
+              />
+              <span className="flex flex-col gap-1.5">
+                <select name="indexCode" defaultValue="" className={`${input} w-full min-w-0 text-xs`} data-testid="add-risk-index">
+                  <option value="">{fr ? "Indice menacé (facultatif)" : "Index threatened (optional)"}</option>
+                  {LEAD_INDEXES.map((def) => (
+                    <option key={def.code} value={def.code}>
+                      {def.code} — {def.labelEn}
+                    </option>
+                  ))}
+                </select>
+                <DropdownChecklist
+                  label={fr ? "Assertions" : "Assertions"}
+                  name="linkAssertions"
+                  options={ASSERTIONS.map((assertion) => ({ value: assertion, label: assertion }))}
+                  testIdPrefix="add-risk-assert"
+                />
+              </span>
+              <input
+                name="managementMissed"
+                placeholder={fr ? "Non identifié par la direction ? Pourquoi (¶23)…" : "Missed by management's process? Why (¶23)…"}
+                className={`${input} text-xs`}
+              />
+              <input
+                name="fsNote"
+                placeholder={fr ? "Niveau états financiers : effet généralisé et réponse globale (¶30)…" : "FS level: pervasive effect and overall response (¶30)…"}
+                className={`${input} text-xs`}
+              />
+              <label className="flex items-center gap-1.5 text-xs text-muted">
+                <input type="checkbox" name="significant" data-testid="add-risk-significant" />
+                {tr.significant}
+              </label>
+              <button type="submit" className={`${btn} self-start bg-emerald-700 !text-white hover:bg-emerald-800`} data-testid="add-risk-submit">
+                {fr ? "Ajouter au registre" : "Add to the register"}
+              </button>
+            </form>
           </Panel>
 
           <Panel>

@@ -11,8 +11,7 @@ import { INDEPENDENCE_QUESTIONS } from "@/lib/independence";
 import { generateLetter, type LetterKind } from "@/lib/letters";
 import { approveMateriality, createMaterialityVersion, type Benchmark } from "@/lib/materiality";
 import { addCustomStep, generateProgram } from "@/lib/programs";
-import { dismissPotentialRisk, linkRiskToIndex, linkRiskToStep, mapRiskToSection, promotePotentialRisk, raisePotentialRisk, rebutRevenueFraudRisk, unlinkRiskFromIndex, updateRisk, type Assertion, type RiskRating, type RiskStatus } from "@/lib/risks";
-import { decideLead } from "@/lib/risk-leads";
+import { addRisk, dismissPotentialRisk, linkRiskToIndex, linkRiskToStep, mapRiskToSection, promotePotentialRisk, raisePotentialRisk, rebutRevenueFraudRisk, unlinkRiskFromIndex, updateRisk, type Assertion, type RiskRating, type RiskStatus } from "@/lib/risks";
 import { canReview } from "@/lib/rbac";
 import { savePaper } from "@/lib/working-papers";
 import { addPbcItem, assignTask, assignTasks, assignTeamMember, removeTeamMember, setBudgetLine, setPbcStatus, type PbcItem, type TaskAssignmentRole, type TeamRole } from "@/lib/team";
@@ -532,27 +531,26 @@ export async function savePaperAction(
 }
 
 /** Risk Console: decide a computed lead — promote into the register or dismiss. */
-export async function decideLeadAction(engagementId: string, leadKey: string, formData: FormData): Promise<void> {
+/** Risk Console: a risk the auditor identifies and documents by hand. */
+export async function addRiskAction(engagementId: string, formData: FormData): Promise<void> {
   const path = `/engagements/${engagementId}/risks`;
-  const action = String(formData.get("leadAction") ?? "");
+  const text = (key: string) => String(formData.get(key) ?? "").trim();
+  const category = text("category");
+  const level = text("level");
   await guarded(path, async () => {
-    if (action === "dismiss") {
-      await decideLead(engagementId, leadKey, {
-        action: "dismiss",
-        rationale: String(formData.get("rationale") ?? ""),
-      });
-      return;
-    }
-    const category = String(formData.get("category") ?? "business");
-    const level = String(formData.get("level") ?? "assertion");
-    await decideLead(engagementId, leadKey, {
-      action: "promote",
-      description: String(formData.get("description") ?? ""),
+    await addRisk(engagementId, {
+      description: text("description"),
+      source: text("source") || undefined,
       category: category === "fraud" || category === "error" ? category : "business",
       level: level === "fs" ? "fs" : "assertion",
-      source: String(formData.get("source") ?? "Console"),
-      index: formData.get("index") ? String(formData.get("index")) : undefined,
-      managementMissed: formData.get("managementMissed") ? String(formData.get("managementMissed")) : undefined,
+      likelihood: text("likelihood") as RiskRating,
+      magnitude: text("magnitude") as RiskRating,
+      significant: formData.get("significant") === "on",
+      factors: formData.getAll("factors").map(String),
+      index: text("indexCode") || undefined,
+      assertions: formData.getAll("linkAssertions").map(String),
+      managementMissed: text("managementMissed") || undefined,
+      fsNote: text("fsNote") || undefined,
     });
   });
 }

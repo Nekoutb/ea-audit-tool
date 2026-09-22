@@ -161,6 +161,70 @@ export async function raisePotentialRisk(
   });
 }
 
+export interface AddRiskInput {
+  description: string;
+  /** where the risk was identified — a meeting, a paper, an analytic */
+  source?: string;
+  category: "business" | "fraud" | "error";
+  level: "fs" | "assertion";
+  likelihood?: RiskRating;
+  magnitude?: RiskRating;
+  significant?: boolean;
+  factors?: string[];
+  /** the lead-schedule index it threatens, with the assertions */
+  index?: string;
+  assertions?: string[];
+  /** ISA 315 ¶23: why management's own process did not identify it */
+  managementMissed?: string;
+  /** ISA 315 ¶30: a financial-statement-level risk's pervasive effect */
+  fsNote?: string;
+}
+
+/**
+ * A risk the auditor identifies and documents on the console, beside the two
+ * presumed ISA 240 risks. Documented as it is added: the risk, where it came
+ * from, its category and level, the assessment, and the index it threatens.
+ * Added after planning closed, it carries the flag that makes the partner
+ * approve the addition, as a risk added during execution does.
+ */
+export async function addRisk(engagementId: string, input: AddRiskInput): Promise<string> {
+  const description = input.description.trim();
+  if (description.length < 3) throw new Error("risk-description-required");
+  const rating = (v: RiskRating | undefined): RiskRating => (v === "low" || v === "high" ? v : "medium");
+  const factors = (input.factors ?? []).filter((f) => /^[a-z_]{1,40}$/.test(f)).slice(0, 10);
+  const text = input.managementMissed?.trim()
+    ? `${description} [Not identified by management's risk process: ${input.managementMissed.trim()}]`
+    : description;
+  const source = input.source?.trim() ? `Console (${input.source.trim().slice(0, 120)})` : "Console";
+  const { tenantId, userId } = await requireTenant();
+  return withTenant(tenantId, async (tx) => {
+    const phase = await tx.query<{ phase: string }>("SELECT phase FROM engagement WHERE id = $1", [engagementId]);
+    if (!phase.rows[0]) throw new Error("not-found");
+    const afterPlanning = phase.rows[0].phase === "execution" || phase.rows[0].phase === "conclusion";
+    const risk = await tx.query<{ id: string }>(
+      `INSERT INTO risk (tenant_id, engagement_id, description, source, level, category, likelihood, magnitude,
+                         significant, inherent_factors, fs_note, added_after_planning, created_by)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13) RETURNING id`,
+      [
+        tenantId, engagementId, text, source, input.level === "fs" ? "fs" : "assertion",
+        input.category === "fraud" || input.category === "error" ? input.category : "business",
+        rating(input.likelihood), rating(input.magnitude), input.significant === true, factors,
+        input.level === "fs" ? input.fsNote?.trim() || null : null, afterPlanning, userId,
+      ],
+    );
+    const id = risk.rows[0].id;
+    if (input.index && input.level !== "fs" && /^[A-Z0-9]{1,6}$/.test(input.index)) {
+      const assertions = (input.assertions ?? []).filter((a): a is Assertion => (ASSERTIONS as readonly string[]).includes(a));
+      await tx.query(
+        `INSERT INTO risk_lead_index (tenant_id, risk_id, index_code, assertions)
+         VALUES ($1, $2, $3, $4) ON CONFLICT (risk_id, index_code) DO NOTHING`,
+        [tenantId, id, input.index, assertions],
+      );
+    }
+    return id;
+  });
+}
+
 export async function listPotentialRisks(engagementId: string): Promise<PotentialRisk[]> {
   const { tenantId } = await requireTenant();
   return withTenant(tenantId, async (tx) => {
