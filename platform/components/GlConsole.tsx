@@ -15,12 +15,12 @@
 // and negatives print in parentheses through num() in components/ui/excel.tsx.
 
 import Link from "next/link";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState, Fragment } from "react";
 import { GlAccountPicker } from "@/components/GlAccountPicker";
 import { SCell, SRow, Sheet, SheetNote, SheetTable, num, type SheetCol } from "@/components/ui/excel";
 import type { AnalyticCategory, AnalyticResult, CatalogueEntry, Cell } from "@/lib/gl-analytics";
 import type {
-  AccountList, CounterpartLimit, CounterpartRank, DrillFilter, DrillResult,
+  AccountList, CounterpartLimit, CounterpartRank, DrillFilter, DrillResult, EntryPeriod,
   EntryAnalysis, EntryMode, TwoAccountCorrelation,
 } from "@/lib/gl-correlation";
 import type { CheckStatus, ValidationResult } from "@/lib/gl-line";
@@ -52,6 +52,8 @@ interface Drill {
   labelEn: string;
   labelFr: string;
   filter: DrillFilter;
+  /** show the lines entry by entry, with each entry's totals */
+  grouped?: boolean;
 }
 
 // ---------------------------------------------------------------------------
@@ -166,6 +168,7 @@ export function GlConsole({
   // entry analysis
   const [rank, setRank] = useState<CounterpartRank>("abs");
   const [limit, setLimit] = useState<CounterpartLimit>(20);
+  const [period, setPeriod] = useState<EntryPeriod>("month");
   const [entry, setEntry] = useState<EntryAnalysis | null>(null);
   const [entryPending, setEntryPending] = useState(false);
   const [entryError, setEntryError] = useState<string | null>(null);
@@ -287,7 +290,7 @@ export function GlConsole({
       setEntryPending(true);
       setEntryError(null);
       const reply = await post<{ result: EntryAnalysis }>(engagementId, {
-        op: "entry", datasetId, accounts: selected, mode, rank, limit,
+        op: "entry", datasetId, accounts: selected, mode, rank, limit, period,
       });
       if (!live) return;
       setEntryPending(false);
@@ -300,7 +303,7 @@ export function GlConsole({
     })();
     return () => { live = false; };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [phase, tab, engagementId, datasetId, selected, mode, rank, limit]);
+  }, [phase, tab, engagementId, datasetId, selected, mode, rank, limit, period]);
 
   // -- two-account correlation -------------------------------------------
   const pair = useMemo(
@@ -382,6 +385,11 @@ export function GlConsole({
   }, [drill]);
 
   const monthLabel = (month: string) => (month === "n/a" ? T("No date", "Sans date") : month);
+  const WEEKDAYS = fr
+    ? ["lundi", "mardi", "mercredi", "jeudi", "vendredi", "samedi", "dimanche"]
+    : ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"];
+  const weekdayLabel = (key: string) => (key === "n/a" ? T("No date", "Sans date") : WEEKDAYS[Number(key) - 1] ?? key);
+  const periodLabel = (key: string) => (period === "weekday" ? weekdayLabel(key) : monthLabel(key));
   const modeLabel = mode === "all"
     ? T("All selected accounts", "Tous les comptes sélectionnés")
     : T("Any selected account", "L'un des comptes sélectionnés");
@@ -655,15 +663,22 @@ export function GlConsole({
                 setRank={setRank}
                 limit={limit}
                 setLimit={setLimit}
+                period={period}
+                setPeriod={setPeriod}
                 entry={entry}
                 pending={entryPending}
                 error={entryError}
-                monthLabel={monthLabel}
-                onCell={(month, account) =>
+                monthLabel={periodLabel}
+                onCell={(key, account) =>
                   openDrill({
-                    labelEn: `Entry analysis · counterpart account ${account} · ${month === "n/a" ? "no date" : month}`,
-                    labelFr: `Analyse des écritures · compte de contrepartie ${account} · ${month === "n/a" ? "sans date" : month}`,
-                    filter: { accounts: [account], entryAccounts: selected, entryMode: mode, month },
+                    labelEn: `Entry analysis · counterpart account ${account} · ${periodLabel(key)} — every line of the entries behind this cell`,
+                    labelFr: `Analyse des écritures · compte de contrepartie ${account} · ${periodLabel(key)} — chaque ligne des écritures derrière cette cellule`,
+                    filter: {
+                      accounts: [account], entryAccounts: selected, entryMode: mode,
+                      ...(period === "weekday" ? { weekday: key } : { month: key }),
+                      wholeEntries: true,
+                    },
+                    grouped: true,
                   })
                 }
               />
@@ -730,6 +745,7 @@ export function GlConsole({
           page={PAGE}
           onPage={setDrillOffset}
           onClose={() => setDrill(null)}
+          grouped={drill.grouped === true}
         />
       ) : null}
     </div>
@@ -740,7 +756,7 @@ export function GlConsole({
 // C1. Entry Analysis: months down, counterpart accounts across.
 
 function EntryView({
-  fr, selected, mode, modeLabel, rank, setRank, limit, setLimit, entry, pending, error, monthLabel, onCell,
+  fr, selected, mode, modeLabel, rank, setRank, limit, setLimit, period, setPeriod, entry, pending, error, monthLabel, onCell,
 }: {
   fr: boolean;
   selected: string[];
@@ -750,6 +766,8 @@ function EntryView({
   setRank: (r: CounterpartRank) => void;
   limit: CounterpartLimit;
   setLimit: (l: CounterpartLimit) => void;
+  period: EntryPeriod;
+  setPeriod: (p: EntryPeriod) => void;
   entry: EntryAnalysis | null;
   pending: boolean;
   error: string | null;
@@ -759,7 +777,7 @@ function EntryView({
   const T = (en: string, frText: string) => (fr ? frText : en);
 
   const cols: SheetCol[] = [
-    { label: T("Month", "Mois"), width: 110 },
+    { label: period === "weekday" ? T("Weekday", "Jour de la semaine") : T("Month", "Mois"), width: 110 },
     ...(entry?.counterpartAccounts ?? []).map((a) => ({
       label: a.account,
       align: "right" as const,
@@ -773,12 +791,30 @@ function EntryView({
       title={T("Entry analysis", "Analyse des écritures")}
       subtitle={T(`Active mode: ${modeLabel}`, `Mode actif : ${modeLabel}`)}
       objective={T(
-        "Every journal entry that touches the selected accounts is taken, and what those entries ALSO posted to is shown month by month. The selected accounts are excluded from the columns: an account is not its own counterpart. Amounts are signed — debits positive, credits negative, negatives in parentheses.",
-        "Chaque écriture touchant les comptes sélectionnés est retenue, et ce que ces écritures ont AUSSI mouvementé est présenté mois par mois. Les comptes sélectionnés sont exclus des colonnes : un compte n'est pas sa propre contrepartie. Les montants sont signés — débits positifs, crédits négatifs, négatifs entre parenthèses.",
+        "Every journal entry that touches the selected accounts is taken, and what those entries ALSO posted to is shown across the top, month by month or weekday by weekday. The selected accounts are excluded from the columns: an account is not its own counterpart. Amounts are signed — debits positive, credits negative, negatives in parentheses. Click a cell to open every line of the entries behind it.",
+        "Chaque écriture touchant les comptes sélectionnés est retenue, et ce que ces écritures ont AUSSI mouvementé est présenté en colonnes, mois par mois ou jour de la semaine par jour de la semaine. Les comptes sélectionnés sont exclus des colonnes : un compte n'est pas sa propre contrepartie. Les montants sont signés — débits positifs, crédits négatifs, négatifs entre parenthèses. Cliquer une cellule ouvre chaque ligne des écritures qui la composent.",
       )}
       testId="gl-entry-view"
     >
       <div className="flex flex-wrap items-end gap-2">
+        <div className="flex flex-col gap-1">
+          <span className="text-[11px] font-semibold text-ink-soft">{T("Rows", "Lignes")}</span>
+          <div className="flex overflow-hidden rounded-[var(--radius-atlas-sm)] border border-line-strong" role="radiogroup" aria-label={T("Analysis period", "Période d'analyse")} data-testid="gl-entry-period">
+            {([["month", T("Monthly", "Mensuelle")], ["weekday", T("Weekly (by weekday)", "Hebdomadaire (par jour)")]] as const).map(([value, label]) => (
+              <button
+                key={value}
+                type="button"
+                role="radio"
+                aria-checked={period === value}
+                onClick={() => setPeriod(value)}
+                className={`px-3 py-1.5 text-[12px] font-semibold transition ${period === value ? "bg-emerald-700 text-white" : "bg-surface text-ink-soft hover:bg-surface-2"}`}
+                data-testid={`gl-entry-period-${value}`}
+              >
+                {label}
+              </button>
+            ))}
+          </div>
+        </div>
         <div className="flex flex-col gap-1">
           <label htmlFor="gl-entry-rank" className="text-[11px] font-semibold text-ink-soft">
             {T("Rank counterpart accounts by", "Classer les contreparties par")}
@@ -1380,7 +1416,7 @@ function AnalyticsView({
 // D. Drill-down: the lines behind one cell, paginated and capped.
 
 function DrillPanel({
-  fr, label, result, pending, error, offset, page, onPage, onClose,
+  fr, label, result, pending, error, offset, page, onPage, onClose, grouped = false,
 }: {
   fr: boolean;
   label: string;
@@ -1391,8 +1427,19 @@ function DrillPanel({
   page: number;
   onPage: (next: number) => void;
   onClose: () => void;
+  /** lines arrive entry by entry: head each entry and total it */
+  grouped?: boolean;
 }) {
   const T = (en: string, frText: string) => (fr ? frText : en);
+  // entry boundaries within the page, for the grouped view
+  const lines = result?.lines ?? [];
+  const entryOf = (i: number) => lines[i]?.jeNumber;
+  const entryTotals = (je: string) => {
+    const own = lines.filter((l) => l.jeNumber === je);
+    const debit = own.reduce((s, l) => s + l.debit, 0);
+    const credit = own.reduce((s, l) => s + l.credit, 0);
+    return { n: own.length, debit, credit, balanced: Math.abs(debit - credit) < 1, date: own[0]?.journalDate ?? null, journal: own[0]?.journalCode ?? null };
+  };
   const total = result?.total ?? 0;
   const from = total === 0 ? 0 : offset + 1;
   const to = Math.min(offset + (result?.lines.length ?? 0), total);
@@ -1432,7 +1479,7 @@ function DrillPanel({
       >
         <div className="mb-2 flex items-start justify-between gap-3">
           <h2 id="gl-drill-title" className="text-[13.5px] font-bold text-ink">
-            {T("Lines behind the selected cell", "Lignes derrière la cellule sélectionnée")}
+            {grouped ? T("Entries behind the selected cell", "Écritures derrière la cellule sélectionnée") : T("Lines behind the selected cell", "Lignes derrière la cellule sélectionnée")}
             <span className="ml-2 text-[11.5px] font-semibold text-muted" data-testid="gl-drill-source">
               {label}
             </span>
@@ -1464,8 +1511,26 @@ function DrillPanel({
             <>
               <SheetTable cols={cols} testId="gl-drill-table">
                 <tbody>
-                  {(result?.lines ?? []).map((line, i) => (
-                    <SRow key={line.lineNo} n={offset + i + 1} testId={`gl-drill-line-${line.lineNo}`}>
+                  {lines.map((line, i) => (
+                    <Fragment key={line.lineNo}>
+                    {grouped && (i === 0 || entryOf(i - 1) !== line.jeNumber) ? (() => {
+                      const t = entryTotals(line.jeNumber);
+                      return (
+                        <SRow n={offset + i + 1} total testId={`gl-drill-entry-${line.jeNumber}`}>
+                          <SCell colSpan={cols.length} kind="calc" wrap>
+                            <span className="font-bold text-ink">{T("Entry", "Écriture")} {line.jeNumber}</span>
+                            {t.date ? <span className="ml-2 text-muted">{t.date}</span> : null}
+                            {t.journal ? <span className="ml-2 text-muted">{T("journal", "journal")} {t.journal}</span> : null}
+                            <span className="ml-2 text-muted">{t.n} {T("lines", "lignes")}</span>
+                            <span className="ml-2 tnum">{T("Dr", "D")} {num(t.debit)} · {T("Cr", "C")} {num(t.credit)}</span>
+                            <span className={`ml-2 rounded-full px-1.5 text-[10px] font-bold ${t.balanced ? "bg-emerald-50 text-emerald-800 dark:bg-emerald-950/40 dark:text-emerald-300" : "bg-[var(--color-warn-soft)] text-warn"}`}>
+                              {t.balanced ? T("balanced", "équilibrée") : T(`unbalanced by ${num(t.debit - t.credit)}`, `déséquilibrée de ${num(t.debit - t.credit)}`)}
+                            </span>
+                          </SCell>
+                        </SRow>
+                      );
+                    })() : null}
+                    <SRow n={offset + i + 1} testId={`gl-drill-line-${line.lineNo}`}>
                       <SCell align="right">{line.lineNo}</SCell>
                       <SCell>{line.account}</SCell>
                       <SCell wrap>{line.accountName ?? "—"}</SCell>
@@ -1483,8 +1548,9 @@ function DrillPanel({
                       <SCell align="right">{num(line.credit)}</SCell>
                       <SCell align="right" kind="calc">{num(line.signed)}</SCell>
                     </SRow>
+                    </Fragment>
                   ))}
-                  {!pending && (result?.lines.length ?? 0) === 0 ? (
+                  {!pending && lines.length === 0 ? (
                     <SRow n={1} testId="gl-drill-empty">
                       <SCell colSpan={cols.length} wrap>
                         {T("No line matches this cell.", "Aucune ligne ne correspond à cette cellule.")}

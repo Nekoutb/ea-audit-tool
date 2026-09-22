@@ -6,7 +6,7 @@ import {
 } from "@/lib/gl-analytics";
 import {
   accountsFor, drillDown, entryAnalysis, twoAccountCorrelation,
-  ACCOUNT_RE, type CounterpartLimit, type CounterpartRank, type DrillFilter, type EntryMode,
+  ACCOUNT_RE, type CounterpartLimit, type CounterpartRank, type DrillFilter, type EntryMode, type EntryPeriod,
 } from "@/lib/gl-correlation";
 import { buildProjection, validatePopulation } from "@/lib/gl-line";
 import { assertMutable, ArchivedError } from "@/lib/mutability";
@@ -81,6 +81,8 @@ function readDrillFilter(value: unknown): DrillFilter {
   if (raw.entryAccounts !== undefined) filter.entryAccounts = readAccounts(raw.entryAccounts, 25);
   if (raw.entryMode !== undefined) filter.entryMode = raw.entryMode === "all" ? "all" : "any";
   if (raw.month !== undefined) filter.month = String(raw.month);
+  if (raw.weekday !== undefined) filter.weekday = String(raw.weekday);
+  if (raw.wholeEntries !== undefined) filter.wholeEntries = raw.wholeEntries === true;
   if (raw.jeNumber !== undefined) filter.jeNumber = String(raw.jeNumber);
   if (raw.preparer !== undefined) filter.preparer = String(raw.preparer);
   if (raw.reviewer !== undefined) filter.reviewer = String(raw.reviewer);
@@ -147,7 +149,8 @@ export async function POST(request: Request, context: { params: Promise<{ id: st
       const rawLimit = body.limit === "all" ? "all" : Number(body.limit);
       const limit: CounterpartLimit =
         rawLimit === "all" ? "all" : ([10, 20, 50] as number[]).includes(rawLimit as number) ? (rawLimit as 10 | 20 | 50) : 20;
-      return NextResponse.json({ result: await entryAnalysis(id, datasetId, accounts, mode, rank, limit) });
+      const period: EntryPeriod = body.period === "weekday" ? "weekday" : "month";
+      return NextResponse.json({ result: await entryAnalysis(id, datasetId, accounts, mode, rank, limit, period) });
     }
 
     if (op === "correlate") {

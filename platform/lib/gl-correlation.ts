@@ -25,6 +25,12 @@ import { requireTenant } from "@/lib/tenant";
 type Tx = PoolClient;
 
 const MONTH = "coalesce(to_char(journal_date, 'YYYY-MM'), 'n/a')";
+/** ISO weekday 1 (Monday) … 7 (Sunday), as text so it shares the month's shape. */
+const WEEKDAY = "coalesce(extract(isodow FROM journal_date)::int::text, 'n/a')";
+
+/** The rows of the entry-analysis grid: one per month, or one per weekday. */
+export type EntryPeriod = "month" | "weekday";
+const PERIOD_SQL: Record<EntryPeriod, string> = { month: MONTH, weekday: WEEKDAY };
 
 /** Account codes reach SQL as parameters, but they also reach LIKE patterns. */
 export const ACCOUNT_RE = /^[A-Za-z0-9._-]{1,40}$/;
@@ -142,10 +148,12 @@ export interface EntryAnalysis {
   accounts: string[];
   mode: EntryMode;
   rank: CounterpartRank;
+  /** what a row is: a month (YYYY-MM) or an ISO weekday (1–7); "n/a" when undated */
+  period: EntryPeriod;
   /** journal entries that satisfied the selection */
   linkedEntries: number;
   counterpartAccounts: CounterpartAccount[];
-  /** one row per month; cells align with counterpartAccounts */
+  /** one row per period key (month or weekday); cells align with counterpartAccounts */
   months: { month: string; cells: (number | null)[]; total: number }[];
   /** totals over the counterpart lines shown in the grid */
   totalDebit: number;
@@ -179,9 +187,11 @@ export async function entryAnalysis(
   mode: EntryMode = "any",
   rank: CounterpartRank = "abs",
   limit: CounterpartLimit = 20,
+  period: EntryPeriod = "month",
 ): Promise<EntryAnalysis> {
   const selected = cleanAccounts(accounts, 25);
   const safeMode: EntryMode = mode === "all" ? "all" : "any";
+  const safePeriod: EntryPeriod = period === "weekday" ? "weekday" : "month";
   const safeRank: CounterpartRank = RANK_SQL[rank] ? rank : "abs";
   const cap = limit === "all" ? ALL_CAP : [10, 20, 50].includes(limit as number) ? (limit as number) : 20;
 
@@ -233,7 +243,7 @@ export async function entryAnalysis(
       ? { rows: [] as { m: string; account: string; v: number }[] }
       : await tx.query<{ m: string; account: string; v: number }>(
           `${entriesCte}
-           SELECT ${MONTH} AS m, account, coalesce(sum(signed), 0)::float8 AS v
+           SELECT ${PERIOD_SQL[safePeriod]} AS m, account, coalesce(sum(signed), 0)::float8 AS v
              FROM counter WHERE account = ANY($5::text[])
             GROUP BY 1, 2 ORDER BY 1`,
           [...scope, need, shown],
@@ -253,6 +263,7 @@ export async function entryAnalysis(
       accounts: selected,
       mode: safeMode,
       rank: safeRank,
+      period: safePeriod,
       linkedEntries: h?.entries ?? 0,
       counterpartAccounts: tops.rows.map((r) => ({
         account: r.account, name: r.name, net: round2(r.net), gross: round2(r.gross),
@@ -388,7 +399,15 @@ export interface DrillFilter {
   entryMode?: EntryMode;
   /** YYYY-MM, or "n/a" for lines with no readable journal date */
   month?: string;
+  /** ISO weekday "1" (Monday) … "7" (Sunday), or "n/a" */
+  weekday?: string;
   jeNumber?: string;
+  /**
+   * Return every line of the entries the filter hits, not only the lines that
+   * hit it: the cell names the counterpart, the reader wants the whole entry
+   * — each debit and each credit — behind it.
+   */
+  wholeEntries?: boolean;
   preparer?: string;
   reviewer?: string;
   approver?: string;
@@ -430,6 +449,7 @@ export interface DrillResult {
 
 const DRILL_CAP = 500;
 const MONTH_RE = /^(\d{4}-(0[1-9]|1[0-2])|n\/a)$/;
+const WEEKDAY_RE = /^([1-7]|n\/a)$/;
 
 /**
  * The lines behind a cell. Always paginated and always capped: a drill-down is
@@ -457,6 +477,11 @@ export async function drillDown(
     const month = String(filter.month).trim();
     if (!MONTH_RE.test(month)) throw new Error("invalid-month");
     where.push(`coalesce(to_char(l.journal_date, 'YYYY-MM'), 'n/a') = ${add(month)}`);
+  }
+  if (filter.weekday !== undefined) {
+    const weekday = String(filter.weekday).trim();
+    if (!WEEKDAY_RE.test(weekday)) throw new Error("invalid-weekday");
+    where.push(`${WEEKDAY.replace("journal_date", "l.journal_date")} = ${add(weekday)}`);
   }
   if (filter.jeNumber !== undefined) {
     where.push(`l.je_number = ${add(String(filter.jeNumber).trim().slice(0, 100))}`);
@@ -491,11 +516,19 @@ export async function drillDown(
             ) ent ON ent.je_number = l.je_number`;
   }
 
-  const clause = where.join(" AND ");
+  // whole entries: the filter finds the hit lines, the page shows every line
+  // of the entries those belong to, entry by entry
+  const clause = filter.wholeEntries
+    ? `l.dataset_id = $1 AND l.engagement_id = $2 AND l.je_number IN (
+         SELECT h.je_number FROM gl_line h ${join.replace(/\bl\./g, "h.").replace("ent ON ent.je_number = h.je_number", "ent ON ent.je_number = h.je_number")}
+          WHERE ${where.join(" AND ").replace(/\bl\./g, "h.")})`
+    : where.join(" AND ");
+  const scan = filter.wholeEntries ? "" : join;
+  const order = filter.wholeEntries ? "l.je_number, l.line_no" : "l.journal_date NULLS LAST, l.je_number, l.line_no";
   const { tenantId } = await requireTenant();
   return withTenant(tenantId, async (tx) => {
     const total = await tx.query<{ n: number }>(
-      `SELECT count(*)::int AS n FROM gl_line l ${join} WHERE ${clause}`,
+      `SELECT count(*)::int AS n FROM gl_line l ${scan} WHERE ${clause}`,
       params,
     );
     const q = await tx.query<{
@@ -512,9 +545,9 @@ export async function drillDown(
               l.reference, coalesce(l.line_description, l.je_description) AS line_description,
               l.third_party_code, l.third_party_name, l.preparer, l.reviewer,
               l.debit::float8 AS debit, l.credit::float8 AS credit, l.signed::float8 AS signed
-         FROM gl_line l ${join}
+         FROM gl_line l ${scan}
         WHERE ${clause}
-        ORDER BY l.journal_date NULLS LAST, l.je_number, l.line_no
+        ORDER BY ${order}
         LIMIT ${limit} OFFSET ${offset}`,
       params,
     );

@@ -15,6 +15,7 @@
 // already signed and split back into debit/credit by its sign.
 
 import type { PoolClient } from "pg";
+import { jeNumberLooksLikeJournalCode } from "@/lib/dataset-mapping";
 import { withTenant } from "@/lib/db";
 import { requireTenant } from "@/lib/tenant";
 import { parseAmount } from "@/lib/amount";
@@ -499,6 +500,27 @@ export async function validatePopulation(
       noJe === 0 ? "passed" : "failed",
       noJe === 0 ? `All lines belong to one of ${nf(entries)} journal entries.` : `${nf(noJe)} lines carry no JE number.`,
       noJe === 0 ? `Toutes les lignes appartiennent à l'une des ${nf(entries)} écritures.` : `${nf(noJe)} lignes sans numéro d'écriture.`,
+    );
+
+    // 3b. the entry number distinguishes entries. A ledger whose "JE number"
+    // is its journal code makes every journal one entry, and every entry-level
+    // analysis on the console silently becomes a study of the whole journal.
+    const sameHeader = fields.has("journalCode") && dataset.mapping.jeNumber === dataset.mapping.journalCode;
+    const codeLike = sameHeader || jeNumberLooksLikeJournalCode(lines, entries);
+    const perEntry = entries > 0 ? Math.round(lines / entries) : 0;
+    push(
+      "je-distinguishes", "JE number distinguishes entries", "Le numéro d'écriture distingue les écritures",
+      codeLike ? "failed" : "passed",
+      codeLike
+        ? sameHeader
+          ? "The JE number and the journal code are mapped to the same column. Re-import with the entry-number column (JE N°, N° écriture, N° pièce) as the JE number."
+          : `${nf(entries)} distinct JE numbers over ${nf(lines)} lines — about ${nf(perEntry)} lines per "entry". That is a journal code, not an entry number: re-import with the entry-number column (JE N°, N° écriture, N° pièce) mapped as the JE number.`
+        : `${nf(entries)} entries, about ${nf(perEntry)} lines each.`,
+      codeLike
+        ? sameHeader
+          ? "Le numéro d'écriture et le code journal sont mappés sur la même colonne. Réimporter avec la colonne du numéro d'écriture (JE N°, N° écriture, N° pièce) comme numéro d'écriture."
+          : `${nf(entries)} numéros d'écriture distincts pour ${nf(lines)} lignes — environ ${nf(perEntry)} lignes par « écriture ». C'est un code journal, pas un numéro d'écriture : réimporter avec la colonne du numéro d'écriture (JE N°, N° écriture, N° pièce).`
+        : `${nf(entries)} écritures, environ ${nf(perEntry)} lignes chacune.`,
     );
 
     // 4. journal dates parsed
