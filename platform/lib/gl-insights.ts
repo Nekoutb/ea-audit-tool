@@ -6,6 +6,7 @@
 // journalDate) is assumed.
 
 import type { PoolClient } from "pg";
+import { JE_KEY_JOIN, jeKeyColumns } from "@/lib/dataset-mapping";
 import { withTenant } from "@/lib/db";
 import { requireTenant } from "@/lib/tenant";
 
@@ -195,15 +196,35 @@ export interface WeekdayAnalysis {
   undated: number;
 }
 
+/**
+ * The entry identity as SQL over the raw row: the unique JE identifier's
+ * columns joined the way the projection joins them, else the JE number
+ * column. Appends its headers to `params` and returns the expression.
+ */
+function jeExpr(mapping: Record<string, string>, params: unknown[]): string | null {
+  const keyCols = jeKeyColumns(mapping);
+  if (keyCols.length > 0) {
+    const parts = keyCols.map((h) => { params.push(h); return `coalesce(data->>$${params.length}, '')`; });
+    params.push(JE_KEY_JOIN);
+    return `concat_ws($${params.length}, ${parts.join(", ")})`;
+  }
+  if (!mapping.jeNumber) return null;
+  params.push(mapping.jeNumber);
+  return `data->>$${params.length}`;
+}
+
 export async function weekdayAnalysis(engagementId: string): Promise<WeekdayAnalysis | null> {
   const { tenantId } = await requireTenant();
   return withTenant(tenantId, async (tx) => {
     const { cy } = await glDatasets(tx, engagementId);
-    if (!cy?.mapping.journalDate || !cy.mapping.jeNumber) return null;
+    if (!cy?.mapping.journalDate) return null;
+    const params: unknown[] = [cy.id, cy.mapping.journalDate];
+    const je = jeExpr(cy.mapping, params);
+    if (!je) return null;
     const result = await tx.query<{ jdate: string | null; je: string | null; amt: string | null }>(
-      `SELECT data->>$2 AS jdate, data->>$3 AS je, abs(coalesce(amount, 0))::text AS amt
+      `SELECT data->>$2 AS jdate, ${je} AS je, abs(coalesce(amount, 0))::text AS amt
          FROM sub_ledger_row WHERE dataset_id = $1`,
-      [cy.id, cy.mapping.journalDate, cy.mapping.jeNumber],
+      params,
     );
     const rows: WeekdayRow[] = Array.from({ length: 7 }, (_, dow) => ({ dow, journals: 0, lines: 0, gross: 0 }));
     const journals: Set<string>[] = Array.from({ length: 7 }, () => new Set<string>());
@@ -249,11 +270,14 @@ export async function entryLag(engagementId: string): Promise<EntryLag | null> {
   const { tenantId } = await requireTenant();
   return withTenant(tenantId, async (tx) => {
     const { cy } = await glDatasets(tx, engagementId);
-    if (!cy?.mapping.jeDate || !cy.mapping.journalDate || !cy.mapping.jeNumber) return null;
+    if (!cy?.mapping.jeDate || !cy.mapping.journalDate) return null;
+    const params: unknown[] = [cy.id, cy.mapping.journalDate, cy.mapping.jeDate];
+    const je = jeExpr(cy.mapping, params);
+    if (!je) return null;
     const result = await tx.query<{ je: string | null; jdate: string | null; edate: string | null }>(
-      `SELECT data->>$2 AS je, data->>$3 AS jdate, data->>$4 AS edate
+      `SELECT ${je} AS je, data->>$2 AS jdate, data->>$3 AS edate
          FROM sub_ledger_row WHERE dataset_id = $1`,
-      [cy.id, cy.mapping.jeNumber, cy.mapping.journalDate, cy.mapping.jeDate],
+      params,
     );
     // first readable date pair per journal
     const lagByJournal = new Map<string, number>();
@@ -369,11 +393,14 @@ export async function correlationMatrix(engagementId: string, accounts: string[]
   const { tenantId } = await requireTenant();
   return withTenant(tenantId, async (tx) => {
     const { cy } = await glDatasets(tx, engagementId);
-    if (!cy?.mapping.account || !cy.mapping.jeNumber || !cy.mapping.journalDate) return null;
+    if (!cy?.mapping.account || !cy.mapping.journalDate) return null;
+    const params: unknown[] = [cy.id, cy.mapping.account, cy.mapping.journalDate];
+    const je = jeExpr(cy.mapping, params);
+    if (!je) return null;
     const result = await tx.query<{ account: string | null; je: string | null; jdate: string | null; amt: string | null }>(
-      `SELECT data->>$2 AS account, data->>$3 AS je, data->>$4 AS jdate, abs(coalesce(amount, 0))::text AS amt
+      `SELECT data->>$2 AS account, ${je} AS je, data->>$3 AS jdate, abs(coalesce(amount, 0))::text AS amt
          FROM sub_ledger_row WHERE dataset_id = $1`,
-      [cy.id, cy.mapping.account, cy.mapping.jeNumber, cy.mapping.journalDate],
+      params,
     );
 
     const totals = new Map(cleaned.map((p) => [p, { lines: 0, gross: 0 }]));

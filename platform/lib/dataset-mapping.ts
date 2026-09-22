@@ -103,6 +103,43 @@ export const FIELDS: Record<SubLedgerKind, FieldDef[]> = {
   ],
 };
 
+/**
+ * The unique JE identifier: one column, or several that together identify one
+ * journal entry (journal + voucher number, say). It travels inside the stored
+ * mapping under `jeKey`, the headers joined by a unit separator so that the
+ * mapping keeps its string-per-field shape everywhere else. When it is set,
+ * the projection's entry number is the values of those columns joined with
+ * " · "; when it is not, the single JE number column stands.
+ */
+export const JE_KEY = "jeKey";
+export const JE_KEY_SEP = "\u001f";
+export const JE_KEY_JOIN = " · ";
+export const JE_KEY_MAX = 4;
+
+export function jeKeyColumns(mapping: Record<string, string> | null | undefined): string[] {
+  const raw = mapping?.[JE_KEY];
+  if (typeof raw !== "string" || !raw.trim()) return [];
+  return [...new Set(raw.split(JE_KEY_SEP).map((h) => h.trim()).filter(Boolean))].slice(0, JE_KEY_MAX);
+}
+
+export function encodeJeKey(columns: string[]): string {
+  return [...new Set(columns.map((h) => h.trim()).filter(Boolean))].slice(0, JE_KEY_MAX).join(JE_KEY_SEP);
+}
+
+/** The entry identity of one row under the mapping: the composite key, else the JE number. */
+export function jeIdentity(
+  data: Record<string, unknown>,
+  keyColumns: string[],
+  jeNumberHeader: string | null,
+  text: (value: unknown) => string | null,
+): string | null {
+  if (keyColumns.length > 0) {
+    const parts = keyColumns.map((h) => text(data[h]) ?? "");
+    return parts.some((p) => p !== "") ? parts.join(JE_KEY_JOIN) : null;
+  }
+  return jeNumberHeader ? text(data[jeNumberHeader]) : null;
+}
+
 export const norm = (s: string): string =>
   s.trim().toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g, "").replace(/[^a-z0-9]/g, "");
 

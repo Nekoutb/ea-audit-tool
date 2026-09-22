@@ -15,7 +15,7 @@
 // already signed and split back into debit/credit by its sign.
 
 import type { PoolClient } from "pg";
-import { jeNumberLooksLikeJournalCode } from "@/lib/dataset-mapping";
+import { jeIdentity, jeKeyColumns, jeNumberLooksLikeJournalCode } from "@/lib/dataset-mapping";
 import { withTenant } from "@/lib/db";
 import { requireTenant } from "@/lib/tenant";
 import { parseAmount } from "@/lib/amount";
@@ -169,6 +169,8 @@ export function mappedFields(mapping: Record<string, string>): Set<string> {
   }
   // preparer is fed by preparedBy, falling back to recordedBy
   if (set.has("preparedBy") || set.has("recordedBy")) set.add("preparer");
+  // the composite identifier feeds the JE number
+  if (jeKeyColumns(mapping).length > 0) set.add("jeNumber");
   // a signed amount exists when either a single amount column or the pair is mapped
   if (set.has("amount") || (set.has("debit") && set.has("credit"))) set.add("signedAmount");
   return set;
@@ -256,6 +258,7 @@ export async function buildProjection(engagementId: string, datasetId: string): 
     const cAccount = col("account");
     const cAccountName = col("accountName");
     const cJe = col("jeNumber");
+    const keyColumns = jeKeyColumns(m);
     const cJournalCode = col("journalCode");
     const cJeDesc = col("jeDescription");
     const cLineDesc = col("lineDescription");
@@ -271,7 +274,7 @@ export async function buildProjection(engagementId: string, datasetId: string): 
     const cReviewer = col("reviewer");
     const cApprover = col("approvedBy");
     const cCostCenter = col("costCenter");
-    if (!cAccount || !cJe) throw new Error("mapping-incomplete");
+    if (!cAccount || (!cJe && keyColumns.length === 0)) throw new Error("mapping-incomplete");
     // the pair wins over a single amount column: when both sides are present in
     // the file they are the authoritative debit/credit split
     const usePair = Boolean(cDebit && cCredit);
@@ -298,10 +301,10 @@ export async function buildProjection(engagementId: string, datasetId: string): 
       for (const row of batch.rows) {
         const data = row.data ?? {};
         const account = safeText(pick(data, cAccount));
-        const jeNumber = safeText(pick(data, cJe));
-        // account and JE number are the spine of every analytic; a line without
-        // either cannot be attributed, so it is rejected and counted rather
-        // than projected under a blank key
+        const jeNumber = jeIdentity(data, keyColumns, cJe, safeText);
+        // account and the entry identity are the spine of every analytic; a
+        // line without either cannot be attributed, so it is rejected and
+        // counted rather than projected under a blank key
         if (!account || !jeNumber) {
           rejected += 1;
           continue;
@@ -505,7 +508,9 @@ export async function validatePopulation(
     // 3b. the entry number distinguishes entries. A ledger whose "JE number"
     // is its journal code makes every journal one entry, and every entry-level
     // analysis on the console silently becomes a study of the whole journal.
-    const sameHeader = fields.has("journalCode") && dataset.mapping.jeNumber === dataset.mapping.journalCode;
+    const keyCols = jeKeyColumns(dataset.mapping);
+    const identity = keyCols.length > 0 ? keyCols : [dataset.mapping.jeNumber].filter((h): h is string => typeof h === "string");
+    const sameHeader = fields.has("journalCode") && identity.length === 1 && identity[0] === dataset.mapping.journalCode;
     const codeLike = sameHeader || jeNumberLooksLikeJournalCode(lines, entries);
     const perEntry = entries > 0 ? Math.round(lines / entries) : 0;
     push(
@@ -513,13 +518,13 @@ export async function validatePopulation(
       codeLike ? "failed" : "passed",
       codeLike
         ? sameHeader
-          ? "The JE number and the journal code are mapped to the same column. Re-import with the entry-number column (JE N°, N° écriture, N° pièce) as the JE number."
-          : `${nf(entries)} distinct JE numbers over ${nf(lines)} lines — about ${nf(perEntry)} lines per "entry". That is a journal code, not an entry number: re-import with the entry-number column (JE N°, N° écriture, N° pièce) mapped as the JE number.`
+          ? "The JE number and the journal code are mapped to the same column. Re-import with the entry-number column (JE N°, N° écriture, N° pièce) as the unique JE identifier."
+          : `${nf(entries)} distinct JE identifiers over ${nf(lines)} lines — about ${nf(perEntry)} lines per "entry". That is a journal code, not an entry number: re-import and map the unique JE identifier (one column, or several that together identify an entry, e.g. journal + voucher number).`
         : `${nf(entries)} entries, about ${nf(perEntry)} lines each.`,
       codeLike
         ? sameHeader
-          ? "Le numéro d'écriture et le code journal sont mappés sur la même colonne. Réimporter avec la colonne du numéro d'écriture (JE N°, N° écriture, N° pièce) comme numéro d'écriture."
-          : `${nf(entries)} numéros d'écriture distincts pour ${nf(lines)} lignes — environ ${nf(perEntry)} lignes par « écriture ». C'est un code journal, pas un numéro d'écriture : réimporter avec la colonne du numéro d'écriture (JE N°, N° écriture, N° pièce).`
+          ? "Le numéro d'écriture et le code journal sont mappés sur la même colonne. Réimporter avec la colonne du numéro d'écriture (JE N°, N° écriture, N° pièce) comme identifiant unique d'écriture."
+          : `${nf(entries)} identifiants d'écriture distincts pour ${nf(lines)} lignes — environ ${nf(perEntry)} lignes par « écriture ». C'est un code journal, pas un numéro d'écriture : réimporter en mappant l'identifiant unique d'écriture (une colonne, ou plusieurs qui ensemble identifient une écriture, p. ex. journal + numéro de pièce).`
         : `${nf(entries)} écritures, environ ${nf(perEntry)} lignes chacune.`,
     );
 

@@ -8,7 +8,7 @@
 import { useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import type { Messages } from "@/lib/i18n";
-import { autoMap, FIELDS } from "@/lib/dataset-mapping";
+import { autoMap, encodeJeKey, FIELDS, JE_KEY, JE_KEY_JOIN, JE_KEY_MAX, jeKeyColumns } from "@/lib/dataset-mapping";
 import { SUB_LEDGER_KINDS, type SubLedgerKind } from "@/lib/subledger-kinds";
 
 export function DatasetAnalyzer({
@@ -98,6 +98,8 @@ export function DatasetAnalyzer({
     ? FIELDS[kind].filter((field) => {
         if (!field.required) return false;
         if (field.key === "amount" && kind === "journal_entries") return !amountSatisfied;
+        // the composite identifier stands in for the JE number
+        if (field.key === "jeNumber" && kind === "journal_entries" && jeKeyColumns(mapping).length > 0) return false;
         return !mapping[field.key];
       }).length
     : 0;
@@ -182,8 +184,50 @@ export function DatasetAnalyzer({
                 </tr>
               </thead>
               <tbody>
+                {kind === "journal_entries" ? (() => {
+                  const keyCols = jeKeyColumns(mapping);
+                  const toggle = (h: string) =>
+                    setMapping((m) => {
+                      const current = jeKeyColumns(m);
+                      const next = current.includes(h) ? current.filter((x) => x !== h) : [...current, h].slice(0, JE_KEY_MAX);
+                      const out = { ...m };
+                      if (next.length > 0) out[JE_KEY] = encodeJeKey(next); else delete out[JE_KEY];
+                      return out;
+                    });
+                  const sample = keyCols.length === 0
+                    ? "—"
+                    : [0, 1, 2].map((i) => keyCols.map((h) => (preview.headerSamples[h] ?? [])[i] ?? "").join(JE_KEY_JOIN)).filter((s) => s.replace(/[ ·]/g, "") !== "").join("   |   ") || "—";
+                  return (
+                    <tr className="border-t border-line bg-emerald-50/40 dark:bg-emerald-950/20" data-testid="ds-row-jeKey">
+                      <td className="px-3 py-1.5 align-top font-medium text-ink">
+                        {fr ? "Identifiant unique d'écriture" : "Unique JE identifier"}
+                        <span className="mt-0.5 block text-[10.5px] font-normal leading-snug text-muted">
+                          {fr
+                            ? `Une colonne, ou plusieurs qui ensemble identifient une écriture (p. ex. journal + n° de pièce). Vide : le numéro d'écriture ci-dessous sert d'identifiant. ${JE_KEY_MAX} colonnes au plus.`
+                            : `One column, or several that together identify one journal entry (e.g. journal + voucher number). Empty: the JE number below is the identifier. Up to ${JE_KEY_MAX} columns.`}
+                        </span>
+                      </td>
+                      <td className="px-3 py-1.5 align-top">
+                        <div className="flex flex-wrap gap-x-3 gap-y-1" data-testid="ds-col-jeKey">
+                          {preview.headers.map((h) => (
+                            <label key={h} className="flex items-center gap-1 text-[11.5px] text-ink-soft">
+                              <input type="checkbox" checked={keyCols.includes(h)} onChange={() => toggle(h)} data-testid={`ds-jekey-${h.replace(/[^A-Za-z0-9]/g, "_")}`} />
+                              {h}
+                            </label>
+                          ))}
+                        </div>
+                        {keyCols.length > 0 ? (
+                          <p className="mt-1 text-[11px] text-emerald-800 dark:text-emerald-300" data-testid="ds-jekey-order">
+                            {fr ? "Ordre : " : "Order: "}{keyCols.join(JE_KEY_JOIN)}
+                          </p>
+                        ) : null}
+                      </td>
+                      <td className="px-3 py-1.5 align-top font-mono text-[11px] text-muted" data-testid="ds-sample-jeKey">{sample}</td>
+                    </tr>
+                  );
+                })() : null}
                 {FIELDS[kind].map((field) => (
-                  <tr key={field.key} className={`border-t border-line ${field.required && !mapping[field.key] ? "bg-[var(--color-warn-soft)]" : ""}`}>
+                  <tr key={field.key} className={`border-t border-line ${field.required && !mapping[field.key] && !(field.key === "jeNumber" && jeKeyColumns(mapping).length > 0) ? "bg-[var(--color-warn-soft)]" : ""}`}>
                     <td className="px-3 py-1.5 font-medium text-ink">
                       {fr ? field.fr : field.en}
                       {field.required ? <b className="text-rose"> *</b> : null}
