@@ -253,6 +253,7 @@
     "role": "Rôle",
     "resetPassword": "Réinitialiser le mot de passe",
     "resetDone": "Mot de passe réinitialisé — un mot de passe temporaire a été envoyé par e-mail.",
+    "invitedDone": "Invitation envoyée à {email} — un lien de connexion avec son email déjà renseigné et un mot de passe temporaire à remplacer à la première connexion.",
     "saveRole": "Enregistrer",
     "remove": "Retirer",
     "you": "vous",

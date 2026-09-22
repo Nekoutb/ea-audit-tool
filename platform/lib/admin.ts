@@ -10,7 +10,9 @@ import bcrypt from "bcryptjs";
 import { randomBytes } from "node:crypto";
 import { auth } from "@/auth";
 import { pool, withTenant } from "@/lib/db";
+import { accountMail } from "@/lib/account-mail";
 import { platformSender, sendEmail } from "@/lib/email";
+import { getLocale } from "@/lib/locale";
 
 export class AdminError extends Error {}
 
@@ -36,7 +38,14 @@ export interface FirmSummary {
 
 export async function listFirms(): Promise<FirmSummary[]> {
   await requireSuper();
-  const tenants = await pool.query<{ id: string; name: string; slug: string; mail_local: string | null; created_at: string; protected: boolean }>(
+  const tenants = await pool.query<{
+    id: string;
+    name: string;
+    slug: string;
+    mail_local: string | null;
+    created_at: string;
+    protected: boolean;
+  }>(
     "SELECT id, name, slug, mail_local, to_char(created_at, 'YYYY-MM-DD') AS created_at, coalesce(protected, false) AS protected FROM tenant ORDER BY created_at",
   );
   const members = await pool.query<{ tenant_id: string; n: string }>(
@@ -79,7 +88,12 @@ export interface PlatformAdmin {
 /** Everyone holding the platform super-admin flag. */
 export async function listPlatformAdmins(): Promise<PlatformAdmin[]> {
   const { userId } = await requireSuper();
-  const r = await pool.query<{ id: string; email: string; name: string | null; created_at: string }>(
+  const r = await pool.query<{
+    id: string;
+    email: string;
+    name: string | null;
+    created_at: string;
+  }>(
     `SELECT id, email, coalesce(name, '') AS name, to_char(created_at, 'YYYY-MM-DD') AS created_at
        FROM app_user WHERE is_super = true AND disabled_at IS NULL ORDER BY created_at`,
   );
@@ -136,7 +150,10 @@ export async function addPlatformAdmin(input: {
     }
     // Sign-in resolves the account's first membership; without one the login
     // is refused. Seat membership-less accounts in the operator-home tenant.
-    const hasMembership = await client.query("SELECT 1 FROM membership WHERE user_id = $1 LIMIT 1", [userId]);
+    const hasMembership = await client.query(
+      "SELECT 1 FROM membership WHERE user_id = $1 LIMIT 1",
+      [userId],
+    );
     if (hasMembership.rows.length === 0) {
       const home = await client.query<{ id: string }>(
         "SELECT id FROM tenant WHERE coalesce(protected, false) = true ORDER BY created_at LIMIT 1",
@@ -158,13 +175,11 @@ export async function addPlatformAdmin(input: {
   sendEmail({
     ...platformSender(),
     to: email,
-    subject: "AuditISA — platform administrator access",
-    body:
-      `You have been granted platform administrator access on AuditISA.\n\n` +
-      `Sign in: /login\nEmail: ${email}\n` +
-      (isNewUser
-        ? `Temporary password: ${tempPassword}\n\nYou will be asked to replace it the first time you sign in.`
-        : `Use your existing password — the admin console is now available from your account.`),
+    ...accountMail(
+      "admin-access",
+      { email, name: input.name.trim() || null, tempPassword: isNewUser ? tempPassword : null },
+      await getLocale(),
+    ),
   });
 
   return { emailed: isNewUser };
@@ -187,7 +202,10 @@ export async function removePlatformAdmin(targetUserId: string): Promise<void> {
   const client = await pool.connect();
   try {
     await client.query("BEGIN");
-    await client.query("UPDATE app_user SET is_super = false, session_version = coalesce(session_version, 1) + 1 WHERE id = $1", [targetUserId]);
+    await client.query(
+      "UPDATE app_user SET is_super = false, session_version = coalesce(session_version, 1) + 1 WHERE id = $1",
+      [targetUserId],
+    );
     await client.query(
       `DELETE FROM membership m USING tenant t
         WHERE m.user_id = $1 AND m.tenant_id = t.id AND coalesce(t.protected, false) = true`,
@@ -239,9 +257,15 @@ export async function checkAvailability(input: {
   const email = input.adminEmail.trim().toLowerCase();
 
   const [slugRow, mailRow, userRow] = await Promise.all([
-    slug ? pool.query("SELECT 1 FROM tenant WHERE slug = $1", [slug]) : Promise.resolve({ rows: [] as unknown[] }),
-    mailLocal ? pool.query("SELECT 1 FROM tenant WHERE lower(mail_local) = $1", [mailLocal]) : Promise.resolve({ rows: [] as unknown[] }),
-    email ? pool.query("SELECT 1 FROM app_user WHERE lower(email) = $1", [email]) : Promise.resolve({ rows: [] as unknown[] }),
+    slug
+      ? pool.query("SELECT 1 FROM tenant WHERE slug = $1", [slug])
+      : Promise.resolve({ rows: [] as unknown[] }),
+    mailLocal
+      ? pool.query("SELECT 1 FROM tenant WHERE lower(mail_local) = $1", [mailLocal])
+      : Promise.resolve({ rows: [] as unknown[] }),
+    email
+      ? pool.query("SELECT 1 FROM app_user WHERE lower(email) = $1", [email])
+      : Promise.resolve({ rows: [] as unknown[] }),
   ]);
 
   return {
@@ -269,7 +293,8 @@ export async function createFirm(input: {
   const name = input.name.trim();
   const slug = slugify(input.slug);
   const adminEmail = input.adminEmail.trim().toLowerCase();
-  if (!name || !slug || !/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(adminEmail)) throw new AdminError("fields-required");
+  if (!name || !slug || !/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(adminEmail))
+    throw new AdminError("fields-required");
   const language = input.language === "en" ? "en" : "fr";
 
   const existing = await pool.query("SELECT 1 FROM tenant WHERE slug = $1", [slug]);
@@ -279,7 +304,9 @@ export async function createFirm(input: {
   // verified one, so a firm can never set a From that would fail to deliver
   const mailLocal = (input.mailLocal ?? "").trim().toLowerCase() || slug;
   if (!/^[a-z0-9._-]{1,64}$/.test(mailLocal)) throw new AdminError("bad-mail-local");
-  const mailTaken = await pool.query("SELECT 1 FROM tenant WHERE lower(mail_local) = $1", [mailLocal]);
+  const mailTaken = await pool.query("SELECT 1 FROM tenant WHERE lower(mail_local) = $1", [
+    mailLocal,
+  ]);
   if (mailTaken.rows[0]) throw new AdminError("mail-local-taken");
 
   // 24 bytes, not 6: the old 48 bits was defensible only because the reset is
@@ -322,18 +349,24 @@ export async function createFirm(input: {
     client.release();
   }
 
+  // Onboarding is platform mail, not audit correspondence — a reply belongs
+  // with support rather than in a firm's confirmation inbox.
   sendEmail({
-    // Onboarding is platform mail, not audit correspondence — a reply belongs
-    // with support rather than in a firm's confirmation inbox.
     ...platformSender(),
     to: adminEmail,
-    subject: `Welcome to AuditISA — ${name} is onboarded`,
-    body:
-      `Your audit firm "${name}" has been set up on AuditISA.\n\n` +
-      `Sign in: /login\nEmail: ${adminEmail}\n` +
-      (isNewUser ? `Temporary password: ${tempPassword}\n\nYou will be asked to replace it the first time you sign in, ` : `Use your existing password. `) +
-      `then create your clients and audit engagements and invite your team. ` +
-      `Each firm's data is fully segregated, and every engagement is independent within the firm.`,
+    // The operator's own language is the only signal available about a firm
+    // that does not exist yet — better than hardcoding English at a product
+    // whose firms are mostly francophone.
+    ...accountMail(
+      "firm-onboarded",
+      {
+        email: adminEmail,
+        name: input.adminName.trim() || null,
+        firmName: name,
+        tempPassword: isNewUser ? tempPassword : null,
+      },
+      await getLocale(),
+    ),
   });
 
   // The generated secret leaves this function only by email. It is never
@@ -358,7 +391,15 @@ export async function deleteFirm(tenantId: string, confirmSlug: string): Promise
     await pool.query("SELECT admin_delete_firm($1)", [tenantId]);
   } catch (e) {
     const msg = e instanceof Error ? e.message : "";
-    if (["firm-not-found", "firm-has-archived-files", "firm-has-legal-hold", "firm-holds-operator-membership", "firm-protected"].includes(msg)) {
+    if (
+      [
+        "firm-not-found",
+        "firm-has-archived-files",
+        "firm-has-legal-hold",
+        "firm-holds-operator-membership",
+        "firm-protected",
+      ].includes(msg)
+    ) {
       throw new AdminError(msg);
     }
     throw e;

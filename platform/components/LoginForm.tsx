@@ -7,6 +7,7 @@
 import { redirect } from "next/navigation";
 import { AuthError } from "next-auth";
 import { signIn } from "@/auth";
+import { safeNext } from "@/lib/account-mail";
 import { mfaDisabled } from "@/lib/mfa-policy";
 import { SubmitButton } from "@/components/SubmitButton";
 import type { Messages } from "@/lib/i18n";
@@ -20,8 +21,11 @@ async function loginAction(formData: FormData): Promise<void> {
       // Blank for the great majority of accounts; only consulted when the
       // account has a confirmed authenticator.
       code: String(formData.get("code") ?? ""),
-      // "/" resolves to the most-recently-worked engagement's dashboard.
-      redirectTo: "/",
+      // Where to land afterwards. An account email that points at a specific
+      // engagement carries it here; "/" resolves to the most-recently-worked
+      // engagement's dashboard. Validated on the page that renders the form —
+      // an unchecked value here would be an open redirect.
+      redirectTo: safeNext(formData.get("next")),
     });
   } catch (error) {
     if (error instanceof AuthError) {
@@ -40,14 +44,21 @@ export function LoginForm({
   messages,
   failed,
   notice,
+  presetEmail,
+  next,
 }: {
   messages: Messages["login"];
   failed?: boolean;
   /** A non-credential explanation — session ended, throttled. */
   notice?: string | null;
+  /** From an account email's link: the address filled in, the cursor on the password. */
+  presetEmail?: string | null;
+  /** Where to go after signing in — an engagement, when the email named one. */
+  next?: string | null;
 }) {
   return (
     <form action={loginAction} className="flex flex-col gap-4">
+      {next ? <input type="hidden" name="next" value={next} /> : null}
       <label className="flex flex-col gap-1 text-sm">
         <span className="font-medium text-ink-soft">{messages.email}</span>
         <input
@@ -55,6 +66,8 @@ export function LoginForm({
           type="email"
           autoComplete="username"
           required
+          defaultValue={presetEmail ?? undefined}
+          data-testid="login-email"
           className="rounded-[var(--radius-atlas-sm)] border border-line-strong bg-surface px-3 py-2 text-ink outline-none focus:border-emerald-600 focus:ring-2 focus:ring-emerald-600/20"
         />
       </label>
@@ -66,6 +79,8 @@ export function LoginForm({
           type="password"
           autoComplete="current-password"
           required
+          autoFocus={Boolean(presetEmail)}
+          data-testid="login-password"
           className="rounded-[var(--radius-atlas-sm)] border border-line-strong bg-surface px-3 py-2 text-ink outline-none focus:border-emerald-600 focus:ring-2 focus:ring-emerald-600/20"
         />
       </label>

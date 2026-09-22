@@ -3,7 +3,9 @@
 
 import { randomBytes } from "node:crypto";
 import type { PoolClient } from "pg";
+import { accountMail } from "@/lib/account-mail";
 import { sendEmail, platformSender } from "@/lib/email";
+import { getLocale } from "@/lib/locale";
 import { createNotification } from "@/lib/notifications";
 import { withTenant } from "@/lib/db";
 import { requireTenant } from "@/lib/tenant";
@@ -311,18 +313,21 @@ export async function addTeamMemberByEmail(
   teamRole: TeamRole,
   engagementName: string,
 ): Promise<void> {
-  const { tenantId } = await requireTenant();
+  const { tenantId, userId: inviterId } = await requireTenant();
   const email = emailRaw.trim().toLowerCase();
   if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)) throw new Error("invalid-email");
 
   const tempPassword = randomBytes(24).toString("base64url");
-  const { userId, provisioned } = await withTenant(tenantId, async (tx) => {
-    const existing = await tx.query<{ id: string }>(
-      `SELECT u.id FROM app_user u JOIN membership m ON m.user_id = u.id
+  const { userId, provisioned, name, firmName, inviterName } = await withTenant(tenantId, async (tx) => {
+    const firm = await tx.query<{ name: string }>("SELECT name FROM tenant WHERE id = $1", [tenantId]);
+    const inviter = await tx.query<{ who: string }>("SELECT coalesce(name, email) AS who FROM app_user WHERE id = $1", [inviterId]);
+    const meta = { firmName: firm.rows[0]?.name ?? null, inviterName: inviter.rows[0]?.who ?? null };
+    const existing = await tx.query<{ id: string; name: string | null }>(
+      `SELECT u.id, u.name FROM app_user u JOIN membership m ON m.user_id = u.id
         WHERE lower(u.email) = $1 AND m.tenant_id = $2`,
       [email, tenantId],
     );
-    if (existing.rows[0]) return { userId: existing.rows[0].id, provisioned: false };
+    if (existing.rows[0]) return { userId: existing.rows[0].id, provisioned: false, name: existing.rows[0].name, ...meta };
     // Same email in another tenant is a different firm's user — never attach.
     const elsewhere = await tx.query<{ id: string }>(
       "SELECT id FROM app_user WHERE lower(email) = $1",
@@ -340,7 +345,7 @@ export async function addTeamMemberByEmail(
       user.rows[0].id,
       tenantId,
     ]);
-    return { userId: user.rows[0].id, provisioned: true };
+    return { userId: user.rows[0].id, provisioned: true, name, ...meta };
   });
 
   await withTenant(tenantId, async (tx) => {
@@ -353,21 +358,17 @@ export async function addTeamMemberByEmail(
     );
   });
 
-  sendEmail({
-    // Onboarding a colleague onto the tool: platform mail, so replies reach
-    // support. Audit correspondence still goes out as the firm — see
-    // lib/independence.ts and lib/confirmations.ts.
-    ...platformSender(),
-    to: email,
-    subject: `You have been added to ${engagementName}`,
-    body:
-      `You have been added to the engagement "${engagementName}" as ${teamRole.replace("_", " ")}. ` +
-      `Sign in and accept or decline it from the engagement dashboard: /engagements/${engagementId}/dashboard` +
-      (provisioned
-        ? `\n\nAn account has been created for you.\nEmail: ${email}\nTemporary password: ${tempPassword}\n` +
-          `You will be asked to replace it the first time you sign in.`
-        : ""),
-  });
+  // Onboarding a colleague onto the tool: platform mail, so replies reach
+  // support. Audit correspondence still goes out as the firm — see
+  // lib/independence.ts. A provisioned account gets the sign-in link with
+  // the email filled in and its temporary password; an existing colleague
+  // gets the engagement's door and no password.
+  const locale = await getLocale();
+  const facts = { email, name, firmName, inviterName, engagementName, engagementId, roleLabel: teamRole.replace("_", " ") };
+  const mail = provisioned
+    ? accountMail("new-account", { ...facts, tempPassword }, locale)
+    : accountMail("added-to-engagement", facts, locale);
+  sendEmail({ ...platformSender(), to: email, ...mail });
   await createNotification({
     tenantId,
     userId,

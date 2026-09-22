@@ -7,7 +7,9 @@ import { randomBytes } from "crypto";
 import bcrypt from "bcryptjs";
 import { recordActivity } from "@/lib/activity";
 import { withTenant } from "@/lib/db";
+import { accountMail } from "@/lib/account-mail";
 import { sendEmail, platformSender } from "@/lib/email";
+import { getLocale } from "@/lib/locale";
 import { canManageFirm, isRole, type Role } from "@/lib/rbac";
 import { requireTenant } from "@/lib/tenant";
 
@@ -74,9 +76,12 @@ export async function inviteFirmUser(input: {
   // never knows, types or transports a colleague's real password.
   const tempPassword = randomBytes(24).toString("base64url");
   const hash = await bcrypt.hash(tempPassword, 10);
-  await withTenant(tenantId, async (tx) => {
+  const { userId: inviterId } = await requireTenant();
+  const context = await withTenant(tenantId, async (tx) => {
     const existing = await tx.query<{ id: string }>("SELECT id FROM app_user WHERE lower(email) = $1", [email]);
     if (existing.rows[0]) throw new UserAdminError("email-taken");
+    const firm = await tx.query<{ name: string }>("SELECT name FROM tenant WHERE id = $1", [tenantId]);
+    const inviter = await tx.query<{ who: string }>("SELECT coalesce(name, email) AS who FROM app_user WHERE id = $1", [inviterId]);
     const user = await tx.query<{ id: string }>(
       "INSERT INTO app_user (email, name, password_hash, must_change_password) VALUES ($1, $2, $3, true) RETURNING id",
       [email, name, hash],
@@ -86,18 +91,14 @@ export async function inviteFirmUser(input: {
       tenantId,
       input.role,
     ]);
+    return { firmName: firm.rows[0]?.name ?? null, inviterName: inviter.rows[0]?.who ?? null };
   });
-  sendEmail({
-    // Account mail is platform mail — a reply belongs with support, not in a
-    // firm's audit correspondence.
-    ...platformSender(),
-    to: email,
-    subject: "Your AuditISA account",
-    body:
-      `An account has been created for you on AuditISA.\n\n` +
-      `Sign in: /login\nEmail: ${email}\nTemporary password: ${tempPassword}\n\n` +
-      `You will be asked to replace it the first time you sign in.`,
-  });
+  // Account mail is platform mail — a reply belongs with support, not in a
+  // firm's audit correspondence. The link opens the sign-in page with the
+  // email filled in; the temporary password travels in the message, never
+  // in the link.
+  const mail = accountMail("new-account", { email, name, tempPassword, ...context }, await getLocale());
+  sendEmail({ ...platformSender(), to: email, ...mail });
   await recordActivity({
     entityType: "user",
     action: "invited",
@@ -127,6 +128,8 @@ export async function resetUserPassword(targetUserId: string): Promise<void> {
       [targetUserId, tenantId],
     );
     if (!r.rows[0]) throw new UserAdminError("not-found");
+    const admin = await tx.query<{ who: string }>("SELECT coalesce(name, email) AS who FROM app_user WHERE id = $1", [userId]);
+    const firm = await tx.query<{ name: string }>("SELECT name FROM tenant WHERE id = $1", [tenantId]);
     await tx.query(
       `UPDATE app_user
           SET password_hash = $2, must_change_password = true,
@@ -134,18 +137,10 @@ export async function resetUserPassword(targetUserId: string): Promise<void> {
         WHERE id = $1`,
       [targetUserId, hash],
     );
-    return r.rows[0];
+    return { ...r.rows[0], inviterName: admin.rows[0]?.who ?? null, firmName: firm.rows[0]?.name ?? null };
   });
-  sendEmail({
-    ...platformSender(),
-    to: target.email,
-    subject: "Your AuditISA password has been reset",
-    body:
-      `A firm administrator has reset your AuditISA password.\n\n` +
-      `Sign in: /login\nEmail: ${target.email}\nTemporary password: ${tempPassword}\n\n` +
-      `You will be asked to replace it the first time you sign in. ` +
-      `If you did not expect this, contact your firm administrator.`,
-  });
+  const mail = accountMail("password-reset", { email: target.email, name: target.name, tempPassword, inviterName: target.inviterName, firmName: target.firmName }, await getLocale());
+  sendEmail({ ...platformSender(), to: target.email, ...mail });
   await recordActivity({
     entityType: "user",
     entityId: targetUserId,

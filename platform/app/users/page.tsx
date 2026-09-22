@@ -1,6 +1,11 @@
 import { redirect } from "next/navigation";
 import { auth } from "@/auth";
-import { changeRoleAction, inviteUserAction, removeUserAction, resetPasswordAction } from "@/app/actions/users";
+import {
+  changeRoleAction,
+  inviteUserAction,
+  removeUserAction,
+  resetPasswordAction,
+} from "@/app/actions/users";
 import { AppNav } from "@/components/AppNav";
 import { Panel, PanelHeader, btnPrimary } from "@/components/ui/atlas";
 import { SubmitButton } from "@/components/SubmitButton";
@@ -12,13 +17,18 @@ import { getLocale } from "@/lib/locale";
 export const metadata = { title: "Users · AuditISA" };
 
 export default async function UsersPage(props: {
-  searchParams: Promise<{ error?: string; saved?: string; reset?: string }>;
+  searchParams: Promise<{ error?: string; saved?: string; reset?: string; invited?: string }>;
 }) {
   const session = await auth();
   if (!session?.user) redirect("/login");
   if (!canManageFirm(session.user.role as Role)) redirect("/dashboard");
 
-  const { error, saved, reset } = await props.searchParams;
+  const { error, saved, reset, invited } = await props.searchParams;
+  // `invited` is echoed back into the success banner, so it is validated the
+  // same way app/login/page.tsx validates its own email parameter — otherwise
+  // any crafted URL puts arbitrary text inside a green "sent" box.
+  const invitedEmail =
+    typeof invited === "string" && /^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(invited) ? invited : null;
   const locale = await getLocale();
   const t = getMessages(locale);
   const tu = t.users;
@@ -36,13 +46,23 @@ export default async function UsersPage(props: {
       <p className="mt-1 text-[13px] text-ink-soft">{tu.subtitle}</p>
 
       {error ? (
-        <p data-testid="users-error" className="mt-4 rounded-[var(--radius-atlas-sm)] border border-line-strong bg-[var(--color-rose-soft)] px-4 py-3 text-sm text-rose">
+        <p
+          data-testid="users-error"
+          className="mt-4 rounded-[var(--radius-atlas-sm)] border border-line-strong bg-[var(--color-rose-soft)] px-4 py-3 text-sm text-rose"
+        >
           {(tu.errors as Record<string, string>)[error] ?? error}
         </p>
       ) : null}
-      {saved || reset ? (
-        <p data-testid="users-saved" className="mt-4 rounded-[var(--radius-atlas-sm)] border border-emerald-300 bg-emerald-50 px-4 py-3 text-sm text-emerald-800 dark:border-emerald-900 dark:bg-emerald-950/40 dark:text-emerald-300">
-          {reset ? tu.resetDone : tu.saved}
+      {saved || reset || invitedEmail ? (
+        <p
+          data-testid="users-saved"
+          className="mt-4 rounded-[var(--radius-atlas-sm)] border border-emerald-300 bg-emerald-50 px-4 py-3 text-sm text-emerald-800 dark:border-emerald-900 dark:bg-emerald-950/40 dark:text-emerald-300"
+        >
+          {invitedEmail
+            ? tu.invitedDone.replace("{email}", invitedEmail)
+            : reset
+              ? tu.resetDone
+              : tu.saved}
         </p>
       ) : null}
 
@@ -63,7 +83,10 @@ export default async function UsersPage(props: {
             <tbody>
               {users.map((u) => (
                 <tr key={u.id} className="border-t border-line" data-testid={`user-row-${u.email}`}>
-                  <td className="px-5 py-3 font-medium text-ink">{u.name ?? "—"}{u.isSelf ? <span className="ml-2 text-xs text-muted">({tu.you})</span> : null}</td>
+                  <td className="px-5 py-3 font-medium text-ink">
+                    {u.name ?? "—"}
+                    {u.isSelf ? <span className="ml-2 text-xs text-muted">({tu.you})</span> : null}
+                  </td>
                   <td className="px-5 py-3 font-mono text-xs text-ink-soft">{u.email}</td>
                   <td className="px-5 py-3">
                     {u.isSelf ? (
@@ -71,12 +94,23 @@ export default async function UsersPage(props: {
                     ) : (
                       <form action={changeRoleAction} className="flex items-center gap-2">
                         <input type="hidden" name="userId" value={u.id} />
-                        <select name="role" defaultValue={u.role} aria-label={tu.role} className={input} data-testid={`role-${u.email}`}>
+                        <select
+                          name="role"
+                          defaultValue={u.role}
+                          aria-label={tu.role}
+                          className={input}
+                          data-testid={`role-${u.email}`}
+                        >
                           {ASSIGNABLE_ROLES.map((r) => (
-                            <option key={r} value={r}>{roleName(r)}</option>
+                            <option key={r} value={r}>
+                              {roleName(r)}
+                            </option>
                           ))}
                         </select>
-                        <button type="submit" className="rounded-[var(--radius-atlas-sm)] border border-line-strong px-2.5 py-1.5 text-xs font-semibold text-ink-soft hover:bg-surface-2">
+                        <button
+                          type="submit"
+                          className="rounded-[var(--radius-atlas-sm)] border border-line-strong px-2.5 py-1.5 text-xs font-semibold text-ink-soft hover:bg-surface-2"
+                        >
                           {tu.saveRole}
                         </button>
                       </form>
@@ -87,13 +121,21 @@ export default async function UsersPage(props: {
                       <div className="flex items-center justify-end gap-2">
                         <form action={resetPasswordAction}>
                           <input type="hidden" name="userId" value={u.id} />
-                          <button type="submit" data-testid={`reset-${u.email}`} className="rounded-[var(--radius-atlas-sm)] border border-line-strong px-2.5 py-1.5 text-xs font-semibold text-ink-soft hover:bg-surface-2">
+                          <button
+                            type="submit"
+                            data-testid={`reset-${u.email}`}
+                            className="rounded-[var(--radius-atlas-sm)] border border-line-strong px-2.5 py-1.5 text-xs font-semibold text-ink-soft hover:bg-surface-2"
+                          >
                             {tu.resetPassword}
                           </button>
                         </form>
                         <form action={removeUserAction}>
                           <input type="hidden" name="userId" value={u.id} />
-                          <button type="submit" data-testid={`remove-${u.email}`} className="rounded-[var(--radius-atlas-sm)] border border-line-strong px-2.5 py-1.5 text-xs font-semibold text-rose hover:bg-[var(--color-rose-soft)]">
+                          <button
+                            type="submit"
+                            data-testid={`remove-${u.email}`}
+                            className="rounded-[var(--radius-atlas-sm)] border border-line-strong px-2.5 py-1.5 text-xs font-semibold text-rose hover:bg-[var(--color-rose-soft)]"
+                          >
                             {tu.remove}
                           </button>
                         </form>
@@ -109,15 +151,37 @@ export default async function UsersPage(props: {
 
       <Panel className="mt-8 p-6">
         <PanelHeader title={tu.invite} hint={tu.inviteHint} />
-        <form action={inviteUserAction} className="mt-4 grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-4">
-          <label className={label}>{tu.name}<input name="name" required className={input} data-testid="invite-name" /></label>
-          <label className={label}>{tu.email}<input name="email" type="email" required className={input} data-testid="invite-email" /></label>
-          <label className={label}>{tu.role}
+        <form
+          action={inviteUserAction}
+          className="mt-4 grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-4"
+        >
+          <label className={label}>
+            {tu.name}
+            <input name="name" required className={input} data-testid="invite-name" />
+          </label>
+          <label className={label}>
+            {tu.email}
+            <input
+              name="email"
+              type="email"
+              required
+              className={input}
+              data-testid="invite-email"
+            />
+          </label>
+          <label className={label}>
+            {tu.role}
             <select name="role" defaultValue="staff" className={input} data-testid="invite-role">
-              {ASSIGNABLE_ROLES.map((r) => (<option key={r} value={r}>{roleName(r)}</option>))}
+              {ASSIGNABLE_ROLES.map((r) => (
+                <option key={r} value={r}>
+                  {roleName(r)}
+                </option>
+              ))}
             </select>
           </label>
-          <SubmitButton className={`self-end ${btnPrimary}`} testId="invite-submit">{tu.inviteButton}</SubmitButton>
+          <SubmitButton className={`self-end ${btnPrimary}`} testId="invite-submit">
+            {tu.inviteButton}
+          </SubmitButton>
         </form>
       </Panel>
     </main>

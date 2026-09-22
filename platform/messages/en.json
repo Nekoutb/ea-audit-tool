@@ -253,6 +253,7 @@
     "role": "Role",
     "resetPassword": "Reset password",
     "resetDone": "Password reset — a temporary password has been emailed.",
+    "invitedDone": "Invitation emailed to {email} — a sign-in link with their email filled in and a temporary password to replace at first sign-in.",
     "saveRole": "Save",
     "remove": "Remove",
     "you": "you",

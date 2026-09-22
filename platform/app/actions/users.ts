@@ -4,7 +4,7 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { UserAdminError, changeUserRole, inviteFirmUser, removeFirmUser, resetUserPassword } from "@/lib/users";
 
-async function run(fn: () => Promise<void>, success = "saved"): Promise<never> {
+async function run(fn: () => Promise<void>, success = "saved", value = "1"): Promise<never> {
   try {
     await fn();
   } catch (error) {
@@ -12,16 +12,20 @@ async function run(fn: () => Promise<void>, success = "saved"): Promise<never> {
     throw error;
   }
   revalidatePath("/users");
-  redirect(`/users?${success}=1`);
+  redirect(`/users?${success}=${encodeURIComponent(value)}`);
 }
 
 export async function inviteUserAction(formData: FormData): Promise<void> {
-  await run(() =>
-    inviteFirmUser({
-      email: String(formData.get("email") ?? ""),
-      name: String(formData.get("name") ?? ""),
-      role: String(formData.get("role") ?? ""),
-    }),
+  const email = String(formData.get("email") ?? "").trim().toLowerCase();
+  await run(
+    () =>
+      inviteFirmUser({
+        email,
+        name: String(formData.get("name") ?? ""),
+        role: String(formData.get("role") ?? ""),
+      }),
+    "invited",
+    email,
   );
 }
 

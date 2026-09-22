@@ -20,6 +20,8 @@ export interface OutboundEmail {
   fromLocal?: string;
   /** display name of the sender, e.g. the firm name */
   fromName?: string;
+  /** a rendered HTML part; when absent the text body is wrapped as before */
+  html?: string;
 }
 
 const API = "https://api.mailersend.com/v1/email";
@@ -95,7 +97,7 @@ export function sendEmail(email: OutboundEmail): void {
     to: [{ email: email.to }],
     subject,
     text: body,
-    html: `<div style="font-family:Segoe UI,Arial,sans-serif;font-size:14px;color:#1c1c1a;line-height:1.55"><p>${escapeHtml(body).replace(/\n/g, "<br>")}</p><p style="color:#8a8a86;font-size:12px">AuditISA — ${appUrl}</p></div>`,
+    html: email.html ?? `<div style="font-family:Segoe UI,Arial,sans-serif;font-size:14px;color:#1c1c1a;line-height:1.55"><p>${escapeHtml(body).replace(/\n/g, "<br>")}</p><p style="color:#8a8a86;font-size:12px">AuditISA — ${appUrl}</p></div>`,
   };
   if (replyTo) payload.reply_to = { email: replyTo };
 
