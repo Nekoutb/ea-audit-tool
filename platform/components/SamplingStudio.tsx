@@ -8,20 +8,16 @@
 //       control covering an assertion — weekly 5, monthly/quarterly 2,
 //       annually 1; 50–250 occurrences → 10%, under 50 → 5, under 5 → all;
 //       automated → test of one). Confirming assigns the size to the control.
-//   2 — Sampling for TESTS OF DETAILS: pick the account from the GL dropdown;
-//       base sample = (population − key items) ÷ TE, multiplied by the
-//       audit-risk-table factor (CRA × assurance × key-item coverage); the
-//       sample is drawn systematically (MUS) and revealed item by item.
-//   3 — The same plan for EVERY account of one side of the financial
-//       statements, as a workbook with one tab per lead index: the CRA from
-//       S3.1 and the key-item threshold set there, key items in full, the
-//       sample beneath, entry columns for the tester.
+//   2 — Sampling for TESTS OF DETAILS: every account of one side of the
+//       financial statements, as a workbook with one tab per lead index —
+//       the CRA from S3.1 and the key-item threshold set there, key items in
+//       full (≥ threshold), the representative sample beneath (base =
+//       (population − key items) ÷ TE × the audit-risk-table factor, drawn
+//       by systematic MUS), entry columns for the tester.
 
-import { useEffect, useMemo, useState } from "react";
+import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { normFreq, tocSuggested } from "@/lib/toc-sampling";
-import { leadIndexFor } from "@/lib/lead-classes";
-import { todLabel, type CraTod } from "@/lib/cra-model";
 
 export interface SamplingPurpose {
   controlId: string;
@@ -35,20 +31,6 @@ export interface SamplingPurpose {
   sole: boolean;
 }
 
-export interface GlAccountOption {
-  prefix: string;
-  total: number;
-  lines: number;
-}
-
-const CRAS = [
-  { value: "minimal", en: "Minimal", fr: "Minimal" },
-  { value: "low", en: "Low", fr: "Faible" },
-  { value: "low_sr", en: "Low + Significant risk", fr: "Faible + risque important" },
-  { value: "moderate", en: "Moderate", fr: "Modéré" },
-  { value: "high", en: "High", fr: "Élevé" },
-  { value: "high_sr", en: "High + Significant risk", fr: "Élevé + risque important" },
-] as const;
 const ASSURANCES = [
   { value: "little", en: "Little", fr: "Faible" },
   { value: "some", en: "Some", fr: "Partielle" },
@@ -59,16 +41,11 @@ const ASSURANCES = [
 export function SamplingStudio({
   engagementId,
   purposes,
-  glAccounts,
-  craByIndex,
   s22Href,
   locale,
 }: {
   engagementId: string;
   purposes: SamplingPurpose[];
-  glAccounts: GlAccountOption[];
-  /** S3.1 roll-up: lead index → CRA in sampling vocabulary (minimal…high_sr) */
-  craByIndex?: Record<string, string>;
   /** the S2.2 design screen — clicking a control's description returns there */
   s22Href?: string;
   locale: "en" | "fr";
@@ -78,25 +55,6 @@ export function SamplingStudio({
   const [error, setError] = useState<string | null>(null);
   const [done, setDone] = useState<string | null>(null);
   const [populations, setPopulations] = useState<Record<string, string>>({});
-
-  // tests of details state
-  const [prefix, setPrefix] = useState(glAccounts[0]?.prefix ?? "");
-  const [cra, setCra] = useState("low");
-
-  // S3.1 write-through: when the account changes, the matrix's roll-up for its
-  // lead index becomes the CRA default (still overridable by hand)
-  const s31 = useMemo(() => {
-    if (!craByIndex || !prefix) return null;
-    const idx = leadIndexFor(prefix);
-    const v = idx ? craByIndex[idx] : undefined;
-    return v ? { index: idx as string, value: v } : null;
-  }, [craByIndex, prefix]);
-  useEffect(() => {
-    // eslint-disable-next-line react-hooks/set-state-in-effect -- adopts the server-derived S3.1 CRA as the editable default when it arrives
-    if (s31) setCra(s31.value);
-  }, [s31]);
-  const [assurance, setAssurance] = useState("little");
-  const [threshold, setThreshold] = useState("");
 
   // one workbook per side of the statements
   const [side, setSide] = useState<"bs" | "is">("is");
@@ -130,13 +88,6 @@ export function SamplingStudio({
     a.href = href; a.download = filename; document.body.appendChild(a); a.click(); a.remove();
     URL.revokeObjectURL(href);
   }
-  const [todPending, setTodPending] = useState(false);
-  const [tod, setTod] = useState<{
-    populationValue: number; populationCount: number; te: number; threshold: number;
-    keyItemCount: number; keyItemValue: number; coveragePct: number; baseSize: number;
-    factor: number | null; sampleSize: number; interval: number | null;
-    items: { ref: string; account: string; amount: number; kind: "key" | "sample" }[];
-  } | null>(null);
 
   const n = (x: number) => new Intl.NumberFormat("fr-FR").format(x);
   const input = "rounded-[var(--radius-atlas-sm)] border border-line-strong bg-surface px-2.5 py-1.5 text-[12.5px] text-ink outline-none focus:border-emerald-600";
@@ -178,29 +129,6 @@ export function SamplingStudio({
       );
       router.refresh();
     }
-  }
-
-  async function runTod() {
-    setError(null); setDone(null); setTodPending(true); setTod(null);
-    const body = await op({
-      op: "todPreview",
-      prefix,
-      cra,
-      assurance,
-      threshold: threshold ? Number(threshold.replace(/[\s  ]/g, "")) : undefined,
-    });
-    setTodPending(false);
-    if (!body) return;
-    if (!body.ok) {
-      setError(
-        body.error === "no-gl" ? (fr ? "Aucun grand livre — importer le GL dans l'analyseur." : "No general ledger — upload it in the GL Analyzer.")
-        : body.error === "no-materiality" ? (fr ? "Seuil de signification non approuvé (P6.1)." : "Materiality not approved yet (P6.1).")
-        : body.error === "empty-population" ? (fr ? "Aucune ligne pour ce compte." : "No GL line for that account.")
-        : fr ? "Colonnes du GL non mappées." : "GL columns not mapped.",
-      );
-      return;
-    }
-    setTod(body);
   }
 
   const sectionTitle = "text-[11px] font-extrabold uppercase tracking-[0.07em] text-emerald-700 dark:text-emerald-400";
@@ -310,108 +238,8 @@ export function SamplingStudio({
       </div>
 
       {/* ------------------------------------------- 2 · tests of details -- */}
-      <div className="flex flex-col gap-1.5" data-testid="sampling-tod">
-        <p className={sectionTitle}>{fr ? "2 · Échantillonnage — tests de détail" : "2 · Sampling for tests of details"}</p>
-        <p className="text-[11.5px] text-muted">
-          {fr
-            ? "Choisissez le compte : les éléments clés (≥ seuil) sont examinés à 100 % ; l'échantillon représentatif = (population − éléments clés) ÷ TE × facteur des tables de risque, tiré en MUS systématique."
-            : "Pick the account: key items (≥ threshold) are examined in full; the representative sample = (population − key items) ÷ TE × the audit-risk-table factor, drawn by systematic MUS."}
-        </p>
-        <div className="flex flex-wrap items-end gap-2.5">
-          <label className="flex flex-col gap-0.5 text-[11px] text-muted">
-            {fr ? "Compte (GL)" : "Account (GL)"}
-            <select value={prefix} onChange={(e) => setPrefix(e.target.value)} className={input} data-testid="tod-account">
-              {glAccounts.length === 0 ? <option value="">{fr ? "— aucun GL" : "— no GL yet"}</option> : null}
-              {glAccounts.map((a) => (
-                <option key={a.prefix} value={a.prefix}>
-                  {a.prefix} — {n(a.total)} FCFA · {n(a.lines)} {fr ? "lignes" : "lines"}
-                </option>
-              ))}
-            </select>
-          </label>
-          <label className="flex flex-col gap-0.5 text-[11px] text-muted">
-            CRA
-            <select value={cra} onChange={(e) => setCra(e.target.value)} className={input} data-testid="tod-cra">
-              {CRAS.map((c) => <option key={c.value} value={c.value}>{fr ? c.fr : c.en}</option>)}
-            </select>
-            {s31 ? (
-              <span className="text-[10px] font-semibold text-emerald-700 dark:text-emerald-400" data-testid="tod-cra-s31">
-                {fr ? `S3.1 (${s31.index}) : ${todLabel(s31.value as CraTod, "fr")}` : `From S3.1 (${s31.index}): ${todLabel(s31.value as CraTod, "en")}`}
-              </span>
-            ) : null}
-          </label>
-          <label className="flex flex-col gap-0.5 text-[11px] text-muted">
-            {fr ? "Assurance des autres procédures" : "Assurance from other procedures"}
-            <select value={assurance} onChange={(e) => setAssurance(e.target.value)} className={input} data-testid="tod-assurance">
-              {ASSURANCES.map((a) => <option key={a.value} value={a.value}>{fr ? a.fr : a.en}</option>)}
-            </select>
-          </label>
-          <label className="flex flex-col gap-0.5 text-[11px] text-muted">
-            {fr ? "Seuil éléments clés (vide = TE)" : "Key-item threshold (blank = TE)"}
-            <input value={threshold} onChange={(e) => setThreshold(e.target.value)} placeholder="TE" className={`${input} w-[140px] tnum`} data-testid="tod-threshold" />
-          </label>
-          <button
-            type="button"
-            onClick={runTod}
-            disabled={todPending || !prefix}
-            className="rounded-[var(--radius-atlas-sm)] bg-emerald-700 px-3.5 py-1.5 text-[13px] font-semibold text-white hover:bg-emerald-800 disabled:opacity-50"
-            data-testid="tod-run"
-          >
-            {todPending ? "…" : fr ? "Générer l'échantillon" : "Generate the sample"}
-          </button>
-        </div>
-
-        {tod ? (
-          <div className="rounded-[var(--radius-atlas-sm)] border border-emerald-600/30 bg-emerald-50 px-3.5 py-2.5 dark:bg-emerald-950/30" data-testid="tod-result">
-            <p className="text-[13.5px] text-ink">
-              {fr ? "Échantillon représentatif" : "Representative sample"}: <b className="tnum text-[15px]">{tod.sampleSize}</b>
-              <span className="ml-2 text-[11.5px] text-muted">
-                {fr ? "base" : "base"} {tod.baseSize} × {fr ? "facteur" : "factor"} {tod.factor ?? "—"} · {fr ? "intervalle" : "interval"} {tod.interval ? n(tod.interval) : "—"}
-              </span>
-            </p>
-            <p className="mt-0.5 text-[11.5px] text-ink-soft">
-              {fr ? "Population" : "Population"} {n(tod.populationValue)} FCFA ({n(tod.populationCount)} {fr ? "lignes" : "lines"}) ·{" "}
-              {fr ? "éléments clés" : "key items"} {tod.keyItemCount} ({n(tod.keyItemValue)} FCFA, {tod.coveragePct}% {fr ? "couverture" : "coverage"}, {fr ? "seuil" : "threshold"} {n(tod.threshold)}) ·{" "}
-              TE {n(tod.te)}
-              {tod.factor === null ? (
-                <b className="ml-1 text-emerald-800 dark:text-emerald-300">{fr ? "— aucun échantillon représentatif requis à cette combinaison." : "— no representative sample required at this combination."}</b>
-              ) : null}
-            </p>
-            {tod.items.length > 0 ? (
-              <div className="mt-2 max-h-[300px] overflow-y-auto rounded-[var(--radius-atlas-xs)] border border-emerald-600/20">
-                <table className="w-full text-[11.5px]" data-testid="tod-items">
-                  <thead>
-                    <tr className="bg-surface-2 text-left text-[9.5px] font-extrabold uppercase tracking-[0.07em] text-muted">
-                      <th className="px-2 py-1">{fr ? "Type" : "Kind"}</th>
-                      <th className="px-2 py-1">{fr ? "Référence" : "Reference"}</th>
-                      <th className="px-2 py-1">{fr ? "Compte" : "Account"}</th>
-                      <th className="px-2 py-1 text-right">{fr ? "Montant" : "Amount"}</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {tod.items.map((it, i) => (
-                      <tr key={i} className="border-t border-line">
-                        <td className="px-2 py-1">
-                          <span className={`rounded-full px-1.5 py-[1px] text-[9px] font-bold ${it.kind === "key" ? "bg-[var(--color-warn-soft)] text-warn" : "bg-emerald-100 text-emerald-800 dark:bg-emerald-950/50 dark:text-emerald-300"}`}>
-                            {it.kind === "key" ? (fr ? "clé" : "key") : fr ? "échantillon" : "sample"}
-                          </span>
-                        </td>
-                        <td className="px-2 py-1 font-mono text-[10.5px]">{it.ref}</td>
-                        <td className="px-2 py-1 font-mono text-[10.5px]">{it.account}</td>
-                        <td className="px-2 py-1 text-right tnum">{n(it.amount)}</td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            ) : null}
-          </div>
-        ) : null}
-      </div>
-
-      {/* ------------------------- 3 · tests of details, one side at a time -- */}
       <div className="flex flex-col gap-1.5" data-testid="sampling-tod-side">
-        <p className={sectionTitle}>{fr ? "3 · Tests de détail — un classeur par côté des états financiers" : "3 · Tests of details — one workbook per side of the financial statements"}</p>
+        <p className={sectionTitle}>{fr ? "2 · Échantillonnage — tests de détail" : "2 · Sampling for tests of details"}</p>
         <p className="text-[11.5px] text-muted">
           {fr
             ? "Choisissez le bilan ou le compte de résultat : chaque indice de ce côté reçoit un onglet avec ses éléments clés (≥ seuil fixé sur S3.1, TE à défaut) et son échantillon représentatif dimensionné par la CRA de S3.1 — colonnes de test à remplir."

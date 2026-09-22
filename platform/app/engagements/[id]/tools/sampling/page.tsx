@@ -7,8 +7,7 @@ import { Panel, PanelHeader } from "@/components/ui/atlas";
 import { engagementTasks } from "@/lib/engagement-dashboard";
 import { getEngagement } from "@/lib/engagements";
 import { getLocale } from "@/lib/locale";
-import { craRollupByIndex } from "@/lib/cra";
-import { listGlAccounts, listScots } from "@/lib/scots";
+import { listScots } from "@/lib/scots";
 
 export const metadata = { title: "Sampling · AuditISA" };
 
@@ -29,12 +28,7 @@ export default async function SamplingPage(props: { params: Promise<{ id: string
   const fr = locale === "fr";
   const engagement = await getEngagement(id);
   if (!engagement) notFound();
-  const [tasks, scots, glAccounts, craByIndex] = await Promise.all([
-    engagementTasks(id),
-    listScots(id),
-    listGlAccounts(id),
-    craRollupByIndex(id).catch(() => ({})),
-  ]);
+  const [tasks, scots] = await Promise.all([engagementTasks(id), listScots(id)]);
   const rows = SAMPLING_CODES.map((code) => tasks.find((x) => x.code === code)).filter(
     (x): x is NonNullable<typeof x> => Boolean(x),
   );
@@ -91,8 +85,6 @@ export default async function SamplingPage(props: { params: Promise<{ id: string
           <SamplingStudio
             engagementId={id}
             purposes={purposes}
-            glAccounts={glAccounts}
-            craByIndex={craByIndex}
             s22Href={(() => { const t = tasks.find((x) => x.code === "S2.2"); return t ? `/engagements/${id}/sections/${t.id}` : undefined; })()}
             locale={fr ? "fr" : "en"}
           />
