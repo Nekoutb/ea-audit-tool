@@ -490,7 +490,7 @@ export function JeSelectionStudio({
     { label: T("Signed", "Signé"), align: "right", width: 120 },
     { label: T("Preparer", "Préparateur"), width: 130 },
     { label: T("Reviewer", "Réviseur"), width: 130 },
-    { label: T("Why this line was selected", "Motifs de la sélection"), width: 560 },
+    { label: T("Why this line was selected", "Motifs de la sélection"), width: 320 },
   ];
 
   /** The thresholds one criterion ran with, in the words the parameter carries. */
@@ -859,6 +859,23 @@ export function JeSelectionStudio({
               )}
               testId="je-lines"
             >
+              <div className="flex flex-wrap items-center gap-2">
+                <button
+                  type="button"
+                  onClick={() => void exportRun()}
+                  disabled={exporting || pending}
+                  className={`${btnPrimary} disabled:opacity-50`}
+                  data-testid="je-export-lines"
+                >
+                  {exporting ? T("Building the workbook…", "Construction du classeur…") : T("Extract the selection to Excel", "Extraire la sélection vers Excel")}
+                </button>
+                <span className="text-[11.5px] text-muted">
+                  {T(
+                    `All ${num(result.selectedLines)} selected lines, with the full reason for each, on the E3.1 working paper.`,
+                    `Les ${num(result.selectedLines)} lignes retenues, avec le motif complet de chacune, sur le papier de travail E3.1.`,
+                  )}
+                </span>
+              </div>
               <SheetTable cols={lineCols} testId="je-lines-table">
                 <tbody>
                   {result.lines.map((line, i) => (
@@ -876,13 +893,14 @@ export function JeSelectionStudio({
                       <SCell wrap>{line.preparer ?? "—"}</SCell>
                       <SCell wrap>{line.reviewer ?? "—"}</SCell>
                       <SCell wrap testId={`je-line-reasons-${line.id}`}>
-                        <span className="flex flex-col gap-1">
-                          {line.reasons.map((reason, r) => (
-                            <span key={`${reason.criterion}-${r}`} className="block">
-                              <b className="text-ink">{reason.label}</b>
-                              <span className="text-ink-soft"> — {reason.detail}</span>
-                            </span>
-                          ))}
+                        {/* one short sentence: the criteria, lower-cased and comma-joined;
+                            the full account of each is the tooltip, and the workbook */}
+                        <span
+                          className="text-ink"
+                          title={line.reasons.map((reason) => `${reason.label} — ${reason.detail}`).join("
+")}
+                        >
+                          {line.reasons.map((reason) => reason.label.charAt(0).toLowerCase() + reason.label.slice(1)).join(", ")}
                         </span>
                       </SCell>
                     </SRow>
