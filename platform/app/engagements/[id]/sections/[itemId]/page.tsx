@@ -10,6 +10,7 @@ import { launchIndependenceToTeamAction } from "@/app/actions/team-independence"
 import { PaperWizard } from "@/components/PaperWizard";
 import { PracticalTips, type TipEntry } from "@/components/PracticalTips";
 import { ReviewNotes } from "@/components/ReviewNotes";
+import { Fold, MaybeFold } from "@/components/Fold";
 import { SignificantAccounts } from "@/components/SignificantAccounts";
 import { PlanningRas } from "@/components/PlanningRas";
 import { SECTION_A, SECTION_B, SECTION_C, SIGNATURE_ROLES, planningRas } from "@/lib/planning-ras";
@@ -554,9 +555,16 @@ export default async function SectionPage(props: {
 
         <section className="flex min-h-[520px] min-w-0 flex-col overflow-hidden rounded-[var(--radius-atlas)] border border-glass-border bg-surface px-4 py-3 shadow-atlas backdrop-blur-xl xl:min-h-0">
           {sigAccounts ? (
-            <div className="mb-2 min-h-0 overflow-auto" data-testid="wp-sig-accounts">
-              <SignificantAccounts engagementId={id} view={sigAccounts} locale={isFr ? "fr" : "en"} />
-            </div>
+            <Fold
+              title={isFr ? "Identification des comptes significatifs" : "Identification of significant accounts"}
+              hint={isFr ? "replier pour faire place au questionnaire" : "fold to make room for the questionnaire"}
+              className="mb-2"
+              testId="fold-sig-accounts"
+            >
+              <div className="min-h-0 max-h-[52vh] overflow-auto" data-testid="wp-sig-accounts">
+                <SignificantAccounts engagementId={id} view={sigAccounts} locale={isFr ? "fr" : "en"} />
+              </div>
+            </Fold>
           ) : null}
           {triggerDef ? (
             <TriggerPanel engagementId={id} definition={triggerDef} values={triggerValues} returnTo={`/engagements/${id}/sections/${itemId}`} locale={isFr ? "fr" : "en"} />
@@ -582,6 +590,13 @@ export default async function SectionPage(props: {
           {/* The paper owns the column on its own. When the execution panels
               ride below it the two share the height and each scrolls, so the
               wizard never pushes the panels off the screen. */}
+          <MaybeFold
+            when={section.code === "P6.2"}
+            title={isFr ? "Conclusions & points clés" : "Conclusions & key findings"}
+            hint={isFr ? "le questionnaire à revoir et compléter" : "the questionnaire to review and complete"}
+            grow
+            testId="fold-paper"
+          >
           <div className="flex min-h-0 flex-1 flex-col">
           {ras ? (
             <PlanningRas
@@ -672,6 +687,7 @@ export default async function SectionPage(props: {
           />
           )}
           </div>
+          </MaybeFold>
         </section>
 
         {wideBoard ? null : (
