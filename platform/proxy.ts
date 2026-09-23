@@ -5,6 +5,7 @@
 // This is defense-in-depth: every protected page also calls auth()/requireTenant()
 // server-side. The matcher keeps the proxy off public routes and static assets.
 import { NextResponse } from "next/server";
+import { isPublic } from "@/lib/public-routes";
 import { auth } from "@/auth";
 import { canWrite, isRole } from "@/lib/rbac";
 import { visibleToUser } from "@/lib/engagement-access";
@@ -14,11 +15,6 @@ import { visibleToUser } from "@/lib/engagement-access";
  * security headers — a Content-Security-Policy is worth least on the pages an
  * attacker can reach without signing in first.
  */
-// /api/version answers "which commit is this?" — the deploy pipeline's proof
-// that the public site serves what it just deployed (app/api/version/route.ts).
-const PUBLIC = ["/login", "/terms", "/privacy", "/api/auth", "/api/email/inbound", "/api/version", "/version"];
-const isPublic = (path: string) =>
-  path === "/" || PUBLIC.some((p) => path === p || path.startsWith(`${p}/`));
 
 /**
  * Security headers, with a per-request nonce for the Content-Security-Policy.
@@ -149,7 +145,10 @@ export const proxy = auth(async (req) => {
   // read or write another team's file through the API. Enforced here rather
   // than in each handler: one place, and a route added later inherits it
   // instead of having to remember.
-  const engagementMatch = /^\/api\/engagements\/([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})(?:\/|$)/.exec(path);
+  const engagementMatch =
+    /^\/api\/engagements\/([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})(?:\/|$)/.exec(
+      path,
+    );
   if (engagementMatch) {
     const user = req.auth.user;
     const userRole = user?.role;
@@ -203,6 +202,6 @@ export const config = {
   // security headers must reach every document, including the landing page and
   // /login — a Content-Security-Policy is worth least on the pages an attacker
   // can reach without signing in. The route rules inside the proxy still apply
-  // only to non-public paths; see PUBLIC above.
+  // only to non-public paths; see lib/public-routes.ts.
   matcher: ["/((?!_next/static|_next/image|favicon[.]ico|.*[.][^/]+$).*)"],
 };
