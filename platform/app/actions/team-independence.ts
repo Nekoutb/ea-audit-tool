@@ -12,9 +12,14 @@ export async function launchIndependenceToTeamAction(
   returnTo: string,
 ): Promise<void> {
   const team = await listTeam(engagementId);
-  const back = returnTo.startsWith(`/engagements/${engagementId}/`) ? returnTo : `/engagements/${engagementId}/dashboard`;
+  const back = returnTo.startsWith(`/engagements/${engagementId}/`)
+    ? returnTo
+    : `/engagements/${engagementId}/dashboard`;
   if (team.length === 0) redirect(`${back}?error=no-recipients`);
-  await launchCampaign(engagementId, team.map((m) => m.userId));
+  await launchCampaign(
+    engagementId,
+    team.map((m) => m.userId),
+  );
   await recordActivity({
     engagementId,
     entityType: "engagement",
@@ -34,9 +39,10 @@ export async function addTeamByEmailAction(
 ): Promise<void> {
   const email = String(formData.get("email") ?? "");
   const role = String(formData.get("teamRole") ?? "staff") as TeamRole;
+  const name = String(formData.get("memberName") ?? "");
   const back = `/engagements/${engagementId}/team`;
   try {
-    await addTeamMemberByEmail(engagementId, email, role, engagementName);
+    await addTeamMemberByEmail(engagementId, email, role, engagementName, name);
   } catch (error) {
     const code = error instanceof Error ? error.message : "invalid-email";
     redirect(`${back}?error=${encodeURIComponent(code)}`);

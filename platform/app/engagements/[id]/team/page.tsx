@@ -64,7 +64,14 @@ export default async function TeamPage(props: {
           className="inline-flex min-h-[24px] items-center gap-1.5 text-[13px] font-semibold text-emerald-700 hover:underline dark:text-emerald-400"
           testId="back-to-dashboard"
         >
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2">
+          <svg
+            width="14"
+            height="14"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="2.2"
+          >
             <path d="M19 12H5M11 18l-6-6 6-6" />
           </svg>
           {t.dashboard.backToDashboard}
@@ -81,7 +88,10 @@ export default async function TeamPage(props: {
 
       <Panel flush>
         <div className="border-b border-line px-5 py-3.5">
-          <PanelHeader title={tt.active} right={<span className="text-xs font-semibold text-muted tnum">{team.length}</span>} />
+          <PanelHeader
+            title={tt.active}
+            right={<span className="text-xs font-semibold text-muted tnum">{team.length}</span>}
+          />
         </div>
         {team.length === 0 ? (
           <p className="px-5 py-8 text-center text-sm text-muted">{tt.empty}</p>
@@ -100,10 +110,17 @@ export default async function TeamPage(props: {
               </thead>
               <tbody>
                 {team.map((m) => (
-                  <tr key={m.id} className="transition-colors hover:bg-surface-2" data-testid={`team-row-${m.userId}`}>
+                  <tr
+                    key={m.id}
+                    className="transition-colors hover:bg-surface-2"
+                    data-testid={`team-row-${m.userId}`}
+                  >
                     <td className="border-t border-line px-5 py-3.5">
                       <span className="flex items-center gap-2.5">
-                        <span className="h-2 w-2 flex-shrink-0 rounded-full bg-emerald-600" aria-hidden />
+                        <span
+                          className="h-2 w-2 flex-shrink-0 rounded-full bg-emerald-600"
+                          aria-hidden
+                        />
                         <span className="text-[13.5px] font-semibold text-ink">{m.userName}</span>
                       </span>
                     </td>
@@ -113,7 +130,10 @@ export default async function TeamPage(props: {
                     <td className="border-t border-line px-5 py-3.5 text-[13px] text-ink-soft">
                       {roleLabels[m.teamRole]}
                     </td>
-                    <td className="border-t border-line px-5 py-3.5 text-[12px]" data-testid={`team-status-${m.userId}`}>
+                    <td
+                      className="border-t border-line px-5 py-3.5 text-[12px]"
+                      data-testid={`team-status-${m.userId}`}
+                    >
                       {m.status === "accepted" ? (
                         <span className="font-semibold text-emerald-700 dark:text-emerald-400">
                           {locale === "fr" ? "Acceptée" : "Accepted"}
@@ -125,7 +145,9 @@ export default async function TeamPage(props: {
                           {m.respondedAt ? ` · ${m.respondedAt}` : ""}
                         </span>
                       ) : (
-                        <span className="text-muted">{locale === "fr" ? "Invitée — en attente" : "Invited — awaiting response"}</span>
+                        <span className="text-muted">
+                          {locale === "fr" ? "Invitée — en attente" : "Invited — awaiting response"}
+                        </span>
                       )}
                     </td>
                     <td
@@ -136,7 +158,10 @@ export default async function TeamPage(props: {
                     </td>
                     {canManage ? (
                       <td className="border-t border-line px-5 py-3.5 text-right">
-                        <form action={removeTeamFromTeamPageAction.bind(null, id, m.userId)} className="inline-block">
+                        <form
+                          action={removeTeamFromTeamPageAction.bind(null, id, m.userId)}
+                          className="inline-block"
+                        >
                           <SubmitButton
                             className="rounded-full border border-line-strong px-3 py-1 text-[11.5px] font-semibold text-ink-soft hover:bg-surface-2"
                             testId={`remove-member-${m.userId}`}
@@ -157,7 +182,10 @@ export default async function TeamPage(props: {
       {canManage ? (
         <Panel className="p-6">
           <PanelHeader title={tt.add} />
-          <form action={addTeamByEmailAction.bind(null, id, engagement.name ?? engagement.clientName)} className="mt-4 flex flex-wrap items-end gap-3">
+          <form
+            action={addTeamByEmailAction.bind(null, id, engagement.name ?? engagement.clientName)}
+            className="mt-4 flex flex-wrap items-end gap-3"
+          >
             <label className="flex flex-col gap-1 text-sm text-ink-soft">
               {locale === "fr" ? "Adresse e-mail" : "Email address"}
               <input
@@ -171,13 +199,31 @@ export default async function TeamPage(props: {
               />
               <datalist id="firm-user-emails">
                 {assignable.map((u) => (
-                  <option key={u.id} value={u.email ?? ""}>{u.name}</option>
+                  <option key={u.id} value={u.email ?? ""}>
+                    {u.name}
+                  </option>
                 ))}
               </datalist>
             </label>
             <label className="flex flex-col gap-1 text-sm text-ink-soft">
+              {locale === "fr" ? "Nom complet" : "Full name"}
+              <input
+                type="text"
+                name="memberName"
+                placeholder={locale === "fr" ? "J. P. Mbarga" : "J. P. Mbarga"}
+                className={input}
+                data-testid="team-name"
+                autoComplete="off"
+              />
+            </label>
+            <label className="flex flex-col gap-1 text-sm text-ink-soft">
               {tt.role}
-              <select name="teamRole" defaultValue="staff" className={input} data-testid="team-role">
+              <select
+                name="teamRole"
+                defaultValue="staff"
+                className={input}
+                data-testid="team-role"
+              >
                 {TEAM_ROLES.map((r) => (
                   <option key={r} value={r}>
                     {roleLabels[r]}
@@ -192,8 +238,8 @@ export default async function TeamPage(props: {
                 above share one baseline instead of bottom-aligning to it. */}
             <span className="w-full text-xs text-muted">
               {locale === "fr"
-                ? "Une adresse inconnue crée le compte ; le membre est invité par e-mail à accepter la mission."
-                : "An unknown address provisions the account; the member is emailed to accept or decline the engagement."}
+                ? "Une adresse inconnue crée le compte, au nom saisi ci-dessus — laissé vide, il est déduit de l'adresse. Un collègue déjà enregistré conserve son nom. Le membre est invité par e-mail à accepter la mission."
+                : "An unknown address provisions the account under the name typed above — left blank, it is guessed from the address. A colleague who already has an account keeps their name. The member is emailed to accept or decline the engagement."}
             </span>
           </form>
         </Panel>

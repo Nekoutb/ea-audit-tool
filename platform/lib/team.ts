@@ -12,13 +12,7 @@ import { requireTenant } from "@/lib/tenant";
 
 /** The six-level audit ladder (top down), plus the independent EQR. */
 export type TeamRole =
-  | "partner"
-  | "director"
-  | "senior_manager"
-  | "manager"
-  | "senior"
-  | "staff"
-  | "eqr_reviewer";
+  "partner" | "director" | "senior_manager" | "manager" | "senior" | "staff" | "eqr_reviewer";
 export const TEAM_ROLES: readonly TeamRole[] = [
   "partner",
   "director",
@@ -42,7 +36,15 @@ export interface TeamMember {
 export async function listTeam(engagementId: string): Promise<TeamMember[]> {
   const { tenantId } = await requireTenant();
   return withTenant(tenantId, async (tx) => {
-    const result = await tx.query<{ id: string; user_id: string; user_name: string; email: string; team_role: TeamRole; status: "invited" | "accepted" | "declined"; responded_at: string | null }>(
+    const result = await tx.query<{
+      id: string;
+      user_id: string;
+      user_name: string;
+      email: string;
+      team_role: TeamRole;
+      status: "invited" | "accepted" | "declined";
+      responded_at: string | null;
+    }>(
       `SELECT tm.id, tm.user_id, coalesce(u.name, u.email) AS user_name, u.email, tm.team_role,
               coalesce(tm.status, 'accepted') AS status,
               to_char(tm.responded_at, 'DD Mon YYYY HH24:MI') AS responded_at
@@ -50,7 +52,15 @@ export async function listTeam(engagementId: string): Promise<TeamMember[]> {
         WHERE tm.engagement_id = $1 ORDER BY tm.created_at`,
       [engagementId],
     );
-    return result.rows.map((r) => ({ id: r.id, userId: r.user_id, userName: r.user_name, email: r.email, teamRole: r.team_role, status: r.status, respondedAt: r.responded_at }));
+    return result.rows.map((r) => ({
+      id: r.id,
+      userId: r.user_id,
+      userName: r.user_name,
+      email: r.email,
+      teamRole: r.team_role,
+      status: r.status,
+      respondedAt: r.responded_at,
+    }));
   });
 }
 
@@ -249,7 +259,11 @@ export async function listBudget(engagementId: string): Promise<BudgetLine[]> {
   });
 }
 
-export async function setBudgetLine(engagementId: string, grade: string, hours: number): Promise<void> {
+export async function setBudgetLine(
+  engagementId: string,
+  grade: string,
+  hours: number,
+): Promise<void> {
   const { tenantId } = await requireTenant();
   if (!grade.trim() || !(hours >= 0)) throw new Error("invalid-budget");
   await withTenant(tenantId, async (tx) => {
@@ -312,41 +326,75 @@ export async function addTeamMemberByEmail(
   emailRaw: string,
   teamRole: TeamRole,
   engagementName: string,
+  /**
+   * The person's name as typed by whoever is adding them. Used only when the
+   * account has to be provisioned; an existing colleague keeps the name on
+   * their account, which this screen has no business rewriting.
+   *
+   * When it is blank the name is still derived from the address, but that
+   * guess drops initials and punctuation — "j.p.mbarga@" became "J P Mbarga"
+   * — so the typed value wins whenever there is one.
+   */
+  displayNameRaw?: string,
 ): Promise<void> {
   const { tenantId, userId: inviterId } = await requireTenant();
   const email = emailRaw.trim().toLowerCase();
   if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)) throw new Error("invalid-email");
 
   const tempPassword = randomBytes(24).toString("base64url");
-  const { userId, provisioned, name, firmName, inviterName } = await withTenant(tenantId, async (tx) => {
-    const firm = await tx.query<{ name: string }>("SELECT name FROM tenant WHERE id = $1", [tenantId]);
-    const inviter = await tx.query<{ who: string }>("SELECT coalesce(name, email) AS who FROM app_user WHERE id = $1", [inviterId]);
-    const meta = { firmName: firm.rows[0]?.name ?? null, inviterName: inviter.rows[0]?.who ?? null };
-    const existing = await tx.query<{ id: string; name: string | null }>(
-      `SELECT u.id, u.name FROM app_user u JOIN membership m ON m.user_id = u.id
+  const { userId, provisioned, name, firmName, inviterName } = await withTenant(
+    tenantId,
+    async (tx) => {
+      const firm = await tx.query<{ name: string }>("SELECT name FROM tenant WHERE id = $1", [
+        tenantId,
+      ]);
+      const inviter = await tx.query<{ who: string }>(
+        "SELECT coalesce(name, email) AS who FROM app_user WHERE id = $1",
+        [inviterId],
+      );
+      const meta = {
+        firmName: firm.rows[0]?.name ?? null,
+        inviterName: inviter.rows[0]?.who ?? null,
+      };
+      const existing = await tx.query<{ id: string; name: string | null }>(
+        `SELECT u.id, u.name FROM app_user u JOIN membership m ON m.user_id = u.id
         WHERE lower(u.email) = $1 AND m.tenant_id = $2`,
-      [email, tenantId],
-    );
-    if (existing.rows[0]) return { userId: existing.rows[0].id, provisioned: false, name: existing.rows[0].name, ...meta };
-    // Same email in another tenant is a different firm's user — never attach.
-    const elsewhere = await tx.query<{ id: string }>(
-      "SELECT id FROM app_user WHERE lower(email) = $1",
-      [email],
-    );
-    if (elsewhere.rows[0]) throw new Error("email-taken");
-    const bcrypt = (await import("bcryptjs")).default;
-    const hash = await bcrypt.hash(tempPassword, 10);
-    const name = email.split("@")[0].replace(/[._-]+/g, " ").replace(/\b\w/g, (c) => c.toUpperCase());
-    const user = await tx.query<{ id: string }>(
-      "INSERT INTO app_user (email, name, password_hash, must_change_password) VALUES ($1, $2, $3, true) RETURNING id",
-      [email, name, hash],
-    );
-    await tx.query("INSERT INTO membership (user_id, tenant_id, role) VALUES ($1, $2, 'staff')", [
-      user.rows[0].id,
-      tenantId,
-    ]);
-    return { userId: user.rows[0].id, provisioned: true, name, ...meta };
-  });
+        [email, tenantId],
+      );
+      if (existing.rows[0])
+        return {
+          userId: existing.rows[0].id,
+          provisioned: false,
+          name: existing.rows[0].name,
+          ...meta,
+        };
+      // Same email in another tenant is a different firm's user — never attach.
+      const elsewhere = await tx.query<{ id: string }>(
+        "SELECT id FROM app_user WHERE lower(email) = $1",
+        [email],
+      );
+      if (elsewhere.rows[0]) throw new Error("email-taken");
+      const bcrypt = (await import("bcryptjs")).default;
+      const hash = await bcrypt.hash(tempPassword, 10);
+      const typed = displayNameRaw?.trim();
+      const name =
+        typed && typed.length > 0
+          ? typed
+          : email
+              .split("@")[0]
+              .replace(/[._-]+/g, " ")
+              .replace(/\b\w/g, (c) => c.toUpperCase());
+      const user = await tx.query<{ id: string }>(
+        "INSERT INTO app_user (email, name, password_hash, must_change_password) VALUES ($1, $2, $3, true) RETURNING id",
+        [email, name, hash],
+      );
+      await tx.query("INSERT INTO membership (user_id, tenant_id, role) VALUES ($1, $2, 'staff')", [
+        user.rows[0].id,
+        tenantId,
+      ]);
+      return { userId: user.rows[0].id, provisioned: true, name, ...meta };
+    },
+  );
 
   await withTenant(tenantId, async (tx) => {
     await tx.query(
@@ -364,7 +412,15 @@ export async function addTeamMemberByEmail(
   // the email filled in and its temporary password; an existing colleague
   // gets the engagement's door and no password.
   const locale = await getLocale();
-  const facts = { email, name, firmName, inviterName, engagementName, engagementId, roleLabel: teamRole.replace("_", " ") };
+  const facts = {
+    email,
+    name,
+    firmName,
+    inviterName,
+    engagementName,
+    engagementId,
+    roleLabel: teamRole.replace("_", " "),
+  };
   const mail = provisioned
     ? accountMail("new-account", { ...facts, tempPassword }, locale)
     : accountMail("added-to-engagement", facts, locale);
