@@ -8,17 +8,7 @@
 // wrong .env is exactly the accident this guard exists to survive — on
 // ea_audit the flag is ignored and a warning is logged instead.
 
-/** Databases that are allowed to run without a second factor. Prod is `ea_audit`. */
-const NON_PRODUCTION_DB = /_(dev|staging|test|local)$/;
-
-function databaseName(url: string | undefined): string | null {
-  if (!url) return null;
-  try {
-    return new URL(url).pathname.replace(/^\//, "") || null;
-  } catch {
-    return null; // an unparseable URL is not a licence to drop the factor
-  }
-}
+import { databaseName, isNonProductionInstance } from "@/lib/instance";
 
 function flagSet(): boolean {
   const raw = (process.env.AUTH_DISABLE_MFA ?? "").trim().toLowerCase();
@@ -34,8 +24,8 @@ let warned = false;
  */
 export function mfaDisabled(): boolean {
   if (!flagSet()) return false;
+  if (isNonProductionInstance()) return true;
   const db = databaseName(process.env.APP_DATABASE_URL ?? process.env.DATABASE_URL);
-  if (db !== null && NON_PRODUCTION_DB.test(db)) return true;
   if (!warned) {
     warned = true;
     console.warn(
