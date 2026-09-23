@@ -21,6 +21,8 @@ export interface AccountMailFacts {
   inviterName?: string | null;
   /** present when an account was just provisioned or reset */
   tempPassword?: string | null;
+  /** a one-time link where the recipient chooses their own password */
+  inviteUrl?: string | null;
   /** the engagement, for engagement invitations */
   engagementName?: string | null;
   engagementId?: string | null;
@@ -29,7 +31,12 @@ export interface AccountMailFacts {
 }
 
 export type AccountMailKind =
-  "new-account" | "added-to-engagement" | "password-reset" | "admin-access" | "firm-onboarded";
+  | "invitation"
+  | "new-account"
+  | "added-to-engagement"
+  | "password-reset"
+  | "admin-access"
+  | "firm-onboarded";
 
 export interface AccountMail {
   subject: string;
@@ -174,6 +181,57 @@ export function accountMail(
   );
 
   switch (kind) {
+    // The onboarding email as it should be: a link, and no credential. The
+    // recipient proves control of the mailbox by opening it and then chooses
+    // their own password. Nothing usable travels through the mail, and the
+    // person who created the account is never told about a password.
+    case "invitation": {
+      const subject = T(
+        `${firm ? `${firm} — ` : ""}your AuditISA account is ready`,
+        `${firm ? `${firm} — ` : ""}votre compte AuditISA est prêt`,
+      );
+      const who = by
+        ? T(`${by} has created your AuditISA account`, `${by} a créé votre compte AuditISA`)
+        : T(
+            "An AuditISA account has been created for you",
+            "Un compte AuditISA a été créé pour vous",
+          );
+      return render(subject, {
+        greeting,
+        intro: [
+          `${who}${firm ? T(` at ${firm}`, ` chez ${firm}`) : ""}.` +
+            (facts.engagementName
+              ? T(
+                  ` You have been added to the engagement "${facts.engagementName}"${facts.roleLabel ? ` as ${facts.roleLabel}` : ""}.`,
+                  ` Vous avez été ajouté(e) à la mission « ${facts.engagementName} »${facts.roleLabel ? ` en tant que ${facts.roleLabel}` : ""}.`,
+                )
+              : ""),
+          T(
+            "Open the button below to choose your own password, then sign in. The link works once and expires in 14 days.",
+            "Ouvrez le bouton ci-dessous pour choisir votre propre mot de passe, puis connectez-vous. Le lien ne sert qu'une fois et expire dans 14 jours.",
+          ),
+        ],
+        button: {
+          label: T("Choose your password", "Choisir mon mot de passe"),
+          url: facts.inviteUrl ?? signIn,
+        },
+        fields: [
+          ...(firm ? [{ label: T("Firm", "Cabinet"), value: firm }] : []),
+          { label: T("Email", "Email"), value: facts.email },
+        ],
+        notes: [
+          T(
+            "Nobody else knows your password — not your firm administrator, not the platform. It is set only by you, on that page.",
+            "Personne d'autre ne connaît votre mot de passe — ni l'administrateur de votre cabinet, ni la plateforme. Vous seul(e) le définissez, sur cette page.",
+          ),
+          T(
+            "If you did not expect this email, ignore it — the link does nothing until a password is set.",
+            "Si vous n'attendiez pas cet email, ignorez-le — le lien ne fait rien tant qu'aucun mot de passe n'est défini.",
+          ),
+        ],
+        fallbackLabel: fallback,
+      });
+    }
     case "new-account": {
       const subject = T(
         `Your AuditISA account${firm ? ` — ${firm}` : ""}`,

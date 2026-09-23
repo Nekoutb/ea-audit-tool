@@ -3,7 +3,8 @@
 
 import { randomBytes } from "node:crypto";
 import type { PoolClient } from "pg";
-import { accountMail } from "@/lib/account-mail";
+import { accountMail, appUrl } from "@/lib/account-mail";
+import { createInvite } from "@/lib/invites";
 import { sendEmail, platformSender } from "@/lib/email";
 import { getLocale } from "@/lib/locale";
 import { createNotification } from "@/lib/notifications";
@@ -341,6 +342,9 @@ export async function addTeamMemberByEmail(
   const email = emailRaw.trim().toLowerCase();
   if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)) throw new Error("invalid-email");
 
+  // Not a credential anybody receives: the row needs a hash, and the account is
+  // opened by setting a password through the invitation. Random means there is
+  // nothing guessable sitting there in the meantime.
   const tempPassword = randomBytes(24).toString("base64url");
   const { userId, provisioned, name, firmName, inviterName } = await withTenant(
     tenantId,
@@ -421,8 +425,22 @@ export async function addTeamMemberByEmail(
     engagementId,
     roleLabel: teamRole.replace("_", " "),
   };
+  // A brand-new colleague is invited to choose their own password, so nothing
+  // usable travels by email. Someone who already has an account signs in with
+  // the password they already chose — there is nothing to issue them.
   const mail = provisioned
-    ? accountMail("new-account", { ...facts, tempPassword }, locale)
+    ? accountMail(
+        "invitation",
+        {
+          ...facts,
+          inviteUrl: `${appUrl()}/invite/${await createInvite({
+            userId,
+            createdBy: inviterId,
+            nextPath: `/engagements/${engagementId}/dashboard`,
+          })}`,
+        },
+        locale,
+      )
     : accountMail("added-to-engagement", facts, locale);
   sendEmail({ ...platformSender(), to: email, ...mail });
   await createNotification({

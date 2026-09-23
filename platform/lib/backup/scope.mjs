@@ -36,6 +36,14 @@ export const BY_MEMBERSHIP = {
       `${a}."user_id" IN (SELECT user_id FROM membership WHERE tenant_id = ${tenant})`,
     credentialsOnly: true,
   },
+  // A live invitation is a credential in flight: whoever holds the token can
+  // set that account's password. It travels only with an extract that already
+  // carries password hashes, never with one a firm could download.
+  user_invite: {
+    predicate: (tenant) => (a) =>
+      `${a}."user_id" IN (SELECT user_id FROM membership WHERE tenant_id = ${tenant})`,
+    credentialsOnly: true,
+  },
 };
 
 /** The firm itself. */
