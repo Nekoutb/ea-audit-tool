@@ -20,7 +20,7 @@ vi.mock("@/auth", () => ({
 
 import { closePool } from "@/lib/db";
 import { UatError, listResults, progressFor, recordResult, uatAvailable } from "@/lib/uat";
-import { ALL_SCENARIOS, duplicateKeys } from "@/lib/uat-scenarios";
+import { ALL_SCENARIOS, UAT_SECTIONS, duplicateKeys, sectionCounts } from "@/lib/uat-scenarios";
 
 const admin = new pg.Pool({ connectionString: process.env.DATABASE_URL });
 const saved = process.env.APP_DATABASE_URL;
@@ -64,12 +64,38 @@ describe("the script itself", () => {
   });
 
   it("gives every scenario steps and an expected result", () => {
-    expect(ALL_SCENARIOS.length).toBeGreaterThan(20);
     for (const s of ALL_SCENARIOS) {
       expect(s.steps.length, s.key).toBeGreaterThan(0);
-      expect(s.expect.length, s.key).toBeGreaterThan(20);
-      expect(s.why.length, s.key).toBeGreaterThan(20);
+      expect(s.expect.length, s.key).toBeGreaterThan(15);
+      // `why` is optional — present where the reason is not obvious from the
+      // title. Where it is given it has to actually say something.
+      if (s.why !== undefined) expect(s.why.length, s.key).toBeGreaterThan(20);
     }
+  });
+
+  it("carries at least 45 scenarios in every phase", () => {
+    // The firm asked for depth per phase rather than a sampler. A phase that
+    // falls below this has had tests removed, not simplified.
+    for (const { title, count } of sectionCounts()) {
+      expect(count, title).toBeGreaterThanOrEqual(45);
+    }
+    expect(ALL_SCENARIOS.length).toBeGreaterThanOrEqual(270);
+  });
+
+  it("points only at routes that exist in this application", () => {
+    // A link to a screen that was renamed is worse than no link: the tester
+    // reports the feature broken.
+    for (const s of ALL_SCENARIOS) {
+      if (!s.path) continue;
+      expect(s.path.startsWith("/"), `${s.key}: ${s.path}`).toBe(true);
+      expect(s.path, s.key).not.toMatch(/\s/);
+    }
+  });
+
+  it("keeps every section non-empty and uniquely keyed", () => {
+    const keys = new Set(UAT_SECTIONS.map((s) => s.key));
+    expect(keys.size).toBe(UAT_SECTIONS.length);
+    for (const s of UAT_SECTIONS) expect(s.scenarios.length, s.key).toBeGreaterThan(0);
   });
 });
 

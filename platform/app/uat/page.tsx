@@ -154,8 +154,33 @@ export default async function UatPage(props: {
           </p>
         )}
 
+        <Panel className="mt-4 p-5">
+          <PanelHeader title={fr ? "Les phases" : "The phases"} />
+          <ul className="mt-3 space-y-1.5 text-sm">
+            {UAT_SECTIONS.map((section) => {
+              const done = section.scenarios.filter(
+                (x) => mine.get(x.key)?.status === "passed",
+              ).length;
+              return (
+                <li key={section.key}>
+                  <a
+                    href={`#${section.key}`}
+                    className="text-emerald-700 hover:underline dark:text-emerald-500"
+                  >
+                    {section.title}
+                  </a>
+                  <span className="text-muted">
+                    {" — "}
+                    {done} / {section.scenarios.length} {fr ? "vérifiés" : "confirmed"}
+                  </span>
+                </li>
+              );
+            })}
+          </ul>
+        </Panel>
+
         {UAT_SECTIONS.map((section) => (
-          <section key={section.key} className="mt-10">
+          <section key={section.key} id={section.key} className="mt-10 scroll-mt-4">
             <h2 className="text-xl font-semibold text-ink">{section.title}</h2>
             <p className="mt-1 max-w-2xl text-sm text-muted">{section.intro}</p>
 
@@ -167,14 +192,23 @@ export default async function UatPage(props: {
               return (
                 <Panel key={scenario.key} className="mt-4 p-5" id={scenario.key}>
                   <div className="flex flex-wrap items-start justify-between gap-3">
-                    <h3 className="text-base font-semibold text-ink">{scenario.title}</h3>
+                    <h3 className="text-base font-semibold text-ink">
+                      {scenario.ref ? (
+                        <span className="mr-2 rounded bg-canvas px-1.5 py-0.5 font-mono text-[11px] font-bold text-emerald-700 dark:text-emerald-500">
+                          {scenario.ref}
+                        </span>
+                      ) : null}
+                      {scenario.title}
+                    </h3>
                     <span
                       className={`shrink-0 rounded-full border px-2.5 py-0.5 text-[11px] font-semibold ${STATUS_LABEL[status].tone}`}
                     >
                       {fr ? STATUS_LABEL[status].fr : STATUS_LABEL[status].en}
                     </span>
                   </div>
-                  <p className="mt-2 text-sm italic text-muted">{scenario.why}</p>
+                  {scenario.why ? (
+                    <p className="mt-2 text-sm italic text-muted">{scenario.why}</p>
+                  ) : null}
 
                   <ol className="mt-3 list-decimal space-y-1 pl-5 text-sm text-ink">
                     {scenario.steps.map((step, i) => (
