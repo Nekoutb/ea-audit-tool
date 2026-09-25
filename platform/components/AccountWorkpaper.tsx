@@ -8,6 +8,7 @@
 //   (debit account/amount, credit account/amount). Fields blur-save.
 // One index per task; ＋ adds another substantive procedure.
 
+import { AutoTextarea } from "@/components/AutoTextarea";
 import { useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
@@ -263,12 +264,11 @@ export function AccountWorkpaper({
                       {fr ? "Procédure exécutée" : "Procedure done"}
                     </label>
                   </div>
-                  <textarea
+                  <AutoTextarea
                     spellCheck={false}
                     rows={3}
                     defaultValue={results[`finding_${s.id}`] ?? ""}
                     placeholder={fr ? "Description du constat…" : "Description of finding…"}
-                    onInput={(e) => { const el = e.currentTarget; el.style.height = "auto"; el.style.height = `${el.scrollHeight}px`; }}
                     onBlur={(e) => saveField(s.id, "finding", e.target.value, results[`finding_${s.id}`] ?? "")}
                     className={`${amber} mt-1.5`}
                     data-testid={`psp-finding-${refOf(s)}`}

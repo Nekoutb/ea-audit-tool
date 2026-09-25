@@ -149,8 +149,9 @@ export function ReviewNotes({
             onInput={(e) => setDraft((e.target as HTMLTextAreaElement).value)}
             placeholder={fr ? "Ce qui doit être corrigé ou complété…" : "What needs correcting or completing…"}
             rows={3}
+            autoSize="full"
             testId="wp-note-body"
-            className="w-full resize-none rounded-[var(--radius-atlas-sm)] bg-[color:var(--wp-input,#f4f4f2)] px-2 py-1.5 text-[11.8px] text-ink outline-none placeholder:text-muted focus:ring-2 focus:ring-emerald-600/25"
+            className="w-full resize-none overflow-hidden rounded-[var(--radius-atlas-sm)] bg-[color:var(--wp-input,#f4f4f2)] px-2 py-1.5 text-[11.8px] text-ink outline-none placeholder:text-muted focus:ring-2 focus:ring-emerald-600/25"
           />
           <button
             type="button"

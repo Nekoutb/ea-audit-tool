@@ -1,7 +1,8 @@
 "use client";
 
-import { useLayoutEffect, useMemo, useRef, useState, type FormEvent } from "react";
+import { useLayoutEffect, useMemo, useRef, useState } from "react";
 import { RichText } from "@/components/RichText";
+import { useCompactView } from "@/lib/use-auto-size";
 import { SubmitButton } from "@/components/SubmitButton";
 import { UnsavedGuard } from "@/components/UnsavedGuard";
 import {
@@ -78,12 +79,6 @@ function buildItems(def: PaperDef, fr: boolean): StepItem[] {
 const AMBER =
   "w-full resize-none overflow-hidden rounded-[var(--radius-atlas-sm)] bg-[color:var(--wp-input)] px-2.5 py-1.5 text-[13.2px] text-ink outline-none placeholder:text-muted focus:ring-2 focus:ring-emerald-600/25";
 
-/** A yellow box that grows with its content as lines wrap. */
-function autoGrow(e: FormEvent<HTMLTextAreaElement>) {
-  const el = e.currentTarget;
-  el.style.height = "auto";
-  el.style.height = `${Math.min(el.scrollHeight, 120)}px`;
-}
 
 function Amber({
   name,
@@ -108,7 +103,6 @@ function Amber({
         rows={1}
         defaultValue={defaultValue}
         readOnly={readOnly}
-        onInput={autoGrow}
         placeholder={placeholder}
         testId={testId}
         className={AMBER}
@@ -185,6 +179,9 @@ export function PaperWizard({
   const conclPage = embed && !soloEmbed ? Math.max(1, steps.length) : -1;
   const lastPage = soloEmbed ? 0 : conclPage >= 0 ? conclPage : steps.length - 1;
   const [step, setStep] = useState(0);
+  // Compact view folds long answers to two lines until clicked; the default
+  // shows every answer in full (lib/use-auto-size.ts).
+  const [compact, setCompact] = useCompactView();
   // Tell the guidance rail which items are on screen (practical tips follow the page).
   useLayoutEffect(() => {
     const pageKeys = (steps[step] ?? []).map((it) => (it.kind === "proc" ? "p:" + it.key : it.kind === "yn" ? "q:" + it.key : "f:" + it.field.key));
@@ -388,7 +385,7 @@ export function PaperWizard({
                   ? "Constats importants du travail effectué — repris en C1.2/C1.1 le cas échéant"
                   : "Significant findings from the work performed — routed to C1.2/C1.1 where applicable"
               }
-              className="h-[96px] w-full resize-none overflow-y-auto rounded-[var(--radius-atlas-sm)] bg-[color:var(--wp-input)] px-2.5 py-1.5 text-[13.2px] font-normal normal-case tracking-normal text-ink outline-none placeholder:text-muted focus:ring-2 focus:ring-emerald-600/25"
+              className="min-h-[96px] w-full resize-none overflow-hidden rounded-[var(--radius-atlas-sm)] bg-[color:var(--wp-input)] px-2.5 py-1.5 text-[13.2px] font-normal normal-case tracking-normal text-ink outline-none placeholder:text-muted focus:ring-2 focus:ring-emerald-600/25"
             />
           </label>
     </>
@@ -415,6 +412,19 @@ export function PaperWizard({
         </span>
         {soloEmbed ? null : (
         <span className="flex items-center gap-1.5">
+          <label
+            className="mr-1 flex cursor-pointer items-center gap-1 text-[11.5px] text-muted print:hidden"
+            title={fr ? "Replier les réponses longues à deux lignes ; un clic sur une réponse l'ouvre en entier" : "Fold long answers to two lines; click an answer to open it in full"}
+          >
+            <input
+              type="checkbox"
+              checked={compact}
+              onChange={(e) => setCompact(e.target.checked)}
+              className="h-3.5 w-3.5 accent-emerald-700"
+              data-testid="wp-compact-toggle"
+            />
+            {fr ? "Vue compacte" : "Compact view"}
+          </label>
           <span className="text-[11.5px] text-muted tnum" data-testid="wp-step">
             {step + 1}/{total}
           </span>

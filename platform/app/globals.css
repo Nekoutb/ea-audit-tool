@@ -421,5 +421,10 @@ textarea.border-line {
     resize: none;
     overflow: visible !important;
     height: auto !important;
+    /* a printed answer is as tall as its text, whatever the screen view */
+    field-sizing: content;
+  }
+  .wp-fold-fade {
+    display: none !important;
   }
 }

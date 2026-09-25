@@ -6,6 +6,7 @@
 // and searches like any other answer in the file.
 
 import { useRef, useState, type CSSProperties } from "react";
+import { useAutoSize } from "@/lib/use-auto-size";
 
 type Mark = "bold" | "italic" | "underline" | "bullet" | "number";
 
@@ -25,6 +26,7 @@ export function RichText({
   style,
   testId,
   onInput,
+  autoSize = "compactable",
 }: {
   name?: string;
   defaultValue?: string;
@@ -35,8 +37,15 @@ export function RichText({
   style?: CSSProperties;
   testId?: string;
   onInput?: (event: React.FormEvent<HTMLTextAreaElement>) => void;
+  /**
+   * How the box sizes itself: "compactable" (default) is as tall as its text
+   * and folds to two lines in the paper's compact view; "full" never folds;
+   * false leaves the height to the caller's classes.
+   */
+  autoSize?: "compactable" | "full" | false;
 }) {
   const ref = useRef<HTMLTextAreaElement>(null);
+  const folded = useAutoSize(ref, autoSize !== false, autoSize === "compactable");
   /** floating toolbar over a mouse selection, positioned at the pointer */
   const [pop, setPop] = useState<{ x: number; y: number } | null>(null);
 
@@ -100,6 +109,7 @@ export function RichText({
           <button type="button" onClick={() => apply("number")} className={btn} title="Numbered list" data-testid={testId ? `${testId}-number` : undefined}>1.</button>
         </div>
       )}
+      <div className="relative">
       <textarea
         ref={ref}
         name={name}
@@ -113,8 +123,17 @@ export function RichText({
         onMouseUp={onMouseUp}
         onBlur={() => window.setTimeout(() => setPop(null), 200)}
         data-testid={testId}
-        className={className}
+        data-folded={folded ? "1" : undefined}
+        className={`${className ?? ""}${folded ? " cursor-pointer" : ""}`}
       />
+      {folded ? (
+        // compact view: the fade says there is more; clicking the box opens it
+        <span
+          aria-hidden
+          className="wp-fold-fade pointer-events-none absolute inset-x-0 bottom-0 h-5 rounded-b-[var(--radius-atlas-sm)] bg-gradient-to-b from-transparent to-[color:var(--wp-input)]"
+        />
+      ) : null}
+      </div>
       {pop ? (
         <div
           className="fixed z-50 flex items-center gap-1 rounded-[var(--radius-atlas-sm)] border border-line-strong bg-surface p-1 shadow-atlas-sm"
