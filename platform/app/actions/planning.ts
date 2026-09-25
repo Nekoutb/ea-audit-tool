@@ -133,8 +133,9 @@ export async function addRelatedPartyAction(engagementId: string, formData: Form
   const relationship = String(formData.get("relationship") ?? "").trim();
   await guarded(path, async () => {
     if (!name || !relationship) throw new Error("fields-required");
-    const { requireTenant } = await import("@/lib/tenant");
-    const { tenantId } = await requireTenant();
+    const { requireWrite } = await import("@/lib/tenant");
+    const { tenantId, role } = await requireWrite();
+    if (role === "eqr_reviewer") throw new Error("eqr-read-only");
     await withTenant(tenantId, async (tx) => {
       await tx.query(
         "INSERT INTO related_party (tenant_id, engagement_id, name, relationship, notes) VALUES ($1, $2, $3, $4, $5)",
@@ -152,8 +153,9 @@ export async function addEstimateAction(engagementId: string, formData: FormData
   const nature = String(formData.get("nature") ?? "").trim();
   await guarded(path, async () => {
     if (!nature) throw new Error("fields-required");
-    const { requireTenant } = await import("@/lib/tenant");
-    const { tenantId } = await requireTenant();
+    const { requireWrite } = await import("@/lib/tenant");
+    const { tenantId, role } = await requireWrite();
+    if (role === "eqr_reviewer") throw new Error("eqr-read-only");
     await withTenant(tenantId, async (tx) => {
       await tx.query(
         `INSERT INTO accounting_estimate (tenant_id, engagement_id, nature, method, assumptions, uncertainty, retro_review)
@@ -261,6 +263,8 @@ export async function markNotApplicableAction(
     const { recordActivity } = await import("@/lib/activity");
     const { tenantId, userId, role } = await requireTenant();
     if (!canReview(role)) throw new Error("forbidden");
+    // scoping the team's work in or out is not the independent reviewer's call (UAT run 2 B18)
+    if (role === "eqr_reviewer") throw new Error("eqr-read-only");
     if (!clear && !reason) throw new Error("rationale-required");
     await assertMutable(engagementId);
     const updated = await withTenant(tenantId, async (tx) => {
@@ -295,8 +299,8 @@ export async function setMandateAction(
     if (!["statutes", "ago"].includes(type) || !Number.isInteger(startYear)) {
       throw new Error("fields-required");
     }
-    const { requireTenant } = await import("@/lib/tenant");
-    const { tenantId } = await requireTenant();
+    const { requireWrite } = await import("@/lib/tenant");
+    const { tenantId } = await requireWrite();
     await withTenant(tenantId, async (tx) => {
       await tx.query("UPDATE client SET mandate_type = $2, mandate_start_year = $3 WHERE id = $1", [
         clientId,
@@ -581,8 +585,12 @@ export async function savePaperAction(
   for (const [key, value] of formData.entries()) {
     if (typeof value === "string") values[key] = value;
   }
+  // The version the form was rendered from (UAT run 2 B05): a colleague's save
+  // in between refuses this one ("stale-edit") instead of blanking their fields.
+  const baseVersion = values.__baseVersion;
+  delete values.__baseVersion;
   await guarded(`/engagements/${engagementId}/sections/${itemId}`, () =>
-    savePaper(engagementId, code, values),
+    savePaper(engagementId, code, values, baseVersion),
   );
 }
 

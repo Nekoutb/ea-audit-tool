@@ -4,7 +4,7 @@
 
 import { withTenant } from "@/lib/db";
 import type { Locale } from "@/lib/i18n";
-import { requireTenant, requireWrite } from "@/lib/tenant";
+import { ForbiddenError, requireTenant, requireWrite } from "@/lib/tenant";
 
 export type FieldType = "boolean" | "text" | "select" | "number" | "date";
 
@@ -190,7 +190,9 @@ export async function saveForm(
   /** The revision loadForm returned. Omit to save unconditionally. */
   baseRevision?: string,
 ): Promise<void> {
-  const { tenantId, userId } = await requireWrite();
+  const { tenantId, userId, role } = await requireWrite();
+  // The EQR reads the team's forms but does not rewrite them (UAT run 2 B18).
+  if (role === "eqr_reviewer") throw new ForbiddenError("eqr-read-only");
   const definition = FORM_DEFINITIONS[code];
   if (!definition) throw new Error(`unknown form: ${code}`);
 
@@ -302,7 +304,11 @@ export async function setPredecessorTaskActiveTx(
   active: boolean,
 ): Promise<void> {
   if (active) {
-    await tx.query("UPDATE file_item SET conditional = false WHERE engagement_id = $1 AND code = 'P1.2'", [engagementId]);
+    // Insert the row when the complexity tier left it out (a very simple file
+    // carries no conditional task at all): a bare UPDATE was a no-op there and
+    // an initial audit silently lost its predecessor communication (UAT run 2 B19).
+    const { ensureTaskTx } = await import("@/lib/ensure-task");
+    await ensureTaskTx(tx, engagementId, "P1.2");
     return;
   }
   await tx.query(

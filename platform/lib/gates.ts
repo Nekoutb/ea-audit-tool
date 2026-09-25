@@ -34,6 +34,9 @@ const PHASE_RANK: Record<string, number> = {
   archived: 4,
 };
 
+/** Conclusion-phase tasks that belong after the report date (assembly and archive). */
+export const POST_REPORT_CODES = new Set(["C6.1", "C6.2"]);
+
 /**
  * Gates, not guidance (UAT B15): work that belongs to a later phase cannot be
  * signed or recorded while an earlier phase is still open — the gates would
@@ -43,8 +46,15 @@ const PHASE_RANK: Record<string, number> = {
  * ("acceptance-open", "planning-open", "execution-open"). Acceptance tasks
  * are always open: they are what the first gate is built from.
  */
-export function phaseStillOpen(taskPhase: string, currentPhase: string): string | null {
-  const need = PHASE_RANK[taskPhase] ?? 0;
+export function phaseStillOpen(taskPhase: string, currentPhase: string, code?: string): string | null {
+  let need = PHASE_RANK[taskPhase] ?? 0;
+  // The conclusion phase only begins when the report is issued, and issuing
+  // it requires the completion papers (C4.1, the EQR on C4.2, C4.3 …) signed
+  // first (ISA 220 ¶36, ISQM 2 ¶26). Those papers are therefore open from
+  // execution; only the post-report assembly and archive work (C6.x) waits
+  // for the report. Requiring "conclusion" for all of them was circular
+  // (UAT run 2 B06). With no code (a whole phase screen) the same applies.
+  if (taskPhase === "conclusion" && !(code && POST_REPORT_CODES.has(code))) need = PHASE_RANK.execution;
   const have = PHASE_RANK[currentPhase] ?? 0;
   if (need <= have) return null;
   return `${currentPhase}-open`;
@@ -85,6 +95,15 @@ async function partnerSigned(
     [engagementId, code],
   );
   return Number(result.rows[0].n) > 0;
+}
+
+/** The task is on the file and active (not an untriggered conditional). */
+async function taskActive(tx: PoolClient, engagementId: string, code: string): Promise<boolean> {
+  const result = await tx.query(
+    "SELECT 1 FROM file_item WHERE engagement_id = $1 AND code = $2 AND conditional = false",
+    [engagementId, code],
+  );
+  return (result.rowCount ?? 0) > 0;
 }
 
 /**
@@ -166,12 +185,21 @@ async function planningCloseGatesTx(tx: PoolClient, engagementId: string): Promi
   // P7.2 is the partner's approval of the plan itself (ISA 300 ¶11, ISA 220
   // ¶30): planning cannot close on the three judgement papers alone (UAT B15).
   const gateDocs: GateResult[] = [];
-  for (const code of ["P2.2", "P5.2", "S3.1", "P7.2"]) {
+  for (const code of ["P2.2", "P5.2", "S3.1"]) {
+    // A paper gate applies where the task is on this file: a very simple file
+    // carries no P2.2, and demanding its sign-off left planning impossible to
+    // close (UAT run 2 B09).
+    if (!(await taskActive(tx, engagementId, code))) continue;
     gateDocs.push({
       key: `${code.toLowerCase().replace(".", "")}_partner_signed`,
       ok: await partnerSigned(tx, engagementId, code),
     });
   }
+  // The plan's approval is the partner signature on the P7.2 summary itself,
+  // which requires every confirmation, deliverable and lower tier — a chip on
+  // the P7.2 row with 0 of 33 confirmations used to satisfy it (UAT run 2 B07).
+  const { rasPartnerApprovedTx } = await import("@/lib/planning-ras");
+  gateDocs.push({ key: "p72_partner_signed", ok: await rasPartnerApprovedTx(tx, engagementId) });
 
   // Every significant, non-rebutted risk must have ≥1 linked program step
   // (spec §8.1: an unlinked significant risk is a blocking error).

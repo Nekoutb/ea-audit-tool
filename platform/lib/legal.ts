@@ -16,6 +16,7 @@ import type { Locale } from "@/lib/i18n";
 import { mandateExpiryYear } from "@/lib/letters";
 import { createNotification } from "@/lib/notifications";
 import { canPartnerSignoff } from "@/lib/rbac";
+import { periodEndFr } from "@/lib/report";
 import { requireTenant, requireWrite } from "@/lib/tenant";
 
 export class LegalError extends Error {
@@ -455,7 +456,7 @@ export async function generateRapportSpecial(engagementId: string): Promise<stri
     const children: Paragraph[] = [
       ...letterheadParagraphs(branding),
       title("Rapport spécial du commissaire aux comptes sur les conventions réglementées"),
-      p(`${e.client_name} — Exercice clos le 31 décembre ${e.fiscal_year}`, true),
+      p(`${e.client_name} — Exercice clos le ${periodEndFr(e.period_end)}`, true),
       p(
         "En notre qualité de commissaire aux comptes, nous vous présentons notre rapport sur les conventions réglementées dont nous avons été avisés, conformément aux dispositions de l'Acte uniforme relatif au droit des sociétés commerciales et du GIE.",
       ),
@@ -556,7 +557,7 @@ export async function generateArticle715Report(engagementId: string): Promise<st
     const children: Paragraph[] = [
       ...letterheadParagraphs(branding),
       title("Rapport du commissaire aux comptes au conseil d'administration (art. 715)"),
-      p(`${e.client_name} — Exercice clos le 31 décembre ${e.fiscal_year}`, true),
+      p(`${e.client_name} — Exercice clos le ${periodEndFr(e.period_end)}`, true),
       h("1. Contrôles et vérifications effectués et sondages opérés"),
       p(
         `Diligences du programme de travail : ${steps.rows[0].complete} étapes réalisées et ${steps.rows[0].na} jugées non applicables sur ${steps.rows[0].total} planifiées.`,
@@ -682,17 +683,48 @@ export async function generateIrregularitiesLetter(
 
 // ---- C5.7: attestation registres de titres nominatifs (art. 746-2) ----
 
-export async function generateTitresAttestation(engagementId: string): Promise<string> {
+export interface TitresAttestationInput {
+  /** YYYY-MM-DD: the date the register was inspected */
+  inspectionDate?: string;
+  /** total number of securities the register showed */
+  securitiesCount?: number;
+}
+
+/**
+ * The attestation states what the register showed and when, and is refused
+ * until the C5.7 paper concludes the register is kept and agrees (UAT run 2 B21).
+ */
+export async function generateTitresAttestation(
+  engagementId: string,
+  input: TitresAttestationInput = {},
+): Promise<string> {
   const { tenantId, userId } = await requireWrite(); // read_only may view the legal file, not change it (UAT B10)
+  const inspectionDate = String(input.inspectionDate ?? "").trim();
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(inspectionDate) || Number.isNaN(Date.parse(`${inspectionDate}T00:00:00Z`))) {
+    throw new LegalError("titres-inspection-date-required");
+  }
+  const securitiesCount = Number(input.securitiesCount);
+  if (!Number.isInteger(securitiesCount) || securitiesCount <= 0) throw new LegalError("titres-count-required");
   return withTenant(tenantId, async (tx) => {
     const e = await loadLegalContext(tx, engagementId);
+    const answers = await tx.query<{ field_key: string; value: string | null }>(
+      `SELECT field_key, value #>> '{}' AS value FROM form_response
+        WHERE engagement_id = $1 AND code = 'wp:C5.7' AND field_key IN ('q_kept', 'q_agrees')`,
+      [engagementId],
+    );
+    const yes = (key: string) => answers.rows.some((row) => row.field_key === key && row.value === "yes");
+    if (!yes("q_kept") || !yes("q_agrees")) throw new LegalError("titres-work-incomplete");
     const branding = await loadBranding(tx, tenantId);
+    const capitalLine = e.share_capital === null ? "" : ` Le capital social figurant dans les états financiers s'élève à ${fmtAmount(e.share_capital)} FCFA.`;
     const children = [
       ...letterheadParagraphs(branding),
       title("Attestation sur les registres de titres nominatifs (art. 746-2)"),
-      p(`${e.client_name} — Exercice clos le 31 décembre ${e.fiscal_year}`, true),
+      p(`${e.client_name} — Exercice clos le ${periodEndFr(e.period_end)}`, true),
       p(
         "Nous avons procédé à la vérification de l'existence et de la conformité des registres de titres nominatifs tenus par la société : existence matérielle des registres, tenue chronologique des inscriptions, concordance avec les mouvements de titres portés à notre connaissance.",
+      ),
+      p(
+        `Nous avons examiné les registres le ${periodEndFr(inspectionDate)}. À cette date, ils font apparaître un total de ${fmtAmount(securitiesCount)} titres inscrits.${capitalLine}`,
       ),
       p(
         "Sur la base de nos travaux, nous attestons que les registres de titres nominatifs sont tenus conformément aux dispositions applicables.",
@@ -757,6 +789,23 @@ async function computeEquity(tx: PoolClient, engagementId: string): Promise<Equi
   const breach = hasTb && halfCapital !== null && equity < halfCapital;
   const source = !hasTb ? null : totals.rows[0]?.timing === "post_audit" ? "post_audit" : "pre_audit";
   return { equity, shareCapital, halfCapital, breach, hasTb, source };
+}
+
+export type EquityConclusion = "breach" | "unchecked-breach" | "stale" | "ok" | "none";
+
+/**
+ * The C5.8 conclusion the page shows, driven by the live figures so it never
+ * contradicts them (UAT run 2 B22). The egm_equity row, which only
+ * equityCheck writes, confirms a breach; when the figures moved since the
+ * check (new TB import, capital change) the page asks for the check again.
+ */
+export function equityConclusionOf(
+  figures: Pick<EquityCheck, "breach" | "hasTb" | "halfCapital">,
+  egmRow: { done: boolean } | null,
+): EquityConclusion {
+  if (!figures.hasTb || figures.halfCapital === null) return "none";
+  if (figures.breach) return egmRow ? "breach" : "unchecked-breach";
+  return egmRow && !egmRow.done ? "stale" : "ok";
 }
 
 /** Read-only view of the C5.8 figures for the page (no deadline, no notification). */

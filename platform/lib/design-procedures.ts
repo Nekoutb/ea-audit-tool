@@ -5,10 +5,11 @@
 // tool sizes.
 
 import { withTenant } from "@/lib/db";
-import { requireTenant } from "@/lib/tenant";
+import { requireTenant, requireWrite } from "@/lib/tenant";
 import { craBoard, rowWorstTod, type CraAccountRow } from "@/lib/cra";
 import { craOf, toTod, type CraTod } from "@/lib/cra-model";
 import { pspFor } from "@/lib/psp";
+import { INDEX_SECTION } from "@/lib/lead-classes";
 import {
   ASSERTIONS,
   NATURE_VALUES,
@@ -307,7 +308,7 @@ export async function saveDsp(engagementId: string, indexCode: string, field: st
       }
     }
   }
-  const { tenantId, userId } = await requireTenant();
+  const { tenantId, userId } = await requireWrite();
   await withTenant(tenantId, async (tx) => {
     await tx.query(
       `INSERT INTO form_response (tenant_id, engagement_id, code, field_key, value, updated_by, carried_forward)
@@ -317,6 +318,18 @@ export async function saveDsp(engagementId: string, indexCode: string, field: st
                      carried_forward = false, updated_at = now()`,
       [tenantId, engagementId, CODE, `${indexCode}_${field}`, JSON.stringify(value), userId],
     );
+    // A designed account needs the E4 paper that executes the design. The
+    // complexity tier leaves some out (E4.6/E4.7/E4.12/E4.13 on a non-complex
+    // file) and the procedures then had nowhere to run (UAT run 2 B20):
+    // designing them puts the paper on the file.
+    const designed =
+      (field.startsWith("sel_") && (JSON.parse(value) as unknown[]).length > 0) ||
+      (field === "osp_list" && hasOspProcedures(value));
+    const taskCode = INDEX_SECTION[indexCode];
+    if (designed && taskCode) {
+      const { ensureTaskTx } = await import("@/lib/ensure-task");
+      await ensureTaskTx(tx, engagementId, taskCode);
+    }
   });
 }
 

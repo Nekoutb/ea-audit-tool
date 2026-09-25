@@ -10,7 +10,7 @@ import { recordActivity } from "@/lib/activity";
 import { withTenant } from "@/lib/db";
 import { createNotification } from "@/lib/notifications";
 import { MGMT_OVERRIDE_PROCEDURE } from "@/lib/risks";
-import { requireTenant, requireWrite } from "@/lib/tenant";
+import { ForbiddenError, requireTenant, requireWrite } from "@/lib/tenant";
 import { ACCEPTANCE_PAPERS } from "@/lib/papers/acceptance";
 import { STRATEGY_PAPERS } from "@/lib/papers/strategy";
 import { EXECUTION_PAPERS } from "@/lib/papers/execution";
@@ -243,6 +243,30 @@ async function structuredContentDigest(tx: PoolClient, engagementId: string, cod
        FROM form_response WHERE engagement_id = $1 AND ${codeExpr}`;
   // the legacy structured form of the same code (every code; cheap when absent)
   await digest(responses("code = $2"), [engagementId, code]);
+  // UAT run 2 B10: a sign-off also attests to the procedure results (psp:),
+  // the program steps' outcome and the live evidence files. Each part is added
+  // only when the task has such rows, so papers without them keep their hash.
+  const optional = async (tag: string, sql: string) => {
+    const r = await tx.query<{ d: string | null }>(sql, [engagementId, code]);
+    if (r.rows[0]?.d) parts.push(`${tag}:${r.rows[0].d}`);
+  };
+  await optional(
+    "psp",
+    `SELECT md5(string_agg(field_key || '=' || coalesce(value::text, ''), '|' ORDER BY field_key)) AS d
+       FROM form_response WHERE engagement_id = $1 AND code = 'psp:' || $2`,
+  );
+  await optional(
+    "steps",
+    `SELECT md5(string_agg(ps.id::text || ':' || ps.status::text || ':' || coalesce(ps.conclusion, ''), '|' ORDER BY ps.id)) AS d
+       FROM program_step ps JOIN file_item fi ON fi.id = ps.file_item_id
+      WHERE fi.engagement_id = $1 AND fi.code = $2`,
+  );
+  await optional(
+    "files",
+    `SELECT md5(string_agg(ta.id::text || ':' || ta.name || ':' || ta.version::text, '|' ORDER BY ta.id)) AS d
+       FROM task_attachment ta JOIN file_item fi ON fi.id = ta.file_item_id
+      WHERE fi.engagement_id = $1 AND fi.code = $2 AND ta.deleted_at IS NULL`,
+  );
   if (code === "S1.4") await digest(responses("code = 'fscp'"), [engagementId]);
   if (code === "S1.3") await digest(responses("code LIKE 'wt:%'"), [engagementId]);
   if (code === "S2.3" || code === "S2.5") await digest(responses("code = 'itapps'"), [engagementId]);
@@ -354,6 +378,26 @@ export async function invalidateStaleSignoffs(
   return stale.rows;
 }
 
+/**
+ * After a committed write to something a task's sign-offs attest to — its
+ * procedure results, program steps or evidence files (UAT run 2 B10) — void the
+ * signatures whose content moved, in a transaction of its own, then write the
+ * trail entry and warn the signers. Same pattern as the SCOT Studio writers.
+ */
+export async function voidStaleSignoffsOfItem(fileItemId: string): Promise<void> {
+  const { tenantId, userId } = await requireTenant();
+  const found = await withTenant(tenantId, async (tx) => {
+    const item = await tx.query<{ engagement_id: string; code: string }>(
+      "SELECT engagement_id, code FROM file_item WHERE id = $1",
+      [fileItemId],
+    );
+    const row = item.rows[0];
+    if (!row) return null;
+    return { ...row, rows: await invalidateStaleSignoffs(tx, row.engagement_id, row.code) };
+  });
+  if (found) await reportInvalidatedSignoffs(tenantId, found.engagement_id, found.code, found.rows, userId);
+}
+
 export async function loadPaper(
   engagementId: string,
   code: string,
@@ -368,6 +412,28 @@ export async function loadPaper(
     for (const row of r.rows) out[row.field_key] = typeof row.value === "string" ? row.value : String(row.value ?? "");
     return out;
   });
+}
+
+/**
+ * The version of a paper's own answers as a form loads them (UAT run 2 B05):
+ * the latest updated_at over the paper's answer keys, "" when none is saved.
+ * The form posts it back as __baseVersion and savePaper refuses the write with
+ * "stale-edit" when somebody saved the paper in between — last-writer-wins
+ * otherwise blanked every field a colleague had just filled.
+ */
+async function paperVersionTx(tx: PoolClient, engagementId: string, code: string): Promise<string> {
+  const r = await tx.query<{ v: string | null }>(
+    `SELECT extract(epoch FROM max(updated_at))::text AS v
+       FROM form_response
+      WHERE engagement_id = $1 AND code = $2 AND field_key = ANY($3::text[])`,
+    [engagementId, WP(code), [...paperKeys(paperFor(code))]],
+  );
+  return r.rows[0]?.v ?? "";
+}
+
+export async function paperVersion(engagementId: string, code: string): Promise<string> {
+  const { tenantId } = await requireTenant();
+  return withTenant(tenantId, (tx) => paperVersionTx(tx, engagementId, code));
 }
 
 /**
@@ -421,14 +487,23 @@ async function syncSeededResponseStep(
   }
 }
 
+/** The one paper the engagement quality reviewer writes: their own review record. */
+export const EQR_OWN_PAPER = "C4.2";
+
 export async function savePaper(
   engagementId: string,
   code: string,
   values: Record<string, string>,
+  /** paperVersion() as the form loaded it; given, a newer save refuses this one ("stale-edit"). */
+  expectedVersion?: string,
 ): Promise<void> {
   const { assertMutable } = await import("@/lib/mutability");
   await assertMutable(engagementId);
-  const { tenantId, userId } = await requireWrite();
+  const { tenantId, userId, role } = await requireWrite();
+  // The EQR evaluates the team's work independently (ISQM 2 ¶18): they read
+  // and raise notes, but never rewrite the papers they review (UAT run 2 B18).
+  // C4.2 is their own paper: the review's record.
+  if (role === "eqr_reviewer" && code !== EQR_OWN_PAPER) throw new ForbiddenError("eqr-read-only");
   const allowed = paperKeys(paperFor(code));
   // E6.10 (UAT B114): "column N agrees" cannot be answered Yes while the
   // tie-out of the trial balance shows differences nobody has explained.
@@ -439,6 +514,12 @@ export async function savePaper(
     if (tie && !tie.pass && !explained) throw new Error("tieout-unexplained");
   }
   const invalidated = await withTenant(tenantId, async (tx) => {
+    if (expectedVersion !== undefined) {
+      // Serialise saves of this paper, then compare with the version the form
+      // was built on: a colleague's save in between refuses this one.
+      await tx.query("SELECT pg_advisory_xact_lock(hashtext($1))", [`wp-save:${engagementId}:${code}`]);
+      if ((await paperVersionTx(tx, engagementId, code)) !== expectedVersion) throw new Error("stale-edit");
+    }
     for (const [key, value] of Object.entries(values)) {
       if (!allowed.has(key)) continue;
       await tx.query(
@@ -451,6 +532,12 @@ export async function savePaper(
       );
     }
     await syncSeededResponseStep(tx, tenantId, engagementId, code, userId);
+    // P1.5 concluding that an EQR is required makes C4.2 a completion gate:
+    // the paper must exist on the file whatever its complexity (UAT run 2 B13).
+    if (code === "P1.5" && values.q_eqr === "yes") {
+      const { ensureTaskTx } = await import("@/lib/ensure-task");
+      await ensureTaskTx(tx, engagementId, "C4.2");
+    }
     // A signature attests to the content it was given over: an edit that moves
     // the content out from under it voids it rather than inheriting it.
     return invalidateStaleSignoffs(tx, engagementId, code);

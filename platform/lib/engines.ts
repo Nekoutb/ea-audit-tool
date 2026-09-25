@@ -11,7 +11,7 @@ import { routeFinding } from "@/lib/execution";
 // the E4 paper each lead index belongs to, so a ToD result is filed under the account it tests
 import { INDEX_SECTION } from "@/lib/lead-classes";
 import { CONFIDENCE_FACTORS, musPlan, type ConfidenceLevel } from "@/lib/sampling-params";
-import { requireTenant } from "@/lib/tenant";
+import { requireTenant, requireWrite } from "@/lib/tenant";
 
 const XLSX_MIME = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet";
 
@@ -192,7 +192,7 @@ export async function runSampling(input: {
   overrideSize?: number;
   overrideRationale?: string;
 }): Promise<SamplingResult> {
-  const { tenantId, userId } = await requireTenant();
+  const { tenantId, userId } = await requireWrite();
   if (input.sampleSize < 1) throw new EngineError("invalid-sample-size");
   if (!input.seed.trim()) throw new EngineError("seed-required");
 
@@ -328,7 +328,7 @@ export async function evaluateSampling(
   runId: string,
   misstatementFound: number,
 ): Promise<{ projected: number; raisedToB5: boolean }> {
-  const { tenantId } = await requireTenant();
+  const { tenantId } = await requireWrite();
   const context = await withTenant(tenantId, async (tx) => {
     const run = await tx.query<{
       engagement_id: string;
@@ -405,7 +405,7 @@ export interface TodResultRow {
  * The run is the reproducible record: inputs, who, when, and the outcome.
  */
 export async function recordTodResult(input: TodResultInput): Promise<{ runId: string; projected: number; raisedToB5: boolean }> {
-  const { tenantId, userId } = await requireTenant();
+  const { tenantId, userId } = await requireWrite();
   const indexCode = input.indexCode.trim().toUpperCase();
   if (!/^[A-Z][A-Z0-9]{0,2}$/.test(indexCode)) throw new EngineError("invalid-index");
   for (const v of [input.sampleValue, input.sampleMisstatement, input.keyMisstatement, input.remainingValue]) {
@@ -559,7 +559,7 @@ export async function runReconciliation(input: {
   staleDays?: number;
   periodEnd?: string;
 }): Promise<ReconResult> {
-  const { tenantId, userId } = await requireTenant();
+  const { tenantId, userId } = await requireWrite();
   const outcome = await withTenant(tenantId, async (tx) => {
     const dataset = await loadDataset(tx, input.datasetId);
     const prefixes = RECON_PREFIXES[dataset.kind];
@@ -634,7 +634,7 @@ export async function runSupplierRecon(input: {
   statementsDatasetId: string;
   ledgerDatasetId: string;
 }): Promise<{ runId: string; documentId: string; suppliersCompared: number; differences: number }> {
-  const { tenantId, userId } = await requireTenant();
+  const { tenantId, userId } = await requireWrite();
   return withTenant(tenantId, async (tx) => {
     const statements = await loadDataset(tx, input.statementsDatasetId);
     const ledger = await loadDataset(tx, input.ledgerDatasetId);
@@ -694,7 +694,7 @@ export async function runJeTesting(input: {
   periodEnd: string;
   largeThreshold?: number;
 }): Promise<{ runId: string; documentId: string; scored: number; flagged: number }> {
-  const { tenantId, userId } = await requireTenant();
+  const { tenantId, userId } = await requireWrite();
   return withTenant(tenantId, async (tx) => {
     const dataset = await loadDataset(tx, input.datasetId);
     const thresholds = await materialityThresholds(tx, dataset.engagementId);
@@ -747,7 +747,7 @@ export async function runSubstantiveAnalytic(input: {
   tolerance: number;
   basis: string;
 }): Promise<{ runId: string; actual: number; variance: number; raisedToB5: boolean }> {
-  const { tenantId, userId } = await requireTenant();
+  const { tenantId, userId } = await requireWrite();
   if (!(input.tolerance > 0)) throw new EngineError("tolerance-required");
   const outcome = await withTenant(tenantId, async (tx) => {
     const item = await tx.query<{ engagement_id: string; code: string }>(

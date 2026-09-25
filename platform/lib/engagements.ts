@@ -1,6 +1,7 @@
 import type { PoolClient } from "pg";
 import { type ComplexityAnswers, type EngagementComplexity } from "@/lib/complexity";
 import { withTenant } from "@/lib/db";
+import { ensureTaskTx } from "@/lib/ensure-task";
 import { itemsForComplexity, type Section } from "@/lib/file-index";
 import { seedPresumedRisks } from "@/lib/risks";
 import { requireTenant, requireWrite } from "@/lib/tenant";
@@ -279,8 +280,10 @@ export async function createEngagement(input: {
     // A first-year engagement needs the predecessor-auditor communication
     // (P1.2, conditional in the index): activate it from the creation answers,
     // as P1.1's "new engagement" answer does later (lib/forms.ts).
-    if (input.firstYear || input.complexityAnswers?.firstAudit) {
-      await tx.query("UPDATE file_item SET conditional = false WHERE engagement_id = $1 AND code = 'P1.2'", [engagementId]);
+    // Inserted when the tier left it out (very simple files), not just
+    // activated (UAT run 2 B19); deferred scoping picks it up at classification.
+    if (!deferred && (input.firstYear || input.complexityAnswers?.firstAudit)) {
+      await ensureTaskTx(tx, engagementId, "P1.2");
     }
     // Assign the engagement partner (default reviewer) when chosen at creation.
     if (input.partnerId) {
@@ -352,7 +355,7 @@ export async function applyComplexity(
     if (seeded.rowCount === 0) await seedPresumedRisks(tx, tenantId, engagementId);
     // First audit: the predecessor-auditor communication (P1.2) applies.
     if (answers.firstAudit) {
-      await tx.query("UPDATE file_item SET conditional = false WHERE engagement_id = $1 AND code = 'P1.2'", [engagementId]);
+      await ensureTaskTx(tx, engagementId, "P1.2");
     }
   });
 }

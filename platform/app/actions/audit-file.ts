@@ -320,7 +320,10 @@ export async function setDueDateAction(formData: FormData): Promise<void> {
   if (!fileItemId || (date && !/^\d{4}-\d{2}-\d{2}$/.test(date))) redirect(back);
   const { requireTenant } = await import("@/lib/tenant");
   const { withTenant } = await import("@/lib/db");
-  const { tenantId } = await requireTenant();
+  const { canWrite } = await import("@/lib/rbac");
+  const { tenantId, role } = await requireTenant();
+  // a read-only account changes nothing (UAT run 2 B01)
+  if (!canWrite(role)) redirect(`${back}${back.includes("?") ? "&" : "?"}error=read-only-role`);
   try {
     await withTenant(tenantId, async (tx) => {
       await tx.query("UPDATE file_item SET due_date = $2 WHERE id = $1", [fileItemId, date || null]);
@@ -367,6 +370,14 @@ export async function instantiateGroupTasksAction(formData: FormData): Promise<v
       [engagementId],
     );
     const inScope = itemsForComplexity(eng.rows[0]?.complexity ?? "complex");
+    // C4.2 follows the EQR determination, not the tier (UAT run 2 B13).
+    if (group.members.includes("C4.2") && !inScope.some((e) => e.code === "C4.2")) {
+      const { eqrRequiredTx } = await import("@/lib/completion");
+      if (await eqrRequiredTx(tx, engagementId)) {
+        const { ensureTaskTx } = await import("@/lib/ensure-task");
+        await ensureTaskTx(tx, engagementId, "C4.2");
+      }
+    }
     const max = await tx.query<{ m: string | null }>(
       "SELECT max(sort_order)::text AS m FROM file_item WHERE engagement_id = $1",
       [engagementId],

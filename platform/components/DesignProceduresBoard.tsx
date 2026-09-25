@@ -261,6 +261,15 @@ export function DesignProceduresBoard({
                         {fr ? `Ouvrir ${row.taskCode}` : `Open ${row.taskCode}`}
                       </Link>
                     </>
+                  ) : row.taskCode ? (
+                    // UAT run 2 B20: never a silent dead end — the paper that
+                    // executes this design is not on the file yet.
+                    <span className="font-semibold text-rose" data-testid={`dsp-no-task-${row.indexCode}`}>
+                      {" · "}
+                      {fr
+                        ? `${row.taskCode} absent du dossier — sélectionnez une procédure pour l'ajouter`
+                        : `${row.taskCode} is not on the file — select a procedure to add it`}
+                    </span>
                   ) : null}
                 </p>
 

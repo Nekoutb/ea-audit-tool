@@ -276,7 +276,13 @@ describe("8.6 C5.6 faits délictueux (partner-only)", () => {
 
 describe("8.7 C5.7 attestation + C5.8 equity monitoring", () => {
   it("generates the titres nominatifs attestation under C5.7", async () => {
-    const documentId = await generateTitresAttestation(saEngagement);
+    // the attestation is refused until C5.7 concludes the register is kept and agrees (UAT run 2 B21)
+    await admin.query(
+      `INSERT INTO form_response (tenant_id, engagement_id, code, field_key, value)
+       VALUES ($1, $2, 'wp:C5.7', 'q_kept', '"yes"'), ($1, $2, 'wp:C5.7', 'q_agrees', '"yes"')`,
+      [TENANT, saEngagement],
+    );
+    const documentId = await generateTitresAttestation(saEngagement, { inspectionDate: "2026-02-10", securitiesCount: 1000 });
     expect(await docIsZip(documentId)).toBe(true);
   });
 

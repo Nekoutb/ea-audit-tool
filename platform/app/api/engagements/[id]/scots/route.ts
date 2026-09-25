@@ -13,6 +13,7 @@ import {
   musPreview,
   saveFscp,
   saveWalkthrough,
+  scotIdsBelongTo,
   todPreview,
   type TodAssurance,
   type TodCra,
@@ -28,6 +29,15 @@ export async function POST(request: Request, context: { params: Promise<{ id: st
   try { await assertMutable(id); } catch (e) { if (e instanceof ArchivedError) return NextResponse.json({ error: "archived" }, { status: 423 }); throw e; }
   try {
     const body = (await request.json()) as { op?: string } & Record<string, unknown>;
+    // Every id in the body must belong to the engagement in the URL — the
+    // proxy only vouched for that one (UAT run 2 B02).
+    const one = (v: unknown): string[] => (v === undefined || v === null || v === "" ? [] : [String(v)]);
+    const owned = await scotIdsBelongTo(id, {
+      scotIds: one(body.scotId),
+      wcgwIds: [...one(body.wcgwId), ...(Array.isArray(body.wcgwIds) ? body.wcgwIds.map(String) : [])],
+      controlIds: one(body.controlId),
+    });
+    if (!owned) return NextResponse.json({ error: "not-found" }, { status: 404 });
     switch (body.op) {
       case "createScot": {
         const scotId = await createScot(id, {

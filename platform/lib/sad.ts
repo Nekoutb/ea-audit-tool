@@ -97,7 +97,12 @@ export async function fsCaptionAmounts(engagementId: string): Promise<number[] |
 
 export async function sadView(engagementId: string): Promise<SadView> {
   const { tenantId } = await requireTenant();
-  return withTenant(tenantId, async (tx) => {
+  return withTenant(tenantId, (tx) => sadViewTx(tx, engagementId));
+}
+
+/** sadView inside the caller's transaction — the C4.1 gate reads the SAD as it stands (UAT run 2 B12). */
+export async function sadViewTx(tx: PoolClient, engagementId: string): Promise<SadView> {
+  return (async () => {
     const eng = await tx.query<{ client_name: string; period_end: string }>(
       `SELECT c.name AS client_name, to_char(e.period_end, 'YYYY-MM-DD') AS period_end
          FROM engagement e JOIN client c ON c.id = e.client_id
@@ -115,8 +120,8 @@ export async function sadView(engagementId: string): Promise<SadView> {
       "SELECT code, field_key, value FROM form_response WHERE engagement_id = $1 AND (code LIKE 'psp:%' OR code = $2)",
       [engagementId, CODE],
     );
-    const posted = await tx.query<{ program_step_id: string | null }>(
-      "SELECT program_step_id FROM misstatement WHERE engagement_id = $1 AND program_step_id IS NOT NULL",
+    const posted = await tx.query<{ program_step_id: string | null; amount: string; accounts: string | null; mtype: string | null; corrected: boolean }>(
+      "SELECT program_step_id, amount::text AS amount, accounts, mtype::text AS mtype, corrected FROM misstatement WHERE engagement_id = $1 AND program_step_id IS NOT NULL",
       [engagementId],
     );
     const mat = await tx.query<{ overall: string; performance: string; trivial_pct: string }>(
@@ -129,6 +134,7 @@ export async function sadView(engagementId: string): Promise<SadView> {
 
     const stepById = new Map(steps.rows.map((s) => [s.id, s]));
     const postedSet = new Set(posted.rows.map((r) => r.program_step_id));
+    const postedRow = new Map(posted.rows.map((r) => [r.program_step_id, r]));
 
     // per step: the psp-result fields and the SAD overrides; plus the tab meta
     const byStep = new Map<string, Record<string, string>>();
@@ -188,6 +194,20 @@ export async function sadView(engagementId: string): Promise<SadView> {
         rationale: o.rationale ?? "",
         posted: postedSet.has(stepId),
       });
+      // The register row must still say what the working paper says: amount,
+      // accounts, type and corrected flag (UAT run 2 B11) — otherwise it is
+      // flagged for re-posting instead of reading "posted".
+      const reg = postedRow.get(stepId);
+      if (reg) {
+        const e = entries[entries.length - 1];
+        const accountsText = reg.accounts ?? "";
+        e.stale =
+          Math.round(Number(reg.amount)) !== Math.round(Math.max(Math.abs(drAmount), Math.abs(crAmount))) ||
+          !accountsText.startsWith(`Dr ${drAccount || "—"} (`) ||
+          !accountsText.includes(` / Cr ${crAccount || "—"} (`) ||
+          (reg.mtype ?? "factual") !== e.mtype ||
+          reg.corrected !== e.corrected;
+      }
     }
     entries.sort((a, b) => a.taskCode.localeCompare(b.taskCode, undefined, { numeric: true }) || a.ref.localeCompare(b.ref));
 
@@ -207,7 +227,7 @@ export async function sadView(engagementId: string): Promise<SadView> {
       incomeBeforeTax: fs ? fs.incomeBeforeTax : null,
       meta,
     };
-  });
+  })();
 }
 
 /** Persist one SAD field (caption override, type, corrected flag, rationale) for a step. */
@@ -272,6 +292,23 @@ export async function saveSadMeta(engagementId: string, key: string, value: stri
       [tenantId, engagementId, CODE, key, JSON.stringify(value), userId],
     );
   });
+}
+
+/**
+ * Re-post an entry already on the misstatement schedule after its working
+ * paper changed (UAT run 2 B11): the C1.1 register follows the paper instead
+ * of keeping the amount it was first posted at. Entries never posted, or whose
+ * adjustment was cleared, are left for the auditor to decide on the SAD.
+ */
+export async function postSadEntryIfPosted(engagementId: string, stepId: string): Promise<void> {
+  const { tenantId } = await requireTenant();
+  const onRegister = await withTenant(tenantId, async (tx) =>
+    (await tx.query("SELECT 1 FROM misstatement WHERE engagement_id = $1 AND program_step_id = $2", [engagementId, stepId])).rows.length > 0,
+  );
+  if (!onRegister) return;
+  const view = await sadView(engagementId);
+  if (!view.entries.some((e) => e.stepId === stepId)) return;
+  await postSadEntry(engagementId, stepId);
 }
 
 /**

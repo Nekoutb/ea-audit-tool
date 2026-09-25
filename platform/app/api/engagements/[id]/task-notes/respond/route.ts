@@ -6,16 +6,19 @@ import { respondToTaskNote } from "@/lib/task-notes";
  * write on the file may answer; only the author or a manager who did not
  * prepare the paper clears it (see /clear).
  */
-export async function POST(request: Request) {
+export async function POST(request: Request, context: { params: Promise<{ id: string }> }) {
+  // the note must belong to the engagement in the URL (UAT run 2 B03)
+  const { id } = await context.params;
   try {
     const body = (await request.json()) as { noteId?: string; response?: string };
     if (!body.noteId || !body.response?.trim()) {
       return NextResponse.json({ error: "invalid-body" }, { status: 400 });
     }
-    await respondToTaskNote(body.noteId, body.response);
+    await respondToTaskNote(id, body.noteId, body.response);
     return NextResponse.json({ ok: true });
   } catch (error) {
     const code = error instanceof Error && /^[a-z0-9-]+$/.test(error.message) ? error.message : "respond-failed";
-    return NextResponse.json({ error: code }, { status: code === "not-found" ? 404 : 400 });
+    const status = code === "not-found" ? 404 : code === "not-on-this-engagement" || code === "read-only-role" ? 403 : 400;
+    return NextResponse.json({ error: code }, { status });
   }
 }

@@ -260,7 +260,7 @@ export function SadWorkbook({
                         </td>
                         <td className={td} style={{ background: YEL }} colSpan={SAD_COLUMN_COUNT + 1}>
                           <b>{e.finding || e.taskTitle}</b>
-                          <span className="ml-2 text-[9.5px] text-[#666]">{fr ? (TYPE_LABELS[e.mtype]?.fr ?? e.mtype) : (TYPE_LABELS[e.mtype]?.en ?? e.mtype)}{e.posted ? (fr ? " · portée au registre" : " · posted") : ""} ▾</span>
+                          <span className="ml-2 text-[9.5px] text-[#666]">{fr ? (TYPE_LABELS[e.mtype]?.fr ?? e.mtype) : (TYPE_LABELS[e.mtype]?.en ?? e.mtype)}{e.stale ? (fr ? " · registre à mettre à jour" : " · register out of date") : e.posted ? (fr ? " · portée au registre" : " · posted") : ""} ▾</span>
                         </td>
                         {opts.rationale ? (
                           <td className={td} style={{ background: YEL }}>
@@ -308,9 +308,11 @@ export function SadWorkbook({
                                 <input type="checkbox" checked={e.corrected} data-testid={`sad-corrected-${e.stepId}`} onChange={(ev) => { const corrected = ev.target.checked; patch(e.stepId, { corrected }); void call({ op: "save", stepId: e.stepId, field: "corrected", value: corrected ? "yes" : "no" }).then((ok) => ok && e.posted && call({ op: "post", stepId: e.stepId })); }} />{" "}
                                 {fr ? "Corrigée par l'entité" : "Corrected by the entity"}
                               </label>
-                              {!e.posted ? (
-                                <button type="button" className="font-semibold text-emerald-800 underline" onClick={() => { void call({ op: "post", stepId: e.stepId }).then((ok) => ok && patch(e.stepId, { posted: true })); }}>
-                                  {fr ? "Porter au registre C1.1" : "Post to the C1.1 register"}
+                              {!e.posted || e.stale ? (
+                                <button type="button" className="font-semibold text-emerald-800 underline" onClick={() => { void call({ op: "post", stepId: e.stepId }).then((ok) => ok && patch(e.stepId, { posted: true, stale: false })); }}>
+                                  {e.stale
+                                    ? fr ? "Mettre à jour le registre C1.1" : "Update the C1.1 register"
+                                    : fr ? "Porter au registre C1.1" : "Post to the C1.1 register"}
                                 </button>
                               ) : null}
                             </span>

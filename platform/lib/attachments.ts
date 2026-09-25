@@ -11,12 +11,22 @@
 // Every read path below filters deleted_at IS NULL so a soft-deleted document
 // is invisible to list, get and download alike.
 
-import { recordActivity } from "@/lib/activity";
+import { logAttachment, recordActivity } from "@/lib/activity";
 import { withTenant } from "@/lib/db";
 import { visibleToUser } from "@/lib/engagement-access";
 import { assertMutable } from "@/lib/mutability";
 import { atLeast, type Role } from "@/lib/rbac";
 import { ForbiddenError, requireTenant } from "@/lib/tenant";
+
+/**
+ * The task's evidence files are part of what its sign-offs attest (UAT run 2
+ * B10): after an upload, rename, removal or restore, void the signatures whose
+ * content moved (and log it). Loaded lazily — working-papers is a heavy import.
+ */
+async function voidSignoffsAfterEvidenceChange(fileItemId: string): Promise<void> {
+  const { voidStaleSignoffsOfItem } = await import("@/lib/working-papers");
+  await voidStaleSignoffsOfItem(fileItemId);
+}
 
 /** Days a soft-deleted attachment stays restorable. */
 export const RESTORE_WINDOW_DAYS = 30;
@@ -158,7 +168,7 @@ export async function saveAttachment(
   const { tenantId, userId, role } = await requireTenant();
   await guardFileItem(fileItemId);
   assertCanWrite(role);
-  return withTenant(tenantId, async (tx) => {
+  const saved = await withTenant(tenantId, async (tx) => {
     const item = await tx.query<{ engagement_id: string }>(
       "SELECT engagement_id FROM file_item WHERE id = $1",
       [fileItemId],
@@ -178,15 +188,29 @@ export async function saveAttachment(
       [tenantId, engagementId, fileItemId, name, mime, content.length, content, userId],
     );
     return {
-      id: r.rows[0].id,
-      name,
-      mime,
-      sizeBytes: content.length,
-      version: r.rows[0].version,
-      uploadedBy: "",
-      uploadedAt: r.rows[0].uploaded_at,
+      engagementId,
+      row: {
+        id: r.rows[0].id,
+        name,
+        mime,
+        sizeBytes: content.length,
+        version: r.rows[0].version,
+        uploadedBy: "",
+        uploadedAt: r.rows[0].uploaded_at,
+      } as AttachmentRow,
     };
   });
+  // Every upload and copy is on the trail (UAT run 2 B10), and a new version
+  // of the evidence voids the sign-offs given over the previous one.
+  await logAttachment("uploaded", saved.row.id, {
+    engagementId: saved.engagementId,
+    fileItemId,
+    name,
+    version: saved.row.version,
+    sizeBytes: content.length,
+  });
+  await voidSignoffsAfterEvidenceChange(fileItemId);
+  return saved.row;
 }
 
 /** One live attachment with its bytes, for download. RLS scopes the read. */
@@ -257,6 +281,7 @@ export async function renameAttachment(id: string, newNameRaw: string): Promise<
     summary: `${target.name} → ${next}`,
     meta: { fileItemId: target.file_item_id, from: target.name, to: next },
   });
+  await voidSignoffsAfterEvidenceChange(target.file_item_id);
   return next;
 }
 
@@ -308,6 +333,7 @@ export async function deleteAttachment(id: string): Promise<void> {
       restorableForDays: RESTORE_WINDOW_DAYS,
     },
   });
+  await voidSignoffsAfterEvidenceChange(target.file_item_id);
 }
 
 /**
@@ -358,6 +384,7 @@ export async function restoreAttachment(attachmentId: string): Promise<void> {
     summary: `Restored: ${target.name}`,
     meta: { fileItemId: target.file_item_id, name: target.name, versions },
   });
+  await voidSignoffsAfterEvidenceChange(target.file_item_id);
 }
 
 /**

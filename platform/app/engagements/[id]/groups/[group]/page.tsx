@@ -17,6 +17,7 @@ import {
   phaseOfTask,
   type PhaseTask,
 } from "@/lib/engagement-dashboard";
+import { eqrRequired } from "@/lib/completion";
 import { getEngagement } from "@/lib/engagements";
 import { itemsForComplexity, shortTitle } from "@/lib/file-index";
 import { phaseStillOpen } from "@/lib/gates";
@@ -73,6 +74,8 @@ export default async function GroupTasksPage(props: {
   // one's programme because somebody opened a page.
   const [allTasks, existingCodes] = await Promise.all([engagementTasksWithActiveConditionals(id), existingTaskCodes(id)]);
   const inScope = new Set(itemsForComplexity(engagement.complexity ?? "complex").map((e) => e.code));
+  // C4.2 follows the EQR determination, not the tier (UAT run 2 B13).
+  if (g.members.includes("C4.2") && !inScope.has("C4.2") && (await eqrRequired(id))) inScope.add("C4.2");
   const missing = g.members.filter((code) => !existingCodes.has(code) && inScope.has(code));
   const byCode = new Map(allTasks.map((task) => [task.code, task]));
   // E4 discloses only the accounts whose substantive procedures were DESIGNED
@@ -255,7 +258,7 @@ export default async function GroupTasksPage(props: {
                     returnTo={returnTo}
                     signPreparerLabel={td.signAsPreparer}
                     signReviewerLabel={td.signAsReviewer}
-                    canSign={!phaseStillOpen(phaseOfTask(tasks[i].section, tasks[i].code), engagement.phase)}
+                    canSign={!phaseStillOpen(phaseOfTask(tasks[i].section, tasks[i].code), engagement.phase, tasks[i].code)}
                     canReview={canReview(session.user.role)}
                   />
                 ))}

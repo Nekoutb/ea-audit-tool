@@ -131,6 +131,27 @@ async function recordExists(tx: PoolClient, engagementId: string, key: string): 
   );
 }
 
+/**
+ * Whether the engagement requires an engagement quality review: P1.5 concluded
+ * so, or a quality reviewer sits on the team. Where it does, C4.2 belongs on
+ * the file whatever the complexity tier (UAT run 2 B13).
+ */
+export async function eqrRequiredTx(tx: PoolClient, engagementId: string): Promise<boolean> {
+  const r = await tx.query<{ required: boolean }>(
+    `SELECT EXISTS (SELECT 1 FROM team_member WHERE engagement_id = $1 AND team_role = 'eqr_reviewer')
+         OR EXISTS (SELECT 1 FROM form_response
+                     WHERE engagement_id = $1 AND code = 'wp:P1.5' AND field_key = 'q_eqr'
+                       AND btrim(value #>> '{}') = 'yes') AS required`,
+    [engagementId],
+  );
+  return Boolean(r.rows[0]?.required);
+}
+
+export async function eqrRequired(engagementId: string): Promise<boolean> {
+  const { tenantId } = await requireTenant();
+  return withTenant(tenantId, (tx) => eqrRequiredTx(tx, engagementId));
+}
+
 /** C4.1 completion gates (spec §7, items 1–13 mapped to computable checks). */
 async function completionGatesTx(tx: PoolClient, engagementId: string): Promise<GateResult[]> {
   // 1. Every E-section with a designed program has a REVIEWED conclusion.
@@ -192,7 +213,19 @@ async function completionGatesTx(tx: PoolClient, engagementId: string): Promise<
         performance: Number(materiality.rows[0].performance),
       })
     : null;
-  const b5Ok = umt !== null && Math.abs(Number(uncorrected.rows[0]?.total ?? 0)) <= umt;
+  // The register is only "as on the SAD" when every uncorrected SAD entry above
+  // the trivial line is posted and still matches its working paper (UAT run 2
+  // B12): an unposted or out-of-date entry fails the check rather than letting
+  // a stale, smaller register total read as within the threshold.
+  const { sadViewTx } = await import("@/lib/sad");
+  const sad = await sadViewTx(tx, engagementId);
+  const trivialLine = sad.materiality?.trivial ?? 0;
+  const sadOutOfRegister = sad.entries.filter(
+    (e) =>
+      e.stale ||
+      (!e.posted && !e.corrected && Math.max(Math.abs(e.drAmount), Math.abs(e.crAmount)) >= trivialLine),
+  ).length;
+  const b5Ok = umt !== null && Math.abs(Number(uncorrected.rows[0]?.total ?? 0)) <= umt && sadOutOfRegister === 0;
   // 10. C1.2 all cleared.
   const openB4 = await count(
     tx,
@@ -218,12 +251,7 @@ async function completionGatesTx(tx: PoolClient, engagementId: string): Promise<
     );
     return (r.rows[0]?.v ?? "").trim();
   };
-  const eqrOnTeam = await count(
-    tx,
-    "SELECT count(*)::text AS n FROM team_member WHERE engagement_id = $1 AND team_role = 'eqr_reviewer'",
-    [engagementId],
-  );
-  const eqrRequired = (await paperAnswer("P1.5", "q_eqr")) === "yes" || eqrOnTeam > 0;
+  const eqrRequired = await eqrRequiredTx(tx, engagementId);
   const c42Signed = await count(
     tx,
     `SELECT count(*)::text AS n FROM document d JOIN file_item fi ON fi.id = d.file_item_id

@@ -219,10 +219,11 @@ describe("concluding effective needs the planned sample tested (UAT B84)", () =>
     expect(r.rows[0].operating_eval).toBe("effective");
   });
 
-  it("does not block a control with no planned sample size", async () => {
+  // UAT run 2 B15 reversed the earlier rule: no planned sample is no evidence.
+  it("refuses a control with no planned sample size and nothing tested (toc-no-sample)", async () => {
     await admin.query("UPDATE scot_control SET sample_size = NULL, toc_grid = NULL, operating_eval = NULL WHERE id = $1", [looseId]);
-    await updateControl(looseId, { operatingEval: "effective" });
+    await expect(updateControl(looseId, { operatingEval: "effective" })).rejects.toThrow("toc-no-sample");
     const r = await admin.query<{ operating_eval: string | null }>("SELECT operating_eval FROM scot_control WHERE id = $1", [looseId]);
-    expect(r.rows[0].operating_eval).toBe("effective");
+    expect(r.rows[0].operating_eval).toBeNull();
   });
 });

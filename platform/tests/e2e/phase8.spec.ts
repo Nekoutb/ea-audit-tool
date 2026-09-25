@@ -102,9 +102,11 @@ test("Phase 8: deadlines → conventions/rapport spécial → alerte → equity 
   await expect(page.getByTestId("alerte-stage")).toContainText(/Board invited/i);
 
   // --- C5.7: titres nominatifs attestation ---
+  // refused until the C5.7 paper concludes the register is kept and agrees (UAT run 2 B21)
+  await page.getByTestId("titres-inspection-date").fill("2026-02-10");
+  await page.getByTestId("titres-count").fill("1000");
   await page.getByTestId("titres-attestation").click();
-  await page.waitForURL("**/documents/**");
-  await expect(page.locator("h1")).toContainText(/titres nominatifs/i);
+  await expect(page.getByTestId("planning-error")).toContainText(/C5\.7/);
 
   // --- C5.8: equity < half of capital raises the EGM workflow ---
   await page.goto(`${engagementUrl}/legal`);

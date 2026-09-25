@@ -25,7 +25,7 @@ import { completionRecordVersion, getCompletionRecord } from "@/lib/completion";
 import { getEngagement } from "@/lib/engagements";
 import { formatFCFA, getMessages } from "@/lib/i18n";
 import { canPartnerSignoff, type Role } from "@/lib/rbac";
-import { CONVENTION_CAPACITIES, equityStatus, legalDates, listConventions, listDeadlines, listFaits } from "@/lib/legal";
+import { CONVENTION_CAPACITIES, equityConclusionOf, equityStatus, legalDates, listConventions, listDeadlines, listFaits } from "@/lib/legal";
 import { getLocale } from "@/lib/locale";
 
 export const metadata = { title: "OHADA legal · AuditISA" };
@@ -66,6 +66,10 @@ export default async function LegalPage(props: {
   const pendingKeys = dates.agmDate
     ? []
     : agmRelativeKeys.filter((key) => !deadlines.some((deadline) => deadline.key === key));
+  const equityConclusion = equityConclusionOf(
+    equity,
+    deadlines.find((deadline) => deadline.key === "egm_equity") ?? null,
+  );
 
   const btn =
     "rounded-[var(--radius-atlas-sm)] border border-line-strong bg-surface px-2.5 py-1 text-xs font-medium text-ink-soft hover:bg-surface-2";
@@ -249,7 +253,15 @@ export default async function LegalPage(props: {
               {tl.article715}
             </button>
           </form>
-          <form action={titresAttestationAction.bind(null, id)}>
+          <form action={titresAttestationAction.bind(null, id)} className="flex flex-wrap items-end gap-2">
+            <label className={label}>
+              {tl.inspectionDate}
+              <input name="inspectionDate" type="date" required className={`${input} mt-1`} data-testid="titres-inspection-date" />
+            </label>
+            <label className={label}>
+              {tl.securitiesCount}
+              <input name="securitiesCount" type="number" min={1} step={1} required className={`${input} mt-1`} data-testid="titres-count" />
+            </label>
             <button type="submit" className={btn} data-testid="titres-attestation">
               {tl.titres} · {tl.generateAttestation}
             </button>
@@ -410,11 +422,21 @@ export default async function LegalPage(props: {
         ) : (
           <p className="mt-3 text-xs text-muted" data-testid="equity-figures">{tl.noTbYet}</p>
         )}
-        {deadlines.some((deadline) => deadline.key === "egm_equity") ? (
+        {/* The conclusion follows the live figures shown above; the EGM row only
+            confirms a breach the check raised (UAT run 2 B22). */}
+        {equityConclusion === "breach" ? (
           <p className="mt-3 rounded-[var(--radius-atlas-sm)] bg-[var(--color-rose-soft)] px-3 py-2 text-sm font-medium text-rose" data-testid="equity-breach">
             {tl.equityBreach}
           </p>
-        ) : equity.hasTb && equity.halfCapital !== null ? (
+        ) : equityConclusion === "unchecked-breach" ? (
+          <p className="mt-3 rounded-[var(--radius-atlas-sm)] bg-[var(--color-rose-soft)] px-3 py-2 text-sm font-medium text-rose" data-testid="equity-recheck">
+            {tl.equityBelowUnchecked}
+          </p>
+        ) : equityConclusion === "stale" ? (
+          <p className="mt-3 rounded-[var(--radius-atlas-sm)] bg-[var(--color-warn-soft)] px-3 py-2 text-sm font-medium text-warn" data-testid="equity-recheck">
+            {tl.equityStale}
+          </p>
+        ) : equityConclusion === "ok" ? (
           <p className="mt-3 text-sm font-medium text-emerald-700 dark:text-emerald-400" data-testid="equity-ok">
             {tl.equityOk}
           </p>

@@ -59,9 +59,9 @@ import { ensureDefaultWorkpaper, templateForCode } from "@/lib/wp-templates";
 import { effectiveDueDate, taskForItem, engagementTasks } from "@/lib/engagement-dashboard";
 import { listConfirmations, sendDueReminders } from "@/lib/independence";
 import { listTeam as listEngagementTeam } from "@/lib/team";
-import { loadPaper, paperFor } from "@/lib/working-papers";
+import { EQR_OWN_PAPER, loadPaper, paperFor, paperVersion } from "@/lib/working-papers";
 import { listProgramSteps } from "@/lib/programs";
-import { canReview } from "@/lib/rbac";
+import { canReview, canWrite } from "@/lib/rbac";
 import { getTaskAssignee, listTeam } from "@/lib/team";
 import { requireTenant } from "@/lib/tenant";
 
@@ -126,6 +126,8 @@ export default async function SectionPage(props: {
 
   const group = groupOfTask(section.code);
   const paperDef = paperFor(section.code);
+  // version BEFORE values: a save in between then refuses (safe), never overwrites
+  const paperBaseVersion = await paperVersion(id, section.code);
   const paperValues = await loadPaper(id, section.code);
   const attachments = await listAttachments(itemId);
   // The Independence task (P2.1) embeds the campaign. Rendering it also runs
@@ -171,6 +173,19 @@ export default async function SectionPage(props: {
       autoValues.je_design = locale === "fr"
         ? `Critères : ${(d.criteria ?? []).join(", ") || "—"} · règles : ${d.userRules?.length ?? 0} · ${d.selectedLines ?? 0} ligne(s) sélectionnée(s) sur ${d.populationLines ?? 0} · par ${d.recordedBy ?? "—"} le ${when}`
         : `Criteria: ${(d.criteria ?? []).join(", ") || "—"} · rules: ${d.userRules?.length ?? 0} · ${d.selectedLines ?? 0} line(s) selected of ${d.populationLines ?? 0} · by ${d.recordedBy ?? "—"} on ${when}`;
+      // earlier designs stay on file as dated history (UAT run 2 B16)
+      let earlier = 0;
+      try {
+        const h = JSON.parse(paperValues.je_design_history ?? "[]") as unknown;
+        earlier = Array.isArray(h) ? h.length : 0;
+      } catch {
+        earlier = 0;
+      }
+      if (earlier > 0) {
+        autoValues.je_design += locale === "fr"
+          ? ` · ${earlier} conception(s) antérieure(s) conservée(s) au dossier`
+          : ` · ${earlier} earlier design(s) kept on file`;
+      }
     } catch {
       autoValues.je_design = paperValues.je_design;
     }
@@ -313,7 +328,15 @@ export default async function SectionPage(props: {
   const canManageEvidence = userRole !== null && atLeast(userRole, "manager");
   // soft-deleted evidence still inside the recovery window, for Restore
   const deletedAttachments = canManageEvidence ? await listDeletedAttachments(itemId) : [];
-  const canMarkNa = userRole !== null && canReview(userRole);
+  // A read-only account never edits; the EQR reads the team's work and writes
+  // only their own review record, C4.2 (UAT run 2 B01/B18). The server refuses
+  // either way — this keeps the page from offering what it will refuse.
+  const isEqr = userRole === "eqr_reviewer";
+  const mayWrite = userRole !== null && canWrite(userRole);
+  const viewOnly = archived || !mayWrite || (isEqr && section.code !== EQR_OWN_PAPER);
+  // the EQR signs nothing through the P/R chips (signDocument refuses them)
+  const chipsLocked = archived || !mayWrite || isEqr;
+  const canMarkNa = userRole !== null && canReview(userRole) && !isEqr;
   const taskInfo = await taskForItem(id, section.code);
   const CROSS_LINKS: Record<string, string[]> = {
     "P1.1": ["P1.2", "P2.1"], "P2.1": ["P1.1", "P1.5"], "P1.2": ["P1.1", "E6.5"],
@@ -355,7 +378,7 @@ export default async function SectionPage(props: {
   const te = t.planning.execution;
   const tfd = t.planning.findings;
   const fr = locale === "fr";
-  const canAssign = canReview(session.user.role);
+  const canAssign = canReview(session.user.role) && !isEqr;
 
   // Tasks driven by a dedicated tool link to it right on the task header —
   // the reader never hunts through Tools for the screen that feeds the paper.
@@ -470,7 +493,7 @@ export default async function SectionPage(props: {
             <Chip tone={overdue ? "rose" : "good"}>{overdue ? (fr ? "En retard" : "Overdue") : fr ? "Dans les temps" : "On track"}</Chip>
           </span>
           <span className="flex items-center gap-1.5">
-            {archived ? (
+            {chipsLocked ? (
               <>
                 <span className={chip(pSigned)} title={pSigned ? `${taskInfo?.preparerName} · ${taskInfo?.preparerAt}` : ""} data-testid="chip-preparer" data-signed={String(pSigned)}>P</span>
                 <span className={chip(rSigned)} title={rSigned ? `${taskInfo?.reviewerName} · ${taskInfo?.reviewerAt}` : ""} data-testid="chip-reviewer" data-signed={String(rSigned)}>R</span>
@@ -504,13 +527,19 @@ export default async function SectionPage(props: {
           </span>
           <span className="flex items-center gap-1.5 text-[12px] text-muted">
             {fr ? "Assigné à" : "Assigned to"}
-            {canAssign && !archived ? (
+            {canAssign && !viewOnly ? (
               <form action={assignTaskAction.bind(null, id, itemId)} className="flex items-center gap-1">
                 <select name="assignee" defaultValue={assignee?.userId ?? ""} className={input} data-testid="task-assignee">
                   <option value="">—</option>
                   {team.map((member) => (
                     <option key={member.userId} value={member.userId}>{member.userName}</option>
                   ))}
+                  {/* an assignee no longer on the team is shown, not hidden behind "—" (UAT run 2 B04) */}
+                  {assignee && !team.some((member) => member.userId === assignee.userId) ? (
+                    <option value={assignee.userId}>
+                      {assignee.name} {fr ? "(hors équipe)" : "(not on team)"}
+                    </option>
+                  ) : null}
                 </select>
                 <SubmitButton className="rounded-[var(--radius-atlas-sm)] border border-line-strong px-2 py-1 text-[11.5px] text-ink-soft hover:bg-surface-2" testId="task-assign-save">OK</SubmitButton>
               </form>
@@ -532,7 +561,7 @@ export default async function SectionPage(props: {
             designHref={designItemId ? `/engagements/${id}/sections/${designItemId}` : null}
             steps={localizePspSteps(steps.filter((s) => s.source === "psp" || s.description.startsWith("OSP-")), locale)}
             results={pspVals}
-            attachmentsSlot={<TaskAttachments fileItemId={itemId} initial={accountAttachments} deletedInitial={deletedAttachments} documents={itemDocuments} locale={fr ? "fr" : "en"} canManage={canManageEvidence && !archived} readOnly={archived} compact />}
+            attachmentsSlot={<TaskAttachments fileItemId={itemId} initial={accountAttachments} deletedInitial={deletedAttachments} documents={itemDocuments} locale={fr ? "fr" : "en"} canManage={canManageEvidence && !viewOnly} readOnly={viewOnly} compact />}
             leadSchedule={
               accountSchedule
                 ? {
@@ -545,7 +574,7 @@ export default async function SectionPage(props: {
                   }
                 : null
             }
-            readOnly={archived}
+            readOnly={viewOnly}
             locale={isFr ? "fr" : "en"}
           />
         </Panel>
@@ -561,7 +590,7 @@ export default async function SectionPage(props: {
               </p>
             </div>
           ) : null}
-          {archived ? null : (
+          {viewOnly ? null : (
           <form action={saveConclusionAction.bind(null, id, itemId)} className="mt-3 flex flex-wrap items-end gap-2">
             <input
               name="conclusion"
@@ -595,7 +624,7 @@ export default async function SectionPage(props: {
             </button>
           </form>
           )}
-          {conclusion?.conclusion && !conclusion.reviewedByName && !archived ? (
+          {conclusion?.conclusion && !conclusion.reviewedByName && !viewOnly ? (
             <form action={reviewConclusionAction.bind(null, id, itemId, false)} className="mt-2">
               <button type="submit" className={btn} data-testid="review-conclusion">
                 {te.review}
@@ -605,7 +634,7 @@ export default async function SectionPage(props: {
         </Panel>
 
         {/* a matter arising on this account: C1.2 significant matter or C5.1 deficiency (UAT B21) */}
-        {archived ? null : (
+        {viewOnly ? null : (
         <Panel className="mt-4" data-testid="account-finding">
           <PanelHeader title={te.matterArising} />
           <form action={routeFindingAction.bind(null, id, itemId)} className="mt-3 flex flex-wrap items-end gap-2">
@@ -693,7 +722,7 @@ export default async function SectionPage(props: {
           <Chip tone={overdue ? "rose" : "good"}>{overdue ? (fr ? "En retard" : "Overdue") : fr ? "Dans les temps" : "On track"}</Chip>
         </span>
         <span className="flex items-center gap-1.5">
-          {archived ? (
+          {chipsLocked ? (
             <>
               <span className={chip(pSigned)} title={pSigned ? `${taskInfo?.preparerName} · ${taskInfo?.preparerAt}` : ""} data-testid="chip-preparer" data-signed={String(pSigned)}>P</span>
               <span className={chip(rSigned)} title={rSigned ? `${taskInfo?.reviewerName} · ${taskInfo?.reviewerAt}` : ""} data-testid="chip-reviewer" data-signed={String(rSigned)}>R</span>
@@ -728,13 +757,18 @@ export default async function SectionPage(props: {
         </span>
         <span className="flex items-center gap-1.5 text-[12px] text-muted">
           {fr ? "Assigné à" : "Assigned to"}
-          {canAssign && !archived ? (
+          {canAssign && !viewOnly ? (
             <form action={assignTaskAction.bind(null, id, itemId)} className="flex items-center gap-1">
               <select name="assignee" defaultValue={assignee?.userId ?? ""} className={input} data-testid="task-assignee">
                 <option value="">—</option>
                 {team.map((member) => (
                   <option key={member.userId} value={member.userId}>{member.userName}</option>
                 ))}
+                {assignee && !team.some((member) => member.userId === assignee.userId) ? (
+                  <option value={assignee.userId}>
+                    {assignee.name} {fr ? "(hors équipe)" : "(not on team)"}
+                  </option>
+                ) : null}
               </select>
               <SubmitButton className="rounded-[var(--radius-atlas-sm)] border border-line-strong px-2 py-1 text-[11.5px] text-ink-soft hover:bg-surface-2" testId="task-assign-save">OK</SubmitButton>
             </form>
@@ -789,12 +823,12 @@ export default async function SectionPage(props: {
           ) : null}
           {relatedParties ? (
             <div className="mb-2 min-h-0 max-h-[45%] overflow-auto" data-testid="wp-related-parties">
-              <RelatedPartyRegister engagementId={id} rows={relatedParties} returnTo={`/engagements/${id}/sections/${itemId}`} locale={isFr ? "fr" : "en"} carriedForwardLabel={t.planning.carriedForward ?? "Carried forward"} title={isFr ? "Registre des parties liées" : "Related-party register"} />
+              <RelatedPartyRegister engagementId={id} rows={relatedParties} returnTo={`/engagements/${id}/sections/${itemId}`} locale={isFr ? "fr" : "en"} carriedForwardLabel={t.planning.carriedForward ?? "Carried forward"} title={isFr ? "Registre des parties liées" : "Related-party register"} readOnly={viewOnly} />
             </div>
           ) : null}
           {estimates ? (
             <div className="mb-2 min-h-0 max-h-[45%] overflow-auto" data-testid="wp-estimates">
-              <EstimatesRegister engagementId={id} rows={estimates} returnTo={`/engagements/${id}/sections/${itemId}`} locale={isFr ? "fr" : "en"} title={isFr ? "Inventaire des estimations" : "Estimates inventory"} />
+              <EstimatesRegister engagementId={id} rows={estimates} returnTo={`/engagements/${id}/sections/${itemId}`} locale={isFr ? "fr" : "en"} title={isFr ? "Inventaire des estimations" : "Estimates inventory"} readOnly={viewOnly} />
             </div>
           ) : null}
           {approvedM ? (
@@ -895,9 +929,10 @@ export default async function SectionPage(props: {
           ) : (
           <PaperWizard
             code={section.code}
-            readOnly={archived}
+            readOnly={viewOnly}
             def={paperDef}
             values={paperValues}
+            baseVersion={paperBaseVersion}
             autoValues={autoValues}
             locale={fr ? "fr" : "en"}
             action={savePaperAction.bind(null, id, itemId, section.code)}
@@ -931,7 +966,7 @@ export default async function SectionPage(props: {
               ) : dspV ? (
                 <DesignProceduresBoard engagementId={id} view={dspV} locale={isFr ? "fr" : "en"} />
               ) : itApps ? (
-                <ItAppsBoard engagementId={id} view={itApps} locale={isFr ? "fr" : "en"} readOnly={section.code === "S2.5" || archived} />
+                <ItAppsBoard engagementId={id} view={itApps} locale={isFr ? "fr" : "en"} readOnly={section.code === "S2.5" || viewOnly} />
               ) : undefined
             }
             embedOnly={["S1.2", "S1.3", "S2.1", "S2.2"].includes(section.code)}
@@ -968,7 +1003,7 @@ export default async function SectionPage(props: {
 
         {wideBoard ? null : (
         <section className="flex min-h-0 flex-col gap-3 xl:overflow-hidden">
-          <TaskAttachments fileItemId={itemId} initial={attachments} deletedInitial={deletedAttachments} documents={itemDocuments} locale={fr ? "fr" : "en"} canManage={canManageEvidence && !archived} readOnly={archived} compact />
+          <TaskAttachments fileItemId={itemId} initial={attachments} deletedInitial={deletedAttachments} documents={itemDocuments} locale={fr ? "fr" : "en"} canManage={canManageEvidence && !viewOnly} readOnly={viewOnly} compact />
           <div className="flex min-h-0 flex-1 flex-col overflow-hidden rounded-[var(--radius-atlas)] border border-glass-border bg-surface px-4 py-3 shadow-atlas-sm backdrop-blur-xl" data-testid="wp-linked">
             <h2 className="text-[11px] font-extrabold uppercase tracking-[0.07em] text-muted">
               {fr ? "Tâches liées" : "Linked tasks"}

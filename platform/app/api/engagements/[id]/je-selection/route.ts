@@ -1,43 +1,15 @@
 import { NextResponse } from "next/server";
-import { withTenant } from "@/lib/db";
 import { requireEngagementAccess } from "@/lib/engagement-access";
-import { runSelection, type SelectionParams, type UserRule } from "@/lib/je-selection";
-import { ForbiddenError, requireTenant } from "@/lib/tenant";
-
-/**
- * Record the selection design on S5.4 (UAT B76): the criteria, thresholds and
- * rules the auditor chose, with who ran them and when, so the paper shows how
- * the sample was directed before the testing starts. Best effort — a closed
- * (archived) file refuses the write and the selection still comes back.
- */
-async function saveSelectionDesign(
-  engagementId: string,
-  design: { datasetId: string; criteria: string[]; params: SelectionParams; userRules: UserRule[]; selectedLines: number; populationLines: number },
-): Promise<void> {
-  try {
-    const { tenantId, userId } = await requireTenant();
-    await withTenant(tenantId, async (tx) => {
-      const who = await tx.query<{ name: string }>("SELECT coalesce(name, email) AS name FROM app_user WHERE id = $1", [userId]);
-      const record = { ...design, recordedBy: who.rows[0]?.name ?? userId, recordedAt: new Date().toISOString() };
-      await tx.query(
-        `INSERT INTO form_response (tenant_id, engagement_id, code, field_key, value, updated_by, carried_forward)
-         VALUES ($1, $2, 'wp:S5.4', 'je_design', to_jsonb($3::text), $4, false)
-         ON CONFLICT (engagement_id, code, field_key)
-         DO UPDATE SET value = EXCLUDED.value, updated_by = EXCLUDED.updated_by, carried_forward = false, updated_at = now()`,
-        [tenantId, engagementId, JSON.stringify(record), userId],
-      );
-    });
-  } catch (error) {
-    console.warn("[je-selection] design not recorded on S5.4:", error instanceof Error ? error.message : error);
-  }
-}
+import { recordSelectionDesign, runSelection, type SelectionParams, type UserRule } from "@/lib/je-selection";
+import { ArchivedError } from "@/lib/mutability";
+import { ForbiddenError } from "@/lib/tenant";
 
 /**
  * The journal-entry selection engine's single endpoint: the criteria the
  * auditor chose, run over one projected ledger, returning the line items to
  * test and the reason each of them was picked.
  *
- * Nothing here writes, so there is no archive guard. A selection is read back
+ * A run writes nothing, so there is no archive guard on it. A selection is read back
  * long after the file closes — that is when somebody asks how the sample was
  * directed — and an archived engagement has to be able to answer.
  *
@@ -64,6 +36,8 @@ interface SelectionBody {
   userRules?: unknown;
   limit?: unknown;
   offset?: unknown;
+  /** record this run as the S5.4 selection design (the studio's "Record" button) */
+  recordDesign?: unknown;
 }
 
 export async function POST(request: Request, context: { params: Promise<{ id: string }> }) {
@@ -85,9 +59,10 @@ export async function POST(request: Request, context: { params: Promise<{ id: st
     const userRules = Array.isArray(body.userRules) ? (body.userRules as UserRule[]) : [];
     const result = await runSelection(id, datasetId, { criteria, params, userRules, limit: Number(body.limit), offset: Number(body.offset) });
 
-    // The first page of a run is the design decision; later pages only scroll it.
-    if (!(Number(body.offset) > 0)) {
-      await saveSelectionDesign(id, {
+    // An exploratory run no longer rewrites the S5.4 design (UAT run 2 B16):
+    // only the auditor's explicit "Record as the S5.4 design" does.
+    if (body.recordDesign === true) {
+      await recordSelectionDesign(id, {
         datasetId,
         criteria,
         params,
@@ -95,12 +70,19 @@ export async function POST(request: Request, context: { params: Promise<{ id: st
         selectedLines: result.selectedLines,
         populationLines: result.population.lines,
       });
+      return NextResponse.json({ result, designRecorded: true });
     }
 
     return NextResponse.json({ result });
   } catch (error) {
     if (error instanceof ForbiddenError) {
       return NextResponse.json({ error: error.message }, { status: 403 });
+    }
+    if (error instanceof ArchivedError || (error instanceof Error && /engagement-archived/.test(error.message))) {
+      return NextResponse.json({ error: "archived" }, { status: 423 });
+    }
+    if (error instanceof Error && error.message === "je-design-empty") {
+      return NextResponse.json({ error: "je-design-empty" }, { status: 400 });
     }
     if (error instanceof Error && /UNAUTHENTICATED/.test(error.message)) {
       return NextResponse.json({ error: "unauthenticated" }, { status: 401 });

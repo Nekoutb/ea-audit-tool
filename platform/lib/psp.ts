@@ -370,22 +370,38 @@ export async function savePspResult(
   if (!/^[0-9a-f-]{36}$/.test(stepId)) throw new Error("invalid-step");
   if (!PSP_FIELDS.has(field)) throw new Error("invalid-field");
   const key = `${field}_${stepId}`;
-  await withTenant(tenantId, async (tx) => {
+  const { invalidateStaleSignoffs, reportInvalidatedSignoffs } = await import("@/lib/working-papers");
+  const invalidated = await withTenant(tenantId, async (tx) => {
     if (value.trim() === "") {
       await tx.query(
         "DELETE FROM form_response WHERE engagement_id = $1 AND code = $2 AND field_key = $3",
         [engagementId, `psp:${taskCode}`, key],
       );
-      return;
+    } else {
+      await tx.query(
+        `INSERT INTO form_response (tenant_id, engagement_id, code, field_key, value, updated_by)
+         VALUES ($1, $2, $3, $4, to_jsonb($5::text), $6)
+         ON CONFLICT (engagement_id, code, field_key)
+         DO UPDATE SET value = EXCLUDED.value, updated_by = EXCLUDED.updated_by, updated_at = now()`,
+        [tenantId, engagementId, `psp:${taskCode}`, key, value, userId],
+      );
     }
-    await tx.query(
-      `INSERT INTO form_response (tenant_id, engagement_id, code, field_key, value, updated_by)
-       VALUES ($1, $2, $3, $4, to_jsonb($5::text), $6)
-       ON CONFLICT (engagement_id, code, field_key)
-       DO UPDATE SET value = EXCLUDED.value, updated_by = EXCLUDED.updated_by, updated_at = now()`,
-      [tenantId, engagementId, `psp:${taskCode}`, key, value, userId],
-    );
+    // The results are part of what the P/R signatures attest (UAT run 2 B10):
+    // a finding edited after review voids them instead of inheriting them.
+    return invalidateStaleSignoffs(tx, engagementId, taskCode);
   });
+  await reportInvalidatedSignoffs(tenantId, engagementId, taskCode, invalidated, userId);
+  // The SAD entry of this step feeds the C1.1 register: once posted, an edit
+  // to its adjustment or finding re-posts it so the register follows the
+  // working paper (UAT run 2 B11).
+  if (field !== "r") {
+    const { postSadEntryIfPosted } = await import("@/lib/sad");
+    // The result is saved either way; a failed re-post leaves the entry
+    // flagged out of date on the SAD (and the C4.1 check failing), not lost.
+    await postSadEntryIfPosted(engagementId, stepId).catch((err) =>
+      console.warn("[psp] SAD re-post failed:", err instanceof Error ? err.message : err),
+    );
+  }
 }
 
 export async function pspResults(engagementId: string, taskCode: string): Promise<Record<string, string>> {

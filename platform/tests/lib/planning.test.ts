@@ -311,7 +311,29 @@ describe("planning-close gates (2.9, 2.10, 2.13)", () => {
     // partner approves the plan itself on P7.2 (ISA 300 ¶11, ISA 220 ¶30).
     const before = await planningCloseGates(engagementId);
     expect(before.filter((g) => !g.ok).map((g) => g.key)).toEqual(["p72_partner_signed"]);
-    await signAsPartner("P7.2");
+    // UAT run 2 B07: the approval is the partner's signature on the P7.2
+    // summary (every confirmation answered), not the row's sign-off chip.
+    await expect(signAsPartner("P7.2")).rejects.toThrow("ras-not-approved");
+    const { SECTION_A, SECTION_B } = await import("@/lib/planning-ras");
+    for (const key of [...SECTION_A, ...SECTION_B].map((i) => i.key)) {
+      await admin.query(
+        `INSERT INTO form_response (tenant_id, engagement_id, code, field_key, value)
+         VALUES ($1, $2, 'wp:P7.2', $3, to_jsonb('yes'::text))`,
+        [TENANT, engagementId, key],
+      );
+    }
+    for (const tier of ["fieldwork", "manager", "partner"]) {
+      await admin.query(
+        `INSERT INTO form_response (tenant_id, engagement_id, code, field_key, value)
+         VALUES ($1, $2, 'wp:P7.2', $3, to_jsonb('Planner|2026-01-15 10:00'::text))`,
+        [TENANT, engagementId, `sig_${tier}`],
+      );
+    }
+    const p72 = await admin.query<{ id: string }>(
+      "SELECT d.id FROM document d JOIN file_item fi ON fi.id = d.file_item_id WHERE fi.engagement_id = $1 AND fi.code = 'P7.2'",
+      [engagementId],
+    );
+    await signDocument(p72.rows[0].id, "partner");
 
     const gates = await planningCloseGates(engagementId);
     // Named, so a failure says which gate held rather than "false".

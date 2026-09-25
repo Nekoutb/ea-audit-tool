@@ -19,6 +19,7 @@ export function RelatedPartyRegister({
   locale,
   carriedForwardLabel,
   title,
+  readOnly = false,
 }: {
   engagementId: string;
   rows: RelatedPartyRow[];
@@ -26,6 +27,8 @@ export function RelatedPartyRegister({
   locale: "en" | "fr";
   carriedForwardLabel: string;
   title: string;
+  /** read-only account, the EQR or an archived file: the list without the add form */
+  readOnly?: boolean;
 }) {
   const fr = locale === "fr";
   return (
@@ -49,6 +52,7 @@ export function RelatedPartyRegister({
           ))}
         </ul>
       )}
+      {readOnly ? null : (
       <form action={addRelatedPartyAction.bind(null, engagementId)} className="mt-4 flex flex-wrap items-end gap-3">
         {returnTo ? <input type="hidden" name="returnTo" value={returnTo} /> : null}
         <input name="name" placeholder="Nom / Name" aria-label="Nom / Name" required className={input} data-testid="rp-name" />
@@ -58,6 +62,7 @@ export function RelatedPartyRegister({
           +
         </button>
       </form>
+      )}
     </Panel>
   );
 }
@@ -68,12 +73,14 @@ export function EstimatesRegister({
   returnTo,
   locale,
   title,
+  readOnly = false,
 }: {
   engagementId: string;
   rows: EstimateRow[];
   returnTo?: string;
   locale: "en" | "fr";
   title?: string;
+  readOnly?: boolean;
 }) {
   const fr = locale === "fr";
   return (
@@ -97,6 +104,7 @@ export function EstimatesRegister({
           ))}
         </ul>
       )}
+      {readOnly ? null : (
       <form action={addEstimateAction.bind(null, engagementId)} className="mt-4 flex flex-wrap items-end gap-3">
         {returnTo ? <input type="hidden" name="returnTo" value={returnTo} /> : null}
         <input name="nature" placeholder="Nature" aria-label="Nature" required className={input} />
@@ -106,6 +114,7 @@ export function EstimatesRegister({
           +
         </button>
       </form>
+      )}
     </Panel>
   );
 }

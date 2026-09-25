@@ -190,6 +190,12 @@ export async function assignTeamMember(
        ON CONFLICT (engagement_id, user_id) DO UPDATE SET team_role = EXCLUDED.team_role`,
       [tenantId, engagementId, userId, teamRole],
     );
+    // An appointed quality reviewer makes the EQR a completion gate, so the
+    // file needs its C4.2 paper whatever the complexity tier (UAT run 2 B13).
+    if (teamRole === "eqr_reviewer") {
+      const { ensureTaskTx } = await import("@/lib/ensure-task");
+      await ensureTaskTx(tx, engagementId, "C4.2");
+    }
   });
   await askIndependenceIfCampaignOpen(engagementId, userId);
 }
@@ -211,7 +217,20 @@ export async function removeTeamMember(engagementId: string, userId: string): Pr
       engagementId,
       userId,
     ]);
-    return existing.rows[0] ?? null;
+    // Leaving the team ends the person's work on the file: their tasks go back
+    // to the unassigned pool rather than keeping a hidden grant (UAT run 2 B04):
+    // an assignee or preparer (owner) of a task can see the file without a
+    // team row (lib/engagement-access.ts), so both seats are vacated.
+    const unassigned = await tx.query<{ id: string; code: string }>(
+      `UPDATE file_item
+          SET assignee_user_id = CASE WHEN assignee_user_id = $2 THEN NULL ELSE assignee_user_id END,
+              owner_id = CASE WHEN owner_id = $2 THEN NULL ELSE owner_id END,
+              approver_user_id = CASE WHEN approver_user_id = $2 THEN NULL ELSE approver_user_id END
+        WHERE engagement_id = $1 AND $2 IN (assignee_user_id, owner_id, approver_user_id)
+        RETURNING id, code`,
+      [engagementId, userId],
+    );
+    return existing.rows[0] ? { ...existing.rows[0], unassigned: unassigned.rows } : null;
   });
   // Who left the team, and as what, belongs in the trail (UAT B62).
   if (removed) {
@@ -223,6 +242,16 @@ export async function removeTeamMember(engagementId: string, userId: string): Pr
       summary: `${removed.who} removed from the team (${removed.team_role.replace(/_/g, " ")})`,
       before: { userId, teamRole: removed.team_role },
     });
+    for (const task of removed.unassigned) {
+      await recordActivity({
+        engagementId,
+        entityType: "file_item",
+        entityId: task.id,
+        action: "task_unassigned",
+        summary: `${task.code} unassigned (${removed.who} left the team)`,
+        before: { assigneeUserId: userId },
+      });
+    }
   }
 }
 
@@ -269,7 +298,9 @@ export async function assignTask(
   itemId: string,
   userIdOrNull: string | null,
 ): Promise<void> {
-  const { tenantId, userId: actorId } = await requireWrite();
+  const { tenantId, userId: actorId, role: actorRole } = await requireWrite();
+  // staffing the team's work is not the independent reviewer's call (UAT run 2 B18)
+  if (actorRole === "eqr_reviewer") throw new ForbiddenError("eqr-read-only");
   const task = await withTenant(tenantId, async (tx) => {
     if (userIdOrNull) {
       const member = await tx.query(
@@ -330,7 +361,8 @@ export async function assignTasks(
   role: TaskAssignmentRole = "assignee",
 ): Promise<number> {
   if (itemIds.length === 0) return 0;
-  const { tenantId, userId: actorId } = await requireWrite();
+  const { tenantId, userId: actorId, role: actorRole } = await requireWrite();
+  if (actorRole === "eqr_reviewer") throw new ForbiddenError("eqr-read-only");
   const result = await withTenant(tenantId, async (tx) => {
     if (userIdOrNull) {
       const member = await tx.query(
@@ -559,11 +591,25 @@ export async function addTeamMemberByEmail(
   );
 
   await withTenant(tenantId, async (tx) => {
+    // "Add" never re-roles someone already on the team: that silently turned
+    // the EQR into a preparer and back and re-sent the invitation (UAT run 2
+    // B17). Roles change through assignTeamMember, which applies the EQR and
+    // partner-seat rules. Someone who declined may be invited again, under
+    // those same rules.
+    const current = await tx.query<{ team_role: TeamRole; status: string }>(
+      "SELECT team_role, status FROM team_member WHERE engagement_id = $1 AND user_id = $2",
+      [engagementId, userId],
+    );
+    const row = current.rows[0];
+    if (row) {
+      if (row.status !== "declined") throw new Error("already-on-team");
+      if ((teamRole === "eqr_reviewer") !== (row.team_role === "eqr_reviewer")) throw new Error("eqr-on-team");
+    }
     await tx.query(
       `INSERT INTO team_member (tenant_id, engagement_id, user_id, team_role, status, invited_at)
        VALUES ($1, $2, $3, $4, 'invited', now())
        ON CONFLICT (engagement_id, user_id)
-       DO UPDATE SET team_role = EXCLUDED.team_role`,
+       DO UPDATE SET team_role = EXCLUDED.team_role, status = 'invited', invited_at = now()`,
       [tenantId, engagementId, userId, teamRole],
     );
   });

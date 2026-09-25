@@ -122,7 +122,10 @@ export function PaperWizard({
   embed,
   embedTitle,
   embedOnly,
+  baseVersion,
 }: {
+  /** paperVersion() at load time, posted back so a concurrent save is refused, not overwritten */
+  baseVersion?: string;
   code: string;
   def: PaperDef;
   values: Record<string, string>;
@@ -393,6 +396,7 @@ export function PaperWizard({
 
   return (
     <form action={action} data-testid={`wp-form-${code}`} className="flex h-full min-h-0 flex-col">
+      {baseVersion !== undefined ? <input type="hidden" name="__baseVersion" value={baseVersion} /> : null}
       <UnsavedGuard message={fr ? "Des modifications non enregistrées seront perdues." : "Unsaved changes will be lost."} />
       <div className="flex items-center justify-between gap-2 border-b border-line pb-2">
         <span className="text-[11.5px] font-bold uppercase tracking-[0.07em] text-muted">

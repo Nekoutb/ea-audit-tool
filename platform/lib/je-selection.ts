@@ -1607,3 +1607,61 @@ export async function listHolidays(
       .map(([date, label]) => ({ date, labelEn: label.labelEn, labelFr: label.labelFr, origin: label.origin }));
   });
 }
+
+/**
+ * Record the selection design on S5.4 (UAT B76): the criteria, thresholds and
+ * rules the auditor chose, with who ran them and when, so the paper shows how
+ * the sample was directed before the testing starts.
+ *
+ * UAT run 2 B16: only on the auditor's explicit instruction (recordDesign), by
+ * a team member who can write, on an open file. The design it replaces is
+ * kept as dated history (je_design_history) rather than overwritten, a run
+ * that selected nothing is not recorded, and the S5.4 sign-offs given over the
+ * previous design are voided and reported.
+ */
+export async function recordSelectionDesign(
+  engagementId: string,
+  design: { datasetId: string; criteria: string[]; params: SelectionParams; userRules: UserRule[]; selectedLines: number; populationLines: number },
+): Promise<void> {
+  if (design.populationLines === 0 || design.selectedLines === 0) throw new Error("je-design-empty");
+  await assertMutable(engagementId);
+  const { tenantId, userId } = await requireWrite();
+  const { invalidateStaleSignoffs, reportInvalidatedSignoffs } = await import("@/lib/working-papers");
+  const invalidated = await withTenant(tenantId, async (tx) => {
+    const who = await tx.query<{ name: string }>("SELECT coalesce(name, email) AS name FROM app_user WHERE id = $1", [userId]);
+    const record = { ...design, recordedBy: who.rows[0]?.name ?? userId, recordedAt: new Date().toISOString() };
+    const prior = await tx.query<{ field_key: string; value: string }>(
+      `SELECT field_key, value #>> '{}' AS value FROM form_response
+        WHERE engagement_id = $1 AND code = 'wp:S5.4' AND field_key IN ('je_design', 'je_design_history')
+        FOR UPDATE`,
+      [engagementId],
+    );
+    const current = prior.rows.find((r) => r.field_key === "je_design")?.value;
+    let history: unknown[] = [];
+    try {
+      const parsed = JSON.parse(prior.rows.find((r) => r.field_key === "je_design_history")?.value ?? "[]");
+      if (Array.isArray(parsed)) history = parsed;
+    } catch {
+      history = [];
+    }
+    if (current) {
+      try {
+        history.push(JSON.parse(current));
+      } catch {
+        history.push(current);
+      }
+    }
+    const upsert = (key: string, value: string) =>
+      tx.query(
+        `INSERT INTO form_response (tenant_id, engagement_id, code, field_key, value, updated_by, carried_forward)
+         VALUES ($1, $2, 'wp:S5.4', $3, to_jsonb($4::text), $5, false)
+         ON CONFLICT (engagement_id, code, field_key)
+         DO UPDATE SET value = EXCLUDED.value, updated_by = EXCLUDED.updated_by, carried_forward = false, updated_at = now()`,
+        [tenantId, engagementId, key, value, userId],
+      );
+    if (current) await upsert("je_design_history", JSON.stringify(history));
+    await upsert("je_design", JSON.stringify(record));
+    return invalidateStaleSignoffs(tx, engagementId, "S5.4");
+  });
+  await reportInvalidatedSignoffs(tenantId, engagementId, "S5.4", invalidated, userId);
+}

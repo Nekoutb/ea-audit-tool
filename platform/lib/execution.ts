@@ -13,8 +13,19 @@ import { uncorrectedMisstatementThreshold } from "@/lib/materiality-model";
 import { createNotification } from "@/lib/notifications";
 import { canPartnerSignoff, canReview } from "@/lib/rbac";
 import { requireTenant, requireWrite } from "@/lib/tenant";
-import { invalidateStaleSignoffs, reportInvalidatedSignoffs } from "@/lib/working-papers";
+import { invalidateStaleSignoffs, reportInvalidatedSignoffs, voidStaleSignoffsOfItem } from "@/lib/working-papers";
 import { logMisstatementChange } from "@/lib/activity";
+
+/**
+ * A step's status and conclusion are part of what its task's sign-offs attest
+ * (UAT run 2 B10): after the step changed, void the signatures it moved.
+ */
+async function voidSignoffsOfStep(tenantId: string, stepId: string): Promise<void> {
+  const item = await withTenant(tenantId, async (tx) =>
+    (await tx.query<{ file_item_id: string }>("SELECT file_item_id FROM program_step WHERE id = $1", [stepId])).rows[0]?.file_item_id,
+  );
+  if (item) await voidStaleSignoffsOfItem(item);
+}
 
 export class ExecutionError extends Error {
   constructor(public readonly code: string) {
@@ -65,6 +76,7 @@ export async function completeStep(
     );
     if (updated.rowCount === 0) throw new ExecutionError("not-found");
   });
+  await voidSignoffsOfStep(tenantId, stepId);
 }
 
 /**
@@ -84,6 +96,7 @@ export async function uncompleteStep(stepId: string, engagementId?: string): Pro
     );
     if (updated.rowCount === 0) throw new ExecutionError("not-found");
   });
+  await voidSignoffsOfStep(tenantId, stepId);
 }
 
 export async function markStepNa(stepId: string, rationale: string): Promise<void> {
@@ -96,6 +109,7 @@ export async function markStepNa(stepId: string, rationale: string): Promise<voi
       [stepId, `N/A: ${rationale}`, userId],
     );
   });
+  await voidSignoffsOfStep(tenantId, stepId);
 }
 
 // ---- 4.3 evidence ----

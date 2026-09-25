@@ -599,9 +599,81 @@ export const PARTNER_ONLY_APPROVAL = new Set(["P5.2", "P7.2", "S6.1", "S6.2", "S
  */
 export const PARTNER_GATED = new Set(["P1.1", "P2.2", "P5.2", "S3.1", "P7.2"]);
 
+/**
+ * Papers whose screen is the structured board alone (embedOnly on the section
+ * page): the questionnaire is never shown, so completeness is the board's own
+ * (embeddedWorkGap), not the paper's keys — which nobody can answer (UAT run 2 B08).
+ */
+export const EMBED_ONLY_PAPERS = new Set(["S1.2", "S1.3", "S2.1", "S2.2"]);
+
 /** Tasks whose screen is not the questionnaire, so completeness is judged elsewhere. */
 function completenessExempt(code: string): boolean {
-  return code.startsWith("E4.") || code === "P7.2" || !hasBespokePaper(code);
+  return code.startsWith("E4.") || code === "P7.2" || EMBED_ONLY_PAPERS.has(code) || !hasBespokePaper(code);
+}
+
+/** The S1.3 walkthrough answers every SCOT needs (the form on WalkthroughBoard — keep in sync). */
+export const WALKTHROUGH_KEYS = [
+  "flow_initiation", "flow_recording", "flow_processing", "flow_reporting", "people", "documents", "systems",
+  "wt_item", "wt_trace", "wt_evidence", "wt_exceptions", "wt_design", "wt_implemented", "wt_conclusion",
+] as const;
+
+/**
+ * What the structured board of an embed-only paper still lacks, as the
+ * refusal code to raise — null when the work is complete:
+ *  - S1.3: every SCOT carries every walkthrough answer;
+ *  - S1.2: every SCOT has at least one what-can-go-wrong;
+ *  - S2.1: every control selected for testing answers a WCGW, and every SCOT
+ *    on a controls strategy has a control selected;
+ *  - S2.2: every control selected for testing has its test designed.
+ */
+export async function embeddedWorkGap(tx: PoolClient, engagementId: string, code: string): Promise<string | null> {
+  const n = async (sql: string, params: unknown[]): Promise<number> =>
+    Number((await tx.query<{ n: string }>(sql, params)).rows[0]?.n ?? 0);
+  if (code === "S1.3") {
+    const open = await n(
+      `SELECT count(*)::text AS n
+         FROM scot s CROSS JOIN unnest($2::text[]) AS k(key)
+        WHERE s.engagement_id = $1
+          AND NOT EXISTS (SELECT 1 FROM form_response fr
+                           WHERE fr.engagement_id = s.engagement_id AND fr.code = 'wt:' || s.id
+                             AND fr.field_key = k.key AND btrim(coalesce(fr.value #>> '{}', '')) <> '')`,
+      [engagementId, [...WALKTHROUGH_KEYS]],
+    );
+    return open > 0 ? "walkthrough-incomplete" : null;
+  }
+  if (code === "S1.2") {
+    const bare = await n(
+      `SELECT count(*)::text AS n FROM scot s
+        WHERE s.engagement_id = $1 AND NOT EXISTS (SELECT 1 FROM wcgw w WHERE w.scot_id = s.id)`,
+      [engagementId],
+    );
+    return bare > 0 ? "wcgw-missing" : null;
+  }
+  if (code === "S2.1") {
+    const unlinked = await n(
+      `SELECT count(*)::text AS n FROM scot_control c JOIN scot s ON s.id = c.scot_id
+        WHERE s.engagement_id = $1 AND c.selected_for_testing
+          AND NOT EXISTS (SELECT 1 FROM wcgw_control wc WHERE wc.control_id = c.id)`,
+      [engagementId],
+    );
+    const unselected = await n(
+      `SELECT count(*)::text AS n FROM scot s
+        WHERE s.engagement_id = $1 AND s.strategy = 'controls'
+          AND NOT EXISTS (SELECT 1 FROM scot_control c WHERE c.scot_id = s.id AND c.selected_for_testing)`,
+      [engagementId],
+    );
+    return unlinked + unselected > 0 ? "control-selection-incomplete" : null;
+  }
+  if (code === "S2.2") {
+    const undesigned = await n(
+      `SELECT count(*)::text AS n FROM scot_control c JOIN scot s ON s.id = c.scot_id
+        WHERE s.engagement_id = $1 AND c.selected_for_testing
+          AND btrim(coalesce(c.test_design, '')) = ''`,
+      [engagementId],
+    );
+    return undesigned > 0 ? "test-design-missing" : null;
+  }
+  return null;
 }
 
 /** Returns the sign-off tier actually recorded (a partner's R on a gated paper is "partner"). */
@@ -648,7 +720,7 @@ export async function signDocument(documentId: string, requested: SignoffRole): 
     if (row.status === "signed") throw new DocumentRuleError("signed-locked");
     // Gates, not guidance (UAT B15): nothing of a later phase is signed while
     // an earlier phase's gates are still open.
-    const stillOpen = phaseStillOpen(phaseOfTask(row.section, row.code), row.phase);
+    const stillOpen = phaseStillOpen(phaseOfTask(row.section, row.code), row.phase, row.code);
     if (stillOpen) throw new DocumentRuleError(stillOpen);
     if (role === "reviewer" && PARTNER_GATED.has(row.code) && canPartnerSignoff(userRole)) role = "partner";
     // Partner-only approvals: these tasks carry the judgments only the audit
@@ -697,6 +769,17 @@ export async function signDocument(documentId: string, requested: SignoffRole): 
       );
       const values = Object.fromEntries(answers.rows.map((r) => [r.field_key, r.value ?? ""]));
       if (paperMissing(paperFor(row.code), values).length > 0) throw new DocumentRuleError("paper-incomplete");
+    }
+    if (row.kind === "workpaper" && EMBED_ONLY_PAPERS.has(row.code)) {
+      const gap = await embeddedWorkGap(tx, row.engagement_id, row.code);
+      if (gap) throw new DocumentRuleError(gap);
+    }
+    // The approval of the plan is the partner's signature on the P7.2 summary,
+    // which requires every confirmation and deliverable; the row's R/P chip
+    // cannot stand in for it with the summary unapproved (UAT run 2 B07).
+    if (row.code === "P7.2" && role !== "preparer") {
+      const { rasPartnerApprovedTx } = await import("@/lib/planning-ras");
+      if (!(await rasPartnerApprovedTx(tx, row.engagement_id))) throw new DocumentRuleError("ras-not-approved");
     }
 
     if (role !== "preparer") {

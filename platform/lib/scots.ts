@@ -497,6 +497,29 @@ const engagementOfWcgw = async (tx: Q, wcgwId: string) =>
 const engagementOfControl = async (tx: Q, controlId: string) =>
   (await tx.query<{ engagement_id: string }>("SELECT s.engagement_id FROM scot_control c JOIN scot s ON s.id = c.scot_id WHERE c.id = $1", [controlId])).rows[0]?.engagement_id ?? null;
 
+const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+/**
+ * True when every SCOT, WCGW and control id a Studio request names belongs to
+ * `engagementId`. The proxy checks the caller's membership of the engagement
+ * in the URL only, and the mutators look rows up by id — so without this a
+ * member of one file could edit another file's SCOTs (UAT run 2 B02).
+ */
+export async function scotIdsBelongTo(
+  engagementId: string,
+  ids: { scotIds?: string[]; wcgwIds?: string[]; controlIds?: string[] },
+): Promise<boolean> {
+  const all = [...(ids.scotIds ?? []), ...(ids.wcgwIds ?? []), ...(ids.controlIds ?? [])];
+  if (all.some((id) => !UUID_RE.test(id))) return false;
+  const { tenantId } = await requireTenant();
+  return withTenant(tenantId, async (tx) => {
+    for (const id of ids.scotIds ?? []) if ((await engagementOfScot(tx, id)) !== engagementId) return false;
+    for (const id of ids.wcgwIds ?? []) if ((await engagementOfWcgw(tx, id)) !== engagementId) return false;
+    for (const id of ids.controlIds ?? []) if ((await engagementOfControl(tx, id)) !== engagementId) return false;
+    return true;
+  });
+}
+
 export async function createScot(
   engagementId: string,
   input: { name: string; transactionType: string; strategy: string; applications?: string; description?: string },
@@ -742,7 +765,11 @@ export async function updateControl(
       );
       const row = state.rows[0];
       const tested = tocRowsTested(row?.toc_grid ?? null);
-      if (tested < tocRowsPlanned(row?.sample_size)) throw new Error("toc-incomplete");
+      const planned = tocRowsPlanned(row?.sample_size);
+      // No sample planned or nothing tested is no evidence at all: "effective"
+      // cannot rest on zero testing (UAT run 2 B15, ISA 330).
+      if (planned === 0 || tested === 0) throw new Error("toc-no-sample");
+      if (tested < planned) throw new Error("toc-incomplete");
     }
 
     // A control concluded NOT EFFECTIVE cannot be relied upon: the S3.1

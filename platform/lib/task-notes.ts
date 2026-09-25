@@ -5,7 +5,7 @@
 import { recordActivity } from "@/lib/activity";
 import { withTenant } from "@/lib/db";
 import { isPreparerOfNote } from "@/lib/documents";
-import { atLeast } from "@/lib/rbac";
+import { atLeast, type Role } from "@/lib/rbac";
 import { ForbiddenError, requireTenant, requireWrite } from "@/lib/tenant";
 import { createNotification } from "@/lib/notifications";
 
@@ -120,10 +120,11 @@ export async function addTaskNote(
  * appended to the exchange and the author is told, so the reviewer — not the
  * person whose work the note queries — decides whether the point is resolved.
  */
-export async function respondToTaskNote(noteId: string, text: string): Promise<void> {
-  const { tenantId, userId } = await requireWrite();
+export async function respondToTaskNote(engagementId: string, noteId: string, text: string): Promise<void> {
+  const { tenantId, userId, role } = await requireWrite();
   const reply = text.trim();
   if (!reply) throw new Error("response-required");
+  await assertNoteReachable(engagementId, tenantId, userId, role);
   const note = await withTenant(tenantId, async (tx) => {
     const r = await tx.query<{ author_id: string; engagement_id: string | null; file_item_id: string | null; document_id: string | null; code: string | null; who: string }>(
       `SELECT rn.author_id, coalesce(rn.engagement_id, d.engagement_id) AS engagement_id,
@@ -132,8 +133,9 @@ export async function respondToTaskNote(noteId: string, text: string): Promise<v
          FROM review_note rn
          LEFT JOIN document d ON d.id = rn.document_id
          LEFT JOIN file_item fi ON fi.id = coalesce(rn.file_item_id, d.file_item_id)
-        WHERE rn.id = $1 AND rn.status = 'open'`,
-      [noteId, userId],
+        WHERE rn.id = $1 AND rn.status = 'open'
+          AND coalesce(rn.engagement_id, d.engagement_id) = $3`,
+      [noteId, userId, engagementId],
     );
     const row = r.rows[0];
     if (!row) throw new Error("not-found");
@@ -172,9 +174,22 @@ export async function respondToTaskNote(noteId: string, text: string): Promise<v
   }
 }
 
+/**
+ * A note is answered or cleared through its own engagement only, by someone
+ * who can see that engagement: the note id alone once crossed files (UAT run 2
+ * B03). The lookups below also require the note to belong to `engagementId`.
+ */
+async function assertNoteReachable(engagementId: string, tenantId: string, userId: string, role: Role): Promise<void> {
+  const { visibleToUser } = await import("@/lib/engagement-access");
+  if (!(await visibleToUser(engagementId, tenantId, userId, role))) {
+    throw new ForbiddenError("not-on-this-engagement");
+  }
+}
+
 /** Answer and clear a note. */
-export async function clearTaskNote(noteId: string, response: string): Promise<void> {
+export async function clearTaskNote(engagementId: string, noteId: string, response: string): Promise<void> {
   const { tenantId, userId, role } = await requireWrite();
+  await assertNoteReachable(engagementId, tenantId, userId, role);
   const cleared = await withTenant(tenantId, async (tx) => {
     // Clearing a note is not bookkeeping: an open note blocks both the reviewer
     // and partner signature (signDocument) and the archive gate
@@ -188,11 +203,12 @@ export async function clearTaskNote(noteId: string, response: string): Promise<v
          FROM review_note rn
          LEFT JOIN document d ON d.id = rn.document_id
          LEFT JOIN file_item fi ON fi.id = coalesce(rn.file_item_id, d.file_item_id)
-        WHERE rn.id = $1`,
-      [noteId],
+        WHERE rn.id = $1 AND coalesce(rn.engagement_id, d.engagement_id) = $2`,
+      [noteId, engagementId],
     );
     const row = note.rows[0];
-    const author = row?.author_id;
+    if (!row) throw new Error("not-found");
+    const author = row.author_id;
     if (author !== userId) {
       if (!atLeast(role, "manager")) throw new ForbiddenError("requires-manager-or-author");
       if (await isPreparerOfNote(tx, noteId, userId)) throw new ForbiddenError("not-preparer-clears");

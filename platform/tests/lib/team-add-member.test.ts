@@ -95,6 +95,11 @@ describe("adding a team member", () => {
   it("does not rename a colleague who already has an account", async () => {
     // The name on an existing account is theirs; the team screen has no
     // business rewriting it because someone typed something else here.
+    // (Taken off the team first: "add" now refuses someone already on it.)
+    await admin.query(
+      "DELETE FROM team_member WHERE engagement_id = $1 AND user_id = (SELECT id FROM app_user WHERE lower(email) = 'jp@team-add.local')",
+      [engagementId],
+    );
     await addTeamMemberByEmail(
       engagementId,
       "jp@team-add.local",

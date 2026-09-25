@@ -300,6 +300,7 @@ export async function assignTemplate(fileItemId: string, key: string): Promise<{
     if (built) {
       const name = findTemplate(key)!.name;
       await attachBytes(engagementId, fileItemId, name, built.content);
+      await voidSignoffsAfterAssign(fileItemId);
       return { name };
     }
   }
@@ -307,5 +308,12 @@ export async function assignTemplate(fileItemId: string, key: string): Promise<{
   const bytes = await templateContent(key);
   if (!bytes) throw new TemplateError("template-unavailable");
   await attachBytes(engagementId, fileItemId, bytes.name, bytes.content);
+  await voidSignoffsAfterAssign(fileItemId);
   return { name: bytes.name };
+}
+
+/** An assigned template is evidence on the task: signatures over the old set are voided (UAT run 2 B10). */
+async function voidSignoffsAfterAssign(fileItemId: string): Promise<void> {
+  const { voidStaleSignoffsOfItem } = await import("@/lib/working-papers");
+  await voidStaleSignoffsOfItem(fileItemId);
 }

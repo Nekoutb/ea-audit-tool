@@ -140,12 +140,14 @@ export async function planningRas(engagementId: string): Promise<PlanningRasView
     for (const code of wanted) {
       if (!tasks[code]) tasks[code] = { code, title: code, itemId: null, status: "absent" };
     }
+    // A task absent from the file (an untriggered conditional such as P4.2, or
+    // one the complexity tier leaves out) does not apply to this engagement:
+    // it cannot be "not ready", only untouched work on a task the file holds
+    // can (UAT run 2 B14). A line whose every task is absent rests on its
+    // confirmation alone.
     const unreadyA = SECTION_A.filter((item) => {
       if (answers[item.key] === "na") return false;
-      return (item.codes ?? []).some((c) => {
-        const state = tasks[c]?.status;
-        return state === "not_started" || state === "absent";
-      });
+      return (item.codes ?? []).some((c) => tasks[c]?.status === "not_started");
     }).length;
     const outstanding = ALL_ITEMS.filter((item) => !answers[item.key]).length;
 
@@ -249,6 +251,34 @@ export function rasGaps(view: PlanningRasView, role: SignatureRole): string[] {
     if (!view.signatures.manager) gaps.push("sig_manager");
   }
   return gaps;
+}
+
+/**
+ * The partner's approval of the plan as P7.2 records it, read inside the
+ * caller's transaction: the partner signature on the summary, with every
+ * Section A and B confirmation still answered and every "no" explained. The
+ * deliverables and lower tiers were enforced when the partner signed. This,
+ * not a sign-off chip on the P7.2 row, is the approval the planning gate
+ * rests on (UAT run 2 B07).
+ */
+export async function rasPartnerApprovedTx(tx: PoolClient, engagementId: string): Promise<boolean> {
+  const saved = await tx.query<{ field_key: string; value: string }>(
+    "SELECT field_key, value #>> '{}' AS value FROM form_response WHERE engagement_id = $1 AND code = $2",
+    [engagementId, CODE],
+  );
+  const answers: Record<string, string> = {};
+  const signatures: Partial<Record<SignatureRole, RasSignature>> = {};
+  for (const row of saved.rows) {
+    if (row.field_key.startsWith("sig_")) {
+      const role = row.field_key.slice(4) as SignatureRole;
+      signatures[role] = { role, name: row.value.split("|")[0], signedAt: row.value.split("|")[1] ?? "" };
+    } else {
+      answers[row.field_key] = row.value;
+    }
+  }
+  if (!signatures.partner) return false;
+  const view: PlanningRasView = { answers, signatures, tasks: {}, unreadyA: 0, outstanding: 0 };
+  return rasGaps(view, "partner").length === 0;
 }
 
 /**

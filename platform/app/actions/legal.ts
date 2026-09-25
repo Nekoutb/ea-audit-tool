@@ -135,9 +135,12 @@ export async function irregularitiesAction(engagementId: string, formData: FormD
   });
 }
 
-export async function titresAttestationAction(engagementId: string): Promise<void> {
+export async function titresAttestationAction(engagementId: string, formData: FormData): Promise<void> {
   await guarded(pagePath(engagementId), async () => {
-    const documentId = await generateTitresAttestation(engagementId);
+    const documentId = await generateTitresAttestation(engagementId, {
+      inspectionDate: String(formData.get("inspectionDate") ?? ""),
+      securitiesCount: Number(formData.get("securitiesCount") ?? ""),
+    });
     return `/documents/${documentId}`;
   });
 }

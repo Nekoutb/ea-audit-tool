@@ -115,6 +115,8 @@ export interface SadEntry {
   rationale: string;
   /** already posted onto the misstatement schedule */
   posted: boolean;
+  /** posted, but the register row no longer matches the working paper (UAT run 2 B11) */
+  stale?: boolean;
 }
 
 export interface SadView {

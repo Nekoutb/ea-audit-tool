@@ -392,6 +392,7 @@ textarea.border-line {
   .wp-step,
   .wp-step[hidden] {
     display: flex !important;
+    flex-direction: column !important;
     position: static !important;
     inset: auto !important;
     height: auto !important;
@@ -426,5 +427,33 @@ textarea.border-line {
   }
   .wp-fold-fade {
     display: none !important;
+  }
+  /* the screen shell caps panels at a share of the viewport; paper has no viewport */
+  main,
+  [class*="max-h-"] {
+    height: auto !important;
+    max-height: none !important;
+  }
+  /* a truncated title prints cut ("C5.2 — Calendri…"): wrap it instead (UAT run 2 B23) */
+  .truncate {
+    white-space: normal !important;
+    overflow: visible !important;
+    text-overflow: clip !important;
+  }
+}
+
+/*
+ * UAT run 2 B23: the wizard hides inactive steps with the hidden attribute,
+ * and Tailwind's preflight rule `[hidden] { display: none !important }` sits
+ * in @layer base. An !important declaration in a cascade layer beats an
+ * unlayered !important one, so the unlayered override above never applied
+ * and only the current step printed. The override must live in the same
+ * layer with a higher specificity.
+ */
+@layer base {
+  @media print {
+    .wp-steps > .wp-step[hidden] {
+      display: flex !important;
+    }
   }
 }

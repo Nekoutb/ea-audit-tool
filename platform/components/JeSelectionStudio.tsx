@@ -137,6 +137,8 @@ export function JeSelectionStudio({
   const [error, setError] = useState<string | null>(null);
   const [result, setResult] = useState<SelectionResult | null>(null);
   const [exporting, setExporting] = useState(false);
+  const [recording, setRecording] = useState(false);
+  const [notice, setNotice] = useState<string | null>(null);
 
   const ruleSeq = useRef(0);
 
@@ -197,6 +199,15 @@ export function JeSelectionStudio({
         );
       case "network":
         return T("The selection could not be sent.", "La sélection n'a pas pu être envoyée.");
+      case "je-design-empty":
+        return T(
+          "A run that selected no line is not recorded as the S5.4 design.",
+          "Une exécution qui ne retient aucune ligne n'est pas enregistrée comme conception S5.4.",
+        );
+      case "archived":
+        return T("This file is archived and can no longer be changed.", "Ce dossier est archivé : il ne peut plus être modifié.");
+      case "read-only-role":
+        return T("Your role can read this file but not record in it.", "Votre rôle permet de consulter ce dossier, pas d'y enregistrer.");
       default:
         return T("The selection could not be run.", "La sélection n'a pas pu être exécutée.");
     }
@@ -260,6 +271,42 @@ export function JeSelectionStudio({
       return;
     }
     setResult(body.result);
+  };
+
+  // Record the run on screen as the S5.4 selection design (UAT run 2 B16): an
+  // explicit act, never a side effect of exploring. The design it replaces
+  // stays on file and signatures over it are voided.
+  const recordDesign = async () => {
+    setRecording(true);
+    setError(null);
+    setNotice(null);
+    let response: Response | null = null;
+    try {
+      response = await fetch(`/api/engagements/${engagementId}/je-selection`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ ...runBody(), limit, offset: 0, recordDesign: true }),
+      });
+    } catch {
+      response = null;
+    }
+    setRecording(false);
+    if (!response) {
+      setError(messageFor("network"));
+      return;
+    }
+    const body = (await response.json().catch(() => ({}))) as { result?: SelectionResult; error?: string; designRecorded?: boolean };
+    if (!response.ok || !body.designRecorded) {
+      setError(messageFor(String(body.error ?? "selection-failed")));
+      return;
+    }
+    if (body.result) setResult(body.result);
+    setNotice(
+      T(
+        "Recorded on S5.4 as the selection design. Any earlier design stays on file; signatures given over it are voided.",
+        "Enregistrée sur S5.4 comme conception de la sélection. Toute conception antérieure reste au dossier ; les signatures données sur elle sont annulées.",
+      ),
+    );
   };
 
   // The selection as an Excel working paper: the same criteria, thresholds and
@@ -593,6 +640,19 @@ export function JeSelectionStudio({
           >
             {exporting ? T("Building the workbook…", "Construction du classeur…") : T("Export the selection to Excel", "Exporter la sélection vers Excel")}
           </button>
+          <button
+            type="button"
+            onClick={() => void recordDesign()}
+            disabled={recording || pending || !runnable || result === null || result.selectedLines === 0}
+            className={`${btnGhost} disabled:opacity-50`}
+            title={T(
+              "Record these criteria, thresholds and rules on S5.4 as the pre-set selection design (ISA 240 ¶32–33)",
+              "Enregistrer ces critères, seuils et règles sur S5.4 comme conception préétablie de la sélection (ISA 240 ¶32–33)",
+            )}
+            data-testid="je-record-design"
+          >
+            {recording ? T("Recording…", "Enregistrement…") : T("Record as the S5.4 design", "Enregistrer comme conception S5.4")}
+          </button>
           <span className="text-[11.5px] text-muted" data-testid="je-run-summary">
             {T(
               `${chosen.length} criteria and ${rules.length} rule(s) of your own, over ${dataset?.rowCount ?? 0} imported source rows.`,
@@ -615,6 +675,9 @@ export function JeSelectionStudio({
               "Rien n'est retenu pour l'instant. Une sélection exige au moins un critère, ou une règle qui vous est propre.",
             )}
           </p>
+        ) : null}
+        {notice ? (
+          <p className="mt-2 text-[12px] font-semibold text-emerald-700" role="status" data-testid="je-design-recorded">{notice}</p>
         ) : null}
         {error ? (
           <p className="mt-2 text-[12px] font-semibold text-rose" role="alert" data-testid="je-error">{error}</p>

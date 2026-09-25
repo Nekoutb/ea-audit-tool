@@ -85,9 +85,17 @@ export function TocBoard({
     if (!r.ok) {
       const code = await r.json().then((d: { error?: string }) => d.error).catch(() => undefined);
       setError(
-        fr
-          ? `Échec de l'enregistrement${code ? ` (${code})` : ""}.`
-          : `Save failed${code ? ` (${code})` : ""}.`,
+        code === "toc-no-sample"
+          ? fr
+            ? "« Efficace » est une conclusion sur des éléments probants : planifier l'échantillon et tester au moins un élément d'abord."
+            : "\"Effective\" is a conclusion on evidence: plan the sample and test at least one item first."
+          : code === "toc-incomplete"
+            ? fr
+              ? "L'échantillon prévu n'est pas entièrement testé : compléter la grille avant de conclure « efficace »."
+              : "The planned sample is not fully tested: complete the grid before concluding \"effective\"."
+            : fr
+              ? `Échec de l'enregistrement${code ? ` (${code})` : ""}.`
+              : `Save failed${code ? ` (${code})` : ""}.`,
       );
       return false;
     }
@@ -165,7 +173,8 @@ export function TocBoard({
                     // "effective" needs the planned sample fully tested on the grid (UAT B84)
                     const tested = tocRowsTested(c.tocGrid);
                     const planned = tocRowsPlanned(c.sampleSize);
-                    const gridIncomplete = tested < planned;
+                    // …and a planned sample with at least one item tested (UAT run 2 B15)
+                    const gridIncomplete = planned === 0 || tested === 0 || tested < planned;
                     return (
                       <tr key={c.id} className="border-b border-line align-top" data-testid={`toc-control-${c.id}`}>
                         <td className={td}>
@@ -193,9 +202,13 @@ export function TocBoard({
                           </select>
                           {gridIncomplete ? (
                             <span className="mt-0.5 block text-[10px] leading-snug text-muted" data-testid={`toc-incomplete-${c.id}`}>
-                              {fr
-                                ? `${tested}/${planned} éléments testés — compléter la grille avant de conclure « efficace ».`
-                                : `${tested}/${planned} items tested — complete the grid before concluding "effective".`}
+                              {planned === 0 || tested === 0
+                                ? fr
+                                  ? "Planifier l'échantillon et tester au moins un élément avant de conclure « efficace »."
+                                  : "Plan the sample and test at least one item before concluding \"effective\"."
+                                : fr
+                                  ? `${tested}/${planned} éléments testés — compléter la grille avant de conclure « efficace ».`
+                                  : `${tested}/${planned} items tested — complete the grid before concluding "effective".`}
                             </span>
                           ) : null}
                           {evaluation === "not_effective" ? (

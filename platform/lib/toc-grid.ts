@@ -14,8 +14,9 @@ export interface TocGridLike {
  */
 /**
  * Rows the "effective" conclusion needs on the grid: the planned sample size.
- * Zero when no sample was planned (null or 0) — there is then no plan for the
- * grid to fall short of, so the rule does not block.
+ * Zero when no sample was planned (null or 0) — and "effective" is then
+ * refused outright ("toc-no-sample"): nothing planned is nothing tested
+ * (UAT run 2 B15).
  */
 export function tocRowsPlanned(sampleSize: number | null | undefined): number {
   return typeof sampleSize === "number" && Number.isFinite(sampleSize) && sampleSize > 0 ? Math.round(sampleSize) : 0;

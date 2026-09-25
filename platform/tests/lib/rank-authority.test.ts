@@ -99,6 +99,17 @@ describe("recordCompletion — writing the key IS passing the gate", () => {
 });
 
 describe("clearTaskNote — the reviewer decides a point is resolved", () => {
+  // a note is cleared through an engagement the caller can see (UAT run 2 B03)
+  beforeAll(async () => {
+    await admin.query(
+      "INSERT INTO team_member (tenant_id, engagement_id, user_id, team_role, status) VALUES ($1, $2, $3, 'staff', 'accepted')",
+      [TENANT, engagementId, STAFFER],
+    );
+  });
+  afterAll(async () => {
+    await admin.query("DELETE FROM team_member WHERE engagement_id = $1 AND user_id = $2", [engagementId, STAFFER]);
+  });
+
   async function openNote(authorId: string): Promise<string> {
     const r = await admin.query<{ id: string }>(
       `INSERT INTO review_note (tenant_id, engagement_id, file_item_id, author_id, body, status)
@@ -111,13 +122,13 @@ describe("clearTaskNote — the reviewer decides a point is resolved", () => {
   it("refuses a staff member clearing someone else's note", async () => {
     const noteId = await openNote(PARTNER);
     as(STAFFER, "staff");
-    await expect(clearTaskNote(noteId, "Done.")).rejects.toThrow("requires-manager-or-author");
+    await expect(clearTaskNote(engagementId, noteId, "Done.")).rejects.toThrow("requires-manager-or-author");
   });
 
   it("lets the author withdraw their own note whatever their rank", async () => {
     const noteId = await openNote(STAFFER);
     as(STAFFER, "staff");
-    await expect(clearTaskNote(noteId, "Withdrawn.")).resolves.toBeUndefined();
+    await expect(clearTaskNote(engagementId, noteId, "Withdrawn.")).resolves.toBeUndefined();
     const row = await admin.query<{ status: string }>("SELECT status FROM review_note WHERE id = $1", [noteId]);
     expect(row.rows[0].status).toBe("cleared");
   });
@@ -125,13 +136,13 @@ describe("clearTaskNote — the reviewer decides a point is resolved", () => {
   it("refuses a senior clearing a note they did not raise (UAT B19: manager or above)", async () => {
     const noteId = await openNote(PARTNER);
     as(STAFFER, "senior");
-    await expect(clearTaskNote(noteId, "Resolved.")).rejects.toThrow("requires-manager-or-author");
+    await expect(clearTaskNote(engagementId, noteId, "Resolved.")).rejects.toThrow("requires-manager-or-author");
   });
 
   it("lets a manager who did not prepare the paper clear a note they did not raise", async () => {
     const noteId = await openNote(PARTNER);
     as(STAFFER, "manager");
-    await expect(clearTaskNote(noteId, "Resolved.")).resolves.toBeUndefined();
+    await expect(clearTaskNote(engagementId, noteId, "Resolved.")).resolves.toBeUndefined();
     const row = await admin.query<{ status: string }>("SELECT status FROM review_note WHERE id = $1", [noteId]);
     expect(row.rows[0].status).toBe("cleared");
   });

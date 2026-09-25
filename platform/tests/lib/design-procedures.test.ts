@@ -29,6 +29,8 @@ vi.mock("@/lib/db", () => ({
 
 vi.mock("@/lib/tenant", () => ({
   requireTenant: async () => ({ tenantId: TENANT, userId: USER, role: "firm_admin", locale: "en" }),
+  requireWrite: async () => ({ tenantId: TENANT, userId: USER, role: "firm_admin", locale: "en" }),
+  ForbiddenError: class ForbiddenError extends Error {},
 }));
 
 // The CRA board is S3.1's answer, not this module's: it is stubbed to two
