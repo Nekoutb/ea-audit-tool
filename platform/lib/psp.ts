@@ -7,7 +7,7 @@
 // form_response code 'psp:<task code>'.
 
 import { withTenant } from "@/lib/db";
-import { requireTenant } from "@/lib/tenant";
+import { requireTenant, requireWrite } from "@/lib/tenant";
 import { INDEX_SECTION } from "@/lib/lead-classes";
 
 interface PspDef {
@@ -240,7 +240,7 @@ export async function generatePsp(
   taskCode: string,
   presentIndexes: string[],
 ): Promise<number> {
-  const { tenantId } = await requireTenant();
+  const { tenantId } = await requireWrite();
   const indexes = indexesForTask(taskCode).filter((i) => presentIndexes.includes(i));
   if (indexes.length === 0) return 0;
   return withTenant(tenantId, async (tx) => {
@@ -332,7 +332,7 @@ export async function addOtherPsp(
   description: string,
   assertions: string[],
 ): Promise<void> {
-  const { tenantId } = await requireTenant();
+  const { tenantId } = await requireWrite();
   if (!description.trim()) throw new Error("description-required");
   await withTenant(tenantId, async (tx) => {
     const next = await tx.query<{ v: number; n: number }>(
@@ -366,7 +366,7 @@ export async function savePspResult(
   value: string,
   field = "r",
 ): Promise<void> {
-  const { tenantId, userId } = await requireTenant();
+  const { tenantId, userId } = await requireWrite();
   if (!/^[0-9a-f-]{36}$/.test(stepId)) throw new Error("invalid-step");
   if (!PSP_FIELDS.has(field)) throw new Error("invalid-field");
   const key = `${field}_${stepId}`;

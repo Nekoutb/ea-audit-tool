@@ -6,7 +6,7 @@ import type { PoolClient } from "pg";
 import { recordActivity } from "@/lib/activity";
 import { withTenant } from "@/lib/db";
 import { canPartnerSignoff } from "@/lib/rbac";
-import { requireTenant } from "@/lib/tenant";
+import { requireTenant, requireWrite } from "@/lib/tenant";
 
 export type RiskRating = "low" | "medium" | "high";
 export type RiskStatus = "identified" | "response_planned" | "response_executed" | "concluded";
@@ -151,7 +151,7 @@ export async function raisePotentialRisk(
   description: string,
   sourceCode: string,
 ): Promise<void> {
-  const { tenantId, userId } = await requireTenant();
+  const { tenantId, userId } = await requireWrite();
   if (!description.trim()) throw new Error("description-required");
   await withTenant(tenantId, async (tx) => {
     await tx.query(
@@ -271,7 +271,7 @@ export async function dismissPotentialRisk(id: string, rationale: string): Promi
 }
 
 export async function promotePotentialRisk(id: string): Promise<string> {
-  const { tenantId, userId } = await requireTenant();
+  const { tenantId, userId } = await requireWrite();
   return withTenant(tenantId, async (tx) => {
     // Guarded single-statement transition: a concurrent promote of the same
     // potential risk finds status already 'promoted' and fails cleanly.
@@ -377,7 +377,7 @@ export async function updateRisk(
     fsNote?: string;
   },
 ): Promise<void> {
-  const { tenantId } = await requireTenant();
+  const { tenantId } = await requireWrite();
   await withTenant(tenantId, async (tx) => {
     const current = await tx.query<{ presumed_type: string | null }>(
       "SELECT presumed_type FROM risk WHERE id = $1 FOR UPDATE",
@@ -430,7 +430,7 @@ export async function linkRiskToIndex(
   indexCode: string,
   assertions: string[],
 ): Promise<void> {
-  const { tenantId } = await requireTenant();
+  const { tenantId } = await requireWrite();
   if (!/^[A-Z0-9]{1,4}$/.test(indexCode)) throw new Error("invalid-index");
   const clean = assertions.filter((a) => ["C", "E", "A", "V", "P"].includes(a));
   await withTenant(tenantId, async (tx) => {
@@ -444,7 +444,7 @@ export async function linkRiskToIndex(
 }
 
 export async function unlinkRiskFromIndex(riskId: string, indexCode: string): Promise<void> {
-  const { tenantId } = await requireTenant();
+  const { tenantId } = await requireWrite();
   await withTenant(tenantId, async (tx) => {
     await tx.query("DELETE FROM risk_lead_index WHERE risk_id = $1 AND index_code = $2", [riskId, indexCode]);
   });
@@ -473,7 +473,7 @@ export async function riskDerivedAssertions(
 }
 /** Rebut the presumed revenue-fraud risk — requires justification + partner. */
 export async function rebutRevenueFraudRisk(riskId: string, justification: string): Promise<void> {
-  const { tenantId, userId, role } = await requireTenant();
+  const { tenantId, userId, role } = await requireWrite();
   if (!canPartnerSignoff(role)) throw new Error("forbidden");
   if (!justification.trim()) throw new Error("justification-required");
   await withTenant(tenantId, async (tx) => {
@@ -506,7 +506,7 @@ export async function mapRiskToSection(
   fileItemId: string,
   assertions: Assertion[],
 ): Promise<void> {
-  const { tenantId } = await requireTenant();
+  const { tenantId } = await requireWrite();
   await withTenant(tenantId, async (tx) => {
     await tx.query(
       `INSERT INTO risk_section (tenant_id, risk_id, file_item_id, assertions)
@@ -519,7 +519,7 @@ export async function mapRiskToSection(
 
 /** Link a planned response: risk ↔ program step (both directions queryable). */
 export async function linkRiskToStep(riskId: string, programStepId: string): Promise<void> {
-  const { tenantId } = await requireTenant();
+  const { tenantId } = await requireWrite();
   await withTenant(tenantId, async (tx) => {
     await tx.query(
       `INSERT INTO risk_response (tenant_id, risk_id, program_step_id)

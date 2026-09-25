@@ -10,7 +10,7 @@ import { DEFAULT_ENGAGEMENT_NAMING } from "@/lib/complexity";
 import { withTenant } from "@/lib/db";
 import type { Branding } from "@/lib/letterhead";
 import { canManageFirm } from "@/lib/rbac";
-import { requirePortalUser, requireTenant } from "@/lib/tenant";
+import { requirePortalUser, requireTenant, requireWrite } from "@/lib/tenant";
 
 // The Branding shape and the .docx letterhead builders are pure and live in
 // lib/letterhead.ts, so document generators (lib/docx.ts) can render a
@@ -99,7 +99,7 @@ export async function updateBranding(patch: {
   footer?: string;
   engagementNaming?: string;
 }): Promise<void> {
-  const { tenantId, role } = await requireTenant();
+  const { tenantId, role } = await requireWrite();
   if (!canManageFirm(role)) throw new BrandingError("forbidden");
 
   if (patch.accent !== undefined && patch.accent !== "") {

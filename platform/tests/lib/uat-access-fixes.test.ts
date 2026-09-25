@@ -27,6 +27,7 @@ import { generateDocument, getDocument, signDocument } from "@/lib/documents";
 import { canSeeEngagement } from "@/lib/engagement-access";
 import { createEngagement, listFileItems } from "@/lib/engagements";
 import { assignTeamMember, listTeam, removeTeamMember } from "@/lib/team";
+import { savePaper } from "@/lib/working-papers";
 
 const admin = new pg.Pool({ connectionString: process.env.DATABASE_URL });
 const as = (id: string, role: string, tenantId = FIRM_A) => {
@@ -150,5 +151,12 @@ describe("B24 — whoever opens the file is on its team", () => {
     const created = await createEngagement({ clientId, fiscalYear: 2026, periodEnd: "2026-12-31" });
     const team = await listTeam(created);
     expect(team.some((m) => m.userId === MANAGER && m.teamRole === "manager")).toBe(true);
+  });
+});
+
+describe("UAT re-run — a read-only user cannot save a working paper", () => {
+  it("refuses the save in the library, not only at the edge", async () => {
+    as(OUTSIDER, "read_only");
+    await expect(savePaper(engagementId, "P1.1", { key_findings: "read-only write attempt" })).rejects.toThrow("read-only-role");
   });
 });

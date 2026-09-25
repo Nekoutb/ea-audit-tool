@@ -3,7 +3,7 @@
 
 import { recordActivity } from "@/lib/activity";
 import { withTenant } from "@/lib/db";
-import { requireTenant } from "@/lib/tenant";
+import { requireTenant, requireWrite } from "@/lib/tenant";
 
 export class TimeError extends Error {
   constructor(public readonly code: string) {
@@ -27,7 +27,7 @@ export async function logTime(input: {
   hours: number;
   note?: string | null;
 }): Promise<void> {
-  const { tenantId, userId } = await requireTenant();
+  const { tenantId, userId } = await requireWrite();
   if (!input.engagementId) throw new TimeError("invalid");
   if (!/^\d{4}-\d{2}-\d{2}$/.test(input.date)) throw new TimeError("invalid-date");
   if (!(input.hours > 0) || input.hours > 24) throw new TimeError("invalid-hours");
@@ -47,7 +47,7 @@ export async function logTime(input: {
 }
 
 export async function deleteTimeEntry(id: string): Promise<void> {
-  const { tenantId, userId } = await requireTenant();
+  const { tenantId, userId } = await requireWrite();
   await withTenant(tenantId, async (tx) => {
     // A person can only remove their own entries.
     await tx.query("DELETE FROM time_entry WHERE id = $1 AND user_id = $2", [id, userId]);

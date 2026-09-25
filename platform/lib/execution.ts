@@ -87,7 +87,7 @@ export async function uncompleteStep(stepId: string, engagementId?: string): Pro
 }
 
 export async function markStepNa(stepId: string, rationale: string): Promise<void> {
-  const { tenantId, userId } = await requireTenant();
+  const { tenantId, userId } = await requireWrite();
   if (!rationale.trim()) throw new ExecutionError("rationale-required");
   await withTenant(tenantId, async (tx) => {
     await tx.query(
@@ -112,7 +112,7 @@ export async function addEvidenceFile(
   mime: string,
   content: Buffer,
 ): Promise<void> {
-  const { tenantId, userId } = await requireTenant();
+  const { tenantId, userId } = await requireWrite();
   await withTenant(tenantId, async (tx) => {
     const step = await tx.query<{ engagement_id: string }>(
       "SELECT engagement_id FROM program_step WHERE id = $1",
@@ -133,7 +133,7 @@ export async function linkEvidence(
   targetId: string,
   title: string,
 ): Promise<void> {
-  const { tenantId, userId } = await requireTenant();
+  const { tenantId, userId } = await requireWrite();
   await withTenant(tenantId, async (tx) => {
     const step = await tx.query<{ engagement_id: string }>(
       "SELECT engagement_id FROM program_step WHERE id = $1",
@@ -201,7 +201,7 @@ export interface RouteResult {
 }
 
 export async function routeFinding(input: RouteFindingInput): Promise<RouteResult> {
-  const { tenantId, userId } = await requireTenant();
+  const { tenantId, userId } = await requireWrite();
   if (!input.title.trim()) throw new ExecutionError("title-required");
 
   return withTenant(tenantId, async (tx) => {
@@ -280,7 +280,7 @@ export async function routeFinding(input: RouteFindingInput): Promise<RouteResul
 
 /** Partner re-approval of a mid-audit risk addition (spec §8.4). */
 export async function approveRiskAddition(riskId: string): Promise<void> {
-  const { tenantId, userId, role } = await requireTenant();
+  const { tenantId, userId, role } = await requireWrite();
   if (!canPartnerSignoff(role)) throw new ExecutionError("forbidden");
   await withTenant(tenantId, async (tx) => {
     const updated = await tx.query(
@@ -410,7 +410,7 @@ export async function recordControlTest(input: {
   /** links the test to a SCOT Studio control — its operating conclusion derives from these rows */
   scotControlId?: string;
 }): Promise<void> {
-  const { tenantId, userId } = await requireTenant();
+  const { tenantId, userId } = await requireWrite();
   if (!input.description.trim()) throw new ExecutionError("description-required");
   if (input.result === "deviation" && !input.deviationDecision) {
     throw new ExecutionError("deviation-decision-required");
@@ -536,7 +536,7 @@ export async function listFindings(engagementId: string): Promise<FindingInfo[]>
 }
 
 export async function clearFinding(id: string, response: string): Promise<void> {
-  const { tenantId, userId } = await requireTenant();
+  const { tenantId, userId } = await requireWrite();
   if (!response.trim()) throw new ExecutionError("response-required");
   await withTenant(tenantId, async (tx) => {
     await tx.query(
@@ -640,7 +640,7 @@ export async function saveSectionConclusion(
   objectivesAchieved: boolean,
   noProceduresRationale?: string,
 ): Promise<void> {
-  const { tenantId, userId } = await requireTenant();
+  const { tenantId, userId } = await requireWrite();
   if (!conclusion.trim()) throw new ExecutionError("conclusion-required");
   const rationale = noProceduresRationale?.trim() || null;
   const written = await withTenant(tenantId, async (tx) => {
@@ -679,7 +679,7 @@ export async function saveSectionConclusion(
 }
 
 export async function reviewSectionConclusion(fileItemId: string, asPartner: boolean): Promise<void> {
-  const { tenantId, userId, role } = await requireTenant();
+  const { tenantId, userId, role } = await requireWrite();
   if (asPartner && !canPartnerSignoff(role)) throw new ExecutionError("forbidden");
   if (!asPartner && !canReview(role)) throw new ExecutionError("forbidden");
   await withTenant(tenantId, async (tx) => {

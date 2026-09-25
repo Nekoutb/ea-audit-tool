@@ -10,7 +10,7 @@ import type { PoolClient } from "pg";
 import { withTenant } from "@/lib/db";
 import { createNotification } from "@/lib/notifications";
 import { canReview } from "@/lib/rbac";
-import { requireTenant, requirePortalUser, ForbiddenError } from "@/lib/tenant";
+import { requireTenant, requirePortalUser, ForbiddenError, requireWrite } from "@/lib/tenant";
 import { checkUpload } from "@/lib/upload-safety";
 
 export class PbcError extends Error {
@@ -43,7 +43,7 @@ const MAX_PBC_BYTES = 25 * 1024 * 1024;
 
 /** Firm side: raise a PBC request and notify the client's portal users. */
 export async function addPbcItem(engagementId: string, title: string, note: string): Promise<string> {
-  const { tenantId } = await requireTenant();
+  const { tenantId } = await requireWrite();
   if (!title.trim()) throw new PbcError("fields-required");
   const { itemId, portalUsers } = await withTenant(tenantId, async (tx) => {
     const created = await tx.query<{ id: string }>(
@@ -123,7 +123,7 @@ async function queryItems(tx: PoolClient, where: string, params: unknown[]): Pro
  * item records when and how often it was chased.
  */
 export async function chasePbc(itemId: string): Promise<void> {
-  const { tenantId } = await requireTenant();
+  const { tenantId } = await requireWrite();
   const { title, note, portalUsers } = await withTenant(tenantId, async (tx) => {
     const updated = await tx.query<{ title: string; note: string; engagement_id: string }>(
       `UPDATE pbc_item SET chased_at = now(), chase_count = coalesce(chase_count, 0) + 1
@@ -241,7 +241,7 @@ async function filePbcAsDocument(
  * file — no link, no download, no task carrying it.
  */
 export async function acceptPbc(itemId: string, attachFileItemId?: string): Promise<string | null> {
-  const { tenantId, userId, role } = await requireTenant();
+  const { tenantId, userId, role } = await requireWrite();
   if (!canReview(role)) throw new PbcError("forbidden");
   if (!attachFileItemId) throw new PbcError("attach-required");
   return withTenant(tenantId, async (tx) => {
@@ -270,7 +270,7 @@ export async function acceptPbc(itemId: string, attachFileItemId?: string): Prom
  * became mandatory — its bytes are still on the row, so it can be filed now.
  */
 export async function attachAcceptedPbc(itemId: string, attachFileItemId: string): Promise<string> {
-  const { tenantId, userId, role } = await requireTenant();
+  const { tenantId, userId, role } = await requireWrite();
   if (!canReview(role)) throw new PbcError("forbidden");
   if (!attachFileItemId) throw new PbcError("attach-required");
   return withTenant(tenantId, async (tx) => {
@@ -298,7 +298,7 @@ export async function addPortalContact(
   clientId: string,
   input: { email: string; name: string; password: string },
 ): Promise<string> {
-  const { tenantId, role } = await requireTenant();
+  const { tenantId, role } = await requireWrite();
   if (!canReview(role)) throw new PbcError("forbidden");
   const email = input.email.toLowerCase().trim();
   if (!email || !input.name.trim()) throw new PbcError("fields-required");

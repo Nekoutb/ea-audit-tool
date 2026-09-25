@@ -6,7 +6,7 @@
 // scopes its testing and S2.5 evaluates against the same record.
 
 import { withTenant } from "@/lib/db";
-import { requireTenant } from "@/lib/tenant";
+import { requireTenant, requireWrite } from "@/lib/tenant";
 import { listScots } from "@/lib/scots";
 import { IT_STRATEGIES, newAppKey as slug, type ItAppRow, type ItAppsView, type ItStrategy } from "@/lib/itgc-model";
 
@@ -94,7 +94,7 @@ export async function saveItApp(
 ): Promise<void> {
   if (!/^[a-z0-9-]{1,40}$/.test(key)) throw new Error("invalid-key");
   if (patch.strategy && !(IT_STRATEGIES as readonly string[]).includes(patch.strategy)) throw new Error("invalid-strategy");
-  const { tenantId, userId } = await requireTenant();
+  const { tenantId, userId } = await requireWrite();
   await withTenant(tenantId, async (tx) => {
     const existing = await tx.query<{ value: unknown }>(
       "SELECT value FROM form_response WHERE engagement_id = $1 AND code = $2 AND field_key = $3",

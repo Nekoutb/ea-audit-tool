@@ -106,7 +106,7 @@ async function insertVersion(
  * creates the document row and renders version 1 from merge fields.
  */
 export async function generateDocument(fileItemId: string, locale: Locale): Promise<string> {
-  const { tenantId, userId } = await requireTenant();
+  const { tenantId, userId } = await requireWrite();
   const owner = await withTenant(tenantId, (tx) =>
     tx.query<{ engagement_id: string }>("SELECT engagement_id FROM file_item WHERE id = $1", [fileItemId]),
   );
@@ -422,7 +422,7 @@ export async function getVersionContent(
 
 /** Check out for editing: single editor at a time; signed documents must be reopened first. */
 export async function checkoutDocument(documentId: string): Promise<void> {
-  const { tenantId, userId } = await requireTenant();
+  const { tenantId, userId } = await requireWrite();
   await guardDocument(documentId);
   await withTenant(tenantId, async (tx) => {
     const result = await tx.query<{ status: string; checked_out_by: string | null; archived_at: string | null }>(
@@ -446,7 +446,7 @@ export async function checkoutDocument(documentId: string): Promise<void> {
 }
 
 export async function cancelCheckout(documentId: string): Promise<void> {
-  const { tenantId, userId } = await requireTenant();
+  const { tenantId, userId } = await requireWrite();
   await guardDocument(documentId);
   await withTenant(tenantId, async (tx) => {
     await tx.query(
@@ -458,7 +458,7 @@ export async function cancelCheckout(documentId: string): Promise<void> {
 
 /** Check in an edited file as the next version and release the lock. */
 export async function checkinDocument(documentId: string, content: Buffer): Promise<number> {
-  const { tenantId, userId } = await requireTenant();
+  const { tenantId, userId } = await requireWrite();
   await guardDocument(documentId);
   return withTenant(tenantId, async (tx) => {
     const result = await tx.query<{ status: string; checked_out_by: string | null; archived_at: string | null }>(
@@ -915,7 +915,7 @@ export async function listReviewNotes(documentId: string): Promise<ReviewNoteInf
 }
 
 export async function addReviewNote(documentId: string, body: string): Promise<void> {
-  const { tenantId, userId } = await requireTenant();
+  const { tenantId, userId } = await requireWrite();
   await guardDocument(documentId);
   if (!body.trim()) throw new DocumentRuleError("body-required");
   const target = await withTenant(tenantId, async (tx) => {

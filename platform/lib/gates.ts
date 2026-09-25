@@ -19,7 +19,7 @@ import type { PoolClient } from "pg";
 import { recordActivity } from "@/lib/activity";
 import { withTenant } from "@/lib/db";
 import { FORM_DEFINITIONS, isFormComplete, p11FailedChecks, type FormValues } from "@/lib/forms";
-import { requireTenant } from "@/lib/tenant";
+import { requireTenant, requireWrite } from "@/lib/tenant";
 
 export interface GateResult {
   key: string;
@@ -297,7 +297,7 @@ async function lockEngagementPhase(
 
 /** acceptance → planning: gate-check + transition atomically. */
 export async function advanceToPlanning(engagementId: string): Promise<void> {
-  const { tenantId } = await requireTenant();
+  const { tenantId } = await requireWrite();
   await withTenant(tenantId, async (tx) => {
     await lockEngagementPhase(tx, engagementId, "acceptance");
     const gates = await acceptanceGatesTx(tx, engagementId);
@@ -319,7 +319,7 @@ export async function advanceToPlanning(engagementId: string): Promise<void> {
 
 /** planning → execution: gates + snapshot + transition in one transaction (spec §5.4). */
 export async function closePlanning(engagementId: string): Promise<void> {
-  const { tenantId, userId } = await requireTenant();
+  const { tenantId, userId } = await requireWrite();
   await withTenant(tenantId, async (tx) => {
     await lockEngagementPhase(tx, engagementId, "planning");
     const gates = await planningCloseGatesTx(tx, engagementId);
@@ -356,7 +356,7 @@ export async function closePlanning(engagementId: string): Promise<void> {
 
 /** Toggle the (Phase 2 manual) material flag on an E-section. */
 export async function setSectionMaterial(fileItemId: string, material: boolean): Promise<void> {
-  const { tenantId } = await requireTenant();
+  const { tenantId } = await requireWrite();
   await withTenant(tenantId, async (tx) => {
     await tx.query("UPDATE file_item SET material = $2 WHERE id = $1 AND section = 'E'", [
       fileItemId,

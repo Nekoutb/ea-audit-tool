@@ -12,7 +12,7 @@ import type { GateResult } from "@/lib/gates";
 import { uncorrectedMisstatementThreshold } from "@/lib/materiality-model";
 import { canPartnerSignoff } from "@/lib/rbac";
 import { assertMutable } from "@/lib/mutability";
-import { requireRole, requireTenant } from "@/lib/tenant";
+import { requireRole, requireTenant, requireWrite } from "@/lib/tenant";
 import { logArchive, logEngagementFinalised, recordActivity } from "@/lib/activity";
 import { enqueueBackup } from "@/lib/backup-jobs";
 import { stampRetention } from "@/lib/retention";
@@ -303,7 +303,7 @@ export async function issueReport(
   opinion: "unmodified" | "qualified" | "adverse" | "disclaimer",
   reportDate: string,
 ): Promise<void> {
-  const { tenantId, role } = await requireTenant();
+  const { tenantId, role } = await requireWrite();
   if (!canPartnerSignoff(role)) throw new CompletionError("forbidden");
   await withTenant(tenantId, async (tx) => {
     const engagement = await tx.query<{ phase: string; report_date: string | null }>(
@@ -521,7 +521,7 @@ export async function archiveGates(engagementId: string): Promise<ArchiveGate[]>
  * Post-archive modifications are impossible (guards in the document layer).
  */
 export async function archiveEngagement(engagementId: string): Promise<void> {
-  const { tenantId, userId, role } = await requireTenant();
+  const { tenantId, userId, role } = await requireWrite();
   if (!canPartnerSignoff(role)) throw new CompletionError("forbidden");
   const gates = await archiveGates(engagementId);
   const failedGates = gates.filter((gate) => !gate.ok).map((gate) => gate.key);
@@ -715,7 +715,7 @@ export async function ensureNotArchived(tx: PoolClient, engagementId: string): P
  * understanding/related parties + C6.1 points forward injected.
  */
 export async function rollforward(engagementId: string, newYear: number): Promise<string> {
-  const { tenantId, userId } = await requireTenant();
+  const { tenantId, userId } = await requireWrite();
   const { createEngagement } = await import("@/lib/engagements");
 
   const source = await withTenant(tenantId, async (tx) => {

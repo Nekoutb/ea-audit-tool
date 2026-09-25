@@ -12,7 +12,7 @@ import { withTenant } from "@/lib/db";
 import { resolveSection } from "@/lib/leadsheets";
 import { LEAD_INDEXES, SUB_INDEX_BY_CODE, leadIndexFor, subIndexFor } from "@/lib/lead-classes";
 import { parseTabularFile, type ParsedTable } from "@/lib/subledgers";
-import { requireTenant } from "@/lib/tenant";
+import { requireTenant, requireWrite } from "@/lib/tenant";
 import { amountOr, parseAmount as parseAmountOrNull } from "@/lib/amount";
 
 export type TbColumn =
@@ -331,7 +331,7 @@ export async function importTrialBalance(
   timing: TbTiming = "pre_audit",
   headerRow = true,
 ): Promise<TbImportResult> {
-  const { tenantId, userId } = await requireTenant();
+  const { tenantId, userId } = await requireWrite();
   const table = await parseTabularFile(filename, buffer, headerRow);
   const mapping = mappingOverride ?? inferTbMapping(table.headers);
   validateMapping(mapping);
@@ -684,7 +684,7 @@ export async function createJournal(
   description: string,
   lines: JournalLineInput[],
 ): Promise<string> {
-  const { tenantId, userId } = await requireTenant();
+  const { tenantId, userId } = await requireWrite();
   if (!description.trim()) throw new TbError("description-required");
   if (lines.length < 2) throw new TbError("journal-lines-required");
   const totalDebit = lines.reduce((sum, line) => sum + line.debit, 0);
@@ -762,7 +762,7 @@ export async function postJournal(
   journalId: string,
   kind: "adjusted" | "final",
 ): Promise<number> {
-  const { tenantId, userId } = await requireTenant();
+  const { tenantId, userId } = await requireWrite();
   return withTenant(tenantId, async (tx) => {
     const journal = await tx.query<{ id: string; trial_balance_id: string; status: string }>(
       "SELECT id, trial_balance_id, status FROM adjusting_journal WHERE id = $1 FOR UPDATE",
@@ -1128,7 +1128,7 @@ export async function saveLeadIndexOverride(
   accountPrefix: string,
   indexCode: string,
 ): Promise<void> {
-  const { tenantId, userId } = await requireTenant();
+  const { tenantId, userId } = await requireWrite();
   if (!/^[0-9]{1,8}$/.test(accountPrefix)) throw new TbError("invalid-prefix");
   await withTenant(tenantId, async (tx) => {
     await tx.query(
@@ -1144,7 +1144,7 @@ export async function addOverride(
   clientId: string,
   input: { matchType: "exact" | "prefix"; accountPrefix: string; sectionCode: string; rationale: string },
 ): Promise<void> {
-  const { tenantId, userId } = await requireTenant();
+  const { tenantId, userId } = await requireWrite();
   if (!/^[0-9]{1,8}$/.test(input.accountPrefix)) throw new TbError("invalid-prefix");
   if (!/^E[0-9]+.[0-9]+$/.test(input.sectionCode)) throw new TbError("invalid-section");
   if (!input.rationale.trim()) throw new TbError("rationale-required");
@@ -1161,7 +1161,7 @@ export async function addOverride(
 }
 
 export async function deactivateOverride(id: string): Promise<void> {
-  const { tenantId } = await requireTenant();
+  const { tenantId } = await requireWrite();
   await withTenant(tenantId, async (tx) => {
     await tx.query("UPDATE client_grouping_override SET active = false WHERE id = $1", [id]);
   });

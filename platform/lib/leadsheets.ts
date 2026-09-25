@@ -13,7 +13,7 @@ import { withTenant } from "@/lib/db";
 import type { Locale } from "@/lib/i18n";
 import { leadRef } from "@/lib/lead-taxonomy";
 import { createNotification } from "@/lib/notifications";
-import { requireTenant } from "@/lib/tenant";
+import { requireTenant, requireWrite } from "@/lib/tenant";
 
 const XLSX_MIME = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet";
 
@@ -225,7 +225,7 @@ export async function generateLeadSchedule(
   fileItemId: string,
   locale: Locale,
 ): Promise<LeadScheduleResult> {
-  const { tenantId, userId } = await requireTenant();
+  const { tenantId, userId } = await requireWrite();
   const fr = locale === "fr";
 
   return withTenant(tenantId, async (tx) => {
@@ -394,7 +394,7 @@ export async function generateLeadSchedule(
 
 /** Step 3.8: assign the section to a team member and deliver the lead schedule. */
 export async function assignSection(fileItemId: string, userId: string): Promise<void> {
-  const { tenantId } = await requireTenant();
+  const { tenantId } = await requireWrite();
   const target = await withTenant(tenantId, async (tx) => {
     const updated = await tx.query<{ code: string; engagement_id: string }>(
       "UPDATE file_item SET owner_id = $2 WHERE id = $1 AND section = 'E' RETURNING code, engagement_id",

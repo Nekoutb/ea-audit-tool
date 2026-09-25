@@ -1,6 +1,6 @@
 import { withTenant } from "@/lib/db";
 import { canManageFirm } from "@/lib/rbac";
-import { ForbiddenError, requireTenant } from "@/lib/tenant";
+import { ForbiddenError, requireTenant, requireWrite } from "@/lib/tenant";
 
 export type LegalForm = "SA" | "SARL" | "SAS" | "GIE" | "OTHER";
 
@@ -115,7 +115,7 @@ export async function listClients(options: { includeArchived?: boolean; q?: stri
 
 /** Retire a client from the register, or reinstate it. Firm admin only. */
 export async function setClientArchived(id: string, archived: boolean): Promise<void> {
-  const { tenantId, role } = await requireTenant();
+  const { tenantId, role } = await requireWrite();
   if (!canManageFirm(role)) throw new ForbiddenError("forbidden");
   await withTenant(tenantId, async (tx) => {
     const updated = await tx.query(
@@ -168,7 +168,7 @@ export async function createClient(input: {
   coCac: boolean;
   sector?: Sector | null;
 }): Promise<string> {
-  const { tenantId } = await requireTenant();
+  const { tenantId } = await requireWrite();
   return withTenant(tenantId, async (tx) => {
     const result = await tx.query<{ id: string }>(
       `INSERT INTO client (tenant_id, name, legal_form, listed, co_cac, sector)

@@ -8,7 +8,7 @@ import { type Branding, letterheadFooter, letterheadParagraphs, loadBranding } f
 import { withTenant } from "@/lib/db";
 import { DOCX_MIME } from "@/lib/documents";
 import type { Locale } from "@/lib/i18n";
-import { requireTenant } from "@/lib/tenant";
+import { requireTenant, requireWrite } from "@/lib/tenant";
 import { createHash } from "node:crypto";
 
 export type LetterKind =
@@ -338,7 +338,7 @@ export async function generateLetter(
   kind: LetterKind,
   locale: Locale,
 ): Promise<string> {
-  const { tenantId, userId } = await requireTenant();
+  const { tenantId, userId } = await requireWrite();
   return withTenant(tenantId, async (tx) => {
     const info = await tx.query<{
       client_name: string;

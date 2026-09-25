@@ -9,7 +9,7 @@ import {
 } from "@/lib/procedure-library";
 import { PROGRAM_LIBRARY, SIGNIFICANT_RISK_EXTENSIONS } from "@/lib/program-library";
 import type { Assertion } from "@/lib/risks";
-import { requireTenant } from "@/lib/tenant";
+import { requireTenant, requireWrite } from "@/lib/tenant";
 
 export interface ProgramStep {
   id: string;
@@ -58,7 +58,7 @@ export async function listProgramSteps(fileItemId: string): Promise<ProgramStep[
  * appended and auto-linked to that risk. Idempotent (no-op if steps exist).
  */
 export async function generateProgram(fileItemId: string, locale: "en" | "fr"): Promise<number> {
-  const { tenantId, userId } = await requireTenant();
+  const { tenantId, userId } = await requireWrite();
   void userId;
   return withTenant(tenantId, async (tx) => {
     const item = await tx.query<{ engagement_id: string; code: string }>(
@@ -155,7 +155,7 @@ export async function addCustomStep(
   description: string,
   assertions: Assertion[],
 ): Promise<void> {
-  const { tenantId } = await requireTenant();
+  const { tenantId } = await requireWrite();
   if (!description.trim()) throw new Error("description-required");
   await withTenant(tenantId, async (tx) => {
     const item = await tx.query<{ engagement_id: string }>(

@@ -4,7 +4,7 @@
 // default; overriding that either way needs a written justification.
 
 import { withTenant } from "@/lib/db";
-import { requireTenant } from "@/lib/tenant";
+import { requireTenant, requireWrite } from "@/lib/tenant";
 import { LEAD_INDEXES, leadIndexFor } from "@/lib/lead-classes";
 import { approvedMateriality } from "@/lib/materiality";
 import { riskDerivedAssertions } from "@/lib/risks";
@@ -251,7 +251,7 @@ export async function saveSignificance(
   assertions?: string[],
   specificTe?: string,
 ): Promise<void> {
-  const { tenantId, userId } = await requireTenant();
+  const { tenantId, userId } = await requireWrite();
   if (!/^[A-Z0-9]{1,4}$/.test(index)) throw new Error("invalid-index");
   const assertionValue =
     assertions === undefined

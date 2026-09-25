@@ -10,7 +10,7 @@
 import type { PoolClient } from "pg";
 import { recordActivity } from "@/lib/activity";
 import { withTenant } from "@/lib/db";
-import { requireTenant } from "@/lib/tenant";
+import { requireTenant, requireWrite } from "@/lib/tenant";
 import { significantAccounts } from "@/lib/significant-accounts";
 import { listScots } from "@/lib/scots";
 import { loadPaper } from "@/lib/working-papers";
@@ -306,7 +306,7 @@ export async function craRollupByIndex(engagementId: string): Promise<Record<str
 export async function saveIndexThreshold(engagementId: string, indexCode: string, threshold: number | null): Promise<void> {
   if (!/^[A-Z][A-Z0-9]{0,2}$/.test(indexCode)) throw new Error("invalid-index");
   if (threshold !== null && !(Number.isFinite(threshold) && threshold > 0)) throw new Error("invalid-threshold");
-  const { tenantId, userId } = await requireTenant();
+  const { tenantId, userId } = await requireWrite();
   await withTenant(tenantId, async (tx) => {
     await tx.query(
       `INSERT INTO cra_index_setting (tenant_id, engagement_id, index_code, key_item_threshold, updated_by)
@@ -326,7 +326,7 @@ export async function saveCraCell(
 ): Promise<void> {
   if (!(ASSERTIONS as readonly string[]).includes(assertion)) throw new Error("invalid-assertion");
   if (!/^[A-Z][A-Z0-9]{0,2}$/.test(indexCode)) throw new Error("invalid-index");
-  const { tenantId, userId } = await requireTenant();
+  const { tenantId, userId } = await requireWrite();
   // Relying on controls with none selected for this assertion, or with ITGCs
   // concluded not to support reliance (S2.5), is not a control-risk assessment
   // ISA 330 ¶8 allows — unless the preparer states the basis in writing.

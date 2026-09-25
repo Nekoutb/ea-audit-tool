@@ -10,7 +10,7 @@
 
 import type { PoolClient } from "pg";
 import { withTenant } from "@/lib/db";
-import { requireTenant } from "@/lib/tenant";
+import { requireTenant, requireWrite } from "@/lib/tenant";
 import {
   SAD_CAPTIONS,
   SAD_CAPTION_LABELS,
@@ -281,7 +281,7 @@ export async function saveSadMeta(engagementId: string, key: string, value: stri
  */
 export async function postSadEntry(engagementId: string, stepId: string): Promise<void> {
   if (!/^[0-9a-f-]{36}$/.test(stepId)) throw new Error("invalid-step");
-  const { tenantId, userId } = await requireTenant();
+  const { tenantId, userId } = await requireWrite();
   const view = await sadView(engagementId);
   const entry = view.entries.find((e) => e.stepId === stepId);
   if (!entry) throw new Error("not-found");

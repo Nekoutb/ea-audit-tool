@@ -269,7 +269,7 @@ export async function assignTask(
   itemId: string,
   userIdOrNull: string | null,
 ): Promise<void> {
-  const { tenantId, userId: actorId } = await requireTenant();
+  const { tenantId, userId: actorId } = await requireWrite();
   const task = await withTenant(tenantId, async (tx) => {
     if (userIdOrNull) {
       const member = await tx.query(
@@ -330,7 +330,7 @@ export async function assignTasks(
   role: TaskAssignmentRole = "assignee",
 ): Promise<number> {
   if (itemIds.length === 0) return 0;
-  const { tenantId, userId: actorId } = await requireTenant();
+  const { tenantId, userId: actorId } = await requireWrite();
   const result = await withTenant(tenantId, async (tx) => {
     if (userIdOrNull) {
       const member = await tx.query(
@@ -418,7 +418,7 @@ export async function setBudgetLine(
   grade: string,
   hours: number,
 ): Promise<void> {
-  const { tenantId } = await requireTenant();
+  const { tenantId } = await requireWrite();
   if (!grade.trim() || !(hours >= 0)) throw new Error("invalid-budget");
   // Actual hours are attributed to the logger's team role, so a budget line
   // must carry one of those keys or the two never meet on the same row.

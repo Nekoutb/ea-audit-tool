@@ -6,7 +6,7 @@
 import { withTenant } from "@/lib/db";
 import { createNotification } from "@/lib/notifications";
 import { canPartnerSignoff } from "@/lib/rbac";
-import { requireTenant } from "@/lib/tenant";
+import { requireTenant, requireWrite } from "@/lib/tenant";
 import { recordActivity, logMaterialityChange } from "@/lib/activity";
 
 import { PERFORMANCE_PCT_RANGE, TRIVIAL_PCT_RANGE } from "@/lib/materiality-model";
@@ -210,7 +210,7 @@ export async function createMaterialityVersion(
   engagementId: string,
   input: MaterialityInput,
 ): Promise<number> {
-  const { tenantId, userId } = await requireTenant();
+  const { tenantId, userId } = await requireWrite();
   if (!input.justification.trim()) throw new Error("justification-required");
   // Validate ranges HERE so bad input becomes a friendly banner, never a DB
   // CHECK-constraint 500. [Adversarial-review fix]
@@ -310,7 +310,7 @@ export async function createMaterialityVersion(
  * be simultaneously approved. [Adversarial-review fix]
  */
 export async function approveMateriality(engagementId: string, versionNo: number): Promise<void> {
-  const { tenantId, userId, role } = await requireTenant();
+  const { tenantId, userId, role } = await requireWrite();
   // Named refusal (UAT B129): the banner says who may approve, not "no rights".
   if (!canPartnerSignoff(role)) throw new Error("requires-partner");
   await withTenant(tenantId, async (tx) => {

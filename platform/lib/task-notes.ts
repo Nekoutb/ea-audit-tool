@@ -66,7 +66,7 @@ export async function addTaskNote(
   fileItemId: string,
   body: string,
 ): Promise<void> {
-  const { tenantId, userId } = await requireTenant();
+  const { tenantId, userId } = await requireWrite();
   const text = body.trim();
   if (!text) throw new Error("note-required");
   const target = await withTenant(tenantId, async (tx) => {

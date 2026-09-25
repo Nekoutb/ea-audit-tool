@@ -4,7 +4,7 @@
 
 import { withTenant } from "@/lib/db";
 import type { Locale } from "@/lib/i18n";
-import { requireTenant } from "@/lib/tenant";
+import { requireTenant, requireWrite } from "@/lib/tenant";
 
 export type FieldType = "boolean" | "text" | "select" | "number" | "date";
 
@@ -190,7 +190,7 @@ export async function saveForm(
   /** The revision loadForm returned. Omit to save unconditionally. */
   baseRevision?: string,
 ): Promise<void> {
-  const { tenantId, userId } = await requireTenant();
+  const { tenantId, userId } = await requireWrite();
   const definition = FORM_DEFINITIONS[code];
   if (!definition) throw new Error(`unknown form: ${code}`);
 
@@ -352,7 +352,7 @@ export function fieldLabel(field: FormField, locale: Locale): string {
  * client's most recent other engagement, flagged carried_forward until edited.
  */
 export async function carryForwardFromPriorYear(engagementId: string): Promise<number> {
-  const { tenantId, userId } = await requireTenant();
+  const { tenantId, userId } = await requireWrite();
   return withTenant(tenantId, async (tx) => {
     const prior = await tx.query<{ id: string }>(
       `SELECT p.id

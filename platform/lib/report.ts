@@ -10,7 +10,7 @@ import { Document, HeadingLevel, Packer, Paragraph, TextRun } from "docx";
 import { letterheadFooter, letterheadParagraphs, loadBranding } from "@/lib/branding";
 import { withTenant } from "@/lib/db";
 import { DOCX_MIME } from "@/lib/documents";
-import { requireTenant } from "@/lib/tenant";
+import { requireWrite } from "@/lib/tenant";
 
 export type OpinionType = "unmodified" | "qualified" | "adverse" | "disclaimer";
 
@@ -86,7 +86,7 @@ export async function generateAuditReport(input: {
   kamNoneReason?: string;
   reportDate: string;
 }): Promise<string> {
-  const { tenantId, userId } = await requireTenant();
+  const { tenantId, userId } = await requireWrite();
   return withTenant(tenantId, async (tx) => {
     const info = await tx.query<{
       client_name: string;

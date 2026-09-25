@@ -10,7 +10,7 @@ import { recordActivity } from "@/lib/activity";
 import { withTenant } from "@/lib/db";
 import { createNotification } from "@/lib/notifications";
 import { MGMT_OVERRIDE_PROCEDURE } from "@/lib/risks";
-import { requireTenant } from "@/lib/tenant";
+import { requireTenant, requireWrite } from "@/lib/tenant";
 import { ACCEPTANCE_PAPERS } from "@/lib/papers/acceptance";
 import { STRATEGY_PAPERS } from "@/lib/papers/strategy";
 import { EXECUTION_PAPERS } from "@/lib/papers/execution";
@@ -428,7 +428,7 @@ export async function savePaper(
 ): Promise<void> {
   const { assertMutable } = await import("@/lib/mutability");
   await assertMutable(engagementId);
-  const { tenantId, userId } = await requireTenant();
+  const { tenantId, userId } = await requireWrite();
   const allowed = paperKeys(paperFor(code));
   // E6.10 (UAT B114): "column N agrees" cannot be answered Yes while the
   // tie-out of the trial balance shows differences nobody has explained.

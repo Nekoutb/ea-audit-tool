@@ -6,7 +6,7 @@
 
 import { CR_DEFICIENT_BASIS as CR_DEFICIENT_BASIS_TEXT } from "@/lib/cra-model";
 import { withTenant } from "@/lib/db";
-import { requireRole, requireTenant } from "@/lib/tenant";
+import { requireRole, requireTenant, requireWrite } from "@/lib/tenant";
 import { createNotification } from "@/lib/notifications";
 import { significantAccounts } from "@/lib/significant-accounts";
 import { amountOr } from "@/lib/amount";
@@ -266,7 +266,7 @@ export async function saveWalkthrough(
   key: string,
   value: string,
 ): Promise<void> {
-  const { tenantId, userId } = await requireTenant();
+  const { tenantId, userId } = await requireWrite();
   if (!WT_KEY.test(key)) throw new Error("invalid-key");
   await withTenant(tenantId, async (tx) => {
     // the scot must belong to this engagement — never trust the id pair blindly
@@ -308,7 +308,7 @@ export async function fscpValues(engagementId: string): Promise<Record<string, s
 }
 
 export async function saveFscp(engagementId: string, key: string, value: string): Promise<void> {
-  const { tenantId, userId } = await requireTenant();
+  const { tenantId, userId } = await requireWrite();
   if (!WT_KEY.test(key)) throw new Error("invalid-key");
   await withTenant(tenantId, async (tx) => {
     if (value.trim() === "") {
@@ -501,7 +501,7 @@ export async function createScot(
   engagementId: string,
   input: { name: string; transactionType: string; strategy: string; applications?: string; description?: string },
 ): Promise<string> {
-  const { tenantId, userId } = await requireTenant();
+  const { tenantId, userId } = await requireWrite();
   const name = input.name.trim();
   if (!name) throw new Error("name-required");
   const type = TYPES.includes(input.transactionType as TransactionType) ? input.transactionType : "routine";
@@ -525,7 +525,7 @@ export async function updateScot(
   scotId: string,
   patch: { name?: string; transactionType?: string; strategy?: string; applications?: string; description?: string },
 ): Promise<void> {
-  const { tenantId, userId } = await requireTenant();
+  const { tenantId, userId } = await requireWrite();
   const engagementId = await withTenant(tenantId, async (tx) => {
     await tx.query(
       `UPDATE scot SET
@@ -555,7 +555,7 @@ export async function deleteScot(scotId: string): Promise<void> {
 
 /** Assign a SCOT; the assignee is notified (outside the tx — house rule). */
 export async function assignScot(scotId: string, userIdOrNull: string | null): Promise<void> {
-  const { tenantId } = await requireTenant();
+  const { tenantId } = await requireWrite();
   const notify = await withTenant(tenantId, async (tx) => {
     const r = await tx.query<{ name: string; engagement_id: string; changed: boolean }>(
       `UPDATE scot SET assignee_user_id = $2
@@ -591,7 +591,7 @@ export async function assignScot(scotId: string, userIdOrNull: string | null): P
 }
 
 export async function linkScotIndex(scotId: string, indexCode: string, assertions: unknown): Promise<void> {
-  const { tenantId, userId } = await requireTenant();
+  const { tenantId, userId } = await requireWrite();
   if (!/^[A-Z0-9]{1,4}$/.test(indexCode)) throw new Error("invalid-index");
   const engagementId = await withTenant(tenantId, async (tx) => {
     await tx.query(
@@ -615,7 +615,7 @@ export async function unlinkScotIndex(scotId: string, indexCode: string): Promis
 }
 
 export async function addWcgw(scotId: string, description: string, assertions: unknown): Promise<string> {
-  const { tenantId } = await requireTenant();
+  const { tenantId } = await requireWrite();
   if (!description.trim()) throw new Error("description-required");
   // A "what could go wrong" is a risk to an assertion; with none it answers
   // nothing and feeds nothing in S3.1 (UAT B134).
@@ -648,7 +648,7 @@ export async function addControl(
   scotId: string,
   input: { name: string; owner?: string; controlType?: string; frequency?: string; objective?: string; wcgwIds?: string[] },
 ): Promise<string> {
-  const { tenantId } = await requireTenant();
+  const { tenantId } = await requireWrite();
   if (!input.name.trim()) throw new Error("name-required");
   const type = CONTROL_TYPES.includes(input.controlType as ControlType) ? input.controlType : "manual";
   const objective = input.objective === "detect" ? "detect" : "prevent";
@@ -692,7 +692,7 @@ export async function updateControl(
     tocSampleItems?: number[];
   },
 ): Promise<void> {
-  const { tenantId, userId } = await requireTenant();
+  const { tenantId, userId } = await requireWrite();
   const engagementId = await withTenant(tenantId, async (tx) => {
     // Only a control that addresses at least one WCGW can be selected for
     // testing: an orphan control flowed into E1.2 and sampling (UAT B46).

@@ -37,7 +37,7 @@ import { withTenant } from "@/lib/db";
 import { TOLERANCE } from "@/lib/gl-line";
 import { LEAD_INDEX_BY_CODE, leadIndexFor } from "@/lib/lead-classes";
 import { assertMutable } from "@/lib/mutability";
-import { requireTenant } from "@/lib/tenant";
+import { requireTenant, requireWrite } from "@/lib/tenant";
 
 type Tx = PoolClient;
 export type Locale = "en" | "fr";
@@ -1587,7 +1587,7 @@ export async function addFirmHoliday(input: FirmHolidayInput): Promise<string> {
 /** Remove one of the firm's own dates. The seeded national calendar is not writable from here. */
 export async function removeFirmHoliday(id: string, engagementId?: string | null): Promise<void> {
   if (engagementId) await assertMutable(engagementId);
-  const { tenantId } = await requireTenant();
+  const { tenantId } = await requireWrite();
   await withTenant(tenantId, async (tx) => {
     await tx.query("DELETE FROM firm_holiday WHERE id = $1", [id]);
   });

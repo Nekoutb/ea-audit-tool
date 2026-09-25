@@ -14,7 +14,7 @@ import { tenantSender } from "@/lib/tenant-mail";
 import { createNotification } from "@/lib/notifications";
 import { requireEngagementAccess } from "@/lib/engagement-access";
 import { atLeast, canPartnerSignoff } from "@/lib/rbac";
-import { ForbiddenError, requireTenant } from "@/lib/tenant";
+import { ForbiddenError, requireTenant, requireWrite } from "@/lib/tenant";
 
 export interface IndependenceQuestion {
   key: string;
@@ -65,7 +65,7 @@ export async function launchCampaign(
   engagementId: string,
   userIds: string[],
 ): Promise<string> {
-  const { tenantId, userId, role } = await requireTenant();
+  const { tenantId, userId, role } = await requireWrite();
   // Issuing the team's independence confirmations is the engagement manager's
   // job, not any team member's (UAT B02).
   if (role === "eqr_reviewer" || !atLeast(role, "manager")) throw new ForbiddenError("team-manager-only");

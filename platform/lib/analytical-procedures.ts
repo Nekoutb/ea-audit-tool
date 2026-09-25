@@ -6,7 +6,7 @@
 
 import { withTenant } from "@/lib/db";
 import { RATIO_KEYS } from "@/lib/financial-analysis";
-import { requireTenant } from "@/lib/tenant";
+import { requireTenant, requireWrite } from "@/lib/tenant";
 import { LEAD_INDEXES, leadIndexFor, type LeadIndexDef } from "@/lib/lead-classes";
 
 export interface ApAccountRow {
@@ -153,7 +153,7 @@ export async function saveApComments(
   index: string,
   entries: { key: string; value: string }[],
 ): Promise<void> {
-  const { tenantId, userId } = await requireTenant();
+  const { tenantId, userId } = await requireWrite();
   if (!/^[A-Z0-9]{1,4}$/.test(index)) throw new Error("invalid-index");
   // The financial-analysis grid saves under "FA" with the ratio keys (dso, roe…);
   // a lead schedule saves under its index with account numbers or "total". A

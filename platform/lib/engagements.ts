@@ -3,7 +3,7 @@ import { type ComplexityAnswers, type EngagementComplexity } from "@/lib/complex
 import { withTenant } from "@/lib/db";
 import { itemsForComplexity, type Section } from "@/lib/file-index";
 import { seedPresumedRisks } from "@/lib/risks";
-import { requireTenant } from "@/lib/tenant";
+import { requireTenant, requireWrite } from "@/lib/tenant";
 import { visibilityClause } from "@/lib/engagement-access";
 
 export type EngagementPhase = "acceptance" | "planning" | "execution" | "conclusion" | "archived";
@@ -241,7 +241,7 @@ export async function createEngagement(input: {
   framework?: string | null;
   firstYear?: boolean | null;
 }): Promise<string> {
-  const { tenantId, userId, role } = await requireTenant();
+  const { tenantId, userId, role } = await requireWrite();
   // undefined keeps the legacy full-file default; null defers scoping to the
   // nature-of-entity screen (no file items are instantiated yet).
   const deferred = input.complexity === null;
@@ -321,7 +321,7 @@ export async function applyComplexity(
   complexity: EngagementComplexity,
   answers: ComplexityAnswers,
 ): Promise<void> {
-  const { tenantId } = await requireTenant();
+  const { tenantId } = await requireWrite();
   await withTenant(tenantId, async (tx) => {
     await tx.query(
       "UPDATE engagement SET complexity = $2, complexity_answers = $3 WHERE id = $1",
