@@ -13,9 +13,10 @@
 
 import { recordActivity } from "@/lib/activity";
 import { withTenant } from "@/lib/db";
+import { visibleToUser } from "@/lib/engagement-access";
 import { assertMutable } from "@/lib/mutability";
 import { atLeast, type Role } from "@/lib/rbac";
-import { requireTenant } from "@/lib/tenant";
+import { ForbiddenError, requireTenant } from "@/lib/tenant";
 
 /** Days a soft-deleted attachment stays restorable. */
 export const RESTORE_WINDOW_DAYS = 30;
@@ -47,9 +48,30 @@ export interface AttachmentRow {
   uploadedAt: string;
 }
 
+/**
+ * Attachments were reachable by id alone: anyone in the firm could list,
+ * download, rename or copy the evidence of an engagement they were not staffed
+ * on (UAT B05). Both helpers resolve the owning engagement and apply the same
+ * visibility rule as the engagement pages. Unknown ids fall through so the
+ * callers' not-found handling is unchanged.
+ */
+async function guardEngagementOf(sql: string, id: string): Promise<void> {
+  const { tenantId, userId, role } = await requireTenant();
+  const r = await withTenant(tenantId, (tx) => tx.query<{ engagement_id: string }>(sql, [id]));
+  const engagementId = r.rows[0]?.engagement_id;
+  if (engagementId && !(await visibleToUser(engagementId, tenantId, userId, role))) {
+    throw new ForbiddenError("not-on-this-engagement");
+  }
+}
+const guardFileItem = (fileItemId: string) =>
+  guardEngagementOf("SELECT engagement_id FROM file_item WHERE id = $1", fileItemId);
+const guardAttachment = (attachmentId: string) =>
+  guardEngagementOf("SELECT engagement_id FROM task_attachment WHERE id = $1", attachmentId);
+
 /** Latest live version of each filename on the task, newest upload first. */
 export async function listAttachments(fileItemId: string): Promise<AttachmentRow[]> {
   const { tenantId } = await requireTenant();
+  await guardFileItem(fileItemId);
   return withTenant(tenantId, async (tx) => {
     const r = await tx.query<{
       id: string;
@@ -93,6 +115,7 @@ export async function saveAttachment(
   content: Buffer,
 ): Promise<AttachmentRow> {
   const { tenantId, userId, role } = await requireTenant();
+  await guardFileItem(fileItemId);
   assertCanWrite(role);
   return withTenant(tenantId, async (tx) => {
     const item = await tx.query<{ engagement_id: string }>(
@@ -130,6 +153,7 @@ export async function getAttachment(
   id: string,
 ): Promise<{ name: string; mime: string; content: Buffer } | null> {
   const { tenantId } = await requireTenant();
+  await guardAttachment(id);
   return withTenant(tenantId, async (tx) => {
     const r = await tx.query<{ name: string; mime: string; content: Buffer }>(
       "SELECT name, mime, content FROM task_attachment WHERE id = $1 AND deleted_at IS NULL",
@@ -146,6 +170,7 @@ export async function getAttachment(
  */
 export async function renameAttachment(id: string, newNameRaw: string): Promise<string> {
   const { tenantId, role } = await requireTenant();
+  await guardAttachment(id);
   assertCanWrite(role);
   const target = await withTenant(tenantId, async (tx) => {
     const row = await tx.query<{
@@ -193,6 +218,7 @@ export async function renameAttachment(id: string, newNameRaw: string): Promise<
  */
 export async function deleteAttachment(id: string): Promise<void> {
   const { tenantId, userId, role } = await requireTenant();
+  await guardAttachment(id);
   assertCanDelete(role);
   const target = await withTenant(tenantId, async (tx) => {
     const row = await tx.query<{
@@ -243,6 +269,7 @@ export async function deleteAttachment(id: string): Promise<void> {
  */
 export async function restoreAttachment(attachmentId: string): Promise<void> {
   const { tenantId, role } = await requireTenant();
+  await guardAttachment(attachmentId);
   assertCanDelete(role);
   const target = await withTenant(tenantId, async (tx) => {
     const row = await tx.query<{
@@ -293,6 +320,7 @@ export async function listEngagementAttachments(fileItemId: string): Promise<
   { id: string; name: string; sizeBytes: number; taskCode: string; uploadedAt: string }[]
 > {
   const { tenantId } = await requireTenant();
+  await guardFileItem(fileItemId);
   return withTenant(tenantId, async (tx) => {
     const r = await tx.query<{ id: string; name: string; size_bytes: number; code: string; uploaded_at: string }>(
       `SELECT DISTINCT ON (ta.file_item_id, ta.name)
@@ -323,6 +351,8 @@ export async function listEngagementAttachments(fileItemId: string): Promise<
  */
 export async function copyAttachment(fileItemId: string, sourceAttachmentId: string): Promise<AttachmentRow> {
   const { tenantId } = await requireTenant();
+  await guardFileItem(fileItemId);
+  await guardAttachment(sourceAttachmentId);
   const source = await withTenant(tenantId, async (tx) => {
     const r = await tx.query<{ name: string; mime: string; content: Buffer; engagement_id: string }>(
       `SELECT ta.name, ta.mime, ta.content, ta.engagement_id

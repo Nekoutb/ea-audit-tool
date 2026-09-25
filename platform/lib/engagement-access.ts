@@ -69,8 +69,7 @@ export function visibilityClause(role: Role, alias: string, userParam: number): 
 /** Is this engagement visible to the signed-in user? */
 export async function canSeeEngagement(engagementId: string): Promise<boolean> {
   const { tenantId, userId, role } = await requireTenant();
-  if (hasPortfolioOversight(role)) return true;
-  return withTenant(tenantId, (tx) => visibleTx(tx, engagementId, userId));
+  return visibleToUser(engagementId, tenantId, userId, role);
 }
 
 /** Throws unless the engagement is visible. Use at a page or action entry. */
@@ -78,7 +77,23 @@ export async function requireEngagementAccess(engagementId: string): Promise<voi
   if (!(await canSeeEngagement(engagementId))) throw new ForbiddenError("not-on-this-engagement");
 }
 
+/**
+ * Oversight is over the caller's OWN firm's portfolio. It used to return true
+ * without looking, so a partner or admin of firm B passed every gate for an
+ * engagement id belonging to firm A; foreign-key checks bypass RLS, so writes
+ * keyed on that id landed as firm-B rows against firm A's file (UAT B01).
+ * The engagement must at least exist under the caller's tenant.
+ */
+async function existsTx(tx: PoolClient, engagementId: string): Promise<boolean> {
+  if (!UUID.test(engagementId)) return false;
+  const r = await tx.query(`SELECT 1 FROM engagement WHERE id = $1`, [engagementId]);
+  return (r.rowCount ?? 0) > 0;
+}
+
+const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
 async function visibleTx(tx: PoolClient, engagementId: string, userId: string): Promise<boolean> {
+  if (!UUID.test(engagementId)) return false;
   const result = await tx.query<{ visible: boolean }>(
     `SELECT ${visibilitySql("e", 2)} AS visible FROM engagement e WHERE e.id = $1`,
     [engagementId, userId],
@@ -98,6 +113,7 @@ export async function visibleToUser(
   userId: string,
   role: Role,
 ): Promise<boolean> {
-  if (hasPortfolioOversight(role)) return true;
-  return withTenant(tenantId, (tx) => visibleTx(tx, engagementId, userId));
+  return withTenant(tenantId, (tx) =>
+    hasPortfolioOversight(role) ? existsTx(tx, engagementId) : visibleTx(tx, engagementId, userId),
+  );
 }

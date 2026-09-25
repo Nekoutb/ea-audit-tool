@@ -6,6 +6,7 @@ import { RegisterRow, type RegisterRowData } from "@/components/RegisterRow";
 import { Panel, PanelHeader, btnPrimary } from "@/components/ui/atlas";
 import { phaseDeadline, type DashboardPhase } from "@/lib/engagement-dashboard";
 import { listEngagements, type EngagementRegisterRow } from "@/lib/engagements";
+import { ErrorBanner } from "@/components/GatesPanel";
 import { getMessages } from "@/lib/i18n";
 import { getLocale } from "@/lib/locale";
 
@@ -27,12 +28,12 @@ const STAGE_TONE: Record<string, StageTone> = {
  * roll-forward directly.
  */
 export default async function EngagementsPage(props: {
-  searchParams: Promise<{ stage?: string; archived?: string; q?: string; year?: string; partner?: string; mine?: string }>;
+  searchParams: Promise<{ stage?: string; archived?: string; q?: string; year?: string; partner?: string; mine?: string; error?: string }>;
 }) {
   const session = await auth();
   if (!session?.user) redirect("/login");
 
-  const { stage, archived, q, year, partner, mine } = await props.searchParams;
+  const { stage, archived, q, year, partner, mine, error } = await props.searchParams;
   const locale = await getLocale();
   const t = getMessages(locale);
   const te = t.engagements;
@@ -94,6 +95,7 @@ export default async function EngagementsPage(props: {
   return (
     <main className="flex min-h-screen w-full flex-col gap-4 px-6 py-8">
       <AppNav locale={locale} />
+      <ErrorBanner error={error} locale={locale} />
 
       <div className="flex flex-wrap items-end justify-between gap-4">
         <div>

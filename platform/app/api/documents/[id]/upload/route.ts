@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { checkinDocument, DocumentRuleError, DOCX_MIME } from "@/lib/documents";
 import { atLeast } from "@/lib/rbac";
-import { requireTenant } from "@/lib/tenant";
+import { ForbiddenError, requireTenant } from "@/lib/tenant";
 
 const MAX_BYTES = 25 * 1024 * 1024; // 25 MB working-paper ceiling
 
@@ -36,6 +36,7 @@ export async function POST(request: Request, context: { params: Promise<{ id: st
     if (error instanceof DocumentRuleError) {
       return NextResponse.json({ error: error.code }, { status: 409 });
     }
+    if (error instanceof ForbiddenError) return NextResponse.json({ error: "forbidden" }, { status: 403 });
     return NextResponse.json({ error: "unauthenticated" }, { status: 401 });
   }
 }

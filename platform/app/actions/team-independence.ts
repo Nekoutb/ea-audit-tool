@@ -16,10 +16,17 @@ export async function launchIndependenceToTeamAction(
     ? returnTo
     : `/engagements/${engagementId}/dashboard`;
   if (team.length === 0) redirect(`${back}?error=no-recipients`);
-  await launchCampaign(
-    engagementId,
-    team.map((m) => m.userId),
-  );
+  try {
+    await launchCampaign(
+      engagementId,
+      team.map((m) => m.userId),
+    );
+  } catch (error) {
+    if (error instanceof Error && /^[a-z0-9-]+$/.test(error.message)) {
+      redirect(`${back}?error=${encodeURIComponent(error.message)}`);
+    }
+    throw error;
+  }
   await recordActivity({
     engagementId,
     entityType: "engagement",

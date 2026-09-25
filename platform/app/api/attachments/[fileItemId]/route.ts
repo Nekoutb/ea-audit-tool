@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { assignTemplate, listTemplates } from "@/lib/wp-templates";
 import { copyAttachment, listAttachments, listEngagementAttachments, saveAttachment } from "@/lib/attachments";
 import { atLeast } from "@/lib/rbac";
-import { requireTenant } from "@/lib/tenant";
+import { ForbiddenError, requireTenant } from "@/lib/tenant";
 import { allowedExtensions, checkUpload, UnsafeFileError } from "@/lib/upload-safety";
 
 const MAX_BYTES = 25 * 1024 * 1024; // same 25 MB ceiling as working papers
@@ -34,7 +34,8 @@ export async function GET(_request: Request, context: { params: Promise<{ fileIt
         titleFr: t.titleFr,
       })),
     });
-  } catch {
+  } catch (error) {
+    if (error instanceof ForbiddenError) return NextResponse.json({ error: "forbidden" }, { status: 403 });
     return NextResponse.json({ error: "unauthenticated" }, { status: 401 });
   }
 }
@@ -94,7 +95,7 @@ export async function POST(request: Request, context: { params: Promise<{ fileIt
     if (error instanceof Error && error.message === "task-not-found") {
       return NextResponse.json({ error: "task-not-found" }, { status: 404 });
     }
-    if (error instanceof Error && error.message === "forbidden") {
+    if (error instanceof ForbiddenError || (error instanceof Error && error.message === "forbidden")) {
       return NextResponse.json({ error: "forbidden" }, { status: 403 });
     }
     if (error instanceof Error && error.message === "engagement-archived") {

@@ -179,20 +179,24 @@ export function PaperWizard({
     out.push(page);
     return out;
   }, [items, areaH, conclCount, embed]);
+  const soloEmbed = Boolean(embed && embedOnly);
+  // With an embed, conclusion & key findings take a final page of their own.
+  const conclPage = embed && !soloEmbed ? Math.max(1, steps.length) : -1;
+  const lastPage = soloEmbed ? 0 : conclPage >= 0 ? conclPage : steps.length - 1;
   const [step, setStep] = useState(0);
   // Tell the guidance rail which items are on screen (practical tips follow the page).
   useLayoutEffect(() => {
     const pageKeys = (steps[step] ?? []).map((it) => (it.kind === "proc" ? "p:" + it.key : it.kind === "yn" ? "q:" + it.key : "f:" + it.field.key));
-    const keys = step === 0 ? ["__conclusion__", ...pageKeys] : pageKeys;
+    const opensWithConclusion = step === 0 && conclPage < 0;
+    const keys = opensWithConclusion || step === conclPage ? ["__conclusion__", ...pageKeys] : pageKeys;
     window.dispatchEvent(new CustomEvent("wp-step-items", { detail: { keys } }));
-  }, [step, steps]);
+  }, [step, steps, conclPage]);
   // if a resize shrinks the page count, stay on a valid step
   useLayoutEffect(() => {
     // eslint-disable-next-line react-hooks/set-state-in-effect -- must clamp before paint or the vanished page flashes; the updater is a no-op when already valid
-    setStep((s) => Math.min(s, Math.max(0, steps.length - 1)));
-  }, [steps.length]);
-  const soloEmbed = Boolean(embed && embedOnly);
-  const total = soloEmbed ? 1 : Math.max(1, steps.length); // page 0 opens with conclusion & key findings
+    setStep((s) => Math.min(s, Math.max(0, lastPage)));
+  }, [lastPage]);
+  const total = soloEmbed ? 1 : conclPage >= 0 ? conclPage + 1 : Math.max(1, steps.length); // page 0 opens with conclusion & key findings
   const concl = (fr ? def.conclFr : def.conclEn) ?? [];
 
   // Answers that gate the yellow boxes: yn questions and the conclusions.
@@ -345,11 +349,59 @@ export function PaperWizard({
             );
   };
 
+  // The conclusion and key findings. Without an embed they open page 1; with
+  // one (C6.2's archive board, the studios) the embed claims page 1 and they
+  // get a page of their own at the end. They used to be dropped entirely in
+  // that case, so a paper like C6.2 counted conclusions nobody could answer
+  // and could never reach "complete" (UAT B04).
+  const conclusionBlock = (
+    <>
+          {concl.map((c, i) => (
+            <div key={i} className="rounded-[var(--radius-atlas-sm)] border border-line px-3 py-2">
+              <div className="flex items-start justify-between gap-3">
+                <p className="min-w-0 flex-1 text-[13.2px] text-ink">{c}</p>
+                <span className="flex flex-shrink-0 gap-2.5">
+                  {radio(conclKey(i), "yes", fr ? "Oui" : "Yes", values[conclKey(i)] === "yes")}
+                  {radio(conclKey(i), "no", fr ? "Non" : "No", values[conclKey(i)] === "no")}
+                </span>
+              </div>
+              {answers[conclKey(i)] === "no" ? (
+                <Amber
+                  name={conclWhyKey(i)}
+                  defaultValue={values[conclWhyKey(i)] ?? ""}
+                  placeholder={fr ? "Expliquer la réponse « Non »" : "Explain the “No” answer"}
+                  readOnly={readOnly}
+                />
+              ) : null}
+            </div>
+          ))}
+          <label className="flex flex-col gap-1 text-[11.5px] font-bold uppercase tracking-[0.07em] text-muted">
+            {fr ? "Constats clés" : "Key findings"}
+            <RichText
+              name="key_findings"
+              defaultValue={values["key_findings"] ?? ""}
+              readOnly={readOnly}
+              testId="wp-key-findings"
+              placeholder={
+                fr
+                  ? "Constats importants du travail effectué — repris en C1.2/C1.1 le cas échéant"
+                  : "Significant findings from the work performed — routed to C1.2/C1.1 where applicable"
+              }
+              className="h-[96px] w-full resize-none overflow-y-auto rounded-[var(--radius-atlas-sm)] bg-[color:var(--wp-input)] px-2.5 py-1.5 text-[13.2px] font-normal normal-case tracking-normal text-ink outline-none placeholder:text-muted focus:ring-2 focus:ring-emerald-600/25"
+            />
+          </label>
+    </>
+  );
+
   return (
     <form action={action} data-testid={`wp-form-${code}`} className="flex h-full min-h-0 flex-col">
       <div className="flex items-center justify-between gap-2 border-b border-line pb-2">
         <span className="text-[11.5px] font-bold uppercase tracking-[0.07em] text-muted">
-          {step === 0
+          {step === conclPage
+            ? fr
+              ? "Conclusion & constats clés"
+              : "Conclusion & key findings"
+            : step === 0
             ? embed
               ? (embedTitle ?? (fr ? "Travaux" : "Work"))
               : fr
@@ -397,43 +449,16 @@ export function PaperWizard({
         </div>
       ) : (
       <div hidden={step !== 0} className="absolute inset-0 mt-2 flex flex-col gap-1.5 overflow-y-auto overflow-x-hidden">
-        {concl.map((c, i) => (
-          <div key={i} className="rounded-[var(--radius-atlas-sm)] border border-line px-3 py-2">
-            <div className="flex items-start justify-between gap-3">
-              <p className="min-w-0 flex-1 text-[13.2px] text-ink">{c}</p>
-              <span className="flex flex-shrink-0 gap-2.5">
-                {radio(conclKey(i), "yes", fr ? "Oui" : "Yes", values[conclKey(i)] === "yes")}
-                {radio(conclKey(i), "no", fr ? "Non" : "No", values[conclKey(i)] === "no")}
-              </span>
-            </div>
-            {answers[conclKey(i)] === "no" ? (
-              <Amber
-                name={conclWhyKey(i)}
-                defaultValue={values[conclWhyKey(i)] ?? ""}
-                placeholder={fr ? "Expliquer la réponse « Non »" : "Explain the “No” answer"}
-                readOnly={readOnly}
-              />
-            ) : null}
-          </div>
-        ))}
-        <label className="flex flex-col gap-1 text-[11.5px] font-bold uppercase tracking-[0.07em] text-muted">
-          {fr ? "Constats clés" : "Key findings"}
-          <RichText
-            name="key_findings"
-            defaultValue={values["key_findings"] ?? ""}
-            readOnly={readOnly}
-            testId="wp-key-findings"
-            placeholder={
-              fr
-                ? "Constats importants du travail effectué — repris en C1.2/C1.1 le cas échéant"
-                : "Significant findings from the work performed — routed to C1.2/C1.1 where applicable"
-            }
-            className="h-[96px] w-full resize-none overflow-y-auto rounded-[var(--radius-atlas-sm)] bg-[color:var(--wp-input)] px-2.5 py-1.5 text-[13.2px] font-normal normal-case tracking-normal text-ink outline-none placeholder:text-muted focus:ring-2 focus:ring-emerald-600/25"
-          />
-        </label>
+        {conclusionBlock}
         {(steps[0] ?? []).map(renderItem)}
       </div>
       )}
+
+      {conclPage >= 0 ? (
+        <div hidden={step !== conclPage} className="absolute inset-0 mt-2 flex flex-col gap-1.5 overflow-y-auto overflow-x-hidden" data-testid="wp-conclusion-page">
+          {conclusionBlock}
+        </div>
+      ) : null}
 
       {/* pages beyond the first */}
       {soloEmbed ? null : steps.slice(1).map((pageItems, si) => (

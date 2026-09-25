@@ -9,6 +9,7 @@ import { applyOverride } from "@/lib/template-overrides";
 import { templateFor } from "@/lib/templates";
 import { ForbiddenError, requireRole, requireTenant, requireWrite } from "@/lib/tenant";
 import { paperContentHashTx } from "@/lib/working-papers";
+import { visibleToUser } from "@/lib/engagement-access";
 import { logReopen, logSignOff, logSignOffVoided, logVersionRestored } from "@/lib/activity";
 
 export const DOCX_MIME =
@@ -103,6 +104,15 @@ async function insertVersion(
  */
 export async function generateDocument(fileItemId: string, locale: Locale): Promise<string> {
   const { tenantId, userId } = await requireTenant();
+  const owner = await withTenant(tenantId, (tx) =>
+    tx.query<{ engagement_id: string }>("SELECT engagement_id FROM file_item WHERE id = $1", [fileItemId]),
+  );
+  if (owner.rows[0]) {
+    const { role } = await requireTenant();
+    if (!(await visibleToUser(owner.rows[0].engagement_id, tenantId, userId, role))) {
+      throw new ForbiddenError("not-on-this-engagement");
+    }
+  }
   return withTenant(tenantId, async (tx) => {
     const item = await tx.query<{
       id: string;
@@ -174,8 +184,36 @@ export async function generateDocument(fileItemId: string, locale: Locale): Prom
   });
 }
 
+/**
+ * Every entry point that takes a document id goes through here (UAT B03/B05).
+ * The id alone used to be enough: anyone in the firm who had it could read or
+ * work on a document of an engagement they were not staffed on, and the C5.6
+ * letter on a fait délictueux — which ISA 250 / the OHADA statutory duty keeps
+ * between the signing partner and the procureur — opened for a staff member.
+ * An id that does not exist falls through so the caller's own not-found
+ * handling still applies.
+ */
+export async function guardDocument(documentId: string): Promise<void> {
+  const { tenantId, userId, role } = await requireTenant();
+  const result = await withTenant(tenantId, (tx) =>
+    tx.query<{ engagement_id: string; fait: boolean }>(
+      `SELECT d.engagement_id,
+              EXISTS (SELECT 1 FROM fait_delictueux f WHERE f.document_id = d.id) AS fait
+         FROM document d WHERE d.id = $1`,
+      [documentId],
+    ),
+  );
+  const row = result.rows[0];
+  if (!row) return;
+  if (!(await visibleToUser(row.engagement_id, tenantId, userId, role))) {
+    throw new ForbiddenError("not-on-this-engagement");
+  }
+  if (row.fait && !canPartnerSignoff(role)) throw new ForbiddenError("fait-partner-only");
+}
+
 export async function getDocument(documentId: string): Promise<DocumentDetail | null> {
   const { tenantId } = await requireTenant();
+  await guardDocument(documentId);
   return withTenant(tenantId, async (tx) => {
     const result = await tx.query<{
       id: string;
@@ -215,6 +253,7 @@ export async function getDocument(documentId: string): Promise<DocumentDetail | 
 
 export async function listVersions(documentId: string): Promise<VersionInfo[]> {
   const { tenantId } = await requireTenant();
+  await guardDocument(documentId);
   return withTenant(tenantId, async (tx) => {
     const result = await tx.query<{
       version_no: number;
@@ -249,6 +288,7 @@ export async function getVersionContent(
   versionNo: number,
 ): Promise<{ content: Buffer; mime: string; filename: string } | null> {
   const { tenantId } = await requireTenant();
+  await guardDocument(documentId);
   return withTenant(tenantId, async (tx) => {
     const result = await tx.query<{ content: Buffer; mime: string; code: string; title: string }>(
       `SELECT v.content, v.mime, fi.code, d.title
@@ -272,6 +312,7 @@ export async function getVersionContent(
 /** Check out for editing: single editor at a time; signed documents must be reopened first. */
 export async function checkoutDocument(documentId: string): Promise<void> {
   const { tenantId, userId } = await requireTenant();
+  await guardDocument(documentId);
   await withTenant(tenantId, async (tx) => {
     const result = await tx.query<{ status: string; checked_out_by: string | null; archived_at: string | null }>(
       `SELECT d.status, d.checked_out_by, e.archived_at::text
@@ -295,6 +336,7 @@ export async function checkoutDocument(documentId: string): Promise<void> {
 
 export async function cancelCheckout(documentId: string): Promise<void> {
   const { tenantId, userId } = await requireTenant();
+  await guardDocument(documentId);
   await withTenant(tenantId, async (tx) => {
     await tx.query(
       "UPDATE document SET checked_out_by = NULL, checked_out_at = NULL WHERE id = $1 AND checked_out_by = $2",
@@ -306,6 +348,7 @@ export async function cancelCheckout(documentId: string): Promise<void> {
 /** Check in an edited file as the next version and release the lock. */
 export async function checkinDocument(documentId: string, content: Buffer): Promise<number> {
   const { tenantId, userId } = await requireTenant();
+  await guardDocument(documentId);
   return withTenant(tenantId, async (tx) => {
     const result = await tx.query<{ status: string; checked_out_by: string | null; archived_at: string | null }>(
       `SELECT d.status, d.checked_out_by, e.archived_at::text
@@ -330,6 +373,7 @@ export async function checkinDocument(documentId: string, content: Buffer): Prom
 /** Restore an old version by copying it forward as a new version (history is never rewritten). */
 export async function restoreVersion(documentId: string, versionNo: number): Promise<number> {
   const { tenantId, userId } = await requireTenant();
+  await guardDocument(documentId);
   const restoredAs = await withTenant(tenantId, async (tx) => {
     const doc = await tx.query<{ status: string; checked_out_by: string | null }>(
       "SELECT status, checked_out_by FROM document WHERE id = $1 FOR UPDATE",
@@ -359,6 +403,7 @@ export async function restoreVersion(documentId: string, versionNo: number): Pro
 
 export async function listSignoffs(documentId: string): Promise<SignoffInfo[]> {
   const { tenantId } = await requireTenant();
+  await guardDocument(documentId);
   return withTenant(tenantId, async (tx) => {
     const result = await tx.query<{
       id: string;
@@ -435,7 +480,12 @@ export async function hasOtherReviewer(
 export const PARTNER_ONLY_APPROVAL = new Set(["P5.2", "P7.2", "S6.1", "S6.2", "S3.1", "C1.1"]);
 
 export async function signDocument(documentId: string, role: SignoffRole): Promise<void> {
-  const { tenantId, userId, role: userRole } = await requireTenant();
+  const { tenantId, userId, role: userRole } = await requireWrite();
+  await guardDocument(documentId);
+  // The EQR reviews the file independently of the team (ISQM 2 ¶18): signing
+  // it as preparer, reviewer or partner would make them part of the work they
+  // are there to challenge (UAT B11). Their sign-off lives on the EQR screen.
+  if (userRole === "eqr_reviewer") throw new DocumentRuleError("forbidden");
   if (role === "reviewer" && !canReview(userRole)) throw new DocumentRuleError("forbidden");
   if (role === "partner" && !canPartnerSignoff(userRole)) throw new DocumentRuleError("forbidden");
 
@@ -528,6 +578,7 @@ export async function reopenDocument(documentId: string, reason: string): Promis
   // signDocument refuses a reviewer signature below senior and a partner
   // signature below partner; without a floor here, a preparer could void both.
   const { tenantId, userId, role } = await requireRole("manager");
+  await guardDocument(documentId);
   const signers: { user_id: string; title: string }[] = [];
 
   await withTenant(tenantId, async (tx) => {
@@ -592,6 +643,7 @@ export async function reopenDocument(documentId: string, reason: string): Promis
 
 export async function listReviewNotes(documentId: string): Promise<ReviewNoteInfo[]> {
   const { tenantId } = await requireTenant();
+  await guardDocument(documentId);
   return withTenant(tenantId, async (tx) => {
     const result = await tx.query<{
       id: string;
@@ -622,6 +674,7 @@ export async function listReviewNotes(documentId: string): Promise<ReviewNoteInf
 
 export async function addReviewNote(documentId: string, body: string): Promise<void> {
   const { tenantId, userId } = await requireTenant();
+  await guardDocument(documentId);
   if (!body.trim()) throw new DocumentRuleError("body-required");
   await withTenant(tenantId, async (tx) => {
     await tx.query(
@@ -634,6 +687,10 @@ export async function addReviewNote(documentId: string, body: string): Promise<v
 export async function clearReviewNote(noteId: string, response: string): Promise<void> {
   const { tenantId, userId, role } = await requireWrite();
   if (!response.trim()) throw new DocumentRuleError("response-required");
+  const noteDoc = await withTenant(tenantId, (tx) =>
+    tx.query<{ document_id: string }>("SELECT document_id FROM review_note WHERE id = $1", [noteId]),
+  );
+  if (noteDoc.rows[0]) await guardDocument(noteDoc.rows[0].document_id);
   await withTenant(tenantId, async (tx) => {
     // Clearing a note is not bookkeeping: an open note blocks both the reviewer
     // and partner signature (signDocument) and the archive gate

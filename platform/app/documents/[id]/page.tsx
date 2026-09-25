@@ -1,3 +1,4 @@
+import { ForbiddenError } from "@/lib/tenant";
 import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
 import { auth } from "@/auth";
@@ -39,7 +40,12 @@ export default async function DocumentPage(props: {
   const t = getMessages(locale);
   const td = t.document;
 
-  const document = await getDocument(id);
+  // A document of an engagement the reader is not on, or a partner-only
+  // letter, reads as absent (guardDocument throws ForbiddenError).
+  const document = await getDocument(id).catch((error: unknown) => {
+    if (error instanceof ForbiddenError) return null;
+    throw error;
+  });
   if (!document) notFound();
   const [versions, signoffs, notes] = await Promise.all([
     listVersions(id),

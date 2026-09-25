@@ -10,8 +10,9 @@ import { DOCX_MIME } from "@/lib/documents";
 import { sendEmail } from "@/lib/email";
 import { tenantSender } from "@/lib/tenant-mail";
 import { createNotification } from "@/lib/notifications";
-import { canPartnerSignoff } from "@/lib/rbac";
-import { requireTenant } from "@/lib/tenant";
+import { requireEngagementAccess } from "@/lib/engagement-access";
+import { atLeast, canPartnerSignoff } from "@/lib/rbac";
+import { ForbiddenError, requireTenant } from "@/lib/tenant";
 
 export interface IndependenceQuestion {
   key: string;
@@ -62,7 +63,11 @@ export async function launchCampaign(
   engagementId: string,
   userIds: string[],
 ): Promise<string> {
-  const { tenantId, userId } = await requireTenant();
+  const { tenantId, userId, role } = await requireTenant();
+  // Issuing the team's independence confirmations is the engagement manager's
+  // job, not any team member's (UAT B02).
+  if (role === "eqr_reviewer" || !atLeast(role, "manager")) throw new ForbiddenError("team-manager-only");
+  await requireEngagementAccess(engagementId);
   if (userIds.length === 0) throw new Error("no-recipients");
   const sender = await tenantSender(tenantId);
   return withTenant(tenantId, async (tx) => {

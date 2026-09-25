@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { getVersionContent } from "@/lib/documents";
 import { atLeast } from "@/lib/rbac";
-import { requireTenant } from "@/lib/tenant";
+import { ForbiddenError, requireTenant } from "@/lib/tenant";
 import { fileResponseHeaders } from "@/lib/upload-safety";
 
 /**
@@ -30,7 +30,10 @@ export async function GET(
     return new NextResponse(new Uint8Array(version.content), {
       headers: fileResponseHeaders(version.filename, version.mime),
     });
-  } catch {
+  } catch (error) {
+    // Not the caller's engagement, or a partner-only letter: answer as if the
+    // version did not exist rather than confirming it does.
+    if (error instanceof ForbiddenError) return NextResponse.json({ error: "not-found" }, { status: 404 });
     return NextResponse.json({ error: "unauthenticated" }, { status: 401 });
   }
 }

@@ -8,7 +8,7 @@ import { Document, HeadingLevel, Packer, Paragraph, TextRun } from "docx";
 import { type Branding, letterheadFooter, letterheadParagraphs, loadBranding } from "@/lib/branding";
 import { withTenant } from "@/lib/db";
 import { addDaysIso, addMonthsClamped, fileUnderCode, LegalError } from "@/lib/legal";
-import { requireTenant } from "@/lib/tenant";
+import { requireTenant, requireWrite } from "@/lib/tenant";
 
 export type AlerteVariant = "sa" | "non_sa";
 
@@ -98,7 +98,7 @@ async function buildStageLetter(
 
 /** Start the alerte: variant derives from the client's legal form. */
 export async function startAlerte(engagementId: string, note: string): Promise<string> {
-  const { tenantId, userId } = await requireTenant();
+  const { tenantId, userId } = await requireWrite(); // read_only may view the legal file, not change it (UAT B10)
   return withTenant(tenantId, async (tx) => {
     const info = await tx.query<{ legal_form: string; client_name: string; fiscal_year: number }>(
       `SELECT c.legal_form, c.name AS client_name, e.fiscal_year
@@ -150,7 +150,7 @@ export async function advanceAlerte(
   note: string,
   options: { satisfactory?: boolean } = {},
 ): Promise<void> {
-  const { tenantId, userId } = await requireTenant();
+  const { tenantId, userId } = await requireWrite(); // read_only may view the legal file, not change it (UAT B10)
   await withTenant(tenantId, async (tx) => {
     const current = await tx.query<{
       id: string; engagement_id: string; variant: AlerteVariant; stage: string;
@@ -210,7 +210,7 @@ export async function advanceAlerte(
 
 /** Resume a discontinued alerte — allowed within 6 months (art. 156). */
 export async function resumeAlerte(alerteId: string, note: string): Promise<void> {
-  const { tenantId, userId } = await requireTenant();
+  const { tenantId, userId } = await requireWrite(); // read_only may view the legal file, not change it (UAT B10)
   await withTenant(tenantId, async (tx) => {
     const current = await tx.query<{ variant: AlerteVariant; discontinued_at: string | null }>(
       "SELECT variant, to_char(discontinued_at, 'YYYY-MM-DD') AS discontinued_at FROM alerte WHERE id = $1 FOR UPDATE",

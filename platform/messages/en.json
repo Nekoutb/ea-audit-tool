@@ -1226,7 +1226,13 @@
       "changed-elsewhere": "Someone else changed this paper while you had it open. Reload to see their version before saving again — your entry has not been stored.",
       "read-only-role": "Your role can view this file but not change it.",
       "not-on-this-engagement": "You are not assigned to that engagement.",
-      "requires-manager": "Only a manager or above can see firm-wide figures."
+      "requires-manager": "Only a manager or above can see firm-wide figures.",
+      "team-manager-only": "Only a manager, partner or firm administrator on this engagement can change its team or issue independence confirmations.",
+      "partner-only-team-role": "Only a partner can give or take away the engagement partner role.",
+      "not-a-firm-member": "That person is not a member of this firm.",
+      "invalid-team-role": "Choose a valid team role.",
+      "engagement-tenant-mismatch": "That engagement belongs to another firm.",
+      "fait-partner-only": "Only a partner can open the C5.6 letter on a fait délictueux."
     }
   },
   "team": {

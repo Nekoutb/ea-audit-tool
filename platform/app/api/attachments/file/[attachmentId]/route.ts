@@ -6,7 +6,7 @@ import {
   restoreAttachment,
 } from "@/lib/attachments";
 import { atLeast } from "@/lib/rbac";
-import { requireTenant } from "@/lib/tenant";
+import { ForbiddenError, requireTenant } from "@/lib/tenant";
 import { fileResponseHeaders } from "@/lib/upload-safety";
 
 // Defence in depth (assurance finding C2): the proxy matcher walls portal users
@@ -24,7 +24,7 @@ function errorResponse(error: unknown, fallback: string) {
     return NextResponse.json({ error: "unauthenticated" }, { status: 401 });
   }
   const status =
-    code === "forbidden" ? 403 : code === "not-found" ? 404 : code === "archived" ? 409 : 400;
+    code === "forbidden" || code === "not-on-this-engagement" ? 403 : code === "not-found" ? 404 : code === "archived" ? 409 : 400;
   return NextResponse.json({ error: code }, { status });
 }
 
@@ -42,7 +42,8 @@ export async function GET(_request: Request, context: { params: Promise<{ attach
     return new NextResponse(new Uint8Array(row.content), {
       headers: fileResponseHeaders(row.name, row.mime),
     });
-  } catch {
+  } catch (error) {
+    if (error instanceof ForbiddenError) return NextResponse.json({ error: "not-found" }, { status: 404 });
     return NextResponse.json({ error: "unauthenticated" }, { status: 401 });
   }
 }

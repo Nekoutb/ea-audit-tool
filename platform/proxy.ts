@@ -139,17 +139,17 @@ export const proxy = auth(async (req) => {
     return redirectTo(url, nonce);
   }
 
-  // Engagement-level access for the API. app/engagements/[id]/layout.tsx gates
+  // Engagement-level access for the API and the pages. app/engagements/[id]/layout.tsx gates
   // the ~30 PAGES, but 20 route handlers under /api/engagements/[id] sit
   // outside it and none checked for itself — so the id in the URL was enough to
   // read or write another team's file through the API. Enforced here rather
   // than in each handler: one place, and a route added later inherits it
   // instead of having to remember.
   const engagementMatch =
-    /^\/api\/engagements\/([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})(?:\/|$)/.exec(
+    /^\/(?:api\/)?engagements\/([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})(?:\/|$)/i.exec(
       path,
     );
-  if (engagementMatch) {
+  if (engagementMatch && req.auth.user?.role !== "client_user") {
     const user = req.auth.user;
     const userRole = user?.role;
     // Partners and firm admins short-circuit without a query.
@@ -157,7 +157,16 @@ export const proxy = auth(async (req) => {
       const allowed = await visibleToUser(engagementMatch[1], user.tenantId, user.id, userRole)
         // A database problem must not silently open the door.
         .catch(() => false);
-      if (!allowed) return refuse("Forbidden", 403, nonce);
+      if (!allowed) {
+        if (isApi) return refuse("Forbidden", 403, nonce);
+        // Pages too (UAT B06): the layout's redirect() came after the page had
+        // already started streaming, so a non-member's 307 still carried the
+        // file's data in its body. Refusing here sends nothing but the
+        // redirect.
+        const url = new URL("/engagements", req.nextUrl.origin);
+        url.searchParams.set("error", "not-on-this-engagement");
+        return redirectTo(url, nonce);
+      }
     }
   }
 

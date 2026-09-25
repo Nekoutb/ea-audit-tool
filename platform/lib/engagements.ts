@@ -182,7 +182,7 @@ export async function createEngagement(input: {
   framework?: string | null;
   firstYear?: boolean | null;
 }): Promise<string> {
-  const { tenantId } = await requireTenant();
+  const { tenantId, userId, role } = await requireTenant();
   // undefined keeps the legacy full-file default; null defers scoping to the
   // nature-of-entity screen (no file items are instantiated yet).
   const deferred = input.complexity === null;
@@ -224,6 +224,21 @@ export async function createEngagement(input: {
          VALUES ($1, $2, $3, 'partner')
          ON CONFLICT (engagement_id, user_id) DO NOTHING`,
         [tenantId, engagementId, input.partnerId],
+      );
+    }
+    // The creator joins the team (UAT B24). Otherwise a manager who opened
+    // the file and then staffed it was locked out the moment the first member
+    // was added: from then on only assigned members can see it. Partners and
+    // firm admins see every file anyway, and the EQR must stay independent.
+    const creatorRole = ({ manager: "manager", senior: "senior", staff: "staff" } as const)[
+      role as "manager" | "senior" | "staff"
+    ];
+    if (creatorRole && userId !== input.partnerId) {
+      await tx.query(
+        `INSERT INTO team_member (tenant_id, engagement_id, user_id, team_role, status)
+         VALUES ($1, $2, $3, $4, 'accepted')
+         ON CONFLICT (engagement_id, user_id) DO NOTHING`,
+        [tenantId, engagementId, userId, creatorRole],
       );
     }
     return engagementId;

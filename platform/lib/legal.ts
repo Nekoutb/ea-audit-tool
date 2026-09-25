@@ -15,7 +15,7 @@ import type { Locale } from "@/lib/i18n";
 import { mandateExpiryYear } from "@/lib/letters";
 import { createNotification } from "@/lib/notifications";
 import { canPartnerSignoff } from "@/lib/rbac";
-import { requireTenant } from "@/lib/tenant";
+import { requireTenant, requireWrite } from "@/lib/tenant";
 
 export class LegalError extends Error {
   constructor(public readonly code: string) {
@@ -145,7 +145,7 @@ async function loadLegalContext(tx: PoolClient, engagementId: string): Promise<E
  * by key so regeneration follows date changes without losing done-marks.
  */
 export async function generateDeadlines(engagementId: string): Promise<DeadlineInfo[]> {
-  const { tenantId } = await requireTenant();
+  const { tenantId } = await requireWrite(); // read_only may view the legal file, not change it (UAT B10)
   await withTenant(tenantId, async (tx) => {
     const e = await loadLegalContext(tx, engagementId);
     const rows: { key: string; due: string; basis: string }[] = [
@@ -199,7 +199,7 @@ export async function listDeadlines(engagementId: string): Promise<DeadlineInfo[
 }
 
 export async function markDeadlineDone(engagementId: string, key: string): Promise<void> {
-  const { tenantId } = await requireTenant();
+  const { tenantId } = await requireWrite(); // read_only may view the legal file, not change it (UAT B10)
   await withTenant(tenantId, async (tx) => {
     await tx.query(
       "UPDATE statutory_deadline SET done = true, done_at = now() WHERE engagement_id = $1 AND key = $2",
@@ -210,7 +210,7 @@ export async function markDeadlineDone(engagementId: string, key: string): Promi
 
 /** Escalation: overdue undone deadlines notify every engagement partner. */
 export async function escalateOverdue(engagementId: string): Promise<number> {
-  const { tenantId } = await requireTenant();
+  const { tenantId } = await requireWrite(); // read_only may view the legal file, not change it (UAT B10)
   const { overdue, partners } = await withTenant(tenantId, async (tx) => {
     const overdueRows = await tx.query<{ key: string; due_date: string }>(
       `SELECT key, to_char(due_date, 'YYYY-MM-DD') AS due_date
@@ -275,7 +275,7 @@ export async function addConvention(
     notifiedAt?: string;
   },
 ): Promise<string> {
-  const { tenantId, userId } = await requireTenant();
+  const { tenantId, userId } = await requireWrite(); // read_only may view the legal file, not change it (UAT B10)
   if (!input.parties.trim() || !input.interested.trim() || !input.nature.trim()) {
     throw new LegalError("fields-required");
   }
@@ -336,7 +336,7 @@ const CAPACITY_FR: Record<ConventionCapacity, string> = {
 
 /** 8.3: build the rapport spécial from the register (arts. 353/440/442). */
 export async function generateRapportSpecial(engagementId: string): Promise<string> {
-  const { tenantId, userId } = await requireTenant();
+  const { tenantId, userId } = await requireWrite(); // read_only may view the legal file, not change it (UAT B10)
   return withTenant(tenantId, async (tx) => {
     const e = await loadLegalContext(tx, engagementId);
     const { conventions } = await (async () => {
@@ -404,7 +404,7 @@ export async function generateRapportSpecial(engagementId: string): Promise<stri
 // ---- C5.4: article 715 report to the board (spec §12.3) ----
 
 export async function generateArticle715Report(engagementId: string): Promise<string> {
-  const { tenantId, userId } = await requireTenant();
+  const { tenantId, userId } = await requireWrite(); // read_only may view the legal file, not change it (UAT B10)
   return withTenant(tenantId, async (tx) => {
     const e = await loadLegalContext(tx, engagementId);
 
@@ -500,7 +500,7 @@ export interface FaitInfo {
 
 /** Partner-only: reveal to the ministère public (art. 716) + confidential log. */
 export async function revealFait(engagementId: string, description: string): Promise<string> {
-  const { tenantId, userId, role } = await requireTenant();
+  const { tenantId, userId, role } = await requireWrite(); // read_only may view the legal file, not change it (UAT B10)
   if (!canPartnerSignoff(role)) throw new LegalError("forbidden");
   if (!description.trim()) throw new LegalError("fields-required");
   return withTenant(tenantId, async (tx) => {
@@ -556,7 +556,7 @@ export async function generateIrregularitiesLetter(
   target: "ag" | "board",
   points: string,
 ): Promise<string> {
-  const { tenantId, userId } = await requireTenant();
+  const { tenantId, userId } = await requireWrite(); // read_only may view the legal file, not change it (UAT B10)
   if (!points.trim()) throw new LegalError("fields-required");
   return withTenant(tenantId, async (tx) => {
     const e = await loadLegalContext(tx, engagementId);
@@ -583,7 +583,7 @@ export async function generateIrregularitiesLetter(
 // ---- C5.7: attestation registres de titres nominatifs (art. 746-2) ----
 
 export async function generateTitresAttestation(engagementId: string): Promise<string> {
-  const { tenantId, userId } = await requireTenant();
+  const { tenantId, userId } = await requireWrite(); // read_only may view the legal file, not change it (UAT B10)
   return withTenant(tenantId, async (tx) => {
     const e = await loadLegalContext(tx, engagementId);
     const branding = await loadBranding(tx, tenantId);
@@ -688,7 +688,7 @@ export async function equityCheck(engagementId: string): Promise<EquityCheck> {
 
 /** Client share capital used by the C5.8 monitor. */
 export async function setShareCapital(engagementId: string, amount: number): Promise<void> {
-  const { tenantId } = await requireTenant();
+  const { tenantId } = await requireWrite(); // read_only may view the legal file, not change it (UAT B10)
   if (!Number.isFinite(amount) || amount <= 0) throw new LegalError("invalid-amount");
   await withTenant(tenantId, async (tx) => {
     const updated = await tx.query(

@@ -1226,7 +1226,13 @@
       "changed-elsewhere": "Une autre personne a modifié ce papier pendant que vous l'aviez ouvert. Rechargez pour voir sa version avant d'enregistrer — votre saisie n'a pas été conservée.",
       "read-only-role": "Votre rôle permet de consulter ce dossier mais pas de le modifier.",
       "not-on-this-engagement": "Vous n'êtes pas affecté à cette mission.",
-      "requires-manager": "Seuls un manager ou un rang supérieur peuvent voir les chiffres du cabinet."
+      "requires-manager": "Seuls un manager ou un rang supérieur peuvent voir les chiffres du cabinet.",
+      "team-manager-only": "Seul un manager, un associé ou l'administrateur du cabinet affecté à cette mission peut modifier son équipe ou lancer les confirmations d'indépendance.",
+      "partner-only-team-role": "Seul un associé peut attribuer ou retirer le rôle d'associé de la mission.",
+      "not-a-firm-member": "Cette personne n'est pas membre du cabinet.",
+      "invalid-team-role": "Choisissez un rôle d'équipe valide.",
+      "engagement-tenant-mismatch": "Cette mission appartient à un autre cabinet.",
+      "fait-partner-only": "Seul un associé peut ouvrir la lettre C5.6 relative à un fait délictueux."
     }
   },
   "team": {

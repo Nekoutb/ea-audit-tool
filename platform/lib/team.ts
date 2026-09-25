@@ -9,7 +9,9 @@ import { sendEmail, platformSender } from "@/lib/email";
 import { getLocale } from "@/lib/locale";
 import { createNotification } from "@/lib/notifications";
 import { withTenant } from "@/lib/db";
-import { requireTenant } from "@/lib/tenant";
+import { requireEngagementAccess } from "@/lib/engagement-access";
+import { atLeast } from "@/lib/rbac";
+import { ForbiddenError, requireTenant } from "@/lib/tenant";
 
 /** The six-level audit ladder (top down), plus the independent EQR. */
 export type TeamRole =
@@ -80,6 +82,30 @@ export async function listFirmUsers(): Promise<{ id: string; name: string; email
 }
 
 /**
+ * Who may change an engagement's team (UAT B02). Staffing is a manager's
+ * decision (ISQM 1 ¶32, ISA 220 ¶14): any staff member used to be able to add,
+ * remove or promote colleagues, including making themselves partner. Now:
+ * manager rank or above, never the EQR (who must stay independent of the
+ * team), on an engagement the caller can see — and only a partner may hand
+ * out or take away the partner seat.
+ */
+export async function requireTeamManager(engagementId: string, teamRole?: string) {
+  const ctx = await requireTenant();
+  if (ctx.role === "eqr_reviewer" || !atLeast(ctx.role, "manager")) {
+    throw new ForbiddenError("team-manager-only");
+  }
+  if (teamRole === "partner" && !atLeast(ctx.role, "partner")) {
+    throw new ForbiddenError("partner-only-team-role");
+  }
+  await requireEngagementAccess(engagementId);
+  return ctx;
+}
+
+function assertTeamRole(teamRole: string): asserts teamRole is TeamRole {
+  if (!(TEAM_ROLES as readonly string[]).includes(teamRole)) throw new Error("invalid-team-role");
+}
+
+/**
  * Assign a user to the team. EQR rule (spec §2): the EQR must be independent of
  * the engagement team — the system blocks assigning an EQR who already holds a
  * team role, and blocks giving a team role to the current EQR.
@@ -89,13 +115,24 @@ export async function assignTeamMember(
   userId: string,
   teamRole: TeamRole,
 ): Promise<void> {
-  const { tenantId } = await requireTenant();
+  assertTeamRole(teamRole);
+  const { tenantId, role } = await requireTeamManager(engagementId, teamRole);
   await withTenant(tenantId, async (tx) => {
     const existing = await tx.query<{ team_role: TeamRole }>(
       "SELECT team_role FROM team_member WHERE engagement_id = $1 AND user_id = $2",
       [engagementId, userId],
     );
     const current = existing.rows[0]?.team_role;
+    // Demoting the partner is taking the partner seat away.
+    if (current === "partner" && teamRole !== "partner" && !atLeast(role, "partner")) {
+      throw new ForbiddenError("partner-only-team-role");
+    }
+    // The member must belong to this firm.
+    const member = await tx.query("SELECT 1 FROM membership WHERE tenant_id = $1 AND user_id = $2", [
+      tenantId,
+      userId,
+    ]);
+    if ((member.rowCount ?? 0) === 0) throw new Error("not-a-firm-member");
     if (teamRole === "eqr_reviewer" && current && current !== "eqr_reviewer") {
       throw new Error("eqr-on-team");
     }
@@ -112,8 +149,15 @@ export async function assignTeamMember(
 }
 
 export async function removeTeamMember(engagementId: string, userId: string): Promise<void> {
-  const { tenantId } = await requireTenant();
+  const { tenantId, role } = await requireTeamManager(engagementId);
   await withTenant(tenantId, async (tx) => {
+    const existing = await tx.query<{ team_role: TeamRole }>(
+      "SELECT team_role FROM team_member WHERE engagement_id = $1 AND user_id = $2",
+      [engagementId, userId],
+    );
+    if (existing.rows[0]?.team_role === "partner" && !atLeast(role, "partner")) {
+      throw new ForbiddenError("partner-only-team-role");
+    }
     await tx.query("DELETE FROM team_member WHERE engagement_id = $1 AND user_id = $2", [
       engagementId,
       userId,
@@ -338,7 +382,8 @@ export async function addTeamMemberByEmail(
    */
   displayNameRaw?: string,
 ): Promise<void> {
-  const { tenantId, userId: inviterId } = await requireTenant();
+  assertTeamRole(teamRole);
+  const { tenantId, userId: inviterId } = await requireTeamManager(engagementId, teamRole);
   const email = emailRaw.trim().toLowerCase();
   if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)) throw new Error("invalid-email");
 
