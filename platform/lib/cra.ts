@@ -7,6 +7,8 @@
 // suggestion) and S2.5 (the ITGC conclusion), and feeds the sampling tool,
 // S5.5 and the E4 workpapers.
 
+import type { PoolClient } from "pg";
+import { recordActivity } from "@/lib/activity";
 import { withTenant } from "@/lib/db";
 import { requireTenant } from "@/lib/tenant";
 import { significantAccounts } from "@/lib/significant-accounts";
@@ -45,6 +47,20 @@ export interface CraCell {
   controlsCovering: number;
   controlsEffective: number;
   controlsFailed: number;
+  /** earlier assessments this cell replaced (E6.8 reassessment), oldest first */
+  history: CraRevision[];
+}
+
+export interface CraRevision {
+  ir: CraIr | null;
+  cr: CraCr | null;
+  irBasis: string;
+  crBasis: string;
+  newIr: CraIr | null;
+  newCr: CraCr | null;
+  reason: string;
+  by: string | null;
+  at: string;
 }
 
 export interface CraAccountRow {
@@ -67,6 +83,23 @@ export interface CraBoardView {
   /** S2.5 conclusion: support / not_support / mixed — null until concluded */
   itgcState: string | null;
   glAvailable: boolean;
+  /** planning closed or materiality approved: changing a recorded IR/CR needs a reason */
+  reassessmentNeedsReason: boolean;
+}
+
+/**
+ * Once planning is closed or materiality is approved, the assessment is the
+ * basis of the audit strategy: revising it is a documented judgement (ISA 315
+ * ¶37), not an edit.
+ */
+async function assessmentLockedTx(tx: PoolClient, engagementId: string): Promise<boolean> {
+  const r = await tx.query<{ locked: boolean }>(
+    `SELECT (e.phase NOT IN ('acceptance', 'planning')
+             OR EXISTS (SELECT 1 FROM materiality m WHERE m.engagement_id = e.id AND m.status = 'approved')) AS locked
+       FROM engagement e WHERE e.id = $1`,
+    [engagementId],
+  );
+  return r.rows[0]?.locked ?? false;
 }
 
 export async function craBoard(engagementId: string): Promise<CraBoardView> {
@@ -80,7 +113,7 @@ export async function craBoard(engagementId: string): Promise<CraBoardView> {
   const itgcState = s25.itgc_state && ["support", "not_support", "mixed"].includes(s25.itgc_state) ? s25.itgc_state : null;
 
   // risks per index+assertion, and the saved assessments
-  const { riskLinks, saved, taskItems, settings } = await withTenant(tenantId, async (tx) => {
+  const { riskLinks, saved, taskItems, settings, history, locked } = await withTenant(tenantId, async (tx) => {
     const riskLinks = await tx.query<{ index_code: string; assertions: string[]; significant: boolean; fraud: boolean }>(
       `SELECT li.index_code, li.assertions, rk.significant,
               (rk.category = 'fraud' OR rk.presumed_type IS NOT NULL) AS fraud
@@ -104,10 +137,34 @@ export async function craBoard(engagementId: string): Promise<CraBoardView> {
       "SELECT index_code, key_item_threshold FROM cra_index_setting WHERE engagement_id = $1",
       [engagementId],
     );
-    return { riskLinks: riskLinks.rows, saved: saved.rows, taskItems: taskItems.rows, settings: settings.rows };
+    // the assessments each cell replaced, with who changed them and why
+    const history = await tx.query<{
+      index_code: string; assertion: string; ir: CraIr | null; ir_basis: string | null; cr: CraCr | null; cr_basis: string | null;
+      new_ir: CraIr | null; new_cr: CraCr | null; reason: string | null; by: string | null; at: string;
+    }>(
+      `SELECT h.index_code, h.assertion, h.ir, h.ir_basis, h.cr, h.cr_basis, h.new_ir, h.new_cr, h.reason,
+              (SELECT coalesce(u.name, u.email) FROM app_user u WHERE u.id = h.changed_by) AS by,
+              to_char(h.changed_at, 'YYYY-MM-DD HH24:MI') AS at
+         FROM cra_assessment_history h
+        WHERE h.engagement_id = $1
+        ORDER BY h.changed_at`,
+      [engagementId],
+    );
+    const locked = await assessmentLockedTx(tx, engagementId);
+    return { riskLinks: riskLinks.rows, saved: saved.rows, taskItems: taskItems.rows, settings: settings.rows, history: history.rows, locked };
   });
 
   const itemByCode = new Map(taskItems.map((t) => [t.code, t.id]));
+  const historyByKey = new Map<string, CraRevision[]>();
+  for (const h of history) {
+    const key = `${h.index_code}|${h.assertion}`;
+    const list = historyByKey.get(key) ?? [];
+    list.push({
+      ir: h.ir, cr: h.cr, irBasis: h.ir_basis ?? "", crBasis: h.cr_basis ?? "",
+      newIr: h.new_ir, newCr: h.new_cr, reason: h.reason ?? "", by: h.by, at: h.at,
+    });
+    historyByKey.set(key, list);
+  }
 
   // per index: risk assertions, significance and the fraud overlay
   const riskByIndex = new Map<string, Map<string, { count: number; significant: boolean; fraud: boolean }>>();
@@ -138,8 +195,11 @@ export async function craBoard(engagementId: string): Promise<CraBoardView> {
       cur.scots += 1;
       cur.selected += selectedControls.length;
       for (const c of selectedControls) {
-        const failed = c.designEval === "ineffective" || c.operating === "exceptions";
-        const effective = c.designEval !== "ineffective" && c.operating === "effective";
+        // The E1.2 conclusion (operatingEval) is what the board reads; the raw
+        // test outcome (operating) only stands in until E1.2 concludes.
+        const concluded = c.operatingEval ?? (c.operating === "effective" ? "effective" : c.operating === "exceptions" ? "not_effective" : null);
+        const failed = c.designEval === "ineffective" || concluded === "not_effective";
+        const effective = c.designEval !== "ineffective" && concluded === "effective";
         for (const a of assertionOf(c.id)) {
           const cell = cur.perAssertion.get(a) ?? { covering: 0, effective: 0, failed: 0 };
           cell.covering += 1;
@@ -190,6 +250,7 @@ export async function craBoard(engagementId: string): Promise<CraBoardView> {
         controlsCovering: cov?.covering ?? 0,
         controlsEffective: cov?.effective ?? 0,
         controlsFailed: cov?.failed ?? 0,
+        history: historyByKey.get(`${indexCode}|${assertion}`) ?? [],
       };
     });
     const taskCode = INDEX_SECTION[indexCode] ?? null;
@@ -212,7 +273,7 @@ export async function craBoard(engagementId: string): Promise<CraBoardView> {
     ...extraIndexes.map((i) => buildRow(i, LEAD_INDEX_BY_CODE[i]?.labelEn ?? i, 0, [], [])),
   ];
 
-  return { rows, te: sig?.tolerableError ?? null, itgcState, glAvailable: sig?.glAvailable ?? false };
+  return { rows, te: sig?.tolerableError ?? null, itgcState, glAvailable: sig?.glAvailable ?? false, reassessmentNeedsReason: locked };
 }
 
 /** The effective (recorded, else suggested) sampling-tool value of one cell. */
@@ -261,12 +322,46 @@ export async function saveCraCell(
   engagementId: string,
   indexCode: string,
   assertion: string,
-  patch: { relevant?: boolean; ir?: CraIr | ""; irBasis?: string; cr?: CraCr | ""; crBasis?: string },
+  patch: { relevant?: boolean; ir?: CraIr | ""; irBasis?: string; cr?: CraCr | ""; crBasis?: string; reason?: string },
 ): Promise<void> {
   if (!(ASSERTIONS as readonly string[]).includes(assertion)) throw new Error("invalid-assertion");
   if (!/^[A-Z][A-Z0-9]{0,2}$/.test(indexCode)) throw new Error("invalid-index");
   const { tenantId, userId } = await requireTenant();
-  await withTenant(tenantId, async (tx) => {
+  // Relying on controls with none selected for this assertion, or with ITGCs
+  // concluded not to support reliance (S2.5), is not a control-risk assessment
+  // ISA 330 ¶8 allows — unless the preparer states the basis in writing.
+  let coverage: { controlsCovering: number; itgcState: string | null } | null = null;
+  if (patch.cr === "rely") {
+    const board = await craBoard(engagementId);
+    const cell = board.rows.find((r) => r.indexCode === indexCode)?.cells.find((c) => c.assertion === assertion);
+    coverage = { controlsCovering: cell?.controlsCovering ?? 0, itgcState: board.itgcState };
+  }
+  const change = await withTenant(tenantId, async (tx) => {
+    const existing = await tx.query<{ ir: CraIr | null; ir_basis: string | null; cr: CraCr | null; cr_basis: string | null }>(
+      `SELECT ir, ir_basis, cr, cr_basis FROM cra_assessment
+        WHERE engagement_id = $1 AND index_code = $2 AND assertion = $3 FOR UPDATE`,
+      [engagementId, indexCode, assertion],
+    );
+    const before = existing.rows[0] ?? null;
+    if (coverage && (coverage.controlsCovering === 0 || coverage.itgcState === "not_support")) {
+      const basis = (patch.crBasis ?? before?.cr_basis ?? "").trim();
+      if (!basis) throw new Error("rely-without-controls");
+    }
+    const nextIr = patch.ir === undefined ? (before?.ir ?? null) : patch.ir === "" ? null : patch.ir;
+    const nextCr = patch.cr === undefined ? (before?.cr ?? null) : patch.cr === "" ? null : patch.cr;
+    const reassessed = before !== null && (before.ir !== null || before.cr !== null) && (nextIr !== before.ir || nextCr !== before.cr);
+    const reason = (patch.reason ?? "").trim();
+    if (reassessed && before) {
+      // Past planning (or once materiality is approved) a revision must say why.
+      if (!reason && (await assessmentLockedTx(tx, engagementId))) throw new Error("reassessment-reason-required");
+      // the assessment being replaced stays on the file, with the revision's reason
+      await tx.query(
+        `INSERT INTO cra_assessment_history
+           (tenant_id, engagement_id, index_code, assertion, ir, ir_basis, cr, cr_basis, new_ir, new_cr, reason, changed_by)
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)`,
+        [tenantId, engagementId, indexCode, assertion, before.ir, before.ir_basis, before.cr, before.cr_basis, nextIr, nextCr, reason || null, userId],
+      );
+    }
     await tx.query(
       `INSERT INTO cra_assessment (tenant_id, engagement_id, index_code, assertion, relevant, ir, ir_basis, cr, cr_basis, updated_by)
        VALUES ($1, $2, $3, $4, coalesce($5, true), NULLIF($6, ''), $7, NULLIF($8, ''), $9, $10)
@@ -290,5 +385,17 @@ export async function saveCraCell(
         userId,
       ],
     );
+    return reassessed ? { before, nextIr, nextCr, reason } : null;
   });
+  if (change) {
+    await recordActivity({
+      engagementId,
+      entityType: "cra_assessment",
+      entityId: `${indexCode}|${assertion}`,
+      action: "reassessed",
+      summary: `CRA ${indexCode}/${assertion} reassessed: IR ${change.before?.ir ?? "—"}→${change.nextIr ?? "—"}, CR ${change.before?.cr ?? "—"}→${change.nextCr ?? "—"}${change.reason ? ` (${change.reason})` : ""}`,
+      before: { ir: change.before?.ir ?? null, cr: change.before?.cr ?? null, irBasis: change.before?.ir_basis ?? "", crBasis: change.before?.cr_basis ?? "" },
+      after: { ir: change.nextIr, cr: change.nextCr, reason: change.reason },
+    });
+  }
 }

@@ -109,7 +109,10 @@ describe("8.1 C5.2 deadlines calendar", () => {
     expect(byKey.get("ago")?.dueDate).toBe("2026-06-30"); // art. 72
     expect(byKey.get("docs_to_cac")?.dueDate).toBe("2026-05-01"); // AGM − 45d
     expect(byKey.get("rapport_special_deposit")?.dueDate).toBe("2026-05-31"); // art. 442
-    expect(byKey.get("mandate_expiry")?.dueDate).toBe("2029-12-31"); // AGO mandate: 6 FY from 2024
+    // AGO mandate: 6 exercices from 2024 = 2024..2029. Art. 704: the mandate
+    // ends at the AGO ruling on the 6th year's accounts, which art. 548 places
+    // within 6 months of that year-end — 2030-06-30, not 2029-12-31 (UAT B102).
+    expect(byKey.get("mandate_expiry")?.dueDate).toBe("2030-06-30");
   });
 
   it("marks a deadline done and escalates overdue items to the partner", async () => {

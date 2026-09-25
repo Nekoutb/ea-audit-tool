@@ -19,6 +19,9 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import { recordTodResultAction } from "@/app/actions/engines";
+import type { TodResultRow } from "@/lib/engines";
+import { SubmitButton } from "@/components/SubmitButton";
 import { drawTocSample, normFreq, tocSuggested } from "@/lib/toc-sampling";
 
 export interface SamplingPurpose {
@@ -49,12 +52,26 @@ export function SamplingStudio({
   purposes,
   s22Href,
   locale,
+  te = null,
+  indexes = [],
+  results = [],
+  resultsError = null,
+  resultsRecorded = false,
 }: {
   engagementId: string;
   purposes: SamplingPurpose[];
   /** the S2.2 design screen — clicking a control's description returns there */
   s22Href?: string;
   locale: "en" | "fr";
+  /** tolerable error (TE), the yardstick the projection is read against */
+  te?: number | null;
+  /** the lead indexes a result can be recorded for */
+  indexes?: { code: string; label: string }[];
+  /** results already recorded, newest first */
+  results?: TodResultRow[];
+  /** the ?error= code the results action redirected back with */
+  resultsError?: string | null;
+  resultsRecorded?: boolean;
 }) {
   const fr = locale === "fr";
   const router = useRouter();
@@ -86,7 +103,7 @@ export function SamplingStudio({
       setSideError(
         body.error === "no-materiality" ? (fr ? "Seuil de signification non approuvé (P6.1)." : "Materiality not approved yet (P6.1).")
         : body.error === "no-gl" ? (fr ? "Aucun grand livre — importer le GL dans l'analyseur." : "No general ledger — upload it in the GL Analyzer.")
-        : body.error === "no-mapping" ? (fr ? "Colonnes du GL non mappées (compte, montant)." : "GL columns not mapped (account, amount).")
+        : body.error === "no-mapping" ? (fr ? "Colonnes du GL non mappées : compte, et montant ou débit/crédit." : "GL columns not mapped: account, and amount or debit/credit.")
         : fr ? "Le classeur n'a pas pu être construit." : "The workbook could not be built.",
       );
       return;
@@ -342,6 +359,94 @@ export function SamplingStudio({
           </button>
         </div>
         {sideError ? <p role="alert" className="text-[12px] font-semibold text-rose" data-testid="tod-side-error">{sideError}</p> : null}
+      </div>
+
+      {/* ------------------------------------------- 3 · results & projection -- */}
+      <div className="flex flex-col gap-1.5" data-testid="sampling-tod-results">
+        <p className={sectionTitle}>{fr ? "3 · Résultats des tests de détail — extrapolation" : "3 · Tests-of-details results — projection"}</p>
+        <p className="max-w-[820px] text-[11.5px] text-muted">
+          {fr
+            ? "Reportez, par indice, ce que le classeur a relevé : la valeur de l'échantillon examiné, l'anomalie trouvée dans l'échantillon, l'anomalie avérée sur les éléments clés et la population restante (toutes lues sur l'onglet). L'anomalie extrapolée = anomalie de l'échantillon ÷ valeur de l'échantillon × population restante (ISA 530 ¶14) ; au-delà du seuil négligeable elle est portée sur C1.1, comme l'anomalie avérée des éléments clés."
+            : "Bring back, per index, what the workbook found: the value of the sample examined, the misstatement found in it, the factual misstatement in the key items and the remaining population (all read off the tab). Projected misstatement = sample misstatement ÷ sample value × remaining population (ISA 530 ¶14); above clearly trivial it is carried to C1.1, as is the factual misstatement in the key items."}
+        </p>
+        {resultsError ? (
+          <p role="alert" className="text-[12px] font-semibold text-rose" data-testid="tod-results-error">
+            {resultsError === "empty-population"
+              ? fr ? "La valeur de l'échantillon doit être supérieure à zéro." : "The sample value must be above zero."
+              : resultsError === "invalid-index"
+                ? fr ? "Choisissez un indice." : "Choose an index."
+                : fr ? "Les montants saisis ne sont pas lisibles." : "The amounts entered could not be read."}
+          </p>
+        ) : null}
+        {resultsRecorded ? (
+          <p className="text-[12px] font-semibold text-emerald-700 dark:text-emerald-400" data-testid="tod-results-recorded">
+            {fr ? "Résultat enregistré et extrapolé — voir C1.1 pour le registre." : "Result recorded and projected — see C1.1 for the register."}
+          </p>
+        ) : null}
+        <form action={recordTodResultAction.bind(null, engagementId)} className="flex flex-wrap items-end gap-2.5" data-testid="tod-results-form">
+          <label className="flex flex-col gap-0.5 text-[11px] text-muted">
+            {fr ? "Indice" : "Index"}
+            <select name="indexCode" required className={input} data-testid="tod-result-index">
+              <option value="">—</option>
+              {indexes.map((i) => <option key={i.code} value={i.code}>{i.code} — {i.label}</option>)}
+            </select>
+          </label>
+          {([
+            ["sampleValue", fr ? "Valeur de l'échantillon" : "Sample value", true],
+            ["sampleMisstatement", fr ? "Anomalie dans l'échantillon" : "Misstatement in sample", false],
+            ["keyMisstatement", fr ? "Anomalie sur éléments clés" : "Key-item misstatement", false],
+            ["remainingValue", fr ? "Population restante" : "Remaining population", true],
+          ] as const).map(([name, label, required]) => (
+            <label key={name} className="flex flex-col gap-0.5 text-[11px] text-muted">
+              {label}
+              <input name={name} required={required} inputMode="decimal" className={`${input} w-40 tnum`} data-testid={`tod-result-${name}`} />
+            </label>
+          ))}
+          <SubmitButton className="rounded-[var(--radius-atlas-sm)] bg-emerald-700 px-3.5 py-1.5 text-[13px] font-semibold text-white hover:bg-emerald-800" testId="tod-result-submit">
+            {fr ? "Enregistrer et extrapoler" : "Record and project"}
+          </SubmitButton>
+        </form>
+        {results.length > 0 ? (
+          <div className="overflow-x-auto rounded-[var(--radius-atlas-sm)] border border-line">
+            <table className="w-full">
+              <thead>
+                <tr>
+                  <th className={th}>{fr ? "Indice" : "Index"}</th>
+                  <th className={th}>{fr ? "Échantillon" : "Sample"}</th>
+                  <th className={th}>{fr ? "Anomalie échantillon" : "Sample misstatement"}</th>
+                  <th className={th}>{fr ? "Population restante" : "Remaining population"}</th>
+                  <th className={th}>{fr ? "Extrapolée" : "Projected"}</th>
+                  <th className={th}>{fr ? "Éléments clés (avérée)" : "Key items (factual)"}</th>
+                  <th className={th}>{fr ? "Probable totale" : "Total likely"}</th>
+                  <th className={th}>{te !== null ? `vs TE ${n(te)}` : "vs TE"}</th>
+                  <th className={th}>{fr ? "Enregistré" : "Recorded"}</th>
+                </tr>
+              </thead>
+              <tbody>
+                {results.map((r) => {
+                  const total = (r.projected ?? 0) + r.keyMisstatement;
+                  const exceeds = te !== null && Math.abs(total) > te;
+                  return (
+                    <tr key={r.id} data-testid={`tod-result-row-${r.indexCode}`}>
+                      <td className={`${td} font-mono font-bold text-ink`}>{r.indexCode}</td>
+                      <td className={`${td} tnum`}>{n(r.sampleValue)}</td>
+                      <td className={`${td} tnum`}>{n(r.sampleMisstatement)}</td>
+                      <td className={`${td} tnum`}>{n(r.remainingValue)}</td>
+                      <td className={`${td} tnum font-semibold`}>{r.projected === null ? "—" : n(r.projected)}</td>
+                      <td className={`${td} tnum`}>{n(r.keyMisstatement)}</td>
+                      <td className={`${td} tnum font-semibold`}>{n(total)}</td>
+                      <td className={`${td} ${exceeds ? "font-bold text-rose" : "text-emerald-700 dark:text-emerald-400"}`}>
+                        {te === null ? "—" : exceeds ? (fr ? "Dépasse TE" : "Exceeds TE") : fr ? "Sous TE" : "Within TE"}
+                        {r.raisedToB5 ? <span className="ml-1 text-[10px] text-muted">· C1.1</span> : null}
+                      </td>
+                      <td className={`${td} text-muted tnum`}>{r.createdAt}</td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+        ) : null}
       </div>
     </div>
   );

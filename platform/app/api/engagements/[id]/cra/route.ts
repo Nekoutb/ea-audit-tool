@@ -22,6 +22,7 @@ export async function POST(request: Request, context: { params: Promise<{ id: st
       irBasis: typeof body.irBasis === "string" ? body.irBasis : undefined,
       cr: body.cr === "" || body.cr === "rely" || body.cr === "not_rely" ? body.cr : undefined,
       crBasis: typeof body.crBasis === "string" ? body.crBasis : undefined,
+      reason: typeof body.reason === "string" ? body.reason : undefined,
     });
     return NextResponse.json({ ok: true });
   } catch (error) {

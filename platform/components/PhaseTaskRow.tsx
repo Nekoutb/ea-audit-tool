@@ -63,6 +63,8 @@ export function PhaseTaskRow({
   returnTo,
   signPreparerLabel,
   signReviewerLabel,
+  canSign = true,
+  canReview = true,
 }: {
   row: PhaseRowData;
   engagementId: string;
@@ -71,6 +73,10 @@ export function PhaseTaskRow({
   returnTo?: string;
   signPreparerLabel: string;
   signReviewerLabel: string;
+  /** false while an earlier phase's gates are still open: the chips are inert (UAT B15) */
+  canSign?: boolean;
+  /** false below senior: no R button to press and be refused (UAT B129) */
+  canReview?: boolean;
 }) {
   const router = useRouter();
 
@@ -115,6 +121,8 @@ export function PhaseTaskRow({
         <div className="flex min-w-0 items-center gap-3">
           {row.preparerSigned ? (
             <span className="sobox p" aria-hidden>P</span>
+          ) : !canSign ? (
+            <span className="sobox off" aria-hidden>P</span>
           ) : (
             <form action={signOffPreparerAction} onClick={stop}>
               {hidden}
@@ -134,7 +142,7 @@ export function PhaseTaskRow({
         <div className="flex min-w-0 items-center gap-3">
           {row.reviewerSigned ? (
             <span className="sobox r" aria-hidden>R</span>
-          ) : row.preparerSigned ? (
+          ) : row.preparerSigned && canSign && canReview ? (
             <form action={signOffReviewerAction} onClick={stop}>
               {hidden}
               <button type="submit" className="sobox r" title={signReviewerLabel} aria-label={signReviewerLabel} data-testid={`sign-reviewer-${row.code}`}>

@@ -60,6 +60,7 @@ export function PlanningRas({
   const [answers, setAnswers] = useState(view.answers);
   const [signatures, setSignatures] = useState(view.signatures);
   const [busy, setBusy] = useState<string | null>(null);
+  const [refusal, setRefusal] = useState<string | null>(null);
 
   async function save(key: string, value: string) {
     setAnswers((a) => ({ ...a, [key]: value }));
@@ -74,13 +75,35 @@ export function PlanningRas({
 
   async function sign(role: SignatureRole, clear: boolean) {
     setBusy(role);
+    setRefusal(null);
     const response = await fetch(`/api/engagements/${engagementId}/planning-ras`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ sign: role, clear }),
     }).catch(() => null);
     setBusy(null);
-    if (!response?.ok) return;
+    if (!response?.ok) {
+      // 409: the summary is not ready for this tier (UAT B16) — name the gaps.
+      const body = (await response?.json().catch(() => ({}))) as { error?: string; missing?: string[] } | undefined;
+      if (body?.error === "ras-incomplete") {
+        const missing = body.missing ?? [];
+        const unanswered = missing.filter((k) => /^[ab]\d+$/.test(k)).length;
+        const unexplained = missing.filter((k) => /_x$/.test(k)).length;
+        const parts: string[] = [];
+        if (unanswered > 0) parts.push(fr ? `${unanswered} confirmation(s) sans réponse` : `${unanswered} confirmation(s) unanswered`);
+        if (unexplained > 0) parts.push(fr ? `${unexplained} « Non » sans explication` : `${unexplained} "No" without an explanation`);
+        if (missing.includes("deliverables")) parts.push(fr ? "des livrables de la section A ne sont pas prêts" : "Section A deliverables not ready");
+        if (missing.includes("sig_fieldwork")) parts.push(fr ? "le responsable des travaux n'a pas signé" : "the fieldwork lead has not signed");
+        if (missing.includes("sig_manager")) parts.push(fr ? "le manager n'a pas signé" : "the manager has not signed");
+        setRefusal(
+          (fr ? "Signature refusée — " : "Signature refused — ") +
+            (parts.length > 0 ? parts.join(fr ? " ; " : "; ") : fr ? "le récapitulatif est incomplet." : "the summary is incomplete."),
+        );
+      } else {
+        setRefusal(fr ? "La signature n'a pas pu être enregistrée." : "The signature could not be recorded.");
+      }
+      return;
+    }
     const body = (await response.json().catch(() => ({}))) as { signature?: { name: string; signedAt: string } };
     setSignatures((s) => {
       const next = { ...s };
@@ -126,6 +149,11 @@ export function PlanningRas({
           </span>
         )}
       </div>
+      {refusal ? (
+        <p role="alert" className="mt-2 text-[12px] font-semibold text-rose" data-testid="ras-refusal">
+          {refusal}
+        </p>
+      ) : null}
 
       <div className="mt-2 flex min-h-0 flex-1 flex-col gap-3 overflow-y-auto pr-1">
         {sections.map((section) => (

@@ -2,6 +2,8 @@ import ExcelJS from "exceljs";
 import { NextResponse } from "next/server";
 import { apComments, apLeadSchedules } from "@/lib/analytical-procedures";
 import { getEngagement } from "@/lib/engagements";
+import { accountClassLabel, accountTypeLabel, leadIndexLabel } from "@/lib/lead-classes";
+import { getLocale } from "@/lib/locale";
 
 /**
  * The lead schedules as one Excel workbook: an Introduction tab, then one tab
@@ -14,35 +16,47 @@ export async function GET(_request: Request, context: { params: Promise<{ id: st
   try {
     const engagement = await getEngagement(id);
     if (!engagement) return NextResponse.json({ error: "not-found" }, { status: 404 });
-    const [schedules, comments] = await Promise.all([apLeadSchedules(id), apComments(id)]);
+    const [schedules, comments, locale] = await Promise.all([apLeadSchedules(id), apComments(id), getLocale()]);
     if (schedules.length === 0) return NextResponse.json({ error: "no-tb" }, { status: 400 });
+    // the extract reads in the language of the screen it was taken from
+    const lc: "en" | "fr" = locale === "fr" ? "fr" : "en";
+    const fr = lc === "fr";
+    const label = (s: (typeof schedules)[number]) => leadIndexLabel(s.def, lc);
+    const kind = (s: (typeof schedules)[number]) => `${accountTypeLabel(s.def.accountType, lc)} · ${accountClassLabel(s.def.accountClass, lc)}`;
 
     const wb = new ExcelJS.Workbook();
 
     const intro = wb.addWorksheet("Introduction");
     intro.columns = [{ width: 28 }, { width: 60 }];
-    intro.addRow(["Lead Schedules"]).font = { bold: true, size: 14 };
+    intro.addRow([fr ? "Feuilles maîtresses" : "Lead Schedules"]).font = { bold: true, size: 14 };
     intro.addRow([]);
-    intro.addRow(["Engagement", engagement.name ?? engagement.clientName]);
-    intro.addRow(["Client", engagement.clientName]);
-    intro.addRow(["Period end", engagement.periodEnd]);
-    intro.addRow(["Generated", new Date().toISOString().slice(0, 16).replace("T", " ")]);
+    intro.addRow([fr ? "Mission" : "Engagement", engagement.name ?? engagement.clientName]);
+    intro.addRow([fr ? "Client" : "Client", engagement.clientName]);
+    intro.addRow([fr ? "Date de clôture" : "Period end", engagement.periodEnd]);
+    intro.addRow([fr ? "Généré le" : "Generated", new Date().toISOString().slice(0, 16).replace("T", " ")]);
     intro.addRow([]);
-    intro.addRow(["Contents", "One tab per lead-schedule index; balances from the pre-audit trial balance; Prior Y is the trial balance's opening balance."]);
+    intro.addRow([
+      fr ? "Contenu" : "Contents",
+      fr
+        ? "Un onglet par indice de feuille maîtresse ; soldes issus de la balance pré-audit ; l'exercice N-1 est le solde d'ouverture de la balance."
+        : "One tab per lead-schedule index; balances from the pre-audit trial balance; Prior Y is the trial balance's opening balance.",
+    ]);
     intro.addRow([]);
     for (const schedule of schedules) {
-      intro.addRow([schedule.def.code, `${schedule.def.labelEn} — ${schedule.def.accountType} · ${schedule.def.accountClass}`]);
+      intro.addRow([schedule.def.code, `${label(schedule)} — ${kind(schedule)}`]);
     }
 
-    const HEAD = ["Account", "Description", "Account class", "Account type", "Current Y", "Prior Y", "Movement", "Variance %", "Commentary"];
+    const HEAD = fr
+      ? ["Compte", "Intitulé", "Classe de compte", "Type de compte", "Exercice N", "Exercice N-1", "Mouvement", "Écart %", "Commentaire"]
+      : ["Account", "Description", "Account class", "Account type", "Current Y", "Prior Y", "Movement", "Variance %", "Commentary"];
     for (const schedule of schedules) {
-      const name = `${schedule.def.code} ${schedule.def.labelEn}`.replace(/[\\/*?:[\]]/g, " ").slice(0, 31);
+      const name = `${schedule.def.code} ${label(schedule)}`.replace(/[\\/*?:[\]]/g, " ").slice(0, 31);
       const ws = wb.addWorksheet(name);
       ws.columns = [
         { width: 12 }, { width: 34 }, { width: 22 }, { width: 14 },
         { width: 16 }, { width: 16 }, { width: 16 }, { width: 11 }, { width: 44 },
       ];
-      const title = ws.addRow([`${schedule.def.code} — ${schedule.def.labelEn}`, "", `${schedule.def.accountType} · ${schedule.def.accountClass}`]);
+      const title = ws.addRow([`${schedule.def.code} — ${label(schedule)}`, "", kind(schedule)]);
       title.font = { bold: true, size: 12 };
       ws.addRow([]);
       const head = ws.addRow(HEAD);
@@ -55,8 +69,8 @@ export async function GET(_request: Request, context: { params: Promise<{ id: st
         ws.addRow([
           row.account,
           row.name,
-          schedule.def.accountClass,
-          schedule.def.accountType,
+          accountClassLabel(schedule.def.accountClass, lc),
+          accountTypeLabel(schedule.def.accountType, lc),
           row.closing,
           row.prior,
           row.movement,
@@ -66,7 +80,7 @@ export async function GET(_request: Request, context: { params: Promise<{ id: st
       }
       const total = ws.addRow([
         "TOTAL",
-        `${schedule.def.code} — ${schedule.def.labelEn}`,
+        `${schedule.def.code} — ${label(schedule)}`,
         "",
         "",
         schedule.closing,

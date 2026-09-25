@@ -79,9 +79,15 @@ describe("checkLoginThrottle — the pair brake", () => {
 describe("checkLoginThrottle — with no trusted IP", () => {
   it("tolerates far more before braking, so it cannot be aimed at a user", async () => {
     // With no IP dimension the pair collapses to the email, and a tight brake
-    // becomes a weapon. 20 failures must not lock a real person out.
-    for (let i = 0; i < 20; i += 1) await failureAt(1, null);
+    // becomes a weapon. The email-only allowance is 15 (UAT B38 lowered it from
+    // 50 so an attacker cannot try fifty passwords at full speed) — still three
+    // times the per-pair allowance of 5, so a typo streak does not lock a real
+    // person out.
+    for (let i = 0; i < 15; i += 1) await failureAt(1, null);
     expect((await checkLoginThrottle(EMAIL, null)).blocked).toBe(false);
+    // The sixteenth failure starts the backoff.
+    await failureAt(1, null);
+    expect((await checkLoginThrottle(EMAIL, null)).blocked).toBe(true);
   });
 
   it("still brakes sustained guessing", async () => {

@@ -21,6 +21,13 @@ const GROUPING_SPACE = /[\s   ]/g;
 const NOISE = /[^\d.,()+\-]/g;
 
 /**
+ * Currency words and symbols that carry no numeric meaning. Anything else
+ * that is a letter means the cell is text, not an amount: "voir note 3" used
+ * to be read as 3 and "N/A" as nothing, both silently (UAT B82).
+ */
+const CURRENCY_TOKENS = /\b(F\s?CFA|FCFA|XAF|XOF|CFA|EUR|USD|GBP|F)\b|[€$£]/gi;
+
+/**
  * Parse a human-entered or spreadsheet-exported amount.
  * Returns null when the value is not a number — callers decide whether that is
  * an error or simply an empty cell. Use `amountOr(value, 0)` for a total.
@@ -46,7 +53,10 @@ export function parseAmount(value: unknown): number | null {
     raw = raw.slice(0, -1);
   }
 
-  // Currency words and symbols (FCFA, XAF, €, $) carry no numeric meaning.
+  // Currency words and symbols (FCFA, XAF, €, $) carry no numeric meaning;
+  // any other letter left over means this is a note, not a number.
+  raw = raw.replace(CURRENCY_TOKENS, "");
+  if (/\p{L}/u.test(raw)) return null;
   const hadGrouping = GROUPING_SPACE.test(raw);
   GROUPING_SPACE.lastIndex = 0;
   let s = raw.replace(GROUPING_SPACE, "").replace(NOISE, "");

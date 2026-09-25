@@ -55,10 +55,11 @@ export function DashboardLists({ engagementId, locale, today, tasks, deadlineOf,
   const base = `/engagements/${engagementId}`;
   const title = (t: PhaseTask) => shortTitle(t.code, locale, fr ? t.titleFr : t.titleEn);
 
-  // Mine: assigned to me or prepared by me, and not yet through review —
-  // the same definition as the tasks page's ?filter=mine, minus what is done.
+  // Mine: assigned to me, prepared by me or awaiting my approval, and not yet
+  // through review — the same definition as the tasks page's ?filter=mine,
+  // minus what is done. The approver used to be left out (UAT B94).
   const mine = tasks
-    .filter((t) => (t.assigneeUserId === userId || t.ownerUserId === userId) && t.status !== "reviewed")
+    .filter((t) => (t.assigneeUserId === userId || t.ownerUserId === userId || t.approverUserId === userId) && t.status !== "reviewed")
     .map((t) => ({ t, due: deadlineOf(t) }))
     .sort((a, b) => a.due.localeCompare(b.due) || a.t.code.localeCompare(b.t.code));
 

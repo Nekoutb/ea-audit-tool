@@ -9,7 +9,7 @@ import { Chip, Panel } from "@/components/ui/atlas";
 import { getEngagement } from "@/lib/engagements";
 import { getMessages } from "@/lib/i18n";
 import { getLocale } from "@/lib/locale";
-import { listTbTimings } from "@/lib/tb";
+import { listTbTimings, listTbVersions } from "@/lib/tb";
 import { rollForward } from "@/lib/tb-rollforward";
 import { RollForwardGrid } from "@/components/RollForwardGrid";
 
@@ -36,7 +36,9 @@ export default async function DataPage(props: {
 
   const engagement = await getEngagement(id);
   if (!engagement) notFound();
-  const [timings, roll] = await Promise.all([listTbTimings(id), rollForward(id)]);
+  const [timings, roll, versions] = await Promise.all([listTbTimings(id), rollForward(id), listTbVersions(id)]);
+  const slotLabel = (timing: "pre_audit" | "post_audit" | "prior_year") =>
+    timing === "pre_audit" ? (fr ? "pré-audit" : "pre-audit") : timing === "post_audit" ? (fr ? "post-audit" : "post-audit") : fr ? "N-1" : "prior year";
   const slotOf = (timing: "pre_audit" | "post_audit" | "prior_year") => timings.find((x) => x.timing === timing);
 
   return (
@@ -99,6 +101,29 @@ export default async function DataPage(props: {
             );
           })}
         </div>
+        {/* every import ever made, the live one per slot first: a re-import
+            supersedes its predecessor but never deletes it, and the working
+            TB (★) moves only on a valid pre-audit import */}
+        {versions.length > 0 ? (
+          <div className="mt-4" data-testid="tb-versions">
+            <h3 className="text-[11px] font-extrabold uppercase tracking-[0.07em] text-muted">
+              {fr ? "Historique des versions" : "Version history"}
+            </h3>
+            <ul className="mt-1.5 flex flex-col gap-0.5 text-[12px] text-ink-soft">
+              {versions.map((v) => (
+                <li key={v.id} className={`flex flex-wrap items-center gap-2 ${v.superseded ? "text-muted" : ""}`} data-testid={`tb-version-${v.versionNo}`}>
+                  <span className="font-mono tnum">v{v.versionNo}</span>
+                  <span>{slotLabel(v.timing)}</span>
+                  <Chip tone={v.status === "valid" ? "good" : v.status === "invalid" ? "rose" : "warn"}>{v.status}</Chip>
+                  {v.isCurrent ? <span title={fr ? "Balance de travail" : "Working TB"}>★</span> : null}
+                  {v.superseded ? <span>({fr ? "remplacée" : "superseded"})</span> : null}
+                  <span className="truncate">{v.sourceFilename ?? ""}</span>
+                  <span className="tnum">{v.rowCount} {fr ? "lignes" : "rows"} · {v.createdAt}</span>
+                </li>
+              ))}
+            </ul>
+          </div>
+        ) : null}
         {roll ? (
           <RollForwardGrid result={roll} locale={fr ? "fr" : "en"} />
         ) : (

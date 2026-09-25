@@ -13,7 +13,9 @@ import { amountOr } from "@/lib/amount";
 import { uncorrectedMisstatementThreshold } from "@/lib/materiality-model";
 import {
   SAD_CAPTIONS,
+  SAD_CAPTION_LABELS,
   SAD_COLUMN_COUNT,
+  SAD_TYPES,
   captionColumn,
   type SadCaption,
   type SadCfRow,
@@ -23,19 +25,22 @@ import {
 } from "@/lib/sad-model";
 
 const MAIN_TYPES = ["factual", "judgmental", "projected"];
+
+/** The misstatement types as the reader sees them (UAT B52). */
+const TYPE_LABELS: Record<string, { en: string; fr: string }> = {
+  factual: { en: "factual", fr: "avérée" },
+  judgmental: { en: "judgmental", fr: "de jugement" },
+  projected: { en: "projected", fr: "extrapolée" },
+  classification: { en: "reclassification", fr: "reclassement" },
+  disclosure: { en: "disclosure", fr: "information annexe" },
+};
 const HDR = "#d9d9d9";
 const BAND = "#c0c0c0";
 const YEL = "#ffff99";
 
-const CAPTION_LABELS: Record<SadCaption, { en: string; fr: string }> = {
-  current_asset: { en: "Assets Current", fr: "Actif courant" },
-  non_current_asset: { en: "Assets Non-current", fr: "Actif non courant" },
-  current_liability: { en: "Liabilities Current", fr: "Passif courant" },
-  non_current_liability: { en: "Liabilities Non-current", fr: "Passif non courant" },
-  equity: { en: "Equity components", fr: "Capitaux propres" },
-  income: { en: "Income statement", fr: "Résultat" },
-  expense: { en: "Income statement", fr: "Résultat" },
-};
+// Shared with the register's accounts text (lib/sad.ts postSadEntry), so the
+// caption drop-down and /findings read the same words (UAT B152).
+const CAPTION_LABELS: Record<SadCaption, { en: string; fr: string }> = SAD_CAPTION_LABELS;
 
 const COLS = (fr: boolean) => [
   fr ? "Actif\ncourant" : "Assets\nCurrent",
@@ -116,8 +121,14 @@ export function SadWorkbook({
     setEntries((es) => es.map((e) => (e.stepId === stepId ? { ...e, ...p } : e)));
 
   // ---- partitions and totals -------------------------------------------------
-  const uncorrectedE = entries.filter((e) => !e.corrected && MAIN_TYPES.includes(e.mtype));
-  const correctedE = entries.filter((e) => e.corrected && MAIN_TYPES.includes(e.mtype));
+  // ISA 450 ¶5: clearly trivial items are not accumulated (UAT B51). They are
+  // listed apart, under the nominal amount they fell below, never summed.
+  const nominal = view.materiality?.trivial ?? null;
+  const isTrivial = (e: SadEntry) =>
+    nominal !== null && Math.max(Math.abs(e.drAmount), Math.abs(e.crAmount)) < nominal;
+  const uncorrectedE = entries.filter((e) => !e.corrected && MAIN_TYPES.includes(e.mtype) && !isTrivial(e));
+  const correctedE = entries.filter((e) => e.corrected && MAIN_TYPES.includes(e.mtype) && !isTrivial(e));
+  const trivialE = entries.filter((e) => MAIN_TYPES.includes(e.mtype) && isTrivial(e));
   const reclassE = entries.filter((e) => e.mtype === "classification");
   const columnTotals = (list: SadEntry[]): number[] => {
     const totals = new Array<number>(SAD_COLUMN_COUNT).fill(0);
@@ -249,7 +260,7 @@ export function SadWorkbook({
                         </td>
                         <td className={td} style={{ background: YEL }} colSpan={SAD_COLUMN_COUNT + 1}>
                           <b>{e.finding || e.taskTitle}</b>
-                          <span className="ml-2 text-[9.5px] text-[#666]">{e.mtype}{e.posted ? (fr ? " · portée au registre" : " · posted") : ""} ▾</span>
+                          <span className="ml-2 text-[9.5px] text-[#666]">{fr ? (TYPE_LABELS[e.mtype]?.fr ?? e.mtype) : (TYPE_LABELS[e.mtype]?.en ?? e.mtype)}{e.posted ? (fr ? " · portée au registre" : " · posted") : ""} ▾</span>
                         </td>
                         {opts.rationale ? (
                           <td className={td} style={{ background: YEL }}>
@@ -277,8 +288,24 @@ export function SadWorkbook({
                                   {SAD_CAPTIONS.map((c) => <option key={c} value={c}>{fr ? CAPTION_LABELS[c].fr : CAPTION_LABELS[c].en}</option>)}
                                 </select>
                               </label>
+                              <label>{fr ? "Type :" : "Type:"}{" "}
+                                <select
+                                  value={e.mtype}
+                                  onChange={(ev) => {
+                                    const mtype = ev.target.value;
+                                    patch(e.stepId, { mtype });
+                                    // an entry already on the C1.1 register is re-posted so the register carries the new type
+                                    void call({ op: "save", stepId: e.stepId, field: "mtype", value: mtype }).then((ok) => ok && e.posted && call({ op: "post", stepId: e.stepId }));
+                                  }}
+                                  className="bg-white text-[11px] outline-none"
+                                  data-testid={`sad-mtype-${e.stepId}`}
+                                >
+                                  {SAD_TYPES.map((t) => <option key={t} value={t}>{fr ? TYPE_LABELS[t].fr : TYPE_LABELS[t].en}</option>)}
+                                </select>
+                              </label>
                               <label>
-                                <input type="checkbox" checked={e.corrected} onChange={(ev) => { patch(e.stepId, { corrected: ev.target.checked }); void call({ op: "save", stepId: e.stepId, field: "corrected", value: ev.target.checked ? "1" : "" }); }} />{" "}
+                                {/* the server reads "yes"; anything else was silently uncorrected (UAT B32) */}
+                                <input type="checkbox" checked={e.corrected} data-testid={`sad-corrected-${e.stepId}`} onChange={(ev) => { const corrected = ev.target.checked; patch(e.stepId, { corrected }); void call({ op: "save", stepId: e.stepId, field: "corrected", value: corrected ? "yes" : "no" }).then((ok) => ok && e.posted && call({ op: "post", stepId: e.stepId })); }} />{" "}
                                 {fr ? "Corrigée par l'entité" : "Corrected by the entity"}
                               </label>
                               {!e.posted ? (
@@ -356,6 +383,29 @@ export function SadWorkbook({
           <>
             {headerBlock(fr ? "Récapitulatif des anomalies non corrigées" : "Summary of uncorrected misstatements")}
             {entryGrid(uncorrectedE, { rationale: false, bands: true })}
+            {trivialE.length > 0 ? (
+              <div className="overflow-x-auto" data-testid="sad-trivial">
+                <table className="w-full min-w-[960px] border-collapse">
+                  <tbody>
+                    <tr>
+                      <td className={td} colSpan={4} style={{ background: BAND }}>
+                        <b>{fr ? `Anomalies manifestement négligeables — inférieures au nominal de ${n(nominal ?? 0)}, non cumulées (ISA 450 ¶5) :` : `Clearly trivial misstatements — below the nominal amount of ${n(nominal ?? 0)}, not accumulated (ISA 450 ¶5):`}</b>
+                      </td>
+                    </tr>
+                    {trivialE.map((e, i) => (
+                      <tr key={e.stepId} data-testid={`sad-trivial-${e.stepId}`}>
+                        <td className={td} style={{ width: 34 }}>{i + 1}</td>
+                        <td className={td} style={{ width: 64 }}>
+                          <a href={`/engagements/${engagementId}/sections/${e.taskItemId}`} className="text-[#0b4f9c] underline">{e.taskCode}</a>
+                        </td>
+                        <td className={td}>{e.finding || e.taskTitle} <span className="text-[9.5px] text-[#666]">{e.corrected ? (fr ? "· corrigée" : "· corrected") : ""}</span></td>
+                        <td className={tdNum} style={{ width: 120 }}>{n(Math.max(Math.abs(e.drAmount), Math.abs(e.crAmount)))}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            ) : null}
             <table className="w-full max-w-[760px] border-collapse self-end">
               <tbody>
                 <tr><td className={td}><b>{fr ? "Anomalies non corrigées avant impôt" : "Uncorrected misstatements before tax"}</b></td><td className={tdNum}>{n(cumIS)}</td></tr>

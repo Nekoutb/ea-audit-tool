@@ -13,6 +13,7 @@ import {
   rollforwardAction,
   subsequentEventsAction,
 } from "@/app/actions/conclusion";
+import { placeLegalHoldAction, releaseLegalHoldAction } from "@/app/actions/retention";
 import { AppNav } from "@/components/AppNav";
 import { ErrorBanner, GatesPanel } from "@/components/GatesPanel";
 import { Panel } from "@/components/ui/atlas";
@@ -25,6 +26,8 @@ import {
   getConclusionState,
 } from "@/lib/completion";
 import { getEngagement } from "@/lib/engagements";
+import { atLeast, type Role } from "@/lib/rbac";
+import { activeHold, retentionDate, retentionPolicy } from "@/lib/retention";
 import { REPORT_COMPONENTS } from "@/lib/report-components";
 import { getMessages } from "@/lib/i18n";
 import { getLocale } from "@/lib/locale";
@@ -46,7 +49,7 @@ export default async function ConclusionPage(props: {
 
   const engagement = await getEngagement(id);
   if (!engagement) notFound();
-  const [gates, archGates, state, disclosure, subsequent, points, partner, client] = await Promise.all([
+  const [gates, archGates, state, disclosure, subsequent, points, partner, client, hold, retention] = await Promise.all([
     completionGates(id),
     archiveGates(id),
     getConclusionState(id),
@@ -55,7 +58,13 @@ export default async function ConclusionPage(props: {
     getCompletionRecord(id, "points_forward"),
     getCompletionRecord(id, "partner_conclusion"),
     getClient(engagement.clientId),
+    activeHold(id),
+    retentionPolicy(),
   ]);
+  const role = session.user.role as Role;
+  const canPlaceHold = atLeast(role, "manager");
+  const canReleaseHold = atLeast(role, "partner");
+  const retentionUntil = state.reportDate ? retentionDate(state.reportDate, engagement.periodEnd, retention.years) : null;
 
   // A4 (Wave 5): the ISA 700 required-components checklist, read-only.
   // No draft report text exists pre-issue (the report is assembled as DOCX at
@@ -85,7 +94,7 @@ export default async function ConclusionPage(props: {
 
   return (
     <main className="min-h-screen w-full px-6 py-8">
-      <AppNav locale={locale} />
+      <AppNav locale={locale} current={{ id, label: engagement.name ?? engagement.clientName }} />
       <h1 className="mt-8 text-2xl font-semibold text-ink">
         {engagement.clientName} — {engagement.fiscalYear} · {tc.title}
       </h1>
@@ -97,14 +106,84 @@ export default async function ConclusionPage(props: {
           className="mt-4 rounded-[var(--radius-atlas-sm)] border border-[var(--color-warn)]/40 bg-[var(--color-warn-soft)] px-4 py-3 text-sm text-warn"
         >
           {tc.archived} — {state.archivedAt}
+          {state.retentionUntil ? (
+            <>
+              {" · "}
+              {locale === "fr" ? "Conservation jusqu'au" : "Retain until"}{" "}
+              <span className="tnum" data-testid="retention-until">{state.retentionUntil}</span>
+            </>
+          ) : null}
         </p>
       ) : null}
+
+      {/* Retention & legal hold (UAT B65): a hold stops the file from ever
+          reaching a destruction path; managers place it, a partner releases it. */}
+      <Panel className="mt-6" data-testid="legal-hold-panel">
+        <h2 className="text-sm font-semibold text-ink">
+          {locale === "fr" ? "Conservation et suspension juridique" : "Retention & legal hold"}
+        </h2>
+        <p className="mt-1 text-xs text-muted">
+          {locale === "fr"
+            ? `Durée de conservation du cabinet : ${retention.years} ans à compter du rapport.`
+            : `Firm retention period: ${retention.years} years from the report date.`}
+          {retentionUntil ? ` · ${locale === "fr" ? "Conservation jusqu'au" : "Retain until"} ${retentionUntil}` : ""}
+        </p>
+        {hold ? (
+          <div className="mt-3 rounded-[var(--radius-atlas-sm)] bg-[var(--color-warn-soft)] px-3 py-2 text-sm text-warn" data-testid="legal-hold-active">
+            <p className="font-medium">
+              {locale === "fr" ? "Suspension juridique en place" : "Legal hold in place"} — {hold.reason}
+            </p>
+            <p className="text-xs">
+              {hold.placedByName ?? "—"} · {hold.placedAt.slice(0, 16)}
+            </p>
+            {canReleaseHold ? (
+              <form action={releaseLegalHoldAction.bind(null, id)} className="mt-2 flex flex-wrap items-end gap-2">
+                <input
+                  name="reason"
+                  required
+                  placeholder={locale === "fr" ? "Motif de la levée" : "Reason for release"}
+                  className={`${input} w-72 max-w-full`}
+                  data-testid="release-hold-reason"
+                />
+                <button type="submit" className={btn} data-testid="release-hold">
+                  {locale === "fr" ? "Lever la suspension (associé)" : "Release hold (partner)"}
+                </button>
+              </form>
+            ) : (
+              <p className="mt-1 text-xs">
+                {locale === "fr" ? "Seul un associé peut lever la suspension." : "Only a partner can release the hold."}
+              </p>
+            )}
+          </div>
+        ) : canPlaceHold ? (
+          <form action={placeLegalHoldAction.bind(null, id)} className="mt-3 flex flex-wrap items-end gap-2">
+            <input
+              name="reason"
+              required
+              placeholder={locale === "fr" ? "Motif (litige, enquête, réclamation…)" : "Reason (dispute, investigation, claim…)"}
+              className={`${input} w-72 max-w-full`}
+              data-testid="place-hold-reason"
+            />
+            <button type="submit" className={btn} data-testid="place-hold">
+              {locale === "fr" ? "Placer une suspension juridique" : "Place a legal hold"}
+            </button>
+          </form>
+        ) : (
+          <p className="mt-2 text-xs text-muted">
+            {locale === "fr" ? "Aucune suspension juridique. Un manager ou un associé peut en placer une." : "No legal hold. A manager or partner can place one."}
+          </p>
+        )}
+      </Panel>
 
       <Panel className="mt-6">
         <h2 className="text-sm font-semibold text-ink">{tc.gates}</h2>
         <GatesPanel gates={gates} locale={locale} />
       </Panel>
 
+      {/* An archived file is read-only: the generate/save actions would only
+          fail on submit, so they are not offered (ISA 230 ¶15-16). */}
+      {state.archivedAt ? null : (
+      <>
       <Panel className="mt-6">
         <div className="flex flex-wrap gap-2">
           <form action={finalAnalyticsAction.bind(null, id)}>
@@ -130,6 +209,11 @@ export default async function ConclusionPage(props: {
           <form action={generateConclusionLetterAction.bind(null, id, "management_letter")}>
             <button type="submit" className={btn} data-testid="gen-mgmt-letter">
               {tc.managementLetter}
+            </button>
+          </form>
+          <form action={generateConclusionLetterAction.bind(null, id, "tcwg_completion")}>
+            <button type="submit" className={btn} data-testid="gen-tcwg-report">
+              {tc.tcwgReport}
             </button>
           </form>
         </div>
@@ -236,6 +320,8 @@ export default async function ConclusionPage(props: {
           </form>
         </div>
       </Panel>
+      </>
+      )}
 
       <Panel className="mt-6">
         <h2 className="text-sm font-semibold text-ink">{tc.opinionTitle}</h2>
@@ -257,6 +343,7 @@ export default async function ConclusionPage(props: {
                       report_issued: { en: "Report issued", fr: "Rapport émis" },
                       completion_gates: { en: "All completion gates green (C4.1)", fr: "Toutes les portes d'achèvement au vert (C4.1)", href: `/engagements/${id}/conclusion` },
                       controls_concluded: { en: "Every control selected for testing is designed, tested and concluded", fr: "Chaque contrôle retenu pour test est conçu, testé et conclu", href: `/engagements/${id}/groups/e1` },
+                      tasks_addressed: { en: "Every applicable task performed, or marked not applicable with a reason", fr: "Chaque tâche applicable réalisée, ou marquée non applicable avec un motif", href: `/engagements/${id}/tools/forms` },
                       reviews_complete: { en: "Every prepared paper carries its review sign-off", fr: "Chaque papier préparé porte sa signature de revue", href: `/engagements/${id}/dashboard` },
                       papers_signed: { en: "Every working paper signed off as preparer and reviewer", fr: "Chaque papier de travail signé préparateur et réviseur", href: `/engagements/${id}/dashboard` },
                       review_approval: { en: "Review & approval summary concluded (C4.1)", fr: "Récapitulatif de revue & approbation conclu (C4.1)", href: `/engagements/${id}/groups/c4` },
@@ -337,8 +424,17 @@ export default async function ConclusionPage(props: {
                 {tc.goingConcernUncertainty}
               </label>
             </div>
-            <textarea name="basisText" rows={2} placeholder={tc.basisText} className={`${input} w-full`} />
-            <textarea name="kamText" rows={2} placeholder={tc.kamText} className={`${input} w-full`} />
+            <textarea name="basisText" rows={2} placeholder={tc.basisText} className={`${input} w-full`} data-testid="basis-text" />
+            <textarea name="kamText" rows={2} placeholder={tc.kamText} className={`${input} w-full`} data-testid="kam-text" />
+            {listed ? (
+              <div className="flex flex-wrap items-center gap-3">
+                <label className="flex items-center gap-2 text-xs text-ink-soft">
+                  <input type="checkbox" name="kamNone" data-testid="kam-none" />
+                  {tc.kamNone}
+                </label>
+                <input name="kamNoneReason" placeholder={tc.kamNoneReason} className={`${input} min-w-[280px] flex-1`} data-testid="kam-none-reason" />
+              </div>
+            ) : null}
             <div className="flex items-end gap-2">
               <label className={label}>
                 {tc.reportDate}

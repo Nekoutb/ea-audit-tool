@@ -12,13 +12,14 @@ import {
 import { AppNav } from "@/components/AppNav";
 import { ErrorBanner, GatesPanel } from "@/components/GatesPanel";
 import { Panel } from "@/components/ui/atlas";
+import { priorYearEngagement } from "@/lib/engagement-dashboard";
 import { getEngagement } from "@/lib/engagements";
 import { acceptanceGates } from "@/lib/gates";
 import { getMessages } from "@/lib/i18n";
 import { listConfirmations } from "@/lib/independence";
 import { listLetters, mandateExpiryYear } from "@/lib/letters";
 import { getLocale } from "@/lib/locale";
-import { listFirmUsers } from "@/lib/team";
+import { listTeam } from "@/lib/team";
 import { withTenant } from "@/lib/db";
 import { requireTenant } from "@/lib/tenant";
 
@@ -55,13 +56,23 @@ export default async function AcceptancePage(props: {
   const engagement = await getEngagement(id);
   if (!engagement) notFound();
 
-  const [gates, confirmations, letters, users, mandate] = await Promise.all([
+  const [gates, confirmations, letters, team, mandate, prior] = await Promise.all([
     acceptanceGates(id),
     listConfirmations(id),
     listLetters(id),
-    listFirmUsers(),
+    // The recipients are the engagement team, not every firm user (UAT B13/B91).
+    listTeam(id),
     getEngagement(id).then((e) => clientMandate(e!.clientId)),
+    priorYearEngagement(id),
   ]);
+  // The letters are filed on tasks; there are none until the entity is classified.
+  const classified = Boolean(engagement.complexity);
+  const users = team
+    .filter((m) => m.status !== "declined")
+    .map((m) => ({ id: m.userId, name: m.userName }));
+  // A gate that fails after the phase has moved on means a gating paper was
+  // reopened (UAT B99): say so, since the phase itself does not move back.
+  const gateReopened = engagement.phase !== "acceptance" && gates.some((g) => !g.ok);
 
   const finalYear =
     mandate.mandateType && mandate.mandateStartYear
@@ -79,11 +90,33 @@ export default async function AcceptancePage(props: {
 
   return (
     <main className="min-h-screen w-full px-6 py-8">
-      <AppNav locale={locale} />
+      <AppNav locale={locale} current={{ id, label: engagement.name ?? engagement.clientName }} />
       <h1 className="mt-8 text-2xl font-semibold text-ink">
         {engagement.clientName} — {engagement.fiscalYear} · {tp.acceptanceTitle}
       </h1>
       <ErrorBanner error={error} failed={failed} locale={locale} />
+      {prior ? (
+        <p
+          data-testid="continuance-banner"
+          className="mt-4 rounded-[var(--radius-atlas-sm)] border border-emerald-300 bg-emerald-50 px-4 py-3 text-sm text-emerald-900 dark:border-emerald-900 dark:bg-emerald-950/40 dark:text-emerald-300"
+        >
+          {locale === "fr"
+            ? `Mission récurrente : le dossier de l'exercice ${prior.fiscalYear} est lié et ses éléments reconductibles ont été repris. `
+            : `Continuing engagement: the FY${prior.fiscalYear} file is linked and its rolling-forward items were carried over. `}
+          <Link href={`/engagements/${prior.id}/dashboard`} className="font-semibold underline" data-testid="prior-file-link">
+            {prior.name ?? `FY${prior.fiscalYear}`}
+          </Link>
+        </p>
+      ) : null}
+      {gateReopened ? (
+        <div
+          role="alert"
+          data-testid="gate-reopened"
+          className="mt-4 rounded-[var(--radius-atlas-sm)] border border-line-strong bg-[var(--color-warn-soft)] px-4 py-3 text-sm text-warn"
+        >
+          {tp.gateReopened}
+        </div>
+      ) : null}
 
       <Panel className={sectionClass}>
         <h2 className={heading}>P1.1</h2>
@@ -102,7 +135,7 @@ export default async function AcceptancePage(props: {
           <form action={launchCampaignAction.bind(null, id)} className="mt-3 flex flex-wrap items-end gap-3">
             <label className="flex flex-col gap-1 text-sm">
               <span className="text-ink-soft">{tp.independence.selectRecipients}</span>
-              <select name="userIds" multiple size={Math.min(4, users.length)} className={input} data-testid="campaign-recipients">
+              <select name="userIds" multiple size={Math.max(1, Math.min(4, users.length))} className={input} data-testid="campaign-recipients">
                 {users.map((user) => (
                   <option key={user.id} value={user.id}>
                     {user.name}
@@ -228,15 +261,31 @@ export default async function AcceptancePage(props: {
         <h2 className={heading}>{tp.letters.title}</h2>
         <div className="mt-3 flex flex-wrap gap-3">
           <form action={generateLetterAction.bind(null, id, "engagement")}>
-            <button type="submit" className={btn} data-testid="generate-engagement-letter">
+            <button
+              type="submit"
+              className={`${btn} disabled:cursor-not-allowed disabled:opacity-50`}
+              disabled={!classified}
+              title={classified ? undefined : tp.errors["classify-first"]}
+              data-testid="generate-engagement-letter"
+            >
               {tp.letters.engagement}
             </button>
           </form>
           <form action={generateLetterAction.bind(null, id, "planning_tcwg")}>
-            <button type="submit" className={btn}>
+            <button
+              type="submit"
+              className={`${btn} disabled:cursor-not-allowed disabled:opacity-50`}
+              disabled={!classified}
+              title={classified ? undefined : tp.errors["classify-first"]}
+            >
               {tp.letters.planningTcwg}
             </button>
           </form>
+          {!classified ? (
+            <Link href={`/engagements/${id}/nature`} className="self-center text-sm font-semibold text-emerald-700 hover:underline dark:text-emerald-400" data-testid="classify-first-link">
+              {tp.errors["classify-first"]}
+            </Link>
+          ) : null}
         </div>
         {letters.length > 0 ? (
           <ul className="mt-3 flex flex-col gap-1 text-sm">

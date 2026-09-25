@@ -1,12 +1,12 @@
 import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
 import { auth } from "@/auth";
-import { clearFindingAction, setCorrectedAction } from "@/app/actions/execution";
+import { clearFindingAction, raiseFindingAction, setCorrectedAction } from "@/app/actions/execution";
 import { AppNav } from "@/components/AppNav";
 import { ErrorBanner } from "@/components/GatesPanel";
 import { Panel, PanelHeader, Chip } from "@/components/ui/atlas";
-import { getEngagement } from "@/lib/engagements";
-import { evaluateB5, listFindings } from "@/lib/execution";
+import { getEngagement, listFileItems } from "@/lib/engagements";
+import { evaluateB5, FINDING_SEVERITIES, listFindings } from "@/lib/execution";
 import { formatFCFA, getMessages } from "@/lib/i18n";
 import { getLocale } from "@/lib/locale";
 
@@ -27,7 +27,8 @@ export default async function FindingsPage(props: {
 
   const engagement = await getEngagement(id);
   if (!engagement) notFound();
-  const [findings, b5] = await Promise.all([listFindings(id), evaluateB5(id)]);
+  const [findings, b5, fileItems] = await Promise.all([listFindings(id), evaluateB5(id), listFileItems(id)]);
+  const eSections = fileItems.filter((item) => item.section === "E");
 
   const btn =
     "rounded-[var(--radius-atlas-sm)] border border-line-strong bg-surface px-2.5 py-1 text-xs font-medium text-ink-soft hover:bg-surface-2";
@@ -53,6 +54,13 @@ export default async function FindingsPage(props: {
                   {finding.sectionCode ? (
                     <span className="ml-2 font-mono text-xs text-muted">[{finding.sectionCode}]</span>
                   ) : null}
+                  {finding.severity ? (
+                    <span className="ml-2 inline-flex align-middle" data-testid={`finding-severity-${finding.id}`}>
+                      <Chip tone={finding.severity === "significant_deficiency" ? "rose" : finding.severity === "deficiency" ? "warn" : "muted"}>
+                        {tf.severities[finding.severity]}
+                      </Chip>
+                    </span>
+                  ) : null}
                   <span className="ml-2 inline-flex align-middle">
                     <Chip tone={finding.status === "open" ? "warn" : "good"}>
                       {finding.status === "open" ? tf.openLabel : tf.clearedLabel}
@@ -60,6 +68,9 @@ export default async function FindingsPage(props: {
                   </span>
                 </p>
                 {finding.detail ? <p className="mt-1 text-ink-soft">{finding.detail}</p> : null}
+                {finding.recommendation ? (
+                  <p className="mt-1 text-xs text-ink-soft">{tf.recommendation}: {finding.recommendation}</p>
+                ) : null}
                 {finding.response ? (
                   <p className="mt-1 text-xs text-muted">{tf.response}: {finding.response}</p>
                 ) : null}
@@ -122,6 +133,11 @@ export default async function FindingsPage(props: {
           >
             {b5.exceedsMateriality ? tf.exceeds : tf.within}
           </span>
+          {b5.trivialThreshold !== null ? (
+            <span className="text-muted tnum" data-testid="b5-trivial-threshold">
+              {tf.trivialThreshold}: {formatFCFA(b5.trivialThreshold)}
+            </span>
+          ) : null}
           {b5.trivialCount > 0 ? (
             <span className="text-muted tnum">
               {b5.trivialCount} {tf.trivialNote}
@@ -177,6 +193,52 @@ export default async function FindingsPage(props: {
             </table>
           </div>
         ) : null}
+      </Panel>
+
+      {/* raise a matter or a deficiency from the register itself (UAT B21) */}
+      <Panel className="mt-6" data-testid="raise-finding-panel">
+        <PanelHeader title={tf.raiseTitle} />
+        <form action={raiseFindingAction.bind(null, id)} className="mt-3 flex flex-wrap items-end gap-2">
+          <label className="flex flex-col text-xs text-muted">
+            {t.planning.execution.routeTo}
+            <select name="route" defaultValue="c1" className={`${input} mt-1`} data-testid="raise-route">
+              <option value="c1">{t.planning.execution.routes.c1}</option>
+              <option value="b4">{t.planning.execution.routes.b4}</option>
+            </select>
+          </label>
+          <label className="flex flex-col text-xs text-muted">
+            {tf.severity}
+            <select name="severity" defaultValue="deficiency" className={`${input} mt-1`} data-testid="raise-severity">
+              {FINDING_SEVERITIES.map((s) => (
+                <option key={s} value={s}>{tf.severities[s]}</option>
+              ))}
+            </select>
+          </label>
+          <label className="flex flex-col text-xs text-muted">
+            {tf.section}
+            <select name="fileItemId" defaultValue="" className={`${input} mt-1`} data-testid="raise-section">
+              <option value="">—</option>
+              {eSections.map((item) => (
+                <option key={item.id} value={item.id}>{item.code}</option>
+              ))}
+            </select>
+          </label>
+          <label className="flex flex-col text-xs text-muted">
+            {t.planning.execution.titleField}
+            <input name="title" required className={`${input} mt-1 w-72 max-w-full`} data-testid="raise-title" />
+          </label>
+          <label className="flex flex-col text-xs text-muted">
+            {t.planning.execution.detailField}
+            <input name="detail" className={`${input} mt-1 w-72 max-w-full`} data-testid="raise-detail" />
+          </label>
+          <label className="flex flex-col text-xs text-muted">
+            {tf.recommendation}
+            <input name="recommendation" className={`${input} mt-1 w-72 max-w-full`} data-testid="raise-recommendation" />
+          </label>
+          <button type="submit" className={btn} data-testid="raise-finding">
+            {tf.raiseButton}
+          </button>
+        </form>
       </Panel>
 
       {renderFindings("b4", tf.b4)}

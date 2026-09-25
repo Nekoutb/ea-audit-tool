@@ -16,6 +16,7 @@ export type RatioGroup = "Liquidity" | "Activity" | "Profitability" | "Leverage"
 export interface RatioRow {
   key: string;
   label: string;
+  labelFr: string;
   group: RatioGroup;
   unit: "x" | "%" | "days" | "FCFA";
   current: number | null;
@@ -61,6 +62,10 @@ function aggregate(rows: { account: string; value: number }[]): Balances {
   const financeCosts = sum((r) => r.account.startsWith("67"));
   const depreciation = sum((r) => r.account.startsWith("68") || r.account.startsWith("69"));
   const pbt = revenue - expenses;
+  // A pre-closing TB carries the year's result in classes 6/7, not in a 13x
+  // account: equity then includes that result, or the balance sheet does not
+  // balance and every equity ratio is misstated.
+  const hasResultAccount = rows.some((r) => r.account.startsWith("13") && r.value !== 0);
   return {
     inventory,
     receivables: sum((r) => r.account.startsWith("41")),
@@ -68,7 +73,7 @@ function aggregate(rows: { account: string; value: number }[]): Balances {
     currentAssets: inventory + class4Debit + Math.max(cash, 0),
     currentLiabilities: class4Credit + Math.max(-cash, 0),
     payables: -sum((r) => r.account.startsWith("40") && r.value < 0),
-    equity: -sum((r) => /^1[0-5]/.test(r.account)),
+    equity: -sum((r) => /^1[0-5]/.test(r.account)) + (hasResultAccount ? 0 : pbt),
     financialDebt: -sum((r) => /^1[6-8]/.test(r.account)),
     totalAssets: sum((r) => r.account.startsWith("2")) + inventory + class4Debit + Math.max(cash, 0),
     revenue,
@@ -110,28 +115,31 @@ function ratioSet(b: Balances): Record<string, number | null> {
   };
 }
 
-const DEFS: { key: string; label: string; group: RatioGroup; unit: RatioRow["unit"] }[] = [
-  { key: "current", label: "Current ratio", group: "Liquidity", unit: "x" },
-  { key: "quick", label: "Quick ratio", group: "Liquidity", unit: "x" },
-  { key: "cash", label: "Cash ratio", group: "Liquidity", unit: "x" },
-  { key: "wc", label: "Working capital", group: "Liquidity", unit: "FCFA" },
-  { key: "dso", label: "DSO (days sales outstanding)", group: "Activity", unit: "days" },
-  { key: "dpo", label: "DPO (days payables outstanding)", group: "Activity", unit: "days" },
-  { key: "inv_turn", label: "Inventory turnover", group: "Activity", unit: "x" },
-  { key: "rec_turn", label: "Receivables turnover", group: "Activity", unit: "x" },
-  { key: "pay_turn", label: "Payables turnover", group: "Activity", unit: "x" },
-  { key: "asset_turn", label: "Asset turnover", group: "Activity", unit: "x" },
-  { key: "gross", label: "Gross margin", group: "Profitability", unit: "%" },
-  { key: "ebitda", label: "EBITDA margin", group: "Profitability", unit: "%" },
-  { key: "net", label: "Net margin (PBT)", group: "Profitability", unit: "%" },
-  { key: "gearing", label: "Gearing", group: "Leverage", unit: "%" },
-  { key: "dte", label: "Debt to equity", group: "Leverage", unit: "x" },
-  { key: "equity_ratio", label: "Equity ratio", group: "Leverage", unit: "%" },
-  { key: "int_cover", label: "Interest cover", group: "Leverage", unit: "x" },
-  { key: "roa", label: "Return on assets", group: "Investment", unit: "%" },
-  { key: "roe", label: "Return on equity", group: "Investment", unit: "%" },
-  { key: "roce", label: "Return on capital employed", group: "Investment", unit: "%" },
+const DEFS: { key: string; label: string; labelFr: string; group: RatioGroup; unit: RatioRow["unit"] }[] = [
+  { key: "current", label: "Current ratio", labelFr: "Ratio de liquidité générale", group: "Liquidity", unit: "x" },
+  { key: "quick", label: "Quick ratio", labelFr: "Ratio de liquidité réduite", group: "Liquidity", unit: "x" },
+  { key: "cash", label: "Cash ratio", labelFr: "Ratio de liquidité immédiate", group: "Liquidity", unit: "x" },
+  { key: "wc", label: "Working capital", labelFr: "Fonds de roulement", group: "Liquidity", unit: "FCFA" },
+  { key: "dso", label: "DSO (days sales outstanding)", labelFr: "Délai de règlement clients (jours)", group: "Activity", unit: "days" },
+  { key: "dpo", label: "DPO (days payables outstanding)", labelFr: "Délai de règlement fournisseurs (jours)", group: "Activity", unit: "days" },
+  { key: "inv_turn", label: "Inventory turnover", labelFr: "Rotation des stocks", group: "Activity", unit: "x" },
+  { key: "rec_turn", label: "Receivables turnover", labelFr: "Rotation des créances clients", group: "Activity", unit: "x" },
+  { key: "pay_turn", label: "Payables turnover", labelFr: "Rotation des dettes fournisseurs", group: "Activity", unit: "x" },
+  { key: "asset_turn", label: "Asset turnover", labelFr: "Rotation de l'actif", group: "Activity", unit: "x" },
+  { key: "gross", label: "Gross margin", labelFr: "Marge brute", group: "Profitability", unit: "%" },
+  { key: "ebitda", label: "EBITDA margin", labelFr: "Marge d'EBE", group: "Profitability", unit: "%" },
+  { key: "net", label: "Net margin (PBT)", labelFr: "Marge nette (résultat avant impôt)", group: "Profitability", unit: "%" },
+  { key: "gearing", label: "Gearing", labelFr: "Taux d'endettement (gearing)", group: "Leverage", unit: "%" },
+  { key: "dte", label: "Debt to equity", labelFr: "Dettes financières / capitaux propres", group: "Leverage", unit: "x" },
+  { key: "equity_ratio", label: "Equity ratio", labelFr: "Ratio d'autonomie financière", group: "Leverage", unit: "%" },
+  { key: "int_cover", label: "Interest cover", labelFr: "Couverture des charges financières", group: "Leverage", unit: "x" },
+  { key: "roa", label: "Return on assets", labelFr: "Rentabilité de l'actif", group: "Investment", unit: "%" },
+  { key: "roe", label: "Return on equity", labelFr: "Rentabilité des capitaux propres", group: "Investment", unit: "%" },
+  { key: "roce", label: "Return on capital employed", labelFr: "Rentabilité des capitaux engagés", group: "Investment", unit: "%" },
 ];
+
+/** The commentary keys the financial-analysis grid saves under index "FA". */
+export const RATIO_KEYS: readonly string[] = DEFS.map((def) => def.key);
 
 export async function financialAnalysis(engagementId: string): Promise<FinancialAnalysis | null> {
   const { tenantId } = await requireTenant();
@@ -162,6 +170,7 @@ export async function financialAnalysis(engagementId: string): Promise<Financial
               (r.opening_debit - r.opening_credit + r.debit - r.credit)::text AS closing
          FROM trial_balance tb
          JOIN trial_balance_version v ON v.trial_balance_id = tb.id AND v.timing = 'prior_year'
+          AND v.superseded_at IS NULL
          JOIN trial_balance_row r ON r.version_id = v.id
         WHERE tb.engagement_id = $1`,
       [engagementId],
@@ -183,7 +192,10 @@ export async function financialAnalysis(engagementId: string): Promise<Financial
     let sales3m: number | null = null;
     let purchases3m: number | null = null;
     const mapping = gl.rows[0]?.mapping;
-    if (gl.rows[0] && mapping?.account && mapping.amount && mapping.journalDate) {
+    // a ledger stated as a debit/credit pair carries no amount column: the row
+    // value is debit − credit, exactly as the importer derives it
+    const usePair = Boolean(mapping?.debit && mapping?.credit);
+    if (gl.rows[0] && mapping?.account && (mapping.amount || usePair) && mapping.journalDate) {
       const glRows = await tx.query<{ data: Record<string, unknown> }>(
         "SELECT data FROM sub_ledger_row WHERE dataset_id = $1",
         [gl.rows[0].id],
@@ -206,7 +218,9 @@ export async function financialAnalysis(engagementId: string): Promise<Financial
         if (!d || d < start || d > end) continue;
         inWindow += 1;
         const account = String(data[mapping.account] ?? "");
-        const amount = Math.abs(parseAmount(data[mapping.amount]));
+        const amount = Math.abs(
+          mapping.amount ? parseAmount(data[mapping.amount]) : parseAmount(data[mapping.debit]) - parseAmount(data[mapping.credit]),
+        );
         if (account.startsWith("70")) sales += amount;
         if (/^6[0-2]/.test(account)) purchases += amount;
       }
@@ -215,7 +229,7 @@ export async function financialAnalysis(engagementId: string): Promise<Financial
         purchases3m = purchases;
       }
     }
-    const glNote = "Requires the General Ledger (last 3 months) — upload it in the GL Analyzer";
+    const glNote = "Requires the General Ledger (last 3 months) — upload it in the GL Analyzer · Nécessite le grand livre (3 derniers mois) — à importer dans l'analyseur de grand livre";
     cur.dso = sales3m !== null && sales3m > 0 ? Math.round((currentB.receivables / sales3m) * 90) : null;
     cur.dpo = purchases3m !== null && purchases3m > 0 ? Math.round((currentB.payables / purchases3m) * 90) : null;
     pri.dso = null;

@@ -65,6 +65,8 @@ export interface EngagementRegisterRow extends EngagementSummary {
   tasksTotal: number;
   lastActivity: string | null;
   reportDate: string | null;
+  /** Archived files: the date the file may first be considered for destruction. */
+  retentionUntil: string | null;
   /** The signed-in user is on this engagement's team or owns tasks in it. */
   isMine: boolean;
 }
@@ -79,6 +81,7 @@ export async function listEngagements(clientId?: string): Promise<EngagementRegi
         tasks_total: string;
         last_activity: string | null;
         report_date: string | null;
+        retention_until: string | null;
         is_mine: boolean;
       }
     >(
@@ -97,8 +100,10 @@ export async function listEngagements(clientId?: string): Promise<EngagementRegi
               to_char((SELECT max(al.created_at) FROM activity_log al
                         WHERE al.engagement_id = e.id), 'YYYY-MM-DD') AS last_activity,
               to_char(e.report_date, 'YYYY-MM-DD') AS report_date,
+              to_char(e.retention_until, 'YYYY-MM-DD') AS retention_until,
               (EXISTS (SELECT 1 FROM team_member tm WHERE tm.engagement_id = e.id AND tm.user_id = $2)
-               OR EXISTS (SELECT 1 FROM file_item fi WHERE fi.engagement_id = e.id AND fi.owner_id = $2)) AS is_mine
+               OR EXISTS (SELECT 1 FROM file_item fi WHERE fi.engagement_id = e.id
+                           AND (fi.owner_id = $2 OR fi.assignee_user_id = $2))) AS is_mine
          FROM engagement e
          JOIN client c ON c.id = e.client_id
         WHERE ($1::uuid IS NULL OR e.client_id = $1)${visibilityClause(role, "e", 2)}
@@ -112,7 +117,61 @@ export async function listEngagements(clientId?: string): Promise<EngagementRegi
       tasksTotal: Number(row.tasks_total),
       lastActivity: row.last_activity,
       reportDate: row.report_date,
+      retentionUntil: row.retention_until,
       isMine: row.is_mine,
+    }));
+  });
+}
+
+export interface MyTaskRow {
+  fileItemId: string;
+  code: string;
+  titleEn: string;
+  titleFr: string;
+  engagementId: string;
+  engagementName: string;
+  /** signed = reviewer signed; prepared = preparer signed; open otherwise */
+  status: "open" | "prepared" | "signed";
+}
+
+/**
+ * The signed-in user's own tasks across their visible, unarchived engagements:
+ * the ones assigned to them or owned by them, unsigned first (UAT B93).
+ */
+export async function myTasks(limit = 40): Promise<MyTaskRow[]> {
+  const { tenantId, userId, role } = await requireTenant();
+  return withTenant(tenantId, async (tx) => {
+    const result = await tx.query<{
+      file_item_id: string; code: string; title_en: string; title_fr: string;
+      engagement_id: string; engagement_name: string; status: "open" | "prepared" | "signed";
+    }>(
+      `SELECT fi.id AS file_item_id, fi.code, fi.title_en, fi.title_fr, e.id AS engagement_id,
+              coalesce(e.name, c.name) AS engagement_name,
+              CASE
+                WHEN EXISTS (SELECT 1 FROM document d WHERE d.file_item_id = fi.id AND d.status = 'signed') THEN 'signed'
+                WHEN EXISTS (SELECT 1 FROM document d JOIN signoff s ON s.document_id = d.id
+                              WHERE d.file_item_id = fi.id AND s.role = 'preparer' AND s.invalidated_at IS NULL) THEN 'prepared'
+                ELSE 'open'
+              END AS status
+         FROM file_item fi
+         JOIN engagement e ON e.id = fi.engagement_id
+         JOIN client c ON c.id = e.client_id
+        WHERE (fi.assignee_user_id = $1 OR fi.owner_id = $1)
+          AND fi.conditional = false
+          AND e.phase <> 'archived'${visibilityClause(role, "e", 1)}
+        ORDER BY (CASE WHEN EXISTS (SELECT 1 FROM document d WHERE d.file_item_id = fi.id AND d.status = 'signed') THEN 1 ELSE 0 END),
+                 e.fiscal_year DESC, c.name, fi.sort_order
+        LIMIT $2`,
+      [userId, limit],
+    );
+    return result.rows.map((row) => ({
+      fileItemId: row.file_item_id,
+      code: row.code,
+      titleEn: row.title_en,
+      titleFr: row.title_fr,
+      engagementId: row.engagement_id,
+      engagementName: row.engagement_name,
+      status: row.status,
     }));
   });
 }
@@ -217,6 +276,12 @@ export async function createEngagement(input: {
       // scoping the seeding happens at classification instead.
       await seedPresumedRisks(tx, tenantId, engagementId);
     }
+    // A first-year engagement needs the predecessor-auditor communication
+    // (P1.2, conditional in the index): activate it from the creation answers,
+    // as P1.1's "new engagement" answer does later (lib/forms.ts).
+    if (input.firstYear || input.complexityAnswers?.firstAudit) {
+      await tx.query("UPDATE file_item SET conditional = false WHERE engagement_id = $1 AND code = 'P1.2'", [engagementId]);
+    }
     // Assign the engagement partner (default reviewer) when chosen at creation.
     if (input.partnerId) {
       await tx.query(
@@ -285,6 +350,10 @@ export async function applyComplexity(
       [engagementId],
     );
     if (seeded.rowCount === 0) await seedPresumedRisks(tx, tenantId, engagementId);
+    // First audit: the predecessor-auditor communication (P1.2) applies.
+    if (answers.firstAudit) {
+      await tx.query("UPDATE file_item SET conditional = false WHERE engagement_id = $1 AND code = 'P1.2'", [engagementId]);
+    }
   });
 }
 

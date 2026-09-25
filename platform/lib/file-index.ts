@@ -93,8 +93,8 @@ export const DEFAULT_FILE_INDEX: readonly FileIndexEntry[] = [
   { code: "S5.6", section: "D", titleEn: "Plan General Audit Procedures", titleFr: "Planifier les procédures générales d'audit" },
   { code: "P7.2", section: "D", titleEn: "Planning Review and Approval Summary", titleFr: "Revue et approbation de la planification", tier: "core" },
   { code: "P7.1", section: "D", titleEn: "Report to Those Charged with Governance - Audit Planning", titleFr: "Rapport aux responsables de la gouvernance - planification de l'audit", tier: "core" },
-  { code: "P2.2", section: "D", titleEn: "Assess the Team and Determine Need for Specialised Skills", titleFr: "Evaluer l'equipe et determiner le besoin de competences specialisees" },
-  { code: "P2.3", section: "D", titleEn: "Audit Scope and Components (ISA 600)", titleFr: "Perimetre d'audit et composants (ISA 600)", tier: "extended" },
+  { code: "P2.2", section: "D", titleEn: "Assess the Team and Determine Need for Specialised Skills", titleFr: "Évaluer l'équipe et déterminer le besoin de compétences spécialisées" },
+  { code: "P2.3", section: "D", titleEn: "Audit Scope and Components (ISA 600)", titleFr: "Périmètre d'audit et composants (ISA 600)", tier: "extended" },
   { code: "P5.2", section: "D", titleEn: "Engagement Team Discussion", titleFr: "Discussion de l'équipe de mission" },
   { code: "S3.1", section: "D", titleEn: "Make Combined Risk Assessments (Risk Register)", titleFr: "Établir l'évaluation combinée des risques (registre des risques)" },
 
@@ -238,8 +238,8 @@ const SHORT_TITLES: Record<string, { en: string; fr: string }> = {
   "S5.6": { en: "Plan General Procedures", fr: "Procédures générales" },
   "P7.2": { en: "Planning Review & Approval", fr: "Revue & approbation planification" },
   "P7.1": { en: "TCWG Planning Report", fr: "Rapport TCWG planification" },
-  "P2.3": { en: "Scope & Components", fr: "Perimetre & composants" },
-  "P2.2": { en: "Team & Specialised Skills", fr: "Equipe & competences specialisees" },
+  "P2.3": { en: "Scope & Components", fr: "Périmètre & composants" },
+  "P2.2": { en: "Team & Specialised Skills", fr: "Équipe & compétences spécialisées" },
   "P5.2": { en: "Engagement Team Discussion", fr: "Discussion de l'équipe" },
   "S3.1": { en: "Combined Risk Assessments", fr: "Évaluation combinée des risques" },
   "E4.1": { en: "Receivables (E)", fr: "Créances clients (E)" },
@@ -331,7 +331,12 @@ const CORE_CODES = new Set([
   "S6.2", "P3.1", "P3.2", "P6.1", "P5.1", "S4.2", "P5.2", "S3.1",
   // ISA 501 ¶9 asks for litigation and claims procedures on every audit, with no
   // relief for a simple entity, so E6.9 is core alongside going concern and
-  // subsequent events.
+  // subsequent events. ISA 240 ¶32 prescribes journal-entry testing on every
+  // audit and seeds the two presumed fraud risks against E3.1 and E4.20
+  // (lib/risks.ts), so both papers must exist on the simplest file too —
+  // without them the management-override risk has no response and planning
+  // cannot close. 20260925000003 backfills them on existing very simple files.
+  "E3.1", "E4.20",
   "E4.1", "E4.2", "E4.3", "E4.8", "E4.9", "E6.3", "E6.4", "E6.5", "E6.6", "E6.9", "E6.10",
   "C5.2",
 ]);

@@ -54,7 +54,18 @@ beforeAll(async () => {
   );
   controlId = control.rows[0].id;
   await admin.query("INSERT INTO wcgw_control (tenant_id, wcgw_id, control_id) VALUES ($1, $2, $3)", [TENANT, wcgw.rows[0].id, controlId]);
+  // "Effective" is a conclusion on evidence (UAT B84): plan a sample of two and
+  // test both on the grid, every attribute answered, before any conclusion below.
+  await updateControl(controlId, { sampleSize: 2, tocGrid: TESTED_GRID });
 }, 60_000);
+
+const TESTED_GRID = {
+  attributes: ["Approved by manager"],
+  rows: [
+    { ref: "INV-001", date: "2025-02-10", desc: "", results: { "Approved by manager": "pass" as const } },
+    { ref: "INV-002", date: "2025-07-22", desc: "", results: { "Approved by manager": "pass" as const } },
+  ],
+};
 
 afterAll(async () => {
   await removeFixture();
@@ -170,5 +181,48 @@ describe("concluding a control effective again lifts what E1.2 stamped", () => {
     );
     expect(r.rows[0].cr).toBe("not_rely");
     expect(r.rows[0].cr_basis).toBe(CR_DEFICIENT_BASIS);
+  });
+});
+
+// "Effective" needs the planned sample fully tested on the grid (UAT B84). A
+// control with no planned sample has no plan to fall short of, so it is not
+// blocked. The control here answers no WCGW, so its conclusion reaches S3.1
+// nowhere and the assertions above are left as they are.
+describe("concluding effective needs the planned sample tested (UAT B84)", () => {
+  let looseId: string;
+  beforeAll(async () => {
+    const scot = await admin.query<{ scot_id: string }>("SELECT scot_id FROM scot_control WHERE id = $1", [controlId]);
+    const c = await admin.query<{ id: string }>(
+      `INSERT INTO scot_control (tenant_id, scot_id, name, control_type, frequency, objective, selected_for_testing)
+       VALUES ($1, $2, 'Bank reconciliation review', 'manual', 'monthly', 'detect', false) RETURNING id`,
+      [TENANT, scot.rows[0].scot_id],
+    );
+    looseId = c.rows[0].id;
+  });
+
+  it("refuses when fewer rows are fully tested than the sample planned, and rolls the conclusion back", async () => {
+    await updateControl(looseId, { sampleSize: 3, tocGrid: TESTED_GRID }); // 2 tested of 3 planned
+    await expect(updateControl(looseId, { operatingEval: "effective" })).rejects.toThrow("toc-incomplete");
+    const r = await admin.query<{ operating_eval: string | null }>("SELECT operating_eval FROM scot_control WHERE id = $1", [looseId]);
+    expect(r.rows[0].operating_eval).toBeNull();
+  });
+
+  it("a row with an attribute left blank does not count as tested", async () => {
+    const partial = { ...TESTED_GRID, rows: [...TESTED_GRID.rows, { ref: "INV-003", date: "2025-09-01", desc: "", results: { "Approved by manager": "" as const } }] };
+    await expect(updateControl(looseId, { operatingEval: "effective", tocGrid: partial })).rejects.toThrow("toc-incomplete");
+  });
+
+  it("accepts once the planned rows are all answered, a grid saved in the same call counting", async () => {
+    const full = { ...TESTED_GRID, rows: [...TESTED_GRID.rows, { ref: "INV-003", date: "2025-09-01", desc: "", results: { "Approved by manager": "na" as const } }] };
+    await updateControl(looseId, { operatingEval: "effective", tocGrid: full });
+    const r = await admin.query<{ operating_eval: string | null }>("SELECT operating_eval FROM scot_control WHERE id = $1", [looseId]);
+    expect(r.rows[0].operating_eval).toBe("effective");
+  });
+
+  it("does not block a control with no planned sample size", async () => {
+    await admin.query("UPDATE scot_control SET sample_size = NULL, toc_grid = NULL, operating_eval = NULL WHERE id = $1", [looseId]);
+    await updateControl(looseId, { operatingEval: "effective" });
+    const r = await admin.query<{ operating_eval: string | null }>("SELECT operating_eval FROM scot_control WHERE id = $1", [looseId]);
+    expect(r.rows[0].operating_eval).toBe("effective");
   });
 });

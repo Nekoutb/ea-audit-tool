@@ -11,7 +11,8 @@ import { useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import type { CraAccountRow, CraBoardView, CraCell } from "@/lib/cra";
-import { craOf, craTone, toTod, todLabel, type CraCr, type CraIr, type CraLevel } from "@/lib/cra-model";
+import { crBasisLabel, craOf, craTone, toTod, todLabel, type CraCr, type CraIr } from "@/lib/cra-model";
+import { LEAD_INDEX_BY_CODE } from "@/lib/lead-classes";
 import { Chip } from "@/components/ui/atlas";
 
 const ASSERTION_LABELS: Record<string, { en: string; fr: string }> = {
@@ -76,15 +77,60 @@ export function CraBoard({
   const select = "rounded-[var(--radius-atlas-sm)] border border-line-strong bg-surface px-1.5 py-1 text-[12px] text-ink outline-none focus:border-emerald-600";
   const basisInput = "w-full rounded-[var(--radius-atlas-sm)] border border-line bg-[color:var(--wp-input)] px-2 py-1 text-[11.5px] text-ink outline-none placeholder:text-muted focus:border-emerald-600";
 
-  async function save(indexCode: string, assertion: string, patch: Record<string, unknown>) {
+  const ERRORS: Record<string, { en: string; fr: string }> = {
+    "rely-without-controls": {
+      en: "Relying on controls needs a tested control covering this assertion (S2.1) and ITGCs that support reliance (S2.5) — or a written CR basis (ISA 330 ¶8).",
+      fr: "L'appui sur les contrôles suppose un contrôle testé couvrant cette assertion (S2.1) et des ITGC qui le permettent (S2.5) — ou un fondement RC écrit (ISA 330 ¶8).",
+    },
+    "reassessment-reason-required": {
+      en: "Planning is closed: revising a recorded assessment needs a reason (E6.8).",
+      fr: "La planification est close : la révision d'une cotation enregistrée exige un motif (E6.8).",
+    },
+  };
+
+  /** Save one cell; returns false (and shows why) when the server refused it. */
+  async function save(indexCode: string, assertion: string, patch: Record<string, unknown>): Promise<boolean> {
     setError(null);
     const r = await fetch(`/api/engagements/${engagementId}/cra`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ op: "saveCell", indexCode, assertion, ...patch }),
     }).catch(() => null);
-    if (!r?.ok) setError(fr ? "Échec de l'enregistrement." : "Save failed.");
+    if (r?.ok) return true;
+    const code = r ? String(((await r.json().catch(() => ({}))) as { error?: string }).error ?? "") : "";
+    const known = ERRORS[code];
+    setError(known ? (fr ? known.fr : known.en) : fr ? "Échec de l'enregistrement." : "Save failed.");
+    return false;
   }
+
+  /**
+   * IR/CR change: a recorded assessment being revised after planning closed
+   * asks for the reason first (E6.8); the change is kept only once the server
+   * accepted it, so a refusal never leaves the board showing a value the file
+   * does not hold.
+   */
+  async function changeRisk(row: CraAccountRow, cell: CraCell, field: "ir" | "cr", value: string) {
+    const recorded = cell.ir !== null || cell.cr !== null;
+    const current = field === "ir" ? cell.ir : cell.cr;
+    let reason: string | undefined;
+    if (recorded && current !== (value || null) && view.reassessmentNeedsReason) {
+      const typed = window.prompt(fr ? "Motif de la réévaluation (E6.8) :" : "Reason for the reassessment (E6.8):", "");
+      if (typed === null || !typed.trim()) return;
+      reason = typed.trim();
+    }
+    const previous = { [field]: current } as Partial<CraCell>;
+    patchCell(row.indexCode, cell.assertion, { [field]: value === "" ? null : value } as Partial<CraCell>);
+    const ok = await save(row.indexCode, cell.assertion, { [field]: value, reason });
+    if (!ok) patchCell(row.indexCode, cell.assertion, previous);
+    else if (reason !== undefined) {
+      patchCell(row.indexCode, cell.assertion, {
+        history: [...cell.history, { ir: cell.ir, cr: cell.cr, irBasis: cell.irBasis, crBasis: cell.crBasis, newIr: field === "ir" ? ((value || null) as CraIr | null) : cell.ir, newCr: field === "cr" ? ((value || null) as CraCr | null) : cell.cr, reason, by: fr ? "moi" : "me", at: new Date().toISOString().slice(0, 16).replace("T", " ") }],
+      });
+    }
+  }
+
+  const riskWord = (ir: CraIr | null, cr: CraCr | null) =>
+    `${ir === "lower" ? (fr ? "Faible" : "Lower") : ir === "higher" ? (fr ? "Élevé" : "Higher") : "—"}/${cr === "rely" ? (fr ? "Appui" : "Rely") : cr === "not_rely" ? (fr ? "Sans appui" : "Not rely") : "—"}`;
 
   async function saveThreshold(indexCode: string, raw: string) {
     setError(null);
@@ -180,7 +226,9 @@ export function CraBoard({
                       <td className="px-2 py-1.5 align-top" rowSpan={cells.length}>
                         <div className="flex flex-col gap-0.5">
                           <span className="font-mono text-[12px] font-extrabold text-emerald-700/80 tnum dark:text-emerald-400/80">{row.indexCode}</span>
-                          <span className="max-w-[180px] text-[12px] font-semibold leading-tight text-ink">{row.label}</span>
+                          <span className="max-w-[180px] text-[12px] font-semibold leading-tight text-ink">
+                            {fr ? (LEAD_INDEX_BY_CODE[row.indexCode]?.labelFr ?? row.label) : row.label}
+                          </span>
                           {row.taskItemId ? (
                             <Link
                               href={`/engagements/${engagementId}/sections/${row.taskItemId}?back=${encodeURIComponent(pathname)}`}
@@ -219,7 +267,7 @@ export function CraBoard({
                     <td className="px-2 py-1.5">
                       <select
                         value={cell.ir ?? ""}
-                        onChange={(e) => { const v = e.target.value as CraIr | ""; patchCell(row.indexCode, cell.assertion, { ir: v === "" ? null : v }); void save(row.indexCode, cell.assertion, { ir: v }); }}
+                        onChange={(e) => void changeRisk(row, cell, "ir", e.target.value)}
                         className={select}
                         title={cell.riskCount > 0 ? (fr ? `${cell.riskCount} risque(s) au registre` : `${cell.riskCount} risk(s) in the register`) : (fr ? "Aucun risque rattaché" : "No risk linked")}
                         data-testid={`cra-ir-${row.indexCode}-${cell.assertion}`}
@@ -232,14 +280,14 @@ export function CraBoard({
                     <td className="px-2 py-1.5">
                       <select
                         value={cell.cr ?? ""}
-                        onChange={(e) => { const v = e.target.value as CraCr | ""; patchCell(row.indexCode, cell.assertion, { cr: v === "" ? null : v }); void save(row.indexCode, cell.assertion, { cr: v }); }}
+                        onChange={(e) => void changeRisk(row, cell, "cr", e.target.value)}
                         className={select}
                         title={
                           cell.controlsCovering === 0
                             ? fr ? "Aucun contrôle sélectionné (S2.1)" : "No control selected for testing (S2.1)"
                             : cell.controlsFailed > 0
-                              ? fr ? `${cell.controlsFailed} contrôle(s) en échec (E1.1)` : `${cell.controlsFailed} control(s) failed (E1.1)`
-                              : fr ? `${cell.controlsEffective}/${cell.controlsCovering} contrôles efficaces (E1.1)` : `${cell.controlsEffective}/${cell.controlsCovering} controls effective (E1.1)`
+                              ? fr ? `${cell.controlsFailed} contrôle(s) conclu(s) non efficace(s) (E1.2)` : `${cell.controlsFailed} control(s) concluded not effective (E1.2)`
+                              : fr ? `${cell.controlsEffective}/${cell.controlsCovering} contrôles efficaces (E1.2)` : `${cell.controlsEffective}/${cell.controlsCovering} controls effective (E1.2)`
                         }
                         data-testid={`cra-cr-${row.indexCode}-${cell.assertion}`}
                       >
@@ -247,6 +295,15 @@ export function CraBoard({
                         <option value="rely">{fr ? "Appui" : "Rely"}</option>
                         <option value="not_rely">{fr ? "Sans appui" : "Not rely"}</option>
                       </select>
+                      {cell.cr === "rely" && (cell.controlsCovering === 0 || view.itgcState === "not_support") ? (
+                        <span className="ml-1" data-testid={`cra-rely-warning-${row.indexCode}-${cell.assertion}`}>
+                          <Chip tone="warn">
+                            {cell.controlsCovering === 0
+                              ? fr ? "Appui sans contrôle testé" : "Rely without a tested control"
+                              : fr ? "Appui malgré ITGC sans appui" : "Rely despite ITGCs not supporting"}
+                          </Chip>
+                        </span>
+                      ) : null}
                     </td>
                     <td className="px-2 py-1.5">
                       <div className="flex items-center gap-1.5">
@@ -271,12 +328,29 @@ export function CraBoard({
                             data-testid={`cra-irb-${row.indexCode}-${cell.assertion}`}
                           />
                           <input
-                            defaultValue={cell.crBasis}
+                            defaultValue={crBasisLabel(cell.crBasis, fr ? "fr" : "en")}
                             placeholder={fr ? "Fondement RC…" : "CR basis…"}
-                            onBlur={(e) => { if (e.target.value !== cell.crBasis) { patchCell(row.indexCode, cell.assertion, { crBasis: e.target.value }); void save(row.indexCode, cell.assertion, { crBasis: e.target.value }); } }}
+                            onBlur={(e) => { if (e.target.value !== crBasisLabel(cell.crBasis, fr ? "fr" : "en")) { patchCell(row.indexCode, cell.assertion, { crBasis: e.target.value }); void save(row.indexCode, cell.assertion, { crBasis: e.target.value }); } }}
                             className={basisInput}
                             data-testid={`cra-crb-${row.indexCode}-${cell.assertion}`}
                           />
+                          {cell.history.length > 0 ? (
+                            <ul className="mt-0.5 flex flex-col gap-0.5 text-[10.5px] text-muted" data-testid={`cra-history-${row.indexCode}-${cell.assertion}`}>
+                              {cell.history.map((h, k) => (
+                                <li key={k}>
+                                  {riskWord(h.ir, h.cr)} → {riskWord(h.newIr, h.newCr)}
+                                  {h.reason ? ` (${h.reason})` : ""}
+                                  {h.by ? ` · ${h.by}` : ""} · {h.at}
+                                  {h.irBasis || h.crBasis ? (
+                                    <span className="block italic">
+                                      {fr ? "Fondement initial : " : "Initial basis: "}
+                                      {[h.irBasis, crBasisLabel(h.crBasis, fr ? "fr" : "en")].filter(Boolean).join(" · ")}
+                                    </span>
+                                  ) : null}
+                                </li>
+                              ))}
+                            </ul>
+                          ) : null}
                         </div>
                       ) : null}
                     </td>

@@ -56,6 +56,7 @@ function branch(
   codeJoin: string,
   codeExpr: string,
   hasVisibility: boolean,
+  itemIdExpr = "NULL::uuid",
 ): string {
   return `
     SELECT '${kind}' AS kind,
@@ -63,6 +64,7 @@ function branch(
            coalesce(e.name, '') AS engagement_name,
            c.name AS client_name,
            ${codeExpr} AS code,
+           ${itemIdExpr} AS item_id,
            ${titleExpr} AS title,
            ts_headline('audit_search', ${snippetExpr}, %%TSQ%%,
                        'MaxWords=22, MinWords=8, ShortWord=2, MaxFragments=1, FragmentDelimiter=" … "') AS snippet,
@@ -75,6 +77,9 @@ function branch(
 }
 
 const ITEM_JOIN = "LEFT JOIN file_item fi ON fi.id = %ALIAS%.file_item_id";
+/** A working-paper answer is keyed by code ('wp:E4.1' or 'P1.1'); resolve it to the task. */
+const WP_ITEM_JOIN =
+  "LEFT JOIN file_item fi ON fi.engagement_id = fr2.engagement_id AND fi.code = regexp_replace(fr2.code, '^wp:', '')";
 
 /**
  * The engagement itself, by its own name or its client's.
@@ -91,6 +96,7 @@ const ENGAGEMENT_BRANCH = `
            coalesce(e.name, '') AS engagement_name,
            c.name AS client_name,
            NULL AS code,
+           NULL::uuid AS item_id,
            coalesce(nullif(e.name, ''), c.name) AS title,
            ts_headline('audit_search', c.name || ' — ' || coalesce(e.name, ''), %%TSQ%%,
                        'MaxWords=22, MinWords=4, MaxFragments=1') AS snippet,
@@ -101,17 +107,17 @@ const ENGAGEMENT_BRANCH = `
 
 const BRANCHES: string[] = [
   ENGAGEMENT_BRANCH,
-  branch("task", "file_item", "fi2", "coalesce(fi2.title_en, fi2.code)", "coalesce(fi2.title_en, '') || ' ' || coalesce(fi2.title_fr, '')", "", "fi2.code", true),
+  branch("task", "file_item", "fi2", "coalesce(fi2.title_en, fi2.code)", "coalesce(fi2.title_en, '') || ' ' || coalesce(fi2.title_fr, '')", "", "fi2.code", true, "fi2.id"),
   branch("risk", "risk", "r", "left(coalesce(r.description, ''), 90)", "coalesce(r.description, '') || ' ' || coalesce(r.fs_note, '')", "", "NULL", true),
   branch("finding", "finding", "f", "coalesce(f.title, '')", "coalesce(f.detail, '') || ' ' || coalesce(f.response, '')", "", "NULL", true),
-  branch("misstatement", "misstatement", "m", "left(coalesce(m.description, ''), 90)", "coalesce(m.description, '') || ' ' || coalesce(m.accounts, '')", ITEM_JOIN.replace("%ALIAS%", "m"), "fi.code", true),
-  branch("review note", "review_note", "rn", "left(coalesce(rn.body, ''), 90)", "coalesce(rn.body, '') || ' ' || coalesce(rn.response, '')", ITEM_JOIN.replace("%ALIAS%", "rn"), "fi.code", true),
-  branch("conclusion", "section_conclusion", "sc", "left(coalesce(sc.conclusion, ''), 90)", "coalesce(sc.conclusion, '')", ITEM_JOIN.replace("%ALIAS%", "sc"), "fi.code", true),
-  branch("procedure", "program_step", "ps", "left(coalesce(ps.description, ''), 90)", "coalesce(ps.description, '') || ' ' || coalesce(ps.conclusion, '')", ITEM_JOIN.replace("%ALIAS%", "ps"), "fi.code", true),
-  branch("control test", "control_test", "ct", "left(coalesce(ct.description, ''), 90)", "coalesce(ct.description, '') || ' ' || coalesce(ct.note, '')", ITEM_JOIN.replace("%ALIAS%", "ct"), "fi.code", true),
+  branch("misstatement", "misstatement", "m", "left(coalesce(m.description, ''), 90)", "coalesce(m.description, '') || ' ' || coalesce(m.accounts, '')", ITEM_JOIN.replace("%ALIAS%", "m"), "fi.code", true, "fi.id"),
+  branch("review note", "review_note", "rn", "left(coalesce(rn.body, ''), 90)", "coalesce(rn.body, '') || ' ' || coalesce(rn.response, '')", ITEM_JOIN.replace("%ALIAS%", "rn"), "fi.code", true, "fi.id"),
+  branch("conclusion", "section_conclusion", "sc", "left(coalesce(sc.conclusion, ''), 90)", "coalesce(sc.conclusion, '')", ITEM_JOIN.replace("%ALIAS%", "sc"), "fi.code", true, "fi.id"),
+  branch("procedure", "program_step", "ps", "left(coalesce(ps.description, ''), 90)", "coalesce(ps.description, '') || ' ' || coalesce(ps.conclusion, '')", ITEM_JOIN.replace("%ALIAS%", "ps"), "fi.code", true, "fi.id"),
+  branch("control test", "control_test", "ct", "left(coalesce(ct.description, ''), 90)", "coalesce(ct.description, '') || ' ' || coalesce(ct.note, '')", ITEM_JOIN.replace("%ALIAS%", "ct"), "fi.code", true, "fi.id"),
   branch("SCOT", "scot", "s", "coalesce(s.name, '')", "coalesce(s.description, '') || ' ' || coalesce(s.strategy, '')", "", "NULL", true),
-  branch("document", "document", "d", "coalesce(d.title, '')", "coalesce(d.title, '')", ITEM_JOIN.replace("%ALIAS%", "d"), "fi.code", true),
-  branch("working paper", "form_response", "fr2", "fr2.code", "coalesce(fr2.value #>> '{}', '')", "", "fr2.code", true),
+  branch("document", "document", "d", "coalesce(d.title, '')", "coalesce(d.title, '')", ITEM_JOIN.replace("%ALIAS%", "d"), "fi.code", true, "fi.id"),
+  branch("working paper", "form_response", "fr2", "fr2.code", "coalesce(fr2.value #>> '{}', '')", WP_ITEM_JOIN, "fr2.code", true, "fi.id"),
 ];
 
 /**
@@ -158,7 +164,7 @@ export async function search(rawQuery: string): Promise<SearchResults> {
 
   type Row = {
     kind: string; engagement_id: string; engagement_name: string; client_name: string;
-    code: string | null; title: string; snippet: string; rank: number;
+    code: string | null; item_id: string | null; title: string; snippet: string; rank: number;
   };
   const prepared = sql.replaceAll("%%TSQ%%", "(SELECT tsq FROM q)");
 
@@ -192,9 +198,14 @@ export async function search(rawQuery: string): Promise<SearchResults> {
       code: r.code,
       title: r.title.trim() || r.kind,
       snippet: r.snippet,
-      href: r.code
-        ? `/engagements/${r.engagement_id}/sections/${encodeURIComponent(r.code)}`
-        : `/engagements/${r.engagement_id}/dashboard`,
+      // The task page is keyed by the file item's id, never its code (UAT B26:
+      // /sections/C2.1 was a 500). A working-paper answer whose task no longer
+      // exists falls back to the legacy form page for its code.
+      href: r.item_id
+        ? `/engagements/${r.engagement_id}/sections/${r.item_id}`
+        : r.code
+          ? `/engagements/${r.engagement_id}/forms/${encodeURIComponent(r.code.replace(/^wp:/, ""))}`
+          : `/engagements/${r.engagement_id}/dashboard`,
       rank: Number(r.rank),
     })),
   };

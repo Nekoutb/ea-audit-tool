@@ -169,7 +169,7 @@ export async function buildTodWorkbook(view: TodSideView): Promise<Buffer> {
     const label = fr ? s.labelFr : s.labelEn;
     const ws = wb.addWorksheet(tabName(s.indexCode, label));
     page(ws, `${s.indexCode} ${label} · ${view.clientName} · ${view.fiscalYear}`);
-    ws.columns = [{ width: 6 }, { width: 12 }, { width: 22 }, { width: 14 }, { width: 40 }, { width: 12 }, { width: 16 }, { width: 24 }, { width: 24 }, { width: 14 }, { width: 30 }];
+    ws.columns = [{ width: 6 }, { width: 12 }, { width: 22 }, { width: 14 }, { width: 40 }, { width: 12 }, { width: 16 }, { width: 24 }, { width: 24 }, { width: 14 }, { width: 30 }, { width: 18 }];
     const t = ws.addRow([`${s.indexCode} — ${label}${s.taskCode ? ` (${s.taskCode})` : ""}`]);
     t.font = { bold: true, size: 13 };
     ws.addRow([]);
@@ -186,34 +186,81 @@ export async function buildTodWorkbook(view: TodSideView): Promise<Buffer> {
       [T("Remaining population", "Population restante"), p.remainingValue, `${p.remainingCount} ${T("lines", "lignes")}`],
       [T("Base sample = remaining ÷ TE", "Base = restant ÷ TE"), p.baseSize],
       [T("Audit-risk-table factor", "Facteur de la table de risque"), p.factor ?? "—", `${T("coverage column", "colonne de couverture")} ${p.coverageColumn}%`],
-      [T("Representative sample size", "Taille de l'échantillon représentatif"), p.sampleSize, p.factor === null ? T("no representative sample required at this combination", "aucun échantillon représentatif requis à cette combinaison") : ""],
+      [T("Representative sample size", "Taille de l'échantillon représentatif"), p.sampleSize, p.factor === null ? T("no representative sample required at this combination", "aucun échantillon représentatif requis à cette combinaison") : p.fullPopulation ? `${T("computed", "calculée")} ${p.computedSize} — ${T("capped at the remaining population; every remaining line is examined", "plafonnée à la population restante ; chaque ligne restante est examinée")}` : ""],
+      [T("Distinct items drawn", "Éléments distincts tirés"), p.itemsDrawn, p.itemsDrawn < p.sampleSize ? T("several hooks fell inside one large line; each line is listed once", "plusieurs points de sélection sont tombés dans une même ligne ; chaque ligne n'est listée qu'une fois") : ""],
       [T("Sampling interval", "Intervalle d'échantillonnage"), p.interval ?? "—"],
     ]);
     ws.addRow([]);
 
+    // Column L records the misstatement found on each line (recorded − audited,
+    // signed) so the projection block below can total and extrapolate it
+    // (UAT B78) — the tester writes a figure, not a comment, for anything that
+    // has to reach C1.1.
     const cols = [
       "#", T("Kind", "Type"), T("Entry", "Écriture"), T("Account", "Compte"), T("Description", "Libellé"), T("Date", "Date"), T("Amount", "Montant"),
       T("What was inspected", "Élément inspecté"), T("Evidence", "Preuve"), T("Result", "Résultat"), T("Exception / comment", "Exception / commentaire"),
+      T("Misstatement (recorded − audited)", "Anomalie (comptabilisé − audité)"),
     ];
-    const items = (kind: "key" | "sample", lines: TodPlan["keyItems"], titleEn: string, titleFr: string, tone: string) => {
-      band(ws, `${T(titleEn, titleFr)} — ${lines.length}`, 11);
+    const MIS = 12;
+    const items = (kind: "key" | "sample", lines: TodPlan["keyItems"], titleEn: string, titleFr: string, tone: string): { first: number; last: number } => {
+      band(ws, `${T(titleEn, titleFr)} — ${lines.length}`, MIS);
       header(ws, cols);
+      let first = ws.rowCount + 1;
+      let last = ws.rowCount;
       if (lines.length === 0) {
         const row = ws.addRow(["", "", T("— none —", "— aucun —")]);
         row.getCell(3).font = { italic: true, color: { argb: "FF666666" } };
+        first = row.number;
+        last = row.number;
       }
       lines.forEach((l, i) => {
-        const row = ws.addRow([i + 1, kind === "key" ? T("Key item", "Élément clé") : T("Sample", "Échantillon"), l.ref, l.account, l.description ?? "", l.date ?? "", l.amount, "", "", "", ""]);
+        const row = ws.addRow([i + 1, kind === "key" ? T("Key item", "Élément clé") : T("Sample", "Échantillon"), l.ref, l.account, l.description ?? "", l.date ?? "", l.amount, "", "", "", "", null]);
         row.eachCell({ includeEmpty: true }, (cell, c) => { box(cell); if (c >= 8) fill(cell, ENTRY); });
         fill(row.getCell(2), tone);
         row.getCell(7).numFmt = NUM;
+        row.getCell(MIS).numFmt = NUM;
+        last = row.number;
       });
       const total = ws.addRow(["", T("Total", "Total"), "", "", "", "", lines.reduce((sum, l) => sum + l.amount, 0)]);
       total.getCell(2).font = { bold: true }; total.getCell(7).font = { bold: true }; total.getCell(7).numFmt = NUM;
+      total.getCell(MIS).value = { formula: `SUM(L${first}:L${last})` };
+      total.getCell(MIS).font = { bold: true }; total.getCell(MIS).numFmt = NUM;
       ws.addRow([]);
+      return { first, last };
     };
-    items("key", p.keyItems, "Key items — examined in full", "Éléments clés — examinés intégralement", KEY);
-    items("sample", p.sample, "Representative sample — systematic MUS", "Échantillon représentatif — MUS systématique", SAMPLE);
+    const keyRows = items("key", p.keyItems, "Key items — examined in full", "Éléments clés — examinés intégralement", KEY);
+    const sampleRows = items("sample", p.sample, "Representative sample — systematic MUS", "Échantillon représentatif — MUS systématique", SAMPLE);
+
+    // The projection (ISA 530 ¶14–15): misstatement in the sample, extrapolated
+    // over the remaining population by the ratio of the sample's value; key
+    // items are examined in full so their misstatement is factual, not
+    // projected. Live formulas, so the tester's figures flow through.
+    band(ws, T("Evaluation — projection to the population", "Évaluation — extrapolation à la population"), MIS);
+    const proj = (label: string, formula: string, note?: string) => {
+      const row = ws.addRow([label, "", "", "", "", "", { formula }, note ?? ""]);
+      row.getCell(1).font = { bold: true };
+      row.getCell(7).numFmt = NUM;
+      box(row.getCell(1)); box(row.getCell(7));
+      if (note) row.getCell(8).font = { italic: true, color: { argb: "FF666666" } };
+      return row.number;
+    };
+    const rKey = proj(T("Factual misstatement in key items", "Anomalie avérée sur les éléments clés"), `SUM(L${keyRows.first}:L${keyRows.last})`);
+    const rSample = proj(T("Misstatement found in the sample", "Anomalie relevée dans l'échantillon"), `SUM(L${sampleRows.first}:L${sampleRows.last})`);
+    const rSampleValue = proj(T("Value of the sample examined", "Valeur de l'échantillon examiné"), `SUM(G${sampleRows.first}:G${sampleRows.last})`);
+    const rRemaining = proj(T("Remaining population (after key items)", "Population restante (hors éléments clés)"), `${p.remainingValue}`);
+    const rProjected = proj(
+      T("Projected misstatement = sample misstatement ÷ sample value × remaining population", "Anomalie extrapolée = anomalie de l'échantillon ÷ valeur de l'échantillon × population restante"),
+      `IF(G${rSampleValue}=0,0,G${rSample}/G${rSampleValue}*G${rRemaining})`,
+    );
+    const rTotal = proj(T("Total likely misstatement (factual + projected)", "Anomalie probable totale (avérée + extrapolée)"), `G${rKey}+G${rProjected}`);
+    const rTe = proj(T("Tolerable error (TE)", "Erreur tolérable (TE)"), `${p.te}`);
+    const verdict = ws.addRow([
+      T("Conclusion", "Conclusion"), "", "", "", "", "",
+      { formula: `IF(ABS(G${rTotal})>G${rTe},"${T("EXCEEDS TE — record on C1.1 and extend the work", "DÉPASSE TE — porter sur C1.1 et étendre les travaux")}","${T("Within TE — record the projected amount on the Sampling tool (Results) so it reaches C1.1", "Sous TE — consigner le montant extrapolé dans l'outil Échantillonnage (Résultats) pour qu'il atteigne C1.1")}")` },
+    ]);
+    verdict.getCell(1).font = { bold: true }; verdict.getCell(7).font = { bold: true };
+    box(verdict.getCell(1)); box(verdict.getCell(7));
+    ws.addRow([]);
     ws.views = [{ state: "frozen", ySplit: 2 }];
   }
 

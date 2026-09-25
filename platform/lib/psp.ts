@@ -126,6 +126,28 @@ export interface PspStep {
 }
 
 /**
+ * Catalogue steps are stored as "<idx><n> — <English wording>" (generatePsp);
+ * the catalogue also carries the French. For a French reader the wording is
+ * swapped at render time by matching the stored English text back to its
+ * catalogue entry — no migration, and every existing row is covered
+ * (UAT B120). Custom (OSP) steps and unmatched text are left as stored.
+ */
+export function localizePspSteps<T extends { description: string; source: string }>(steps: T[], locale: string): T[] {
+  if (locale !== "fr") return steps;
+  const byEnglish = new Map<string, string>();
+  for (const defs of [...Object.values(PSP_CATALOG), GENERIC]) {
+    for (const def of defs) byEnglish.set(def.en, def.fr);
+  }
+  return steps.map((step) => {
+    if (step.source !== "psp") return step;
+    const cut = step.description.indexOf(" — ");
+    if (cut < 0) return step;
+    const fr = byEnglish.get(step.description.slice(cut + 3).trim());
+    return fr ? { ...step, description: `${step.description.slice(0, cut)} — ${fr}` } : step;
+  });
+}
+
+/**
  * The catalog positions selected for an index in the S5.5 design (union over
  * assertions). null = S5.5 has recorded no selection for the index at all.
  */

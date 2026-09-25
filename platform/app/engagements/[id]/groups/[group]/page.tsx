@@ -9,22 +9,22 @@ import { SubmitButton } from "@/components/SubmitButton";
 import { Panel, PanelHeader } from "@/components/ui/atlas";
 import {
   PHASE_SLUG_OF,
+  effectiveDueDate,
   engagementReviewer,
-  engagementTasks,
+  engagementTasksWithActiveConditionals,
   existingTaskCodes,
   initials,
-  phaseDeadline,
   phaseOfTask,
   type PhaseTask,
 } from "@/lib/engagement-dashboard";
 import { getEngagement } from "@/lib/engagements";
-import { shortTitle } from "@/lib/file-index";
+import { itemsForComplexity, shortTitle } from "@/lib/file-index";
+import { phaseStillOpen } from "@/lib/gates";
 import { getMessages } from "@/lib/i18n";
 import { getLocale } from "@/lib/locale";
 import { canReview } from "@/lib/rbac";
 import { GROUP_BY_ID, displayCode, groupTitle, sectionLabel } from "@/lib/task-groups";
 import { dspDesignGaps, dspDesignedIndexes } from "@/lib/design-procedures";
-import { instantiateGroupTasks } from "@/lib/instantiate-group";
 import { indexesForTask } from "@/lib/psp";
 
 export async function generateMetadata(props: { params: Promise<{ group: string }> }) {
@@ -67,39 +67,36 @@ export default async function GroupTasksPage(props: {
   if (!engagement) notFound();
 
   const reviewerName = await engagementReviewer(id);
-  let [allTasks, existingCodes] = await Promise.all([engagementTasks(id), existingTaskCodes(id)]);
-  let missing = g.members.filter((code) => !existingCodes.has(code));
-  // A phase should never open on "0/0 — click to add the tasks": missing
-  // members are instantiated right here (idempotent; refused on archived
-  // files, in which case the manual button remains as the explanation).
-  if (missing.length > 0) {
-    const added = await instantiateGroupTasks(id, group).catch(() => 0);
-    if (added > 0) {
-      [allTasks, existingCodes] = await Promise.all([engagementTasks(id), existingTaskCodes(id)]);
-      missing = g.members.filter((code) => !existingCodes.has(code));
-    }
-  }
+  // Viewing a group never changes the file's scope (UAT B155): tasks are only
+  // added by the explicit button below, and only those the entity's
+  // classification scopes in — a very-simple file must not grow a complex
+  // one's programme because somebody opened a page.
+  const [allTasks, existingCodes] = await Promise.all([engagementTasksWithActiveConditionals(id), existingTaskCodes(id)]);
+  const inScope = new Set(itemsForComplexity(engagement.complexity ?? "complex").map((e) => e.code));
+  const missing = g.members.filter((code) => !existingCodes.has(code) && inScope.has(code));
   const byCode = new Map(allTasks.map((task) => [task.code, task]));
   // E4 discloses only the accounts whose substantive procedures were DESIGNED
   // in S5.5 — an index nobody designed for has no performable work here. The
   // design gaps (key assertions, nothing selected) are surfaced separately.
+  // Members with no lead index at all (Leases, the TFT tie-out) are not
+  // designed in S5.5 and stay listed (UAT B149).
   const designedIndexes = group === "e4" ? await dspDesignedIndexes(id) : null;
   const designGaps = group === "e4" ? await dspDesignGaps(id).catch(() => []) : [];
   const memberCodes = designedIndexes
-    ? g.members.filter((code) => indexesForTask(code).some((idx) => designedIndexes.has(idx)))
+    ? g.members.filter((code) => {
+        const indexes = indexesForTask(code);
+        // an account nobody designed for still shows once it holds work —
+        // procedures done, files attached, a conclusion, a signature — so the
+        // C6.1 "fix" link never lands on a paper the list hides
+        const holdsWork = byCode.has(code) && byCode.get(code)?.status !== "not_started";
+        return indexes.length === 0 || holdsWork || indexes.some((idx) => designedIndexes.has(idx));
+      })
     : g.members;
   const tasks = memberCodes.map((code) => byCode.get(code)).filter((task): task is PhaseTask => Boolean(task));
   const reviewedCount = tasks.filter((task) => task.status === "reviewed").length;
 
-  // Section deadline as the default; per-task due dates win.
-  const sectionPhase =
-    g.section === "acceptance" || g.section === "strategy"
-      ? ("planning" as const)
-      : g.section === "execution"
-        ? ("execution" as const)
-        : ("conclusion" as const);
-  const deadlineIso = phaseDeadline(engagement.periodEnd, sectionPhase);
-  const deadlineDate = fmtDate(deadlineIso, locale);
+  // The task's own due date, else its phase deadline — the same rule the forms
+  // and section pages apply (effectiveDueDate), so one task reads one date.
   const now = new Date();
   const todayUtc = Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate());
 
@@ -129,8 +126,8 @@ export default async function GroupTasksPage(props: {
           : { ini: reviewerIni, line: sg.awaitingPreparer, lineTone: "idle" as const }
         : { ini: "", line: sg.noReviewer, lineTone: "none" as const };
 
-    const taskIso = task.dueDate ?? deadlineIso;
-    const taskDate = task.dueDate ? fmtDate(task.dueDate, locale) : deadlineDate;
+    const taskIso = effectiveDueDate(task, engagement.periodEnd);
+    const taskDate = fmtDate(taskIso, locale);
     const taskOverdue = Math.round((todayUtc - new Date(taskIso + "T00:00:00Z").getTime()) / 86_400_000);
     const deadline = reviewerSigned
       ? { date: taskDate, tag: td.deadlineTag.completed, tagTone: "done" as const }
@@ -258,6 +255,8 @@ export default async function GroupTasksPage(props: {
                     returnTo={returnTo}
                     signPreparerLabel={td.signAsPreparer}
                     signReviewerLabel={td.signAsReviewer}
+                    canSign={!phaseStillOpen(phaseOfTask(tasks[i].section, tasks[i].code), engagement.phase)}
+                    canReview={canReview(session.user.role)}
                   />
                 ))}
               </tbody>

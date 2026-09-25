@@ -86,15 +86,19 @@ describe("accountMail", () => {
     expect(m.body).not.toContain("Temporary password");
   });
 
-  it("password reset carries the new temporary password and the pre-filled link", () => {
+  it("password reset carries a set-password link and no password (UAT B39)", () => {
     const m = accountMail(
       "password-reset",
-      { email: "bob@firm.com", name: "Bob", inviterName: "Anne", tempPassword: "n3w-pass" },
+      { email: "bob@firm.com", name: "Bob", inviterName: "Anne", inviteUrl: "https://www.auditisa.com/invite/tok-1" },
       "en",
     );
     expect(m.body).toContain("Anne, firm administrator, has reset your AuditISA password.");
-    expect(m.body).toContain("Temporary password: n3w-pass");
-    expect(m.body).toContain("/login?email=bob%40firm.com");
+    expect(m.body).toContain("https://www.auditisa.com/invite/tok-1");
+    expect(m.body).not.toContain("Temporary password");
+    // "Choose a new password: <link>" is the button's plain-text fallback, not
+    // a credential; only a "password: <something that is not the link>" fails.
+    expect(m.body).not.toMatch(/password: (?!https:\/\/www\.auditisa\.com\/invite\/tok-1)/i);
+    expect(m.body).toContain("Choose a new password: https://www.auditisa.com/invite/tok-1");
   });
 
   it("escapes what it puts in HTML", () => {
@@ -117,7 +121,7 @@ describe("accountMail", () => {
       accountMail("new-account", { email: "anne@firm.com", name: "Anne" }, "en"),
     ).toThrow(AccountMailError);
     expect(() =>
-      // @ts-expect-error password-reset requires a temporary password
+      // @ts-expect-error password-reset requires a set-password link
       accountMail("password-reset", { email: "anne@firm.com" }, "en"),
     ).toThrow(AccountMailError);
     // Present but empty is the case types cannot catch.
@@ -238,9 +242,20 @@ describe("safeNext", () => {
       "",
       null,
       undefined,
+      // a browser reads the backslash as a slash: "/\host" is "//host" (UAT B07)
+      "/\\example.org/",
+      "/%5Cexample.org/",
+      "/\texample.org",
+      "/\\/example.org",
     ]) {
       expect(safeNext(hostile), String(hostile)).toBe("/");
     }
+  });
+
+  it("keeps the query and hash of a path on this site", () => {
+    expect(safeNext("/engagements/abc/dashboard?tab=team#notes")).toBe(
+      "/engagements/abc/dashboard?tab=team#notes",
+    );
   });
 });
 

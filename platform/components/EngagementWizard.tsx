@@ -4,7 +4,10 @@ import { useState } from "react";
 import { createEngagementAction } from "@/app/actions/audit-file";
 import { Panel, btnPrimary } from "@/components/ui/atlas";
 import { SubmitButton } from "@/components/SubmitButton";
-import { NATURE_OPTIONS, generateEngagementName } from "@/lib/complexity";
+import { NATURE_OPTIONS, applyNamingConvention } from "@/lib/complexity";
+
+// Mirrors LEGAL_FORMS in lib/clients.ts (that module is server-only).
+const LEGAL_FORMS = ["SA", "SARL", "SAS", "GIE", "OTHER"] as const;
 
 export interface WizardLabels {
   clientLabel: string;
@@ -20,14 +23,30 @@ export interface WizardLabels {
  * The team is added on its own screen after creation, and the first-year
  * question lives in the nature-of-entity questionnaire.
  */
+/** The client's recorded year-end ("31/12", "30-06", "06-30") as "MM-DD"; null when unreadable. */
+function yearEndMonthDay(raw: string | null | undefined): string | null {
+  const text = raw ?? "";
+  const m = /^\s*(\d{1,2})\s*[\/.-]\s*(\d{1,2})\s*$/.exec(text);
+  if (!m) return null;
+  const a = Number(m[1]);
+  const b = Number(m[2]);
+  // "31/12" is day/month (the record's placeholder); "12-31" is month-day
+  const [day, month] = a > 12 ? [a, b] : b > 12 ? [b, a] : text.includes("/") ? [a, b] : [b, a];
+  if (month < 1 || month > 12 || day < 1 || day > 31) return null;
+  return `${String(month).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
+}
+
 export function EngagementWizard({
   clients,
   defaultClientName,
+  naming,
   locale,
   labels,
 }: {
-  clients: { id: string; name: string }[];
+  clients: { id: string; name: string; yearEnd?: string | null }[];
   defaultClientName?: string;
+  /** the firm's naming convention (Settings) */
+  naming?: string;
   locale: "en" | "fr";
   labels: WizardLabels;
 }) {
@@ -37,11 +56,21 @@ export function EngagementWizard({
   const [year, setYear] = useState(String(currentYear));
   const [nature, setNature] = useState<string>("statutory_audit");
   const [natureText, setNatureText] = useState("");
+  const [legalForm, setLegalForm] = useState<string>("SA");
+  // month-day of the period end; null until the user overrides the default
+  const [periodMd, setPeriodMd] = useState<string | null>(null);
 
+  const knownClient = clients.find((c) => c.name.trim().toLowerCase() === clientName.trim().toLowerCase());
+  const isKnownClient = Boolean(knownClient);
+  const effectiveMd = periodMd ?? yearEndMonthDay(knownClient?.yearEnd) ?? "12-31";
+  const yearForName = year || String(currentYear);
+  const periodEnd = `${yearForName}-${effectiveMd}`;
   const natureForName =
     nature === "other" && natureText.trim() ? natureText.trim().toUpperCase() : nature;
-  const generatedName = generateEngagementName(clientName, "12-31", year || currentYear, natureForName);
-  const isKnownClient = clients.some((c) => c.name.trim().toLowerCase() === clientName.trim().toLowerCase());
+  const generatedName = applyNamingConvention(naming ?? "", clientName, yearForName, {
+    periodEnd,
+    nature: natureForName,
+  });
 
   const input =
     "rounded-[var(--radius-atlas-sm)] border border-line-strong bg-surface px-3 py-2 text-sm text-ink outline-none focus:border-emerald-600 focus:ring-2 focus:ring-emerald-600/20";
@@ -80,6 +109,23 @@ export function EngagementWizard({
                     ? "Nouveau client — l’entité sera créée"
                     : "New client — the entity will be created"}
             </span>
+            {clientName.trim() !== "" && !isKnownClient ? (
+              <select
+                name="legalForm"
+                value={legalForm}
+                onChange={(e) => setLegalForm(e.target.value)}
+                className={input}
+                aria-label={fr ? "Forme juridique" : "Legal form"}
+                data-testid="engagement-legal-form"
+              >
+                {LEGAL_FORMS.map((form) => (
+                  <option key={form} value={form}>
+                    {fr ? "Forme juridique : " : "Legal form: "}
+                    {form}
+                  </option>
+                ))}
+              </select>
+            ) : null}
           </label>
           <label className={label}>
             {labels.yearLabel}
@@ -93,6 +139,22 @@ export function EngagementWizard({
               required
               className={input}
               data-testid="engagement-year"
+            />
+            <span className="text-xs text-muted">{fr ? "Date de clôture" : "Period end"}</span>
+            <input
+              name="periodEnd"
+              type="date"
+              value={periodEnd}
+              onChange={(e) => {
+                const v = e.target.value;
+                if (/^\d{4}-\d{2}-\d{2}$/.test(v)) {
+                  setYear(v.slice(0, 4));
+                  setPeriodMd(v.slice(5));
+                }
+              }}
+              required
+              className={input}
+              data-testid="engagement-period-end"
             />
           </label>
           <label className={label}>

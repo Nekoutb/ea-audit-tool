@@ -204,6 +204,22 @@ export async function saveForm(
   }
 
   await withTenant(tenantId, async (tx) => {
+    // P1.1 rule (UAT B12): the partner cannot conclude "accept" while a
+    // required acceptance check stands at "no". The stored answers are merged
+    // with this save, since a save may carry the conclusion alone.
+    if (code === "P1.1") {
+      const stored = await tx.query<{ field_key: string; value: unknown }>(
+        "SELECT field_key, value FROM form_response WHERE engagement_id = $1 AND code = $2",
+        [engagementId, code],
+      );
+      const merged: FormValues = {};
+      for (const row of stored.rows) merged[row.field_key] = row.value;
+      Object.assign(merged, values);
+      if (merged.conclusion === "accept" && p11FailedChecks(merged).length > 0) {
+        throw new Error("acceptance-checks-failed");
+      }
+    }
+
     // Optimistic concurrency. Two people on one paper is normal and mostly
     // harmless — they are usually in different fields — so a conflict is raised
     // only where all three hold: the field was written after this editor loaded
@@ -245,7 +261,73 @@ export async function saveForm(
         [tenantId, engagementId, code, field.key, JSON.stringify(values[field.key]), userId],
       );
     }
+
+    // P1.1 decides whether P1.2 (predecessor auditor, ISA 300 / IESBA §320)
+    // applies: a new engagement activates it; back to "continuing" retires it
+    // again unless work already sits on it.
+    if (code === "P1.1" && typeof values.engagement_type === "string") {
+      await setPredecessorTaskActiveTx(tx, engagementId, values.engagement_type === "new");
+    }
+
+    // A signature attests to the content it was given over: an answer that
+    // moves out from under it voids it rather than inheriting it (the legacy
+    // form rows are part of the paper's content hash).
+    const { invalidateStaleSignoffs } = await import("@/lib/working-papers");
+    return invalidateStaleSignoffs(tx, engagementId, code);
+  }).then(async (invalidated) => {
+    // Outside the transaction: the trail and the notice must not roll back the save.
+    const { reportInvalidatedSignoffs } = await import("@/lib/working-papers");
+    await reportInvalidatedSignoffs(tenantId, engagementId, code, invalidated, userId);
+    const { recordActivity } = await import("@/lib/activity");
+    // entity_id is a uuid column: the form code travels in the summary/meta
+    await recordActivity({
+      engagementId,
+      entityType: "form_response",
+      entityId: null,
+      action: "form_saved",
+      summary: `${code} — ${Object.keys(values).filter((k) => definition.fields.some((f) => f.key === k)).join(", ")}`,
+      meta: { code },
+    });
   });
+}
+
+/**
+ * Activate or retire the conditional P1.2 task. Retiring is refused when the
+ * task already carries work (a document, an attachment or a conclusion), so a
+ * change of mind on P1.1 never hides evidence.
+ */
+export async function setPredecessorTaskActiveTx(
+  tx: { query: <T>(sql: string, params?: unknown[]) => Promise<{ rows: T[] }> },
+  engagementId: string,
+  active: boolean,
+): Promise<void> {
+  if (active) {
+    await tx.query("UPDATE file_item SET conditional = false WHERE engagement_id = $1 AND code = 'P1.2'", [engagementId]);
+    return;
+  }
+  await tx.query(
+    `UPDATE file_item fi SET conditional = true
+      WHERE fi.engagement_id = $1 AND fi.code = 'P1.2' AND fi.conditional = false
+        AND NOT EXISTS (SELECT 1 FROM document d WHERE d.file_item_id = fi.id)
+        AND NOT EXISTS (SELECT 1 FROM task_attachment a WHERE a.file_item_id = fi.id AND a.deleted_at IS NULL)
+        AND NOT EXISTS (SELECT 1 FROM section_conclusion sc WHERE sc.file_item_id = fi.id)
+        AND NOT EXISTS (SELECT 1 FROM form_response fr WHERE fr.engagement_id = fi.engagement_id AND fr.code = 'wp:P1.2')`,
+    [engagementId],
+  );
+}
+
+/**
+ * The P1.1 checks that must each be answered "yes" before the conclusion
+ * "accept" means anything (UAT B12): answering every one of them "no" used to
+ * count as a complete checklist. predecessor_ok is required for a NEW
+ * engagement only. Returns the keys that fail.
+ */
+export const P11_REQUIRED_CHECKS = ["integrity_ok", "competence_ok", "conflicts_ok", "aml_ok", "independence_ok"] as const;
+
+export function p11FailedChecks(values: FormValues): string[] {
+  const failed = P11_REQUIRED_CHECKS.filter((key) => values[key] !== true).map(String);
+  if (values.engagement_type === "new" && values.predecessor_ok !== true) failed.push("predecessor_ok");
+  return failed;
 }
 
 export function isFormComplete(definition: FormDefinition, values: FormValues): boolean {

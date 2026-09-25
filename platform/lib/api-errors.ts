@@ -19,6 +19,23 @@ import { NextResponse } from "next/server";
  * So a real fault is logged with its stack, and a deliberate refusal is not —
  * it is an answer, not an incident, and logging it would bury the faults.
  */
+/**
+ * A quick, named refusal for an upload whose declared size is over the
+ * route's limit — before the body is read. The proxy's own body cap used to
+ * make formData() throw, and the catch-all turned that into a 500 after a
+ * 30-second wait (UAT B25). Null when the request may proceed.
+ */
+export function oversizedBody(request: Request, maxBytes: number): NextResponse | null {
+  const declared = Number(request.headers.get("content-length") ?? "");
+  if (Number.isFinite(declared) && declared > maxBytes) {
+    return NextResponse.json(
+      { error: "file-too-large", limitMb: Math.round(maxBytes / (1024 * 1024)) },
+      { status: 413 },
+    );
+  }
+  return null;
+}
+
 export function saveFailed(scope: string, error: unknown): NextResponse {
   const deliberate = error instanceof Error && /^[a-z0-9-]+$/.test(error.message);
   if (!deliberate) {

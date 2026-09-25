@@ -137,6 +137,33 @@ export async function engagementPhaseProgress(
 /** Row status across the preparer → reviewer lifecycle. */
 export type PhaseTaskStatus = "reviewed" | "in_review" | "in_progress" | "not_started";
 
+/**
+ * Work that exists on a task besides its generated working-paper document:
+ * a program step performed, a file attached, a conclusion written. The E4
+ * account papers carry no document until someone signs them, so without this
+ * a paper with every procedure done and a conclusion read "Not started".
+ */
+const HAS_WORK = `(
+  EXISTS (SELECT 1 FROM program_step ps WHERE ps.file_item_id = fi.id AND ps.status = 'complete')
+  OR EXISTS (SELECT 1 FROM task_attachment ta WHERE ta.file_item_id = fi.id AND ta.deleted_at IS NULL)
+  OR EXISTS (SELECT 1 FROM section_conclusion sc WHERE sc.file_item_id = fi.id)
+)`;
+
+function taskStatus(row: {
+  reviewer_name: string | null;
+  preparer_name: string | null;
+  document_id: string | null;
+  has_work: boolean;
+}): PhaseTaskStatus {
+  return row.reviewer_name
+    ? "reviewed"
+    : row.preparer_name
+      ? "in_review"
+      : row.document_id || row.has_work
+        ? "in_progress"
+        : "not_started";
+}
+
 export interface PhaseTask {
   id: string;
   code: string;
@@ -200,6 +227,7 @@ export async function phaseTasks(engagementId: string, phase: DashboardPhase): P
       preparer_at: string | null;
       reviewer_name: string | null;
       reviewer_at: string | null;
+      has_work: boolean;
     }>(
       `SELECT fi.id, fi.code, fi.section, fi.title_en, fi.title_fr,
               d.id AS document_id,
@@ -211,7 +239,8 @@ export async function phaseTasks(engagementId: string, phase: DashboardPhase): P
               fi.approver_user_id,
               (SELECT coalesce(name, email) FROM app_user WHERE id = fi.approver_user_id) AS approver_name,
               ps.signer AS preparer_name, to_char(ps.signed_at, 'DD Mon YYYY') AS preparer_at,
-              rs.signer AS reviewer_name, to_char(rs.signed_at, 'DD Mon YYYY') AS reviewer_at
+              rs.signer AS reviewer_name, to_char(rs.signed_at, 'DD Mon YYYY') AS reviewer_at,
+              ${HAS_WORK} AS has_work
          FROM file_item fi
          LEFT JOIN LATERAL (
            SELECT id FROM document
@@ -236,13 +265,7 @@ export async function phaseTasks(engagementId: string, phase: DashboardPhase): P
       [engagementId, phase],
     );
     return result.rows.map((row) => {
-      const status: PhaseTaskStatus = row.reviewer_name
-        ? "reviewed"
-        : row.preparer_name
-          ? "in_review"
-          : row.document_id
-            ? "in_progress"
-            : "not_started";
+      const status: PhaseTaskStatus = taskStatus(row);
       return {
         id: row.id,
         code: row.code,
@@ -297,6 +320,19 @@ export function phaseDeadline(periodEnd: string, phase: DashboardPhase): string 
   const base = new Date(periodEnd + "T00:00:00Z");
   base.setUTCDate(base.getUTCDate() + offsets[phase]);
   return base.toISOString().slice(0, 10);
+}
+
+/**
+ * The one due date a task has, wherever it is shown: its own due_date when
+ * set, otherwise the deadline of the phase the task belongs to. The forms,
+ * group and section pages each used to derive their own (one of them none at
+ * all), so P1.1 read three different dates on three screens.
+ */
+export function effectiveDueDate(
+  task: { dueDate: string | null; section: string; code: string },
+  periodEnd: string,
+): string {
+  return task.dueDate ?? phaseDeadline(periodEnd, phaseOfTask(task.section, task.code));
 }
 
 export type AttentionTone = "rose" | "warn" | "accent";
@@ -459,6 +495,30 @@ export async function mostRecentEngagement(): Promise<EngagementSummary | null> 
 }
 
 /**
+ * The same client's most recent earlier engagement — the prior-year file a
+ * continuing engagement carries forward from and links to; null on a first
+ * audit.
+ */
+export async function priorYearEngagement(
+  engagementId: string,
+): Promise<{ id: string; fiscalYear: number; name: string | null; phase: EngagementPhase } | null> {
+  const { tenantId } = await requireTenant();
+  return withTenant(tenantId, async (tx) => {
+    const r = await tx.query<{ id: string; fiscal_year: number; name: string | null; phase: EngagementPhase }>(
+      `SELECT p.id, p.fiscal_year, p.name, p.phase
+         FROM engagement e
+         JOIN engagement p ON p.client_id = e.client_id AND p.id <> e.id AND p.fiscal_year < e.fiscal_year
+        WHERE e.id = $1
+        ORDER BY p.fiscal_year DESC
+        LIMIT 1`,
+      [engagementId],
+    );
+    const row = r.rows[0];
+    return row ? { id: row.id, fiscalYear: row.fiscal_year, name: row.name, phase: row.phase } : null;
+  });
+}
+
+/**
  * Every active task of the engagement in one query — the ST/E/C dashboard and
  * the group pages roll these up client-side via lib/task-groups (the grouping
  * is a presentation concern; internal codes stay the storage keys).
@@ -472,6 +532,51 @@ export async function engagementTasks(
   engagementId: string,
   conditional = false,
 ): Promise<PhaseTask[]> {
+  return loadTasks(engagementId, conditional ? "conditional" : "base");
+}
+
+/**
+ * The S6.1 trigger question that activates each conditional planning task.
+ * Shared by the Forms tool, the group pages, P7.2 and the considerations
+ * screen so they can never disagree on what is in scope.
+ */
+export const CONDITIONAL_TRIGGERS: Record<string, string> = {
+  "P4.2": "assess_control_env",
+  "P4.3": "assess_it_env",
+  "S5.1": "uses_expert",
+  "S5.2": "uses_service_org",
+  "S5.3": "has_internal_audit",
+};
+
+/**
+ * The tasks in scope: every non-conditional task, plus the conditional ones
+ * whose S6.1 trigger is answered yes or which already hold a working paper
+ * (UAT B69: triggered S5.1–S5.3 / P4.2–P4.3 were hidden from Forms and the
+ * group pages and read "absent" on P7.2).
+ */
+export async function engagementTasksWithActiveConditionals(engagementId: string): Promise<PhaseTask[]> {
+  return loadTasks(engagementId, "active");
+}
+
+/** Non-conditional items, conditional items only, or the in-scope set of both. */
+type TaskScope = "base" | "conditional" | "active";
+
+const TRIGGER_CASE = `CASE fi.code ${Object.entries(CONDITIONAL_TRIGGERS)
+  .map(([code, key]) => `WHEN '${code}' THEN '${key}'`)
+  .join(" ")} END`;
+
+const SCOPE_WHERE: Record<TaskScope, string> = {
+  base: "fi.conditional = false",
+  conditional: "fi.conditional = true",
+  active: `(fi.conditional = false
+            OR EXISTS (SELECT 1 FROM document dd WHERE dd.file_item_id = fi.id)
+            OR EXISTS (SELECT 1 FROM form_response tr
+                        WHERE tr.engagement_id = fi.engagement_id AND tr.code = 'S6.1'
+                          AND tr.field_key = ${TRIGGER_CASE}
+                          AND (tr.value = 'true'::jsonb OR (tr.value #>> '{}') IN ('true', 'yes'))))`,
+};
+
+async function loadTasks(engagementId: string, scope: TaskScope): Promise<PhaseTask[]> {
   const { tenantId } = await requireTenant();
   return withTenant(tenantId, async (tx) => {
     const dueDate = await dueDateExpr(tx);
@@ -494,6 +599,7 @@ export async function engagementTasks(
       preparer_at: string | null;
       reviewer_name: string | null;
       reviewer_at: string | null;
+      has_work: boolean;
     }>(
       `SELECT fi.id, fi.code, fi.section, fi.title_en, fi.title_fr,
               d.id AS document_id,
@@ -505,7 +611,8 @@ export async function engagementTasks(
               fi.approver_user_id,
               (SELECT coalesce(name, email) FROM app_user WHERE id = fi.approver_user_id) AS approver_name,
               ps.signer AS preparer_name, to_char(ps.signed_at, 'DD Mon YYYY') AS preparer_at,
-              rs.signer AS reviewer_name, to_char(rs.signed_at, 'DD Mon YYYY') AS reviewer_at
+              rs.signer AS reviewer_name, to_char(rs.signed_at, 'DD Mon YYYY') AS reviewer_at,
+              ${HAS_WORK} AS has_work
          FROM file_item fi
          LEFT JOIN LATERAL (
            SELECT id FROM document
@@ -524,18 +631,12 @@ export async function engagementTasks(
             WHERE s.document_id = d.id AND s.role IN ('reviewer', 'partner') AND s.voided_at IS NULL
             ORDER BY s.signed_at LIMIT 1
          ) rs ON true
-        WHERE fi.engagement_id = $1 AND fi.conditional = $2
+        WHERE fi.engagement_id = $1 AND ${SCOPE_WHERE[scope]}
         ORDER BY fi.sort_order`,
-      [engagementId, conditional],
+      [engagementId],
     );
     return result.rows.map((row) => {
-      const status: PhaseTaskStatus = row.reviewer_name
-        ? "reviewed"
-        : row.preparer_name
-          ? "in_review"
-          : row.document_id
-            ? "in_progress"
-            : "not_started";
+      const status: PhaseTaskStatus = taskStatus(row);
       return {
         id: row.id,
         code: row.code,
@@ -665,6 +766,7 @@ export async function taskForItem(engagementId: string, code: string): Promise<P
       preparer_at: string | null;
       reviewer_name: string | null;
       reviewer_at: string | null;
+      has_work: boolean;
     }>(
       `SELECT fi.id, fi.code, fi.section, fi.title_en, fi.title_fr,
               d.id AS document_id,
@@ -676,7 +778,8 @@ export async function taskForItem(engagementId: string, code: string): Promise<P
               fi.approver_user_id,
               (SELECT coalesce(name, email) FROM app_user WHERE id = fi.approver_user_id) AS approver_name,
               ps.signer AS preparer_name, to_char(ps.signed_at, 'DD Mon YYYY') AS preparer_at,
-              rs.signer AS reviewer_name, to_char(rs.signed_at, 'DD Mon YYYY') AS reviewer_at
+              rs.signer AS reviewer_name, to_char(rs.signed_at, 'DD Mon YYYY') AS reviewer_at,
+              ${HAS_WORK} AS has_work
          FROM file_item fi
          LEFT JOIN LATERAL (
            SELECT id FROM document
@@ -701,13 +804,7 @@ export async function taskForItem(engagementId: string, code: string): Promise<P
     );
     const row = result.rows[0];
     if (!row) return null;
-    const status: PhaseTaskStatus = row.reviewer_name
-      ? "reviewed"
-      : row.preparer_name
-        ? "in_review"
-        : row.document_id
-          ? "in_progress"
-          : "not_started";
+    const status: PhaseTaskStatus = taskStatus(row);
     return {
       id: row.id,
       code: row.code,

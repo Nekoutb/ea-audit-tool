@@ -5,6 +5,8 @@
 
 import { createHash, randomBytes } from "node:crypto";
 import { Document, HeadingLevel, Packer, Paragraph, TextRun } from "docx";
+import type { PoolClient } from "pg";
+import { recordActivity } from "@/lib/activity";
 import { withTenant } from "@/lib/db";
 import { DOCX_MIME } from "@/lib/documents";
 import { sendEmail } from "@/lib/email";
@@ -71,6 +73,18 @@ export async function launchCampaign(
   if (userIds.length === 0) throw new Error("no-recipients");
   const sender = await tenantSender(tenantId);
   return withTenant(tenantId, async (tx) => {
+    // A confirmation goes to firm staff only: a client contact or a read-only
+    // observer has no independence to declare on the file (UAT B91).
+    const ineligible = await tx.query(
+      `SELECT 1 FROM unnest($2::uuid[]) AS r(user_id)
+        WHERE NOT EXISTS (
+          SELECT 1 FROM membership m
+           WHERE m.tenant_id = $1 AND m.user_id = r.user_id
+             AND m.role NOT IN ('client_user', 'read_only')
+        )`,
+      [tenantId, userIds],
+    );
+    if ((ineligible.rowCount ?? 0) > 0) throw new Error("invalid-recipient");
     const existing = await tx.query<{ id: string }>(
       "SELECT id FROM independence_campaign WHERE engagement_id = $1 ORDER BY created_at LIMIT 1 FOR UPDATE",
       [engagementId],
@@ -106,6 +120,16 @@ export async function launchCampaign(
           tag: `IND-${token}`,
         });
       }
+      // In the app as well as by email (UAT B92): the bell and the dashboard
+      // carry the link to the form, so an undelivered email is not a dead end.
+      await createNotification({
+        tenantId,
+        userId: recipient,
+        kind: "independence-confirmation",
+        title: "Independence confirmation required · Confirmation d'indépendance requise",
+        body: "Complete your confirmation for this engagement. · Complétez votre confirmation pour cette mission.",
+        href: `/independence/${token}`,
+      });
     }
     return campaignId;
   });
@@ -236,6 +260,7 @@ export async function submitConfirmation(
     if (answers[q.key] === true && !explanations[q.key]?.trim()) throw new Error("explanation-required");
   }
   const status = hasException(answers) ? "exception" : "completed";
+  let signedEngagementId: string | null = null;
   await withTenant(tenantId, async (tx) => {
     const updated = await tx.query<{ engagement_id: string }>(
       `UPDATE independence_confirmation ic
@@ -251,6 +276,7 @@ export async function submitConfirmation(
 
     // Archive into P1.1 (kind='letter' so it never collides with the working paper).
     const engagementId = updated.rows[0].engagement_id;
+    signedEngagementId = engagementId;
     const item = await tx.query<{ id: string }>(
       "SELECT id FROM file_item WHERE engagement_id = $1 AND code = 'P1.1'",
       [engagementId],
@@ -278,7 +304,56 @@ export async function submitConfirmation(
       );
     }
   });
+  // A signed confirmation is acceptance evidence and belongs in the trail (UAT B62).
+  if (signedEngagementId) {
+    await recordActivity({
+      engagementId: signedEngagementId,
+      entityType: "independence_confirmation",
+      entityId: null,
+      action: "independence_confirmed",
+      summary: `Independence confirmation signed by ${signatureName.trim()} — ${status}`,
+      after: { status, exceptions: INDEPENDENCE_QUESTIONS.filter((q) => answers[q.key] === true).map((q) => q.key) },
+    });
+    // An exception needs the partner's disposition (threat and safeguard) and
+    // blocks the P2.1 sign-off until it has one: tell the engagement partners
+    // now rather than leaving it to be found on the acceptance page.
+    if (status === "exception") {
+      const partners = await withTenant(tenantId, (tx) =>
+        tx.query<{ user_id: string }>(
+          "SELECT user_id FROM team_member WHERE engagement_id = $1 AND team_role = 'partner' AND user_id <> $2",
+          [signedEngagementId, userId],
+        ),
+      );
+      for (const partner of partners.rows) {
+        await createNotification({
+          tenantId,
+          userId: partner.user_id,
+          kind: "independence-exception",
+          title: `Independence exception: ${signatureName.trim()}`,
+          body: "A team member declared an independence threat. Record the partner disposition on the acceptance page before P2.1 is signed off.",
+          href: `/engagements/${signedEngagementId}/acceptance`,
+        });
+      }
+    }
+  }
   return status;
+}
+
+/**
+ * True while any independence confirmation of the engagement is still
+ * outstanding (sent/opened) or is an exception without a partner disposition
+ * — the state in which the P2.1 conclusion cannot honestly be reviewed.
+ */
+export async function independenceOpenTx(tx: PoolClient, engagementId: string): Promise<boolean> {
+  const r = await tx.query<{ n: string }>(
+    `SELECT count(*)::text AS n
+       FROM independence_confirmation ic
+       JOIN independence_campaign c ON c.id = ic.campaign_id
+      WHERE c.engagement_id = $1
+        AND (ic.status IN ('sent', 'opened') OR (ic.status = 'exception' AND ic.disposition IS NULL))`,
+    [engagementId],
+  );
+  return Number(r.rows[0]?.n ?? 0) > 0;
 }
 
 /** Partner disposition of an exception (threat-and-safeguard record). */

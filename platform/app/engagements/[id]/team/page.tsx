@@ -143,6 +143,12 @@ export default async function TeamPage(props: {
                         <span className="font-semibold text-rose">
                           {locale === "fr" ? "Refusée" : "Declined"}
                           {m.respondedAt ? ` · ${m.respondedAt}` : ""}
+                          {m.declineReason ? (
+                            <span className="block font-normal text-ink-soft" data-testid={`decline-reason-${m.userId}`}>
+                              {locale === "fr" ? "Motif : " : "Reason: "}
+                              {m.declineReason}
+                            </span>
+                          ) : null}
                         </span>
                       ) : (
                         <span className="text-muted">

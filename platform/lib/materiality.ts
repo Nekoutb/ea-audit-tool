@@ -9,7 +9,9 @@ import { canPartnerSignoff } from "@/lib/rbac";
 import { requireTenant } from "@/lib/tenant";
 import { recordActivity, logMaterialityChange } from "@/lib/activity";
 
-export { uncorrectedMisstatementThreshold } from "@/lib/materiality-model";
+import { PERFORMANCE_PCT_RANGE, TRIVIAL_PCT_RANGE } from "@/lib/materiality-model";
+
+export { uncorrectedMisstatementThreshold, PERFORMANCE_PCT_RANGE, TRIVIAL_PCT_RANGE } from "@/lib/materiality-model";
 
 export type Benchmark = "pbt" | "revenue" | "total_assets" | "equity" | "expenses";
 export const BENCHMARKS: readonly Benchmark[] = ["pbt", "revenue", "total_assets", "equity", "expenses"];
@@ -30,6 +32,28 @@ export interface MaterialityInput {
   performancePct: number;
   performanceJustification?: string;
   trivialPct: number;
+  /**
+   * Why the percentage sits outside BENCHMARK_RANGES, or why the amount
+   * differs from the trial-balance base (UAT B47). Required when either does.
+   */
+  overrideJustification?: string;
+}
+
+/**
+ * The deviations of a version from the firm's guidance: the percentage outside
+ * the benchmark's range, the amount away from the trial-balance base (more
+ * than 0.5 % apart). Shown on the tool and refused without a justification.
+ */
+export function materialityDeviations(
+  input: { benchmark: Benchmark; benchmarkAmount: number; percentage: number },
+  tbBases: Record<Benchmark, number> | null,
+): { outOfRange: boolean; basisMismatch: boolean } {
+  const range = BENCHMARK_RANGES[input.benchmark];
+  const outOfRange = Boolean(range) && (input.percentage < range.min || input.percentage > range.max);
+  const base = tbBases ? Math.abs(tbBases[input.benchmark] ?? 0) : 0;
+  const basisMismatch =
+    base > 0 && Math.abs(Math.abs(input.benchmarkAmount) - base) > Math.max(1, base * 0.005);
+  return { outOfRange, basisMismatch };
 }
 
 export interface MaterialityVersion {
@@ -193,10 +217,18 @@ export async function createMaterialityVersion(
   if (
     !Number.isFinite(input.benchmarkAmount) || input.benchmarkAmount <= 0 ||
     !Number.isFinite(input.percentage) || input.percentage <= 0 || input.percentage > 100 ||
-    !Number.isFinite(input.performancePct) || input.performancePct < 60 || input.performancePct > 85 ||
-    !Number.isFinite(input.trivialPct) || input.trivialPct <= 0 || input.trivialPct > 10
+    !Number.isFinite(input.performancePct) || input.performancePct < PERFORMANCE_PCT_RANGE.min || input.performancePct > PERFORMANCE_PCT_RANGE.max ||
+    !Number.isFinite(input.trivialPct) || input.trivialPct < TRIVIAL_PCT_RANGE.min || input.trivialPct > TRIVIAL_PCT_RANGE.max
   ) {
     throw new Error("invalid-materiality");
+  }
+  // Out-of-range percentages and amounts unrelated to the TB base are not
+  // refused outright — ISA 320 ¶A4–A7 leave the benchmark to judgement — but
+  // the judgement must be written down (UAT B47).
+  const deviation = materialityDeviations(input, await tbBenchmarkAmounts(engagementId));
+  if (!input.overrideJustification?.trim()) {
+    if (deviation.outOfRange) throw new Error("materiality-out-of-range");
+    if (deviation.basisMismatch) throw new Error("materiality-basis-mismatch");
   }
   const { overall, performance, trivial } = computeMateriality(input);
 
@@ -236,7 +268,9 @@ export async function createMaterialityVersion(
         input.percentage,
         input.justification,
         input.performancePct,
-        input.performanceJustification ?? null,
+        // the deviation justification rides with the performance one: both are
+        // the preparer's written reasons for departing from the default figures
+        [input.performanceJustification, input.overrideJustification?.trim()].filter(Boolean).join(" — ") || null,
         input.trivialPct,
         overall,
         performance,
@@ -263,7 +297,8 @@ export async function createMaterialityVersion(
     }
     return versionNo;
   });
-  await logMaterialityChange(engagementId, "revised", versionNo, {
+  // the first version is created, not revised (UAT B121 — trail wording)
+  await logMaterialityChange(engagementId, versionNo === 1 ? "created" : "revised", versionNo, {
     after: { overall, performance, trivial },
   });
   return versionNo;
@@ -276,7 +311,8 @@ export async function createMaterialityVersion(
  */
 export async function approveMateriality(engagementId: string, versionNo: number): Promise<void> {
   const { tenantId, userId, role } = await requireTenant();
-  if (!canPartnerSignoff(role)) throw new Error("forbidden");
+  // Named refusal (UAT B129): the banner says who may approve, not "no rights".
+  if (!canPartnerSignoff(role)) throw new Error("requires-partner");
   await withTenant(tenantId, async (tx) => {
     const latest = await tx.query<{ v: number }>(
       "SELECT coalesce(max(version_no), 0) AS v FROM materiality WHERE engagement_id = $1",

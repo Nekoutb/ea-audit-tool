@@ -13,50 +13,94 @@ export interface LeadIndexDef {
   /** the workbook's account class, e.g. "Fixed Assets" */
   accountClass: string;
   labelEn: string;
+  labelFr: string;
 }
 
 export const LEAD_INDEXES: readonly LeadIndexDef[] = [
   // Balance sheet
-  { code: "T", accountType: "Equity", accountClass: "Equity", labelEn: "Share Capital & Reserves" },
-  { code: "Q", accountType: "Liabilities", accountClass: "Other LT Liabilities", labelEn: "Borrowings" },
-  { code: "P1", accountType: "Liabilities", accountClass: "Other LT Liabilities", labelEn: "Provisions for Risks & Charges" },
-  { code: "P2", accountType: "Liabilities", accountClass: "Other LT Liabilities", labelEn: "Social & Payroll Liabilities" },
-  { code: "P3", accountType: "Liabilities", accountClass: "Other LT Liabilities", labelEn: "Suspense & Deferred Income" },
-  { code: "P4", accountType: "Liabilities", accountClass: "Other LT Liabilities", labelEn: "Translation Difference — Liabilities" },
-  { code: "L", accountType: "Assets", accountClass: "Intangible Assets", labelEn: "Intangible Assets & Deferred Charges" },
-  { code: "K", accountType: "Assets", accountClass: "Fixed Assets", labelEn: "Property, Plant & Equipment" },
-  { code: "J", accountType: "Assets", accountClass: "Other LT Assets", labelEn: "Financial Assets" },
-  { code: "F", accountType: "Assets", accountClass: "Inventory", labelEn: "Inventories" },
-  { code: "N", accountType: "Liabilities", accountClass: "Accounts Payable", labelEn: "Trade Payables" },
-  { code: "E", accountType: "Assets", accountClass: "Accounts Receivable", labelEn: "Trade Receivables" },
-  { code: "O1", accountType: "Assets", accountClass: "Other Assets/Liabilities", labelEn: "Tax Receivables" },
-  { code: "O2", accountType: "Liabilities", accountClass: "Other Assets/Liabilities", labelEn: "Tax Payables" },
-  { code: "O4", accountType: "Expenses", accountClass: "Taxes Expense", labelEn: "Income Tax & Profit-Sharing" },
-  { code: "I1", accountType: "Assets", accountClass: "Other Assets/Liabilities", labelEn: "Group & Associates — Short Term" },
-  { code: "I2", accountType: "Assets", accountClass: "Other Assets/Liabilities", labelEn: "Group & Associates" },
-  { code: "G2", accountType: "Assets", accountClass: "Other Current Assets", labelEn: "Other Current Assets" },
-  { code: "G3", accountType: "Assets", accountClass: "Other Current Assets", labelEn: "Translation Difference — Assets" },
-  { code: "C", accountType: "Assets", accountClass: "Cash", labelEn: "Cash & Cash Equivalents" },
+  { code: "T", accountType: "Equity", accountClass: "Equity", labelEn: "Share Capital & Reserves", labelFr: "Capital & réserves" },
+  { code: "Q", accountType: "Liabilities", accountClass: "Other LT Liabilities", labelEn: "Borrowings", labelFr: "Emprunts" },
+  { code: "P1", accountType: "Liabilities", accountClass: "Other LT Liabilities", labelEn: "Provisions for Risks & Charges", labelFr: "Provisions pour risques & charges" },
+  // SYSCOHADA classes 42/43 (payroll, social) and 47/48 (suspense, deferred
+  // income) are current liabilities, not long-term ones.
+  { code: "P2", accountType: "Liabilities", accountClass: "Other Current Liabilities", labelEn: "Social & Payroll Liabilities", labelFr: "Dettes sociales" },
+  { code: "P3", accountType: "Liabilities", accountClass: "Other Current Liabilities", labelEn: "Suspense & Deferred Income", labelFr: "Comptes d'attente & produits constatés d'avance" },
+  { code: "P4", accountType: "Liabilities", accountClass: "Other LT Liabilities", labelEn: "Translation Difference — Liabilities", labelFr: "Écarts de conversion — passif" },
+  { code: "L", accountType: "Assets", accountClass: "Intangible Assets", labelEn: "Intangible Assets & Deferred Charges", labelFr: "Immobilisations incorporelles & charges différées" },
+  { code: "K", accountType: "Assets", accountClass: "Fixed Assets", labelEn: "Property, Plant & Equipment", labelFr: "Immobilisations corporelles" },
+  { code: "J", accountType: "Assets", accountClass: "Other LT Assets", labelEn: "Financial Assets", labelFr: "Immobilisations financières" },
+  { code: "F", accountType: "Assets", accountClass: "Inventory", labelEn: "Inventories", labelFr: "Stocks" },
+  { code: "N", accountType: "Liabilities", accountClass: "Accounts Payable", labelEn: "Trade Payables", labelFr: "Fournisseurs" },
+  { code: "E", accountType: "Assets", accountClass: "Accounts Receivable", labelEn: "Trade Receivables", labelFr: "Clients" },
+  { code: "O1", accountType: "Assets", accountClass: "Other Assets/Liabilities", labelEn: "Tax Receivables", labelFr: "Créances fiscales" },
+  { code: "O2", accountType: "Liabilities", accountClass: "Other Assets/Liabilities", labelEn: "Tax Payables", labelFr: "Dettes fiscales" },
+  { code: "O4", accountType: "Expenses", accountClass: "Taxes Expense", labelEn: "Income Tax & Profit-Sharing", labelFr: "Impôt sur le résultat & participation" },
+  { code: "I1", accountType: "Assets", accountClass: "Other Assets/Liabilities", labelEn: "Group & Associates — Short Term", labelFr: "Groupe & associés — court terme" },
+  { code: "I2", accountType: "Assets", accountClass: "Other Assets/Liabilities", labelEn: "Group & Associates", labelFr: "Groupe & associés" },
+  { code: "G2", accountType: "Assets", accountClass: "Other Current Assets", labelEn: "Other Current Assets", labelFr: "Autres actifs circulants" },
+  { code: "G3", accountType: "Assets", accountClass: "Other Current Assets", labelEn: "Translation Difference — Assets", labelFr: "Écarts de conversion — actif" },
+  { code: "C", accountType: "Assets", accountClass: "Cash", labelEn: "Cash & Cash Equivalents", labelFr: "Trésorerie" },
   // Income statement
-  { code: "UA", accountType: "Revenues", accountClass: "Revenue", labelEn: "Revenue" },
-  { code: "UB2", accountType: "Revenues", accountClass: "Other Income/Expense", labelEn: "Other Income" },
-  { code: "UC", accountType: "Revenues", accountClass: "Interest Income/Expense", labelEn: "Finance Income" },
-  { code: "U1", accountType: "Revenues", accountClass: "Extraordinary Income/Expense", labelEn: "Exceptional Income" },
-  { code: "VA1", accountType: "Expenses", accountClass: "Cost of Goods Sold", labelEn: "Purchases" },
-  { code: "VA2", accountType: "Expenses", accountClass: "Cost of Goods Sold", labelEn: "Change in Inventories" },
-  { code: "VB", accountType: "Expenses", accountClass: "Other Operating Expenses", labelEn: "Personnel Costs" },
-  { code: "VO", accountType: "Expenses", accountClass: "Other Operating Expenses", labelEn: "Taxes & Duties" },
-  { code: "VD1", accountType: "Expenses", accountClass: "Other Operating Expenses", labelEn: "Non-Stored Purchases, Transport & External Services" },
-  { code: "VD2", accountType: "Expenses", accountClass: "Other Operating Expenses", labelEn: "Depreciation & Provisions" },
-  { code: "VD3", accountType: "Expenses", accountClass: "Other Operating Expenses", labelEn: "Provision Reversals & Expense Transfers" },
-  { code: "VD4", accountType: "Expenses", accountClass: "Other Operating Expenses", labelEn: "Other Expenses" },
-  { code: "VD5", accountType: "Expenses", accountClass: "Interest Income/Expense", labelEn: "Finance Costs" },
-  { code: "V1", accountType: "Expenses", accountClass: "Extraordinary Income/Expense", labelEn: "Exceptional Expenses" },
+  { code: "UA", accountType: "Revenues", accountClass: "Revenue", labelEn: "Revenue", labelFr: "Chiffre d'affaires" },
+  { code: "UB2", accountType: "Revenues", accountClass: "Other Income/Expense", labelEn: "Other Income", labelFr: "Autres produits" },
+  { code: "UC", accountType: "Revenues", accountClass: "Interest Income/Expense", labelEn: "Finance Income", labelFr: "Produits financiers" },
+  { code: "U1", accountType: "Revenues", accountClass: "Extraordinary Income/Expense", labelEn: "Exceptional Income", labelFr: "Produits exceptionnels" },
+  { code: "VA1", accountType: "Expenses", accountClass: "Cost of Goods Sold", labelEn: "Purchases", labelFr: "Achats" },
+  { code: "VA2", accountType: "Expenses", accountClass: "Cost of Goods Sold", labelEn: "Change in Inventories", labelFr: "Variation de stocks" },
+  { code: "VB", accountType: "Expenses", accountClass: "Other Operating Expenses", labelEn: "Personnel Costs", labelFr: "Charges de personnel" },
+  { code: "VO", accountType: "Expenses", accountClass: "Other Operating Expenses", labelEn: "Taxes & Duties", labelFr: "Impôts & taxes" },
+  { code: "VD1", accountType: "Expenses", accountClass: "Other Operating Expenses", labelEn: "Non-Stored Purchases, Transport & External Services", labelFr: "Achats non stockés, transports & services extérieurs" },
+  { code: "VD2", accountType: "Expenses", accountClass: "Other Operating Expenses", labelEn: "Depreciation & Provisions", labelFr: "Dotations aux amortissements & provisions" },
+  { code: "VD3", accountType: "Expenses", accountClass: "Other Operating Expenses", labelEn: "Provision Reversals & Expense Transfers", labelFr: "Reprises de provisions & transferts de charges" },
+  { code: "VD4", accountType: "Expenses", accountClass: "Other Operating Expenses", labelEn: "Other Expenses", labelFr: "Autres charges" },
+  { code: "VD5", accountType: "Expenses", accountClass: "Interest Income/Expense", labelEn: "Finance Costs", labelFr: "Charges financières" },
+  { code: "V1", accountType: "Expenses", accountClass: "Extraordinary Income/Expense", labelEn: "Exceptional Expenses", labelFr: "Charges exceptionnelles" },
 ] as const;
 
 export const LEAD_INDEX_BY_CODE: Record<string, LeadIndexDef> = Object.fromEntries(
   LEAD_INDEXES.map((d) => [d.code, d]),
 );
+
+const ACCOUNT_TYPE_FR: Record<string, string> = {
+  Assets: "Actif", Liabilities: "Passif", Equity: "Capitaux propres", Revenues: "Produits", Expenses: "Charges",
+};
+
+const ACCOUNT_CLASS_FR: Record<string, string> = {
+  "Equity": "Capitaux propres",
+  "Other LT Liabilities": "Autres dettes à long terme",
+  "Other Current Liabilities": "Autres passifs circulants",
+  "Intangible Assets": "Immobilisations incorporelles",
+  "Fixed Assets": "Immobilisations corporelles",
+  "Other LT Assets": "Autres actifs à long terme",
+  "Inventory": "Stocks",
+  "Accounts Payable": "Dettes fournisseurs",
+  "Accounts Receivable": "Créances clients",
+  "Other Assets/Liabilities": "Autres actifs/passifs",
+  "Taxes Expense": "Charge d'impôt",
+  "Other Current Assets": "Autres actifs circulants",
+  "Cash": "Trésorerie",
+  "Revenue": "Chiffre d'affaires",
+  "Other Income/Expense": "Autres produits/charges",
+  "Interest Income/Expense": "Produits/charges financiers",
+  "Extraordinary Income/Expense": "Produits/charges hors activités ordinaires",
+  "Cost of Goods Sold": "Coût des ventes",
+  "Other Operating Expenses": "Autres charges d'exploitation",
+};
+
+/** The index label in the reader's language. */
+export function leadIndexLabel(def: Pick<LeadIndexDef, "labelEn" | "labelFr">, locale: "en" | "fr"): string {
+  return locale === "fr" ? def.labelFr : def.labelEn;
+}
+
+/** "Assets" → "Actif" in French; unchanged in English. */
+export function accountTypeLabel(accountType: string, locale: "en" | "fr"): string {
+  return locale === "fr" ? (ACCOUNT_TYPE_FR[accountType] ?? accountType) : accountType;
+}
+
+/** "Fixed Assets" → "Immobilisations corporelles" in French; unchanged in English. */
+export function accountClassLabel(accountClass: string, locale: "en" | "fr"): string {
+  return locale === "fr" ? (ACCOUNT_CLASS_FR[accountClass] ?? accountClass) : accountClass;
+}
 
 /** Distinct account classes, for the analyzer's class dropdown. */
 export const ACCOUNT_CLASSES: readonly string[] = [...new Set(LEAD_INDEXES.map((d) => d.accountClass))];

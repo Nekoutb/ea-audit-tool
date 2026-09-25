@@ -8,6 +8,8 @@ import ExcelJS from "exceljs";
 import type { PoolClient } from "pg";
 import { withTenant } from "@/lib/db";
 import { routeFinding } from "@/lib/execution";
+// the E4 paper each lead index belongs to, so a ToD result is filed under the account it tests
+import { INDEX_SECTION } from "@/lib/lead-classes";
 import { CONFIDENCE_FACTORS, musPlan, type ConfidenceLevel } from "@/lib/sampling-params";
 import { requireTenant } from "@/lib/tenant";
 
@@ -368,9 +370,135 @@ export async function evaluateSampling(
   return { projected: context.projected, raisedToB5: context.aboveTrivial };
 }
 
+// ---- 5.3b tests-of-details results (UAT B78) ----
+
+export interface TodResultInput {
+  engagementId: string;
+  indexCode: string;
+  /** value of the representative sample examined */
+  sampleValue: number;
+  /** signed misstatement found in the sample (recorded − audited) */
+  sampleMisstatement: number;
+  /** signed factual misstatement found in the key items, examined in full */
+  keyMisstatement: number;
+  /** the population the sample represents: everything after the key items */
+  remainingValue: number;
+}
+
+export interface TodResultRow {
+  id: string;
+  indexCode: string;
+  sampleValue: number;
+  sampleMisstatement: number;
+  keyMisstatement: number;
+  remainingValue: number;
+  projected: number | null;
+  raisedToB5: boolean;
+  createdAt: string;
+}
+
+/**
+ * Record what a tests-of-details workbook found and project it (ISA 530
+ * ¶14–15): the sample misstatement extrapolated over the remaining population
+ * by value, plus the factual misstatement in the key items — both reaching
+ * C1.1 through evaluateSampling / routeFinding when above clearly trivial.
+ * The run is the reproducible record: inputs, who, when, and the outcome.
+ */
+export async function recordTodResult(input: TodResultInput): Promise<{ runId: string; projected: number; raisedToB5: boolean }> {
+  const { tenantId, userId } = await requireTenant();
+  const indexCode = input.indexCode.trim().toUpperCase();
+  if (!/^[A-Z][A-Z0-9]{0,2}$/.test(indexCode)) throw new EngineError("invalid-index");
+  for (const v of [input.sampleValue, input.sampleMisstatement, input.keyMisstatement, input.remainingValue]) {
+    if (!Number.isFinite(v)) throw new EngineError("invalid-amount");
+  }
+  if (input.sampleValue <= 0) throw new EngineError("empty-population");
+  if (input.remainingValue < 0) throw new EngineError("invalid-amount");
+
+  const runId = await withTenant(tenantId, async (tx) => {
+    const task = await tx.query<{ id: string }>(
+      "SELECT id FROM file_item WHERE engagement_id = $1 AND code = $2 LIMIT 1",
+      [input.engagementId, INDEX_SECTION[indexCode] ?? ""],
+    );
+    const { runId } = await storeRun(tx, tenantId, userId, {
+      engagementId: input.engagementId,
+      fileItemId: task.rows[0]?.id,
+      engine: "sampling",
+      params: { method: "tod-mus", indexCode },
+      datasetId: undefined,
+      summary: {
+        method: "tod-mus",
+        indexCode,
+        sampledValue: input.sampleValue,
+        populationTotal: input.remainingValue,
+        keyMisstatement: input.keyMisstatement,
+        sampleMisstatement: input.sampleMisstatement,
+      },
+      sheetTitle: `ToD results ${indexCode}`,
+      header: ["measure", "amount"],
+      rows: [
+        ["sample_value", input.sampleValue],
+        ["sample_misstatement", input.sampleMisstatement],
+        ["key_item_misstatement", input.keyMisstatement],
+        ["remaining_population", input.remainingValue],
+      ],
+    });
+    return runId;
+  });
+  const { projected, raisedToB5 } = await evaluateSampling(runId, input.sampleMisstatement);
+  // whether the projection reached C1.1 is part of the record the list shows
+  await withTenant(tenantId, async (tx) => {
+    await tx.query("UPDATE automation_run SET result_summary = result_summary || $2::jsonb WHERE id = $1", [
+      runId,
+      JSON.stringify({ raisedToB5 }),
+    ]);
+  });
+  if (input.keyMisstatement !== 0) {
+    // examined in full, so factual — and small ones are logged as trivial rather than refused
+    await routeFinding({
+      engagementId: input.engagementId,
+      route: "b5",
+      title: `Factual misstatement in key items — ${indexCode} (ToD run ${runId.slice(0, 8)})`,
+      amount: Math.round(input.keyMisstatement),
+      mtype: "factual",
+      trivialConfirmed: true,
+    });
+  }
+  return { runId, projected, raisedToB5 };
+}
+
+/** Every ToD result recorded on the engagement, newest first. */
+export async function listTodResults(engagementId: string): Promise<TodResultRow[]> {
+  const { tenantId } = await requireTenant();
+  return withTenant(tenantId, async (tx) => {
+    const r = await tx.query<{ id: string; result_summary: Record<string, unknown>; created_at: string }>(
+      `SELECT id, result_summary, to_char(created_at, 'YYYY-MM-DD HH24:MI') AS created_at
+         FROM automation_run
+        WHERE engagement_id = $1 AND engine = 'sampling' AND result_summary->>'method' = 'tod-mus'
+        ORDER BY created_at DESC`,
+      [engagementId],
+    );
+    const num = (v: unknown): number => (typeof v === "number" ? v : Number(v ?? 0)) || 0;
+    return r.rows.map((row) => {
+      const s = row.result_summary;
+      const projected = s.projected === undefined || s.projected === null ? null : num(s.projected);
+      return {
+        id: row.id,
+        indexCode: String(s.indexCode ?? ""),
+        sampleValue: num(s.sampledValue),
+        sampleMisstatement: num(s.sampleMisstatement),
+        keyMisstatement: num(s.keyMisstatement),
+        remainingValue: num(s.populationTotal),
+        projected,
+        raisedToB5: Boolean(s.raisedToB5),
+        createdAt: row.created_at,
+      };
+    });
+  });
+}
+
 // ---- 5.4/5.5/5.6 reconciliations ----
 
-const RECON_PREFIXES: Record<string, string[]> = {
+export const RECON_PREFIXES: Record<string, string[]> = {
   ar_open_items: ["41"],
   ap_open_items: ["40"],
   inventory_listing: ["31", "32", "33", "34", "35", "36", "37", "38"],
@@ -387,6 +515,40 @@ export interface ReconResult {
   difference: number;
   aboveTrivial: boolean;
   staleItems?: number;
+}
+
+/**
+ * The two figures a reconciliation compares, read live for the analyzer page
+ * (UAT B80) — the dataset total against the control accounts' TB closing —
+ * before any run is recorded. Null when the dataset kind has no mapping.
+ */
+export async function reconPreview(
+  datasetId: string,
+): Promise<{ kind: string; datasetTotal: number; tbTotal: number; difference: number; prefixes: string[] } | null> {
+  const { tenantId } = await requireTenant();
+  return withTenant(tenantId, async (tx) => {
+    const dataset = await loadDataset(tx, datasetId);
+    const prefixes = RECON_PREFIXES[dataset.kind];
+    if (!prefixes) return null;
+    const tbTotal = await tbClosingForPrefixes(tx, dataset.engagementId, prefixes);
+    const book = dataset.kind === "ap_open_items" ? -tbTotal : tbTotal;
+    return { kind: dataset.kind, datasetTotal: dataset.total, tbTotal: book, difference: dataset.total - book, prefixes };
+  });
+}
+
+/** The last reconciliation recorded against a dataset, or null. */
+export async function latestReconRun(datasetId: string): Promise<RunInfo | null> {
+  const { tenantId } = await requireTenant();
+  return withTenant(tenantId, async (tx) => {
+    const r = await tx.query<{ id: string; engine: Engine; result_summary: Record<string, unknown>; output_document_id: string | null; created_at: string }>(
+      `SELECT id, engine, result_summary, output_document_id, to_char(created_at, 'YYYY-MM-DD HH24:MI') AS created_at
+         FROM automation_run WHERE dataset_id = $1 AND engine LIKE 'recon_%'
+        ORDER BY created_at DESC LIMIT 1`,
+      [datasetId],
+    );
+    const row = r.rows[0];
+    return row ? { id: row.id, engine: row.engine, summary: row.result_summary, outputDocumentId: row.output_document_id, createdAt: row.created_at } : null;
+  });
 }
 
 /** Sub-ledger → TB, FAR → TB, and bank-rec re-performance in one engine core. */

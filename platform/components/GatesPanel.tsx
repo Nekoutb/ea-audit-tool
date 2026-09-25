@@ -1,6 +1,17 @@
 import type { GateResult } from "@/lib/gates";
 import { getMessages, type Locale } from "@/lib/i18n";
 
+/**
+ * Planning gates live under planning.gateNames, completion (C4.1) gates under
+ * planning.conclusion.gateNames; a panel used on both pages looks in both, so a
+ * raw key such as sections_concluded never reaches the screen (UAT B118).
+ */
+function gateLabel(t: ReturnType<typeof getMessages>["planning"], key: string): string {
+  const planning = t.gateNames as Record<string, string>;
+  const conclusion = (t.conclusion?.gateNames ?? {}) as Record<string, string>;
+  return planning[key] ?? conclusion[key] ?? key;
+}
+
 export function GatesPanel({ gates, locale }: { gates: GateResult[]; locale: Locale }) {
   const t = getMessages(locale).planning;
   return (
@@ -17,7 +28,7 @@ export function GatesPanel({ gates, locale }: { gates: GateResult[]; locale: Loc
             {gate.ok ? "✓" : "✗"}
           </span>
           <span className={gate.ok ? "text-ink-soft" : "font-medium text-ink"}>
-            {t.gateNames[gate.key as keyof typeof t.gateNames] ?? gate.key}
+            {gateLabel(t, gate.key)}
           </span>
         </li>
       ))}
@@ -48,7 +59,7 @@ export function ErrorBanner({
       {failedKeys.length > 0 ? (
         <ul className="mt-1 list-inside list-disc">
           {failedKeys.map((key) => (
-            <li key={key}>{t.gateNames[key as keyof typeof t.gateNames] ?? key}</li>
+            <li key={key}>{gateLabel(t, key)}</li>
           ))}
         </ul>
       ) : null}

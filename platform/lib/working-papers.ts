@@ -20,7 +20,7 @@ import { FINANCIAL_STATEMENT_PAPERS } from "@/lib/papers/financial-statements";
 import { STATUTORY_525_PAPERS } from "@/lib/papers/statutory-525";
 import { CONCLUSION_PAPERS } from "@/lib/papers/conclusion";
 import { GAM_PAPERS } from "@/lib/papers/gam";
-import { paperKeys, requiredKeys, type PaperDef, type PaperField, conclKey } from "@/lib/papers/types";
+import { paperKeys, requiredKeys, type PaperDef, type PaperField, conclKey, conclWhyKey, ynKey, ynWhyKey } from "@/lib/papers/types";
 import { groupOfTask, type SectionKey } from "@/lib/task-groups";
 
 export type { PaperField, PaperDef, PaperSection, PaperProc, PaperItem } from "@/lib/papers/types";
@@ -130,6 +130,31 @@ export function paperProgress(def: PaperDef, values: Record<string, string>): { 
   return { done: keys.filter((k) => (values[k] ?? "").trim().length > 0).length, total: keys.length };
 }
 
+/** True when the task carries a bespoke paper definition (not the group-derived default). */
+export function hasBespokePaper(code: string): boolean {
+  return Boolean(ALL_PAPERS[code]);
+}
+
+/**
+ * What still stops a paper being signed (UAT B17): every required field, every
+ * Yes/No factor and every conclusion statement must carry an answer, and a
+ * "No" must carry its explanation. An explicit N/A is an answer.
+ */
+export function paperMissing(def: PaperDef, values: Record<string, string>): string[] {
+  const v = (k: string) => (values[k] ?? "").trim();
+  const missing = requiredKeys(def).filter((k) => v(k).length === 0);
+  for (const s of def.sections ?? []) {
+    if (s.kind !== "yn") continue;
+    for (const item of s.items) {
+      if (v(ynKey(item.key)) === "no" && v(ynWhyKey(item.key)).length === 0) missing.push(ynWhyKey(item.key));
+    }
+  }
+  (def.conclEn ?? []).forEach((_, i) => {
+    if (v(conclKey(i)) === "no" && v(conclWhyKey(i)).length === 0) missing.push(conclWhyKey(i));
+  });
+  return missing;
+}
+
 const WP = (code: string) => `wp:${code}`;
 
 /**
@@ -183,15 +208,95 @@ export async function paperContentHashTx(
     [engagementId, code],
   );
   const row = conclusion.rows[0];
+  // Content a paper carries outside its own wp: answers — the legacy form,
+  // and the structured records some papers are the front of. Folded into the
+  // same hash so an edit there voids the signature exactly as an answer does.
+  const extra = await structuredContentDigest(tx, engagementId, code);
   return createHash("sha256")
     .update(
       serialisePaper(
         fields,
         row ? { conclusion: row.conclusion, objectivesAchieved: row.objectives_achieved } : null,
-      ),
+      ) + (extra ? `|${extra}` : ""),
       "utf8",
     )
     .digest("hex");
+}
+
+/**
+ * The structured records a paper attests to besides its wp: answers, keyed by
+ * task code: the legacy FORM_DEFINITIONS rows (P1.1, S6.1 …), the close
+ * process (S1.4), the walkthroughs (S1.3), the IT applications (S2.3/S2.5),
+ * the SCOT register (S1.1), the WCGWs and controls (S1.2), the selection
+ * (S2.1), the test design (S2.2) and the test results (E1.2). Each source is
+ * reduced to one md5 in SQL over a deterministic ordering; the digests are
+ * joined in a fixed order. Empty when the paper has no such source.
+ */
+async function structuredContentDigest(tx: PoolClient, engagementId: string, code: string): Promise<string> {
+  const parts: string[] = [];
+  const digest = async (sql: string, params: unknown[]) => {
+    const r = await tx.query<{ d: string | null }>(sql, params);
+    parts.push(r.rows[0]?.d ?? "");
+  };
+  const responses = (codeExpr: string) =>
+    `SELECT md5(coalesce(string_agg(field_key || '=' || coalesce(value::text, ''), '|' ORDER BY code, field_key), '')) AS d
+       FROM form_response WHERE engagement_id = $1 AND ${codeExpr}`;
+  // the legacy structured form of the same code (every code; cheap when absent)
+  await digest(responses("code = $2"), [engagementId, code]);
+  if (code === "S1.4") await digest(responses("code = 'fscp'"), [engagementId]);
+  if (code === "S1.3") await digest(responses("code LIKE 'wt:%'"), [engagementId]);
+  if (code === "S2.3" || code === "S2.5") await digest(responses("code = 'itapps'"), [engagementId]);
+  if (code === "S1.1") {
+    await digest(
+      `SELECT md5(coalesce(string_agg(s.id || ':' || s.name || ':' || coalesce(s.description, '') || ':' || s.transaction_type
+                  || ':' || s.strategy || ':' || coalesce(s.applications, '')
+                  || ':' || coalesce((SELECT string_agg(si.index_code || array_to_string(si.assertions, ''), ',' ORDER BY si.index_code)
+                                        FROM scot_index si WHERE si.scot_id = s.id), ''), '|' ORDER BY s.id), '')) AS d
+         FROM scot s WHERE s.engagement_id = $1`,
+      [engagementId],
+    );
+  }
+  if (code === "S1.2") {
+    await digest(
+      `SELECT md5(coalesce(string_agg(x, '|' ORDER BY x), '')) AS d FROM (
+         SELECT w.id || ':' || w.description || ':' || array_to_string(w.assertions, '') AS x
+           FROM wcgw w JOIN scot s ON s.id = w.scot_id WHERE s.engagement_id = $1
+         UNION ALL
+         SELECT c.id || ':' || c.name || ':' || coalesce(c.owner, '') || ':' || c.control_type || ':' || coalesce(c.frequency, '') || ':' || c.objective
+           FROM scot_control c JOIN scot s ON s.id = c.scot_id WHERE s.engagement_id = $1
+         UNION ALL
+         SELECT wc.wcgw_id || '>' || wc.control_id
+           FROM wcgw_control wc JOIN wcgw w ON w.id = wc.wcgw_id JOIN scot s ON s.id = w.scot_id WHERE s.engagement_id = $1
+       ) t`,
+      [engagementId],
+    );
+  }
+  if (code === "S2.1") {
+    await digest(
+      `SELECT md5(coalesce(string_agg(c.id || ':' || c.selected_for_testing::text, '|' ORDER BY c.id), '')) AS d
+         FROM scot_control c JOIN scot s ON s.id = c.scot_id WHERE s.engagement_id = $1`,
+      [engagementId],
+    );
+  }
+  if (code === "S2.2") {
+    await digest(
+      `SELECT md5(coalesce(string_agg(c.id || ':' || coalesce(c.test_design, '') || ':' || coalesce(c.design_eval, '')
+                  || ':' || coalesce(c.implemented::text, '') || ':' || coalesce(c.sample_size::text, '') || ':' || coalesce(c.sample_note, ''),
+                  '|' ORDER BY c.id), '')) AS d
+         FROM scot_control c JOIN scot s ON s.id = c.scot_id WHERE s.engagement_id = $1`,
+      [engagementId],
+    );
+  }
+  if (code === "E1.2") {
+    await digest(
+      `SELECT md5(coalesce(string_agg(c.id || ':' || coalesce(c.operating_notes, '') || ':' || coalesce(c.operating_eval, '')
+                  || ':' || coalesce(c.toc_population::text, '') || ':' || coalesce(c.toc_grid::text, '')
+                  || ':' || coalesce(array_to_string(c.toc_sample_items, ','), ''), '|' ORDER BY c.id), '')) AS d
+         FROM scot_control c JOIN scot s ON s.id = c.scot_id WHERE s.engagement_id = $1`,
+      [engagementId],
+    );
+  }
+  return parts.join("/");
 }
 
 /** Same hash, on its own connection (for callers outside a transaction). */
@@ -325,6 +430,14 @@ export async function savePaper(
   await assertMutable(engagementId);
   const { tenantId, userId } = await requireTenant();
   const allowed = paperKeys(paperFor(code));
+  // E6.10 (UAT B114): "column N agrees" cannot be answered Yes while the
+  // tie-out of the trial balance shows differences nobody has explained.
+  if (code === "E6.10" && values.q_n_agrees === "yes") {
+    const { runFsTieout } = await import("@/lib/fs-tieout");
+    const tie = await runFsTieout(engagementId).catch(() => null);
+    const explained = (values.p_tie_n ?? (await loadPaper(engagementId, code)).p_tie_n ?? "").trim();
+    if (tie && !tie.pass && !explained) throw new Error("tieout-unexplained");
+  }
   const invalidated = await withTenant(tenantId, async (tx) => {
     for (const [key, value] of Object.entries(values)) {
       if (!allowed.has(key)) continue;

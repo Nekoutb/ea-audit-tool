@@ -6,8 +6,10 @@
 // Commentary auto-saves; a units switch shows bare figures in FCFA, '000 or
 // millions.
 
+import Link from "next/link";
 import { useRef, useState } from "react";
 import type { ApLeadSchedule } from "@/lib/analytical-procedures";
+import { accountClassLabel, accountTypeLabel, leadIndexLabel } from "@/lib/lead-classes";
 
 type Unit = "fcfa" | "k" | "m";
 
@@ -176,7 +178,7 @@ export function ApSchedules({
                     {schedule.def.code}
                   </span>
                   <span className="min-w-0 truncate text-[12.5px] font-semibold text-ink">
-                    {schedule.def.labelEn}
+                    {leadIndexLabel(schedule.def, locale)}
                   </span>
                 </button>
 
@@ -190,7 +192,19 @@ export function ApSchedules({
                           <th className={`${CELL} text-left`}>{fr ? "Classe de compte" : "Account class"}</th>
                           <th className={`${CELL} text-left`}>{fr ? "Type de compte" : "Account type"}</th>
                           <th className={NUMHEAD} style={numStyle}>{fr ? "Exercice N" : "Current Y"}</th>
-                          <th className={NUMHEAD} style={numStyle}>{fr ? "Exercice N-1" : "Prior Y"}</th>
+                          <th
+                            className={NUMHEAD}
+                            style={numStyle}
+                            title={
+                              schedule.priorSource === "prior_year_tb"
+                                ? fr ? "Source : balance N-1 importée" : "Source: uploaded prior-year TB"
+                                : fr ? "Source : soldes d'ouverture de la balance N" : "Source: opening balances of the current TB"
+                            }
+                            data-prior-source={schedule.priorSource}
+                          >
+                            {fr ? "Exercice N-1" : "Prior Y"}
+                            {schedule.priorSource === "opening" ? <span className="ml-1 text-[9px] font-normal text-muted">{fr ? "(ouverture)" : "(opening)"}</span> : null}
+                          </th>
                           <th className={NUMHEAD} style={numStyle}>{fr ? "Mouvement" : "Movement"}</th>
                           <th className={NUMHEAD} style={numStyle}>{fr ? "Écart %" : "Variance %"}</th>
                           <th className={`${CELL} text-left`}>{fr ? "Commentaire" : "Commentary"}</th>
@@ -199,10 +213,20 @@ export function ApSchedules({
                       <tbody>
                         {schedule.accounts.map((row) => (
                           <tr key={row.account}>
-                            <td className={`${CELL} font-mono`}>{row.account}</td>
+                            <td className={`${CELL} font-mono`}>
+                              {/* the figure drills to the ledger entries behind it (GL console) */}
+                              <Link
+                                href={`/engagements/${engagementId}/tools/gl-console?accounts=${encodeURIComponent(row.account)}`}
+                                className="text-emerald-700 hover:underline dark:text-emerald-400"
+                                title={fr ? "Voir les écritures du grand livre" : "Open the general-ledger entries"}
+                                data-testid={`ap-drill-${schedule.def.code}-${row.account}`}
+                              >
+                                {row.account}
+                              </Link>
+                            </td>
                             <td className={`${CELL} max-w-[170px] truncate`} title={row.name}>{row.name}</td>
-                            <td className={CELL}>{schedule.def.accountClass}</td>
-                            <td className={CELL}>{schedule.def.accountType}</td>
+                            <td className={CELL}>{accountClassLabel(schedule.def.accountClass, locale)}</td>
+                            <td className={CELL}>{accountTypeLabel(schedule.def.accountType, locale)}</td>
                             <td className={NUM}>{fmt(row.closing)}</td>
                             <td className={NUM}>{fmt(row.prior)}</td>
                             <td className={`${NUM} ${row.movement < 0 ? "text-rose" : ""}`}>{fmt(row.movement)}</td>
@@ -222,9 +246,18 @@ export function ApSchedules({
                           </tr>
                         ))}
                         <tr className="border-t-2 font-bold" style={{ borderTopStyle: "double" }}>
-                          <td className={`${CELL} font-mono`}>TOTAL</td>
+                          <td className={`${CELL} font-mono`}>
+                            <Link
+                              href={`/engagements/${engagementId}/tools/gl-console?accounts=${encodeURIComponent(schedule.accounts.map((a) => a.account).join(","))}`}
+                              className="text-emerald-700 hover:underline dark:text-emerald-400"
+                              title={fr ? "Voir toutes les écritures de cette feuille maîtresse" : "Open every ledger entry behind this lead schedule"}
+                              data-testid={`ap-drill-${schedule.def.code}-total`}
+                            >
+                              TOTAL
+                            </Link>
+                          </td>
                           <td className={`${CELL} max-w-[170px] truncate`}>
-                            {schedule.def.code} — {schedule.def.labelEn}
+                            {schedule.def.code} — {leadIndexLabel(schedule.def, locale)}
                           </td>
                           <td className={CELL} />
                           <td className={CELL} />

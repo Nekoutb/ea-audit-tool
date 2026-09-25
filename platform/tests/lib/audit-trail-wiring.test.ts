@@ -59,9 +59,17 @@ const actions = async (): Promise<string[]> => {
 describe("the trail records the acts that matter", () => {
   it("records a materiality revision and its approval", async () => {
     await clearTrail();
-    const v = await createMaterialityVersion(engagementId, {
+    // The first version is a creation, not a revision (UAT B121 — trail wording).
+    const v1 = await createMaterialityVersion(engagementId, {
       benchmark: "revenue", benchmarkAmount: 1_000_000_000, percentage: 1,
       justification: "Initial.", performancePct: 75, trivialPct: 5,
+    });
+    expect(v1).toBe(1);
+    expect(await actions()).toContain("materiality_created");
+    expect(await actions()).not.toContain("materiality_revised");
+    const v = await createMaterialityVersion(engagementId, {
+      benchmark: "revenue", benchmarkAmount: 1_500_000_000, percentage: 1,
+      justification: "Revised.", performancePct: 75, trivialPct: 5,
     });
     expect(await actions()).toContain("materiality_revised");
     await approveMateriality(engagementId, v);

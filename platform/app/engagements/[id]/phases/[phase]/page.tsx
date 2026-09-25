@@ -1,8 +1,10 @@
 import { notFound, redirect } from "next/navigation";
 import { auth } from "@/auth";
 import { AppNav } from "@/components/AppNav";
-import { ErrorBanner } from "@/components/GatesPanel";
+import { ErrorBanner, GatesPanel } from "@/components/GatesPanel";
 import { NavLink } from "@/components/NavLink";
+import { acceptanceGates, phaseStillOpen, planningCloseGates } from "@/lib/gates";
+import { canReview, canWrite, isRole } from "@/lib/rbac";
 import { PhaseTaskRow, type PhaseRowData } from "@/components/PhaseTaskRow";
 import { Chip, Panel, PanelHeader } from "@/components/ui/atlas";
 import {
@@ -72,6 +74,15 @@ export default async function PhaseTasksPage(props: {
   ]);
   const summary = progress.find((p) => p.phase === phase);
   const index = `0${PHASE_ORDER.indexOf(phase) + 1}`;
+  // Gates, not guidance (UAT B15): a phase whose predecessor is still open is
+  // read-only, and the banner names the gates that are still failing.
+  const gateCode = phaseStillOpen(phase, engagement.phase);
+  const pendingGates = (
+    gateCode === "acceptance-open" ? await acceptanceGates(id) : gateCode === "planning-open" ? await planningCloseGates(id) : []
+  ).filter((g) => !g.ok);
+  const userRole = isRole(session.user.role) ? session.user.role : null;
+  const canSign = !gateCode && userRole !== null && canWrite(userRole);
+  const mayReview = userRole !== null && canReview(userRole);
   // Header count reflects the real reviewed sign-offs so it always matches the
   // rows on this screen (the dashboard gauge is a separate, position-based read).
   const reviewedCount = tasks.filter((t) => t.status === "reviewed").length;
@@ -225,6 +236,17 @@ export default async function PhaseTasksPage(props: {
 
       <ErrorBanner error={error} locale={locale} />
 
+      {gateCode ? (
+        <div
+          role="status"
+          data-testid="phase-locked"
+          className="rounded-[var(--radius-atlas-sm)] border border-line-strong bg-[var(--color-warn-soft)] px-4 py-3 text-sm text-ink"
+        >
+          <p className="font-semibold">{t.planning.errors[gateCode as keyof typeof t.planning.errors] ?? gateCode}</p>
+          {pendingGates.length > 0 ? <GatesPanel gates={pendingGates} locale={locale} /> : null}
+        </div>
+      ) : null}
+
       <Panel flush className="flex flex-col">
         <div className="border-b border-line px-5 py-3.5">
           <PanelHeader title={td.taskList} right={<span className="text-xs font-semibold text-muted tnum">{tasks.length}</span>} />
@@ -259,6 +281,8 @@ export default async function PhaseTasksPage(props: {
                     phaseSlug={slug}
                     signPreparerLabel={td.signAsPreparer}
                     signReviewerLabel={td.signAsReviewer}
+                    canSign={canSign}
+                    canReview={mayReview}
                   />
                 ))}
               </tbody>

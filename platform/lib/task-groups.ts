@@ -98,12 +98,9 @@ export const GROUP_BY_ID: Record<string, TaskGroupDef> = Object.fromEntries(
 
 /** internal code → its group (built once). */
 const GROUP_OF: Record<string, TaskGroupDef> = {};
-/** internal code → display code (e.g. P3.1 → P3.1). */
-const DISPLAY_CODE: Record<string, string> = {};
 for (const g of TASK_GROUPS) {
-  g.members.forEach((code, i) => {
+  g.members.forEach((code) => {
     GROUP_OF[code] = g;
-    DISPLAY_CODE[code] = `${g.code}.${i + 1}`;
   });
 }
 
@@ -116,9 +113,15 @@ export function groupOfTask(code: string): TaskGroupDef | null {
   return TASK_GROUPS.find((g) => g.code === prefix) ?? null;
 }
 
-/** Display code for an internal code; falls back to the internal code. */
+/**
+ * Display code for an internal code. The code stored on file_item IS the code
+ * shown: renumbering by position in the member lists (E3.1 → E5.1, E6.5 →
+ * E6.2 …) gave the same task different codes on the dashboard, the group page
+ * and its own paper header, and made "E6.1" mean two different tasks. Kept as
+ * a function so the call sites stay one place to change.
+ */
 export function displayCode(code: string): string {
-  return DISPLAY_CODE[code] ?? code;
+  return code;
 }
 
 export function groupTitle(g: TaskGroupDef, locale: "en" | "fr"): string {

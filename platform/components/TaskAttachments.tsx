@@ -72,22 +72,41 @@ interface ExistingFile {
  * time the file is saved on disk, the watcher uploads it as the next version,
  * so the tool always holds the latest state of the document.
  */
+/** A document filed on the task (an accepted PBC upload, a generated letter). */
+export interface TaskDocumentRow {
+  id: string;
+  title: string;
+  kind: string;
+  currentVersion: number;
+  createdAt: string;
+}
+
 export function TaskAttachments({
   compact = false,
   fileItemId,
   initial,
+  deletedInitial = [],
+  documents = [],
   locale,
   canManage = false,
+  readOnly = false,
 }: {
   compact?: boolean;
   fileItemId: string;
   initial: AttachmentRow[];
+  /** soft-deleted files still inside the 30-day recovery window (managers only) */
+  deletedInitial?: AttachmentRow[];
+  /** evidence held as versioned documents rather than attachments — shown, never edited here */
+  documents?: TaskDocumentRow[];
   locale: "en" | "fr";
   /** the signed-in user may rename or delete evidence (manager and above) */
   canManage?: boolean;
+  /** archived file: no upload, no edit-locally, no menu */
+  readOnly?: boolean;
 }) {
   const fr = locale === "fr";
   const [rows, setRows] = useState<AttachmentRow[]>(initial);
+  const [deleted, setDeleted] = useState<AttachmentRow[]>(deletedInitial);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [done, setDone] = useState<string | null>(null);
@@ -130,9 +149,11 @@ export function TaskAttachments({
     body.append("file", file);
     const res = await fetch(`/api/attachments/${fileItemId}`, { method: "POST", body });
     if (!res.ok) {
-      const j = (await res.json().catch(() => ({}))) as { error?: string; allowed?: string[] };
+      const j = (await res.json().catch(() => ({}))) as { error?: string; allowed?: string[]; limitMb?: number };
       const reason =
-        j.error === "file-size"
+        j.error === "file-too-large" || res.status === 413
+          ? fr ? `fichier trop volumineux (limite ${j.limitMb ?? 25} Mo)` : `file too large (limit ${j.limitMb ?? 25} MB)`
+          : j.error === "file-size"
           ? fr ? "vide ou au-delà de 25 Mo" : "empty or over the 25 MB ceiling"
           : j.allowed
             ? fr
@@ -282,11 +303,42 @@ export function TaskAttachments({
       : `Delete "${row.name}"? It stays recoverable for 30 days.`)) return;
     const response = await fetch(`/api/attachments/file/${row.id}`, { method: "DELETE" });
     if (!response.ok) {
-      setError(fr ? "Suppression impossible" : "Could not delete the file");
+      const j = (await response.json().catch(() => ({}))) as { error?: string };
+      setError(
+        j.error === "archived"
+          ? fr ? "Dossier archivé — lecture seule, rien ne peut être supprimé." : "Archived file — read-only, nothing can be deleted."
+          : j.error === "forbidden"
+            ? fr ? "Droits insuffisants pour supprimer." : "Insufficient rights to delete."
+            : fr ? "Suppression impossible" : "Could not delete the file",
+      );
       return;
     }
     stopWatch(row.name);
     setRows((list) => list.filter((r) => r.name !== row.name));
+    // it moves to the recoverable list, dated now
+    setDeleted((list) => [{ ...row, uploadedBy: fr ? "moi" : "me", uploadedAt: new Date().toISOString().slice(0, 16).replace("T", " ") }, ...list.filter((r) => r.name !== row.name)]);
+  }
+
+  /** Undo a delete inside the recovery window: the file returns to the task. */
+  async function restore(row: AttachmentRow) {
+    setError(null);
+    const res = await fetch(`/api/attachments/file/${row.id}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ restore: true }),
+    });
+    if (!res.ok) {
+      const j = (await res.json().catch(() => ({}))) as { error?: string };
+      setError(
+        j.error === "restore-window-expired"
+          ? fr ? "Délai de restauration dépassé (30 jours)." : "The 30-day restore window has passed."
+          : fr ? "Restauration impossible." : "Could not restore the file.",
+      );
+      return;
+    }
+    setDeleted((list) => list.filter((r) => r.name !== row.name));
+    setRows((list) => [{ ...row, uploadedBy: fr ? "moi" : "me" }, ...list.filter((r) => r.name !== row.name)]);
+    setDone(fr ? `✓ ${row.name} restauré` : `✓ ${row.name} restored`);
   }
   async function commitRename(row: AttachmentRow, value: string) {
     setRenaming(null);
@@ -298,7 +350,14 @@ export function TaskAttachments({
       body: JSON.stringify({ name: next }),
     });
     if (!res.ok) {
-      setError(fr ? "Le renommage a échoué." : "The rename failed.");
+      const j = (await res.json().catch(() => ({}))) as { error?: string };
+      setError(
+        j.error === "name-taken"
+          ? fr ? "Un fichier portant ce nom existe déjà sur cette tâche." : "A file with this name already exists on this task."
+          : j.error === "archived"
+            ? fr ? "Dossier archivé — lecture seule." : "Archived file — read-only."
+            : fr ? "Le renommage a échoué." : "The rename failed.",
+      );
       return;
     }
     const j = (await res.json()) as { name: string };
@@ -322,6 +381,11 @@ export function TaskAttachments({
       <PanelHeader
         title={fr ? "Fichiers de la tâche" : "Task files"}
         right={
+          readOnly ? (
+            <span className="text-[11px] font-semibold text-muted" data-testid="attachments-readonly">
+              {fr ? "Dossier archivé — lecture seule" : "Archived file — read-only"}
+            </span>
+          ) : (
           <span className="relative inline-flex" ref={menuRef}>
             <button
               type="button"
@@ -371,6 +435,7 @@ export function TaskAttachments({
               </div>
             ) : null}
           </span>
+          )
         }
       />
       {error ? <p className="mt-2 text-xs font-semibold text-rose" data-testid="attachment-error">{error}</p> : null}
@@ -437,10 +502,29 @@ export function TaskAttachments({
           )}
         </div>
       ) : null}
+      {documents.length > 0 ? (
+        <ul className="mt-3 divide-y divide-line" data-testid="task-documents">
+          {documents.map((d) => (
+            <li key={d.id} className="flex items-center gap-2 py-1.5" data-testid={`task-document-${d.id}`}>
+              <FileIcon name={d.kind === "letter" ? "letter.docx" : d.title} />
+              <span className="min-w-0 flex-1">
+                <a href={`/documents/${d.id}`} className="block truncate text-[12.5px] font-medium text-emerald-700 hover:underline dark:text-emerald-400">
+                  {d.title}
+                </a>
+                <span className="block truncate text-[10.5px] text-muted tnum">
+                  v{d.currentVersion} · {d.createdAt} · {fr ? "document de la mission" : "engagement document"}
+                </span>
+              </span>
+            </li>
+          ))}
+        </ul>
+      ) : null}
       {rows.length === 0 ? (
-        <p className="mt-3 text-sm text-muted" data-testid="attachments-empty">
-          {fr ? "Aucun fichier sur cette tâche." : "No file on this task yet."}
-        </p>
+        documents.length === 0 ? (
+          <p className="mt-3 text-sm text-muted" data-testid="attachments-empty">
+            {fr ? "Aucun fichier sur cette tâche." : "No file on this task yet."}
+          </p>
+        ) : null
       ) : (
         <ul className="mt-3 max-h-72 divide-y divide-line overflow-y-auto pr-1" data-testid="attachments-list">
           {rows.map((row) => (
@@ -466,6 +550,28 @@ export function TaskAttachments({
                   v{watching[row.name] ?? row.version} · {fmtSize(row.sizeBytes)} · {row.uploadedAt}
                   {watching[row.name] !== undefined ? (fr ? " · suivi actif" : " · watching saves") : ""}
                 </span>
+                {/* earlier versions stay reachable: each one downloads by its own id (UAT B108) */}
+                {row.history && row.history.length > 0 ? (
+                  <details className="mt-0.5" data-testid={`attachment-history-${row.name}`}>
+                    <summary className="cursor-pointer text-[10.5px] text-emerald-700 hover:underline dark:text-emerald-400">
+                      {fr ? `Historique (${row.history.length})` : `History (${row.history.length})`}
+                    </summary>
+                    <ul className="mt-0.5 flex flex-col gap-0.5 pl-2">
+                      {row.history.map((v) => (
+                        <li key={v.id} className="text-[10.5px] text-muted tnum">
+                          <a
+                            href={`/api/attachments/file/${v.id}`}
+                            className="hover:text-ink hover:underline"
+                            data-testid={`attachment-version-${row.name}-${v.version}`}
+                          >
+                            v{v.version}
+                          </a>
+                          {" "}· {fmtSize(v.sizeBytes)} · {v.uploadedAt} · {v.uploadedBy}
+                        </li>
+                      ))}
+                    </ul>
+                  </details>
+                ) : null}
               </span>
               {/* rename — evidence metadata is a managed change */}
               {canManage ? (
@@ -492,7 +598,7 @@ export function TaskAttachments({
                 >
                   <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor"><rect x="6" y="6" width="12" height="12" rx="1.5" /></svg>
                 </button>
-              ) : canWatch ? (
+              ) : canWatch && !readOnly ? (
                 <button
                   type="button"
                   onClick={() => editLocally(row)}
@@ -531,6 +637,35 @@ export function TaskAttachments({
           ))}
         </ul>
       )}
+      {canManage && deleted.length > 0 ? (
+        <div className="mt-3 border-t border-line pt-2" data-testid="attachments-deleted">
+          <h3 className="text-[10.5px] font-extrabold uppercase tracking-[0.07em] text-muted">
+            {fr ? "Fichiers supprimés (récupérables 30 jours)" : "Deleted files (recoverable for 30 days)"}
+          </h3>
+          <ul className="mt-1 divide-y divide-line">
+            {deleted.map((row) => (
+              <li key={row.name} className="flex items-center gap-2 py-1.5 opacity-80">
+                <FileIcon name={row.name} />
+                <span className="min-w-0 flex-1">
+                  <span className="block truncate text-[12.5px] text-ink line-through">{row.name}</span>
+                  <span className="block truncate text-[10.5px] text-muted tnum">
+                    v{row.version} · {fmtSize(row.sizeBytes)} · {fr ? "supprimé le" : "deleted"} {row.uploadedAt}
+                    {row.uploadedBy ? ` · ${row.uploadedBy}` : ""}
+                  </span>
+                </span>
+                <button
+                  type="button"
+                  onClick={() => void restore(row)}
+                  className="rounded-[var(--radius-atlas-sm)] border border-line-strong px-2 py-0.5 text-[11.5px] font-semibold text-emerald-700 hover:bg-surface-2 dark:text-emerald-400"
+                  data-testid={`attachment-restore-${row.name}`}
+                >
+                  {fr ? "Restaurer" : "Restore"}
+                </button>
+              </li>
+            ))}
+          </ul>
+        </div>
+      ) : null}
     </Panel>
   );
 }

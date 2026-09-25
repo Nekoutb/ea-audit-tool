@@ -173,9 +173,27 @@ describe("7.1/7.10 completion gates block issuance", () => {
       Object.fromEntries((paperFor("E3.1").conclEn ?? []).map((_, i) => [`c_${i}`, "yes"])),
     );
 
+    // UAT B54: the C4.3 points-outstanding paper is a named gate of its own —
+    // with everything else in place, it is the one gate still holding.
+    const before = await completionGates(engagementId);
+    expect(before.filter((gate) => !gate.ok).map((gate) => gate.key)).toEqual(["c43_cleared"]);
+    await expect(issueReport(engagementId, "unmodified", "2026-03-31")).rejects.toSatisfy(
+      (error: unknown) => error instanceof CompletionGateError && error.failed.includes("c43_cleared"),
+    );
+    await savePaper(engagementId, "C4.3", { q_none_open: "yes" });
+
     const gates = await completionGates(engagementId);
     // Named, so a failure says which gate held rather than "false".
     expect(gates.filter((gate) => !gate.ok).map((gate) => gate.key)).toEqual([]);
+
+    // UAT B15: a conclusion-phase paper cannot be signed while execution is
+    // still open — the gate blocks, it does not merely flag.
+    const c62 = await admin.query<{ id: string }>(
+      "SELECT id FROM file_item WHERE engagement_id = $1 AND code = 'C6.2'",
+      [engagementId],
+    );
+    const c62Document = await generateDocument(c62.rows[0].id, "en");
+    await expect(signDocument(c62Document, "preparer")).rejects.toThrow("execution-open");
 
     await issueReport(engagementId, "unmodified", "2026-03-31");
     const state = await getConclusionState(engagementId);
@@ -218,7 +236,8 @@ describe("7.11/7.12 archive immutability + rollforward", () => {
     // C4.1 review & approval summary concluded. E3.1 joins them: it carries the
     // ISA 240 ¶32 step seeded with the management-override risk, so it holds
     // work on every engagement and owes a signed paper before the file closes.
-    for (const code of ["C6.2", "C4.1", "E3.1"]) {
+    // C4.3 was answered to clear the issuance gate (UAT B54), so it holds work too.
+    for (const code of ["C6.2", "C4.1", "E3.1", "C4.3"]) {
       await savePaper(
         engagementId,
         code,
@@ -231,8 +250,9 @@ describe("7.11/7.12 archive immutability + rollforward", () => {
     // that holds work must hold a paper that is prepared AND reviewed. C6.2 and
     // C4.1 now hold saved working-paper values, so each owes a signed document.
     // (The rep letters and the statutory report are deliverables, not papers —
-    // they answer their own gates.)
-    for (const code of ["C6.2", "C4.1", "E3.1"]) {
+    // they answer their own gates.) The report is issued, so the file sits in
+    // the conclusion phase and these papers may now be signed (UAT B15).
+    for (const code of ["C6.2", "C4.1", "E3.1", "C4.3"]) {
       const item = await admin.query<{ id: string }>(
         "SELECT id FROM file_item WHERE engagement_id = $1 AND code = $2",
         [engagementId, code],
@@ -241,6 +261,22 @@ describe("7.11/7.12 archive immutability + rollforward", () => {
       await signDocument(documentId, "preparer");
       await signDocument(documentId, "partner");
     }
+
+    // UAT B63: tasks nobody addressed hold the archive — every non-conditional
+    // task carries work or an N/A reason. The gate refuses first, then the
+    // untouched tasks are marked not applicable (the UI's task N/A action).
+    await expect(archiveEngagement(engagementId)).rejects.toThrow("tasks_addressed");
+    await admin.query(
+      `UPDATE file_item fi SET na_reason = 'Not applicable to this test file.', na_by = $2, na_at = now()
+        WHERE fi.engagement_id = $1 AND fi.conditional = false AND btrim(coalesce(fi.na_reason, '')) = ''
+          AND NOT EXISTS (SELECT 1 FROM program_step ps WHERE ps.file_item_id = fi.id AND ps.status <> 'na')
+          AND NOT EXISTS (SELECT 1 FROM section_conclusion sc WHERE sc.file_item_id = fi.id)
+          AND NOT EXISTS (SELECT 1 FROM document d WHERE d.file_item_id = fi.id AND d.kind IN ('workpaper', 'leadsheet'))
+          AND NOT EXISTS (SELECT 1 FROM form_response fr
+                           WHERE fr.engagement_id = fi.engagement_id AND fr.code = 'wp:' || fi.code
+                             AND btrim(coalesce(fr.value #>> '{}', '')) <> '')`,
+      [engagementId, USER],
+    );
 
     await archiveEngagement(engagementId);
     const state = await getConclusionState(engagementId);

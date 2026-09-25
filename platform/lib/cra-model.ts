@@ -6,6 +6,20 @@
 
 export type CraIr = "lower" | "higher";
 export type CraCr = "rely" | "not_rely";
+
+/**
+ * The basis the E1.2 write-through stamps on S3.1 when a control is concluded
+ * not effective. Stored as this one English constant (tests and the reverse
+ * write-through match on it); the board renders it in the reader's language.
+ */
+export const CR_DEFICIENT_BASIS = "Not rely — due to deficient control conclusion under E1.2";
+
+/** The stored basis text in the reader's language. */
+export function crBasisLabel(basis: string, locale: "en" | "fr"): string {
+  if (locale !== "fr") return basis;
+  const fr = "Sans appui — conclusion de contrôle déficiente en E1.2";
+  return basis.split(" · ").map((part) => (part === CR_DEFICIENT_BASIS ? fr : part)).join(" · ");
+}
 export type CraLevel = "minimal" | "low" | "moderate" | "high";
 
 /** Sampling-tool vocabulary: the level plus the significant-risk overlay. */

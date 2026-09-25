@@ -19,9 +19,9 @@ export interface AccountMailFacts {
   firmName?: string | null;
   /** who did it, when known */
   inviterName?: string | null;
-  /** present when an account was just provisioned or reset */
+  /** present when an account was just provisioned (never for a reset) */
   tempPassword?: string | null;
-  /** a one-time link where the recipient chooses their own password */
+  /** a one-time link where the recipient chooses their own password (invitation, reset) */
   inviteUrl?: string | null;
   /** the engagement, for engagement invitations */
   engagementName?: string | null;
@@ -74,7 +74,19 @@ export function loginUrl(email: string, next?: string | null): string {
 export function safeNext(value: unknown): string {
   const next = typeof value === "string" ? value.trim() : "";
   if (!next.startsWith("/") || next.startsWith("//")) return "/";
-  return next;
+  // Browsers read a backslash as a slash, so "/\host" is protocol-relative and
+  // leaves the site (UAT B07); a control character or an encoded backslash
+  // never belongs in a path of ours either.
+  if (/[\\\u0000-\u001f\u007f]/.test(next) || /%5c/i.test(next)) return "/";
+  // Resolve against a throwaway origin: whatever survives must still be on it.
+  let url: URL;
+  try {
+    url = new URL(next, "https://x.invalid");
+  } catch {
+    return "/";
+  }
+  if (url.origin !== "https://x.invalid") return "/";
+  return `${url.pathname}${url.search}${url.hash}`;
 }
 
 const esc = (s: string) =>
@@ -123,19 +135,26 @@ function render(subject: string, r: Rendered): AccountMail {
 
 export class AccountMailError extends Error {}
 
-/** The two kinds whose entire purpose is to carry a password cannot be sent without one. */
-export type ProvisioningKind = "new-account" | "password-reset";
+/** The kind whose entire purpose is to carry a password cannot be sent without one. */
+export type ProvisioningKind = "new-account";
 
 export function accountMail(
   kind: ProvisioningKind,
   facts: AccountMailFacts & { tempPassword: string },
   locale: MailLocale,
 ): AccountMail;
-// The general overload deliberately EXCLUDES the two provisioning kinds. With
+// A reset carries a one-time link where the person chooses a new password —
+// never a password (UAT B39). The link is mandatory at compile time too.
+export function accountMail(
+  kind: "password-reset",
+  facts: AccountMailFacts & { inviteUrl: string },
+  locale: MailLocale,
+): AccountMail;
+// The general overload deliberately EXCLUDES the provisioning kinds. With
 // `AccountMailKind` here, a call missing the password would fall through to
 // this signature and compile happily — the first overload would never bite.
 export function accountMail(
-  kind: Exclude<AccountMailKind, ProvisioningKind>,
+  kind: Exclude<AccountMailKind, ProvisioningKind | "password-reset">,
   facts: AccountMailFacts,
   locale: MailLocale,
 ): AccountMail;
@@ -172,8 +191,13 @@ export function accountMail(
   // out with no way to tell why, so these two kinds fail loudly instead. The
   // overloads above catch it at compile time; this catches a value that was
   // typed as a string and turned out to be empty.
-  if ((kind === "new-account" || kind === "password-reset") && !facts.tempPassword?.trim()) {
+  if (kind === "new-account" && !facts.tempPassword?.trim()) {
     throw new AccountMailError(`${kind} needs a temporary password`);
+  }
+  // A reset mail without its link would tell the recipient a password they
+  // knew has stopped working and give them no way back in.
+  if (kind === "password-reset" && !facts.inviteUrl?.trim()) {
+    throw new AccountMailError(`${kind} needs a set-password link`);
   }
   const openWithTemp = T(
     "Open AuditISA with the button below — your email is already filled in — and enter the temporary password.",
@@ -298,16 +322,27 @@ export function accountMail(
         "Your AuditISA password has been reset",
         "Votre mot de passe AuditISA a été réinitialisé",
       );
+      // No credential travels: the old password has stopped working and the
+      // link is where the person chooses the next one (UAT B39).
       return render(subject, {
         greeting,
         intro: [
           `${by ? T(`${by}, firm administrator, has reset your AuditISA password`, `${by}, administrateur du cabinet, a réinitialisé votre mot de passe AuditISA`) : T("A firm administrator has reset your AuditISA password", "Un administrateur du cabinet a réinitialisé votre mot de passe AuditISA")}.`,
-          openWithTemp,
+          T(
+            "Open the button below to choose a new password, then sign in. The link works once and expires in 14 days.",
+            "Ouvrez le bouton ci-dessous pour choisir un nouveau mot de passe, puis connectez-vous. Le lien ne sert qu'une fois et expire dans 14 jours.",
+          ),
         ],
-        button: { label: T("Open AuditISA", "Ouvrir AuditISA"), url: signIn },
-        fields: credentials(facts.tempPassword ?? ""),
+        button: {
+          label: T("Choose a new password", "Choisir un nouveau mot de passe"),
+          url: facts.inviteUrl ?? signIn,
+        },
+        fields: [{ label: T("Email", "Email"), value: facts.email }],
         notes: [
-          firstSignIn,
+          T(
+            "Nobody else knows your password — not your firm administrator, not the platform. It is set only by you, on that page.",
+            "Personne d'autre ne connaît votre mot de passe — ni l'administrateur de votre cabinet, ni la plateforme. Vous seul(e) le définissez, sur cette page.",
+          ),
           T(
             "If you did not expect this, contact your firm administrator: any session opened with the old password has been closed.",
             "Si vous n'attendiez pas cette réinitialisation, contactez l'administrateur du cabinet : toute session ouverte avec l'ancien mot de passe a été fermée.",

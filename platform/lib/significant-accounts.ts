@@ -257,10 +257,16 @@ export async function saveSignificance(
     assertions === undefined
       ? undefined
       : assertions.filter((a) => ASSERTION_CODES.has(a)).join(",");
+  // A specific materiality is by definition LOWER than overall materiality
+  // (ISA 320 ¶10): a figure at or above it is not a specific threshold.
+  const materiality = specificTe !== undefined ? await approvedMateriality(engagementId) : null;
   await withTenant(tenantId, async (tx) => {
     if (specificTe !== undefined) {
       const cleaned = specificTe.replace(/[^\d.]/g, "");
       const amount = Number(cleaned);
+      if (materiality && Number.isFinite(amount) && amount > 0 && amount >= materiality.overall) {
+        throw new Error("specific-above-materiality");
+      }
       if (cleaned === "" || !Number.isFinite(amount) || amount <= 0) {
         await tx.query(
           "DELETE FROM form_response WHERE engagement_id = $1 AND code = 'wp:P6.1' AND field_key = $2",

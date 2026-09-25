@@ -79,8 +79,12 @@ export function RegisterRow({ row }: { row: RegisterRowData }) {
         <span className="block truncate text-[12.5px] text-ink-soft">{row.partnerName ?? "—"}</span>
       </td>
       <td className="border-t border-line px-4 py-3.5">
+        {/* The French labels run long ("Planification & identification des
+            risques"); the chip stays inside its column and ellipsises, with
+            the full label on hover, rather than running over the progress bar. */}
         <span
-          className={`inline-block whitespace-nowrap rounded-full px-2.5 py-1 text-[10px] font-extrabold uppercase tracking-[0.03em] ${STAGE_CLASS[row.stage.tone]}`}
+          title={row.stage.label}
+          className={`inline-block max-w-full truncate rounded-full px-2.5 py-1 align-middle text-[10px] font-extrabold uppercase tracking-[0.03em] ${STAGE_CLASS[row.stage.tone]}`}
         >
           {row.stage.label}
         </span>

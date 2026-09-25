@@ -193,6 +193,7 @@ export type CriterionKey =
   | "year-end-volume"
   | "incomplete-description"
   | "preparer-is-reviewer"
+  | "preparer-is-approver"
   | "user-defined";
 
 export type CriterionCategory =
@@ -404,6 +405,18 @@ export const JE_CRITERIA: readonly CriterionDef[] = [
     descriptionFr: "Lignes où les deux noms sont renseignés et identiques, comparés sur le nom en minuscules et sans espaces de bord.",
     rationaleEn: "Nobody reviews their own work: the control the file leans on did not operate, whatever the posting itself turns out to be.",
     rationaleFr: "Nul ne revoit son propre travail : le contrôle sur lequel s'appuie le dossier n'a pas fonctionné, quelle que soit la comptabilisation elle-même.",
+    params: [],
+  },
+  {
+    // Self-approval is the other half of the same failure (UAT B141): a
+    // ledger that records who validated an entry can show it was the person
+    // who recorded it, which the reviewer test alone never catches.
+    key: "preparer-is-approver", category: "attribution", entryLevel: false,
+    nameEn: "Preparer and approver are the same person", nameFr: "Préparateur et approbateur identiques",
+    descriptionEn: "Lines where both names are recorded and the person who recorded the entry is the one who approved it, compared on the trimmed, lower-cased name.",
+    descriptionFr: "Lignes où les deux noms sont renseignés et où la personne qui a saisi l'écriture est celle qui l'a approuvée, comparés sur le nom en minuscules et sans espaces de bord.",
+    rationaleEn: "ISA 240 ¶33(a): an entry its author approved passed no independent check — the segregation the control relies on did not exist for that posting.",
+    rationaleFr: "ISA 240 ¶33 a) : une écriture approuvée par son auteur n'a subi aucun contrôle indépendant — la séparation des tâches sur laquelle repose le contrôle n'existait pas pour cette comptabilisation.",
     params: [],
   },
   {
@@ -979,6 +992,19 @@ export function reasonsFor(line: SelectionCandidate, ctx: EvaluationContext): Se
     }
   }
 
+  if (chosen.has("preparer-is-approver")) {
+    const preparer = normalisePerson(line.preparer);
+    if (preparer !== "" && preparer === normalisePerson(line.approver)) {
+      reasons.push({
+        criterion: "preparer-is-approver",
+        label: name("preparer-is-approver"),
+        detail: t(locale,
+          `${line.preparer} both recorded and approved this line`,
+          `${line.preparer} a saisi et approuvé cette ligne`),
+      });
+    }
+  }
+
   for (const rule of ctx.userRules) {
     if (!matchesUserRule(line, rule)) continue;
     reasons.push({
@@ -1310,25 +1336,35 @@ async function loadCandidates(
   const dateColumn = settings.dateBasis === "entry" ? "entry_date" : "journal_date";
   const descriptionSql = "coalesce(nullif(trim(l.line_description), ''), nullif(trim(l.je_description), ''), '')";
 
-  const classSql = wantsPairing
-    ? `(SELECT c.klass
-          FROM unnest(${add(CLASS_PREFIXES.map((c) => c.prefix))}::text[],
-                      ${add(CLASS_PREFIXES.map((c) => c.klass))}::text[]) AS c(prefix, klass)
-         WHERE l.account LIKE c.prefix || '%'
-         ORDER BY length(c.prefix) DESC LIMIT 1)`
-    : "NULL::text";
-
-  const ctes = [
+  // Classification is done once per DISTINCT account, not once per line (UAT
+  // B77): the correlated prefix lookup ran against every line of the ledger
+  // and, with the array aggregation on top, pushed the pairing criterion past
+  // the statement timeout on a ledger of a few hundred lines. `entry` is
+  // materialised so the planner cannot inline the aggregate into the join.
+  const ctes: string[] = [];
+  if (wantsPairing) {
+    ctes.push(`account_class AS (
+       SELECT a.account,
+              (SELECT c.klass
+                 FROM unnest(${add(CLASS_PREFIXES.map((c) => c.prefix))}::text[],
+                             ${add(CLASS_PREFIXES.map((c) => c.klass))}::text[]) AS c(prefix, klass)
+                WHERE a.account LIKE c.prefix || '%'
+                ORDER BY length(c.prefix) DESC LIMIT 1) AS klass
+         FROM (SELECT DISTINCT l.account FROM gl_line l WHERE ${SCOPE}) a)`);
+  }
+  ctes.push(
     `base AS (
-       SELECT l.je_number, l.journal_date, l.signed, ${classSql} AS klass
-         FROM gl_line l WHERE ${SCOPE})`,
-    `entry AS (
+       SELECT l.je_number, l.journal_date, l.signed, ${wantsPairing ? "ac.klass" : "NULL::text"} AS klass
+         FROM gl_line l
+         ${wantsPairing ? "LEFT JOIN account_class ac ON ac.account = l.account" : ""}
+        WHERE ${SCOPE})`,
+    `entry AS MATERIALIZED (
        SELECT je_number, count(*)::int AS lines,
               coalesce(sum(abs(signed)), 0)::float8 AS gross,
               min(journal_date) AS jd,
               coalesce(array_agg(DISTINCT klass) FILTER (WHERE klass IS NOT NULL), ARRAY[]::text[]) AS classes
          FROM base GROUP BY je_number)`,
-  ];
+  );
 
   if (wantsYearEnd) {
     const measure = settings.volumeBasis === "value" ? "gross" : "lines";
@@ -1379,6 +1415,10 @@ async function loadCandidates(
       case "preparer-is-reviewer":
         clauses.push(`(nullif(lower(trim(l.preparer)), '') IS NOT NULL
                        AND lower(trim(l.preparer)) = lower(trim(l.reviewer)))`);
+        break;
+      case "preparer-is-approver":
+        clauses.push(`(nullif(lower(trim(l.preparer)), '') IS NOT NULL
+                       AND lower(trim(l.preparer)) = lower(trim(l.approver)))`);
         break;
       default:
         break;

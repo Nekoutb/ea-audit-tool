@@ -21,7 +21,9 @@ export async function itAppsView(engagementId: string): Promise<ItAppsView> {
   // applications named on the SCOT register, with the SCOTs that name them
   const fromScots = new Map<string, string[]>();
   for (const s of scots) {
-    for (const raw of (s.applications ?? "").split(/[,;·]/)) {
+    // Separators split only outside parentheses: "Sage X3 (GL, AR); Odoo" is
+    // two applications, not three.
+    for (const raw of (s.applications ?? "").split(/[,;·](?![^()]*\))/)) {
       const name = raw.trim();
       if (!name) continue;
       const cur = fromScots.get(name) ?? [];
@@ -39,6 +41,7 @@ export async function itAppsView(engagementId: string): Promise<ItAppsView> {
   });
 
   const rows = new Map<string, ItAppRow>();
+  const removed = new Set<string>();
   for (const row of saved) {
     if (!row.field_key.startsWith("app_")) continue;
     try {
@@ -48,14 +51,15 @@ export async function itAppsView(engagementId: string): Promise<ItAppsView> {
         const r = v as Partial<ItAppRow>;
         rows.set(key, {
           key,
-          name: String(r.name ?? key),
+          // an empty name means "not recorded": the register name fills it below
+          name: String(r.name ?? ""),
           layers: String(r.layers ?? ""),
           scots: [],
           strategy: (IT_STRATEGIES as readonly string[]).includes(String(r.strategy)) ? (r.strategy as ItStrategy) : "",
           itgcNote: String(r.itgcNote ?? ""),
         });
       } else if (v && (v as { removed?: boolean }).removed) {
-        rows.set(key, { key, name: "", layers: "", scots: [], strategy: "", itgcNote: "" });
+        removed.add(key);
       }
     } catch {
       // ignore malformed rows
@@ -65,16 +69,21 @@ export async function itAppsView(engagementId: string): Promise<ItAppsView> {
   // seed register applications not yet recorded; attach SCOT names to all
   for (const [name, scotNames] of fromScots) {
     const key = slug(name);
+    if (removed.has(key)) continue; // explicitly removed
     const existing = rows.get(key);
     if (existing) {
-      if (existing.name === "") continue; // explicitly removed
+      // a decision saved without the name shows the register name, not the slug
+      if (existing.name === "") existing.name = name;
       existing.scots = scotNames;
     } else {
       rows.set(key, { key, name, layers: "", scots: scotNames, strategy: "", itgcNote: "" });
     }
   }
 
-  return { rows: [...rows.values()].filter((r) => r.name !== "").sort((a, b) => a.name.localeCompare(b.name)) };
+  // a row with neither a recorded nor a register name only has its key to show
+  for (const r of rows.values()) if (r.name === "") r.name = r.key;
+
+  return { rows: [...rows.values()].sort((a, b) => a.name.localeCompare(b.name)) };
 }
 
 /** Persist one application row (or mark it removed). */
@@ -110,5 +119,13 @@ export async function saveItApp(
       [tenantId, engagementId, CODE, `app_${key}`, JSON.stringify(merged), userId],
     );
   });
+  // The record is the front page of S2.3 and the basis of S2.5: a change to
+  // it voids the signatures given over the previous state (same rule as a
+  // working-paper answer, lib/working-papers.ts).
+  const { invalidateStaleSignoffs, reportInvalidatedSignoffs } = await import("@/lib/working-papers");
+  for (const code of ["S2.3", "S2.5"]) {
+    const rows = await withTenant(tenantId, (tx) => invalidateStaleSignoffs(tx, engagementId, code));
+    await reportInvalidatedSignoffs(tenantId, engagementId, code, rows, userId);
+  }
 }
 

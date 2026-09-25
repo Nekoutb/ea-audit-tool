@@ -32,8 +32,25 @@ import {
 } from "@/lib/documents";
 import { createEngagement, listFileItems } from "@/lib/engagements";
 import { DEFAULT_FILE_INDEX } from "@/lib/file-index";
+import { requiredKeys } from "@/lib/papers/types";
+import { paperFor, savePaper } from "@/lib/working-papers";
 
 const admin = new pg.Pool({ connectionString: process.env.DATABASE_URL });
+
+/**
+ * Answer every required field, Yes/No factor and conclusion of a bespoke
+ * paper: a blank paper carries nothing to attest to, so sign-off refuses it
+ * with `paper-incomplete` (UAT B17).
+ */
+async function answerPaper(code: string): Promise<void> {
+  await savePaper(
+    engagementId,
+    code,
+    Object.fromEntries(
+      requiredKeys(paperFor(code)).map((k) => [k, k.startsWith("q_") || k.startsWith("c_") ? "yes" : "Done."]),
+    ),
+  );
+}
 
 let engagementId: string;
 let d31ItemId: string;
@@ -113,8 +130,17 @@ describe("document lifecycle", () => {
     expect((await listVersions(documentId)).map((v) => v.versionNo)).toEqual([3, 2, 1]);
   });
 
+  it("refuses to sign a paper whose questionnaire is unanswered (paper-incomplete)", async () => {
+    // P1.1 carries a bespoke paper: nothing answered yet, so no one may attest to it.
+    await expect(signDocument(documentId, "preparer")).rejects.toThrow(/paper-incomplete/);
+    // A partial answer set is still incomplete.
+    await savePaper(engagementId, "P1.1", { [requiredKeys(paperFor("P1.1"))[0]]: "Done." });
+    await expect(signDocument(documentId, "preparer")).rejects.toThrow(/paper-incomplete/);
+  });
+
   it("enforces preparer-first, blocks reviewer sign-off on open notes, then locks", async () => {
     await expect(signDocument(documentId, "reviewer")).rejects.toThrow(/preparer-first/);
+    await answerPaper("P1.1");
     await signDocument(documentId, "preparer");
 
     await addReviewNote(documentId, "Please tighten the conclusion.");
@@ -154,6 +180,7 @@ describe("document lifecycle", () => {
     expect(s61).toBeDefined();
     asRole("manager");
     const documentId = await generateDocument(s61!.id, "en");
+    await answerPaper("S6.1");
     await signDocument(documentId, "preparer");
     await expect(signDocument(documentId, "reviewer")).rejects.toThrow(/partner-only/);
     asRole("partner");

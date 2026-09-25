@@ -37,10 +37,13 @@ export function ItAppsBoard({
 
   async function save(key: string, patch: Record<string, unknown>) {
     setError(null);
+    // The saved row carries the application's name: a decision recorded
+    // without it used to come back as the slug ("sage-x3-gl") on reload.
+    const name = rows.find((r) => r.key === key)?.name;
     const r = await fetch(`/api/engagements/${engagementId}/itapps`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ op: "save", key, ...patch }),
+      body: JSON.stringify({ op: "save", key, ...(name ? { name } : {}), ...patch }),
     }).catch(() => null);
     if (!r?.ok) setError(fr ? "Échec de l'enregistrement." : "Save failed.");
   }

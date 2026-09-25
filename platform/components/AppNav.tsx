@@ -68,8 +68,14 @@ export async function AppNav({
 
   const user = session?.user;
   const name = user?.name ?? user?.email ?? "";
-  const roleLabel = user?.role ? String(user.role).replaceAll("_", " ") : "";
-  const currentLabel = current?.label ?? recent[0]?.title ?? null;
+  // the role reads in the user's language ("Associé", not "partner") — UAT B121
+  const roleLabels = t.users.roles as Record<string, string>;
+  const roleLabel = user?.role ? (roleLabels[String(user.role)] ?? String(user.role).replaceAll("_", " ")) : "";
+  // No engagement in context → no engagement name in the header. Falling back
+  // to the most recent engagement showed another client's name on documents,
+  // PBC and similar pages (UAT B132).
+  const currentLabel = current?.label ?? null;
+  const fr = locale === "fr";
 
   // Clients left the primary nav (IA audit, Part 4): the entity directory now
   // lives under Settings; entity records are reached from each engagement hub.
@@ -92,6 +98,49 @@ export async function AppNav({
           )}
           <span data-testid="brand-name">{branding?.displayName ?? t.common.appName}</span>
         </span>
+        {/* Phone-width menu: the primary links and the search live in a
+            <details> that needs no script, so nothing is unreachable when the
+            wide-screen nav is hidden (UAT B95). */}
+        {minimal ? null : (
+          <details className="relative md:hidden" data-testid="nav-mobile-menu">
+            <summary
+              className="grid h-9 w-9 cursor-pointer list-none place-items-center rounded-[var(--radius-atlas-sm)] border border-line-strong bg-surface text-ink-soft [&::-webkit-details-marker]:hidden"
+              aria-label={fr ? "Menu" : "Menu"}
+            >
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true">
+                <path d="M4 6h16M4 12h16M4 18h16" />
+              </svg>
+            </summary>
+            <div className="absolute left-0 top-full z-50 mt-1 flex min-w-[240px] flex-col gap-1 rounded-[var(--radius-atlas-sm)] border border-line-strong bg-surface p-2 shadow-[var(--shadow-atlas)]">
+              {links.map((link) => (
+                <Link key={link.href} href={link.href} className="rounded-[var(--radius-atlas-xs)] px-2.5 py-1.5 text-sm font-medium text-ink hover:bg-surface-2">
+                  {link.label}
+                </Link>
+              ))}
+              {current
+                ? SECTION_ORDER.map((key) => (
+                    <Link
+                      key={key}
+                      href={`/engagements/${current.id}/dashboard?phase=${key}`}
+                      className="rounded-[var(--radius-atlas-xs)] px-2.5 py-1.5 text-[12.5px] text-ink-soft hover:bg-surface-2"
+                    >
+                      {sectionLabel(key, locale as "en" | "fr")}
+                    </Link>
+                  ))
+                : null}
+              <form action="/search" method="get" className="mt-1">
+                <input
+                  name="q"
+                  type="search"
+                  placeholder={fr ? "Rechercher…" : "Search…"}
+                  aria-label={fr ? "Rechercher dans le dossier" : "Search the audit file"}
+                  data-testid="nav-search-mobile"
+                  className="h-9 w-full rounded-[var(--radius-atlas-sm)] border border-line-strong bg-surface px-2.5 text-[12.5px] text-ink outline-none focus:border-emerald-600"
+                />
+              </form>
+            </div>
+          </details>
+        )}
         {minimal || hideLinks ? null : current ? (
           /* inside an engagement the primary links are the four phases —
              each opens the dashboard with that phase's sub-tasks revealed */
@@ -187,8 +236,8 @@ export async function AppNav({
           <input
             name="q"
             type="search"
-            placeholder={locale === "fr" ? "Rechercher…" : "Search…"}
-            aria-label={locale === "fr" ? "Rechercher dans le dossier" : "Search the audit file"}
+            placeholder={fr ? "Rechercher…" : "Search…"}
+            aria-label={fr ? "Rechercher dans le dossier" : "Search the audit file"}
             data-testid="nav-search"
             className="h-9 w-[150px] rounded-[var(--radius-atlas-sm)] border border-line-strong bg-surface px-2.5 text-[12.5px] text-ink outline-none transition focus:w-[240px] focus:border-emerald-600 xl:w-[190px]"
           />
@@ -214,7 +263,7 @@ export async function AppNav({
         <div className="hidden items-center gap-2.5 sm:flex">
           <div className="text-right leading-tight">
             <div className="max-w-[150px] truncate text-[13px] font-semibold text-ink">{name}</div>
-            {roleLabel ? <div className="text-[11px] capitalize text-muted">{roleLabel}</div> : null}
+            {roleLabel ? <div className="text-[11px] text-muted">{roleLabel}</div> : null}
           </div>
           <span className="grid h-9 w-9 place-items-center rounded-[var(--radius-atlas-sm)] bg-emerald-700 text-[12px] font-bold text-white">
             {initials(name)}

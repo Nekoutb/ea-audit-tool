@@ -36,6 +36,7 @@ const ALL: CriterionKey[] = [
   "year-end-volume",
   "incomplete-description",
   "preparer-is-reviewer",
+  "preparer-is-approver",
 ];
 
 // 20 May 2025 is Cameroon's National Day and a Tuesday, so the holiday test
@@ -226,6 +227,9 @@ describe("each criterion against a line whose answer is known", () => {
   it("catches a line whose preparer reviewed their own work", () => {
     expect(keysOf(line({ preparer: "A. Ngono", reviewer: " a. ngono " }))).toContain("preparer-is-reviewer");
     expect(keysOf(line({ preparer: "A. Ngono", reviewer: "B. Fotso" }))).not.toContain("preparer-is-reviewer");
+    // self-approval (UAT B141): the approver column, not the reviewer one
+    expect(keysOf(line({ preparer: "A. Ngono", reviewer: "B. Fotso", approver: " a. ngono " }))).toContain("preparer-is-approver");
+    expect(keysOf(line({ preparer: "A. Ngono", approver: "C. Mbarga" }))).not.toContain("preparer-is-approver");
     // two blanks are not the same person, they are two gaps
     expect(keysOf(line({ preparer: "  ", reviewer: null }))).not.toContain("preparer-is-reviewer");
   });

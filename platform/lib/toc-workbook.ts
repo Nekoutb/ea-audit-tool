@@ -930,8 +930,12 @@ export async function buildTocWorkbook(view: TocView): Promise<Buffer> {
   exceptions.views = [{ state: "frozen", ySplit: excHead.number, xSplit: 1 }];
 
   if (view.exceptions.length === 0) {
+    // A control concluded not effective with no deviation on record is a
+    // contradiction the paper must state, not paper over (UAT B84).
     const none = exceptions.addRow([
-      "No deviation was found in any control tested. Every control takes its conclusion on its own working paper.",
+      notEffective > 0
+        ? `No deviation is recorded on the exceptions log, yet ${notEffective} control${notEffective === 1 ? " is" : "s are"} concluded not effective. Record the deviation that supports each conclusion, or revisit the conclusion on its working paper.`
+        : "No deviation was found in any control tested. Every control takes its conclusion on its own working paper.",
     ]);
     exceptions.mergeCells(none.number, 1, none.number, 11);
     none.getCell(1).font = { italic: true };

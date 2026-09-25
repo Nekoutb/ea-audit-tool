@@ -46,7 +46,29 @@ export default async function ActivityPage(props: { params: Promise<{ id: string
 
       <Panel flush className="flex flex-col">
         <div className="border-b border-line px-5 py-3.5">
-          <PanelHeader title={ta.title} right={<span className="text-xs font-semibold text-muted tnum">{rows.length}</span>} />
+          <PanelHeader
+            title={ta.title}
+            right={
+              <span className="flex items-center gap-3">
+                <span className="text-xs font-semibold text-muted tnum">{rows.length}</span>
+                {/* the trail as a readable file, and the complete audit-file bundle (UAT B157) */}
+                <a
+                  href={`/api/engagements/${id}/activity/export`}
+                  className="text-xs font-semibold text-emerald-700 hover:underline dark:text-emerald-400"
+                  data-testid="activity-export"
+                >
+                  {locale === "fr" ? "Exporter (CSV)" : "Export (CSV)"}
+                </a>
+                <a
+                  href={`/api/engagements/${id}/export/bundle`}
+                  className="text-xs font-semibold text-emerald-700 hover:underline dark:text-emerald-400"
+                  data-testid="activity-bundle"
+                >
+                  {locale === "fr" ? "Dossier complet (ZIP)" : "Audit-file bundle (ZIP)"}
+                </a>
+              </span>
+            }
+          />
         </div>
         <div className="p-1.5" data-testid="activity-log">
           {rows.length === 0 ? (

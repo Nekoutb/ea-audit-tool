@@ -29,9 +29,19 @@ interface UserRow {
  */
 const DECOY_HASH = "$2a$10$N9qo8uLOickgx2ZMRZoMyeIjZAgcfl7p92ldGxad68LJZdL17lhWy";
 
-/** Thrown when the backoff is in force; surfaced as ?error=too-many-attempts. */
+/**
+ * Thrown when the backoff is in force; surfaced as
+ * ?error=too-many-attempts:<minutes> so the login page can say how long to
+ * wait (UAT B38). Only `code` survives the Auth.js round trip, so the wait
+ * rides inside it.
+ */
 export class ThrottledError extends CredentialsSignin {
   code = "too-many-attempts";
+  constructor(retryAfterSeconds = 0) {
+    super();
+    const minutes = Math.max(1, Math.ceil(retryAfterSeconds / 60));
+    this.code = `too-many-attempts:${minutes}`;
+  }
 }
 
 /** The password was right but the second factor was missing or wrong. */
@@ -76,7 +86,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
         // Refuse without touching the password, and without recording another
         // failure — otherwise the backoff would extend itself every time a
         // blocked caller retried, which is a lockout, not a throttle.
-        if (throttle.blocked) throw new ThrottledError();
+        if (throttle.blocked) throw new ThrottledError(throttle.retryAfter);
 
         const userResult = await pool.query<UserRow>(
           `SELECT id, email, name, password_hash, preferred_language,
@@ -142,7 +152,45 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
       },
     }),
   ],
+  events: {
+    /**
+     * Sign-out revokes the session everywhere, not just in the browser that
+     * clicked it (UAT B36). Sessions are stateless JWTs, so deleting the
+     * cookie left a copied one valid for the remaining twelve hours. Bumping
+     * session_version makes the jwt callback below refuse the old token at
+     * its next re-read, within the revalidation window.
+     */
+    async signOut(message) {
+      const token = "token" in message ? message.token : null;
+      const uid = typeof token?.uid === "string" ? token.uid : "";
+      if (!uid) return;
+      try {
+        await pool.query(
+          "UPDATE app_user SET session_version = coalesce(session_version, 1) + 1 WHERE id = $1",
+          [uid],
+        );
+      } catch (e) {
+        // The browser cookie is gone either way; say so rather than fail the sign-out.
+        console.error("[auth] session revocation on sign-out failed:", e instanceof Error ? e.message : e);
+      }
+    },
+  },
   callbacks: {
+    /**
+     * Same-origin only (UAT B07). The sign-in form already screens `next`,
+     * but this is the last hand on every redirect NextAuth performs: a
+     * backslash ("/\host" reads as "//host" in a browser), a control character
+     * or any URL that resolves off this origin lands on the app root instead.
+     */
+    async redirect({ url, baseUrl }) {
+      if (/[\\\u0000-\u001f\u007f]/.test(url) || /%5c/i.test(url)) return baseUrl;
+      try {
+        const target = new URL(url, baseUrl);
+        return target.origin === new URL(baseUrl).origin ? target.href : baseUrl;
+      } catch {
+        return baseUrl;
+      }
+    },
     /**
      * The single choke point every one of the ~69 `await auth()` call sites
      * passes through, and therefore the only place a stale token can be caught.

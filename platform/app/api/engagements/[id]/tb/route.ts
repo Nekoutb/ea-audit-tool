@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { SubLedgerError } from "@/lib/subledgers";
 import { addOverride, importTrialBalance, saveLeadIndexOverride, TbError, type TbMapping } from "@/lib/tb";
 import { getEngagement } from "@/lib/engagements";
+import { oversizedBody } from "@/lib/api-errors";
 
 const MAX_BYTES = 60 * 1024 * 1024; // data import, not a document — see capacity doc
 
@@ -9,9 +10,20 @@ const MAX_BYTES = 60 * 1024 * 1024; // data import, not a document — see capac
 export async function POST(request: Request, context: { params: Promise<{ id: string }> }) {
   const { id } = await context.params;
   try {
-    const form = await request.formData();
+    // Over the limit is answered at once and by name, not as a 500 (UAT B25).
+    const tooLarge = oversizedBody(request, MAX_BYTES);
+    if (tooLarge) return tooLarge;
+    let form: FormData;
+    try {
+      form = await request.formData();
+    } catch {
+      return NextResponse.json({ error: "file-too-large", limitMb: MAX_BYTES / (1024 * 1024) }, { status: 413 });
+    }
     const file = form.get("file");
-    if (!(file instanceof File) || file.size === 0 || file.size > MAX_BYTES) {
+    if (file instanceof File && file.size > MAX_BYTES) {
+      return NextResponse.json({ error: "file-too-large", limitMb: MAX_BYTES / (1024 * 1024) }, { status: 413 });
+    }
+    if (!(file instanceof File) || file.size === 0) {
       return NextResponse.json({ error: "file-size" }, { status: 400 });
     }
     const buffer = Buffer.from(await file.arrayBuffer());
@@ -59,6 +71,13 @@ export async function POST(request: Request, context: { params: Promise<{ id: st
     if (error instanceof TbError || error instanceof SubLedgerError) {
       return NextResponse.json({ error: error.code }, { status: 400 });
     }
-    return NextResponse.json({ error: "unauthenticated" }, { status: 401 });
+    // Only a missing session is "unauthenticated"; a file the parser could
+    // not read or a query that failed is ours, and was being reported as a
+    // sign-in problem (UAT B103).
+    if (error instanceof Error && /UNAUTHENTICATED/.test(error.message)) {
+      return NextResponse.json({ error: "unauthenticated" }, { status: 401 });
+    }
+    console.error("[tb] import failed:", error instanceof Error ? (error.stack ?? error.message) : error);
+    return NextResponse.json({ error: "import-failed" }, { status: 500 });
   }
 }

@@ -33,7 +33,11 @@ async function loginAction(formData: FormData): Promise<void> {
       // credential failure. The login page maps unknown codes back to the
       // generic message, so a new code can never render blank.
       const code = (error as { code?: string }).code;
-      const known = code === "too-many-attempts" || code === "mfa-required" ? code : "1";
+      // too-many-attempts carries the wait in minutes after a colon
+      const known =
+        code === "mfa-required" || (typeof code === "string" && /^too-many-attempts(:\d{1,4})?$/.test(code))
+          ? code
+          : "1";
       redirect(`/login?error=${encodeURIComponent(known)}`);
     }
     throw error; // NEXT_REDIRECT on success must propagate

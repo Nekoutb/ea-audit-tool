@@ -19,8 +19,12 @@ import { pool } from "@/lib/db";
 
 /** Failures tolerated on a pair before the backoff starts. */
 const PAIR_FREE = 5;
-/** Failures tolerated on an email alone, when no IP dimension exists. */
-const EMAIL_ONLY_FREE = 50;
+/**
+ * Failures tolerated on an email alone, when no IP dimension exists. Fifty
+ * let an attacker try fifty passwords at full speed before any brake (UAT
+ * B38); fifteen still leaves a real person room for a typo streak.
+ */
+const EMAIL_ONLY_FREE = 15;
 /** Backoff after the free attempts, in minutes, then held at the last value. */
 const BACKOFF_MINUTES = [1, 2, 4, 8, 16, 30];
 

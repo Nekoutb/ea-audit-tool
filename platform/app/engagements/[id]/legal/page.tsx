@@ -12,18 +12,20 @@ import {
   rapportSpecialAction,
   resumeAlerteAction,
   revealFaitAction,
+  setLegalDatesAction,
   setShareCapitalAction,
   startAlerteAction,
   titresAttestationAction,
 } from "@/app/actions/legal";
 import { AppNav } from "@/components/AppNav";
 import { ErrorBanner } from "@/components/GatesPanel";
+import { UnsavedGuard } from "@/components/UnsavedGuard";
 import { getAlerte } from "@/lib/alerte";
-import { getCompletionRecord } from "@/lib/completion";
+import { completionRecordVersion, getCompletionRecord } from "@/lib/completion";
 import { getEngagement } from "@/lib/engagements";
 import { formatFCFA, getMessages } from "@/lib/i18n";
 import { canPartnerSignoff, type Role } from "@/lib/rbac";
-import { CONVENTION_CAPACITIES, listConventions, listDeadlines, listFaits } from "@/lib/legal";
+import { CONVENTION_CAPACITIES, equityStatus, legalDates, listConventions, listDeadlines, listFaits } from "@/lib/legal";
 import { getLocale } from "@/lib/locale";
 
 export const metadata = { title: "OHADA legal · AuditISA" };
@@ -44,7 +46,7 @@ export default async function LegalPage(props: {
 
   const engagement = await getEngagement(id);
   if (!engagement) notFound();
-  const [deadlines, register, alerte, faits, worksplit, crossreview, disagreement] = await Promise.all([
+  const [deadlines, register, alerte, faits, worksplit, crossreview, disagreement, dates, equity, versions] = await Promise.all([
     listDeadlines(id),
     listConventions(id),
     getAlerte(id),
@@ -52,7 +54,18 @@ export default async function LegalPage(props: {
     getCompletionRecord(id, "f8_worksplit"),
     getCompletionRecord(id, "f8_crossreview"),
     getCompletionRecord(id, "f8_disagreement"),
+    legalDates(id),
+    equityStatus(id),
+    // the version each panel was built on, so a concurrent save is caught (UAT B104)
+    Promise.all(
+      (["worksplit", "crossreview", "disagreement"] as const).map((k) => completionRecordVersion(id, `f8_${k}`)),
+    ).then(([w, c, d]) => ({ worksplit: w, crossreview: c, disagreement: d })),
   ]);
+  // AGM-relative rows the calendar can only compute once the AGM date is known
+  const agmRelativeKeys = ["docs_to_cac", "cac_report_shareholders", "rapport_special_deposit"] as const;
+  const pendingKeys = dates.agmDate
+    ? []
+    : agmRelativeKeys.filter((key) => !deadlines.some((deadline) => deadline.key === key));
 
   const btn =
     "rounded-[var(--radius-atlas-sm)] border border-line-strong bg-surface px-2.5 py-1 text-xs font-medium text-ink-soft hover:bg-surface-2";
@@ -69,7 +82,8 @@ export default async function LegalPage(props: {
 
   return (
     <main className="min-h-screen w-full px-6 py-8">
-      <AppNav locale={locale} />
+      <AppNav locale={locale} current={{ id, label: engagement.name ?? engagement.clientName }} />
+      <UnsavedGuard message={locale === "fr" ? "Des modifications non enregistrées seront perdues." : "Unsaved changes will be lost."} />
       <h1 className="mt-8 text-2xl font-semibold text-ink">
         {engagement.clientName} — {engagement.fiscalYear} · {tl.title}
       </h1>
@@ -85,10 +99,34 @@ export default async function LegalPage(props: {
             </button>
           </form>
         </div>
-        {deadlines.length > 0 ? (
+        {/* the AGM (and planned report) date the AGM-relative rows derive from (UAT B35) */}
+        <form action={setLegalDatesAction.bind(null, id)} className="mt-3 flex flex-wrap items-end gap-2" data-testid="legal-dates-form">
+          <label className={label}>
+            {tl.agmDate}
+            <input name="agmDate" type="date" defaultValue={dates.agmDate ?? ""} className={`${input} mt-1`} data-testid="agm-date" />
+          </label>
+          <label className={label}>
+            {tl.reportDate}
+            <input name="reportDate" type="date" defaultValue={dates.reportDate ?? ""} className={`${input} mt-1`} data-testid="report-date" />
+          </label>
+          <button type="submit" className={btn} data-testid="save-legal-dates">
+            {tl.saveDates}
+          </button>
+          <span className="text-xs text-muted">{tl.periodEndLabel}: {dates.periodEnd}</span>
+        </form>
+        {deadlines.length > 0 || pendingKeys.length > 0 ? (
           <div className="mt-3 overflow-x-auto rounded-[var(--radius-atlas)] border border-line">
             <table className="w-full text-sm" data-testid="deadlines-table">
               <tbody>
+                {pendingKeys.map((key) => (
+                  <tr key={key} className="border-t border-line first:border-t-0 text-muted" data-testid={`deadline-pending-${key}`}>
+                    <td className="px-3 py-2">{deadlineName(key)}</td>
+                    <td className="w-28 px-3 py-2 font-mono text-xs italic">{tl.toCalculate}</td>
+                    <td className="w-28 px-3 py-2 text-xs" />
+                    <td className="px-3 py-2 text-xs">{tl.agmDateRequired}</td>
+                    <td className="w-20 px-3 py-2" />
+                  </tr>
+                ))}
                 {deadlines.map((deadline) => (
                   <tr key={deadline.key} className="border-t border-line first:border-t-0 hover:bg-surface-2">
                     <td className="px-3 py-2 text-ink">{deadlineName(deadline.key)}</td>
@@ -222,17 +260,24 @@ export default async function LegalPage(props: {
       {/* C5.5 alerte */}
       <section className={card}>
         <h2 className={heading}>{tl.alerte}</h2>
-        {alerte === null ? (
+        {/* A closed procedure is history: the last one stays readable below and
+            a new one can be started — going-concern doubt can return. */}
+        {alerte === null || alerte.stage === "closed" ? (
           <form action={startAlerteAction.bind(null, id)} className="mt-3 flex flex-wrap items-end gap-2">
             <label className={`${label} w-full max-w-96`}>
               {tl.note}
               <input name="note" required className={`${input} mt-1 w-full`} data-testid="alerte-note" />
             </label>
+            <label className={label}>
+              {tl.eventDate}
+              <input name="eventDate" type="date" max={new Date().toISOString().slice(0, 10)} className={`${input} mt-1 block tnum`} data-testid="alerte-event-date" />
+            </label>
             <button type="submit" className={btn} data-testid="start-alerte">
               {tl.startAlerte}
             </button>
           </form>
-        ) : (
+        ) : null}
+        {alerte !== null ? (
           <div className="mt-3 text-sm text-ink-soft">
             <p data-testid="alerte-stage">
               {tl.stage}: <strong>{stageName(alerte.stage)}</strong>
@@ -242,7 +287,7 @@ export default async function LegalPage(props: {
             <ul className="mt-2 flex flex-col gap-1 text-xs text-muted">
               {alerte.events.map((event, index) => (
                 <li key={`${event.stage}-${index}`}>
-                  {event.createdAt} — {stageName(event.stage)}
+                  {event.eventDate} — {stageName(event.stage)}
                   {event.note ? ` · ${event.note}` : ""}
                 </li>
               ))}
@@ -264,6 +309,10 @@ export default async function LegalPage(props: {
                   {tl.note}
                   <input name="note" className={`${input} mt-1 w-72`} data-testid="alerte-advance-note" />
                 </label>
+                <label className={label}>
+                  {tl.eventDate}
+                  <input name="eventDate" type="date" max={new Date().toISOString().slice(0, 10)} className={`${input} mt-1 block tnum`} data-testid="alerte-advance-date" />
+                </label>
                 {alerte.nextStages[0] === "reply_recorded" ? (
                   <label className="flex items-center gap-1 text-xs text-muted">
                     <input type="checkbox" name="satisfactory" data-testid="alerte-satisfactory" /> {tl.satisfactory}
@@ -275,7 +324,7 @@ export default async function LegalPage(props: {
               </form>
             ) : null}
           </div>
-        )}
+        ) : null}
       </section>
 
       {/* C5.6 faits délictueux (partner only) */}
@@ -329,7 +378,14 @@ export default async function LegalPage(props: {
           <form action={setShareCapitalAction.bind(null, id)} className="flex items-end gap-2">
             <label className={label}>
               {tl.shareCapital}
-              <input name="amount" type="number" required className={`${input} mt-1`} data-testid="share-capital" />
+              <input
+                name="amount"
+                type="number"
+                required
+                defaultValue={equity.shareCapital ?? ""}
+                className={`${input} mt-1`}
+                data-testid="share-capital"
+              />
             </label>
             <button type="submit" className={btn} data-testid="save-capital">
               {tl.saveCapital}
@@ -341,9 +397,26 @@ export default async function LegalPage(props: {
             </button>
           </form>
         </div>
+        {equity.hasTb ? (
+          <p className="mt-3 text-xs text-ink-soft tnum" data-testid="equity-figures">
+            {tl.equityValue}: <b>{formatFCFA(equity.equity)}</b>
+            {equity.halfCapital !== null ? (
+              <>
+                {" "}· {tl.halfCapital}: <b>{formatFCFA(equity.halfCapital)}</b>
+              </>
+            ) : null}
+            {" "}· {equity.source === "post_audit" ? tl.sourceFinalTb : tl.sourcePreAuditTb}
+          </p>
+        ) : (
+          <p className="mt-3 text-xs text-muted" data-testid="equity-figures">{tl.noTbYet}</p>
+        )}
         {deadlines.some((deadline) => deadline.key === "egm_equity") ? (
           <p className="mt-3 rounded-[var(--radius-atlas-sm)] bg-[var(--color-rose-soft)] px-3 py-2 text-sm font-medium text-rose" data-testid="equity-breach">
             {tl.equityBreach}
+          </p>
+        ) : equity.hasTb && equity.halfCapital !== null ? (
+          <p className="mt-3 text-sm font-medium text-emerald-700 dark:text-emerald-400" data-testid="equity-ok">
+            {tl.equityOk}
           </p>
         ) : null}
       </section>
@@ -366,6 +439,7 @@ export default async function LegalPage(props: {
             >
               <p className="text-xs font-semibold text-ink">{panel.title}</p>
               <input type="hidden" name="key" value={panel.key} />
+              <input type="hidden" name="baseVersion" value={versions[panel.key]} />
               <textarea
                 name="text"
                 rows={3}

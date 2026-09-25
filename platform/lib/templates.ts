@@ -123,10 +123,42 @@ const E510_APP_CONTROLS: WorkpaperTemplate = {
   },
 };
 
+const S61_STRATEGY: WorkpaperTemplate = {
+  id: "S6.1-strategy",
+  version: 1,
+  purpose: {
+    en: "Record the overall audit strategy (ISA 300 ¶7–9): the scope, timing and direction of the audit, the approved materiality (ISA 320 ¶10–11), the significant risks the plan answers, the scoped sections, and the resources assigned. The identity block above carries the file's own figures at the date the memorandum was generated.",
+    fr: "Consigner la stratégie générale d'audit (ISA 300 ¶7–9) : l'étendue, le calendrier et l'orientation de la mission, le seuil de signification approuvé (ISA 320 ¶10–11), les risques importants auxquels le plan répond, les sections retenues dans le périmètre et les ressources affectées. Le bloc d'identification ci-dessus porte les chiffres du dossier à la date de génération du mémorandum.",
+  },
+  items: {
+    en: [
+      "Scope: the financial reporting framework, the reporting entity, the locations and any component covered.",
+      "Reporting objectives and deadlines: statutory report, general meeting, regulator filings.",
+      "Materiality: overall, performance and clearly-trivial thresholds as approved by the partner (P6.1), with the benchmark and the rationale.",
+      "Significant risks (S3.1) and the planned responses, including the fraud risks presumed under ISA 240.",
+      "Scoping: the material sections and significant accounts the substantive programme covers (P6.2, S5.5), and those relying on controls (S2.x).",
+      "Resources: team allocation by area and the time budget weighted to the areas of higher assessed risk (P2.2).",
+      "Others whose work the audit uses: expert, internal audit, component auditors, service organisation reports.",
+      "Direction set for the team, and every change to the strategy during the engagement with its reason (ISA 300 ¶10, ¶12).",
+    ],
+    fr: [
+      "Étendue : référentiel comptable, entité présentant les comptes, implantations et composants couverts.",
+      "Objectifs de reporting et échéances : rapport statutaire, assemblée générale, dépôts réglementaires.",
+      "Seuil de signification : seuil global, seuil de travail et seuil négligeable approuvés par l'associé (P6.1), avec le critère de référence et sa justification.",
+      "Risques importants (S3.1) et réponses prévues, y compris les risques de fraude présumés par l'ISA 240.",
+      "Périmètre : sections significatives et comptes significatifs couverts par le programme de corroboration (P6.2, S5.5), et ceux s'appuyant sur les contrôles (S2.x).",
+      "Ressources : affectation de l'équipe par zone et budget-temps pondéré vers les zones de risque évalué élevé (P2.2).",
+      "Tiers dont les travaux sont utilisés : expert, audit interne, auditeurs de composants, rapports de sociétés de services.",
+      "Orientation donnée à l'équipe, et chaque modification de la stratégie en cours de mission avec son motif (ISA 300 ¶10, ¶12).",
+    ],
+  },
+};
+
 const TEMPLATES: Record<string, WorkpaperTemplate> = {
   "P1.1": D31,
   "E1.1": E500_ITGC,
   "E1.2": E510_APP_CONTROLS,
+  "S6.1": S61_STRATEGY,
 };
 
 /** Resolve the template for a file-index code (falls back to the generic form). */

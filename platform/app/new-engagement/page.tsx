@@ -3,6 +3,7 @@ import { auth } from "@/auth";
 import { AppNav } from "@/components/AppNav";
 import { EngagementWizard } from "@/components/EngagementWizard";
 import { ErrorBanner } from "@/components/GatesPanel";
+import { getBranding } from "@/lib/branding";
 import { listClients } from "@/lib/clients";
 import { getMessages } from "@/lib/i18n";
 import { getLocale } from "@/lib/locale";
@@ -26,7 +27,7 @@ export default async function NewEngagementPage(props: {
   const t = getMessages(locale);
   const te = t.engagements;
 
-  const clients = await listClients();
+  const [clients, branding] = await Promise.all([listClients(), getBranding()]);
   // The ?client= parameter (from an entity page) preselects that client's name.
   const defaultClientName = client ? clients.find((c) => c.id === client)?.name : undefined;
 
@@ -39,8 +40,9 @@ export default async function NewEngagementPage(props: {
         <ErrorBanner error={error} locale={locale} />
         <div className="mt-4">
           <EngagementWizard
-            clients={clients.map((c) => ({ id: c.id, name: c.name }))}
+            clients={clients.map((c) => ({ id: c.id, name: c.name, yearEnd: c.yearEnd ?? null }))}
             defaultClientName={defaultClientName}
+            naming={branding.engagementNaming}
             locale={locale === "fr" ? "fr" : "en"}
             labels={{
               clientLabel: te.client,

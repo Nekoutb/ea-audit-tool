@@ -19,10 +19,14 @@ import { fileResponseHeaders } from "@/lib/upload-safety";
 
 /** Turn a library error into the right status; unknown errors stay 400. */
 function errorResponse(error: unknown, fallback: string) {
-  const code = error instanceof Error ? error.message : fallback;
-  if (code.startsWith("UNAUTHENTICATED")) {
+  const raw = error instanceof Error ? error.message : fallback;
+  if (raw.startsWith("UNAUTHENTICATED")) {
     return NextResponse.json({ error: "unauthenticated" }, { status: 401 });
   }
+  // Only kebab-case library codes reach the client; a driver message
+  // ("duplicate key value violates unique constraint …") collapses to the
+  // fallback (UAT B148).
+  const code = /^[a-z0-9-]+$/.test(raw) ? raw : fallback;
   const status =
     code === "forbidden" || code === "not-on-this-engagement" ? 403 : code === "not-found" ? 404 : code === "archived" ? 409 : 400;
   return NextResponse.json({ error: code }, { status });

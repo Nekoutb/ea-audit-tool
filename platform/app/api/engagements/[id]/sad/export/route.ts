@@ -151,8 +151,29 @@ export async function GET(request: Request, context: { params: Promise<{ id: str
     const wsU = wb.addWorksheet(fr ? "SAD non corrigées" : "SAD uncorrected");
     band(wsU, fr ? "Récapitulatif des anomalies non corrigées" : "Summary of uncorrected misstatements");
     gridHead(wsU, false);
-    const uncorrected = view.entries.filter((e) => !e.corrected && MAIN_TYPES.includes(e.mtype));
+    // ISA 450 ¶5: clearly trivial items are not accumulated (UAT B51) — they
+    // are listed apart under the nominal amount, exactly as on screen.
+    const nominal = mat?.trivial ?? null;
+    const isTrivial = (e: SadEntry) =>
+      nominal !== null && Math.max(Math.abs(e.drAmount), Math.abs(e.crAmount)) < nominal;
+    const uncorrected = view.entries.filter((e) => !e.corrected && MAIN_TYPES.includes(e.mtype) && !isTrivial(e));
     const uTotals = entryRows(wsU, uncorrected, false, true);
+    const trivialEntries = view.entries.filter((e) => MAIN_TYPES.includes(e.mtype) && isTrivial(e));
+    if (trivialEntries.length > 0) {
+      wsU.addRow([]);
+      const tb = wsU.addRow([
+        fr
+          ? `Anomalies manifestement négligeables — inférieures au nominal de ${nominal}, non cumulées (ISA 450 ¶5)`
+          : `Clearly trivial misstatements — below the nominal amount of ${nominal}, not accumulated (ISA 450 ¶5)`,
+      ]);
+      for (let c = 1; c <= 3 + SAD_COLUMN_COUNT; c += 1) { fill(tb.getCell(c), BAND); box(tb.getCell(c)); }
+      tb.getCell(1).font = { bold: true };
+      trivialEntries.forEach((e, i) => {
+        const r = wsU.addRow([i + 1, e.taskCode, `${e.finding || e.taskTitle}${e.corrected ? (fr ? " (corrigée)" : " (corrected)") : ""}`, Math.max(Math.abs(e.drAmount), Math.abs(e.crAmount))]);
+        for (let c = 1; c <= 4; c += 1) box(r.getCell(c));
+        r.getCell(4).numFmt = MONEY;
+      });
+    }
     const cumIS = uTotals[5];
     const rate = amountOr(meta.tax_rate ?? "33", 33) / 100;
     const taxEffect = -cumIS * rate;
@@ -182,7 +203,7 @@ export async function GET(request: Request, context: { params: Promise<{ id: str
     const wsC = wb.addWorksheet(fr ? "SAD corrigées" : "SAD corrected");
     band(wsC, fr ? "Récapitulatif des anomalies corrigées" : "Summary of corrected misstatements");
     gridHead(wsC, true);
-    entryRows(wsC, view.entries.filter((e) => e.corrected && MAIN_TYPES.includes(e.mtype)), true, true);
+    entryRows(wsC, view.entries.filter((e) => e.corrected && MAIN_TYPES.includes(e.mtype) && !isTrivial(e)), true, true);
 
     // ---------------- 3. Conclusion ----------------
     const wsK = wb.addWorksheet(fr ? "Conclusion SAD" : "SAD conclusion");

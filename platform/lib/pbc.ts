@@ -11,6 +11,7 @@ import { withTenant } from "@/lib/db";
 import { createNotification } from "@/lib/notifications";
 import { canReview } from "@/lib/rbac";
 import { requireTenant, requirePortalUser, ForbiddenError } from "@/lib/tenant";
+import { checkUpload } from "@/lib/upload-safety";
 
 export class PbcError extends Error {
   constructor(public readonly code: string) {
@@ -29,6 +30,13 @@ export interface PbcItem {
   status: "requested" | "uploaded" | "accepted";
   filename: string | null;
   documentId: string | null;
+  /** YYYY-MM-DD — when the request was raised */
+  createdAt: string;
+  /** YYYY-MM-DD — when the client uploaded, if they have */
+  uploadedAt: string | null;
+  /** YYYY-MM-DD — the last reminder sent, and how many so far (UAT B112) */
+  chasedAt: string | null;
+  chaseCount: number;
 }
 
 const MAX_PBC_BYTES = 25 * 1024 * 1024;
@@ -84,10 +92,15 @@ async function queryItems(tx: PoolClient, where: string, params: unknown[]): Pro
   const result = await tx.query<{
     id: string; engagement_id: string; client_name: string; fiscal_year: number;
     title: string; note: string; status: PbcItem["status"]; filename: string | null;
-    document_id: string | null;
+    document_id: string | null; created_at: string; uploaded_at: string | null;
+    chased_at: string | null; chase_count: number;
   }>(
     `SELECT fi.id, fi.engagement_id, c.name AS client_name, e.fiscal_year,
-            fi.title, fi.note, fi.status, fi.filename, fi.document_id
+            fi.title, fi.note, fi.status, fi.filename, fi.document_id,
+            to_char(fi.created_at, 'YYYY-MM-DD') AS created_at,
+            to_char(fi.uploaded_at, 'YYYY-MM-DD') AS uploaded_at,
+            to_char(fi.chased_at, 'YYYY-MM-DD') AS chased_at,
+            coalesce(fi.chase_count, 0)::int AS chase_count
        FROM pbc_item fi
        JOIN engagement e ON e.id = fi.engagement_id
        JOIN client c ON c.id = e.client_id
@@ -99,7 +112,45 @@ async function queryItems(tx: PoolClient, where: string, params: unknown[]): Pro
     id: row.id, engagementId: row.engagement_id, clientName: row.client_name,
     fiscalYear: row.fiscal_year, title: row.title, note: row.note, status: row.status,
     filename: row.filename, documentId: row.document_id,
+    createdAt: row.created_at, uploadedAt: row.uploaded_at,
+    chasedAt: row.chased_at, chaseCount: row.chase_count,
   }));
+}
+
+/**
+ * Firm side: remind the client's portal users of a request they have not
+ * answered (UAT B112). The reminder is a fresh portal notification, and the
+ * item records when and how often it was chased.
+ */
+export async function chasePbc(itemId: string): Promise<void> {
+  const { tenantId } = await requireTenant();
+  const { title, note, portalUsers } = await withTenant(tenantId, async (tx) => {
+    const updated = await tx.query<{ title: string; note: string; engagement_id: string }>(
+      `UPDATE pbc_item SET chased_at = now(), chase_count = coalesce(chase_count, 0) + 1
+        WHERE id = $1 AND status = 'requested'
+        RETURNING title, note, engagement_id`,
+      [itemId],
+    );
+    const row = updated.rows[0];
+    if (!row) throw new PbcError("wrong-status");
+    const users = await tx.query<{ user_id: string }>(
+      `SELECT m.user_id FROM membership m
+        WHERE m.tenant_id = $1 AND m.role = 'client_user'
+          AND m.client_id = (SELECT client_id FROM engagement WHERE id = $2)`,
+      [tenantId, row.engagement_id],
+    );
+    return { title: row.title, note: row.note, portalUsers: users.rows };
+  });
+  for (const user of portalUsers) {
+    await createNotification({
+      tenantId,
+      userId: user.user_id,
+      kind: "pbc-reminder",
+      title: `Reminder — PBC: ${title}`,
+      body: note || "This document is still outstanding — please upload it on the portal.",
+      href: "/portal",
+    });
+  }
 }
 
 /** Portal side: upload the response. Only for the item's own client. */
@@ -112,6 +163,10 @@ export async function uploadPbc(
   if (clientId !== own) throw new ForbiddenError("not-your-client");
   if (file.content.length === 0) throw new PbcError("empty-file");
   if (file.content.length > MAX_PBC_BYTES) throw new PbcError("file-too-large");
+  // The same allowlist and byte-signature check as a task attachment: the
+  // stored name and MIME come from what the bytes are, never from the
+  // client's claim (UnsafeFileError propagates to the action).
+  const checked = checkUpload(file.filename, file.content);
   await withTenant(tenantId, async (tx) => {
     const updated = await tx.query(
       `UPDATE pbc_item fi
@@ -120,7 +175,7 @@ export async function uploadPbc(
          FROM engagement e
         WHERE fi.id = $1 AND e.id = fi.engagement_id AND e.client_id = $2
           AND fi.status <> 'accepted'`,
-      [itemId, clientId, file.filename, file.mime, file.content, userId],
+      [itemId, clientId, checked.name, checked.mime, file.content, userId],
     );
     if (updated.rowCount === 0) throw new PbcError("not-found");
     const team = await tx.query<{ user_id: string; engagement_id: string }>(
@@ -134,7 +189,7 @@ export async function uploadPbc(
         tenantId,
         userId: member.user_id,
         kind: "pbc-uploaded",
-        title: `PBC uploaded: ${file.filename}`,
+        title: `PBC uploaded: ${checked.name}`,
         href: `/engagements/${member.engagement_id}/pbc`,
       });
     }
@@ -142,12 +197,53 @@ export async function uploadPbc(
 }
 
 /**
- * Firm side (reviewer+): accept the upload; optionally attach it to a file
- * item as a versioned working-paper document (evidence, spec §5.2).
+ * File the upload's bytes as a working-paper document on a task. The bytes are
+ * checked again on the way into the audit file (rows uploaded before the
+ * portal applied the allowlist are refused here with UnsafeFileError), and
+ * the stored name and MIME come from that check.
+ */
+async function filePbcAsDocument(
+  tx: PoolClient,
+  tenantId: string,
+  userId: string,
+  row: { engagement_id: string; title: string; filename: string | null; content: Buffer },
+  attachFileItemId: string,
+): Promise<string> {
+  const checked = checkUpload(row.filename ?? row.title, row.content);
+  const target = await tx.query(
+    "SELECT 1 FROM file_item WHERE id = $1 AND engagement_id = $2",
+    [attachFileItemId, row.engagement_id],
+  );
+  if (!target.rows[0]) throw new PbcError("not-found");
+  const created = await tx.query<{ id: string }>(
+    `INSERT INTO document (tenant_id, engagement_id, file_item_id, title, language, kind, created_by, current_version)
+     VALUES ($1, $2, $3, $4, 'fr', 'workpaper', $5, 1) RETURNING id`,
+    [tenantId, row.engagement_id, attachFileItemId, `PBC — ${row.title}`, userId],
+  );
+  const documentId = created.rows[0].id;
+  await tx.query(
+    `INSERT INTO document_version
+       (tenant_id, document_id, version_no, mime, byte_size, sha256, content, note, created_by)
+     VALUES ($1, $2, 1, $3, $4, $5, $6, $7, $8)`,
+    [
+      tenantId, documentId, checked.mime, row.content.length,
+      createHash("sha256").update(row.content).digest("hex"), row.content,
+      `pbc:${checked.name}`, userId,
+    ],
+  );
+  return documentId;
+}
+
+/**
+ * Firm side (reviewer+): accept the upload and attach it to a file item as a
+ * versioned working-paper document (evidence, spec §5.2). The section is
+ * required: an accepted upload attached nowhere was unreachable from the
+ * file — no link, no download, no task carrying it.
  */
 export async function acceptPbc(itemId: string, attachFileItemId?: string): Promise<string | null> {
   const { tenantId, userId, role } = await requireTenant();
   if (!canReview(role)) throw new PbcError("forbidden");
+  if (!attachFileItemId) throw new PbcError("attach-required");
   return withTenant(tenantId, async (tx) => {
     const item = await tx.query<{
       id: string; engagement_id: string; title: string; status: string;
@@ -160,29 +256,36 @@ export async function acceptPbc(itemId: string, attachFileItemId?: string): Prom
     if (!row) throw new PbcError("not-found");
     if (row.status !== "uploaded" || !row.content) throw new PbcError("wrong-status");
 
-    let documentId: string | null = null;
-    if (attachFileItemId) {
-      const created = await tx.query<{ id: string }>(
-        `INSERT INTO document (tenant_id, engagement_id, file_item_id, title, language, kind, created_by, current_version)
-         VALUES ($1, $2, $3, $4, 'fr', 'workpaper', $5, 1) RETURNING id`,
-        [tenantId, row.engagement_id, attachFileItemId, `PBC — ${row.title}`, userId],
-      );
-      documentId = created.rows[0].id;
-      await tx.query(
-        `INSERT INTO document_version
-           (tenant_id, document_id, version_no, mime, byte_size, sha256, content, note, created_by)
-         VALUES ($1, $2, 1, $3, $4, $5, $6, $7, $8)`,
-        [
-          tenantId, documentId, row.mime ?? "application/octet-stream", row.content.length,
-          createHash("sha256").update(row.content).digest("hex"), row.content,
-          `pbc:${row.filename ?? row.title}`, userId,
-        ],
-      );
-    }
+    const documentId = await filePbcAsDocument(tx, tenantId, userId, { ...row, content: row.content }, attachFileItemId);
     await tx.query(
       "UPDATE pbc_item SET status = 'accepted', accepted_by = $2, accepted_at = now(), document_id = $3 WHERE id = $1",
       [itemId, userId, documentId],
     );
+    return documentId;
+  });
+}
+
+/**
+ * Firm side (reviewer+): attach an item that was accepted before the section
+ * became mandatory — its bytes are still on the row, so it can be filed now.
+ */
+export async function attachAcceptedPbc(itemId: string, attachFileItemId: string): Promise<string> {
+  const { tenantId, userId, role } = await requireTenant();
+  if (!canReview(role)) throw new PbcError("forbidden");
+  if (!attachFileItemId) throw new PbcError("attach-required");
+  return withTenant(tenantId, async (tx) => {
+    const item = await tx.query<{
+      engagement_id: string; title: string; status: string; document_id: string | null;
+      filename: string | null; content: Buffer | null;
+    }>(
+      "SELECT engagement_id, title, status, document_id, filename, content FROM pbc_item WHERE id = $1 FOR UPDATE",
+      [itemId],
+    );
+    const row = item.rows[0];
+    if (!row) throw new PbcError("not-found");
+    if (row.status !== "accepted" || row.document_id || !row.content) throw new PbcError("wrong-status");
+    const documentId = await filePbcAsDocument(tx, tenantId, userId, { ...row, content: row.content }, attachFileItemId);
+    await tx.query("UPDATE pbc_item SET document_id = $2 WHERE id = $1", [itemId, documentId]);
     return documentId;
   });
 }

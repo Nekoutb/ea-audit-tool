@@ -13,8 +13,9 @@ import { amountOr } from "@/lib/amount";
 import { craBoard, rowWorstTod } from "@/lib/cra";
 import { INDEX_SECTION, LEAD_INDEXES, leadIndexFor } from "@/lib/lead-classes";
 import { approvedMateriality } from "@/lib/materiality";
+import { specificThresholds } from "@/lib/significant-accounts";
 import { requireTenant } from "@/lib/tenant";
-import { planTod, TOD_ASSURANCES, type GlLine, type TodAssurance, type TodCra } from "@/lib/tod-plan";
+import { planTod, stableStartFraction, TOD_ASSURANCES, type GlLine, type TodAssurance, type TodCra } from "@/lib/tod-plan";
 import { buildTodWorkbook, type FsSide, type TodIndexSheet, type TodSideView } from "@/lib/tod-workbook";
 
 /** Which indexes belong to which side of the statements. */
@@ -28,16 +29,6 @@ export function indexesOfSide(side: FsSide): typeof LEAD_INDEXES[number][] {
 
 /** The CRA an index gets when S3.1 has not assessed it: the middle of the table, never the lightest. */
 export const DEFAULT_CRA: TodCra = "moderate";
-
-const FR_LABEL: Record<string, string> = {
-  T: "Capital & réserves", Q: "Emprunts", P1: "Provisions pour risques & charges", P2: "Dettes sociales", P3: "Comptes d'attente & produits constatés d'avance",
-  P4: "Écarts de conversion — passif", L: "Immobilisations incorporelles & charges différées", K: "Immobilisations corporelles", J: "Immobilisations financières",
-  F: "Stocks", N: "Fournisseurs", E: "Clients", O1: "Créances fiscales", O2: "Dettes fiscales", O4: "Impôt sur le résultat & participation",
-  I1: "Groupe & associés — court terme", I2: "Groupe & associés", G2: "Autres actifs circulants", G3: "Écarts de conversion — actif", C: "Trésorerie",
-  UA: "Chiffre d'affaires", UB2: "Autres produits", UC: "Produits financiers", U1: "Produits exceptionnels", VA1: "Achats", VA2: "Variation de stocks",
-  VB: "Charges de personnel", VO: "Impôts & taxes", VD1: "Achats non stockés, transports & services extérieurs", VD2: "Dotations aux amortissements & provisions",
-  VD3: "Reprises de provisions & transferts de charges", VD4: "Autres charges", VD5: "Charges financières", V1: "Charges exceptionnelles",
-};
 
 export interface TodExportOptions {
   side: FsSide;
@@ -58,6 +49,9 @@ export async function todSideView(engagementId: string, options: TodExportOption
   const { tenantId, userId } = await requireTenant();
 
   const board = await craBoard(engagementId);
+  // A specific (lower) materiality set on P6.2 drives that account's testing:
+  // it caps both the tolerable error and the key-item threshold of its sheet.
+  const specificByIndex = await specificThresholds(engagementId);
   const craByIndex = new Map<string, TodCra>();
   const thresholdByIndex = new Map<string, number>();
   for (const row of board.rows) {
@@ -67,15 +61,22 @@ export async function todSideView(engagementId: string, options: TodExportOption
   }
 
   const loaded = await withTenant(tenantId, async (tx) => {
-    const gl = await tx.query<{ id: string; mapping: Record<string, string> | null; source_filename: string }>(
-      `SELECT id, mapping, source_filename FROM sub_ledger_dataset
+    const gl = await tx.query<{ id: string; mapping: Record<string, string> | null; source_filename: string; source_sha256: string | null }>(
+      `SELECT id, mapping, source_filename, source_sha256 FROM sub_ledger_dataset
         WHERE engagement_id = $1 AND kind = 'journal_entries'
         ORDER BY (timing = 'pre_audit') DESC, created_at DESC LIMIT 1`,
       [engagementId],
     );
     if (!gl.rows[0]) return "no-gl" as const;
     const mapping = gl.rows[0].mapping ?? {};
-    if (!mapping.account || !mapping.amount) return "no-mapping" as const;
+    // A debit/credit pair is as good as a signed amount column (UAT B30) —
+    // the importer accepts both, so the workbook has to too.
+    const usePair = Boolean(mapping.debit && mapping.credit);
+    if (!mapping.account || (!mapping.amount && !usePair)) return "no-mapping" as const;
+    const signedOf = (data: Record<string, unknown>): number =>
+      usePair
+        ? amountOr(data[mapping.debit], 0) - amountOr(data[mapping.credit], 0)
+        : amountOr(data[mapping.amount], 0);
     // thresholds set on S3.1 for indexes the board does not list (an account
     // below significance still carries one when set)
     const settings = await tx.query<{ index_code: string; key_item_threshold: string | null }>(
@@ -109,7 +110,7 @@ export async function todSideView(engagementId: string, options: TodExportOption
       if (!account) continue;
       const index = indexOf(account);
       if (!index) continue;
-      const n = amountOr(data[mapping.amount], 0);
+      const n = signedOf(data);
       if (!Number.isFinite(n) || n === 0) continue;
       const list = byIndex.get(index) ?? [];
       list.push({
@@ -121,7 +122,7 @@ export async function todSideView(engagementId: string, options: TodExportOption
       });
       byIndex.set(index, list);
     }
-    return { byIndex, ledgerFilename: gl.rows[0].source_filename, preparer: preparer.rows[0]?.who ?? null, currency: tb.rows[0]?.currency ?? "XAF" };
+    return { byIndex, ledgerFilename: gl.rows[0].source_filename, ledgerSha: gl.rows[0].source_sha256 ?? gl.rows[0].id, preparer: preparer.rows[0]?.who ?? null, currency: tb.rows[0]?.currency ?? "XAF" };
   });
   if (typeof loaded === "string") return loaded;
 
@@ -129,13 +130,17 @@ export async function todSideView(engagementId: string, options: TodExportOption
   const emptyIndexes: TodSideView["emptyIndexes"] = [];
   for (const def of indexesOfSide(options.side)) {
     const lines = loaded.byIndex.get(def.code) ?? [];
-    const labelFr = FR_LABEL[def.code] ?? def.labelEn;
+    const labelFr = def.labelFr;
     if (lines.length === 0) {
       emptyIndexes.push({ indexCode: def.code, labelEn: def.labelEn, labelFr });
       continue;
     }
     const cra = craByIndex.get(def.code);
     const threshold = thresholdByIndex.get(def.code);
+    const specific = specificByIndex.get(def.code);
+    const teForIndex = specific !== undefined ? Math.min(te, specific) : te;
+    const thresholdForIndex =
+      specific !== undefined ? Math.min(threshold ?? specific, specific) : (threshold ?? null);
     sheets.push({
       indexCode: def.code,
       labelEn: def.labelEn,
@@ -145,7 +150,12 @@ export async function todSideView(engagementId: string, options: TodExportOption
       craFromS31: cra !== undefined,
       thresholdFromS31: threshold !== undefined,
       assurance,
-      plan: planTod({ lines, te, threshold: threshold ?? null, cra: cra ?? DEFAULT_CRA, assurance, startFraction: options.startFraction }),
+      // the same ledger, index and engagement draw the same sample on every
+      // download; a caller-supplied start (tests) still wins
+      plan: planTod({
+        lines, te: teForIndex, threshold: thresholdForIndex, cra: cra ?? DEFAULT_CRA, assurance,
+        startFraction: options.startFraction ?? stableStartFraction(engagementId, def.code, loaded.ledgerSha),
+      }),
     });
   }
 

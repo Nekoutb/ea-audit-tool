@@ -11,6 +11,21 @@ export const SAD_CAPTIONS = [
 ] as const;
 export type SadCaption = (typeof SAD_CAPTIONS)[number];
 
+/**
+ * Caption labels for display and for the register's accounts text. Income and
+ * expense share the income-statement column but are distinct captions, so they
+ * carry distinct labels (UAT B152).
+ */
+export const SAD_CAPTION_LABELS: Record<SadCaption, { en: string; fr: string }> = {
+  current_asset: { en: "Assets Current", fr: "Actif courant" },
+  non_current_asset: { en: "Assets Non-current", fr: "Actif non courant" },
+  current_liability: { en: "Liabilities Current", fr: "Passif courant" },
+  non_current_liability: { en: "Liabilities Non-current", fr: "Passif non courant" },
+  equity: { en: "Equity components", fr: "Capitaux propres" },
+  income: { en: "Income statement — income", fr: "Résultat — produits" },
+  expense: { en: "Income statement — expenses", fr: "Résultat — charges" },
+};
+
 export const SAD_TYPES = ["factual", "judgmental", "projected", "classification", "disclosure"] as const;
 
 /** The six columns of the workbook's caption grid. */

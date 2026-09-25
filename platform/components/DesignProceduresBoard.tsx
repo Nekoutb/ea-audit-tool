@@ -12,19 +12,14 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { NATURE_OPTIONS, TIMING_OPTIONS, type OspProcedure } from "@/lib/design-procedures-model";
+import { NATURE_OPTIONS, TIMING_OPTIONS, craLevelOf, timingAllowed, type OspProcedure } from "@/lib/design-procedures-model";
 import type { DspRow, DspView } from "@/lib/design-procedures";
-import { craTone, thresholdSuggestion, timingSuggestion, todLabel, worstTod, type CraLevel, type CraTod } from "@/lib/cra-model";
+import { craTone, thresholdSuggestion, timingSuggestion, todLabel, worstTod } from "@/lib/cra-model";
 import { Chip } from "@/components/ui/atlas";
 
-/** The widest interim window the CRA level permits. */
-function timingAllowed(level: CraLevel | null): string[] {
-  if (level === "minimal") return ["period_end", "interim_3", "interim_6"];
-  if (level === "low") return ["period_end", "interim_3"];
-  return ["period_end"];
-}
-
-const levelOf = (tod: CraTod): CraLevel => tod.replace("_sr", "") as CraLevel;
+// timingAllowed lives in the model (UAT B75): the same rule now refuses an
+// out-of-window timing on the server, not only in this drop-down.
+const levelOf = craLevelOf;
 
 /** Short, stable enough to key one account's handful of custom procedures. */
 const newOspId = (): string => Math.random().toString(36).slice(2, 10);

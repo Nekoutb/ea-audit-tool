@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { saveFailed } from "@/lib/api-errors";
 import { auth } from "@/auth";
 import { atLeast, isRole } from "@/lib/rbac";
-import { SIGNATURE_ROLES, saveRasAnswer, signRas, type SignatureRole } from "@/lib/planning-ras";
+import { RasRuleError, SIGNATURE_ROLES, saveRasAnswer, signRas, type SignatureRole } from "@/lib/planning-ras";
 
 /** Record one confirmation, or sign / withdraw one tier of the summary. */
 export async function POST(request: Request, context: { params: Promise<{ id: string }> }) {
@@ -41,6 +41,10 @@ export async function POST(request: Request, context: { params: Promise<{ id: st
     await saveRasAnswer(id, body.key, body.value ?? "");
     return NextResponse.json({ ok: true });
   } catch (error) {
+    // The summary is not ready for that signature (UAT B16): say what is missing.
+    if (error instanceof RasRuleError) {
+      return NextResponse.json({ error: "ras-incomplete", missing: error.missing }, { status: 409 });
+    }
     return saveFailed("planning-ras", error);
   }
 }

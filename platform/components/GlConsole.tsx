@@ -135,6 +135,7 @@ export function GlConsole({
   periodEnd,
   fiscalYear,
   analyzerHref,
+  initialAccounts = [],
 }: {
   engagementId: string;
   locale: "en" | "fr";
@@ -144,6 +145,8 @@ export function GlConsole({
   periodEnd: string;
   fiscalYear: number;
   analyzerHref: string;
+  /** accounts arriving from a lead-schedule figure (?accounts=…): selected and drilled at once */
+  initialAccounts?: string[];
 }) {
   const fr = locale === "fr";
   const T = (en: string, frText: string) => (fr ? frText : en);
@@ -160,8 +163,9 @@ export function GlConsole({
   const [buildNote, setBuildNote] = useState<string | null>(null);
   const [showAllChecks, setShowAllChecks] = useState(false);
 
-  // shared selection
-  const [selected, setSelected] = useState<string[]>([]);
+  // shared selection — a lead-schedule figure links here with its accounts
+  // (?accounts=…): they arrive selected and drilled, no further click (UAT B140)
+  const [selected, setSelected] = useState<string[]>(initialAccounts);
   const [mode, setMode] = useState<EntryMode>("any");
   const [tab, setTab] = useState<Tab>("entry");
 
@@ -186,7 +190,15 @@ export function GlConsole({
   const [analyticError, setAnalyticError] = useState<string | null>(null);
 
   // drill-down
-  const [drill, setDrill] = useState<Drill | null>(null);
+  const [drill, setDrill] = useState<Drill | null>(
+    initialAccounts.length > 0
+      ? {
+          labelEn: `Entries on ${initialAccounts.join(", ")}`,
+          labelFr: `Écritures des comptes ${initialAccounts.join(", ")}`,
+          filter: { accounts: initialAccounts },
+        }
+      : null,
+  );
   const [drillOffset, setDrillOffset] = useState(0);
   const [drillResult, setDrillResult] = useState<DrillResult | null>(null);
   const [drillPending, setDrillPending] = useState(false);

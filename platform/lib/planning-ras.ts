@@ -12,7 +12,7 @@ import type { PoolClient } from "pg";
 import { withTenant } from "@/lib/db";
 import { atLeast, type Role } from "@/lib/rbac";
 import { ForbiddenError, requireTenant, requireRole, requireWrite } from "@/lib/tenant";
-import { engagementTasks } from "@/lib/engagement-dashboard";
+import { engagementTasksWithActiveConditionals } from "@/lib/engagement-dashboard";
 
 export interface RasItem {
   key: string;
@@ -126,7 +126,8 @@ export async function planningRas(engagementId: string): Promise<PlanningRasView
     // so the summary and the task list can never disagree
     const wanted = new Set(ALL_ITEMS.flatMap((i) => i.codes ?? []));
     const tasks: Record<string, RasTaskState> = {};
-    const all = await engagementTasks(engagementId);
+    // a triggered conditional task (P4.2, S5.1 …) is present, not "absent"
+    const all = await engagementTasksWithActiveConditionals(engagementId);
     for (const task of all) {
       if (!wanted.has(task.code)) continue;
       tasks[task.code] = {
@@ -215,6 +216,42 @@ export async function saveRasAnswer(
 }
 
 /**
+ * A signature refused because the summary is not ready for it (UAT B16). The
+ * keys name what is missing: an unanswered confirmation, a "no" without its
+ * explanation (`<key>_x`), `deliverables` while a Section A task is untouched,
+ * or a lower-tier signature (`sig_fieldwork`, `sig_manager`).
+ */
+export class RasRuleError extends Error {
+  constructor(public readonly missing: string[]) {
+    super("ras-incomplete");
+    this.name = "RasRuleError";
+  }
+}
+
+/**
+ * What must already be in place before a tier signs. The partner's approval
+ * is the gate that closes planning, so it rests on every confirmation of
+ * Sections A and B, an explanation for each "no", every deliverable ready and
+ * the two tiers beneath it; the manager's rests on Section A. Signing with
+ * 0 of 33 answered used to succeed.
+ */
+export function rasGaps(view: PlanningRasView, role: SignatureRole): string[] {
+  const items = role === "partner" ? [...SECTION_A, ...SECTION_B] : role === "manager" ? SECTION_A : [];
+  const gaps: string[] = [];
+  for (const item of items) {
+    const answer = view.answers[item.key];
+    if (!answer) gaps.push(item.key);
+    else if (answer === "no" && !(view.answers[`${item.key}_x`] ?? "").trim()) gaps.push(`${item.key}_x`);
+  }
+  if ((role === "partner" || role === "manager") && view.unreadyA > 0) gaps.push("deliverables");
+  if (role === "partner") {
+    if (!view.signatures.fieldwork) gaps.push("sig_fieldwork");
+    if (!view.signatures.manager) gaps.push("sig_manager");
+  }
+  return gaps;
+}
+
+/**
  * Sign one tier. A signature records who signed and when; signing again
  * replaces it, and clearing removes it, so a plan that changes can be
  * re-approved rather than silently keeping a stale approval.
@@ -230,6 +267,8 @@ export async function signRas(
   const definition = SIGNATURE_ROLES.find((r) => r.role === role);
   if (!definition) throw new Error("invalid-role");
   const { tenantId, userId, role: actor } = await requireRole(definition.min);
+  // Withdrawing a signature needs nothing; adding one needs the summary ready.
+  const gaps = clear ? [] : rasGaps(await planningRas(engagementId), role);
   await withTenant(tenantId, async (tx) => {
     // ISQM 2 para 19: the engagement quality reviewer is someone other than the
     // engagement partner and not a member of the team. A rank floor cannot say
@@ -237,6 +276,7 @@ export async function signRas(
     // engagement partner sign as their own quality reviewer, and withdraw the
     // real reviewer's signature. Identity is the control here, not seniority.
     if (role === "eqr") await assertQualityReviewer(tx, engagementId, userId, actor);
+    if (gaps.length > 0) throw new RasRuleError(gaps);
 
     if (clear) {
       await tx.query(

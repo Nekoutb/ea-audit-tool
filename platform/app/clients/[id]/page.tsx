@@ -1,14 +1,14 @@
 import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
 import { auth } from "@/auth";
-import { updateClientMasterAction } from "@/app/actions/clients";
+import { setClientArchivedAction, updateClientMasterAction } from "@/app/actions/clients";
 import { addPortalContactAction } from "@/app/actions/pbc";
 import { AppNav } from "@/components/AppNav";
 import { ErrorBanner } from "@/components/GatesPanel";
 import { NavLink } from "@/components/NavLink";
 import { SubmitButton } from "@/components/SubmitButton";
 import { Chip, Panel, PanelHeader, btnPrimary } from "@/components/ui/atlas";
-import { FRAMEWORKS, getClient } from "@/lib/clients";
+import { FRAMEWORKS, LEGAL_FORMS, SECTORS, getClient, isSector } from "@/lib/clients";
 import { withTenant } from "@/lib/db";
 import { listEngagements } from "@/lib/engagements";
 import { getMessages } from "@/lib/i18n";
@@ -24,6 +24,8 @@ const LABELS = {
     back: "Back to register",
     identity: "Identity",
     identityHint: "Master data reused across engagements",
+    name: "Name",
+    legalForm: "Legal form",
     registrationNumber: "Registration nº",
     niu: "Tax ID (NIU)",
     address: "Registered address",
@@ -50,6 +52,8 @@ const LABELS = {
     back: "Retour au registre",
     identity: "Identité",
     identityHint: "Données de référence réutilisées d'une mission à l'autre",
+    name: "Dénomination",
+    legalForm: "Forme juridique",
     registrationNumber: "Nº d'immatriculation",
     niu: "NIU",
     address: "Adresse du siège",
@@ -120,6 +124,7 @@ export default async function ClientDetailPage(props: {
   const identityRows: Array<[string, string | null]> = [
     [L.registrationNumber, client.registrationNumber ?? null],
     [L.niu, client.niu ?? null],
+    [t.clients.sector, isSector(client.sector) ? t.clients.sectors[client.sector] : null],
     [L.yearEnd, client.yearEnd ?? null],
     [L.framework, client.framework === "Other" ? L.frameworkOther : (client.framework ?? null)],
     [L.pie, client.pie ? L.yes : L.no],
@@ -147,7 +152,21 @@ export default async function ClientDetailPage(props: {
           {client.listed ? <Chip tone="accent">{t.clients.listed}</Chip> : null}
           {client.coCac ? <Chip tone="accent">{t.clients.coCac}</Chip> : null}
           {client.pie ? <Chip tone="warn">{L.pieChip}</Chip> : null}
+          {client.archivedAt ? <Chip tone="muted">{t.clients.archivedChip}</Chip> : null}
         </div>
+        {isAdmin ? (
+          // Retire / reinstate (UAT B98): the record and its history stay; the
+          // register and the new-engagement lookup stop offering it.
+          <form action={setClientArchivedAction.bind(null, client.id, !client.archivedAt)} className="mt-3 flex flex-wrap items-center gap-3">
+            <SubmitButton
+              className="inline-flex items-center rounded-[var(--radius-atlas-sm)] border border-line-strong bg-surface px-3 py-1.5 text-sm font-medium text-ink-soft transition hover:bg-surface-2"
+              testId="entity-archive"
+            >
+              {client.archivedAt ? t.clients.unarchive : t.clients.archive}
+            </SubmitButton>
+            <span className="text-xs text-muted">{t.clients.archiveHint}</span>
+          </form>
+        ) : null}
       </div>
 
       <Panel className="mt-6 p-6" data-testid="entity-identity">
@@ -157,6 +176,20 @@ export default async function ClientDetailPage(props: {
             action={updateClientMasterAction.bind(null, client.id)}
             className="mt-4 grid gap-4 sm:grid-cols-2 lg:grid-cols-3"
           >
+            <label className="flex flex-col gap-1 text-sm">
+              <span className="text-ink-soft">{L.name}</span>
+              <input name="name" required maxLength={120} defaultValue={client.name} className={inputClass} data-testid="entity-name" />
+            </label>
+            <label className="flex flex-col gap-1 text-sm">
+              <span className="text-ink-soft">{L.legalForm}</span>
+              <select name="legalForm" defaultValue={client.legalForm} className={inputClass} data-testid="entity-legal-form">
+                {LEGAL_FORMS.map((form) => (
+                  <option key={form} value={form}>
+                    {form}
+                  </option>
+                ))}
+              </select>
+            </label>
             <label className="flex flex-col gap-1 text-sm">
               <span className="text-ink-soft">{L.registrationNumber}</span>
               <input
@@ -169,6 +202,17 @@ export default async function ClientDetailPage(props: {
             <label className="flex flex-col gap-1 text-sm">
               <span className="text-ink-soft">{L.niu}</span>
               <input name="niu" defaultValue={client.niu ?? ""} className={inputClass} data-testid="entity-niu" />
+            </label>
+            <label className="flex flex-col gap-1 text-sm">
+              <span className="text-ink-soft">{t.clients.sector}</span>
+              <select name="sector" defaultValue={client.sector ?? ""} className={inputClass} data-testid="entity-sector">
+                <option value="">—</option>
+                {SECTORS.map((sector) => (
+                  <option key={sector} value={sector}>
+                    {t.clients.sectors[sector]}
+                  </option>
+                ))}
+              </select>
             </label>
             <label className="flex flex-col gap-1 text-sm">
               <span className="text-ink-soft">{L.yearEnd}</span>

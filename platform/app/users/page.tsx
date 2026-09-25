@@ -4,9 +4,11 @@ import {
   changeRoleAction,
   inviteUserAction,
   removeUserAction,
+  resendInviteAction,
   resetPasswordAction,
 } from "@/app/actions/users";
 import { AppNav } from "@/components/AppNav";
+import { ConfirmSubmitButton } from "@/components/ConfirmSubmitButton";
 import { Panel, PanelHeader, btnPrimary } from "@/components/ui/atlas";
 import { SubmitButton } from "@/components/SubmitButton";
 import { canManageFirm, type Role } from "@/lib/rbac";
@@ -38,6 +40,10 @@ export default async function UsersPage(props: {
     "rounded-[var(--radius-atlas-sm)] border border-line-strong bg-surface px-3 py-2 text-sm text-ink outline-none focus:border-emerald-600 focus:ring-2 focus:ring-emerald-600/20";
   const label = "flex flex-col gap-1 text-sm text-ink-soft";
   const roleName = (r: string) => (tu.roles as Record<string, string>)[r] ?? r;
+  const statusName = (s: string) => (tu.statuses as Record<string, string>)[s] ?? s;
+  const who = (u: { name: string | null; email: string }) => u.name ?? u.email;
+  const smallBtn =
+    "rounded-[var(--radius-atlas-sm)] border border-line-strong px-2.5 py-1.5 text-xs font-semibold text-ink-soft hover:bg-surface-2";
 
   return (
     <main className="min-h-screen w-full px-6 py-8">
@@ -77,6 +83,7 @@ export default async function UsersPage(props: {
                 <th className="px-5 py-3 font-semibold">{tu.name}</th>
                 <th className="px-5 py-3 font-semibold">{tu.email}</th>
                 <th className="px-5 py-3 font-semibold">{tu.role}</th>
+                <th className="px-5 py-3 font-semibold">{tu.status}</th>
                 <th className="px-5 py-3" />
               </tr>
             </thead>
@@ -116,28 +123,52 @@ export default async function UsersPage(props: {
                       </form>
                     )}
                   </td>
+                  <td className="px-5 py-3 text-xs" data-testid={`status-${u.email}`}>
+                    <span
+                      className={
+                        u.status === "active"
+                          ? "text-emerald-700 dark:text-emerald-400"
+                          : u.status === "invited"
+                            ? "text-warn"
+                            : "text-rose"
+                      }
+                    >
+                      {statusName(u.status)}
+                    </span>
+                  </td>
                   <td className="px-5 py-3 text-right">
                     {u.isSelf ? null : (
                       <div className="flex items-center justify-end gap-2">
-                        <form action={resetPasswordAction}>
-                          <input type="hidden" name="userId" value={u.id} />
-                          <button
-                            type="submit"
-                            data-testid={`reset-${u.email}`}
-                            className="rounded-[var(--radius-atlas-sm)] border border-line-strong px-2.5 py-1.5 text-xs font-semibold text-ink-soft hover:bg-surface-2"
-                          >
-                            {tu.resetPassword}
-                          </button>
-                        </form>
+                        {u.status === "active" ? (
+                          <form action={resetPasswordAction}>
+                            <input type="hidden" name="userId" value={u.id} />
+                            <ConfirmSubmitButton
+                              message={tu.confirmReset.replace("{name}", who(u))}
+                              testId={`reset-${u.email}`}
+                              className={smallBtn}
+                            >
+                              {tu.resetPassword}
+                            </ConfirmSubmitButton>
+                          </form>
+                        ) : (
+                          <form action={resendInviteAction}>
+                            <input type="hidden" name="userId" value={u.id} />
+                            <button type="submit" data-testid={`resend-${u.email}`} className={smallBtn}>
+                              {tu.resendInvite}
+                            </button>
+                          </form>
+                        )}
                         <form action={removeUserAction}>
                           <input type="hidden" name="userId" value={u.id} />
-                          <button
-                            type="submit"
-                            data-testid={`remove-${u.email}`}
+                          <ConfirmSubmitButton
+                            message={(u.engagements > 0 ? tu.confirmRemoveTeams : tu.confirmRemove)
+                              .replace("{name}", who(u))
+                              .replace("{count}", String(u.engagements))}
+                            testId={`remove-${u.email}`}
                             className="rounded-[var(--radius-atlas-sm)] border border-line-strong px-2.5 py-1.5 text-xs font-semibold text-rose hover:bg-[var(--color-rose-soft)]"
                           >
                             {tu.remove}
-                          </button>
+                          </ConfirmSubmitButton>
                         </form>
                       </div>
                     )}

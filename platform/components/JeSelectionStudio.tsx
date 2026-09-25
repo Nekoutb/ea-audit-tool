@@ -190,6 +190,11 @@ export function JeSelectionStudio({
         );
       case "unauthenticated":
         return T("Your session has expired. Sign in again.", "Votre session a expiré. Reconnectez-vous.");
+      case "selection-timeout":
+        return T(
+          "The selection took longer than the database allows and was stopped. Run fewer criteria at once, or tighten their thresholds, and try again.",
+          "La sélection a dépassé le délai autorisé par la base de données et a été interrompue. Lancez moins de critères à la fois, ou resserrez leurs seuils, puis réessayez.",
+        );
       case "network":
         return T("The selection could not be sent.", "La sélection n'a pas pu être envoyée.");
       default:

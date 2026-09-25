@@ -4,9 +4,11 @@ import { auth } from "@/auth";
 import { sendTestNotification } from "@/app/actions/notifications";
 import { AppNav } from "@/components/AppNav";
 import { Panel, PanelHeader, btnGhost } from "@/components/ui/atlas";
+import { portfolioActions } from "@/lib/dashboards";
 import { withTenant } from "@/lib/db";
 import { phaseDeadline, type DashboardPhase } from "@/lib/engagement-dashboard";
-import { listEngagements } from "@/lib/engagements";
+import { listEngagements, myTasks } from "@/lib/engagements";
+import { myOpenTaskNotes } from "@/lib/task-notes";
 import { getMessages } from "@/lib/i18n";
 import { getLocale } from "@/lib/locale";
 
@@ -49,10 +51,25 @@ export default async function DashboardPage() {
       })
     : [];
 
-  const register = await listEngagements();
+  const [register, tasks, openNotes, todo] = await Promise.all([
+    listEngagements(),
+    // the user's own tasks and the review notes addressed to them (UAT B93)
+    myTasks().catch(() => []),
+    myOpenTaskNotes().catch(() => []),
+    // what is waiting on this person — the pending independence confirmation
+    // above all (UAT B92: it used to reach them by email only)
+    portfolioActions().catch(() => []),
+  ]);
+  const TODO_LABELS: Record<string, { en: string; fr: string }> = {
+    independence: { en: "Complete your independence confirmation", fr: "Complétez votre confirmation d'indépendance" },
+    notes: { en: "Open review notes on your tasks", fr: "Notes de revue ouvertes sur vos tâches" },
+    review: { en: "Papers awaiting review", fr: "Feuilles de travail en attente de revue" },
+    acceptance: { en: "Acceptance awaiting partner sign-off", fr: "Acceptation en attente de la signature de l'associé" },
+  };
   const myEngagements = register
     .filter((e) => e.isMine && e.phase !== "archived")
     .sort((a, b) => (b.lastActivity ?? "").localeCompare(a.lastActivity ?? ""));
+  const openTasks = tasks.filter((task) => task.status !== "signed");
 
   return (
     <main className="flex min-h-screen w-full flex-col gap-4 px-6 py-8">
@@ -77,6 +94,33 @@ export default async function DashboardPage() {
             {fr ? "+ Nouvelle mission" : "+ New engagement"}
           </Link>
         </div>
+
+        {todo.length > 0 ? (
+          <Panel flush className="mt-4 flex flex-col" data-testid="todo-panel">
+            <div className="border-b border-line px-4 py-2.5">
+              <PanelHeader title={fr ? "À faire" : "To do"} right={<span className="text-xs font-semibold text-muted tnum">{todo.length}</span>} />
+            </div>
+            <ul className="flex flex-col gap-0.5 p-1.5">
+              {todo.map((a) => (
+                <li key={`${a.kind}-${a.engagementId}-${a.href}`}>
+                  <Link
+                    href={a.href}
+                    data-testid={`todo-${a.kind}`}
+                    className="flex items-center justify-between gap-3 rounded-[var(--radius-atlas-xs)] px-3 py-2 text-[13px] transition hover:bg-surface-2"
+                  >
+                    <span className="min-w-0 truncate text-ink">
+                      <b>{fr ? TODO_LABELS[a.kind]?.fr : TODO_LABELS[a.kind]?.en}</b>
+                      <span className="text-muted"> · {a.label}</span>
+                    </span>
+                    <span className="flex-shrink-0 text-[12px] font-semibold text-emerald-700 dark:text-emerald-400">
+                      {a.count > 1 ? `${a.count} ` : ""}→
+                    </span>
+                  </Link>
+                </li>
+              ))}
+            </ul>
+          </Panel>
+        ) : null}
 
         <Panel flush className="mt-4 flex flex-col">
           <div className="flex flex-col gap-1 p-1.5" data-testid="my-engagements">
@@ -140,6 +184,71 @@ export default async function DashboardPage() {
           </div>
         </Panel>
       </div>
+
+      {/* the user's own tasks, with their engagement (UAT B93) */}
+      <Panel flush className="mx-auto w-full max-w-3xl">
+        <div className="flex items-center justify-between border-b border-line px-5 py-3.5">
+          <PanelHeader
+            title={td.tiles.myTasks}
+            hint={td.tiles.myTasksHint}
+            right={<span className="text-xs font-semibold text-muted tnum">{openTasks.length}</span>}
+          />
+        </div>
+        <div className="flex flex-col gap-1 p-1.5" data-testid="my-tasks">
+          {openTasks.length === 0 ? (
+            <p className="px-4 py-6 text-center text-sm text-muted">
+              {fr ? "Aucune tâche ouverte ne vous est affectée." : "No open task is assigned to you."}
+            </p>
+          ) : (
+            openTasks.map((task) => (
+              <Link
+                key={task.fileItemId}
+                href={`/engagements/${task.engagementId}/sections/${task.fileItemId}`}
+                className="flex items-center gap-3 rounded-[var(--radius-atlas-xs)] px-4 py-2.5 transition hover:bg-surface-2"
+                data-testid={`my-task-${task.fileItemId}`}
+              >
+                <span className="w-14 flex-shrink-0 font-mono text-xs font-semibold text-ink tnum">{task.code}</span>
+                <span className="min-w-0 flex-1">
+                  <span className="block truncate text-[13.5px] text-ink">{fr ? task.titleFr : task.titleEn}</span>
+                  <span className="block truncate text-[11.5px] text-muted">{task.engagementName}</span>
+                </span>
+                <span className="flex-shrink-0 text-[11px] font-semibold text-muted">
+                  {task.status === "prepared" ? (fr ? "Préparée" : "Prepared") : fr ? "À faire" : "To do"}
+                </span>
+              </Link>
+            ))
+          )}
+        </div>
+      </Panel>
+
+      {openNotes.length > 0 ? (
+        <Panel flush className="mx-auto w-full max-w-3xl">
+          <div className="flex items-center justify-between border-b border-line px-5 py-3.5">
+            <PanelHeader
+              title={td.tiles.reviewNotes}
+              hint={td.tiles.forMe}
+              right={<span className="text-xs font-semibold text-muted tnum">{openNotes.length}</span>}
+            />
+          </div>
+          <div className="flex flex-col gap-1 p-1.5" data-testid="my-review-notes">
+            {openNotes.map((note) => (
+              <Link
+                key={note.id}
+                href={`/engagements/${note.engagementId}/sections/${note.fileItemId}`}
+                className="flex items-center gap-3 rounded-[var(--radius-atlas-xs)] px-4 py-2.5 transition hover:bg-surface-2"
+              >
+                <span className="w-14 flex-shrink-0 font-mono text-xs font-semibold text-ink tnum">{note.code}</span>
+                <span className="min-w-0 flex-1">
+                  <span className="block truncate text-[13.5px] text-ink">{note.body}</span>
+                  <span className="block truncate text-[11.5px] text-muted">
+                    {note.engagementName} · {note.authorName} · {note.createdAt}
+                  </span>
+                </span>
+              </Link>
+            ))}
+          </div>
+        </Panel>
+      ) : null}
 
       {showDiagnostics ? (
         <Panel className="mx-auto w-full max-w-3xl p-5" data-testid="dev-diagnostics">

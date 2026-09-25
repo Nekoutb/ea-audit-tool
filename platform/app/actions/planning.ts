@@ -14,7 +14,7 @@ import { addCustomStep, generateProgram } from "@/lib/programs";
 import { addRisk, dismissPotentialRisk, linkRiskToIndex, linkRiskToStep, mapRiskToSection, promotePotentialRisk, raisePotentialRisk, rebutRevenueFraudRisk, unlinkRiskFromIndex, updateRisk, type Assertion, type RiskRating, type RiskStatus } from "@/lib/risks";
 import { canReview } from "@/lib/rbac";
 import { savePaper } from "@/lib/working-papers";
-import { addPbcItem, assignTask, assignTasks, assignTeamMember, removeTeamMember, setBudgetLine, setPbcStatus, type PbcItem, type TaskAssignmentRole, type TeamRole } from "@/lib/team";
+import { addPbcItem, assignTask, assignTasks, assignTeamMember, removeTeamMember, setBudgetLine, type TaskAssignmentRole, type TeamRole } from "@/lib/team";
 import { getLocale } from "@/lib/locale";
 
 /** Wrap a mutation: domain errors become ?error=<code> banners, not 500s. */
@@ -24,6 +24,10 @@ async function guarded(path: string, fn: () => Promise<void>): Promise<never> {
   } catch (error) {
     if (error instanceof GateError) {
       redirect(`${path}?error=gates&failed=${encodeURIComponent(error.failed.join(","))}`);
+    }
+    // the archive trigger's own message maps to the one banner the pages know
+    if (error instanceof Error && /engagement-archived/.test(error.message)) {
+      redirect(`${path}?error=archived`);
     }
     if (error instanceof Error && /^[a-z0-9-]+$/.test(error.message)) {
       redirect(`${path}?error=${encodeURIComponent(error.message)}`);
@@ -217,9 +221,66 @@ export async function sendReminderAction(engagementId: string, confirmationId: s
 // ---- Letters & mandate (2.5/2.6) ----
 
 export async function generateLetterAction(engagementId: string, kind: LetterKind): Promise<void> {
+  const path = `/engagements/${engagementId}/acceptance`;
   const locale = await getLocale();
-  const documentId = await generateLetter(engagementId, kind, locale);
+  let documentId: string;
+  try {
+    // The letter is filed on a task of the audit file, and the file has no
+    // tasks until the entity is classified (deferred scoping): say so instead
+    // of failing on the missing item.
+    const { getEngagement } = await import("@/lib/engagements");
+    const engagement = await getEngagement(engagementId);
+    if (!engagement) throw new Error("not-found");
+    if (!engagement.complexity) throw new Error("classify-first");
+    documentId = await generateLetter(engagementId, kind, locale);
+  } catch (error) {
+    if (error instanceof Error && /^[a-z0-9-]+$/.test(error.message)) {
+      redirect(`${path}?error=${encodeURIComponent(error.message)}`);
+    }
+    throw error;
+  }
   redirect(`/documents/${documentId}`);
+}
+
+/**
+ * Mark a task not applicable to this engagement, with the reason — or clear
+ * that mark (clear=1). Reviewer rank and above; the archive gate
+ * tasks_addressed accepts either performed work or this record.
+ */
+export async function markNotApplicableAction(
+  engagementId: string,
+  itemId: string,
+  formData: FormData,
+): Promise<void> {
+  const path = `/engagements/${engagementId}/sections/${itemId}`;
+  const reason = String(formData.get("naReason") ?? "").trim().slice(0, 500);
+  const clear = formData.get("clear") === "1";
+  await guarded(path, async () => {
+    const { requireTenant } = await import("@/lib/tenant");
+    const { assertMutable } = await import("@/lib/mutability");
+    const { recordActivity } = await import("@/lib/activity");
+    const { tenantId, userId, role } = await requireTenant();
+    if (!canReview(role)) throw new Error("forbidden");
+    if (!clear && !reason) throw new Error("rationale-required");
+    await assertMutable(engagementId);
+    const updated = await withTenant(tenantId, async (tx) => {
+      const r = await tx.query<{ code: string }>(
+        `UPDATE file_item
+            SET na_reason = $3, na_by = $4, na_at = CASE WHEN $3::text IS NULL THEN NULL ELSE now() END
+          WHERE id = $2 AND engagement_id = $1 RETURNING code`,
+        [engagementId, itemId, clear ? null : reason, clear ? null : userId],
+      );
+      return r.rows[0] ?? null;
+    });
+    if (!updated) throw new Error("not-found");
+    await recordActivity({
+      engagementId,
+      entityType: "file_item",
+      entityId: itemId,
+      action: clear ? "na_cleared" : "marked_not_applicable",
+      summary: clear ? `${updated.code} no longer marked not applicable` : `${updated.code} marked not applicable: ${reason}`,
+    });
+  });
 }
 
 export async function setMandateAction(
@@ -351,14 +412,8 @@ export async function addPbcAction(engagementId: string, formData: FormData): Pr
   await guarded(path, () => addPbcItem(engagementId, String(formData.get("title") ?? "")));
 }
 
-export async function setPbcStatusAction(
-  engagementId: string,
-  id: string,
-  status: PbcItem["status"],
-): Promise<void> {
-  const path = `/engagements/${engagementId}/planning`;
-  await guarded(path, () => setPbcStatus(id, status));
-}
+// setPbcStatusAction is gone (UAT B09): a request's status moves only through
+// the client's upload and the reviewer's acceptance on /pbc.
 
 // ---- Materiality (2.9/2.10) ----
 
@@ -380,6 +435,7 @@ export async function createMaterialityAction(engagementId: string, formData: Fo
       performancePct: numberOr("performancePct", 75),
       performanceJustification: String(formData.get("performanceJustification") ?? "") || undefined,
       trivialPct: numberOr("trivialPct", 5),
+      overrideJustification: String(formData.get("overrideJustification") ?? "") || undefined,
     });
   });
 }

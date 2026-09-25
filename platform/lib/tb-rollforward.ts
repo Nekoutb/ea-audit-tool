@@ -31,6 +31,10 @@ function parseAmount(value: unknown): number {
   return amountOr(value, 0);
 }
 
+/** A variance is an exception above one cent; everything else is rounding. */
+const TOLERANCE = 0.01;
+const cents = (v: number): number => Math.round(v * 100) / 100;
+
 /** Null when there is no valid TB or no ingested general ledger to reconcile against. */
 export async function rollForward(engagementId: string): Promise<RollForwardResult | null> {
   const { tenantId } = await requireTenant();
@@ -60,7 +64,14 @@ export async function rollForward(engagementId: string): Promise<RollForwardResu
       [engagementId],
     );
     const mapping = gl.rows[0]?.mapping;
-    if (!gl.rows[0] || !mapping?.account || !mapping.amount) return null;
+    // The importer accepts either one signed amount column or a debit/credit
+    // pair (lib/gl-line.ts); the roll-forward has to read both (UAT B30).
+    const usePair = Boolean(mapping?.debit && mapping?.credit);
+    if (!gl.rows[0] || !mapping?.account || (!mapping.amount && !usePair)) return null;
+    const signedOf = (data: Record<string, unknown>): number =>
+      usePair
+        ? parseAmount(data[mapping.debit]) - parseAmount(data[mapping.credit])
+        : parseAmount(data[mapping.amount]);
 
     const glRows = await tx.query<{ data: Record<string, unknown> }>(
       "SELECT data FROM sub_ledger_row WHERE dataset_id = $1",
@@ -70,7 +81,7 @@ export async function rollForward(engagementId: string): Promise<RollForwardResu
     for (const { data } of glRows.rows) {
       const account = String(data[mapping.account] ?? "").trim();
       if (!account) continue;
-      movements.set(account, (movements.get(account) ?? 0) + parseAmount(data[mapping.amount]));
+      movements.set(account, (movements.get(account) ?? 0) + signedOf(data));
     }
 
     const names = new Map<string, string>();
@@ -80,24 +91,27 @@ export async function rollForward(engagementId: string): Promise<RollForwardResu
       const account = row.account_code;
       seen.add(account);
       names.set(account, row.account_name ?? "—");
-      const opening = Math.round(Number(row.opening));
-      const closing = Math.round(Number(row.closing));
-      const glMovement = Math.round(movements.get(account) ?? 0);
+      // Computed on the unrounded figures and rounded to the cent afterwards:
+      // rounding each side first turned a TB and GL that agree to the cent
+      // into a one-franc exception (UAT B83). Display rounds, this does not.
+      const opening = Number(row.opening);
+      const closing = Number(row.closing);
+      const glMovement = movements.get(account) ?? 0;
       const expected = opening + glMovement;
       rows.push({
         account,
         name: row.account_name ?? "—",
-        opening,
-        glMovement,
-        expected,
-        closing,
-        variance: expected - closing,
+        opening: cents(opening),
+        glMovement: cents(glMovement),
+        expected: cents(expected),
+        closing: cents(closing),
+        variance: cents(expected - closing),
       });
     }
     // accounts posted in the ledger but absent from the trial balance
     for (const [account, movement] of movements) {
       if (seen.has(account)) continue;
-      const glMovement = Math.round(movement);
+      const glMovement = cents(movement);
       rows.push({
         account,
         name: names.get(account) ?? "— (not in trial balance)",
@@ -120,7 +134,7 @@ export async function rollForward(engagementId: string): Promise<RollForwardResu
       }),
       { opening: 0, glMovement: 0, expected: 0, closing: 0, variance: 0 },
     );
-    const exceptions = rows.filter((r) => Math.abs(r.variance) > 0.5).length;
+    const exceptions = rows.filter((r) => Math.abs(r.variance) > TOLERANCE).length;
 
     return { rows, totals, reconciled: exceptions === 0, exceptions, glRowCount: glRows.rows.length };
   });

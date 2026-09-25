@@ -12,8 +12,8 @@ export async function POST(request: Request, context: { params: Promise<{ id: st
     await saveApComments(id, body.index, [{ key: body.key, value: body.value }]);
     return NextResponse.json({ ok: true });
   } catch (error) {
-    if (error instanceof Error && error.message === "invalid-index") {
-      return NextResponse.json({ error: "invalid-index" }, { status: 400 });
+    if (error instanceof Error && (error.message === "invalid-index" || error.message === "invalid-key")) {
+      return NextResponse.json({ error: error.message }, { status: 400 });
     }
     return NextResponse.json({ error: "unauthenticated" }, { status: 401 });
   }

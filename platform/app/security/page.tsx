@@ -2,9 +2,11 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import { auth } from "@/auth";
 import { AppNav } from "@/components/AppNav";
+import { MfaConfirmForm, type MfaConfirmState } from "@/components/MfaConfirmForm";
 import { Panel, PanelHeader } from "@/components/ui/atlas";
 import { getLocale } from "@/lib/locale";
 import { MfaError, beginEnrolment, confirmEnrolment, disableMfa, mfaStatus } from "@/lib/mfa";
+import { mfaDisabled } from "@/lib/mfa-policy";
 
 export const metadata = { title: "Security · AuditISA" };
 
@@ -17,11 +19,11 @@ export const metadata = { title: "Security · AuditISA" };
  * so a half-finished enrolment cannot lock anyone out.
  */
 export default async function SecurityPage(props: {
-  searchParams: Promise<{ error?: string; secret?: string; uri?: string; codes?: string }>;
+  searchParams: Promise<{ error?: string }>;
 }) {
   const session = await auth();
   if (!session?.user) redirect("/login");
-  const { error, codes } = await props.searchParams;
+  const { error } = await props.searchParams;
   const locale = await getLocale();
   const fr = locale === "fr";
   const status = await mfaStatus();
@@ -33,13 +35,16 @@ export default async function SecurityPage(props: {
     enrolment = await beginEnrolment().catch(() => null);
   }
 
-  async function confirmAction(formData: FormData) {
+  // The recovery codes go back to the form's own state, never into the URL
+  // (UAT B37): a query string reaches the history, the access log and any
+  // Referer, and showed the codes again on every reload.
+  async function confirmAction(_prev: MfaConfirmState, formData: FormData): Promise<MfaConfirmState> {
     "use server";
     try {
       const issued = await confirmEnrolment(String(formData.get("code") ?? ""));
-      redirect(`/security?codes=${encodeURIComponent(issued.join(","))}`);
+      return { codes: issued };
     } catch (e) {
-      if (e instanceof MfaError) redirect(`/security?error=${encodeURIComponent(e.message)}`);
+      if (e instanceof MfaError) return { error: e.message };
       throw e;
     }
   }
@@ -62,7 +67,15 @@ export default async function SecurityPage(props: {
     "no-enrolment-started": { en: "Start the setup again — the secret was not saved.", fr: "Recommencez la configuration — le secret n'a pas été enregistré." },
     "auth-secret-missing": { en: "Two-factor is not configured on this server.", fr: "La double authentification n'est pas configurée sur ce serveur." },
   };
-  const shown = error ? (messages[error] ? (fr ? messages[error].fr : messages[error].en) : error) : null;
+  // An unknown code shows a generic line, never the URL's own text (UAT B137).
+  const shown = error
+    ? messages[error]
+      ? fr ? messages[error].fr : messages[error].en
+      : fr ? "L'opération a échoué. Réessayez." : "The operation failed. Try again."
+    : null;
+  const localised = Object.fromEntries(
+    Object.entries(messages).map(([code, m]) => [code, fr ? m.fr : m.en]),
+  );
 
   const input =
     "w-full rounded-[var(--radius-atlas-sm)] border border-line-strong bg-surface px-2.5 py-1.5 text-[13px] text-ink outline-none focus:border-emerald-600";
@@ -79,31 +92,6 @@ export default async function SecurityPage(props: {
         <p role="alert" className="mt-3 text-[13px] font-semibold text-rose" data-testid="security-error">
           {shown}
         </p>
-      ) : null}
-
-      {/* Recovery codes, shown once and never retrievable. */}
-      {codes ? (
-        <Panel className="mt-4 max-w-[560px]" data-testid="recovery-codes">
-          <PanelHeader
-            title={fr ? "Codes de récupération" : "Recovery codes"}
-            hint={fr ? "affichés une seule fois" : "shown once and never again"}
-          />
-          <p className="mt-2 text-[12.5px] text-ink-soft">
-            {fr
-              ? "Conservez-les hors de votre téléphone. Chacun fonctionne une fois, à la place du code d'authentification, si vous perdez l'accès à votre application."
-              : "Keep these somewhere other than your phone. Each works once, in place of the authentication code, if you lose access to your app."}
-          </p>
-          <ul className="mt-3 grid grid-cols-2 gap-1.5 font-mono text-[13px] text-ink">
-            {codes.split(",").map((c) => (
-              <li key={c} className="rounded-[var(--radius-atlas-xs)] bg-surface-2 px-2 py-1 text-center tracking-[0.12em]">
-                {c}
-              </li>
-            ))}
-          </ul>
-          <Link href="/security" className="mt-3 inline-block text-[12.5px] font-semibold text-emerald-700 dark:text-emerald-400">
-            {fr ? "J'ai noté ces codes" : "I have saved these"}
-          </Link>
-        </Panel>
       ) : null}
 
       <Panel className="mt-4 max-w-[560px]">
@@ -123,6 +111,16 @@ export default async function SecurityPage(props: {
                 ? `Un code de votre application est demandé à chaque connexion. Codes de récupération restants : ${status.recoveryRemaining}.`
                 : `A code from your app is required at every sign-in. Recovery codes left: ${status.recoveryRemaining}.`}
             </p>
+            {mfaDisabled() ? (
+              // The staging instance skips the challenge (lib/mfa-policy.ts);
+              // the sentence above would otherwise promise a code that never
+              // comes (UAT B162).
+              <p className="mt-1 text-[12.5px] font-semibold text-warn" data-testid="mfa-disabled-here">
+                {fr
+                  ? "Désactivée sur ce site de test : la double authentification est enregistrée mais aucun code n'est demandé à la connexion ici."
+                  : "Disabled on this test site: two-factor is enrolled but no code is asked for at sign-in here."}
+              </p>
+            ) : null}
             <form action={disableAction} className="mt-4 flex flex-wrap items-end gap-2">
               <div>
                 <label className={label} htmlFor="pw">
@@ -159,30 +157,7 @@ export default async function SecurityPage(props: {
               <li>{fr ? "Puis saisissez le code affiché :" : "Then enter the code it shows:"}</li>
             </ol>
 
-            <form action={confirmAction} className="flex flex-wrap items-end gap-2" data-testid="mfa-confirm-form">
-              <div>
-                <label className={label} htmlFor="code">
-                  {fr ? "Code à six chiffres" : "Six-digit code"}
-                </label>
-                <input
-                  id="code"
-                  name="code"
-                  inputMode="numeric"
-                  maxLength={7}
-                  required
-                  autoComplete="one-time-code"
-                  data-testid="mfa-code"
-                  className={`mt-1 ${input} w-[150px] tracking-[0.25em]`}
-                />
-              </div>
-              <button
-                type="submit"
-                data-testid="mfa-enable"
-                className="rounded-[var(--radius-atlas-sm)] bg-emerald-700 px-4 py-1.5 text-[13px] font-semibold text-white transition hover:bg-emerald-800"
-              >
-                {fr ? "Activer" : "Turn on"}
-              </button>
-            </form>
+            <MfaConfirmForm action={confirmAction} locale={fr ? "fr" : "en"} errorMessages={localised} />
 
             <details className="text-[12px] text-muted">
               <summary className="cursor-pointer">{fr ? "Lien de configuration" : "Setup link"}</summary>

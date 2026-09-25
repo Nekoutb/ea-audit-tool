@@ -80,7 +80,8 @@ const ACCOUNTS: [string, string][] = [
   ["E4.25", "Change in Inventories (VA2)"],
   ["E4.26", "Personnel Costs (VB)"],
   ["E4.27", "Taxes & Duties (VO)"],
-  ["E4.28", "External Services (VD1)"],
+  // named as the lead-schedule tool names index VD1
+  ["E4.28", "Non-Stored Purchases, Transport & External Services (VD1)"],
   ["E4.29", "Depreciation & Provisions (VD2)"],
   ["E4.31", "Other Expenses (VD4)"],
   ["E4.32", "Finance Costs (VD5)"],
@@ -89,43 +90,108 @@ const ACCOUNTS: [string, string][] = [
   ["E4.36", "Cash Flow (TFT) Tie-out"],
 ];
 
-const accountPapers: UatScenario[] = ACCOUNTS.map(([code, name]) => ({
-  key: `exec.acct.${code.toLowerCase().replace(".", "-")}`,
-  title: `${name} — lead schedule and substantive work`,
-  ref: code,
-  path: "/engagements/:id/tools/lead-schedule",
-  steps: [
-    `Open ${code} and build the lead schedule for ${name}.`,
-    "Agree the total to the trial balance for the same caption.",
-    "Record the substantive procedures, attach the supporting schedule, and conclude.",
-  ],
-  expect: `The lead schedule agrees to the trial balance, the evidence is attached to ${code}, and the conclusion is recorded and signed.`,
-}));
+// Leases and the TFT tie-out carry no lead index by design: no schedule to
+// agree, only procedures, evidence and a conclusion.
+const NO_LEAD_INDEX = new Set(["E4.35", "E4.36"]);
+
+const accountPapers: UatScenario[] = ACCOUNTS.map(([code, name]) =>
+  NO_LEAD_INDEX.has(code)
+    ? {
+        key: `exec.acct.${code.toLowerCase().replace(".", "-")}`,
+        title: `${name} — procedures, evidence and conclusion`,
+        ref: code,
+        path: "/engagements/:id/phases/execution",
+        why: `${code} has no lead-schedule index: the paper holds procedures and evidence, not a balance agreed to the trial balance.`,
+        steps: [
+          `Open ${code} from the execution phase list (it is not on /groups/e4, which lists indexed accounts only).`,
+          "Add the custom procedures the work needs and record their results.",
+          "Attach the supporting evidence to the task.",
+          "Prepare the conclusion, have a second person review it, and sign P then R.",
+        ],
+        expect: `The procedures and their results are recorded, the evidence is attached to ${code}, and the conclusion shows a preparer and a reviewer.`,
+      }
+    : {
+        key: `exec.acct.${code.toLowerCase().replace(".", "-")}`,
+        title: `${name} — lead schedule and substantive work`,
+        ref: code,
+        path: "/engagements/:id/tools/lead-schedule",
+        why: "The lead schedule is built by the tool from the imported trial balance; the E4 task appears only once S5.5 has selected procedures for its index.",
+        steps: [
+          "Precondition: import the trial balance (Trial Balance Analyzer) and select substantive procedures for this index in S5.5.",
+          `Open Tools > Lead Schedule and agree the ${name} total to the trial balance for the same caption.`,
+          `Open ${code} from /groups/e4, perform the selected procedures and attach the supporting schedule.`,
+          "Prepare the conclusion, have a second person review it, and sign P then R.",
+        ],
+        expect: `The lead schedule agrees to the trial balance, the evidence is attached to ${code}, and the conclusion shows a preparer and a reviewer with the P and R sign-offs recorded.`,
+      },
+);
 
 // ───────────────────────────────────────── the OHADA / statutory file (C5.x)
-const STATUTORY: [string, string][] = [
-  ["C5.2", "Statutory Deadlines Calendar"],
-  ["C5.3", "Regulated Agreements Register & Special Report"],
-  ["C5.4", "Article 715 Report to the Board"],
-  ["C5.5", "Alert Procedure File"],
-  ["C5.6", "Disclosure of Criminal Offences to the Prosecutor"],
-  ["C5.7", "Registered Securities Register Attestation"],
-  ["C5.8", "Equity vs Half-of-Share-Capital Monitoring"],
-  ["C5.9", "Joint Auditor Coordination File"],
-  ["C5.10", "Article 525 Certification — Highest-Paid Persons' Remuneration"],
+// [code, name, the check specific to the paper, what the tester expects]
+const STATUTORY: [string, string, string, string][] = [
+  [
+    "C5.2",
+    "Statutory Deadlines Calendar",
+    "Confirm the AGO, filing and report dates the calendar computes from the period end match the Acte uniforme as your firm reads it.",
+    "C5.2 is completed and evidenced, and the statutory dates it computes are the ones your firm would compute.",
+  ],
+  [
+    "C5.3",
+    "Regulated Agreements Register & Special Report",
+    "Confirm every regulated agreement identified is on the register and the special report covers each one.",
+    "C5.3 lists the agreements, the special report is generated for them, and the evidence is attached.",
+  ],
+  [
+    "C5.4",
+    "Article 715 Report to the Board",
+    "Confirm the report names the matters article 715 requires and is dated before the board meeting.",
+    "C5.4 is completed, the report is attached, and its date precedes the board meeting.",
+  ],
+  [
+    "C5.5",
+    "Alert Procedure File",
+    "Confirm each phase of the alert procedure is recorded with its date and the response received.",
+    "C5.5 records every phase of the procedure with dates and responses, and the correspondence is attached.",
+  ],
+  [
+    "C5.6",
+    "Disclosure of Criminal Offences to the Prosecutor",
+    "Confirm the facts, the legal analysis and the decision to disclose or not are recorded; the paper computes no date.",
+    "C5.6 records the facts, the analysis and the decision, and the supporting documents are attached.",
+  ],
+  [
+    "C5.7",
+    "Registered Securities Register Attestation",
+    "Confirm the register was inspected and the attestation reflects its content at the date stated; the paper computes no threshold.",
+    "C5.7 is completed, the attestation is attached, and it agrees to the register inspected.",
+  ],
+  [
+    "C5.8",
+    "Equity vs Half-of-Share-Capital Monitoring",
+    "Confirm the equity and share-capital figures agree to the financial statements and the half-capital test reaches the conclusion your firm would reach.",
+    "C5.8 shows the two figures agreed to the accounts and a conclusion consistent with article 664.",
+  ],
+  [
+    "C5.9",
+    "Joint Auditor Coordination File",
+    "Confirm the work split, the cross-review and the joint conclusions are recorded with both firms named; the paper computes no date.",
+    "C5.9 records the split, the cross-review and the joint conclusions, and the coordination correspondence is attached.",
+  ],
+  [
+    "C5.10",
+    "Article 525 Certification — Highest-Paid Persons' Remuneration",
+    "Confirm the total certified agrees to the payroll records inspected; the paper computes no threshold.",
+    "C5.10 is completed, the certification is attached, and the total agrees to the payroll evidence.",
+  ],
 ];
 
-const statutoryPapers: UatScenario[] = STATUTORY.map(([code, name]) => ({
+const statutoryPapers: UatScenario[] = STATUTORY.map(([code, name, check, expect]) => ({
   key: `firm.stat.${code.toLowerCase().replace(".", "-")}`,
   title: `${name}`,
   ref: code,
   path: "/engagements/:id/legal",
-  steps: [
-    `Open ${code} and complete it for this engagement.`,
-    "Attach the supporting document or register.",
-    "Confirm the dates and thresholds it applies match the Acte uniforme as your firm reads it.",
-  ],
-  expect: `${code} is completed, evidenced, and the statutory dates it computes are the ones your firm would compute.`,
+  steps: [`Open ${code} and complete it for this engagement.`, "Attach the supporting document or register.", check],
+  expect,
 }));
 
 export const UAT_SECTIONS: UatSection[] = [
@@ -134,7 +200,7 @@ export const UAT_SECTIONS: UatSection[] = [
     key: "access",
     title: "Phase 0 · Access, onboarding and separation",
     intro:
-      "Everything else depends on these, and the separation tests are the ones that matter most: if a colleague can open an engagement they are not on, nothing further is worth testing. Use at least three people — a firm administrator, a staff member on the engagement, and a staff member who is not — each on their own machine, not in a browser already signed in as you.",
+      "Everything else depends on these, and the separation tests are the ones that matter most: if a colleague can open an engagement they are not on, nothing further is worth testing. Use at least three people — a firm administrator, a staff member on the engagement, and a staff member who is not — each on their own machine, not in a browser already signed in as you. Invitation and reset links travel by email and are stored only as a digest, so nobody can look them up afterwards. On an instance with no outgoing mail configured (the DEV instance), the message is not sent: the server log records the send with its recipient and subject, and the link exists nowhere. The invitation, reset and session scenarios below therefore need an instance with outgoing mail, with the tester's own mailbox as the recipient.",
     scenarios: rows("acc", [
       [
         "invite-new",
@@ -279,15 +345,23 @@ export const UAT_SECTIONS: UatSection[] = [
       [
         "mfa-enrol",
         "Two-factor can be switched on",
-        ["Enrol an authenticator on your own account and sign out.", "Sign in again."],
-        "The code is requested and accepted; recovery codes are issued once.",
+        [
+          "Prerequisite: an instance where the sign-in challenge is on (AUTH_DISABLE_MFA unset). The dev/staging site turns the challenge off, and /security says so; run this scenario on an instance with it on, or mark it blocked.",
+          "Enrol an authenticator on your own account and sign out.",
+          "Sign in again.",
+        ],
+        "Enrolment issues recovery codes once. On an instance with the challenge on, the code is requested at sign-in and accepted.",
         undefined,
         "/security",
+        "Enrolment works everywhere; the challenge itself is what the staging instance switches off, so a missing code field there is the instance, not a defect.",
       ],
       [
         "mfa-recovery",
         "A recovery code works once",
-        ["Sign in using a recovery code instead of the app, then try the same code again."],
+        [
+          "Prerequisite: an instance where the sign-in challenge is on (AUTH_DISABLE_MFA unset); otherwise mark this scenario blocked.",
+          "Sign in using a recovery code instead of the app, then try the same code again.",
+        ],
         "The first use works, the second is refused.",
         undefined,
         "/security",
@@ -378,11 +452,15 @@ export const UAT_SECTIONS: UatSection[] = [
       ],
       [
         "sep-assign",
-        "Being assigned a task grants access",
-        ["Assign that colleague a task on the engagement.", "Have them refresh."],
-        "The engagement now appears and opens. Access follows assignment.",
+        "Being added to the team and assigned a task grants access",
+        [
+          "Add that colleague to the engagement team (Team page) with a staff role — task assignment requires team membership.",
+          "Assign them a task on the engagement.",
+          "Have them refresh.",
+        ],
+        "The engagement now appears and opens. Access follows team membership and assignment.",
         undefined,
-        "/engagements/:id/tasks",
+        "/engagements/:id/team",
       ],
       [
         "sep-unassign",
@@ -419,9 +497,13 @@ export const UAT_SECTIONS: UatSection[] = [
       [
         "sep-portal-other",
         "A client cannot see another client's requests",
-        ["From one client's session, try to open another client's portal URL."],
+        [
+          "Note the id of a document request belonging to client B (from B's PBC list at /engagements/:id/pbc).",
+          "From client A's portal session, open that request's URL and its upload endpoint.",
+        ],
         "Refused. One client never sees another client's requests or documents.",
         undefined,
+        "/engagements/:id/pbc",
       ],
       [
         "sep-tenant",
@@ -467,7 +549,7 @@ export const UAT_SECTIONS: UatSection[] = [
         "nav",
         "The main navigation reaches everything",
         [
-          "From the dashboard, reach clients, engagements, users, settings and the resource library.",
+          "From the dashboard, reach clients, engagements, users and settings (including the document templates), and from an engagement reach Tools > Sample papers.",
         ],
         "Every link works and lands on the right screen.",
         undefined,
@@ -551,7 +633,7 @@ export const UAT_SECTIONS: UatSection[] = [
         ["Look at the file index that was generated."],
         "A small non-complex entity does not carry a listed company's programme. The index reflects what you described.",
         undefined,
-        "/engagements/:id/sections",
+        "/engagements/:id",
       ],
       [
         "eng-naming",
@@ -676,7 +758,7 @@ export const UAT_SECTIONS: UatSection[] = [
         ["Complete P2.3 for a group, recording the components and their scoping."],
         "Components and scoping decisions are recorded.",
         "P2.3",
-        "/engagements/:id/groups",
+        "/engagements/:id/groups/p2",
       ],
       [
         "team-partner",
@@ -742,10 +824,10 @@ export const UAT_SECTIONS: UatSection[] = [
       [
         "gate-planning",
         "Acceptance gates planning",
-        ["Before finishing acceptance, try to move into planning."],
-        "Refused, naming the outstanding item.",
+        ["On the acceptance screen, before the acceptance gates are green, click 'Passer à la planification' (Advance to planning)."],
+        "Refused, naming the outstanding gate.",
         undefined,
-        "/engagements/:id/phases/planning",
+        "/engagements/:id/acceptance",
       ],
       [
         "gate-list",
@@ -791,7 +873,7 @@ export const UAT_SECTIONS: UatSection[] = [
         ["Complete the opening-balances work for a first-year engagement."],
         "E6.5 is present and completable.",
         "E6.5",
-        "/engagements/:id/sections",
+        "/engagements/:id/groups/e6",
       ],
       [
         "docs-attach",
@@ -847,9 +929,9 @@ export const UAT_SECTIONS: UatSection[] = [
       ],
       [
         "delete-guard",
-        "An engagement with work in it is not casually deleted",
-        ["Try to delete the engagement."],
-        "Refused or requiring deliberate confirmation. Nothing is lost by accident.",
+        "An engagement is never deleted, only archived",
+        ["Look for a way to delete the engagement on its settings page, on the register and on the dashboard."],
+        "No delete is offered anywhere. A finished file is archived, and the archive keeps it readable. Nothing is lost by accident.",
         undefined,
         "/engagements/:id/settings",
       ],
@@ -945,23 +1027,23 @@ export const UAT_SECTIONS: UatSection[] = [
         ["Complete P4.1."],
         "Completed and signed.",
         "P4.1",
-        "/engagements/:id/sections",
+        "/engagements/:id/tools/forms",
       ],
       [
         "p42",
         "Control environment assessment",
-        ["Complete P4.2."],
+        ["Answer yes to the S6.1 trigger 'detailed control-environment assessment', then complete P4.2."],
         "Completed and signed.",
         "P4.2",
-        "/engagements/:id/sections",
+        "/engagements/:id/tools/forms",
       ],
       [
         "p43",
         "Understand the IT environment",
-        ["Complete P4.3 and decide on IT specialist involvement."],
+        ["Answer yes to the S6.1 trigger 'IT environment assessment', then complete P4.3 and decide on IT specialist involvement."],
         "The decision and its basis are recorded.",
         "P4.3",
-        "/engagements/:id/sections",
+        "/engagements/:id/tools/forms",
       ],
       [
         "p51-fraud",
@@ -974,10 +1056,10 @@ export const UAT_SECTIONS: UatSection[] = [
       [
         "p52-discussion",
         "The engagement team discussion",
-        ["Record the team discussion under P5.2, listing who attended."],
-        "Attendees, date and the matters discussed are recorded.",
+        ["Open the P5.2 working paper from the P5 group and record the team discussion, listing who attended."],
+        "Attendees, date and the matters discussed are recorded on the P5.2 paper.",
         "P5.2",
-        "/engagements/:id/discussion",
+        "/engagements/:id/groups/p5",
       ],
       [
         "p62-accounts",
@@ -1048,7 +1130,7 @@ export const UAT_SECTIONS: UatSection[] = [
         ["Complete S2.3."],
         "Completed and signed.",
         "S2.3",
-        "/engagements/:id/sections",
+        "/engagements/:id/groups/s2",
       ],
       [
         "s24-itgc",
@@ -1172,10 +1254,10 @@ export const UAT_SECTIONS: UatSection[] = [
       [
         "p71-govern",
         "Report to those charged with governance",
-        ["Complete P7.1 and generate the planning report."],
-        "The document is generated with the firm's letterhead.",
+        ["Complete P7.1, then on the Acceptance page use 'Generate the planning communication (C5.1)'."],
+        "The document is generated with the firm's letterhead and filed under C5.1.",
         "P7.1",
-        "/engagements/:id/planning",
+        "/engagements/:id/acceptance",
       ],
       [
         "p72-approve",
@@ -1927,9 +2009,9 @@ export const UAT_SECTIONS: UatSection[] = [
       ],
       [
         "archive-delete",
-        "Nothing can be deleted",
-        ["Try to delete an attachment and a task."],
-        "Both refused. Nothing can be removed from a file that has been archived.",
+        "Nothing can be removed",
+        ["Try to delete an attachment, remove a custom program step, and clear a saved working-paper answer on the archived file."],
+        "All three refused with the archived-file message. Nothing can be removed from a file that has been archived.",
         "C6.2",
       ],
       [
@@ -2173,9 +2255,12 @@ export const UAT_SECTIONS: UatSection[] = [
         ],
         [
           "resources",
-          "The resource library",
-          ["Open the resources and open one item."],
-          "Templates and guidance open.",
+          "The team workload view",
+          [
+            "Open Resources as a firm administrator.",
+            "Open the same address as a partner, then as a staff member.",
+          ],
+          "The administrator sees every member of the firm with their role, open tasks, hours and engagements. Every other role is sent to the dashboard. Templates and guidance live under Templates, not here.",
           undefined,
           "/resources",
         ],

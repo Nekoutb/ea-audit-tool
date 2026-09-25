@@ -463,12 +463,15 @@ export function WcgwBuilder({
                     <td className={`${td} text-ink-soft`}>{typeShort(c.controlType, fr)}</td>
                     <td className={`${td} text-ink-soft`}>{c.objective === "prevent" ? (fr ? "Prévention" : "Prevent") : fr ? "Détection" : "Detect"}</td>
                     <td className={`${td} text-center`}>
+                      {/* a control linked to no WCGW cannot be selected — the server refuses it too (UAT B46) */}
                       <input
                         type="checkbox"
                         checked={isChecked(c.id, c.selectedForTesting)}
+                        disabled={c.wcgwIds.length === 0 && !c.selectedForTesting}
+                        title={c.wcgwIds.length === 0 ? (fr ? "Lier ce contrôle à un WCGW en S1.2 avant de le retenir" : "Link this control to a WCGW in S1.2 before selecting it") : undefined}
                         onChange={(e) => setStaged((s) => ({ ...s, [c.id]: e.target.checked }))}
                         data-testid={`control-select-${slug(c.name)}`}
-                        className="h-4 w-4 accent-emerald-700"
+                        className="h-4 w-4 accent-emerald-700 disabled:opacity-40"
                       />
                     </td>
                   </tr>

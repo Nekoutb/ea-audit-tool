@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import {
   evaluateSampling,
+  recordTodResult,
   runJeTesting,
   runReconciliation,
   runSampling,
@@ -66,6 +67,48 @@ export async function evaluateSamplingAction(
   const path = sectionPath(engagementId, fileItemId);
   await guarded(path, async () => {
     await evaluateSampling(runId, Number(formData.get("misstatement") ?? 0));
+  });
+}
+
+/**
+ * The Sampling tool's results step (UAT B78): what the tests-of-details
+ * workbook found, projected to the population and carried to C1.1.
+ */
+export async function recordTodResultAction(engagementId: string, formData: FormData): Promise<void> {
+  const path = `/engagements/${engagementId}/tools/sampling`;
+  const amount = (name: string): number => Number(String(formData.get(name) ?? "").replace(/[\s  ]/g, "").replace(",", "."));
+  await guarded(path, async () => {
+    await recordTodResult({
+      engagementId,
+      indexCode: String(formData.get("indexCode") ?? ""),
+      sampleValue: amount("sampleValue"),
+      sampleMisstatement: amount("sampleMisstatement") || 0,
+      keyMisstatement: amount("keyMisstatement") || 0,
+      remainingValue: amount("remainingValue"),
+    });
+    return `${path}?recorded=1`;
+  });
+}
+
+/**
+ * Agree a sub-ledger to its control account from the analyzer page (UAT B80),
+ * returning there rather than to the E4 paper the run is filed under.
+ */
+export async function runReconFromAnalyzerAction(
+  engagementId: string,
+  kind: string,
+  fileItemId: string,
+  formData: FormData,
+): Promise<void> {
+  const path = `/engagements/${engagementId}/analyzers/${kind}`;
+  await guarded(path, async () => {
+    await runReconciliation({
+      fileItemId,
+      datasetId: String(formData.get("datasetId") ?? ""),
+      staleDays: formData.get("staleDays") ? Number(formData.get("staleDays")) : undefined,
+      periodEnd: String(formData.get("periodEnd") ?? "") || undefined,
+    });
+    return `${path}?reconciled=1`;
   });
 }
 

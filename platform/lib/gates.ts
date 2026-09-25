@@ -16,13 +16,38 @@
 // [Adversarial-review fix]
 
 import type { PoolClient } from "pg";
+import { recordActivity } from "@/lib/activity";
 import { withTenant } from "@/lib/db";
-import { FORM_DEFINITIONS, isFormComplete, type FormValues } from "@/lib/forms";
+import { FORM_DEFINITIONS, isFormComplete, p11FailedChecks, type FormValues } from "@/lib/forms";
 import { requireTenant } from "@/lib/tenant";
 
 export interface GateResult {
   key: string;
   ok: boolean;
+}
+
+const PHASE_RANK: Record<string, number> = {
+  acceptance: 0,
+  planning: 1,
+  execution: 2,
+  conclusion: 3,
+  archived: 4,
+};
+
+/**
+ * Gates, not guidance (UAT B15): work that belongs to a later phase cannot be
+ * signed or recorded while an earlier phase is still open — the gates would
+ * otherwise only flip a flag while the file filled up behind them. Returns
+ * null when a task of `taskPhase` may proceed with the engagement in
+ * `currentPhase`, otherwise the error code naming the phase still open
+ * ("acceptance-open", "planning-open", "execution-open"). Acceptance tasks
+ * are always open: they are what the first gate is built from.
+ */
+export function phaseStillOpen(taskPhase: string, currentPhase: string): string | null {
+  const need = PHASE_RANK[taskPhase] ?? 0;
+  const have = PHASE_RANK[currentPhase] ?? 0;
+  if (need <= have) return null;
+  return `${currentPhase}-open`;
 }
 
 async function formValues(
@@ -62,10 +87,30 @@ async function partnerSigned(
   return Number(result.rows[0].n) > 0;
 }
 
+/**
+ * Open review notes on the tasks whose codes match one of the patterns,
+ * whichever way the note was raised (on a document, on a task, or on a task
+ * through its file item) — the same three shapes the archive gate resolves.
+ */
+async function openReviewNotes(tx: PoolClient, engagementId: string, codePatterns: string[]): Promise<number> {
+  const result = await tx.query<{ n: string }>(
+    `SELECT count(*)::text AS n
+       FROM review_note rn
+       LEFT JOIN document d ON d.id = rn.document_id
+       LEFT JOIN file_item fi ON fi.id = coalesce(rn.file_item_id, d.file_item_id)
+      WHERE rn.status = 'open'
+        AND coalesce(d.engagement_id, rn.engagement_id, fi.engagement_id) = $1
+        AND fi.code LIKE ANY($2::text[])`,
+    [engagementId, codePatterns],
+  );
+  return Number(result.rows[0].n);
+}
+
 async function acceptanceGatesTx(tx: PoolClient, engagementId: string): Promise<GateResult[]> {
   const d31 = await formValues(tx, engagementId, "P1.1");
   const formComplete = isFormComplete(FORM_DEFINITIONS["P1.1"], d31);
   const concludedAccept = d31.conclusion === "accept";
+  const checksPassed = p11FailedChecks(d31).length === 0;
   const signed = await partnerSigned(tx, engagementId, "P1.1");
 
   const independence = await tx.query<{ total: string; open: string; undisposed: string }>(
@@ -80,12 +125,33 @@ async function acceptanceGatesTx(tx: PoolClient, engagementId: string): Promise<
   );
   const indep = independence.rows[0];
 
+  // Every active team member (invited or accepted — a declined invitation is
+  // not on the team) must hold a completed or dispositioned confirmation: two
+  // confirmations out of twenty-two used to turn the gate green (UAT B13).
+  const notAsked = await tx.query<{ n: string }>(
+    `SELECT count(*)::text AS n
+       FROM team_member tm
+      WHERE tm.engagement_id = $1
+        AND coalesce(tm.status, 'accepted') <> 'declined'
+        AND NOT EXISTS (
+          SELECT 1 FROM independence_confirmation ic
+            JOIN independence_campaign c ON c.id = ic.campaign_id
+           WHERE c.engagement_id = $1 AND ic.user_id = tm.user_id
+             AND (ic.status = 'completed' OR (ic.status = 'exception' AND ic.disposition IS NOT NULL))
+        )`,
+    [engagementId],
+  );
+  const membersMissing = Number(notAsked.rows[0].n);
+  const openNotes = await openReviewNotes(tx, engagementId, ["P1.%"]);
+
   return [
     { key: "d31_form_complete", ok: formComplete && concludedAccept },
+    { key: "d31_checks_passed", ok: formComplete && checksPassed },
     { key: "d31_partner_signed", ok: signed },
-    // Not vacuous: a campaign must exist AND be fully completed.
-    { key: "independence_complete", ok: Number(indep.total) > 0 && Number(indep.open) === 0 },
+    // Not vacuous: a campaign must exist AND be fully completed, for everyone on the team.
+    { key: "independence_complete", ok: Number(indep.total) > 0 && Number(indep.open) === 0 && membersMissing === 0 },
     { key: "independence_exceptions_disposed", ok: Number(indep.undisposed) === 0 },
+    { key: "review_notes_cleared", ok: openNotes === 0 },
   ];
 }
 
@@ -97,8 +163,10 @@ async function planningCloseGatesTx(tx: PoolClient, engagementId: string): Promi
     [engagementId],
   );
 
+  // P7.2 is the partner's approval of the plan itself (ISA 300 ¶11, ISA 220
+  // ¶30): planning cannot close on the three judgement papers alone (UAT B15).
   const gateDocs: GateResult[] = [];
-  for (const code of ["P2.2", "P5.2", "S3.1"]) {
+  for (const code of ["P2.2", "P5.2", "S3.1", "P7.2"]) {
     gateDocs.push({
       key: `${code.toLowerCase().replace(".", "")}_partner_signed`,
       ok: await partnerSigned(tx, engagementId, code),
@@ -160,13 +228,40 @@ async function planningCloseGatesTx(tx: PoolClient, engagementId: string): Promi
     [engagementId],
   );
 
+  // An open review note on a planning paper (P or S task) is unfinished
+  // planning work; only the archive gate used to count notes (UAT B144).
+  const openNotes = await openReviewNotes(tx, engagementId, ["P%", "S%"]);
+
+  // S3.1 (ISA 330 ¶8): a control-risk "rely" must rest on a control selected
+  // for testing that covers the assertion — or on a written basis (UAT B44).
+  const unsupportedRely = await tx.query<{ n: string }>(
+    `SELECT count(*)::text AS n
+       FROM cra_assessment ca
+      WHERE ca.engagement_id = $1 AND ca.cr = 'rely'
+        AND btrim(coalesce(ca.cr_basis, '')) = ''
+        AND NOT EXISTS (
+          SELECT 1
+            FROM scot_control c
+            JOIN scot s ON s.id = c.scot_id
+            JOIN scot_index si ON si.scot_id = s.id
+            JOIN wcgw_control wc ON wc.control_id = c.id
+            JOIN wcgw w ON w.id = wc.wcgw_id
+           WHERE s.engagement_id = ca.engagement_id
+             AND si.index_code = ca.index_code
+             AND c.selected_for_testing
+             AND ca.assertion = ANY (w.assertions))`,
+    [engagementId],
+  );
+
   return [
     { key: "materiality_approved", ok: Number(materiality.rows[0].n) > 0 },
     ...gateDocs,
+    { key: "cra_reliance_supported", ok: Number(unsupportedRely.rows[0].n) === 0 },
     { key: "significant_risks_linked", ok: Number(unlinked.rows[0].n) === 0 },
     { key: "rebuttals_approved", ok: Number(badRebuttal.rows[0].n) === 0 },
     { key: "material_sections_covered", ok: Number(uncovered.rows[0].n) === 0 },
     { key: "tb_mapped", ok: Number(unmapped.rows[0].n) === 0 },
+    { key: "review_notes_cleared", ok: openNotes === 0 },
   ];
 }
 
@@ -210,6 +305,16 @@ export async function advanceToPlanning(engagementId: string): Promise<void> {
     if (failed.length > 0) throw new GateError(failed);
     await tx.query("UPDATE engagement SET phase = 'planning' WHERE id = $1", [engagementId]);
   });
+  // After COMMIT: a phase change is evidence and belongs in the trail (UAT B62).
+  await recordActivity({
+    engagementId,
+    entityType: "engagement",
+    entityId: engagementId,
+    action: "phase_advanced",
+    summary: "Acceptance gates passed — engagement moved to planning",
+    before: { phase: "acceptance" },
+    after: { phase: "planning" },
+  });
 }
 
 /** planning → execution: gates + snapshot + transition in one transaction (spec §5.4). */
@@ -237,6 +342,15 @@ export async function closePlanning(engagementId: string): Promise<void> {
       [tenantId, engagementId, JSON.stringify(snapshot.rows[0].data), userId],
     );
     await tx.query("UPDATE engagement SET phase = 'execution' WHERE id = $1", [engagementId]);
+  });
+  await recordActivity({
+    engagementId,
+    entityType: "engagement",
+    entityId: engagementId,
+    action: "phase_advanced",
+    summary: "Planning closed — snapshot taken, engagement moved to execution",
+    before: { phase: "planning" },
+    after: { phase: "execution" },
   });
 }
 

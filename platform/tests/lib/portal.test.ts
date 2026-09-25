@@ -36,8 +36,12 @@ let engagementId: string;
 let portalUserId: string;
 
 async function removeFixture(): Promise<void> {
-  await admin.query("DELETE FROM app_user WHERE email LIKE '%@portal-test.local'");
+  // The tenant goes first: its removal cascades into the append-only
+  // activity_log, which is the one deletion the trail permits. Removing a user
+  // while their trail rows still exist would SET NULL on activity_log.user_id,
+  // an UPDATE the append-only trigger refuses.
   await admin.query("DELETE FROM tenant WHERE id = $1", [TENANT]);
+  await admin.query("DELETE FROM app_user WHERE email LIKE '%@portal-test.local'");
   await admin.query("DELETE FROM app_user WHERE id = $1", [FIRM_USER]);
 }
 

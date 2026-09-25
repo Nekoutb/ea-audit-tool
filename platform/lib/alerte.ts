@@ -60,7 +60,22 @@ export interface AlerteState {
   discontinued: boolean;
   resumableUntil: string | null;
   nextStages: string[];
-  events: { stage: string; note: string; documentId: string | null; createdAt: string }[];
+  events: { stage: string; note: string; documentId: string | null; createdAt: string; eventDate: string }[];
+}
+
+/**
+ * The date the statutory clock runs from: the day the letter went out or the
+ * reply came in, not the day someone keyed it. Defaults to today; a future date
+ * or a malformed one is refused.
+ */
+function eventDateOrToday(raw: string | undefined): string {
+  const today = new Date().toISOString().slice(0, 10);
+  if (raw === undefined || raw.trim() === "") return today;
+  const value = raw.trim();
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(value) || Number.isNaN(Date.parse(`${value}T00:00:00Z`)) || value > today) {
+    throw new LegalError("invalid-event-date");
+  }
+  return value;
 }
 
 function flowOf(variant: AlerteVariant): { stage: string; deadlineDays: number | null; basis: string }[] {
@@ -97,8 +112,9 @@ async function buildStageLetter(
 }
 
 /** Start the alerte: variant derives from the client's legal form. */
-export async function startAlerte(engagementId: string, note: string): Promise<string> {
+export async function startAlerte(engagementId: string, note: string, eventDate?: string): Promise<string> {
   const { tenantId, userId } = await requireWrite(); // read_only may view the legal file, not change it (UAT B10)
+  const today = eventDateOrToday(eventDate);
   return withTenant(tenantId, async (tx) => {
     const info = await tx.query<{ legal_form: string; client_name: string; fiscal_year: number }>(
       `SELECT c.legal_form, c.name AS client_name, e.fiscal_year
@@ -114,7 +130,6 @@ export async function startAlerte(engagementId: string, note: string): Promise<s
 
     const variant: AlerteVariant = ["SA", "SAS"].includes(info.rows[0].legal_form) ? "sa" : "non_sa";
     const first = flowOf(variant)[0];
-    const today = new Date().toISOString().slice(0, 10);
     const deadline = first.deadlineDays === null ? null : addDaysIso(today, first.deadlineDays);
     const created = await tx.query<{ id: string }>(
       `INSERT INTO alerte (tenant_id, engagement_id, variant, stage, stage_deadline, created_by)
@@ -132,9 +147,9 @@ export async function startAlerte(engagementId: string, note: string): Promise<s
         })
       : null;
     await tx.query(
-      `INSERT INTO alerte_event (tenant_id, alerte_id, stage, note, document_id, created_by)
-       VALUES ($1, $2, 'request_sent', $3, $4, $5)`,
-      [tenantId, alerteId, note, documentId, userId],
+      `INSERT INTO alerte_event (tenant_id, alerte_id, stage, note, document_id, created_by, event_date)
+       VALUES ($1, $2, 'request_sent', $3, $4, $5, $6)`,
+      [tenantId, alerteId, note, documentId, userId, today],
     );
     return alerteId;
   });
@@ -148,9 +163,10 @@ export async function advanceAlerte(
   alerteId: string,
   toStage: string,
   note: string,
-  options: { satisfactory?: boolean } = {},
+  options: { satisfactory?: boolean; eventDate?: string } = {},
 ): Promise<void> {
   const { tenantId, userId } = await requireWrite(); // read_only may view the legal file, not change it (UAT B10)
+  const today = eventDateOrToday(options.eventDate);
   await withTenant(tenantId, async (tx) => {
     const current = await tx.query<{
       id: string; engagement_id: string; variant: AlerteVariant; stage: string;
@@ -177,15 +193,14 @@ export async function advanceAlerte(
         [alerteId],
       );
       await tx.query(
-        `INSERT INTO alerte_event (tenant_id, alerte_id, stage, note, created_by)
-         VALUES ($1, $2, 'discontinued', $3, $4)`,
-        [tenantId, alerteId, note, userId],
+        `INSERT INTO alerte_event (tenant_id, alerte_id, stage, note, created_by, event_date)
+         VALUES ($1, $2, 'discontinued', $3, $4, $5)`,
+        [tenantId, alerteId, note, userId, today],
       );
       return;
     }
 
     const entry = flowOf(row.variant).find((flowEntry) => flowEntry.stage === toStage);
-    const today = new Date().toISOString().slice(0, 10);
     const deadline = entry?.deadlineDays == null ? null : addDaysIso(today, entry.deadlineDays);
     await tx.query("UPDATE alerte SET stage = $2, stage_deadline = $3 WHERE id = $1", [
       alerteId, toStage, deadline,
@@ -201,9 +216,9 @@ export async function advanceAlerte(
         })
       : null;
     await tx.query(
-      `INSERT INTO alerte_event (tenant_id, alerte_id, stage, note, document_id, created_by)
-       VALUES ($1, $2, $3, $4, $5, $6)`,
-      [tenantId, alerteId, toStage, note, documentId, userId],
+      `INSERT INTO alerte_event (tenant_id, alerte_id, stage, note, document_id, created_by, event_date)
+       VALUES ($1, $2, $3, $4, $5, $6, $7)`,
+      [tenantId, alerteId, toStage, note, documentId, userId, today],
     );
   });
 }
@@ -248,9 +263,12 @@ export async function getAlerte(engagementId: string): Promise<AlerteState | nul
     );
     const row = result.rows[0];
     if (!row) return null;
-    const events = await tx.query<{ stage: string; note: string; document_id: string | null; created_at: string }>(
-      `SELECT stage, note, document_id, to_char(created_at, 'YYYY-MM-DD') AS created_at
-         FROM alerte_event WHERE alerte_id = $1 ORDER BY created_at, stage`,
+    // Chronological: by the timestamp, never by the day-string alias (which
+    // sorted same-day events by stage name and scrambled the history).
+    const events = await tx.query<{ stage: string; note: string; document_id: string | null; created_at: string; event_date: string }>(
+      `SELECT stage, note, document_id, to_char(created_at, 'YYYY-MM-DD') AS created_at,
+              to_char(coalesce(event_date, created_at::date), 'YYYY-MM-DD') AS event_date
+         FROM alerte_event WHERE alerte_id = $1 ORDER BY alerte_event.created_at, alerte_event.id`,
       [row.id],
     );
     return {
@@ -262,7 +280,7 @@ export async function getAlerte(engagementId: string): Promise<AlerteState | nul
       resumableUntil: row.discontinued_at ? addMonthsClamped(row.discontinued_at, 6) : null,
       nextStages: nextStagesOf(row.variant, row.stage, row.discontinued_at !== null),
       events: events.rows.map((event) => ({
-        stage: event.stage, note: event.note, documentId: event.document_id, createdAt: event.created_at,
+        stage: event.stage, note: event.note, documentId: event.document_id, createdAt: event.created_at, eventDate: event.event_date,
       })),
     };
   });

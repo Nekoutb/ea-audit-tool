@@ -74,14 +74,29 @@ export function answersFromForm(get: (name: string) => unknown): ComplexityAnswe
   return answers;
 }
 
-/** Default engagement naming convention; {CLIENT} and {YEAR} are substituted. */
-export const DEFAULT_ENGAGEMENT_NAMING = "{CLIENT} AUDIT {YEAR}";
+/**
+ * Default engagement naming convention. Placeholders: {CLIENT}, {YEAR},
+ * {PERIOD_END} (e.g. "DECEMBER 31 2026") and {NATURE} (e.g. "STATUTORY
+ * AUDIT"). The default reproduces the generated CLIENT_PERIOD END_NATURE name.
+ */
+export const DEFAULT_ENGAGEMENT_NAMING = "{CLIENT}_{PERIOD_END}_{NATURE}";
 
-export function applyNamingConvention(pattern: string, clientName: string, fiscalYear: number | string): string {
+export function applyNamingConvention(
+  pattern: string,
+  clientName: string,
+  fiscalYear: number | string,
+  parts: { periodEnd?: string; nature?: string } = {},
+): string {
+  const periodEnd = parts.periodEnd ?? `${fiscalYear}-12-31`;
+  const monthDay = periodEnd.length === 10 ? periodEnd.slice(5) : periodEnd;
+  const nature = parts.nature ?? "statutory_audit";
   return (pattern || DEFAULT_ENGAGEMENT_NAMING)
-    .replaceAll("{CLIENT}", clientName)
+    .replaceAll("{CLIENT}", clientName.trim().toUpperCase())
     .replaceAll("{YEAR}", String(fiscalYear))
-    .trim();
+    .replaceAll("{PERIOD_END}", `${periodEndLabel(monthDay)} ${fiscalYear}`.trim())
+    .replaceAll("{NATURE}", natureLabel(nature))
+    .trim()
+    .slice(0, 120);
 }
 
 /* ---- engagement identity profile (creation wizard) ---- */
@@ -123,14 +138,32 @@ export function generateEngagementName(
   fiscalYear: number | string,
   nature: string,
 ): string {
-  const period = YEAR_END_OPTIONS.find((o) => o.value === yearEnd);
-  // a known option renders its English label; free text passes through as typed
   return [
     clientName.trim().toUpperCase(),
-    `${(period?.en ?? "").toUpperCase()} ${fiscalYear}`,
-    (NATURE_OPTIONS.find((o) => o.value === nature)?.en ?? nature.replaceAll("_", " ")).toUpperCase(),
+    `${periodEndLabel(yearEnd)} ${fiscalYear}`,
+    natureLabel(nature),
   ]
     .filter(Boolean)
     .join("_")
     .slice(0, 120);
+}
+
+const MONTHS_EN = [
+  "JANUARY", "FEBRUARY", "MARCH", "APRIL", "MAY", "JUNE",
+  "JULY", "AUGUST", "SEPTEMBER", "OCTOBER", "NOVEMBER", "DECEMBER",
+];
+
+/** "MM-DD" → "DECEMBER 31"; any month-day, not only the four preset options. */
+function periodEndLabel(monthDay: string): string {
+  const known = YEAR_END_OPTIONS.find((o) => o.value === monthDay);
+  if (known) return known.en.toUpperCase();
+  const m = /^(\d{2})-(\d{2})$/.exec(monthDay);
+  if (!m) return "";
+  const month = MONTHS_EN[Number(m[1]) - 1];
+  return month ? `${month} ${Number(m[2])}` : "";
+}
+
+/** A known nature renders its English label; free text passes through as typed. */
+function natureLabel(nature: string): string {
+  return (NATURE_OPTIONS.find((o) => o.value === nature)?.en ?? nature.replaceAll("_", " ")).toUpperCase();
 }

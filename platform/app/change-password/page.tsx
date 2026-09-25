@@ -1,5 +1,5 @@
 import { redirect } from "next/navigation";
-import { auth } from "@/auth";
+import { auth, signOut } from "@/auth";
 import { Panel, PanelHeader } from "@/components/ui/atlas";
 import { getLocale } from "@/lib/locale";
 import { PasswordError, changeOwnPassword } from "@/lib/password";
@@ -32,9 +32,10 @@ export default async function ChangePasswordPage(props: { searchParams: Promise<
       if (e instanceof PasswordError) redirect(`/change-password?error=${encodeURIComponent(e.message)}`);
       throw e;
     }
-    // The JWT still carries the stale flag, so bounce through sign-out: the
-    // next sign-in mints a token without it.
-    redirect("/api/auth/signout?callbackUrl=/login");
+    // The JWT still carries the stale flag (and the old session_version), so
+    // sign out here — a real sign-out, not NextAuth's English confirmation
+    // page (UAT B90) — and land on /login with a message in the user's language.
+    await signOut({ redirectTo: "/login?error=password-changed" });
   }
 
   const messages: Record<string, { en: string; fr: string }> = {
@@ -50,7 +51,11 @@ export default async function ChangePasswordPage(props: { searchParams: Promise<
     "contains-email": { en: "Do not build it from your email address.", fr: "Ne le construisez pas à partir de votre adresse email." },
     "not-signed-in": { en: "Sign in again to continue.", fr: "Reconnectez-vous pour continuer." },
   };
-  const shown = error ? (messages[error] ? (fr ? messages[error].fr : messages[error].en) : error) : null;
+  // An unknown code shows the app's own generic line, never the URL's text
+  // (UAT B137: the alert box printed whatever ?error= carried).
+  const generic = fr ? "Le mot de passe n'a pas pu être modifié. Réessayez." : "The password could not be changed. Try again.";
+  const shown = error ? (messages[error] ? (fr ? messages[error].fr : messages[error].en) : generic) : null;
+  const okText = ok ? (fr ? "Mot de passe modifié." : "Password changed.") : null;
 
   const input =
     "w-full rounded-[var(--radius-atlas-sm)] border border-line-strong bg-surface px-2.5 py-1.5 text-[13px] text-ink outline-none focus:border-emerald-600";
@@ -102,7 +107,7 @@ export default async function ChangePasswordPage(props: { searchParams: Promise<
                 {shown}
               </p>
             ) : null}
-            {ok ? <p className="text-[12.5px] font-semibold text-emerald-700 dark:text-emerald-400">{ok}</p> : null}
+            {okText ? <p className="text-[12.5px] font-semibold text-emerald-700 dark:text-emerald-400">{okText}</p> : null}
 
             <button
               type="submit"

@@ -11,6 +11,7 @@ import type { PoolClient } from "pg";
 import { letterheadFooter, letterheadParagraphs, loadBranding } from "@/lib/branding";
 import { withTenant } from "@/lib/db";
 import { DOCX_MIME } from "@/lib/documents";
+import { DEFAULT_FILE_INDEX } from "@/lib/file-index";
 import type { Locale } from "@/lib/i18n";
 import { mandateExpiryYear } from "@/lib/letters";
 import { createNotification } from "@/lib/notifications";
@@ -61,12 +62,36 @@ export async function fileUnderCode(
     "SELECT id FROM file_item WHERE engagement_id = $1 AND code = $2",
     [args.engagementId, args.code],
   );
-  if (!item.rows[0]) throw new LegalError("not-found");
+  let fileItemId = item.rows[0]?.id ?? null;
+  if (!fileItemId) {
+    // A very-simple file only instantiates C5.1/C5.2, yet the OHADA procedures
+    // (rapport spécial, alerte, art. 715…) are legally required whatever the
+    // complexity tier: the missing C5.x task is added from the template rather
+    // than the whole generation failing with a bare not-found (UAT B34).
+    const template = DEFAULT_FILE_INDEX.find((entry) => entry.code === args.code);
+    if (!template) throw new LegalError("task-not-in-scope");
+    const created = await tx.query<{ id: string }>(
+      `INSERT INTO file_item (tenant_id, engagement_id, code, section, title_en, title_fr, sort_order, conditional)
+       VALUES ($1, $2, $3, $4, $5, $6,
+               (SELECT coalesce(max(sort_order), 0) + 10 FROM file_item WHERE engagement_id = $2), false)
+       ON CONFLICT DO NOTHING RETURNING id`,
+      [args.tenantId, args.engagementId, template.code, template.section, template.titleEn, template.titleFr],
+    );
+    fileItemId = created.rows[0]?.id ?? null;
+    if (!fileItemId) {
+      const again = await tx.query<{ id: string }>(
+        "SELECT id FROM file_item WHERE engagement_id = $1 AND code = $2",
+        [args.engagementId, args.code],
+      );
+      fileItemId = again.rows[0]?.id ?? null;
+    }
+    if (!fileItemId) throw new LegalError("task-not-in-scope");
+  }
 
   let documentId: string;
   const existing = await tx.query<{ id: string }>(
     "SELECT id FROM document WHERE file_item_id = $1 AND kind = $2 AND title = $3 LIMIT 1",
-    [item.rows[0].id, args.kind, args.title],
+    [fileItemId, args.kind, args.title],
   );
   if (existing.rows[0]) {
     documentId = existing.rows[0].id;
@@ -74,7 +99,7 @@ export async function fileUnderCode(
     const created = await tx.query<{ id: string }>(
       `INSERT INTO document (tenant_id, engagement_id, file_item_id, title, language, kind, created_by)
        VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING id`,
-      [args.tenantId, args.engagementId, item.rows[0].id, args.title, args.locale ?? "fr", args.kind, args.userId],
+      [args.tenantId, args.engagementId, fileItemId, args.title, args.locale ?? "fr", args.kind, args.userId],
     );
     documentId = created.rows[0].id;
   }
@@ -101,6 +126,14 @@ const h = (text: string): Paragraph =>
   new Paragraph({ heading: HeadingLevel.HEADING_1, children: [new TextRun(text)] });
 const title = (text: string): Paragraph =>
   new Paragraph({ heading: HeadingLevel.TITLE, children: [new TextRun(text)] });
+
+/** French-formatted amount for the generated reports ("-10 000 000", never "-10000000.000000"). */
+const fmtAmount = (value: string | number | null | undefined): string => {
+  if (value === null || value === undefined || value === "") return "—";
+  const n = Number(value);
+  if (!Number.isFinite(n)) return String(value);
+  return new Intl.NumberFormat("fr-FR", { maximumFractionDigits: 0 }).format(Math.round(n));
+};
 
 // ---- C5.2: statutory deadlines calendar (spec §12.1) ----
 
@@ -164,10 +197,18 @@ export async function generateDeadlines(engagementId: string): Promise<DeadlineI
       rows.push({ key: "file_assembly", due: addDaysIso(e.report_date, 60), basis: "ISA 230 — assemblage du dossier ≤ 60 jours du rapport" });
     }
     if (e.mandate_type && e.mandate_start_year) {
+      // The mandate runs to the AGM that approves the last fiscal year's
+      // accounts, not to that year's 31 December — otherwise the expiry reads
+      // OVERDUE for the whole year under audit (UAT B102).
+      const expiryYear = mandateExpiryYear(e.mandate_type, e.mandate_start_year);
+      const due =
+        e.agm_date && e.fiscal_year === expiryYear
+          ? e.agm_date
+          : addMonthsClamped(`${expiryYear}-12-31`, 6);
       rows.push({
         key: "mandate_expiry",
-        due: `${mandateExpiryYear(e.mandate_type, e.mandate_start_year)}-12-31`,
-        basis: "Art. 704 — expiration du mandat (2/6 exercices)",
+        due,
+        basis: "Art. 704 — expiration du mandat à l'AG statuant sur les comptes du dernier exercice (2/6 exercices)",
       });
     }
     for (const row of rows) {
@@ -181,6 +222,51 @@ export async function generateDeadlines(engagementId: string): Promise<DeadlineI
   });
   await escalateOverdue(engagementId);
   return listDeadlines(engagementId);
+}
+
+export interface LegalDates {
+  periodEnd: string;
+  agmDate: string | null;
+  reportDate: string | null;
+}
+
+/** The dates the C5.2 calendar is derived from (AGM-relative rows need the AGM date). */
+export async function legalDates(engagementId: string): Promise<LegalDates> {
+  const { tenantId } = await requireTenant();
+  return withTenant(tenantId, async (tx) => {
+    const e = await loadLegalContext(tx, engagementId);
+    return { periodEnd: e.period_end, agmDate: e.agm_date, reportDate: e.report_date };
+  });
+}
+
+const ISO_DATE = /^\d{4}-\d{2}-\d{2}$/;
+
+/**
+ * Record the (planned) AGM date and, optionally, the planned report date on
+ * the engagement, then regenerate the calendar so the AGM-relative OHADA
+ * deadlines (documents to the CAC, CAC report, rapport spécial deposit) appear.
+ */
+export async function setLegalDates(
+  engagementId: string,
+  input: { agmDate?: string | null; reportDate?: string | null },
+): Promise<void> {
+  const { tenantId } = await requireWrite();
+  const agmDate = input.agmDate?.trim() || null;
+  const reportDate = input.reportDate?.trim() || null;
+  if ((agmDate && !ISO_DATE.test(agmDate)) || (reportDate && !ISO_DATE.test(reportDate))) {
+    throw new LegalError("invalid-date");
+  }
+  await withTenant(tenantId, async (tx) => {
+    const updated = await tx.query(
+      `UPDATE engagement
+          SET agm_date = $2::date,
+              report_date = coalesce($3::date, report_date)
+        WHERE id = $1`,
+      [engagementId, agmDate, reportDate],
+    );
+    if (updated.rowCount === 0) throw new LegalError("not-found");
+  });
+  await generateDeadlines(engagementId);
 }
 
 export async function listDeadlines(engagementId: string): Promise<DeadlineInfo[]> {
@@ -211,7 +297,8 @@ export async function markDeadlineDone(engagementId: string, key: string): Promi
 /** Escalation: overdue undone deadlines notify every engagement partner. */
 export async function escalateOverdue(engagementId: string): Promise<number> {
   const { tenantId } = await requireWrite(); // read_only may view the legal file, not change it (UAT B10)
-  const { overdue, partners } = await withTenant(tenantId, async (tx) => {
+  const href = `/engagements/${engagementId}/legal`;
+  const { overdue, partners, notified } = await withTenant(tenantId, async (tx) => {
     const overdueRows = await tx.query<{ key: string; due_date: string }>(
       `SELECT key, to_char(due_date, 'YYYY-MM-DD') AS due_date
          FROM statutory_deadline
@@ -222,17 +309,30 @@ export async function escalateOverdue(engagementId: string): Promise<number> {
       "SELECT user_id FROM team_member WHERE engagement_id = $1 AND team_role = 'partner'",
       [engagementId],
     );
-    return { overdue: overdueRows.rows, partners: partnerRows.rows };
+    // Every calendar refresh re-ran the escalation: the same overdue item
+    // notified the same partner again each time (UAT B102). One notification
+    // per (partner, deadline) — an already-sent one is not sent twice.
+    const sent = await tx.query<{ user_id: string; title: string }>(
+      "SELECT user_id, title FROM notification WHERE kind = 'deadline-overdue' AND href = $1",
+      [href],
+    );
+    return {
+      overdue: overdueRows.rows,
+      partners: partnerRows.rows,
+      notified: new Set(sent.rows.map((row) => `${row.user_id}|${row.title}`)),
+    };
   });
   for (const deadline of overdue) {
+    const title = `Statutory deadline overdue: ${deadline.key}`;
     for (const partner of partners) {
+      if (notified.has(`${partner.user_id}|${title}`)) continue;
       await createNotification({
         tenantId,
         userId: partner.user_id,
         kind: "deadline-overdue",
-        title: `Statutory deadline overdue: ${deadline.key}`,
+        title,
         body: `Due ${deadline.due_date} — open the statutory calendar to clear it.`,
-        href: `/engagements/${engagementId}/legal`,
+        href,
       });
     }
   }
@@ -375,7 +475,7 @@ export async function generateRapportSpecial(engagementId: string): Promise<stri
         );
         if (convention.continuing) {
           children.push(
-            p(`Convention poursuivie — montants comptabilisés au titre de l'exercice : ${convention.amounts_period ?? "—"} FCFA.`),
+            p(`Convention poursuivie — montants comptabilisés au titre de l'exercice : ${fmtAmount(convention.amounts_period)} FCFA.`),
           );
         }
         children.push(
@@ -466,7 +566,7 @@ export async function generateArticle715Report(engagementId: string): Promise<st
       ...(adjustments.rows.length === 0
         ? [p("Aucun ajustement proposé demeurant non corrigé à la date du présent rapport.")]
         : adjustments.rows.map((row) =>
-            p(`${row.description}${row.accounts ? ` (comptes ${row.accounts})` : ""} — ${row.amount} FCFA.`),
+            p(`${row.description}${row.accounts ? ` (comptes ${row.accounts})` : ""} — ${fmtAmount(row.amount)} FCFA.`),
           )),
       ...c1Points.rows.map((row) => p(`Observation sur les méthodes : ${row.title}${row.detail ? ` — ${row.detail}` : ""}`)),
       h("3. Irrégularités et inexactitudes découvertes"),
@@ -475,7 +575,7 @@ export async function generateArticle715Report(engagementId: string): Promise<st
         : irregularities.rows.map((row) => p(row.title))),
       h("4. Conclusions sur les résultats de l'exercice comparés au précédent"),
       p(
-        `Résultat de l'exercice ${e.fiscal_year} : ${current?.result ?? "n/d"} FCFA ; exercice ${e.fiscal_year - 1} : ${prior?.result ?? "n/d"} FCFA.`,
+        `Résultat de l'exercice ${e.fiscal_year} : ${current ? fmtAmount(current.result) : "n/d"} FCFA ; exercice ${e.fiscal_year - 1} : ${prior ? fmtAmount(prior.result) : "n/d"} FCFA.`,
       ),
       ...letterheadFooter(branding),
     ];
@@ -621,36 +721,63 @@ export interface EquityCheck {
   halfCapital: number | null;
   breach: boolean;
   hasTb: boolean;
+  /** which trial balance the figures come from: the valid post-audit (final) TB when one exists */
+  source: "post_audit" | "pre_audit" | null;
 }
 
 /**
- * Capitaux propres from the current TB (accounts 10-15 plus the unposted
+ * The figures without side effects: capitaux propres from the final
+ * (post-audit) TB when a valid one exists, else the working pre-audit TB.
+ */
+async function computeEquity(tx: PoolClient, engagementId: string): Promise<EquityCheck> {
+  const e = await loadLegalContext(tx, engagementId);
+  const totals = await tx.query<{ equity: string | null; result: string | null; rows: string; timing: string | null }>(
+    `SELECT -sum(r.opening_debit - r.opening_credit + r.debit - r.credit)
+              FILTER (WHERE r.account_code ~ '^1[0-5]') AS equity,
+            -sum(r.opening_debit - r.opening_credit + r.debit - r.credit)
+              FILTER (WHERE r.account_code ~ '^[678]') AS result,
+            count(r.id)::text AS rows,
+            min(v.timing) AS timing
+       FROM trial_balance tb
+       JOIN trial_balance_version v ON v.trial_balance_id = tb.id
+        AND v.id = coalesce(
+              (SELECT v2.id FROM trial_balance_version v2
+                WHERE v2.trial_balance_id = tb.id AND v2.timing = 'post_audit' AND v2.validation_status = 'valid'
+                ORDER BY v2.version_no DESC LIMIT 1),
+              (SELECT v3.id FROM trial_balance_version v3
+                WHERE v3.trial_balance_id = tb.id AND v3.version_no = tb.current_version_no))
+       JOIN trial_balance_row r ON r.version_id = v.id
+      WHERE tb.engagement_id = $1`,
+    [engagementId],
+  );
+  const hasTb = Number(totals.rows[0]?.rows ?? 0) > 0;
+  const equity = Number(totals.rows[0]?.equity ?? 0) + Number(totals.rows[0]?.result ?? 0);
+  const shareCapital = e.share_capital === null ? null : Number(e.share_capital);
+  const halfCapital = shareCapital === null ? null : shareCapital / 2;
+  const breach = hasTb && halfCapital !== null && equity < halfCapital;
+  const source = !hasTb ? null : totals.rows[0]?.timing === "post_audit" ? "post_audit" : "pre_audit";
+  return { equity, shareCapital, halfCapital, breach, hasTb, source };
+}
+
+/** Read-only view of the C5.8 figures for the page (no deadline, no notification). */
+export async function equityStatus(engagementId: string): Promise<EquityCheck> {
+  const { tenantId } = await requireTenant();
+  return withTenant(tenantId, (tx) => computeEquity(tx, engagementId));
+}
+
+/**
+ * Capitaux propres from the final TB (accounts 10-15 plus the unposted
  * result from classes 6/7/8) vs half of the share capital. A breach raises
  * the statutory EGM deadline (SA arts. 664-669; SARL arts. 371-373) and
- * notifies the engagement partners.
+ * notifies the engagement partners; a check that no longer breaches clears
+ * the open EGM row (UAT B100).
  */
 export async function equityCheck(engagementId: string): Promise<EquityCheck> {
-  const { tenantId } = await requireTenant();
+  const { tenantId } = await requireWrite();
   const check = await withTenant(tenantId, async (tx) => {
     const e = await loadLegalContext(tx, engagementId);
-    const totals = await tx.query<{ equity: string | null; result: string | null; rows: string }>(
-      `SELECT -sum(r.opening_debit - r.opening_credit + r.debit - r.credit)
-                FILTER (WHERE r.account_code ~ '^1[0-5]') AS equity,
-              -sum(r.opening_debit - r.opening_credit + r.debit - r.credit)
-                FILTER (WHERE r.account_code ~ '^[678]') AS result,
-              count(*)::text AS rows
-         FROM trial_balance tb
-         JOIN trial_balance_version v ON v.trial_balance_id = tb.id AND v.version_no = tb.current_version_no
-         JOIN trial_balance_row r ON r.version_id = v.id
-        WHERE tb.engagement_id = $1`,
-      [engagementId],
-    );
-    const hasTb = Number(totals.rows[0]?.rows ?? 0) > 0;
-    const equity = Number(totals.rows[0]?.equity ?? 0) + Number(totals.rows[0]?.result ?? 0);
-    const shareCapital = e.share_capital === null ? null : Number(e.share_capital);
-    const halfCapital = shareCapital === null ? null : shareCapital / 2;
-    const breach = hasTb && halfCapital !== null && equity < halfCapital;
-    if (breach) {
+    const figures = await computeEquity(tx, engagementId);
+    if (figures.breach) {
       const basisDate = e.agm_date ?? addMonthsClamped(e.period_end, 6);
       await tx.query(
         `INSERT INTO statutory_deadline (tenant_id, engagement_id, key, due_date, basis)
@@ -661,8 +788,13 @@ export async function equityCheck(engagementId: string): Promise<EquityCheck> {
           "Capitaux propres < ½ capital — AGE ≤ 4 mois de l'approbation des comptes déficitaires (SA arts. 664-669 ; SARL arts. 371-373)",
         ],
       );
+    } else if (figures.hasTb && figures.halfCapital !== null) {
+      await tx.query(
+        "DELETE FROM statutory_deadline WHERE engagement_id = $1 AND key = 'egm_equity' AND done = false",
+        [engagementId],
+      );
     }
-    return { equity, shareCapital, halfCapital, breach, hasTb };
+    return figures;
   });
   if (check.breach) {
     const partners = await withTenant(tenantId, async (tx) => {
@@ -678,7 +810,7 @@ export async function equityCheck(engagementId: string): Promise<EquityCheck> {
         userId: partner.user_id,
         kind: "equity-breach",
         title: "Capitaux propres < ½ capital social",
-        body: `Equity ${check.equity} vs half capital ${check.halfCapital} — statutory EGM workflow raised (C5.8).`,
+        body: `Capitaux propres ${fmtAmount(check.equity)} FCFA vs ½ capital ${fmtAmount(check.halfCapital)} FCFA — procédure statutaire d'AGE déclenchée (C5.8).`,
         href: `/engagements/${engagementId}/legal`,
       });
     }

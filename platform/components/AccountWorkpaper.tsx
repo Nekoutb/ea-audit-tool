@@ -34,6 +34,8 @@ export function AccountWorkpaper({
   steps,
   results,
   attachmentsSlot,
+  leadSchedule = null,
+  readOnly = false,
   locale,
 }: {
   engagementId: string;
@@ -50,6 +52,17 @@ export function AccountWorkpaper({
   steps: PspStep[];
   results: Record<string, string>;
   attachmentsSlot?: React.ReactNode;
+  /** the account's lead schedule from the working TB, with the tool's link */
+  leadSchedule?: {
+    href: string;
+    closing: number;
+    prior: number;
+    movement: number;
+    variancePct: number | null;
+    accounts: number;
+  } | null;
+  /** archived file: nothing on the paper can be changed */
+  readOnly?: boolean;
   locale: "en" | "fr";
 }) {
   const fr = locale === "fr";
@@ -78,6 +91,10 @@ export function AccountWorkpaper({
 
   async function op(body: Record<string, unknown>) {
     setError(null);
+    if (readOnly) {
+      setError(errorText("archived"));
+      return false;
+    }
     const r = await fetch(`/api/engagements/${engagementId}/psp`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -119,6 +136,25 @@ export function AccountWorkpaper({
   return (
     <div className="flex flex-col gap-1.5" data-testid="account-workpaper">
       {error ? <p className="text-[11px] font-semibold text-rose">{error}</p> : null}
+      {leadSchedule ? (
+        /* the balance the procedures are performed on, and the way to its detail */
+        <div className="flex flex-wrap items-center gap-x-4 gap-y-1 rounded-[var(--radius-atlas-sm)] border border-emerald-600/30 bg-emerald-50 px-3 py-2 text-[12px] dark:bg-emerald-950/30" data-testid="account-lead-schedule">
+          <span className="text-muted">
+            {fr ? "Feuille maîtresse" : "Lead schedule"} {indexCode}: <b className="text-ink tnum">{money(leadSchedule.closing)}</b>
+          </span>
+          <span className="text-muted">
+            {fr ? "N-1" : "Prior"}: <b className="text-ink tnum">{money(leadSchedule.prior)}</b>
+          </span>
+          <span className="text-muted">
+            {fr ? "Variation" : "Movement"}: <b className="text-ink tnum">{money(leadSchedule.movement)}</b>
+            {leadSchedule.variancePct !== null ? <span className="tnum"> ({leadSchedule.variancePct}%)</span> : null}
+          </span>
+          <span className="text-muted tnum">{leadSchedule.accounts} {fr ? "compte(s)" : "account(s)"}</span>
+          <Link href={leadSchedule.href} className="font-semibold text-emerald-700 hover:underline dark:text-emerald-400" data-testid="account-lead-schedule-link">
+            {fr ? "Ouvrir la feuille maîtresse →" : "Open the lead schedule →"}
+          </Link>
+        </div>
+      ) : null}
       {!inIndex ? (
         <p className="rounded-[var(--radius-atlas-sm)] bg-surface-2 px-3 py-2 text-[12.5px] text-muted">
           {fr

@@ -2,7 +2,9 @@
 // (or to whoever is named), so it also appears on that person's dashboard
 // under Review notes. Notes are cleared, never deleted — the trail stays.
 
+import { recordActivity } from "@/lib/activity";
 import { withTenant } from "@/lib/db";
+import { isPreparerOfNote } from "@/lib/documents";
 import { atLeast } from "@/lib/rbac";
 import { ForbiddenError, requireTenant, requireWrite } from "@/lib/tenant";
 import { createNotification } from "@/lib/notifications";
@@ -40,6 +42,8 @@ export async function listTaskNotes(fileItemId: string): Promise<TaskNote[]> {
          JOIN app_user a ON a.id = n.author_id
          LEFT JOIN app_user u ON u.id = n.assignee_id
         WHERE n.file_item_id = $1
+           -- notes raised on the task's document are notes on the same paper (UAT B18)
+           OR n.document_id IN (SELECT d.id FROM document d WHERE d.file_item_id = $1)
         ORDER BY n.status = 'cleared', n.created_at DESC`,
       [fileItemId],
     );
@@ -88,7 +92,14 @@ export async function addTaskNote(
     );
     return row;
   });
-  if (target?.user_id) {
+  await recordActivity({
+    engagementId,
+    entityType: "file_item",
+    entityId: fileItemId,
+    action: "review_note_raised",
+    summary: `Review note raised on ${target?.code ?? "task"}`,
+  });
+  if (target?.user_id && target.user_id !== userId) {
     try {
       await createNotification({
         tenantId,
@@ -104,31 +115,107 @@ export async function addTaskNote(
   }
 }
 
+/**
+ * Reply to a note without clearing it (UAT B19): the preparer's answer is
+ * appended to the exchange and the author is told, so the reviewer — not the
+ * person whose work the note queries — decides whether the point is resolved.
+ */
+export async function respondToTaskNote(noteId: string, text: string): Promise<void> {
+  const { tenantId, userId } = await requireWrite();
+  const reply = text.trim();
+  if (!reply) throw new Error("response-required");
+  const note = await withTenant(tenantId, async (tx) => {
+    const r = await tx.query<{ author_id: string; engagement_id: string | null; file_item_id: string | null; document_id: string | null; code: string | null; who: string }>(
+      `SELECT rn.author_id, coalesce(rn.engagement_id, d.engagement_id) AS engagement_id,
+              coalesce(rn.file_item_id, d.file_item_id) AS file_item_id, rn.document_id, fi.code,
+              (SELECT coalesce(name, email) FROM app_user WHERE id = $2) AS who
+         FROM review_note rn
+         LEFT JOIN document d ON d.id = rn.document_id
+         LEFT JOIN file_item fi ON fi.id = coalesce(rn.file_item_id, d.file_item_id)
+        WHERE rn.id = $1 AND rn.status = 'open'`,
+      [noteId, userId],
+    );
+    const row = r.rows[0];
+    if (!row) throw new Error("not-found");
+    await tx.query(
+      `UPDATE review_note
+          SET response = coalesce(response || E'\n', '') || '[' || $3 || ' · ' || to_char(now(), 'DD Mon YYYY HH24:MI') || '] ' || $2
+        WHERE id = $1 AND status = 'open'`,
+      [noteId, reply, row.who],
+    );
+    return row;
+  });
+  if (note.engagement_id) {
+    await recordActivity({
+      engagementId: note.engagement_id,
+      entityType: "review_note",
+      entityId: noteId,
+      action: "review_note_answered",
+      summary: `Review note on ${note.code ?? "task"} answered`,
+    });
+  }
+  if (note.author_id !== userId) {
+    try {
+      await createNotification({
+        tenantId,
+        userId: note.author_id,
+        kind: "review_note",
+        title: `Reply to your review note on ${note.code ?? "a task"}`,
+        body: reply.slice(0, 400),
+        href: note.file_item_id && note.engagement_id
+          ? `/engagements/${note.engagement_id}/sections/${note.file_item_id}`
+          : note.document_id ? `/documents/${note.document_id}` : undefined,
+      });
+    } catch {
+      // a failed notification must never lose the reply
+    }
+  }
+}
+
 /** Answer and clear a note. */
 export async function clearTaskNote(noteId: string, response: string): Promise<void> {
   const { tenantId, userId, role } = await requireWrite();
-  await withTenant(tenantId, async (tx) => {
+  const cleared = await withTenant(tenantId, async (tx) => {
     // Clearing a note is not bookkeeping: an open note blocks both the reviewer
     // and partner signature (signDocument) and the archive gate
     // (review_notes_cleared). ISA 220 (Revised) para 29 puts the judgement that
     // a point is resolved with the reviewer, so a preparer must not close the
     // note raised against their own work. The author may always close their own
     // — a staff member who queried someone else's paper can withdraw it.
-    const note = await tx.query<{ author_id: string | null }>(
-      "SELECT author_id FROM review_note WHERE id = $1",
+    // Otherwise a manager or above who did not prepare the paper (UAT B19).
+    const note = await tx.query<{ author_id: string | null; engagement_id: string | null; code: string | null }>(
+      `SELECT rn.author_id, coalesce(rn.engagement_id, d.engagement_id) AS engagement_id, fi.code
+         FROM review_note rn
+         LEFT JOIN document d ON d.id = rn.document_id
+         LEFT JOIN file_item fi ON fi.id = coalesce(rn.file_item_id, d.file_item_id)
+        WHERE rn.id = $1`,
       [noteId],
     );
-    const author = note.rows[0]?.author_id;
-    if (author !== userId && !atLeast(role, "senior")) {
-      throw new ForbiddenError("requires-senior-or-author");
+    const row = note.rows[0];
+    const author = row?.author_id;
+    if (author !== userId) {
+      if (!atLeast(role, "manager")) throw new ForbiddenError("requires-manager-or-author");
+      if (await isPreparerOfNote(tx, noteId, userId)) throw new ForbiddenError("not-preparer-clears");
     }
     await tx.query(
       `UPDATE review_note
-          SET status = 'cleared', response = $2, cleared_at = now(), cleared_by = $3
+          SET status = 'cleared',
+              response = CASE WHEN $2::text IS NULL THEN response ELSE coalesce(response || E'\n', '') || $2 END,
+              cleared_at = now(), cleared_by = $3
         WHERE id = $1 AND status = 'open'`,
       [noteId, response.trim() || null, userId],
     );
+    return row ?? null;
   });
+  if (cleared?.engagement_id) {
+    await recordActivity({
+      engagementId: cleared.engagement_id,
+      entityType: "review_note",
+      entityId: noteId,
+      action: "review_note_cleared",
+      summary: `Review note on ${cleared.code ?? "task"} cleared`,
+    });
+  }
 }
 
 export interface MyTaskNote {
@@ -213,7 +300,7 @@ export async function noteRegister(engagementId: string): Promise<NoteRegisterRo
       code: string;
       title_en: string;
       title_fr: string;
-      file_item_id: string;
+      file_item_id: string | null;
       owner_name: string | null;
       author_name: string;
       author_id: string;
@@ -225,7 +312,8 @@ export async function noteRegister(engagementId: string): Promise<NoteRegisterRo
       cleared_at: string | null;
       hours: string | null;
     }>(
-      `SELECT n.id, fi.code, fi.title_en, fi.title_fr, n.file_item_id,
+      `SELECT n.id, coalesce(fi.code, '—') AS code, coalesce(fi.title_en, d.title, '') AS title_en,
+              coalesce(fi.title_fr, d.title, '') AS title_fr, fi.id AS file_item_id,
               coalesce(u.name, u.email) AS owner_name,
               coalesce(a.name, a.email) AS author_name,
               n.author_id, n.assignee_id, n.body, n.response, n.status,
@@ -233,10 +321,13 @@ export async function noteRegister(engagementId: string): Promise<NoteRegisterRo
               to_char(n.cleared_at, 'DD Mon YYYY HH24:MI') AS cleared_at,
               round(extract(epoch FROM (n.cleared_at - n.created_at)) / 3600, 1)::text AS hours
          FROM review_note n
-         JOIN file_item fi ON fi.id = n.file_item_id
+         -- a note raised on a document reaches the register through the
+         -- document's task and engagement (UAT B18: two stores, one register)
+         LEFT JOIN document d ON d.id = n.document_id
+         LEFT JOIN file_item fi ON fi.id = coalesce(n.file_item_id, d.file_item_id)
          JOIN app_user a ON a.id = n.author_id
          LEFT JOIN app_user u ON u.id = n.assignee_id
-        WHERE n.engagement_id = $1
+        WHERE coalesce(n.engagement_id, d.engagement_id, fi.engagement_id) = $1
         ORDER BY n.status = 'cleared', n.created_at DESC`,
       [engagementId],
     );
@@ -244,7 +335,7 @@ export async function noteRegister(engagementId: string): Promise<NoteRegisterRo
       id: row.id,
       code: row.code,
       taskTitle: row.title_en,
-      fileItemId: row.file_item_id,
+      fileItemId: row.file_item_id ?? "",
       ownerName: row.owner_name,
       authorName: row.author_name,
       body: row.body,

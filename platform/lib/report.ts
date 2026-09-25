@@ -39,26 +39,39 @@ export function decideOpinion(input: OpinionInput): {
   return { opinion, goingConcernParagraph: input.goingConcernUncertainty };
 }
 
-const OPINION_FR: Record<OpinionType, { title: string; body: (client: string, year: number) => string }> = {
+const MONTHS_FR = [
+  "janvier", "février", "mars", "avril", "mai", "juin",
+  "juillet", "août", "septembre", "octobre", "novembre", "décembre",
+];
+
+/** "2025-06-30" → "30 juin 2025" — the engagement's own period end, never an assumed 31 December (UAT B58). */
+export function periodEndFr(iso: string): string {
+  const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(iso);
+  if (!m) return iso;
+  const day = Number(m[3]);
+  return `${day === 1 ? "1er" : day} ${MONTHS_FR[Number(m[2]) - 1] ?? m[2]} ${m[1]}`;
+}
+
+const OPINION_FR: Record<OpinionType, { title: string; body: (client: string, periodEnd: string) => string }> = {
   unmodified: {
     title: "Opinion",
-    body: (client, year) =>
-      `À notre avis, les états financiers annuels de ${client} pour l'exercice clos le 31 décembre ${year} sont réguliers et sincères et donnent une image fidèle du résultat des opérations de l'exercice écoulé ainsi que de la situation financière et du patrimoine de la société à la fin de cet exercice, conformément au référentiel SYSCOHADA révisé.`,
+    body: (client, periodEnd) =>
+      `À notre avis, les états financiers annuels de ${client} pour l'exercice clos le ${periodEnd} sont réguliers et sincères et donnent une image fidèle du résultat des opérations de l'exercice écoulé ainsi que de la situation financière et du patrimoine de la société à la fin de cet exercice, conformément au référentiel SYSCOHADA révisé.`,
   },
   qualified: {
     title: "Opinion avec réserves",
-    body: (client, year) =>
-      `À notre avis, sous réserve des points décrits dans la section « Fondement de l'opinion avec réserves », les états financiers annuels de ${client} pour l'exercice clos le 31 décembre ${year} sont réguliers et sincères et donnent une image fidèle du résultat des opérations de l'exercice écoulé ainsi que de la situation financière et du patrimoine de la société.`,
+    body: (client, periodEnd) =>
+      `À notre avis, sous réserve des points décrits dans la section « Fondement de l'opinion avec réserves », les états financiers annuels de ${client} pour l'exercice clos le ${periodEnd} sont réguliers et sincères et donnent une image fidèle du résultat des opérations de l'exercice écoulé ainsi que de la situation financière et du patrimoine de la société.`,
   },
   adverse: {
     title: "Opinion défavorable",
-    body: (client, year) =>
-      `À notre avis, en raison de l'importance des points décrits dans la section « Fondement de l'opinion défavorable », les états financiers annuels de ${client} pour l'exercice clos le 31 décembre ${year} ne sont pas réguliers et sincères et ne donnent pas une image fidèle du résultat des opérations, de la situation financière et du patrimoine de la société.`,
+    body: (client, periodEnd) =>
+      `À notre avis, en raison de l'importance des points décrits dans la section « Fondement de l'opinion défavorable », les états financiers annuels de ${client} pour l'exercice clos le ${periodEnd} ne sont pas réguliers et sincères et ne donnent pas une image fidèle du résultat des opérations, de la situation financière et du patrimoine de la société.`,
   },
   disclaimer: {
     title: "Impossibilité d'exprimer une opinion",
-    body: (client, year) =>
-      `En raison de l'importance des points décrits dans la section « Fondement de l'impossibilité d'exprimer une opinion », nous ne sommes pas en mesure d'exprimer une opinion sur les états financiers annuels de ${client} pour l'exercice clos le 31 décembre ${year}.`,
+    body: (client, periodEnd) =>
+      `En raison de l'importance des points décrits dans la section « Fondement de l'impossibilité d'exprimer une opinion », nous ne sommes pas en mesure d'exprimer une opinion sur les états financiers annuels de ${client} pour l'exercice clos le ${periodEnd}.`,
   },
 };
 
@@ -69,6 +82,8 @@ export async function generateAuditReport(input: {
   basisText?: string;
   goingConcernParagraph: boolean;
   kamText?: string;
+  /** listed entity with no key audit matter: the reason, printed as the ISA 701 ¶16 statement */
+  kamNoneReason?: string;
   reportDate: string;
 }): Promise<string> {
   const { tenantId, userId } = await requireTenant();
@@ -78,9 +93,11 @@ export async function generateAuditReport(input: {
       listed: boolean;
       co_cac: boolean;
       fiscal_year: number;
+      period_end: string;
       a1_id: string;
     }>(
       `SELECT c.name AS client_name, c.listed, c.co_cac, e.fiscal_year,
+              to_char(e.period_end, 'YYYY-MM-DD') AS period_end,
               (SELECT id FROM file_item WHERE engagement_id = e.id AND code = 'C2.1') AS a1_id
          FROM engagement e JOIN client c ON c.id = e.client_id
         WHERE e.id = $1`,
@@ -91,15 +108,16 @@ export async function generateAuditReport(input: {
 
     const branding = await loadBranding(tx, tenantId);
     const opinion = OPINION_FR[input.opinion];
+    const closing = periodEndFr(row.period_end ?? `${row.fiscal_year}-12-31`);
     const children: Paragraph[] = [
       ...letterheadParagraphs(branding),
       new Paragraph({
         heading: HeadingLevel.TITLE,
         children: [new TextRun("Rapport du commissaire aux comptes sur les états financiers annuels")],
       }),
-      new Paragraph({ children: [new TextRun({ text: `${row.client_name} — Exercice clos le 31 décembre ${row.fiscal_year}`, bold: true })] }),
+      new Paragraph({ children: [new TextRun({ text: `${row.client_name} — Exercice clos le ${closing}`, bold: true })] }),
       new Paragraph({ heading: HeadingLevel.HEADING_1, children: [new TextRun(opinion.title)] }),
-      new Paragraph(opinion.body(row.client_name, row.fiscal_year)),
+      new Paragraph(opinion.body(row.client_name, closing)),
     ];
     if (input.opinion !== "unmodified" && input.basisText) {
       children.push(
@@ -119,6 +137,14 @@ export async function generateAuditReport(input: {
       children.push(
         new Paragraph({ heading: HeadingLevel.HEADING_1, children: [new TextRun("Points clés de l'audit")] }),
         new Paragraph(input.kamText),
+      );
+    } else if (row.listed && input.kamNoneReason) {
+      // ISA 701 ¶16: when there is no key audit matter to report, the report says so.
+      children.push(
+        new Paragraph({ heading: HeadingLevel.HEADING_1, children: [new TextRun("Points clés de l'audit")] }),
+        new Paragraph(
+          `Nous avons déterminé qu'il n'y a pas de points clés de l'audit à communiquer dans notre rapport. ${input.kamNoneReason}`,
+        ),
       );
     }
     children.push(

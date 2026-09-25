@@ -3,6 +3,7 @@
 // Letters are stored as documents (kind='letter') under the relevant file item.
 
 import { Document, HeadingLevel, Packer, Paragraph, TextRun } from "docx";
+import { recordActivity } from "@/lib/activity";
 import { type Branding, letterheadFooter, letterheadParagraphs, loadBranding } from "@/lib/branding";
 import { withTenant } from "@/lib/db";
 import { DOCX_MIME } from "@/lib/documents";
@@ -15,16 +16,33 @@ export type LetterKind =
   | "planning_tcwg"
   | "rep_affirmation"
   | "rep_complementary"
-  | "management_letter";
+  | "management_letter"
+  | "tcwg_completion";
 
 /** File-index destination per letter kind. */
 const LETTER_CODES: Record<LetterKind, string> = {
-  engagement: "P1.1",
+  // The engagement letter is the P1.4 task (ISA 210), not P1.1 acceptance;
+  // 20260925000010 moves the letters already generated under P1.1.
+  engagement: "P1.4",
   planning_tcwg: "C5.1",
   rep_affirmation: "C3.1",
   rep_complementary: "C3.1",
   management_letter: "C5.1",
+  tcwg_completion: "C5.1",
 };
+
+/** The engagement's reporting framework, as the letter names it. */
+function frameworkLabel(raw: string | null): string {
+  const v = (raw ?? "").trim().toLowerCase();
+  if (v === "" || v === "syscohada") return "SYSCOHADA révisé (AUDCIF)";
+  if (v === "ifrs") return "IFRS";
+  return raw!.trim();
+}
+
+interface UncorrectedLine {
+  description: string;
+  amount: number;
+}
 
 interface LetterFields {
   clientName: string;
@@ -34,9 +52,24 @@ interface LetterFields {
   coCac: boolean;
   mandateType: "statutes" | "ago" | null;
   mandateStartYear: number | null;
+  /** engagement letter: the client's identity and the applicable framework */
+  framework: string | null;
+  address: string | null;
+  registrationNumber: string | null;
+  niu: string | null;
   /** management_letter only: the C5.1 points to include. */
   c1Points?: string[];
+  /** rep_affirmation / tcwg_completion: the uncorrected misstatements on the SAD (ISA 450 ¶14, ¶12) */
+  uncorrected?: UncorrectedLine[];
+  /** rep_affirmation: the engagement-specific representations recorded on C3.1 */
+  specificRepresentations?: string[];
+  /** tcwg_completion: significant matters and open points from C1.2 */
+  significantMatters?: string[];
+  /** tcwg_completion: the team's independence position */
+  independence?: { total: number; completed: number; exceptions: number; undisposed: number };
 }
+
+const fcfa = (n: number) => new Intl.NumberFormat("fr-FR").format(Math.round(n));
 
 function mandateYears(type: "statutes" | "ago"): number {
   // AUSCGIE art. 704: 2 fiscal years if named in the statutes/constitutive
@@ -68,15 +101,45 @@ async function buildLetter(
         children: [new TextRun(fr ? "Lettre de mission" : "Engagement letter")],
       }),
       p(`${f.clientName} (${f.legalForm})`),
+    );
+    // ISA 210 ¶10: the client's identity, then the objective and scope, the
+    // responsibilities of each party, the framework and the expected reports.
+    const identity = [
+      f.address ? (fr ? `Adresse : ${f.address}` : `Address: ${f.address}`) : null,
+      f.registrationNumber ? `RCCM : ${f.registrationNumber}` : null,
+      f.niu ? `NIU : ${f.niu}` : null,
+    ].filter((x): x is string => x !== null);
+    if (identity.length > 0) children.push(p(identity.join(" · ")));
+    const framework = frameworkLabel(f.framework);
+    children.push(
       p(
         fr
-          ? `Exercice ${f.fiscalYear} — clôture au ${f.periodEnd} — référentiel : SYSCOHADA révisé (AUDCIF).`
-          : `Fiscal year ${f.fiscalYear} — period end ${f.periodEnd} — framework: SYSCOHADA révisé (AUDCIF).`,
+          ? `Exercice ${f.fiscalYear} — clôture au ${f.periodEnd} — référentiel comptable applicable : ${framework}.`
+          : `Fiscal year ${f.fiscalYear} — period end ${f.periodEnd} — applicable financial reporting framework: ${framework}.`,
       ),
+      p(fr ? "Objectif et étendue de l'audit" : "Objective and scope of the audit", true),
       p(
         fr
-          ? "Nous effectuerons l'audit selon les Normes internationales d'audit (ISA) et les obligations du commissaire aux comptes prévues par l'AUSCGIE."
-          : "We will conduct the audit in accordance with International Standards on Auditing (ISA) and the statutory-auditor obligations of the AUSCGIE.",
+          ? `Notre mission a pour objectif d'exprimer une opinion sur les états financiers de l'exercice clos le ${f.periodEnd}, établis conformément au référentiel ${framework}. Nous effectuerons l'audit selon les Normes internationales d'audit (ISA) et les obligations du commissaire aux comptes prévues par l'AUSCGIE. Ces normes requièrent que nous nous conformions aux règles d'éthique, planifiions et réalisions l'audit afin d'obtenir une assurance raisonnable que les états financiers ne comportent pas d'anomalies significatives. En raison des limites inhérentes à l'audit et au contrôle interne, le risque qu'une anomalie significative ne soit pas détectée ne peut être éliminé (ISA 210 ¶10(a)).`
+          : `The objective of our engagement is to express an opinion on the financial statements for the year ended ${f.periodEnd}, prepared in accordance with ${framework}. We will conduct the audit in accordance with International Standards on Auditing (ISA) and the statutory-auditor obligations of the AUSCGIE. Those standards require that we comply with ethical requirements and plan and perform the audit to obtain reasonable assurance that the financial statements are free from material misstatement. Because of the inherent limitations of an audit and of internal control, an unavoidable risk remains that some material misstatements are not detected (ISA 210 ¶10(a)).`,
+      ),
+      p(fr ? "Responsabilités de l'auditeur" : "The auditor's responsibilities", true),
+      p(
+        fr
+          ? "Nous sommes responsables de la formation et de l'expression de notre opinion. Nous communiquerons aux responsables de la gouvernance les déficiences significatives du contrôle interne relevées et les autres points requis par les ISA (ISA 210 ¶10(b), ISA 260, ISA 265)."
+          : "We are responsible for forming and expressing our opinion. We will communicate to those charged with governance the significant deficiencies in internal control we identify and the other matters the ISAs require (ISA 210 ¶10(b), ISA 260, ISA 265).",
+      ),
+      p(fr ? "Responsabilités de la direction" : "Management's responsibilities", true),
+      p(
+        fr
+          ? `La direction est responsable de l'établissement des états financiers conformément au référentiel ${framework}, du contrôle interne qu'elle juge nécessaire pour permettre l'établissement d'états financiers exempts d'anomalies significatives, et de nous donner accès à toutes les informations pertinentes, aux informations complémentaires que nous demanderions et, sans restriction, aux personnes de l'entité (ISA 210 ¶6(b), ¶10(c)). Elle nous fournira des déclarations écrites (ISA 580).`
+          : `Management is responsible for the preparation of the financial statements in accordance with ${framework}, for such internal control as it determines necessary to enable the preparation of financial statements free from material misstatement, and for providing us with access to all relevant information, any additional information we request and unrestricted access to persons within the entity (ISA 210 ¶6(b), ¶10(c)). Management will provide written representations (ISA 580).`,
+      ),
+      p(fr ? "Forme et contenu attendus des rapports" : "Expected form and content of the reports", true),
+      p(
+        fr
+          ? "Nous émettrons un rapport d'audit établi selon les ISA 700 (révisée) et suivantes, ainsi que le rapport spécial et les autres rapports prévus par l'AUSCGIE. La forme et le contenu de nos rapports pourront différer selon les constatations de l'audit (ISA 210 ¶10(e))."
+          : "We will issue an auditor's report prepared under ISA 700 (Revised) and the related standards, together with the special report and the other reports the AUSCGIE requires. The form and content of our reports may need to be amended in the light of our audit findings (ISA 210 ¶10(e)).",
       ),
     );
     if (f.mandateType && f.mandateStartYear) {
@@ -135,11 +198,52 @@ async function buildLetter(
         children: [new TextRun(fr ? "Lettre d'affirmation (avant arrêté des comptes)" : "Affirmation letter (before the board's arrêté)")],
       }),
       p(`${f.clientName} — ${f.fiscalYear} (${f.periodEnd})`),
+      // ISA 580 ¶10–11: the responsibility acknowledgements, never qualified by
+      // knowledge and belief.
+      p(fr ? "Responsabilités de la direction (ISA 580 ¶10–11)" : "Management's responsibilities (ISA 580 ¶10–11)", true),
       p(
         fr
-          ? "Nous vous confirmons, au mieux de notre connaissance, les déclarations suivantes relatives au projet d'états financiers (ISA 580) : exhaustivité des opérations et des passifs, régularité des enregistrements, absence de fraude connue non communiquée, communication de toutes les parties liées et conventions, événements postérieurs jusqu'à ce jour."
-          : "We confirm, to the best of our knowledge, the following representations on the draft financial statements (ISA 580): completeness of transactions and liabilities, propriety of the records, no known undisclosed fraud, disclosure of all related parties and agreements, subsequent events to date.",
+          ? `Nous avons rempli nos responsabilités, telles que définies dans la lettre de mission, relatives à l'établissement des états financiers conformément au référentiel ${frameworkLabel(f.framework)} ; les états financiers donnent une image fidèle conformément à ce référentiel.`
+          : `We have fulfilled our responsibilities, as set out in the terms of the audit engagement, for the preparation of the financial statements in accordance with ${frameworkLabel(f.framework)}; the financial statements give a true and fair view in accordance with that framework.`,
       ),
+      p(
+        fr
+          ? "Nous vous avons fourni toutes les informations pertinentes et l'accès convenus dans la lettre de mission, ainsi que les informations complémentaires que vous avez demandées, et un accès sans restriction aux personnes de l'entité. Toutes les opérations ont été enregistrées et sont reflétées dans les états financiers."
+          : "We have provided you with all relevant information and access as agreed in the terms of the audit engagement, the additional information you requested, and unrestricted access to persons within the entity. All transactions have been recorded and are reflected in the financial statements.",
+      ),
+      // Factual representations, to the best of management's knowledge.
+      p(fr ? "Autres déclarations" : "Other representations", true),
+      p(
+        fr
+          ? "Au mieux de notre connaissance : les estimations comptables et leurs hypothèses sont raisonnables (ISA 540) ; nous vous avons communiqué les résultats de notre évaluation du risque de fraude, toute fraude connue ou soupçonnée et toute allégation de fraude (ISA 240) ; tous les cas connus de non-conformité aux textes légaux et réglementaires (ISA 250) ; l'identité de toutes les parties liées et de toutes les relations et opérations avec elles, ainsi que les conventions réglementées (ISA 550) ; tous les litiges et réclamations connus ou possibles (ISA 501) ; notre appréciation de la continuité de l'exploitation et les plans d'action envisagés (ISA 570) ; et tous les événements postérieurs à la clôture qui appellent un ajustement ou une information (ISA 560)."
+          : "To the best of our knowledge: the accounting estimates and their assumptions are reasonable (ISA 540); we have disclosed the results of our assessment of the risk of fraud, any known or suspected fraud and any allegation of fraud (ISA 240); all known instances of non-compliance with laws and regulations (ISA 250); the identity of all related parties and all related-party relationships and transactions, including regulated agreements (ISA 550); all known actual or possible litigation and claims (ISA 501); our assessment of the entity's ability to continue as a going concern and the plans considered (ISA 570); and all events after the reporting date that require adjustment or disclosure (ISA 560).",
+      ),
+    );
+    for (const rep of f.specificRepresentations ?? []) children.push(p(`• ${rep}`));
+    // ISA 450 ¶14: the uncorrected misstatements, listed, with management's
+    // statement that they are immaterial.
+    const uncorrected = f.uncorrected ?? [];
+    children.push(p(fr ? "Anomalies non corrigées (ISA 450 ¶14)" : "Uncorrected misstatements (ISA 450 ¶14)", true));
+    if (uncorrected.length === 0) {
+      children.push(
+        p(
+          fr
+            ? "Aucune anomalie non corrigée ne nous a été communiquée par l'auditeur."
+            : "No uncorrected misstatements have been communicated to us by the auditor.",
+        ),
+      );
+    } else {
+      const total = uncorrected.reduce((s, m) => s + m.amount, 0);
+      children.push(
+        p(
+          fr
+            ? `Nous estimons que les effets des anomalies non corrigées énumérées ci-dessous, prises individuellement et en cumulé, ne sont pas significatifs au regard des états financiers pris dans leur ensemble. Récapitulatif des écarts d'audit (${uncorrected.length} ligne(s), total ${fcfa(total)} FCFA) :`
+            : `We believe the effects of the uncorrected misstatements listed below are immaterial, both individually and in the aggregate, to the financial statements as a whole. Summary of audit differences (${uncorrected.length} item(s), total ${fcfa(total)} FCFA):`,
+        ),
+        ...uncorrected.map((m) => p(`• ${m.description} — ${fcfa(m.amount)} FCFA`)),
+      );
+    }
+    children.push(
       p(fr ? "Signatures : Directeur Général · Chef comptable" : "Signatures: Managing Director · Head of accounting", true),
     );
   } else if (kind === "rep_complementary") {
@@ -157,6 +261,51 @@ async function buildLetter(
           : "Following the board's approval of the accounts, we confirm the representations in the initial affirmation letter remain valid and that no significant subsequent events have occurred other than those communicated to you.",
       ),
       p(fr ? "Signatures : Président du Conseil d'Administration · Directeur Général" : "Signatures: Chairman of the Board · Managing Director", true),
+    );
+  } else if (kind === "tcwg_completion") {
+    // ISA 260 ¶16 / ISA 450 ¶12 / ISA 265 ¶9: the completion report to those
+    // charged with governance, built from the file as it stands.
+    const uncorrected = f.uncorrected ?? [];
+    const total = uncorrected.reduce((s, m) => s + m.amount, 0);
+    const ind = f.independence ?? { total: 0, completed: 0, exceptions: 0, undisposed: 0 };
+    children.push(
+      new Paragraph({
+        heading: HeadingLevel.TITLE,
+        children: [
+          new TextRun(
+            fr
+              ? "Rapport aux responsables de la gouvernance — achèvement de l'audit (ISA 260/265)"
+              : "Report to those charged with governance — audit completion (ISA 260/265)",
+          ),
+        ],
+      }),
+      p(`${f.clientName} — ${f.fiscalYear} (${f.periodEnd})`),
+      p(fr ? "Constats significatifs (ISA 260 ¶16, C1.2)" : "Significant findings from the audit (ISA 260 ¶16, C1.2)", true),
+      ...((f.significantMatters ?? []).length > 0
+        ? (f.significantMatters ?? []).map((m) => p(`• ${m}`))
+        : [p(fr ? "Aucun point significatif consigné en C1.2." : "No significant matter recorded on C1.2.")]),
+      p(fr ? "Anomalies non corrigées (ISA 450 ¶12)" : "Uncorrected misstatements (ISA 450 ¶12)", true),
+      ...(uncorrected.length === 0
+        ? [p(fr ? "Aucune anomalie non corrigée." : "No uncorrected misstatements.")]
+        : [
+            p(
+              fr
+                ? `${uncorrected.length} anomalie(s) non corrigée(s), total ${fcfa(total)} FCFA. Nous demandons leur correction ; la direction considère que leur effet n'est pas significatif.`
+                : `${uncorrected.length} uncorrected misstatement(s), total ${fcfa(total)} FCFA. We request that they be corrected; management considers their effect immaterial.`,
+            ),
+            ...uncorrected.map((m) => p(`• ${m.description} — ${fcfa(m.amount)} FCFA`)),
+          ]),
+      p(fr ? "Déficiences du contrôle interne (ISA 265 ¶9)" : "Deficiencies in internal control (ISA 265 ¶9)", true),
+      ...((f.c1Points ?? []).length > 0
+        ? (f.c1Points ?? []).map((point) => p(`• ${point}`))
+        : [p(fr ? "Aucune déficience significative relevée." : "No significant deficiency identified.")]),
+      p(fr ? "Indépendance (ISA 260 ¶17)" : "Independence (ISA 260 ¶17)", true),
+      p(
+        fr
+          ? `Chaque membre de l'équipe a confirmé son indépendance par écrit : ${ind.completed} confirmation(s) sans exception, ${ind.exceptions} exception(s) déclarée(s), dont ${ind.undisposed} en attente de la décision de l'associé, sur ${ind.total} demandée(s). Les sauvegardes appliquées aux exceptions sont consignées en P2.1.`
+          : `Every team member confirmed independence in writing: ${ind.completed} confirmation(s) without exception, ${ind.exceptions} exception(s) declared, of which ${ind.undisposed} await the partner's disposition, out of ${ind.total} requested. The safeguards applied to the exceptions are recorded on P2.1.`,
+      ),
+      p(fr ? "Le commissaire aux comptes." : "The statutory auditor.", true),
     );
   } else {
     children.push(
@@ -181,7 +330,8 @@ async function buildLetter(
 
 /**
  * Generate a letter as a versioned document under its file item (engagement
- * letter → P1.1; planning TCWG letter → C5.1). Regenerating creates a new version.
+ * letter → P1.4; TCWG letters → C5.1; representations → C3.1). Regenerating
+ * creates a new version.
  */
 export async function generateLetter(
   engagementId: string,
@@ -198,10 +348,16 @@ export async function generateLetter(
       mandate_start_year: number | null;
       fiscal_year: number;
       period_end: string;
+      framework: string | null;
+      address: string | null;
+      registration_number: string | null;
+      niu: string | null;
     }>(
       `SELECT c.name AS client_name, c.legal_form, c.co_cac, c.mandate_type,
               c.mandate_start_year, e.fiscal_year,
-              to_char(e.period_end, 'YYYY-MM-DD') AS period_end
+              to_char(e.period_end, 'YYYY-MM-DD') AS period_end,
+              coalesce(e.framework, c.framework) AS framework,
+              c.address, c.registration_number, c.niu
          FROM engagement e JOIN client c ON c.id = e.client_id
         WHERE e.id = $1`,
       [engagementId],
@@ -217,14 +373,74 @@ export async function generateLetter(
     if (!item.rows[0]) throw new Error("not-found");
     const fileItemId = item.rows[0].id;
 
-    // Management letter pulls the C5.1 control-deficiency points (spec §8.3).
+    // Management letter and the completion TCWG report pull the C5.1
+    // control-deficiency points (spec §8.3).
     let c1Points: string[] | undefined;
-    if (kind === "management_letter") {
-      const findings = await tx.query<{ title: string; detail: string | null }>(
-        "SELECT title, detail FROM finding WHERE engagement_id = $1 AND route = 'c1' ORDER BY created_at",
+    if (kind === "management_letter" || kind === "tcwg_completion") {
+      // ISA 265 order: significant deficiencies first, then deficiencies,
+      // then observations; each point names its grading and carries the
+      // recommendation and management's response when recorded (UAT B21).
+      const findings = await tx.query<{ title: string; detail: string | null; severity: string | null; recommendation: string | null; management_response: string | null }>(
+        `SELECT title, detail, severity, recommendation, management_response FROM finding
+          WHERE engagement_id = $1 AND route = 'c1'
+          ORDER BY CASE severity WHEN 'significant_deficiency' THEN 0 WHEN 'deficiency' THEN 1 WHEN 'observation' THEN 2 ELSE 3 END, created_at`,
         [engagementId],
       );
-      c1Points = findings.rows.map((f) => (f.detail ? `${f.title} — ${f.detail}` : f.title));
+      const gradeFr: Record<string, string> = { significant_deficiency: "Déficience significative", deficiency: "Déficience", observation: "Observation" };
+      const gradeEn: Record<string, string> = { significant_deficiency: "Significant deficiency", deficiency: "Deficiency", observation: "Observation" };
+      const gradeOf = (severity: string | null): string =>
+        severity ? `[${(locale === "fr" ? gradeFr : gradeEn)[severity] ?? severity}] ` : "";
+      c1Points = findings.rows.map((f) => {
+        const body = f.detail ? `${f.title} — ${f.detail}` : f.title;
+        const reco = f.recommendation ? ` ${locale === "fr" ? "Recommandation" : "Recommendation"} : ${f.recommendation}.` : "";
+        const resp = f.management_response ? ` ${locale === "fr" ? "Réponse de la direction" : "Management response"} : ${f.management_response}.` : "";
+        return `${gradeOf(f.severity)}${body}${reco}${resp}`;
+      });
+    }
+    // The uncorrected misstatements on the SAD (ISA 450 ¶12, ¶14), as C1.1
+    // evaluates them: non-trivial and not corrected.
+    let uncorrected: UncorrectedLine[] | undefined;
+    if (kind === "rep_affirmation" || kind === "tcwg_completion") {
+      const rows = await tx.query<{ description: string; amount: string }>(
+        `SELECT description, amount::text FROM misstatement
+          WHERE engagement_id = $1 AND trivial = false AND corrected = false
+          ORDER BY abs(amount) DESC, created_at`,
+        [engagementId],
+      );
+      uncorrected = rows.rows.map((m) => ({ description: m.description, amount: Number(m.amount) }));
+    }
+    // The engagement-specific representations the C3.1 paper records
+    // (procedure 2, "specific"), and the significant matters C1.2 collected.
+    const paperAnswers = async (code: string, keys: string[]): Promise<string[]> => {
+      const r = await tx.query<{ field_key: string; value: string | null }>(
+        `SELECT field_key, value #>> '{}' AS value FROM form_response
+          WHERE engagement_id = $1 AND code = $2 AND field_key = ANY($3)`,
+        [engagementId, `wp:${code}`, keys],
+      );
+      return keys
+        .map((k) => (r.rows.find((row) => row.field_key === k)?.value ?? "").trim())
+        .filter((v) => v.length > 0);
+    };
+    const specificRepresentations =
+      kind === "rep_affirmation" ? await paperAnswers("C3.1", ["p_specific", "p_materiality", "key_findings"]) : undefined;
+    const significantMatters =
+      kind === "tcwg_completion"
+        ? await paperAnswers("C1.2", ["p_collect", "p_conclusion", "p_judgements", "p_disagreements", "key_findings"])
+        : undefined;
+    let independence: LetterFields["independence"];
+    if (kind === "tcwg_completion") {
+      const ic = await tx.query<{ total: string; completed: string; exceptions: string; undisposed: string }>(
+        `SELECT count(*)::text AS total,
+                count(*) FILTER (WHERE ic.status = 'completed')::text AS completed,
+                count(*) FILTER (WHERE ic.status = 'exception')::text AS exceptions,
+                count(*) FILTER (WHERE ic.status = 'exception' AND ic.disposition IS NULL)::text AS undisposed
+           FROM independence_confirmation ic
+           JOIN independence_campaign c ON c.id = ic.campaign_id
+          WHERE c.engagement_id = $1`,
+        [engagementId],
+      );
+      const x = ic.rows[0];
+      independence = { total: Number(x.total), completed: Number(x.completed), exceptions: Number(x.exceptions), undisposed: Number(x.undisposed) };
     }
 
     const fr = locale === "fr";
@@ -234,6 +450,7 @@ export async function generateLetter(
       rep_affirmation: fr ? "Lettre d'affirmation (pré-arrêté)" : "Affirmation letter (pre-arrêté)",
       rep_complementary: fr ? "Lettre d'affirmation complémentaire" : "Complementary representation letter",
       management_letter: fr ? "Lettre de recommandations" : "Management letter",
+      tcwg_completion: fr ? "Rapport à la gouvernance — achèvement (ISA 260)" : "Governance report — completion (ISA 260)",
     };
     const title = TITLES[kind];
 
@@ -248,7 +465,15 @@ export async function generateLetter(
         coCac: row.co_cac,
         mandateType: row.mandate_type,
         mandateStartYear: row.mandate_start_year,
+        framework: row.framework,
+        address: row.address,
+        registrationNumber: row.registration_number,
+        niu: row.niu,
         c1Points,
+        uncorrected,
+        specificRepresentations,
+        significantMatters,
+        independence,
       },
       locale,
       branding,
@@ -285,7 +510,18 @@ export async function generateLetter(
       documentId,
       next.rows[0].v,
     ]);
-    return documentId;
+    return { documentId, versionNo: next.rows[0].v, title, code };
+  }).then(async (r) => {
+    // A generated letter is a deliverable of the file: the trail names it (UAT B62).
+    await recordActivity({
+      engagementId,
+      entityType: "document",
+      entityId: r.documentId,
+      action: "letter_generated",
+      summary: `${r.code} letter generated: ${r.title} (v${r.versionNo})`,
+      after: { kind, versionNo: r.versionNo },
+    });
+    return r.documentId;
   });
 }
 

@@ -3,6 +3,7 @@
 // Two presumed risks are auto-seeded per engagement (spec §3).
 
 import type { PoolClient } from "pg";
+import { recordActivity } from "@/lib/activity";
 import { withTenant } from "@/lib/db";
 import { canPartnerSignoff } from "@/lib/rbac";
 import { requireTenant } from "@/lib/tenant";
@@ -483,6 +484,20 @@ export async function rebutRevenueFraudRisk(riskId: string, justification: strin
       [riskId, justification, userId],
     );
     if (updated.rowCount === 0) throw new Error("not-rebuttable");
+  });
+  // Rebutting a presumed fraud risk is a partner judgement the file must show (UAT B62).
+  const owner = await withTenant(tenantId, (tx) =>
+    tx.query<{ engagement_id: string }>("SELECT engagement_id FROM risk WHERE id = $1", [riskId]),
+  );
+  await recordActivity({
+    engagementId: owner.rows[0]?.engagement_id ?? null,
+    entityType: "risk",
+    entityId: riskId,
+    action: "risk_rebutted",
+    summary: `Presumed revenue-fraud risk rebutted: ${justification.trim().slice(0, 160)}`,
+    before: { rebutted: false },
+    after: { rebutted: true, approvedBy: userId },
+    meta: { justification },
   });
 }
 

@@ -32,16 +32,45 @@ describe("planTod", () => {
   it("draws a systematic sample of the computed size when the table asks for one", () => {
     const p = planTod({ lines: LINES, te: 1_000_000, threshold: 4_000_000, cra: "high_sr", assurance: "little", startFraction: 0.25 });
     expect(p.keyItems.map((l) => l.ref)).toEqual(["A"]);
-    // remaining 48 500 000 ÷ TE 1 000 000 = 48.5; coverage 9.3% → column 0 → factor 3.0 → 146
+    // remaining (B + S1…S30) 48 500 000 ÷ TE 1 000 000 = 48.5; coverage 9.3% → column 0 → factor 3.0 → 146 computed
     expect(p.factor).toBe(ART_MUS.high_sr.little[0]);
-    expect(p.sampleSize).toBe(146);
-    expect(p.interval).toBe(Math.round(48_500_000 / 146));
-    // a population of 31 lines cannot yield 146 distinct lines: a line is drawn at most once, and a
-    // line smaller than the interval may hold no hook at all
-    expect(p.sample.length).toBeGreaterThan(20);
-    expect(p.sample.length).toBeLessThanOrEqual(31);
+    expect(p.computedSize).toBe(146);
+    // a population of 31 remaining lines (B and S1…S30) cannot yield 146: the size is
+    // capped at the population and every remaining line is examined (UAT B79)
+    expect(p.remainingCount).toBe(31);
+    expect(p.sampleSize).toBe(31);
+    expect(p.fullPopulation).toBe(true);
+    expect(p.itemsDrawn).toBe(31);
+    expect(p.sample.length).toBe(31);
     expect(new Set(p.sample.map((l) => l.ref)).size).toBe(p.sample.length);
     expect(p.sample.every((l) => l.amount < 4_000_000)).toBe(true);
+  });
+
+  it("reports the distinct items drawn when several hooks fall in one line", () => {
+    // one line carries most of the value: hooks land in it repeatedly, it is listed once.
+    // 9 300 000 ÷ TE 1 000 000 × 3.0 → 28 hooks over 31 lines: below the population, no cap
+    const lines = [line("BIG", 9_000_000), ...Array.from({ length: 30 }, (_, i) => line(`S${i + 1}`, 10_000))];
+    const p = planTod({ lines, te: 1_000_000, threshold: 20_000_000, cra: "high_sr", assurance: "little", startFraction: 0.1 });
+    expect(p.computedSize).toBe(28);
+    expect(p.sampleSize).toBe(28);
+    expect(p.fullPopulation).toBe(false);
+    expect(p.sample[0].ref).toBe("BIG");
+    expect(p.itemsDrawn).toBe(p.sample.length);
+    expect(p.itemsDrawn).toBeLessThan(p.sampleSize);
+    expect(new Set(p.sample.map((l) => l.ref)).size).toBe(p.sample.length);
+  });
+
+  it("places exactly the requested number of hooks inside the population", () => {
+    // 11 lines of 1 000 000; TE 1 375 000 → base 8 × 0.5 (minimal/little) = 4 hooks.
+    // The interval is floored (2 750 000): a rounded-up 3 000 000 with a late start
+    // would push the fourth hook past 11 000 000 and draw only three.
+    const lines = Array.from({ length: 11 }, (_, i) => line(`L${i + 1}`, 1_000_000));
+    const p = planTod({ lines, te: 1_375_000, threshold: 2_000_000, cra: "minimal", assurance: "little", startFraction: 0.9 });
+    expect(p.sampleSize).toBe(4);
+    expect(p.fullPopulation).toBe(false);
+    expect(p.interval).toBe(2_750_000);
+    expect(p.sample.map((l) => l.ref)).toEqual(["L3", "L6", "L8", "L11"]);
+    expect(p.itemsDrawn).toBe(4);
   });
 
   it("defaults the threshold to TE and ignores zero or negative lines", () => {

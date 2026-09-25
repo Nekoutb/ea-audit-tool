@@ -3,7 +3,8 @@
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { auth } from "@/auth";
-import { acceptPbc, addPbcItem, addPortalContact, uploadPbc } from "@/lib/pbc";
+import { acceptPbc, addPbcItem, addPortalContact, attachAcceptedPbc, chasePbc, uploadPbc } from "@/lib/pbc";
+import { UnsafeFileError } from "@/lib/upload-safety";
 
 async function guarded(path: string, fn: () => Promise<string | void>): Promise<never> {
   let target = path;
@@ -26,11 +27,37 @@ export async function addPbcItemAction(engagementId: string, formData: FormData)
   });
 }
 
+/** Firm side: remind the client of a request still outstanding (UAT B112). */
+export async function chasePbcAction(engagementId: string, itemId: string): Promise<void> {
+  await guarded(`/engagements/${engagementId}/pbc`, async () => {
+    await chasePbc(itemId);
+  });
+}
+
 export async function acceptPbcAction(engagementId: string, itemId: string, formData: FormData): Promise<void> {
   await guarded(`/engagements/${engagementId}/pbc`, async () => {
     const fileItemId = String(formData.get("fileItemId") ?? "");
-    const documentId = await acceptPbc(itemId, fileItemId || undefined);
-    if (documentId) return `/documents/${documentId}`;
+    try {
+      const documentId = await acceptPbc(itemId, fileItemId || undefined);
+      if (documentId) return `/documents/${documentId}`;
+    } catch (error) {
+      // an upload that predates the portal allowlist is refused on its way into the file
+      if (error instanceof UnsafeFileError) throw new Error("file-type");
+      throw error;
+    }
+  });
+}
+
+/** Firm side: file an already-accepted upload under a section it was never attached to. */
+export async function attachPbcAction(engagementId: string, itemId: string, formData: FormData): Promise<void> {
+  await guarded(`/engagements/${engagementId}/pbc`, async () => {
+    try {
+      const documentId = await attachAcceptedPbc(itemId, String(formData.get("fileItemId") ?? ""));
+      return `/documents/${documentId}`;
+    } catch (error) {
+      if (error instanceof UnsafeFileError) throw new Error("file-type");
+      throw error;
+    }
   });
 }
 
@@ -42,11 +69,18 @@ export async function uploadPbcAction(itemId: string, formData: FormData): Promi
     if (!clientId) throw new Error("forbidden");
     const file = formData.get("file");
     if (!(file instanceof File) || file.size === 0) throw new Error("file-required");
-    await uploadPbc(itemId, clientId, {
-      filename: file.name,
-      mime: file.type || "application/octet-stream",
-      content: Buffer.from(await file.arrayBuffer()),
-    });
+    try {
+      await uploadPbc(itemId, clientId, {
+        filename: file.name,
+        mime: file.type || "application/octet-stream",
+        content: Buffer.from(await file.arrayBuffer()),
+      });
+    } catch (error) {
+      // The allowlist refusal (executable, wrong bytes for the extension, …)
+      // becomes one banner code the portal page can show.
+      if (error instanceof UnsafeFileError) throw new Error("file-type");
+      throw error;
+    }
   });
 }
 

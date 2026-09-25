@@ -354,3 +354,72 @@ textarea.border-line {
 /* scrolls on wheel and touch, shows no scrollbar: a list that fits its box on a normal screen and still reaches every row on a small one */
 .scrollbar-none { scrollbar-width: none; -ms-overflow-style: none; }
 .scrollbar-none::-webkit-scrollbar { display: none; }
+
+/*
+ * Print (UAT B107). The working-paper wizard shows one step at a time in an
+ * absolutely positioned, height-clipped shell, and a lead schedule is wider
+ * than an A4 page: printing gave step 1 clipped, with the navigation on top.
+ * On paper every step is laid out in flow, nothing scrolls or clips, the
+ * chrome (nav, buttons, side panels) is dropped, and wide tables shrink to
+ * the page.
+ */
+@media print {
+  @page {
+    size: A4;
+    margin: 12mm;
+  }
+  header,
+  nav,
+  button,
+  [data-testid="app-nav"],
+  #atlas-loader {
+    display: none !important;
+  }
+  html,
+  body,
+  main {
+    background: #fff !important;
+    color: #000 !important;
+    min-height: 0 !important;
+    padding: 0 !important;
+    overflow: visible !important;
+  }
+  .wp-steps {
+    position: static !important;
+    height: auto !important;
+    overflow: visible !important;
+  }
+  .wp-step,
+  .wp-step[hidden] {
+    display: flex !important;
+    position: static !important;
+    inset: auto !important;
+    height: auto !important;
+    max-height: none !important;
+    overflow: visible !important;
+    page-break-inside: avoid;
+  }
+  .wp-step + .wp-step {
+    margin-top: 8mm;
+  }
+  .overflow-x-auto,
+  .overflow-y-auto,
+  .overflow-hidden {
+    overflow: visible !important;
+  }
+  table {
+    width: 100% !important;
+    min-width: 0 !important;
+    table-layout: auto;
+    font-size: 9.5px;
+    page-break-inside: auto;
+  }
+  tr {
+    page-break-inside: avoid;
+  }
+  textarea {
+    resize: none;
+    overflow: visible !important;
+    height: auto !important;
+  }
+}

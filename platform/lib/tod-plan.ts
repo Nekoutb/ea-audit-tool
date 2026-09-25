@@ -69,9 +69,29 @@ export interface TodPlan {
   remainingCount: number;
   baseSize: number;
   factor: number | null;
+  /** base × factor before the population cap */
+  computedSize: number;
   sampleSize: number;
   interval: number | null;
   sample: GlLine[];
+  /** distinct lines actually drawn — several hooks can land in one large line, so this can be below sampleSize */
+  itemsDrawn: number;
+  /** the computed size reached the remaining population: every remaining line is examined */
+  fullPopulation: boolean;
+}
+
+/**
+ * A reproducible start point from stable identifiers (engagement, index, the
+ * ledger's hash): the same population draws the same sample on every download,
+ * without a random start that was never stored (UAT B79).
+ */
+export function stableStartFraction(...parts: string[]): number {
+  let h = 2166136261;
+  for (const char of parts.join("|")) {
+    h ^= char.charCodeAt(0);
+    h = Math.imul(h, 16777619) >>> 0;
+  }
+  return (h % 1000) / 1000;
 }
 
 const round2 = (v: number): number => Math.round(v * 100) / 100;
@@ -91,12 +111,21 @@ export function planTod(input: TodPlanInput): TodPlan {
   for (let i = 0; i < ART_COLS.length; i += 1) if (coveragePct >= ART_COLS[i]) col = i;
   const factor = ART_MUS[input.cra][input.assurance][col];
   const baseSize = te > 0 ? remaining / te : 0;
-  const sampleSize = factor === null || remaining <= 0 ? 0 : Math.ceil(baseSize * factor);
-  const interval = sampleSize > 0 ? Math.max(1, Math.round(remaining / sampleSize)) : null;
+  // The size can never exceed the lines left to draw from: at the cap the
+  // remaining population is examined in full (UAT B79).
+  const uncapped = factor === null || remaining <= 0 ? 0 : Math.ceil(baseSize * factor);
+  const fullPopulation = uncapped > 0 && uncapped >= rest.length;
+  const sampleSize = fullPopulation ? rest.length : uncapped;
+  // Floored, so sampleSize × interval never exceeds the remaining value: the
+  // last hook always lands inside the population and exactly sampleSize hooks
+  // are placed (a rounded-up interval could push it past the end and under-draw).
+  const interval = sampleSize > 0 ? Math.max(1, Math.floor(remaining / sampleSize)) : null;
 
   // systematic (MUS) selection over the remaining population, random start
   const sample: GlLine[] = [];
-  if (interval && sampleSize > 0) {
+  if (fullPopulation) {
+    sample.push(...rest);
+  } else if (interval && sampleSize > 0) {
     const fraction = input.startFraction !== undefined ? Math.min(0.999, Math.max(0, input.startFraction)) : Math.random();
     const start = Math.floor(fraction * interval) + 1;
     let cumulative = 0;
@@ -125,8 +154,11 @@ export function planTod(input: TodPlanInput): TodPlan {
     remainingCount: rest.length,
     baseSize: Math.round(baseSize * 10) / 10,
     factor,
+    computedSize: uncapped,
     sampleSize,
     interval,
     sample,
+    itemsDrawn: sample.length,
+    fullPopulation,
   };
 }

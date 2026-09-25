@@ -4,6 +4,8 @@
 // "Use" fills the benchmark, amount and suggested percentage into the version
 // form below, so PM is computed from the file rather than typed from memory.
 
+import { PERFORMANCE_PCT_RANGE, TRIVIAL_PCT_RANGE } from "@/lib/materiality-model";
+
 const RANGES: Record<string, { min: number; max: number }> = {
   pbt: { min: 5, max: 10 },
   revenue: { min: 0.5, max: 2 },
@@ -75,10 +77,11 @@ export function MaterialityBasis({
           </div>
         ))}
       </div>
-      <p className="mt-1.5 text-[11px] text-muted">
+      {/* the hint quotes the ranges the server enforces — one constant, never a second copy */}
+      <p className="mt-1.5 text-[11px] text-muted" data-testid="materiality-ranges-hint">
         {fr
-          ? "PM = base × % · TE (seuil de travail) = 50–75 % de PM · Seuil SAD = 3–5 % de PM."
-          : "PM = basis × % · TE (performance materiality) = 50–75% of PM · SAD nominal = 3–5% of PM."}
+          ? `PM = base × % · TE (seuil de travail) = ${PERFORMANCE_PCT_RANGE.min}–${PERFORMANCE_PCT_RANGE.max} % de PM · Seuil SAD = ${String(TRIVIAL_PCT_RANGE.min).replace(".", ",")}–${TRIVIAL_PCT_RANGE.max} % de PM.`
+          : `PM = basis × % · TE (tolerable error) = ${PERFORMANCE_PCT_RANGE.min}–${PERFORMANCE_PCT_RANGE.max}% of PM · SAD nominal = ${TRIVIAL_PCT_RANGE.min}–${TRIVIAL_PCT_RANGE.max}% of PM.`}
       </p>
     </div>
   );

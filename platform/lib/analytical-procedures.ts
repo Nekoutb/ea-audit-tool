@@ -5,6 +5,7 @@
 // under the code "ap:<index>".
 
 import { withTenant } from "@/lib/db";
+import { RATIO_KEYS } from "@/lib/financial-analysis";
 import { requireTenant } from "@/lib/tenant";
 import { LEAD_INDEXES, leadIndexFor, type LeadIndexDef } from "@/lib/lead-classes";
 
@@ -12,11 +13,13 @@ export interface ApAccountRow {
   account: string;
   name: string;
   closing: number;
-  /** the opening balance of the uploaded TB — the prior-year closing */
+  /** the prior-year closing: from the valid prior-year TB when one is uploaded, else the current TB's opening balance */
   prior: number;
   movement: number;
   variancePct: number | null;
 }
+
+export type ApPriorSource = "prior_year_tb" | "opening";
 
 export interface ApLeadSchedule {
   def: LeadIndexDef;
@@ -25,6 +28,8 @@ export interface ApLeadSchedule {
   prior: number;
   movement: number;
   variancePct: number | null;
+  /** where the comparatives come from (UAT B81) */
+  priorSource: ApPriorSource;
 }
 
 const pct = (movement: number, prior: number): number | null =>
@@ -56,6 +61,24 @@ export async function apLeadSchedules(engagementId: string): Promise<ApLeadSched
       [engagementId],
     );
     if (rows.rows.length === 0) return [];
+    // The prior-year slot: a VALID prior_year TB upload supplies the closing
+    // balances as comparatives; without one the current TB's opening balances
+    // stand in, as before (UAT B81).
+    const priorRows = await tx.query<{ account_code: string; closing: string }>(
+      `SELECT r.account_code,
+              sum(r.opening_debit - r.opening_credit + r.debit - r.credit)::text AS closing
+         FROM trial_balance tb
+         JOIN trial_balance_version v ON v.trial_balance_id = tb.id
+          AND v.id = (SELECT v2.id FROM trial_balance_version v2
+                       WHERE v2.trial_balance_id = tb.id AND v2.timing = 'prior_year' AND v2.validation_status = 'valid'
+                       ORDER BY v2.version_no DESC LIMIT 1)
+         JOIN trial_balance_row r ON r.version_id = v.id
+        WHERE tb.engagement_id = $1
+        GROUP BY r.account_code`,
+      [engagementId],
+    );
+    const priorClosing = new Map(priorRows.rows.map((r) => [r.account_code, Number(r.closing)]));
+    const priorSource: ApPriorSource = priorClosing.size > 0 ? "prior_year_tb" : "opening";
     const idxOver = await tx.query<{ account_prefix: string; index_code: string }>(
       "SELECT account_prefix, index_code FROM client_lead_index_override WHERE client_id = $1",
       [meta.rows[0].client_id],
@@ -73,7 +96,9 @@ export async function apLeadSchedules(engagementId: string): Promise<ApLeadSched
       const index = indexOf(row.account_code);
       if (!index) continue;
       const closing = Math.round(Number(row.closing));
-      const prior = Math.round(Number(row.opening));
+      const prior = Math.round(
+        priorSource === "prior_year_tb" ? (priorClosing.get(row.account_code) ?? 0) : Number(row.opening),
+      );
       const list = byIndex.get(index) ?? [];
       list.push({
         account: row.account_code,
@@ -99,6 +124,7 @@ export async function apLeadSchedules(engagementId: string): Promise<ApLeadSched
         prior,
         movement: closing - prior,
         variancePct: pct(closing - prior, prior),
+        priorSource,
       });
     }
     return out;
@@ -129,9 +155,15 @@ export async function saveApComments(
 ): Promise<void> {
   const { tenantId, userId } = await requireTenant();
   if (!/^[A-Z0-9]{1,4}$/.test(index)) throw new Error("invalid-index");
+  // The financial-analysis grid saves under "FA" with the ratio keys (dso, roe…);
+  // a lead schedule saves under its index with account numbers or "total". A
+  // key outside either set is refused, never silently dropped while the cell
+  // still shows a tick (UAT B31).
+  const validKey = (key: string): boolean =>
+    index === "FA" ? RATIO_KEYS.includes(key) : /^[0-9]{1,12}$|^total$/.test(key);
+  for (const entry of entries) if (!validKey(entry.key)) throw new Error("invalid-key");
   await withTenant(tenantId, async (tx) => {
     for (const entry of entries) {
-      if (!/^[0-9]{1,12}$|^total$/.test(entry.key)) continue;
       if (entry.value.trim() === "") {
         await tx.query(
           "DELETE FROM form_response WHERE engagement_id = $1 AND code = $2 AND field_key = $3",

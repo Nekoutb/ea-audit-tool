@@ -65,18 +65,28 @@ export async function addTeamByEmailAction(
   redirect(back);
 }
 
-/** Accept or decline the engagement from its dashboard banner. */
+/** Accept or decline the engagement from its dashboard banner (a decline needs its reason — UAT B130). */
 export async function respondEngagementAction(
   engagementId: string,
   accept: boolean,
+  formData?: FormData,
 ): Promise<void> {
-  await respondToEngagement(engagementId, accept);
+  const reason = String(formData?.get("reason") ?? "").trim();
+  try {
+    await respondToEngagement(engagementId, accept, reason);
+  } catch (error) {
+    if (error instanceof Error && /^[a-z0-9-]+$/.test(error.message)) {
+      redirect(`/engagements/${engagementId}/dashboard?error=${encodeURIComponent(error.message)}`);
+    }
+    throw error;
+  }
   await recordActivity({
     engagementId,
     entityType: "engagement",
     entityId: engagementId,
     action: accept ? "engagement_accepted" : "engagement_declined",
-    summary: accept ? "Engagement accepted" : "Engagement declined",
+    summary: accept ? "Engagement accepted" : `Engagement declined: ${reason}`,
+    meta: accept ? null : { reason },
   });
   const back = accept ? `/engagements/${engagementId}/dashboard` : "/dashboard";
   revalidatePath(back);

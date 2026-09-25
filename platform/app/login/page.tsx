@@ -32,14 +32,21 @@ export default async function LoginPage(props: {
   // A refused credential and a session that ended underneath someone are
   // different things and must not read the same. Anything unrecognised falls
   // back to the credential message, so a new code can never render blank.
+  // A throttled attempt says how long to wait: "too-many-attempts:<minutes>" (UAT B38).
+  const throttled = typeof error === "string" ? /^too-many-attempts(?::(\d{1,4}))?$/.exec(error) : null;
+  const waitMinutes = throttled?.[1] ? Number(throttled[1]) : null;
   const notice =
     error === "session-ended"
       ? messages.login.sessionEnded
-      : error === "too-many-attempts"
-        ? messages.login.tooManyAttempts
+      : throttled
+        ? waitMinutes
+          ? messages.login.tooManyAttemptsWait.replace("{n}", String(waitMinutes))
+          : messages.login.tooManyAttempts
         : error === "mfa-required"
           ? messages.login.mfaRequired
-          : null;
+          : error === "password-changed"
+            ? messages.login.passwordChanged
+            : null;
 
   return (
     <main className="flex min-h-screen items-center justify-center bg-canvas px-4">

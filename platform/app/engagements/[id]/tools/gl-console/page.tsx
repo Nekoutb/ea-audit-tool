@@ -17,11 +17,21 @@ export const metadata = { title: "GL Correlation Console · AuditISA" };
  * lines. The page itself only names the file; every aggregate is fetched by the
  * console from app/api/engagements/[id]/gl-analytics.
  */
-export default async function GlConsolePage(props: { params: Promise<{ id: string }> }) {
+export default async function GlConsolePage(props: {
+  params: Promise<{ id: string }>;
+  searchParams: Promise<{ accounts?: string }>;
+}) {
   const session = await auth();
   if (!session?.user) redirect("/login");
 
   const { id } = await props.params;
+  const { accounts } = await props.searchParams;
+  // ?accounts=411000,411100 from a lead-schedule figure: drilled on arrival
+  const initialAccounts = (accounts ?? "")
+    .split(",")
+    .map((a) => a.trim())
+    .filter((a) => /^\d{1,12}$/.test(a))
+    .slice(0, 50);
   const locale = await getLocale();
   const fr = locale === "fr";
   const engagement = await getEngagement(id);
@@ -72,6 +82,7 @@ export default async function GlConsolePage(props: { params: Promise<{ id: strin
           periodEnd={engagement.periodEnd}
           fiscalYear={engagement.fiscalYear}
           analyzerHref={`/engagements/${id}/analyzers/journal_entries`}
+          initialAccounts={initialAccounts}
         />
       </div>
     </main>

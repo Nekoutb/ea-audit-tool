@@ -104,6 +104,12 @@ export const proxy = auth(async (req) => {
     // believes they are signed in.
     const hadSession = req.cookies.getAll().some((c) => c.name.includes("authjs.session-token"));
     if (hadSession) loginUrl.searchParams.set("error", "session-ended");
+    // Carry the destination through sign-in (UAT B106): a shared task link
+    // opened while signed out used to land on the home page. Only a plain
+    // navigation is worth resuming, and LoginForm re-validates it (safeNext).
+    if (req.method === "GET" && path !== "/") {
+      loginUrl.searchParams.set("next", `${path}${req.nextUrl.search}`);
+    }
     return redirectTo(loginUrl, nonce);
   }
   // An account still holding its system-generated temporary password gets
@@ -132,11 +138,15 @@ export const proxy = auth(async (req) => {
   const ownPortalAction = role === "client_user" && req.nextUrl.pathname.startsWith("/portal");
   if (isMutation && role && !canWrite(role) && !ownPortalAction) {
     if (isApi) return refuse("Forbidden", 403, nonce);
-    // A page-level Server Action: send the refusal back through the same
-    // ?error= channel the actions already use, so the user sees a message.
-    const url = new URL(req.nextUrl.pathname, req.nextUrl.origin);
-    url.searchParams.set("error", "read-only-role");
-    return redirectTo(url, nonce);
+    // A page-level Server Action is let through to the action itself (UAT
+    // B40). Answering it with a 307 here looked right and was a loop: a 307
+    // preserves the method and body, so the browser replayed the POST — with
+    // its Next-Action header — against the redirect target, met this rule
+    // again, and after twenty rounds hit the error boundary instead of the
+    // read-only message. The action's requireWrite() throws "read-only-role"
+    // and its guarded() wrapper redirects with that code, which is the
+    // channel the page already renders.
+    return proceed(req, nonce);
   }
 
   // Engagement-level access for the API and the pages. app/engagements/[id]/layout.tsx gates

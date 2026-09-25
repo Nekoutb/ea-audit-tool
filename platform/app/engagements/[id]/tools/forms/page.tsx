@@ -7,7 +7,7 @@ import { SubmitButton } from "@/components/SubmitButton";
 import { Panel } from "@/components/ui/atlas";
 import { DEFAULT_FILE_INDEX, shortTitle } from "@/lib/file-index";
 import { getEngagement } from "@/lib/engagements";
-import { engagementTasks } from "@/lib/engagement-dashboard";
+import { engagementTasksWithActiveConditionals } from "@/lib/engagement-dashboard";
 import { getLocale } from "@/lib/locale";
 import { canReview, type Role } from "@/lib/rbac";
 import { listTeam } from "@/lib/team";
@@ -34,7 +34,8 @@ export default async function FormsPage(props: {
   const fr = locale === "fr";
   const engagement = await getEngagement(id);
   if (!engagement) notFound();
-  const tasks = await engagementTasks(id);
+  // triggered conditional tasks (S6.1 → S5.1–S5.3, P4.2–P4.3) are in scope too
+  const tasks = await engagementTasksWithActiveConditionals(id);
   const byCode = new Map(tasks.map((x) => [x.code, x]));
 
   const canAssign = canReview(session.user.role as Role);

@@ -79,6 +79,9 @@ const LABELS: Record<string, { en: string; fr: string }> = {
   partner_conclusion: { en: "Partner overall conclusion and independence reconfirmation (C4.1)", fr: "Conclusion générale de l'associé et reconfirmation d'indépendance (C4.1)" },
   completion_gates: { en: "Every completion gate green", fr: "Toutes les portes d'achèvement au vert" },
   controls_concluded: { en: "Every control selected for testing designed, tested and concluded", fr: "Chaque contrôle retenu pour test conçu, testé et conclu" },
+  eqr_complete: { en: "Engagement quality review complete where required (C4.2, ISQM 2 ¶25)", fr: "Revue de qualité de la mission achevée lorsqu'elle est requise (C4.2, ISQM 2 ¶25)" },
+  c43_cleared: { en: "No point outstanding at the report date (C4.3)", fr: "Aucun point en suspens à la date du rapport (C4.3)" },
+  tasks_addressed: { en: "Every applicable task performed, or marked not applicable with a reason", fr: "Chaque tâche applicable réalisée, ou marquée non applicable avec un motif" },
   papers_signed: { en: "Every task holding work has a paper signed by its preparer", fr: "Chaque tâche portant des travaux a un papier signé par son préparateur" },
   reviews_complete: { en: "Every prepared paper carries its review sign-off", fr: "Chaque papier préparé porte sa signature de revue" },
   review_notes_cleared: { en: "Every review note cleared", fr: "Chaque note de revue levée" },
@@ -92,8 +95,8 @@ const GROUP_OF: Record<string, ChecklistGroup["key"]> = {
   final_analytical_review: "completion", fs_tieout_passed: "completion", disclosure_checklist: "completion",
   subsequent_events: "completion", rep_letters_generated: "completion", b4_cleared: "completion",
   partner_conclusion: "completion", completion_gates: "completion",
-  controls_concluded: "completion",
-  papers_signed: "papers", reviews_complete: "papers",
+  controls_concluded: "completion", eqr_complete: "review", c43_cleared: "completion",
+  tasks_addressed: "papers", papers_signed: "papers", reviews_complete: "papers",
   review_notes_cleared: "review", review_approval: "review",
   c62_checklist: "assembly",
 };
@@ -152,6 +155,25 @@ async function itemise(
     if (owes && !p.prepared) unsigned.push(taskItem(t));
     if ((owes && !p.reviewed) || p.half_reviewed) unreviewed.push(taskItem(t));
   }
+  // The same reading of "untouched" as tasks_addressed in lib/completion.ts:
+  // no work of any kind, and no not-applicable record.
+  const untouched = await tx.query<{ id: string }>(
+    `SELECT fi.id FROM file_item fi
+      WHERE fi.engagement_id = $1 AND fi.conditional = false
+        AND btrim(coalesce(fi.na_reason, '')) = ''
+        AND NOT EXISTS (SELECT 1 FROM program_step ps WHERE ps.file_item_id = fi.id AND ps.status <> 'na')
+        AND NOT EXISTS (SELECT 1 FROM section_conclusion sc WHERE sc.file_item_id = fi.id)
+        AND NOT EXISTS (SELECT 1 FROM document d WHERE d.file_item_id = fi.id AND d.kind IN ('workpaper', 'leadsheet'))
+        AND NOT EXISTS (SELECT 1 FROM form_response fr
+                         WHERE fr.engagement_id = fi.engagement_id AND fr.code = 'wp:' || fi.code
+                           AND btrim(coalesce(fr.value #>> '{}', '')) <> '')
+      ORDER BY fi.sort_order, fi.code`,
+    [engagementId],
+  );
+  const untouchedItems: ChecklistItem[] = untouched.rows.flatMap((r) => {
+    const t = ref(r.id);
+    return t ? [taskItem(t)] : [];
+  });
 
   const unconcluded = await tx.query<{ file_item_id: string; planned: string }>(
     `SELECT ps.file_item_id, count(*) FILTER (WHERE ps.status = 'planned')::text AS planned
@@ -228,6 +250,7 @@ async function itemise(
   };
 
   return {
+    tasks_addressed: untouchedItems,
     papers_signed: unsigned,
     reviews_complete: unreviewed,
     sections_concluded: sections,
@@ -237,6 +260,8 @@ async function itemise(
     b4_cleared: findingItems,
     // Single-destination gates: the item is the place itself.
     review_approval: [{ label: locale === "fr" ? "C4.1 — récapitulatif de revue et d'approbation" : "C4.1 — review and approval summary", href: link("C4.1", `${base}/groups/c4`), code: "C4.1" }],
+    eqr_complete: [{ label: locale === "fr" ? "C4.2 — revue de qualité de la mission" : "C4.2 — engagement quality review", href: link("C4.2", `${base}/groups/c4`), code: "C4.2" }],
+    c43_cleared: [{ label: locale === "fr" ? "C4.3 — points en suspens" : "C4.3 — points outstanding", href: link("C4.3", `${base}/groups/c4`), code: "C4.3" }],
     c62_checklist: [{ label: locale === "fr" ? "C6.2 — documentation et archivage" : "C6.2 — documentation and archive", href: link("C6.2", `${base}/groups/c6`), code: "C6.2" }],
   };
 }
@@ -257,6 +282,9 @@ const HREF_OF = (engagementId: string): Record<string, string> => {
     partner_conclusion: `${base}/conclusion`,
     completion_gates: `${base}/conclusion`,
     controls_concluded: `${base}/groups/e1`,
+    eqr_complete: `${base}/groups/c4`,
+    c43_cleared: `${base}/groups/c4`,
+    tasks_addressed: `${base}/tools/forms`,
     papers_signed: `${base}/dashboard`,
     reviews_complete: `${base}/dashboard`,
     review_notes_cleared: `${base}/tools/review-notes`,

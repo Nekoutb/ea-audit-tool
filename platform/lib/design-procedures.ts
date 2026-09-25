@@ -17,6 +17,8 @@ import {
   OSP_MAX,
   OSP_TEXT_MAX,
   TIMING_VALUES,
+  craLevelOf,
+  timingAllowed,
   type OspProcedure,
 } from "@/lib/design-procedures-model";
 
@@ -286,6 +288,25 @@ export async function saveDsp(engagementId: string, indexCode: string, field: st
     }
   }
   if (field === "osp_list") parseOspList(value);
+  // The nature and timing are pinned to their option sets, and the timing to
+  // what the assertion's CRA permits — a drop-down the browser constrains is
+  // not a control until the server refuses what it barred (UAT B75). Blank
+  // clears the design and is always allowed.
+  const design = /^(?:([CEAVP])_)?(nature|timing)$/.exec(field);
+  if (design && value !== "") {
+    const [, assertion, kind] = design;
+    if (kind === "nature" && !NATURE_VALUES.includes(value)) throw new Error("invalid-value");
+    if (kind === "timing") {
+      if (!TIMING_VALUES.includes(value)) throw new Error("invalid-value");
+      if (assertion) {
+        const row = (await dspView(engagementId)).rows.find((r) => r.indexCode === indexCode);
+        const cell = row?.cells.find((c) => c.assertion === assertion);
+        if (!timingAllowed(cell ? craLevelOf(cell.tod) : null).includes(value)) {
+          throw new Error("timing-not-permitted");
+        }
+      }
+    }
+  }
   const { tenantId, userId } = await requireTenant();
   await withTenant(tenantId, async (tx) => {
     await tx.query(

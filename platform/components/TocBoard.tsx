@@ -13,6 +13,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import type { ScotStudioView } from "@/lib/scots";
+import { tocRowsPlanned, tocRowsTested } from "@/lib/toc-grid";
 
 export function TocBoard({
   engagementId,
@@ -161,6 +162,10 @@ export function TocBoard({
                   {tested.map((c) => {
                     const asserts = assertionsOf(scot.id, c.wcgwIds);
                     const evaluation = chosen[c.id] ?? c.operatingEval ?? "";
+                    // "effective" needs the planned sample fully tested on the grid (UAT B84)
+                    const tested = tocRowsTested(c.tocGrid);
+                    const planned = tocRowsPlanned(c.sampleSize);
+                    const gridIncomplete = tested < planned;
                     return (
                       <tr key={c.id} className="border-b border-line align-top" data-testid={`toc-control-${c.id}`}>
                         <td className={td}>
@@ -183,9 +188,16 @@ export function TocBoard({
                             data-testid={`toc-eval-${c.id}`}
                           >
                             {evaluation === "" ? <option value="" disabled hidden /> : null}
-                            <option value="effective">{fr ? "Efficace" : "Effective"}</option>
+                            <option value="effective" disabled={gridIncomplete && evaluation !== "effective"}>{fr ? "Efficace" : "Effective"}</option>
                             <option value="not_effective">{fr ? "Non efficace" : "Not effective"}</option>
                           </select>
+                          {gridIncomplete ? (
+                            <span className="mt-0.5 block text-[10px] leading-snug text-muted" data-testid={`toc-incomplete-${c.id}`}>
+                              {fr
+                                ? `${tested}/${planned} éléments testés — compléter la grille avant de conclure « efficace ».`
+                                : `${tested}/${planned} items tested — complete the grid before concluding "effective".`}
+                            </span>
+                          ) : null}
                           {evaluation === "not_effective" ? (
                             <span className="mt-0.5 block text-[10px] leading-snug text-amber-700 dark:text-amber-400">
                               {fr

@@ -8,9 +8,12 @@ import { atLeast, canPartnerSignoff, canReview, type Role } from "@/lib/rbac";
 import { applyOverride } from "@/lib/template-overrides";
 import { templateFor } from "@/lib/templates";
 import { ForbiddenError, requireRole, requireTenant, requireWrite } from "@/lib/tenant";
-import { paperContentHashTx } from "@/lib/working-papers";
+import { hasBespokePaper, paperContentHashTx, paperFor, paperMissing } from "@/lib/working-papers";
 import { visibleToUser } from "@/lib/engagement-access";
-import { logReopen, logSignOff, logSignOffVoided, logVersionRestored } from "@/lib/activity";
+import { logReopen, logSignOff, logSignOffVoided, logVersionRestored, recordActivity } from "@/lib/activity";
+import { loadBranding } from "@/lib/branding";
+import { phaseOfTask } from "@/lib/engagement-dashboard";
+import { phaseStillOpen } from "@/lib/gates";
 
 export const DOCX_MIME =
   "application/vnd.openxmlformats-officedocument.wordprocessingml.document";
@@ -123,12 +126,14 @@ export async function generateDocument(fileItemId: string, locale: Locale): Prom
       client_name: string;
       fiscal_year: number;
       period_end: string;
+      archived_at: string | null;
       user_name: string | null;
       user_email: string;
     }>(
       `SELECT fi.id, fi.engagement_id, fi.code, fi.title_en, fi.title_fr,
               c.name AS client_name, e.fiscal_year,
               to_char(e.period_end, 'YYYY-MM-DD') AS period_end,
+              e.archived_at::text AS archived_at,
               u.name AS user_name, u.email AS user_email
          FROM file_item fi
          JOIN engagement e ON e.id = fi.engagement_id
@@ -147,11 +152,16 @@ export async function generateDocument(fileItemId: string, locale: Locale): Prom
       [fileItemId],
     );
     if (existing.rows[0]) return existing.rows[0].id;
+    // Creating the paper is a write: a closed file gets the plain refusal, not
+    // the archive trigger's 500 (UAT B42).
+    if (row.archived_at) throw new DocumentRuleError("archived");
 
     const title = locale === "fr" ? row.title_fr : row.title_en;
     // Firm-level template customization (Template management) applies to NEW
     // documents only; existing bytes stay frozen in document_version.
     const template = await applyOverride(tx, row.code, templateFor(row.code));
+    // The firm's letterhead in the header and footer of every paper (UAT B145).
+    const branding = await loadBranding(tx, tenantId).catch(() => null);
     const content = await generateWorkpaperDocx(
       template,
       {
@@ -161,8 +171,10 @@ export async function generateDocument(fileItemId: string, locale: Locale): Prom
         fiscalYear: row.fiscal_year,
         periodEnd: row.period_end,
         preparedBy: row.user_name ?? row.user_email,
+        extraRows: row.code === "S6.1" ? await strategyMemoRows(tx, row.engagement_id, locale) : undefined,
       },
       locale,
+      branding,
     );
 
     const created = await tx.query<{ id: string }>(
@@ -180,8 +192,68 @@ export async function generateDocument(fileItemId: string, locale: Locale): Prom
       `template:${template.id}@${template.version}`,
       userId,
     );
+    await recordActivity({
+      engagementId: row.engagement_id,
+      entityType: "document",
+      entityId: documentId,
+      action: "document_generated",
+      summary: `${row.code} working paper generated (${template.id}@${template.version})`,
+      after: { code: row.code, template: template.id, version: 1 },
+    });
     return documentId;
   });
+}
+
+/**
+ * The S6.1 memorandum's own figures (UAT B74): the approved materiality, the
+ * significant risks, the scoped sections and the answers the preparer gave
+ * on the S6.1 paper, merged into the identity block of the generated .docx.
+ */
+async function strategyMemoRows(
+  tx: PoolClient,
+  engagementId: string,
+  locale: Locale,
+): Promise<{ label: string; value: string }[]> {
+  const fr = locale === "fr";
+  const n = (x: string | number) => new Intl.NumberFormat("fr-FR").format(Number(x));
+  const [m, risks, scoped, answers] = await Promise.all([
+    tx.query<{ benchmark: string; percentage: string; overall: string; performance: string; trivial: string }>(
+      `SELECT benchmark, percentage::text, overall::text, performance::text, trivial::text
+         FROM materiality WHERE engagement_id = $1 AND status = 'approved'
+        ORDER BY version_no DESC LIMIT 1`,
+      [engagementId],
+    ),
+    tx.query<{ description: string }>(
+      "SELECT description FROM risk WHERE engagement_id = $1 AND significant AND rebutted = false ORDER BY created_at LIMIT 12",
+      [engagementId],
+    ),
+    tx.query<{ codes: string | null }>(
+      `SELECT string_agg(code, ', ' ORDER BY sort_order) AS codes
+         FROM file_item WHERE engagement_id = $1 AND section = 'E' AND material`,
+      [engagementId],
+    ),
+    tx.query<{ field_key: string; value: string | null }>(
+      "SELECT field_key, value #>> '{}' AS value FROM form_response WHERE engagement_id = $1 AND code = 'wp:S6.1'",
+      [engagementId],
+    ),
+  ]);
+  const a = Object.fromEntries(answers.rows.map((r) => [r.field_key, r.value ?? ""]));
+  const mat = m.rows[0];
+  return [
+    {
+      label: fr ? "Seuil de signification approuvé" : "Approved materiality",
+      value: mat
+        ? `${mat.benchmark} · ${mat.percentage} % · PM ${n(mat.overall)} · TE ${n(mat.performance)} · SAD ${n(mat.trivial)} FCFA`
+        : fr ? "Non encore approuvé" : "Not approved yet",
+    },
+    {
+      label: fr ? "Risques importants" : "Significant risks",
+      value: risks.rows.length ? risks.rows.map((r) => r.description).join(" ; ") : "—",
+    },
+    { label: fr ? "Sections significatives (E)" : "Material sections (E)", value: scoped.rows[0]?.codes ?? "—" },
+    { label: fr ? "Orientation donnée à l'équipe" : "Direction set for the team", value: a.direction?.trim() || "—" },
+    { label: fr ? "Modifications de la stratégie" : "Changes to the strategy", value: a.changes?.trim() || "—" },
+  ];
 }
 
 /**
@@ -251,6 +323,29 @@ export async function getDocument(documentId: string): Promise<DocumentDetail | 
   });
 }
 
+/**
+ * The documents filed on a task other than its own generated working paper:
+ * accepted PBC uploads, generated letters, archived confirmations. The task
+ * page lists them beside the attachments so evidence accepted through the
+ * portal is found on the task it was accepted into, not only in the index.
+ */
+export async function listItemDocuments(
+  fileItemId: string,
+): Promise<{ id: string; title: string; kind: string; currentVersion: number; createdAt: string }[]> {
+  const { tenantId } = await requireTenant();
+  return withTenant(tenantId, async (tx) => {
+    const result = await tx.query<{ id: string; title: string; kind: string; current_version: number; created_at: string }>(
+      `SELECT d.id, d.title, d.kind, d.current_version, to_char(d.created_at, 'DD Mon YYYY') AS created_at
+         FROM document d
+        WHERE d.file_item_id = $1 AND d.current_version > 0
+          AND NOT (d.kind = 'workpaper' AND d.title NOT LIKE 'PBC — %')
+        ORDER BY d.created_at DESC`,
+      [fileItemId],
+    );
+    return result.rows.map((r) => ({ id: r.id, title: r.title, kind: r.kind, currentVersion: r.current_version, createdAt: r.created_at }));
+  });
+}
+
 export async function listVersions(documentId: string): Promise<VersionInfo[]> {
   const { tenantId } = await requireTenant();
   await guardDocument(documentId);
@@ -290,8 +385,8 @@ export async function getVersionContent(
   const { tenantId } = await requireTenant();
   await guardDocument(documentId);
   return withTenant(tenantId, async (tx) => {
-    const result = await tx.query<{ content: Buffer; mime: string; code: string; title: string }>(
-      `SELECT v.content, v.mime, fi.code, d.title
+    const result = await tx.query<{ content: Buffer; mime: string; code: string; title: string; note: string | null }>(
+      `SELECT v.content, v.mime, fi.code, d.title, v.note
          FROM document_version v
          JOIN document d ON d.id = v.document_id
          JOIN file_item fi ON fi.id = d.file_item_id
@@ -300,11 +395,27 @@ export async function getVersionContent(
     );
     const row = result.rows[0];
     if (!row) return null;
-    const safeTitle = row.title.replace(/[^\p{L}\p{N} _-]/gu, "").slice(0, 60);
+    // The dash in "PBC — title" is kept as a hyphen rather than dropped, and
+    // the extension follows the bytes (a PBC upload keeps its own; a MIME we
+    // know maps to its extension; a working paper is .docx) — UAT B110.
+    const safeTitle = row.title.replace(/[—–]/g, "-").replace(/[^\p{L}\p{N} _-]/gu, "").slice(0, 60);
+    const pbcName = row.note?.startsWith("pbc:") ? row.note.slice(4) : null;
+    const pbcExt = pbcName ? /\.([A-Za-z0-9]{1,8})$/.exec(pbcName)?.[1]?.toLowerCase() : null;
+    const MIME_EXT: Record<string, string> = {
+      "application/pdf": "pdf",
+      "text/csv": "csv",
+      "application/vnd.ms-excel": "xls",
+      "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet": "xlsx",
+      "image/png": "png",
+      "image/jpeg": "jpg",
+      "text/plain": "txt",
+      [DOCX_MIME]: "docx",
+    };
+    const ext = pbcExt ?? MIME_EXT[row.mime] ?? "docx";
     return {
       content: row.content,
       mime: row.mime,
-      filename: `${row.code} ${safeTitle} v${versionNo}.docx`,
+      filename: `${row.code} ${safeTitle} v${versionNo}.${ext}`,
     };
   });
 }
@@ -417,15 +528,16 @@ export async function listSignoffs(documentId: string): Promise<SignoffInfo[]> {
       invalidated_reason: string | null;
     }>(
       `SELECT s.id, s.role, s.version_no, coalesce(u.name, u.email) AS user_name,
-              to_char(s.signed_at, 'YYYY-MM-DD HH24:MI') AS signed_at,
-              to_char(s.voided_at, 'YYYY-MM-DD HH24:MI') AS voided_at, s.void_reason,
-              to_char(s.invalidated_at, 'YYYY-MM-DD HH24:MI') AS invalidated_at,
+              to_char(s.signed_at AT TIME ZONE $2, 'YYYY-MM-DD HH24:MI') || ' ' || $3 AS signed_at,
+              to_char(s.voided_at AT TIME ZONE $2, 'YYYY-MM-DD HH24:MI') || ' ' || $3 AS voided_at, s.void_reason,
+              to_char(s.invalidated_at AT TIME ZONE $2, 'YYYY-MM-DD HH24:MI') || ' ' || $3 AS invalidated_at,
               s.invalidated_reason
          FROM signoff s
          JOIN app_user u ON u.id = s.user_id
         WHERE s.document_id = $1
         ORDER BY s.signed_at`,
-      [documentId],
+      // Shown in the firm's zone with its label, not as bare UTC (UAT B133).
+      [documentId, "Africa/Douala", "WAT"],
     );
     return result.rows.map((row) => ({
       id: row.id,
@@ -479,17 +591,33 @@ export async function hasOtherReviewer(
 /** Tasks whose approval belongs to the audit partner alone (operator rule). */
 export const PARTNER_ONLY_APPROVAL = new Set(["P5.2", "P7.2", "S6.1", "S6.2", "S3.1", "C1.1"]);
 
-export async function signDocument(documentId: string, role: SignoffRole): Promise<void> {
+/**
+ * Papers whose phase gate looks for a PARTNER signature (lib/gates.ts). A
+ * reviewer sign-off on them must not lock the paper — the partner still has
+ * to sign — and a partner pressing the list's R chip is recorded as the
+ * partner they are, so the gate sees it (UAT B20).
+ */
+export const PARTNER_GATED = new Set(["P1.1", "P2.2", "P5.2", "S3.1", "P7.2"]);
+
+/** Tasks whose screen is not the questionnaire, so completeness is judged elsewhere. */
+function completenessExempt(code: string): boolean {
+  return code.startsWith("E4.") || code === "P7.2" || !hasBespokePaper(code);
+}
+
+/** Returns the sign-off tier actually recorded (a partner's R on a gated paper is "partner"). */
+export async function signDocument(documentId: string, requested: SignoffRole): Promise<SignoffRole> {
   const { tenantId, userId, role: userRole } = await requireWrite();
   await guardDocument(documentId);
   // The EQR reviews the file independently of the team (ISQM 2 ¶18): signing
   // it as preparer, reviewer or partner would make them part of the work they
   // are there to challenge (UAT B11). Their sign-off lives on the EQR screen.
   if (userRole === "eqr_reviewer") throw new DocumentRuleError("forbidden");
-  if (role === "reviewer" && !canReview(userRole)) throw new DocumentRuleError("forbidden");
-  if (role === "partner" && !canPartnerSignoff(userRole)) throw new DocumentRuleError("forbidden");
+  // Named refusals (UAT B129): the banner says which rank the role needs.
+  if (requested === "reviewer" && !canReview(userRole)) throw new DocumentRuleError("requires-senior");
+  if (requested === "partner" && !canPartnerSignoff(userRole)) throw new DocumentRuleError("requires-partner");
+  let role: SignoffRole = requested;
 
-  await withTenant(tenantId, async (tx) => {
+  const logged = await withTenant(tenantId, async (tx) => {
     const arch = await tx.query<{ archived_at: string | null }>(
       "SELECT e.archived_at::text FROM document d JOIN engagement e ON e.id = d.engagement_id WHERE d.id = $1",
       [documentId],
@@ -501,15 +629,28 @@ export async function signDocument(documentId: string, role: SignoffRole): Promi
       checked_out_by: string | null;
       engagement_id: string;
       code: string;
+      section: string;
+      kind: string;
+      title: string;
+      file_item_id: string;
+      phase: string;
     }>(
-      `SELECT d.status, d.current_version, d.checked_out_by, d.engagement_id, fi.code
-         FROM document d JOIN file_item fi ON fi.id = d.file_item_id
+      `SELECT d.status, d.current_version, d.checked_out_by, d.engagement_id, fi.code, fi.section,
+              d.kind, d.title, d.file_item_id, e.phase
+         FROM document d
+         JOIN file_item fi ON fi.id = d.file_item_id
+         JOIN engagement e ON e.id = d.engagement_id
         WHERE d.id = $1 FOR UPDATE OF d`,
       [documentId],
     );
     const row = doc.rows[0];
     if (!row) throw new DocumentRuleError("not-found");
     if (row.status === "signed") throw new DocumentRuleError("signed-locked");
+    // Gates, not guidance (UAT B15): nothing of a later phase is signed while
+    // an earlier phase's gates are still open.
+    const stillOpen = phaseStillOpen(phaseOfTask(row.section, row.code), row.phase);
+    if (stillOpen) throw new DocumentRuleError(stillOpen);
+    if (role === "reviewer" && PARTNER_GATED.has(row.code) && canPartnerSignoff(userRole)) role = "partner";
     // Partner-only approvals: these tasks carry the judgments only the audit
     // partner may approve — a manager's review sign-off is refused outright.
     if ((role === "reviewer" || role === "partner") && PARTNER_ONLY_APPROVAL.has(row.code) && !canPartnerSignoff(userRole)) {
@@ -517,6 +658,25 @@ export async function signDocument(documentId: string, role: SignoffRole): Promi
     }
     if (row.current_version === 0) throw new DocumentRuleError("no-version");
     if (row.checked_out_by) throw new DocumentRuleError("checked-out");
+    // P2.1 concludes on the team's independence: it cannot be reviewed or
+    // approved while a confirmation is outstanding or an exception has no
+    // partner disposition (IESBA Code, ISQM 1 ¶29).
+    if (row.code === "P2.1" && role !== "preparer") {
+      const { independenceOpenTx } = await import("@/lib/independence");
+      if (await independenceOpenTx(tx, row.engagement_id)) throw new DocumentRuleError("independence-open");
+    }
+
+    // A member who has not accepted the engagement (still invited, or
+    // declined) signs nothing on it (UAT B133). Someone with no team row at
+    // all is not blocked here: engagement access is guarded upstream.
+    const membership = await tx.query<{ status: string }>(
+      "SELECT coalesce(status, 'accepted') AS status FROM team_member WHERE engagement_id = $1 AND user_id = $2",
+      [row.engagement_id, userId],
+    );
+    const teamStatus = membership.rows[0]?.status;
+    if (teamStatus === "invited" || teamStatus === "declined") {
+      throw new DocumentRuleError("accept-engagement-first");
+    }
 
     const active = await tx.query<{ role: SignoffRole; user_id: string }>(
       "SELECT role, user_id FROM signoff WHERE document_id = $1 AND voided_at IS NULL AND invalidated_at IS NULL",
@@ -526,6 +686,18 @@ export async function signDocument(documentId: string, role: SignoffRole): Promi
     if (activeRoles.has(role)) throw new DocumentRuleError("already-signed");
     if (role !== "preparer" && !activeRoles.has("preparer"))
       throw new DocumentRuleError("preparer-first");
+
+    // A blank paper carries nothing to attest to (UAT B17): every procedure,
+    // evaluation and conclusion is answered, and every "No" explained, before
+    // the preparer hands off or a reviewer signs. An explicit N/A counts.
+    if (row.kind === "workpaper" && !completenessExempt(row.code)) {
+      const answers = await tx.query<{ field_key: string; value: string | null }>(
+        "SELECT field_key, value #>> '{}' AS value FROM form_response WHERE engagement_id = $1 AND code = $2",
+        [row.engagement_id, `wp:${row.code}`],
+      );
+      const values = Object.fromEntries(answers.rows.map((r) => [r.field_key, r.value ?? ""]));
+      if (paperMissing(paperFor(row.code), values).length > 0) throw new DocumentRuleError("paper-incomplete");
+    }
 
     if (role !== "preparer") {
       // ISA 220 (Revised) ¶29: the work of the preparer is reviewed by someone
@@ -539,9 +711,12 @@ export async function signDocument(documentId: string, role: SignoffRole): Promi
         throw new DocumentRuleError("self-review");
       }
 
+      // Notes hang on the document OR on its task (two stores, one paper):
+      // either kind blocks the reviewer while open (UAT B18).
       const openNotes = await tx.query<{ n: string }>(
-        "SELECT count(*)::text AS n FROM review_note WHERE document_id = $1 AND status = 'open'",
-        [documentId],
+        `SELECT count(*)::text AS n FROM review_note
+          WHERE status = 'open' AND (document_id = $1 OR file_item_id = $2)`,
+        [documentId, row.file_item_id],
       );
       if (Number(openNotes.rows[0].n) > 0) throw new DocumentRuleError("open-notes");
     }
@@ -554,12 +729,16 @@ export async function signDocument(documentId: string, role: SignoffRole): Promi
       [tenantId, documentId, row.current_version, role, userId, contentHash],
     );
 
-    // The reviewer sign-off completes the two-stage minimum and locks the paper.
-    if (role === "reviewer" || role === "partner") {
+    // The reviewer sign-off completes the two-stage minimum and locks the
+    // paper — except on the partner-gated papers, which stay open until the
+    // partner's own signature is recorded (UAT B20).
+    if (role === "partner" || (role === "reviewer" && !PARTNER_GATED.has(row.code))) {
       await tx.query("UPDATE document SET status = 'signed' WHERE id = $1", [documentId]);
     }
+    return { engagementId: row.engagement_id, title: `${row.code} ${row.title}`, versionNo: row.current_version };
   });
-  await logSignOff(documentId, role);
+  await logSignOff(documentId, role, logged);
+  return role;
 }
 
 /**
@@ -580,15 +759,33 @@ export async function reopenDocument(documentId: string, reason: string): Promis
   const { tenantId, userId, role } = await requireRole("manager");
   await guardDocument(documentId);
   const signers: { user_id: string; title: string }[] = [];
+  let reopenedGate: { engagementId: string; code: string; phase: string; fileItemId: string | null } | null = null;
+  // what the trail entries name (UAT B62: they were stored with no engagement)
+  // (a holder rather than a `let`: TS does not see assignments made inside the
+  // transaction callback, so a plain variable would still read as null here)
+  const reopened: { engagementId?: string; title?: string } = {};
 
   await withTenant(tenantId, async (tx) => {
-    const doc = await tx.query<{ status: string; title: string; engagement_id: string }>(
-      "SELECT status, title, engagement_id FROM document WHERE id = $1 FOR UPDATE",
+    const doc = await tx.query<{ status: string; title: string; engagement_id: string; kind: string; code: string | null; file_item_id: string | null; phase: string }>(
+      `SELECT d.status, d.title, d.engagement_id, d.kind, fi.code, d.file_item_id, e.phase
+         FROM document d
+         JOIN engagement e ON e.id = d.engagement_id
+         LEFT JOIN file_item fi ON fi.id = d.file_item_id
+        WHERE d.id = $1 FOR UPDATE OF d`,
       [documentId],
     );
     const row = doc.rows[0];
     if (!row) throw new DocumentRuleError("not-found");
     if (!reason.trim()) throw new DocumentRuleError("reason-required");
+    reopened.engagementId = row.engagement_id;
+    reopened.title = row.code ? `${row.code} ${row.title}` : row.title;
+    // Voiding the partner signature on a gating paper after its phase has
+    // closed leaves the engagement past a gate it no longer satisfies; the
+    // phase does not move back, so the event is flagged and logged (UAT B99).
+    const gatePhase = row.kind === "workpaper" && row.code ? GATE_PAPER_PHASE[row.code] : undefined;
+    if (gatePhase && PHASE_ORDER.indexOf(row.phase) > PHASE_ORDER.indexOf(gatePhase)) {
+      reopenedGate = { engagementId: row.engagement_id, code: row.code!, phase: row.phase, fileItemId: row.file_item_id };
+    }
 
     // Once the report is signed, reopening a paper is a post-report-date change
     // to the audit documentation (ISA 230 para 16) and is the partner's call.
@@ -637,9 +834,52 @@ export async function reopenDocument(documentId: string, reason: string): Promis
       href: `/documents/${documentId}`,
     });
   }
-  await logSignOffVoided(documentId, reason, { voidedUserIds: signers.map((s) => s.user_id) });
-  await logReopen(documentId, reason);
+  await logSignOffVoided(documentId, reason, {
+    engagementId: reopened.engagementId,
+    title: reopened.title,
+    voidedUserIds: signers.map((s) => s.user_id),
+  });
+  await logReopen(documentId, reason, { engagementId: reopened.engagementId, title: reopened.title });
+  if (reopenedGate) {
+    const g: { engagementId: string; code: string; phase: string; fileItemId: string | null } = reopenedGate;
+    const gatePhase = GATE_PAPER_PHASE[g.code];
+    await recordActivity({
+      engagementId: g.engagementId,
+      entityType: "file_item",
+      entityId: g.fileItemId,
+      action: "gate_reopened",
+      summary: `${g.code} reopened while the engagement is in ${g.phase}: the ${gatePhase} gate is no longer satisfied`,
+      meta: { code: g.code, phase: g.phase, reason },
+    });
+    // The engagement partner decides what the reopening means for the phase.
+    const partners = await withTenant(tenantId, (tx) =>
+      tx.query<{ user_id: string }>(
+        "SELECT user_id FROM team_member WHERE engagement_id = $1 AND team_role = 'partner'",
+        [g.engagementId],
+      ).then((r) => r.rows),
+    );
+    for (const p of partners) {
+      if (p.user_id === userId) continue;
+      await createNotification({
+        tenantId,
+        userId: p.user_id,
+        kind: "gate-reopened",
+        title: `${g.code} reopened after ${gatePhase} closed`,
+        body: reason,
+        href: `/engagements/${g.engagementId}/${gatePhase}`,
+      });
+    }
+  }
 }
+
+/** Gating working papers and the phase each one closes (lib/gates.ts). */
+const GATE_PAPER_PHASE: Record<string, string> = {
+  "P1.1": "acceptance",
+  "P2.2": "planning",
+  "P5.2": "planning",
+  "S3.1": "planning",
+};
+const PHASE_ORDER = ["acceptance", "planning", "execution", "conclusion", "archived"];
 
 export async function listReviewNotes(documentId: string): Promise<ReviewNoteInfo[]> {
   const { tenantId } = await requireTenant();
@@ -658,6 +898,8 @@ export async function listReviewNotes(documentId: string): Promise<ReviewNoteInf
          FROM review_note n
          JOIN app_user u ON u.id = n.author_id
         WHERE n.document_id = $1
+           -- notes raised on the task itself belong to the same paper (UAT B18)
+           OR n.file_item_id = (SELECT d.file_item_id FROM document d WHERE d.id = $1)
         ORDER BY n.created_at`,
       [documentId],
     );
@@ -676,12 +918,89 @@ export async function addReviewNote(documentId: string, body: string): Promise<v
   const { tenantId, userId } = await requireTenant();
   await guardDocument(documentId);
   if (!body.trim()) throw new DocumentRuleError("body-required");
-  await withTenant(tenantId, async (tx) => {
-    await tx.query(
-      "INSERT INTO review_note (tenant_id, document_id, author_id, body) VALUES ($1, $2, $3, $4)",
-      [tenantId, documentId, userId, body],
+  const target = await withTenant(tenantId, async (tx) => {
+    const doc = await tx.query<{
+      engagement_id: string;
+      file_item_id: string | null;
+      code: string | null;
+      archived_at: string | null;
+      preparer_id: string | null;
+      assignee_id: string | null;
+    }>(
+      `SELECT d.engagement_id, d.file_item_id, fi.code, e.archived_at::text AS archived_at,
+              (SELECT s.user_id FROM signoff s
+                WHERE s.document_id = d.id AND s.role = 'preparer' AND s.voided_at IS NULL
+                ORDER BY s.signed_at DESC LIMIT 1) AS preparer_id,
+              fi.assignee_user_id AS assignee_id
+         FROM document d
+         JOIN engagement e ON e.id = d.engagement_id
+         LEFT JOIN file_item fi ON fi.id = d.file_item_id
+        WHERE d.id = $1`,
+      [documentId],
     );
+    const row = doc.rows[0];
+    if (!row) throw new DocumentRuleError("not-found");
+    // A closed file takes no notes: the plain refusal, not the trigger's 500 (UAT B42).
+    if (row.archived_at) throw new DocumentRuleError("archived");
+    // Addressed to the active preparer, else the task's assignee (UAT B147);
+    // engagement_id set so the register finds it (UAT B18).
+    const addressee = row.preparer_id ?? row.assignee_id ?? null;
+    await tx.query(
+      `INSERT INTO review_note (tenant_id, document_id, engagement_id, author_id, assignee_id, body)
+       VALUES ($1, $2, $3, $4, $5, $6)`,
+      [tenantId, documentId, row.engagement_id, userId, addressee, body],
+    );
+    return { ...row, addressee };
   });
+  await recordActivity({
+    engagementId: target.engagement_id,
+    entityType: "document",
+    entityId: documentId,
+    action: "review_note_raised",
+    summary: `Review note raised on ${target.code ?? "document"}`,
+    meta: { fileItemId: target.file_item_id },
+  });
+  if (target.addressee && target.addressee !== userId) {
+    try {
+      await createNotification({
+        tenantId,
+        userId: target.addressee,
+        kind: "review_note",
+        title: `Review note on ${target.code ?? "a document"}`,
+        body: body.trim().slice(0, 400),
+        href: `/documents/${documentId}`,
+      });
+    } catch {
+      // a failed notification must never lose the note
+    }
+  }
+}
+
+/**
+ * Whether `userId` is the one whose work a note on this paper reviews: the
+ * holder of the active preparer sign-off, or failing one the task's owner.
+ * Such a person answers the note; only the reviewer side clears it (ISA 220
+ * (Revised) ¶29 — UAT B19).
+ */
+export async function isPreparerOfNote(
+  tx: PoolClient,
+  noteId: string,
+  userId: string,
+): Promise<boolean> {
+  const r = await tx.query<{ n: string }>(
+    `SELECT count(*)::text AS n
+       FROM review_note rn
+       LEFT JOIN document d ON d.id = rn.document_id
+       LEFT JOIN file_item fi ON fi.id = coalesce(rn.file_item_id, d.file_item_id)
+      WHERE rn.id = $1
+        AND (fi.owner_id = $2
+             OR EXISTS (SELECT 1 FROM signoff s
+                          JOIN document d2 ON d2.id = s.document_id
+                         WHERE d2.file_item_id = fi.id AND s.role = 'preparer'
+                           AND s.voided_at IS NULL AND s.user_id = $2))`,
+    [noteId, userId],
+  );
+  return Number(r.rows[0]?.n ?? 0) > 0;
 }
 
 export async function clearReviewNote(noteId: string, response: string): Promise<void> {
@@ -703,12 +1022,15 @@ export async function clearReviewNote(noteId: string, response: string): Promise
       [noteId],
     );
     const author = note.rows[0]?.author_id;
-    if (author !== userId && !atLeast(role, "senior")) {
-      throw new ForbiddenError("requires-senior-or-author");
+    // Author, or manager+ who did not prepare the paper (UAT B19): the
+    // preparer replies through respondToReviewNote and the reviewer confirms.
+    if (author !== userId) {
+      if (!atLeast(role, "manager")) throw new ForbiddenError("requires-manager-or-author");
+      if (await isPreparerOfNote(tx, noteId, userId)) throw new ForbiddenError("not-preparer-clears");
     }
     await tx.query(
       `UPDATE review_note
-          SET status = 'cleared', response = $2, cleared_at = now(), cleared_by = $3
+          SET status = 'cleared', response = coalesce(response || E'\n', '') || $2, cleared_at = now(), cleared_by = $3
         WHERE id = $1 AND status = 'open'`,
       [noteId, response, userId],
     );

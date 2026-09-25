@@ -41,6 +41,39 @@ describe("parseTabularFile header-row handling", () => {
     expect(String(t.rows[0].Compte)).toBe("411000");
   });
 
+  it("csv: a ';' file with decimal commas keeps each amount whole (UAT B27)", async () => {
+    const csv = Buffer.from(
+      "Compte;Intitulé;Débit;Crédit\n411000;Clients;10 000 000,00;\n701000;Ventes;;10 000 000,00\n",
+    );
+    const t = await parseTabularFile("tb_semi.csv", csv);
+    expect(t.headers).toEqual(["Compte", "Intitulé", "Débit", "Crédit"]);
+    expect(t.rows).toHaveLength(2);
+    expect(t.rows[0]["Débit"]).toBe("10 000 000,00");
+    expect(t.rows[1]["Crédit"]).toBe("10 000 000,00");
+  });
+
+  it("csv: title and period banner lines are skipped to the real header (UAT B28)", async () => {
+    const csv = Buffer.from(
+      "BALANCE GENERALE\nExercice du 01/01/2025 au 31/12/2025\nCompte;Intitulé;Solde\n411000;Clients;1500\n",
+    );
+    const t = await parseTabularFile("tb_sage.csv", csv);
+    expect(t.headers).toEqual(["Compte", "Intitulé", "Solde"]);
+    expect(t.rows).toHaveLength(1);
+    expect(t.rows[0].Compte).toBe("411000");
+  });
+
+  it("xlsx: a one-cell title row does not become the header (UAT B28)", async () => {
+    const wb = new ExcelJS.Workbook();
+    const ws = wb.addWorksheet("TB");
+    ws.addRow(["BALANCE GENERALE"]);
+    ws.addRow(["Compte", "Intitulé", "Solde"]);
+    ws.addRow(["411000", "Clients", 1500]);
+    const buffer = Buffer.from(await wb.xlsx.writeBuffer());
+    const t = await parseTabularFile("tb_export.xlsx", buffer);
+    expect(t.headers).toEqual(["Compte", "Intitulé", "Solde"]);
+    expect(t.rows).toHaveLength(1);
+  });
+
   it("xlsx headerRow=false: every row is data under col_N names", async () => {
     const wb = new ExcelJS.Workbook();
     const ws = wb.addWorksheet("TB");

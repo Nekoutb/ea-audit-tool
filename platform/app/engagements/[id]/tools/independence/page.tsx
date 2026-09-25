@@ -29,6 +29,10 @@ export default async function IndependencePage(props: { params: Promise<{ id: st
   const done = confirmations.filter((c) => c.status === "completed").length;
   const exceptions = confirmations.filter((c) => c.status === "exception").length;
   const outstanding = confirmations.length - done - exceptions;
+  // Team members holding no confirmation at all — the gate blocks on them (UAT B13).
+  const notAsked = team.filter(
+    (m) => m.status !== "declined" && !confirmations.some((c) => c.userId === m.userId),
+  ).length;
 
   return (
     <main className="min-h-screen w-full px-6 py-6">
@@ -73,12 +77,13 @@ export default async function IndependencePage(props: { params: Promise<{ id: st
           }
         />
 
-        <div className="mt-3 grid gap-2 sm:grid-cols-4" data-testid="indep-stats">
+        <div className="mt-3 grid gap-2 sm:grid-cols-5" data-testid="indep-stats">
           {[
             [confirmations.length, fr ? "membres" : "team members"],
             [done, fr ? "répondu" : "responded"],
             [outstanding, fr ? "en attente" : "outstanding"],
             [exceptions, fr ? "exceptions" : "exceptions"],
+            [notAsked, fr ? "non sollicités" : "not asked"],
           ].map(([n, label]) => (
             <div key={String(label)} className="rounded-[var(--radius-atlas-sm)] border border-line bg-surface-2 px-3 py-2">
               <b className="block text-xl font-semibold text-ink tnum">{n}</b>
@@ -140,7 +145,10 @@ export default async function IndependencePage(props: { params: Promise<{ id: st
                       )}
                     </td>
                     <td className="px-3 py-2 text-right">
-                      {canManage && c.status !== "completed" ? (
+                      {/* a reminder is for someone who has not answered; an
+                          exception IS an answer, and is dealt with by its
+                          disposition rather than by chasing (UAT B124) */}
+                      {canManage && (c.status === "sent" || c.status === "opened") ? (
                         <form action={sendReminderAction.bind(null, id, c.id)}>
                           <SubmitButton
                             testId={`indep-remind-${c.id}`}

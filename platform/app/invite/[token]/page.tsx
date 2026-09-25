@@ -93,12 +93,15 @@ export default async function InvitePage(props: {
       fr: "N'utilisez pas votre adresse e-mail dans le mot de passe.",
     },
   };
+  // An unknown code shows a generic line, never the URL's own text (UAT B137).
   const shown = error
     ? messages[error]
       ? fr
         ? messages[error].fr
         : messages[error].en
-      : error
+      : fr
+        ? "Le mot de passe n'a pas pu être défini. Réessayez."
+        : "The password could not be set. Try again."
     : null;
 
   return (

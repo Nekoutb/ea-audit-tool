@@ -10,6 +10,8 @@
 //
 // So the pieces both sides need live here, where nothing touches the database.
 
+import type { CraLevel, CraTod } from "@/lib/cra-model";
+
 /**
  * The nature and timing a procedure may be designed with. The same two sets
  * bound the primary procedures on screen AND the custom ones on the way into
@@ -30,6 +32,21 @@ export const TIMING_OPTIONS = [
 
 export const NATURE_VALUES: string[] = NATURE_OPTIONS.map((o) => o.value);
 export const TIMING_VALUES: string[] = TIMING_OPTIONS.map((o) => o.value);
+
+/**
+ * The widest interim window the CRA level permits: the higher the assessed
+ * risk, the closer to the period end the work has to sit (ISA 330 ¶A11–A12).
+ * Shared by the board's drop-down and the server's validator (UAT B75), so a
+ * value the drop-down bars is refused on the way into storage too.
+ */
+export function timingAllowed(level: CraLevel | null): string[] {
+  if (level === "minimal") return ["period_end", "interim_3", "interim_6"];
+  if (level === "low") return ["period_end", "interim_3"];
+  return ["period_end"];
+}
+
+/** The CRA level of a tod value: the significant-risk suffix does not change the window. */
+export const craLevelOf = (tod: CraTod): CraLevel => tod.replace("_sr", "") as CraLevel;
 
 /** A custom substantive procedure: everything a library procedure has, written by hand. */
 export interface OspProcedure {

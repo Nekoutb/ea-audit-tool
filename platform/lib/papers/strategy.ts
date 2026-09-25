@@ -395,6 +395,15 @@ const D4_6: PaperDef = {
         { key: "complete", en: "The application inventory covers every source of a figure or disclosure in the financial statements, including spreadsheets (procedure 1).", fr: "L'inventaire couvre chaque source d'un chiffre ou d'une note des états financiers, y compris les tableurs (procédure 1)." },
         { key: "risks_addressed", en: "Each identified risk arising from IT has a general IT control against it, or is recorded as unaddressed (procedures 4, 5).", fr: "Chaque risque identifié dispose d'un contrôle général en réponse, ou est consigné comme non couvert (procédures 4, 5)." },
         { key: "ipe", en: "For every system report to be used as evidence, the means of establishing its accuracy and completeness is recorded (procedure 6).", fr: "Pour chaque état utilisé comme élément probant, le moyen d'établir son exactitude et son exhaustivité est consigné (procédure 6)." },
+        { key: "it_specialist", en: "The involvement of an IT specialist has been determined: required where the IT environment is complex, applications are custom-built or highly integrated, or general IT controls are to be relied upon; not required where the environment is simple and packaged (ISA 315 (Revised 2019) ¶A176; ISA 220 (Revised) ¶26).", fr: "L'intervention d'un spécialiste informatique a été déterminée : requise lorsque l'environnement informatique est complexe, les applications développées sur mesure ou fortement intégrées, ou lorsque les contrôles généraux informatiques sont utilisés comme appui ; non requise lorsque l'environnement est simple et standard (ISA 315 révisée ¶A176 ; ISA 220 révisée ¶26)." },
+      ],
+    },
+    {
+      kind: "fields",
+      titleEn: "Part C — IT-specialist involvement",
+      titleFr: "Partie C — Intervention d'un spécialiste informatique",
+      fields: [
+        { key: "p_it_specialist", kind: "input", labelEn: "Basis for the IT-specialist decision: the complexity factors weighed, the scope of any involvement (ITGC testing, data extraction, application controls) and the specialist named, or the reasons none is needed", labelFr: "Fondement de la décision sur le spécialiste informatique : facteurs de complexité pesés, périmètre de l'intervention éventuelle (tests des CGI, extraction de données, contrôles applicatifs) et spécialiste désigné, ou motifs de l'absence de besoin" },
       ],
     },
   ],
@@ -1368,7 +1377,46 @@ const D9_1: PaperDef = {
   ],
 };
 
+/* ---------------------------------------------------------------- S5.4 --- */
+// The journal-entry test design (UAT B76): the criteria the selection engine
+// ran are recorded here, by the engine itself, before the testing on E3.1.
+const S5_4: PaperDef = {
+  std: "ISA 240 ¶32–33 · ISA 240 ¶A41–A44 · ISA 315 (Revised 2019) ¶26",
+  tools: ["je-selection"],
+  ownsEn: "the design of the journal-entry test: the criteria, thresholds and rules that direct the selection",
+  ownsFr: "la conception du test des écritures : critères, seuils et règles qui orientent la sélection",
+  reqEn: [
+    "Irrespective of the assessed risks of management override, the auditor designs and performs procedures to test the appropriateness of journal entries recorded in the general ledger and other adjustments made in the preparation of the financial statements (ISA 240 ¶32(a)). The selection is directed by the characteristics of fraudulent entries — unusual accounts, unrelated or seldom-used accounts, individuals who do not normally make entries, period-end postings, round amounts, missing descriptions (ISA 240 ¶A43).",
+    "The criteria are decided and recorded before the entries are tested, so the sample answers the risk rather than the other way round. Entries made at the end of the reporting period are tested in every case; testing throughout the period is a decision to record (ISA 240 ¶32(a)(ii)).",
+  ],
+  reqFr: [
+    "Indépendamment de l'évaluation des risques de contournement des contrôles par la direction, l'auditeur conçoit et met en œuvre des procédures pour tester le bien-fondé des écritures enregistrées dans le grand livre et des autres ajustements faits lors de la préparation des états financiers (ISA 240 ¶32(a)). La sélection est orientée par les caractéristiques des écritures frauduleuses — comptes inhabituels, comptes sans lien ou rarement mouvementés, auteurs qui ne passent pas d'écritures d'ordinaire, écritures de fin de période, montants ronds, libellés absents (ISA 240 ¶A43).",
+    "Les critères sont arrêtés et consignés avant le test des écritures, de sorte que l'échantillon réponde au risque et non l'inverse. Les écritures de fin de période sont testées dans tous les cas ; le test des écritures de la période est une décision à consigner (ISA 240 ¶32(a)(ii)).",
+  ],
+  conclEn: [
+    "The selection criteria recorded above respond to the fraud risk factors identified on this engagement and were fixed before the entries were tested.",
+  ],
+  conclFr: [
+    "Les critères de sélection consignés ci-dessus répondent aux facteurs de risque de fraude identifiés sur la mission et ont été arrêtés avant le test des écritures.",
+  ],
+  sections: [
+    {
+      kind: "fields",
+      titleEn: "Part A — Selection design",
+      titleFr: "Partie A — Conception de la sélection",
+      introEn: "The criteria run by the journal-entry selection engine are recorded here automatically, with who ran them and when.",
+      introFr: "Les critères exécutés par le moteur de sélection des écritures sont consignés ici automatiquement, avec l'auteur et la date.",
+      fields: [
+        { key: "je_design", kind: "auto", source: "je-selection", labelEn: "From the tool: criteria, thresholds, rules and the size of the selection", labelFr: "Depuis l'outil : critères, seuils, règles et taille de la sélection" },
+        { key: "rationale", kind: "input", labelEn: "Why these criteria: the fraud risk factors of the engagement each one answers", labelFr: "Pourquoi ces critères : les facteurs de risque de fraude de la mission auxquels chacun répond" },
+        { key: "timing", kind: "input", labelEn: "Timing: period-end entries tested in every case; whether entries throughout the period are tested, and why", labelFr: "Calendrier : écritures de fin de période testées dans tous les cas ; test des écritures de la période, et pourquoi" },
+      ],
+    },
+  ],
+};
+
 export const STRATEGY_PAPERS: Record<string, PaperDef> = {
+  "S5.4": S5_4,
   "S2.3": D8_1,
   "S2.4": D8_2,
   "S2.5": D8_3,

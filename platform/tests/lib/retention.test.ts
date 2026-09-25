@@ -95,6 +95,7 @@ describe("retention period", () => {
   it("refuses a period below the floor any jurisdiction allows", async () => {
     as(PARTNER, "firm_admin");
     await expect(setRetentionYears(3)).rejects.toThrow("out-of-range");
+    await expect(setRetentionYears(9)).rejects.toThrow("out-of-range");
     await expect(setRetentionYears(31)).rejects.toThrow("out-of-range");
   });
 

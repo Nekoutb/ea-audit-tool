@@ -15,6 +15,7 @@ import { Panel, PanelHeader, Chip, btnPrimary, btnGhost } from "@/components/ui/
 import { withTenant } from "@/lib/db";
 import {
   PHASE_SLUG_OF,
+  effectiveDueDate,
   initials,
   phaseDeadline,
   phaseOfTask,
@@ -83,7 +84,8 @@ export default async function FormPage(props: {
     ? await Promise.all([listReviewNotes(task.documentId), listVersions(task.documentId)])
     : [[], []];
 
-  const deadlineIso = task?.dueDate ?? phaseDeadline(engagement.periodEnd, phase);
+  // One due date per task on every screen (group list, paper, this form).
+  const deadlineIso = task ? effectiveDueDate(task, engagement.periodEnd) : phaseDeadline(engagement.periodEnd, phase);
   const now = new Date();
   const todayUtc = Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate());
   const overdueDays = Math.round((todayUtc - new Date(deadlineIso + "T00:00:00Z").getTime()) / 86_400_000);

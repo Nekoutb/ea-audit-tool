@@ -13,6 +13,7 @@ import {
   saveSectionConclusion,
   setMisstatementCorrected,
   type FindingRoute,
+  type FindingSeverity,
 } from "@/lib/execution";
 
 async function guarded(path: string, fn: () => Promise<void>): Promise<never> {
@@ -67,12 +68,34 @@ export async function routeFindingAction(
       route: String(formData.get("route") ?? "b4") as FindingRoute,
       title: String(formData.get("title") ?? ""),
       detail: String(formData.get("detail") ?? "") || undefined,
+      severity: (String(formData.get("severity") ?? "") || undefined) as FindingSeverity | undefined,
+      recommendation: String(formData.get("recommendation") ?? "") || undefined,
       amount: formData.get("amount") ? Number(formData.get("amount")) : undefined,
       accounts: String(formData.get("accounts") ?? "") || undefined,
       mtype: (String(formData.get("mtype") ?? "") || undefined) as
         | "factual" | "judgmental" | "projected" | "classification" | "disclosure" | undefined,
       trivialConfirmed: formData.get("trivialConfirmed") === "on",
       significant: formData.get("significant") === "on",
+    });
+  });
+}
+
+/**
+ * Raise a C1.2 matter or a C5.1 deficiency from the findings register, where
+ * the section is optional (UAT B21). Lands back on the register.
+ */
+export async function raiseFindingAction(engagementId: string, formData: FormData): Promise<void> {
+  const path = `/engagements/${engagementId}/findings`;
+  await guarded(path, async () => {
+    const route = String(formData.get("route") ?? "c1");
+    await routeFinding({
+      engagementId,
+      fileItemId: String(formData.get("fileItemId") ?? "") || undefined,
+      route: route === "b4" ? "b4" : "c1",
+      title: String(formData.get("title") ?? ""),
+      detail: String(formData.get("detail") ?? "") || undefined,
+      severity: (String(formData.get("severity") ?? "") || undefined) as FindingSeverity | undefined,
+      recommendation: String(formData.get("recommendation") ?? "") || undefined,
     });
   });
 }
@@ -106,6 +129,7 @@ export async function saveConclusionAction(
       fileItemId,
       String(formData.get("conclusion") ?? ""),
       formData.get("objectivesAchieved") === "on",
+      String(formData.get("noProceduresRationale") ?? ""),
     ),
   );
 }

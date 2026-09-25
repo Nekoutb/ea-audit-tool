@@ -5,9 +5,10 @@ import { AppNav } from "@/components/AppNav";
 import { SubmitButton } from "@/components/SubmitButton";
 import { NavLink } from "@/components/NavLink";
 import { Panel, PanelHeader, btnPrimary } from "@/components/ui/atlas";
-import { getEngagement } from "@/lib/engagements";
+import { getEngagement, listFileItems } from "@/lib/engagements";
 import { getMessages } from "@/lib/i18n";
 import { getLocale } from "@/lib/locale";
+import { listTeam } from "@/lib/team";
 import { budgetVsActual, listMyTime } from "@/lib/time";
 
 export const metadata = { title: "Time · AuditISA" };
@@ -27,7 +28,11 @@ export default async function TimePage(props: {
 
   const engagement = await getEngagement(id);
   if (!engagement) notFound();
-  const [entries, ba] = await Promise.all([listMyTime(id), budgetVsActual(id)]);
+  const [entries, ba, items, team] = await Promise.all([listMyTime(id), budgetVsActual(id), listFileItems(id), listTeam(id)]);
+  // Hours are attributed to the logger's team role; without one they can only
+  // land under "Unassigned", so say so before the first entry is logged.
+  const hasTeamRole = team.some((m) => m.userId === session.user.id && m.status !== "declined");
+  const taskOptions = items.filter((item) => !item.conditional);
 
   const myTotal = entries.reduce((s, e) => s + Number(e.hours), 0);
   const totBudget = ba.reduce((s, r) => s + r.budget, 0);
@@ -67,10 +72,23 @@ export default async function TimePage(props: {
             <PanelHeader title={tt.myTime} right={<span className="text-xs font-semibold text-muted tnum">{myTotal.toFixed(1)}h</span>} />
           </div>
           <div className="p-5">
+            {!hasTeamRole ? (
+              <p data-testid="time-no-team-role" className="mb-3 rounded-[var(--radius-atlas-sm)] border border-[var(--color-warn)]/40 bg-[var(--color-warn-soft)] px-3 py-2 text-[12.5px] text-warn">
+                {tt.noTeamRole}
+              </p>
+            ) : null}
             <form action={logTimeAction} className="grid grid-cols-2 gap-3 sm:grid-cols-4">
               <input type="hidden" name="engagementId" value={id} />
               <label className={label}>{tt.date}<input name="date" type="date" required defaultValue={engagement.periodEnd} className={input} data-testid="time-date" /></label>
               <label className={label}>{tt.hours}<input name="hours" type="number" min="0.25" max="24" step="0.25" required className={input} data-testid="time-hours" /></label>
+              <label className={label}>{tt.task}
+                <select name="fileItemId" className={input} data-testid="time-task">
+                  <option value="">{tt.noTask}</option>
+                  {taskOptions.map((item) => (
+                    <option key={item.id} value={item.id}>{item.code}</option>
+                  ))}
+                </select>
+              </label>
               <label className={`${label} col-span-2 sm:col-span-1`}>{tt.note}<input name="note" className={input} data-testid="time-note" /></label>
               <SubmitButton className={`self-end ${btnPrimary}`} testId="time-submit">{tt.logButton}</SubmitButton>
             </form>

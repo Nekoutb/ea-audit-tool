@@ -22,8 +22,10 @@ import {
   listVersions,
 } from "@/lib/documents";
 import { initials } from "@/lib/engagement-dashboard";
+import { getEngagement } from "@/lib/engagements";
 import { getMessages } from "@/lib/i18n";
 import { getLocale } from "@/lib/locale";
+import { atLeast, isRole } from "@/lib/rbac";
 
 export const metadata = { title: "Working paper · AuditISA" };
 
@@ -47,16 +49,25 @@ export default async function DocumentPage(props: {
     throw error;
   });
   if (!document) notFound();
-  const [versions, signoffs, notes] = await Promise.all([
+  const [versions, signoffs, notes, engagement] = await Promise.all([
     listVersions(id),
     listSignoffs(id),
     listReviewNotes(id),
+    // the header names THIS document's engagement, never the most recent one (UAT B132)
+    getEngagement(document.engagementId),
   ]);
 
   const isSigned = document.status === "signed";
   const checkedOutByMe = document.checkedOutBy === session.user.id;
   const openNotes = notes.filter((note) => note.status === "open");
   const errorText = error ? (td.errors[error as keyof typeof td.errors] ?? error) : null;
+  // Reopening mirrors reopenDocument's floors: manager and above, and only a
+  // partner may void a partner's signature (UAT B41: the button used to show
+  // for everyone and the refusal was a 500).
+  const viewerRole = isRole(session.user.role) ? session.user.role : null;
+  const partnerSigned = signoffs.some((s) => s.role === "partner" && !s.voidedAt);
+  const canReopen =
+    viewerRole !== null && atLeast(viewerRole, "manager") && (!partnerSigned || atLeast(viewerRole, "partner"));
 
   const btn =
     "rounded-[var(--radius-atlas-sm)] border border-line-strong bg-surface px-3 py-1.5 text-sm font-medium text-ink-soft hover:bg-surface-2 disabled:opacity-50";
@@ -77,7 +88,10 @@ export default async function DocumentPage(props: {
 
   return (
     <main className="min-h-screen w-full px-6 py-8">
-      <AppNav locale={locale} />
+      <AppNav
+        locale={locale}
+        current={engagement ? { id: engagement.id, label: engagement.name ?? engagement.clientName } : undefined}
+      />
 
       <div className="mt-8">
         <Link
@@ -231,7 +245,7 @@ export default async function DocumentPage(props: {
               })}
             </div>
 
-            {isSigned ? (
+            {isSigned && canReopen ? (
               <form
                 action={async (formData: FormData) => {
                   "use server";

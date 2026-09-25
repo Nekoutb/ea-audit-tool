@@ -18,8 +18,56 @@ import { ForbiddenError, requireRole, requireTenant } from "@/lib/tenant";
 
 export class RetentionError extends Error {}
 
+export const RETENTION_MIN_YEARS = 10;
+export const RETENTION_MAX_YEARS = 30;
+
 export interface RetentionPolicy {
   years: number;
+}
+
+export interface RetentionReportRow {
+  engagementId: string;
+  clientName: string;
+  name: string | null;
+  fiscalYear: number;
+  archivedAt: string | null;
+  retentionUntil: string | null;
+  held: boolean;
+  /** retention_until has passed and no hold is active */
+  dueForDestruction: boolean;
+}
+
+/**
+ * The firm's archived files with their retention expiry and hold status: what
+ * may be destroyed, what must be kept (UAT B65). Manager and above.
+ */
+export async function retentionReport(): Promise<RetentionReportRow[]> {
+  const { tenantId } = await requireRole("manager");
+  return withTenant(tenantId, async (tx) => {
+    const rows = await tx.query<{
+      id: string; client_name: string; name: string | null; fiscal_year: number;
+      archived_at: string | null; retention_until: string | null; held: boolean;
+    }>(
+      `SELECT e.id, c.name AS client_name, e.name, e.fiscal_year,
+              to_char(e.archived_at, 'YYYY-MM-DD') AS archived_at,
+              to_char(e.retention_until, 'YYYY-MM-DD') AS retention_until,
+              EXISTS (SELECT 1 FROM legal_hold h WHERE h.engagement_id = e.id AND h.released_at IS NULL) AS held
+         FROM engagement e JOIN client c ON c.id = e.client_id
+        WHERE e.archived_at IS NOT NULL
+        ORDER BY e.retention_until NULLS LAST, c.name, e.fiscal_year`,
+    );
+    const today = new Date().toISOString().slice(0, 10);
+    return rows.rows.map((r) => ({
+      engagementId: r.id,
+      clientName: r.client_name,
+      name: r.name,
+      fiscalYear: r.fiscal_year,
+      archivedAt: r.archived_at,
+      retentionUntil: r.retention_until,
+      held: r.held,
+      dueForDestruction: !r.held && r.retention_until !== null && r.retention_until <= today,
+    }));
+  });
 }
 
 export interface LegalHold {
@@ -51,7 +99,10 @@ export async function retentionPolicy(): Promise<RetentionPolicy> {
  */
 export async function setRetentionYears(years: number): Promise<void> {
   const { tenantId } = await requireRole("firm_admin");
-  if (!Number.isInteger(years) || years < 5 || years > 30) throw new RetentionError("out-of-range");
+  // OHADA / ISA 230 practice: ten years is the floor, not a suggestion (UAT B65)
+  if (!Number.isInteger(years) || years < RETENTION_MIN_YEARS || years > RETENTION_MAX_YEARS) {
+    throw new RetentionError("retention-out-of-range");
+  }
   await pool.query("UPDATE tenant SET retention_years = $2 WHERE id = $1", [tenantId, years]);
   await recordActivity({
     entityType: "tenant",

@@ -4,11 +4,13 @@
 // are DERIVED from linked control_test rows at read time (cra.ts precedent) so
 // they can never diverge from the deviation side-effects in lib/execution.ts.
 
+import { CR_DEFICIENT_BASIS as CR_DEFICIENT_BASIS_TEXT } from "@/lib/cra-model";
 import { withTenant } from "@/lib/db";
 import { requireRole, requireTenant } from "@/lib/tenant";
 import { createNotification } from "@/lib/notifications";
 import { significantAccounts } from "@/lib/significant-accounts";
 import { amountOr } from "@/lib/amount";
+import { tocRowsPlanned, tocRowsTested } from "@/lib/toc-grid";
 
 export type TransactionType = "routine" | "non_routine" | "estimation";
 export type ScotStrategy = "controls" | "substantive";
@@ -285,6 +287,7 @@ export async function saveWalkthrough(
       [tenantId, engagementId, `wt:${scotId}`, key, value, userId],
     );
   });
+  await voidStaleScotSignoffs(tenantId, userId, engagementId, ["S1.3"]);
 }
 
 // ------------------------------------------------------------------- FSCP --
@@ -323,6 +326,7 @@ export async function saveFscp(engagementId: string, key: string, value: string)
       [tenantId, engagementId, key, value, userId],
     );
   });
+  await voidStaleScotSignoffs(tenantId, userId, engagementId, ["S1.4"]);
 }
 
 // ------------------------------------------------- tests of details sampling --
@@ -464,6 +468,35 @@ const ASSERTION_CODES = new Set(["C", "E", "A", "V", "P"]);
 const cleanAssertions = (a: unknown): string[] =>
   Array.isArray(a) ? a.map(String).filter((x) => ASSERTION_CODES.has(x)) : [];
 
+/**
+ * The SCOT Studio writes land on papers that may already be signed: the
+ * register on S1.1, WCGWs and controls on S1.2, the selection on S2.1, the
+ * test design on S2.2, the results on E1.2. Each writer names the papers its
+ * write reaches; the signatures whose content moved are voided the way
+ * savePaper voids them — after the write committed, in a transaction of its
+ * own, then the trail entry and the signers' notices (lib/working-papers.ts).
+ */
+async function voidStaleScotSignoffs(
+  tenantId: string,
+  userId: string,
+  engagementId: string | null | undefined,
+  codes: string[],
+): Promise<void> {
+  if (!engagementId) return;
+  const { invalidateStaleSignoffs, reportInvalidatedSignoffs } = await import("@/lib/working-papers");
+  for (const code of codes) {
+    const rows = await withTenant(tenantId, (tx) => invalidateStaleSignoffs(tx, engagementId, code));
+    await reportInvalidatedSignoffs(tenantId, engagementId, code, rows, userId);
+  }
+}
+type Q = { query: <T>(sql: string, params?: unknown[]) => Promise<{ rows: T[] }> };
+const engagementOfScot = async (tx: Q, scotId: string) =>
+  (await tx.query<{ engagement_id: string }>("SELECT engagement_id FROM scot WHERE id = $1", [scotId])).rows[0]?.engagement_id ?? null;
+const engagementOfWcgw = async (tx: Q, wcgwId: string) =>
+  (await tx.query<{ engagement_id: string }>("SELECT s.engagement_id FROM wcgw w JOIN scot s ON s.id = w.scot_id WHERE w.id = $1", [wcgwId])).rows[0]?.engagement_id ?? null;
+const engagementOfControl = async (tx: Q, controlId: string) =>
+  (await tx.query<{ engagement_id: string }>("SELECT s.engagement_id FROM scot_control c JOIN scot s ON s.id = c.scot_id WHERE c.id = $1", [controlId])).rows[0]?.engagement_id ?? null;
+
 export async function createScot(
   engagementId: string,
   input: { name: string; transactionType: string; strategy: string; applications?: string; description?: string },
@@ -473,7 +506,7 @@ export async function createScot(
   if (!name) throw new Error("name-required");
   const type = TYPES.includes(input.transactionType as TransactionType) ? input.transactionType : "routine";
   const strategy = STRATEGIES.includes(input.strategy as ScotStrategy) ? input.strategy : "substantive";
-  return withTenant(tenantId, async (tx) => {
+  const scotId = await withTenant(tenantId, async (tx) => {
     const r = await tx.query<{ id: string }>(
       `INSERT INTO scot (tenant_id, engagement_id, name, description, transaction_type, strategy, applications, created_by)
        VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
@@ -484,14 +517,16 @@ export async function createScot(
     if (!r.rows[0]) throw new Error("duplicate-name");
     return r.rows[0].id;
   });
+  await voidStaleScotSignoffs(tenantId, userId, engagementId, ["S1.1"]);
+  return scotId;
 }
 
 export async function updateScot(
   scotId: string,
   patch: { name?: string; transactionType?: string; strategy?: string; applications?: string; description?: string },
 ): Promise<void> {
-  const { tenantId } = await requireTenant();
-  await withTenant(tenantId, async (tx) => {
+  const { tenantId, userId } = await requireTenant();
+  const engagementId = await withTenant(tenantId, async (tx) => {
     await tx.query(
       `UPDATE scot SET
          name = coalesce(nullif($2, ''), name),
@@ -502,14 +537,20 @@ export async function updateScot(
        WHERE id = $1`,
       [scotId, patch.name?.trim() ?? "", patch.transactionType ?? "", patch.strategy ?? "", patch.applications ?? null, patch.description ?? null],
     );
+    return engagementOfScot(tx, scotId);
   });
+  await voidStaleScotSignoffs(tenantId, userId, engagementId, ["S1.1"]);
 }
 
 export async function deleteScot(scotId: string): Promise<void> {
-  const { tenantId } = await requireRole("senior");
-  await withTenant(tenantId, async (tx) => {
+  const { tenantId, userId } = await requireRole("senior");
+  const engagementId = await withTenant(tenantId, async (tx) => {
+    const owner = await engagementOfScot(tx, scotId);
     await tx.query("DELETE FROM scot WHERE id = $1", [scotId]);
+    return owner;
   });
+  // a SCOT takes its WCGWs and controls with it: S1.2 moved as well
+  await voidStaleScotSignoffs(tenantId, userId, engagementId, ["S1.1", "S1.2"]);
 }
 
 /** Assign a SCOT; the assignee is notified (outside the tx — house rule). */
@@ -550,44 +591,57 @@ export async function assignScot(scotId: string, userIdOrNull: string | null): P
 }
 
 export async function linkScotIndex(scotId: string, indexCode: string, assertions: unknown): Promise<void> {
-  const { tenantId } = await requireTenant();
+  const { tenantId, userId } = await requireTenant();
   if (!/^[A-Z0-9]{1,4}$/.test(indexCode)) throw new Error("invalid-index");
-  await withTenant(tenantId, async (tx) => {
+  const engagementId = await withTenant(tenantId, async (tx) => {
     await tx.query(
       `INSERT INTO scot_index (tenant_id, scot_id, index_code, assertions)
        VALUES ($1, $2, $3, $4)
        ON CONFLICT (scot_id, index_code) DO UPDATE SET assertions = EXCLUDED.assertions`,
       [tenantId, scotId, indexCode, cleanAssertions(assertions)],
     );
+    return engagementOfScot(tx, scotId);
   });
+  await voidStaleScotSignoffs(tenantId, userId, engagementId, ["S1.1"]);
 }
 
 export async function unlinkScotIndex(scotId: string, indexCode: string): Promise<void> {
-  const { tenantId } = await requireRole("senior");
-  await withTenant(tenantId, async (tx) => {
+  const { tenantId, userId } = await requireRole("senior");
+  const engagementId = await withTenant(tenantId, async (tx) => {
     await tx.query("DELETE FROM scot_index WHERE scot_id = $1 AND index_code = $2", [scotId, indexCode]);
+    return engagementOfScot(tx, scotId);
   });
+  await voidStaleScotSignoffs(tenantId, userId, engagementId, ["S1.1"]);
 }
 
 export async function addWcgw(scotId: string, description: string, assertions: unknown): Promise<string> {
   const { tenantId } = await requireTenant();
   if (!description.trim()) throw new Error("description-required");
-  return withTenant(tenantId, async (tx) => {
+  // A "what could go wrong" is a risk to an assertion; with none it answers
+  // nothing and feeds nothing in S3.1 (UAT B134).
+  if (cleanAssertions(assertions).length === 0) throw new Error("assertion-required");
+  const { tenantId: t, userId } = await requireTenant();
+  const { id, engagementId } = await withTenant(t, async (tx) => {
     const r = await tx.query<{ id: string }>(
       `INSERT INTO wcgw (tenant_id, scot_id, description, assertions, sort)
        VALUES ($1, $2, $3, $4, coalesce((SELECT max(sort) + 10 FROM wcgw WHERE scot_id = $2), 10))
        RETURNING id`,
       [tenantId, scotId, description.trim(), cleanAssertions(assertions)],
     );
-    return r.rows[0].id;
+    return { id: r.rows[0].id, engagementId: await engagementOfScot(tx, scotId) };
   });
+  await voidStaleScotSignoffs(tenantId, userId, engagementId, ["S1.2"]);
+  return id;
 }
 
 export async function deleteWcgw(wcgwId: string): Promise<void> {
-  const { tenantId } = await requireRole("senior");
-  await withTenant(tenantId, async (tx) => {
+  const { tenantId, userId } = await requireRole("senior");
+  const engagementId = await withTenant(tenantId, async (tx) => {
+    const owner = await engagementOfWcgw(tx, wcgwId);
     await tx.query("DELETE FROM wcgw WHERE id = $1", [wcgwId]);
+    return owner;
   });
+  await voidStaleScotSignoffs(tenantId, userId, engagementId, ["S1.2"]);
 }
 
 export async function addControl(
@@ -598,7 +652,8 @@ export async function addControl(
   if (!input.name.trim()) throw new Error("name-required");
   const type = CONTROL_TYPES.includes(input.controlType as ControlType) ? input.controlType : "manual";
   const objective = input.objective === "detect" ? "detect" : "prevent";
-  return withTenant(tenantId, async (tx) => {
+  const { userId } = await requireTenant();
+  const { id, engagementId } = await withTenant(tenantId, async (tx) => {
     const r = await tx.query<{ id: string }>(
       `INSERT INTO scot_control (tenant_id, scot_id, name, owner, control_type, frequency, objective)
        VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING id`,
@@ -611,13 +666,14 @@ export async function addControl(
         [tenantId, wcgwId, r.rows[0].id],
       );
     }
-    return r.rows[0].id;
+    return { id: r.rows[0].id, engagementId: await engagementOfScot(tx, scotId) };
   });
+  await voidStaleScotSignoffs(tenantId, userId, engagementId, ["S1.2"]);
+  return id;
 }
 
-/** The basis stamped on S3.1 when E1.2 concludes a control not effective. */
-export const CR_DEFICIENT_BASIS =
-  "Not rely — due to deficient control conclusion under E1.2";
+/** The basis stamped on S3.1 when E1.2 concludes a control not effective (defined client-safe in lib/cra-model.ts). */
+export const CR_DEFICIENT_BASIS = CR_DEFICIENT_BASIS_TEXT;
 
 export async function updateControl(
   controlId: string,
@@ -637,7 +693,13 @@ export async function updateControl(
   },
 ): Promise<void> {
   const { tenantId, userId } = await requireTenant();
-  await withTenant(tenantId, async (tx) => {
+  const engagementId = await withTenant(tenantId, async (tx) => {
+    // Only a control that addresses at least one WCGW can be selected for
+    // testing: an orphan control flowed into E1.2 and sampling (UAT B46).
+    if (patch.selectedForTesting === true) {
+      const linked = await tx.query("SELECT 1 FROM wcgw_control WHERE control_id = $1 LIMIT 1", [controlId]);
+      if ((linked.rowCount ?? 0) === 0) throw new Error("control-without-wcgw");
+    }
     await tx.query(
       `UPDATE scot_control SET
          selected_for_testing = coalesce($2, selected_for_testing),
@@ -668,6 +730,20 @@ export async function updateControl(
         Array.isArray(patch.tocSampleItems) ? patch.tocSampleItems.map((v) => Math.max(1, Math.round(Number(v)))).filter((v) => Number.isFinite(v)) : null,
       ],
     );
+
+    // "Effective" is a conclusion on evidence: it needs the planned sample
+    // tested on the grid, every attribute answered (UAT B84). Checked on the
+    // row as it stands after this update, so a grid saved in the same call
+    // counts; a refusal rolls the whole update back.
+    if (patch.operatingEval === "effective") {
+      const state = await tx.query<{ sample_size: number | null; toc_grid: TocGrid | null }>(
+        "SELECT sample_size, toc_grid FROM scot_control WHERE id = $1",
+        [controlId],
+      );
+      const row = state.rows[0];
+      const tested = tocRowsTested(row?.toc_grid ?? null);
+      if (tested < tocRowsPlanned(row?.sample_size)) throw new Error("toc-incomplete");
+    }
 
     // A control concluded NOT EFFECTIVE cannot be relied upon: the S3.1
     // matrix is set to not-rely for every assertion that control answered,
@@ -747,7 +823,16 @@ export async function updateControl(
         [tenantId, controlId, CR_DEFICIENT_BASIS, userId],
       );
     }
+    return engagementOfControl(tx, controlId);
   });
+  // Which papers this patch reaches: the selection (S2.1), the test design
+  // (S2.2) or the results (E1.2) — their signatures are voided if the content
+  // they were given over has moved.
+  const codes: string[] = [];
+  if (patch.selectedForTesting !== undefined) codes.push("S2.1");
+  if (["testDesign", "designEval", "implemented", "sampleSize", "sampleNote"].some((k) => patch[k as keyof typeof patch] !== undefined)) codes.push("S2.2");
+  if (["operatingNotes", "operatingEval", "tocPopulation", "tocGrid", "tocSampleItems"].some((k) => patch[k as keyof typeof patch] !== undefined)) codes.push("E1.2");
+  await voidStaleScotSignoffs(tenantId, userId, engagementId, codes);
 }
 
 /**
@@ -806,8 +891,8 @@ export async function musPreview(
 }
 
 export async function toggleWcgwControl(wcgwId: string, controlId: string, linked: boolean): Promise<void> {
-  const { tenantId } = await requireRole("senior");
-  await withTenant(tenantId, async (tx) => {
+  const { tenantId, userId } = await requireRole("senior");
+  const engagementId = await withTenant(tenantId, async (tx) => {
     if (linked) {
       await tx.query(
         `INSERT INTO wcgw_control (tenant_id, wcgw_id, control_id) VALUES ($1, $2, $3)
@@ -817,12 +902,17 @@ export async function toggleWcgwControl(wcgwId: string, controlId: string, linke
     } else {
       await tx.query("DELETE FROM wcgw_control WHERE wcgw_id = $1 AND control_id = $2", [wcgwId, controlId]);
     }
+    return engagementOfWcgw(tx, wcgwId);
   });
+  await voidStaleScotSignoffs(tenantId, userId, engagementId, ["S1.2"]);
 }
 
 export async function deleteControl(controlId: string): Promise<void> {
-  const { tenantId } = await requireRole("senior");
-  await withTenant(tenantId, async (tx) => {
+  const { tenantId, userId } = await requireRole("senior");
+  const engagementId = await withTenant(tenantId, async (tx) => {
+    const owner = await engagementOfControl(tx, controlId);
     await tx.query("DELETE FROM scot_control WHERE id = $1", [controlId]);
+    return owner;
   });
+  await voidStaleScotSignoffs(tenantId, userId, engagementId, ["S1.2", "S2.1", "S2.2", "E1.2"]);
 }

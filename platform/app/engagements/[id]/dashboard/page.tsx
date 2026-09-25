@@ -151,7 +151,16 @@ export default async function EngagementDashboardPage(props: {
                 {fr ? "Accepter" : "Accept"}
               </SubmitButton>
             </form>
-            <form action={respondEngagementAction.bind(null, id, false)}>
+            <form action={respondEngagementAction.bind(null, id, false)} className="flex flex-wrap items-center gap-2">
+              {/* a decline says why, and the partner hears it (UAT B130) */}
+              <input
+                name="reason"
+                required
+                minLength={3}
+                placeholder={fr ? "Motif du refus (obligatoire)" : "Reason for declining (required)"}
+                className="w-64 rounded-[var(--radius-atlas-sm)] border border-line-strong bg-surface px-2.5 py-1.5 text-[13px] text-ink outline-none focus:border-emerald-600"
+                data-testid="decline-reason"
+              />
               <SubmitButton
                 className="rounded-[var(--radius-atlas-sm)] border border-line-strong px-4 py-1.5 text-sm font-semibold text-ink-soft hover:bg-surface-2"
                 testId="decline-engagement"
@@ -209,6 +218,39 @@ export default async function EngagementDashboardPage(props: {
             ? `⚠ ${unassigned} tâche(s) sans préparateur ni assigné — cliquer pour les répartir dans l'outil Formulaires.`
             : `⚠ ${unassigned} task(s) have no preparer or assignee — click to hand them out in the Forms tool.`}
         </Link>
+      ) : null}
+
+      {/* What needs attention (UAT B112): open findings, uncorrected
+          misstatements, unconcluded significant risks, unsigned papers and
+          PBC items the client still owes — the queue was computed and never
+          shown. One row of chips; a PBC chip opens the PBC list. */}
+      {attention.length > 0 ? (
+        <div className="flex items-center gap-2 overflow-x-auto" data-testid="attention-strip">
+          <span className="shrink-0 text-[10.5px] font-extrabold uppercase tracking-[0.07em] text-muted">
+            {fr ? "À traiter" : "Attention"}
+          </span>
+          {attention.map((item, i) => {
+            const chip = (
+              <span
+                key={`${item.code}-${i}`}
+                className={`inline-flex shrink-0 items-center gap-1.5 rounded-full px-2.5 py-1 text-[11.5px] font-medium ${ROUTE_TONE[item.tone]}`}
+                title={`${item.meta} · ${item.ageDays} ${fr ? "j" : "d"}`}
+                data-testid={`attention-${item.code}`}
+              >
+                <span className="font-mono text-[10px] font-bold">{item.code}</span>
+                <span className="max-w-[260px] truncate">{item.title}</span>
+                <span className="tnum opacity-70">{item.ageDays}{fr ? " j" : " d"}</span>
+              </span>
+            );
+            return item.code === "PBC" ? (
+              <Link key={`${item.code}-${i}`} href={`/engagements/${id}/pbc`} className="shrink-0">
+                {chip}
+              </Link>
+            ) : (
+              chip
+            );
+          })}
+        </div>
       ) : null}
 
       {/* The summary row: my open tasks · review notes and the timetable ·

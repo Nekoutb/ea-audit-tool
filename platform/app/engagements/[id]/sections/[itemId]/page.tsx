@@ -3,8 +3,8 @@ import { ArchiveChecklist } from "@/components/ArchiveChecklist";
 import { archiveChecklist } from "@/lib/archive-checklist";
 import { notFound, redirect } from "next/navigation";
 import { auth } from "@/auth";
-import { reviewConclusionAction, saveConclusionAction } from "@/app/actions/execution";
-import { assignTaskAction, savePaperAction } from "@/app/actions/planning";
+import { reviewConclusionAction, routeFindingAction, saveConclusionAction } from "@/app/actions/execution";
+import { assignTaskAction, markNotApplicableAction, savePaperAction } from "@/app/actions/planning";
 import { AppNav } from "@/components/AppNav";
 import { launchIndependenceToTeamAction } from "@/app/actions/team-independence";
 import { PaperWizard } from "@/components/PaperWizard";
@@ -13,6 +13,8 @@ import { ReviewNotes } from "@/components/ReviewNotes";
 import { Fold, MaybeFold } from "@/components/Fold";
 import { SignificantAccounts } from "@/components/SignificantAccounts";
 import { PlanningRas } from "@/components/PlanningRas";
+import { SrmMattersPanel } from "@/components/SrmMattersPanel";
+import { srmMatters } from "@/lib/summary-review-memo";
 import { SECTION_A, SECTION_B, SECTION_C, SIGNATURE_ROLES, planningRas } from "@/lib/planning-ras";
 import { atLeast, isRole, canPartnerSignoff } from "@/lib/rbac";
 import { listTaskNotes } from "@/lib/task-notes";
@@ -25,8 +27,9 @@ import { itAppsView } from "@/lib/itgc";
 import { ItAppsBoard } from "@/components/ItAppsBoard";
 import { listEstimates, listRelatedParties } from "@/lib/registers";
 import { fscpValues, scotStudio, scotSummary, walkthroughValues } from "@/lib/scots";
-import { generatePsp, indexesForTask, pspResults } from "@/lib/psp";
+import { generatePsp, indexesForTask, localizePspSteps, pspResults } from "@/lib/psp";
 import { apLeadSchedules } from "@/lib/analytical-procedures";
+import { runFsTieout } from "@/lib/fs-tieout";
 import { AccountWorkpaper } from "@/components/AccountWorkpaper";
 import { ScotRegister } from "@/components/ScotRegister";
 import { WcgwBuilder } from "@/components/WcgwBuilder";
@@ -44,15 +47,16 @@ import { ErrorBanner } from "@/components/GatesPanel";
 import { Panel, PanelHeader, Chip } from "@/components/ui/atlas";
 import { withTenant } from "@/lib/db";
 import { getEngagement } from "@/lib/engagements";
-import { getSectionConclusion } from "@/lib/execution";
+import { FINDING_SEVERITIES, getSectionConclusion } from "@/lib/execution";
 import { getMessages } from "@/lib/i18n";
 import { getLocale } from "@/lib/locale";
 import { approvedMateriality } from "@/lib/materiality";
 import { groupOfTask } from "@/lib/task-groups";
 import { signOffPreparerAction, signOffReviewerAction } from "@/app/actions/audit-file";
-import { listAttachments } from "@/lib/attachments";
+import { listAttachments, listDeletedAttachments } from "@/lib/attachments";
+import { listItemDocuments } from "@/lib/documents";
 import { ensureDefaultWorkpaper, templateForCode } from "@/lib/wp-templates";
-import { taskForItem, engagementTasks } from "@/lib/engagement-dashboard";
+import { effectiveDueDate, taskForItem, engagementTasks } from "@/lib/engagement-dashboard";
 import { listConfirmations, sendDueReminders } from "@/lib/independence";
 import { listTeam as listEngagementTeam } from "@/lib/team";
 import { loadPaper, paperFor } from "@/lib/working-papers";
@@ -60,6 +64,19 @@ import { listProgramSteps } from "@/lib/programs";
 import { canReview } from "@/lib/rbac";
 import { getTaskAssignee, listTeam } from "@/lib/team";
 import { requireTenant } from "@/lib/tenant";
+
+/** Benchmark label for the S6.1 auto field, in the reader's language (UAT B74). */
+function benchmarkLabel(benchmark: string, fr: boolean): string {
+  const L: Record<string, [string, string]> = {
+    pbt: ["Profit before tax", "Résultat avant impôt"],
+    revenue: ["Revenue", "Chiffre d'affaires"],
+    total_assets: ["Total assets", "Total de l'actif"],
+    equity: ["Equity", "Capitaux propres"],
+    expenses: ["Total expenses", "Total des charges"],
+  };
+  const pair = L[benchmark];
+  return pair ? (fr ? pair[1] : pair[0]) : benchmark;
+}
 
 async function sectionInfo(itemId: string) {
   const { tenantId } = await requireTenant();
@@ -71,13 +88,20 @@ async function sectionInfo(itemId: string) {
       title_en: string;
       title_fr: string;
       material: boolean;
+      na_reason: string | null;
+      archived_at: string | null;
     }>(
-      "SELECT id, engagement_id, code, title_en, title_fr, material FROM file_item WHERE id = $1",
+      `SELECT fi.id, fi.engagement_id, fi.code, fi.title_en, fi.title_fr, fi.material, fi.na_reason,
+              e.archived_at::text AS archived_at
+         FROM file_item fi JOIN engagement e ON e.id = fi.engagement_id
+        WHERE fi.id = $1`,
       [itemId],
     );
     return result.rows[0] ?? null;
   });
 }
+
+const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 export default async function SectionPage(props: {
   params: Promise<{ id: string; itemId: string }>;
@@ -88,6 +112,9 @@ export default async function SectionPage(props: {
 
   const { id, itemId } = await props.params;
   const { error, back } = await props.searchParams;
+  // The task is keyed by the file item's uuid; a code or a stray value is a
+  // missing page, not a database error (UAT B26).
+  if (!UUID_RE.test(itemId)) notFound();
   // Return-context navigation (e.g. CRA → E4 paper → back to CRA). Only
   // engagement-internal paths are honoured — anything else is dropped.
   const backHref = back && back.startsWith(`/engagements/${id}/`) && !back.includes("//") ? back : null;
@@ -127,10 +154,29 @@ export default async function SectionPage(props: {
     const live = risks.filter((r) => !r.rebutted);
     const sig = live.filter((r) => r.significant).length;
     const n = (x: number) => new Intl.NumberFormat("fr-FR").format(x);
+    // In the reader's language (UAT B74: Part C came out in English on a French file).
+    const fr61 = locale === "fr";
+    const risksLine = fr61
+      ? `${live.length} risque(s), dont ${sig} important(s)`
+      : `${live.length} risk(s), ${sig} significant`;
     autoValues.context = m
-      ? `${m.benchmark} · PM ${n(m.overall)} · TE ${n(m.performance)} (${m.performancePct}% PM) · SAD Nominal ${n(m.trivial)} (${m.trivialPct}% PM) FCFA · ${live.length} risk(s), ${sig} significant`
-      : `Materiality not approved yet · ${live.length} risk(s), ${sig} significant`;
+      ? `${benchmarkLabel(m.benchmark, fr61)} · PM ${n(m.overall)} · TE ${n(m.performance)} (${m.performancePct}% PM) · SAD ${n(m.trivial)} (${m.trivialPct}% PM) FCFA · ${risksLine}`
+      : `${fr61 ? "Seuil de signification non encore approuvé" : "Materiality not approved yet"} · ${risksLine}`;
   }
+  // S5.4 — the journal-entry selection design recorded by the JE engine (UAT B76)
+  if (section.code === "S5.4" && paperValues.je_design) {
+    try {
+      const d = JSON.parse(paperValues.je_design) as { criteria?: string[]; userRules?: unknown[]; selectedLines?: number; populationLines?: number; recordedBy?: string; recordedAt?: string };
+      const when = d.recordedAt ? d.recordedAt.slice(0, 16).replace("T", " ") : "";
+      autoValues.je_design = locale === "fr"
+        ? `Critères : ${(d.criteria ?? []).join(", ") || "—"} · règles : ${d.userRules?.length ?? 0} · ${d.selectedLines ?? 0} ligne(s) sélectionnée(s) sur ${d.populationLines ?? 0} · par ${d.recordedBy ?? "—"} le ${when}`
+        : `Criteria: ${(d.criteria ?? []).join(", ") || "—"} · rules: ${d.userRules?.length ?? 0} · ${d.selectedLines ?? 0} line(s) selected of ${d.populationLines ?? 0} · by ${d.recordedBy ?? "—"} on ${when}`;
+    } catch {
+      autoValues.je_design = paperValues.je_design;
+    }
+  }
+  // E6.10 — the tie-out of the trial balance rides beside the paper (UAT B114)
+  const tieout = section.code === "E6.10" ? await runFsTieout(id).catch(() => null) : null;
   let campaign: Awaited<ReturnType<typeof listConfirmations>> = [];
   let campaignTeam: Awaited<ReturnType<typeof listEngagementTeam>> = [];
   if (isIndependenceTask) {
@@ -178,9 +224,14 @@ export default async function SectionPage(props: {
   // Archive button, so the decision sits beside the list of what would stop it.
   const archiveView =
     section.code === "C6.1" || section.code === "C6.2" ? await archiveChecklist(id, isFr ? "fr" : "en") : null;
-  // S4.3/S4.4 — the planning sub-registers ride with the paper
-  const relatedParties = section.code === "S4.3" ? await listRelatedParties(id) : null;
-  const estimates = section.code === "S4.4" ? await listEstimates(id) : null;
+  // S4.3/S4.4 — the planning sub-registers ride with the paper, and again on
+  // the execution papers that take them over (E6.2 related parties, E6.7
+  // estimates): one register, read and updated from either end.
+  const relatedParties = section.code === "S4.3" || section.code === "E6.2" ? await listRelatedParties(id) : null;
+  const estimates = section.code === "S4.4" || section.code === "E6.7" ? await listEstimates(id) : null;
+  // An archived file is read-only everywhere: the paper, the boards, the
+  // sign-off chips, the conclusion and the evidence (ISA 230 ¶15-16).
+  const archived = Boolean(section.archived_at);
   // S6.1/S4.2 — legacy scoping triggers surfaced on the working paper
   const triggerDef = section.code === "S6.1" || section.code === "S4.2" ? FORM_DEFINITIONS[section.code] : null;
   const triggerValues = triggerDef ? (await loadForm(id, section.code)).values : {};
@@ -219,9 +270,15 @@ export default async function SectionPage(props: {
   const designItemId = isAccountTask ? await s55ItemId(id).catch(() => null) : null;
   const accountHasSelection =
     isAccountTask && accountIndex ? await dspHasSelection(id, accountIndex).catch(() => false) : false;
+  // the account's lead schedule from the working TB: its total heads the
+  // paper and links to the Lead Schedule tool
+  const accountSchedule =
+    isAccountTask && accountIndex
+      ? ((await apLeadSchedules(id)).find((s) => s.def.code === accountIndex) ?? null)
+      : null;
   const accountInIndex =
     isAccountTask && accountIndex
-      ? (await apLeadSchedules(id)).some((s) => s.def.code === accountIndex)
+      ? accountSchedule !== null
       : isAccountTask; // non-index tasks (Leases, TFT) stay usable
   // The S5.5 design IS the program: materialise it the moment the paper is
   // opened (generatePsp is idempotent and exits on existing steps), so nobody
@@ -232,6 +289,8 @@ export default async function SectionPage(props: {
   const pspVals = isAccountTask ? await pspResults(id, section.code) : {};
   // P7 — the planning review & approval summary takes over the centre column
   const ras = section.code === "P7.2" ? await planningRas(id) : null;
+  // C1.2 — the significant matters the memo covers, read from the file (UAT B151)
+  const srm = section.code === "C1.2" ? await srmMatters(id).catch(() => null) : null;
   // Appendix 1 rows: the engagement team by seniority, then three free rows
   // for specialists brought in from outside the core team.
   const rasTeam = ras
@@ -252,6 +311,9 @@ export default async function SectionPage(props: {
   const userRole = isRole(session.user.role) ? session.user.role : null;
   // renaming or deleting evidence is a manager-and-above action (server-enforced)
   const canManageEvidence = userRole !== null && atLeast(userRole, "manager");
+  // soft-deleted evidence still inside the recovery window, for Restore
+  const deletedAttachments = canManageEvidence ? await listDeletedAttachments(itemId) : [];
+  const canMarkNa = userRole !== null && canReview(userRole);
   const taskInfo = await taskForItem(id, section.code);
   const CROSS_LINKS: Record<string, string[]> = {
     "P1.1": ["P1.2", "P2.1"], "P2.1": ["P1.1", "P1.5"], "P1.2": ["P1.1", "E6.5"],
@@ -263,6 +325,7 @@ export default async function SectionPage(props: {
     "S6.1": ["P7.2", "P6.1", "S3.1"], "S6.2": ["P7.2", "S6.1"],
     "C3.1": ["C1.1", "E6.9"], "C4.2": ["P1.5", "C5.1"], "C5.1": ["C1.1", "C2.2", "C4.2"],
     "C4.1": ["C4.3", "C6.1"], "C1.2": ["C1.1", "C1.3"], "C5.3": ["E6.2"], "C5.8": ["E4.9", "E6.3"],
+    "E6.2": ["S4.3", "C5.3"], "E6.7": ["S4.4"],
   };
   // The E4 account papers carry no linked-tasks rail, so the two task lookups
   // that fill it are worth making only for every other task.
@@ -281,6 +344,8 @@ export default async function SectionPage(props: {
         href: `/engagements/${id}/sections/${x.id}`,
       }));
   }
+  // evidence filed as documents on the task (accepted PBC uploads, letters)
+  const itemDocuments = await listItemDocuments(itemId);
   const [steps, conclusion, team, assignee] = await Promise.all([
     listProgramSteps(itemId),
     getSectionConclusion(itemId),
@@ -288,6 +353,7 @@ export default async function SectionPage(props: {
     getTaskAssignee(itemId),
   ]);
   const te = t.planning.execution;
+  const tfd = t.planning.findings;
   const fr = locale === "fr";
   const canAssign = canReview(session.user.role);
 
@@ -315,12 +381,37 @@ export default async function SectionPage(props: {
 
   const input =
     "rounded-[var(--radius-atlas-sm)] border border-line-strong bg-surface px-2 py-1 text-sm text-ink outline-none focus:border-emerald-600 focus:ring-2 focus:ring-emerald-600/20";
+  const naForm = (
+    <form action={markNotApplicableAction.bind(null, id, itemId)} className="flex items-center gap-1" data-testid="task-na-form">
+      {section.na_reason ? (
+        <>
+          <input type="hidden" name="clear" value="1" />
+          <span className="max-w-[260px] truncate text-[11.5px] text-warn" title={section.na_reason} data-testid="task-na-reason">
+            {fr ? "Non applicable : " : "Not applicable: "}{section.na_reason}
+          </span>
+          {canMarkNa ? (
+            <SubmitButton className="rounded-[var(--radius-atlas-sm)] border border-line-strong px-2 py-1 text-[11.5px] text-ink-soft hover:bg-surface-2" testId="task-na-clear">
+              {fr ? "Réactiver" : "Reinstate"}
+            </SubmitButton>
+          ) : null}
+        </>
+      ) : canMarkNa ? (
+        <>
+          <input name="naReason" required maxLength={500} placeholder={fr ? "Motif de non-application…" : "Why it does not apply…"} className={`${input} w-52`} data-testid="task-na-input" />
+          <SubmitButton className="rounded-[var(--radius-atlas-sm)] border border-line-strong px-2 py-1 text-[11.5px] text-ink-soft hover:bg-surface-2" testId="task-na-save">
+            {fr ? "Marquer non applicable" : "Mark not applicable"}
+          </SubmitButton>
+        </>
+      ) : null}
+    </form>
+  );
   const btn =
     "rounded-[var(--radius-atlas-sm)] border border-line-strong bg-surface px-3 py-1.5 text-sm font-medium text-ink-soft hover:bg-surface-2";
 
   const hasTools = (paperDef.tools?.length ?? 0) > 0;
   const req = ((locale === "fr" ? paperDef.reqFr : paperDef.reqEn) ?? []) as string[];
-  const dueDate = taskInfo?.dueDate ?? null;
+  // The same due date the group list and the form page show for this task.
+  const dueDate = taskInfo ? effectiveDueDate(taskInfo, engagement.periodEnd) : null;
   const overdue = dueDate !== null && dueDate < new Date().toISOString().slice(0, 10) && taskInfo?.status !== "reviewed";
   const pSigned = Boolean(taskInfo?.preparerName);
   const rSigned = Boolean(taskInfo?.reviewerName);
@@ -371,9 +462,49 @@ export default async function SectionPage(props: {
               ← {fr ? "Conception (S5.5)" : "Design (S5.5)"}
             </Link>
           ) : null}
+          {/* the same P / R sign-off chips as every other working paper: the
+              account's status reads off these, and the archive checklist's
+              "fix" link lands here to sign */}
+          <span className="flex items-center gap-1.5 text-[12px] text-muted tnum">
+            {fr ? "Échéance" : "Deadline"}: {dueDate ?? "—"}
+            <Chip tone={overdue ? "rose" : "good"}>{overdue ? (fr ? "En retard" : "Overdue") : fr ? "Dans les temps" : "On track"}</Chip>
+          </span>
+          <span className="flex items-center gap-1.5">
+            {archived ? (
+              <>
+                <span className={chip(pSigned)} title={pSigned ? `${taskInfo?.preparerName} · ${taskInfo?.preparerAt}` : ""} data-testid="chip-preparer" data-signed={String(pSigned)}>P</span>
+                <span className={chip(rSigned)} title={rSigned ? `${taskInfo?.reviewerName} · ${taskInfo?.reviewerAt}` : ""} data-testid="chip-reviewer" data-signed={String(rSigned)}>R</span>
+              </>
+            ) : (
+              <>
+                <form action={signOffPreparerAction}>
+                  <input type="hidden" name="fileItemId" value={itemId} />
+                  <input type="hidden" name="engagementId" value={id} />
+                  <input type="hidden" name="returnTo" value={`/engagements/${id}/sections/${itemId}`} />
+                  <button type="submit" className={chip(pSigned)} title={pSigned ? `${taskInfo?.preparerName} · ${taskInfo?.preparerAt}` : fr ? "Signer préparateur" : "Sign as preparer"} data-testid="chip-preparer" data-signed={String(pSigned)}>
+                    P
+                  </button>
+                </form>
+                {rSigned || canReview(session.user.role) ? (
+                  <form action={signOffReviewerAction}>
+                    <input type="hidden" name="fileItemId" value={itemId} />
+                    <input type="hidden" name="engagementId" value={id} />
+                    <input type="hidden" name="returnTo" value={`/engagements/${id}/sections/${itemId}`} />
+                    <button type="submit" className={chip(rSigned)} title={rSigned ? `${taskInfo?.reviewerName} · ${taskInfo?.reviewerAt}` : fr ? "Signer réviseur" : "Sign as reviewer"} data-testid="chip-reviewer" data-signed={String(rSigned)}>
+                      R
+                    </button>
+                  </form>
+                ) : (
+                  <span className={chip(false)} title={fr ? "Revue réservée aux seniors et rangs supérieurs" : "Review is for seniors and above"} data-testid="chip-reviewer" data-signed="false">
+                    R
+                  </span>
+                )}
+              </>
+            )}
+          </span>
           <span className="flex items-center gap-1.5 text-[12px] text-muted">
             {fr ? "Assigné à" : "Assigned to"}
-            {canAssign ? (
+            {canAssign && !archived ? (
               <form action={assignTaskAction.bind(null, id, itemId)} className="flex items-center gap-1">
                 <select name="assignee" defaultValue={assignee?.userId ?? ""} className={input} data-testid="task-assignee">
                   <option value="">—</option>
@@ -387,6 +518,7 @@ export default async function SectionPage(props: {
               <b className="text-ink-soft" data-testid="task-assignee">{assignee?.name ?? "—"}</b>
             )}
           </span>
+          {naForm}
         </div>
         <ErrorBanner error={error} locale={locale} />
         <Panel className="mt-4">
@@ -398,9 +530,22 @@ export default async function SectionPage(props: {
             inIndex={accountInIndex}
             hasSelection={accountHasSelection}
             designHref={designItemId ? `/engagements/${id}/sections/${designItemId}` : null}
-            steps={steps.filter((s) => s.source === "psp" || s.description.startsWith("OSP-"))}
+            steps={localizePspSteps(steps.filter((s) => s.source === "psp" || s.description.startsWith("OSP-")), locale)}
             results={pspVals}
-            attachmentsSlot={<TaskAttachments fileItemId={itemId} initial={accountAttachments} locale={fr ? "fr" : "en"} canManage={canManageEvidence} compact />}
+            attachmentsSlot={<TaskAttachments fileItemId={itemId} initial={accountAttachments} deletedInitial={deletedAttachments} documents={itemDocuments} locale={fr ? "fr" : "en"} canManage={canManageEvidence && !archived} readOnly={archived} compact />}
+            leadSchedule={
+              accountSchedule
+                ? {
+                    href: `/engagements/${id}/tools/lead-schedule#${encodeURIComponent(accountSchedule.def.code)}`,
+                    closing: accountSchedule.closing,
+                    prior: accountSchedule.prior,
+                    movement: accountSchedule.movement,
+                    variancePct: accountSchedule.variancePct,
+                    accounts: accountSchedule.accounts.length,
+                  }
+                : null
+            }
+            readOnly={archived}
             locale={isFr ? "fr" : "en"}
           />
         </Panel>
@@ -416,6 +561,7 @@ export default async function SectionPage(props: {
               </p>
             </div>
           ) : null}
+          {archived ? null : (
           <form action={saveConclusionAction.bind(null, id, itemId)} className="mt-3 flex flex-wrap items-end gap-2">
             <input
               name="conclusion"
@@ -429,11 +575,27 @@ export default async function SectionPage(props: {
               <input type="checkbox" name="objectivesAchieved" defaultChecked={conclusion?.objectivesAchieved ?? true} />
               {te.objectivesAchieved}
             </label>
+            {/* no procedure retained: "objectives achieved" needs a written rationale (UAT B45) */}
+            {steps.filter((s) => s.status !== "na").length === 0 ? (
+              <label className="flex w-full flex-col text-xs text-muted">
+                {fr
+                  ? "Aucune procédure retenue — motif d'une conclusion sans procédure (obligatoire)"
+                  : "No procedure retained — rationale for concluding without procedures (required)"}
+                <textarea
+                  name="noProceduresRationale"
+                  rows={2}
+                  defaultValue={conclusion?.noProceduresRationale ?? ""}
+                  className={`${input} mt-1 w-full`}
+                  data-testid="no-procedures-rationale"
+                />
+              </label>
+            ) : null}
             <button type="submit" className={btn} data-testid="save-conclusion">
               {te.saveConclusion}
             </button>
           </form>
-          {conclusion?.conclusion && !conclusion.reviewedByName ? (
+          )}
+          {conclusion?.conclusion && !conclusion.reviewedByName && !archived ? (
             <form action={reviewConclusionAction.bind(null, id, itemId, false)} className="mt-2">
               <button type="submit" className={btn} data-testid="review-conclusion">
                 {te.review}
@@ -441,6 +603,45 @@ export default async function SectionPage(props: {
             </form>
           ) : null}
         </Panel>
+
+        {/* a matter arising on this account: C1.2 significant matter or C5.1 deficiency (UAT B21) */}
+        {archived ? null : (
+        <Panel className="mt-4" data-testid="account-finding">
+          <PanelHeader title={te.matterArising} />
+          <form action={routeFindingAction.bind(null, id, itemId)} className="mt-3 flex flex-wrap items-end gap-2">
+            <label className="flex flex-col text-xs text-muted">
+              {te.routeTo}
+              <select name="route" defaultValue="c1" className={`${input} mt-1`} data-testid="finding-route">
+                <option value="c1">{te.routes.c1}</option>
+                <option value="b4">{te.routes.b4}</option>
+              </select>
+            </label>
+            <label className="flex flex-col text-xs text-muted">
+              {tfd.severity}
+              <select name="severity" defaultValue="deficiency" className={`${input} mt-1`} data-testid="finding-severity">
+                {FINDING_SEVERITIES.map((s) => (
+                  <option key={s} value={s}>{tfd.severities[s]}</option>
+                ))}
+              </select>
+            </label>
+            <label className="flex flex-col text-xs text-muted">
+              {te.titleField}
+              <input name="title" required className={`${input} mt-1 w-72 max-w-full`} data-testid="finding-title" />
+            </label>
+            <label className="flex flex-col text-xs text-muted">
+              {te.detailField}
+              <input name="detail" className={`${input} mt-1 w-72 max-w-full`} data-testid="finding-detail" />
+            </label>
+            <label className="flex flex-col text-xs text-muted">
+              {tfd.recommendation}
+              <input name="recommendation" className={`${input} mt-1 w-72 max-w-full`} data-testid="finding-recommendation" />
+            </label>
+            <button type="submit" className={btn} data-testid="raise-finding">
+              {te.raise}
+            </button>
+          </form>
+        </Panel>
+        )}
       </main>
     );
   }
@@ -492,6 +693,13 @@ export default async function SectionPage(props: {
           <Chip tone={overdue ? "rose" : "good"}>{overdue ? (fr ? "En retard" : "Overdue") : fr ? "Dans les temps" : "On track"}</Chip>
         </span>
         <span className="flex items-center gap-1.5">
+          {archived ? (
+            <>
+              <span className={chip(pSigned)} title={pSigned ? `${taskInfo?.preparerName} · ${taskInfo?.preparerAt}` : ""} data-testid="chip-preparer" data-signed={String(pSigned)}>P</span>
+              <span className={chip(rSigned)} title={rSigned ? `${taskInfo?.reviewerName} · ${taskInfo?.reviewerAt}` : ""} data-testid="chip-reviewer" data-signed={String(rSigned)}>R</span>
+            </>
+          ) : (
+          <>
           <form action={signOffPreparerAction}>
             <input type="hidden" name="fileItemId" value={itemId} />
             <input type="hidden" name="engagementId" value={id} />
@@ -500,18 +708,27 @@ export default async function SectionPage(props: {
               P
             </button>
           </form>
-          <form action={signOffReviewerAction}>
-            <input type="hidden" name="fileItemId" value={itemId} />
-            <input type="hidden" name="engagementId" value={id} />
-            <input type="hidden" name="returnTo" value={`/engagements/${id}/sections/${itemId}`} />
-            <button type="submit" className={chip(rSigned)} title={rSigned ? `${taskInfo?.reviewerName} · ${taskInfo?.reviewerAt}` : fr ? "Signer réviseur" : "Sign as reviewer"} data-testid="chip-reviewer" data-signed={String(rSigned)}>
+          {rSigned || canReview(session.user.role) ? (
+            <form action={signOffReviewerAction}>
+              <input type="hidden" name="fileItemId" value={itemId} />
+              <input type="hidden" name="engagementId" value={id} />
+              <input type="hidden" name="returnTo" value={`/engagements/${id}/sections/${itemId}`} />
+              <button type="submit" className={chip(rSigned)} title={rSigned ? `${taskInfo?.reviewerName} · ${taskInfo?.reviewerAt}` : fr ? "Signer réviseur" : "Sign as reviewer"} data-testid="chip-reviewer" data-signed={String(rSigned)}>
+                R
+              </button>
+            </form>
+          ) : (
+            // below senior there is nothing to press and be refused (UAT B129)
+            <span className={chip(false)} title={fr ? "Revue réservée aux seniors et rangs supérieurs" : "Review is for seniors and above"} data-testid="chip-reviewer" data-signed="false">
               R
-            </button>
-          </form>
+            </span>
+          )}
+          </>
+          )}
         </span>
         <span className="flex items-center gap-1.5 text-[12px] text-muted">
           {fr ? "Assigné à" : "Assigned to"}
-          {canAssign ? (
+          {canAssign && !archived ? (
             <form action={assignTaskAction.bind(null, id, itemId)} className="flex items-center gap-1">
               <select name="assignee" defaultValue={assignee?.userId ?? ""} className={input} data-testid="task-assignee">
                 <option value="">—</option>
@@ -525,6 +742,7 @@ export default async function SectionPage(props: {
             <b className="text-ink-soft" data-testid="task-assignee">{assignee?.name ?? "—"}</b>
           )}
         </span>
+        {naForm}
       </div>
 
       <ErrorBanner error={error} locale={locale} />
@@ -587,6 +805,62 @@ export default async function SectionPage(props: {
               <span className="text-muted">SAD: <b className="text-ink tnum">{new Intl.NumberFormat("fr-FR").format(approvedM.trivial)}</b></span>
             </div>
           ) : null}
+          {/* E6.10 tie-out board (UAT B114): the trial balance's own aggregates,
+              the equilibrium checks with their differences, and any client-FS
+              differences — so "column N agrees" is answered against figures. */}
+          {section.code === "E6.10" ? (
+            <div className="mb-2 min-h-0 max-h-[45%] overflow-auto rounded-[var(--radius-atlas-sm)] border border-line" data-testid="wp-tieout-board">
+              {tieout ? (
+                <table className="w-full text-[11.8px]">
+                  <thead className="bg-surface-2 text-left text-[10px] uppercase tracking-wide text-muted">
+                    <tr>
+                      <th className="px-2 py-1.5">{fr ? "Poste (balance)" : "Caption (trial balance)"}</th>
+                      <th className="px-2 py-1.5 text-right">{fr ? "Balance" : "TB total"}</th>
+                      <th className="px-2 py-1.5 text-right">{fr ? "Publié" : "Published"}</th>
+                      <th className="px-2 py-1.5 text-right">{fr ? "Écart" : "Difference"}</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {tieout.checks.map((c) => (
+                      <tr key={c.key} className={`border-t border-line ${c.ok ? "" : "bg-[var(--color-rose-soft)]"}`} data-testid={`tieout-check-${c.key}`}>
+                        <td className="px-2 py-1 text-ink">
+                          {c.key === "tb_balanced" ? (fr ? "Balance équilibrée (classes 1–8)" : "Trial balance balanced (classes 1–8)") : fr ? "Équilibre du bilan = résultat du CR" : "Balance sheet equilibrium = income-statement result"}
+                        </td>
+                        <td className="px-2 py-1 text-right tnum">—</td>
+                        <td className="px-2 py-1 text-right tnum">—</td>
+                        <td className={`px-2 py-1 text-right tnum ${c.ok ? "text-emerald-700" : "font-semibold text-rose"}`}>{c.ok ? "0" : new Intl.NumberFormat("fr-FR").format(Math.round(c.amount))}</td>
+                      </tr>
+                    ))}
+                    {tieout.clientDiffs.map((d) => (
+                      <tr key={d.ref} className="border-t border-line bg-[var(--color-rose-soft)]" data-testid={`tieout-diff-${d.ref}`}>
+                        <td className="px-2 py-1 text-ink">{d.ref}</td>
+                        <td className="px-2 py-1 text-right tnum">{new Intl.NumberFormat("fr-FR").format(d.recomputed)}</td>
+                        <td className="px-2 py-1 text-right tnum">{new Intl.NumberFormat("fr-FR").format(d.client)}</td>
+                        <td className="px-2 py-1 text-right font-semibold text-rose tnum">{new Intl.NumberFormat("fr-FR").format(d.difference)}</td>
+                      </tr>
+                    ))}
+                    {tieout.bilan.map((l) => (
+                      <tr key={l.ref} className="border-t border-line" data-testid={`tieout-line-${l.ref}`}>
+                        <td className="px-2 py-1 text-ink-soft">{l.ref} · {l.label}</td>
+                        <td className="px-2 py-1 text-right tnum">{new Intl.NumberFormat("fr-FR").format(Math.round(l.amount))}</td>
+                        <td className="px-2 py-1 text-right text-muted tnum">{fr ? "à pointer" : "to tie"}</td>
+                        <td className="px-2 py-1 text-right tnum">—</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              ) : (
+                <p className="px-3 py-2 text-[11.8px] text-muted">
+                  {fr ? "Aucune balance ingérée — le pointage se fait à partir de la balance importée dans l'Analyseur." : "No trial balance ingested — the tie-out runs on the balance imported in the Analyzer."}
+                </p>
+              )}
+              {tieout && !tieout.pass ? (
+                <p className="px-3 py-1.5 text-[11px] font-semibold text-rose" data-testid="tieout-unexplained">
+                  {fr ? "Écarts non expliqués : la question « la colonne N concorde » ne peut être répondue Oui tant que la procédure de pointage ne les explique pas." : "Unexplained differences: “column N agrees” cannot be answered Yes until the tie-out procedure explains them."}
+                </p>
+              ) : null}
+            </div>
+          ) : null}
           {/* The paper owns the column on its own. When the execution panels
               ride below it the two share the height and each scrolls, so the
               wizard never pushes the panels off the screen. */}
@@ -598,6 +872,7 @@ export default async function SectionPage(props: {
             testId="fold-paper"
           >
           <div className="flex min-h-0 flex-1 flex-col">
+          {srm ? <SrmMattersPanel matters={srm} locale={isFr ? "fr" : "en"} /> : null}
           {ras ? (
             <PlanningRas
               engagementId={id}
@@ -620,6 +895,7 @@ export default async function SectionPage(props: {
           ) : (
           <PaperWizard
             code={section.code}
+            readOnly={archived}
             def={paperDef}
             values={paperValues}
             autoValues={autoValues}
@@ -655,7 +931,7 @@ export default async function SectionPage(props: {
               ) : dspV ? (
                 <DesignProceduresBoard engagementId={id} view={dspV} locale={isFr ? "fr" : "en"} />
               ) : itApps ? (
-                <ItAppsBoard engagementId={id} view={itApps} locale={isFr ? "fr" : "en"} readOnly={section.code === "S2.5"} />
+                <ItAppsBoard engagementId={id} view={itApps} locale={isFr ? "fr" : "en"} readOnly={section.code === "S2.5" || archived} />
               ) : undefined
             }
             embedOnly={["S1.2", "S1.3", "S2.1", "S2.2"].includes(section.code)}
@@ -692,12 +968,22 @@ export default async function SectionPage(props: {
 
         {wideBoard ? null : (
         <section className="flex min-h-0 flex-col gap-3 xl:overflow-hidden">
-          <TaskAttachments fileItemId={itemId} initial={attachments} locale={fr ? "fr" : "en"} canManage={canManageEvidence} compact />
+          <TaskAttachments fileItemId={itemId} initial={attachments} deletedInitial={deletedAttachments} documents={itemDocuments} locale={fr ? "fr" : "en"} canManage={canManageEvidence && !archived} readOnly={archived} compact />
           <div className="flex min-h-0 flex-1 flex-col overflow-hidden rounded-[var(--radius-atlas)] border border-glass-border bg-surface px-4 py-3 shadow-atlas-sm backdrop-blur-xl" data-testid="wp-linked">
             <h2 className="text-[11px] font-extrabold uppercase tracking-[0.07em] text-muted">
               {fr ? "Tâches liées" : "Linked tasks"}
             </h2>
             <ul className="mt-1.5 flex min-h-0 flex-col overflow-hidden">
+              {isToc ? (
+                <li>
+                  {/* the E1.2 paper built from this file's controls, grids and
+                      exceptions — the pre-filled one, not the blank template */}
+                  <a href={`/api/engagements/${id}/toc/export`} className="flex items-baseline gap-1.5 rounded-[var(--radius-atlas-xs)] px-1.5 py-1 text-[12.3px] font-semibold text-emerald-700 transition hover:bg-surface-2 dark:text-emerald-400" data-testid="linked-toc-export">
+                    <span className="font-mono text-[10.5px] text-muted">TL</span>
+                    <span className="min-w-0 flex-1 truncate">{fr ? "Générer le papier E1.2 (pré-rempli, .xlsx)" : "Generate the E1.2 paper (pre-filled, .xlsx)"}</span>
+                  </a>
+                </li>
+              ) : null}
               {["S2.2", "S2.4", "S5.5"].includes(section.code) ? (
                 <li>
                   <Link href={`/engagements/${id}/tools/sampling`} className="flex items-baseline gap-1.5 rounded-[var(--radius-atlas-xs)] px-1.5 py-1 text-[12.3px] font-semibold text-emerald-700 transition hover:bg-surface-2 dark:text-emerald-400" data-testid="linked-sampling-tool">

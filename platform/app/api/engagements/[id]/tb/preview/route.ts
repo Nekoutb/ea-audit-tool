@@ -23,6 +23,12 @@ export async function POST(request: Request, context: { params: Promise<{ id: st
     if (error instanceof TbError || error instanceof SubLedgerError) {
       return NextResponse.json({ error: error.code }, { status: 400 });
     }
-    return NextResponse.json({ error: "unauthenticated" }, { status: 401 });
+    // Only a missing session is "unauthenticated" (UAT B103); anything else
+    // is a fault of ours and is logged as one.
+    if (error instanceof Error && /UNAUTHENTICATED/.test(error.message)) {
+      return NextResponse.json({ error: "unauthenticated" }, { status: 401 });
+    }
+    console.error("[tb/preview] failed:", error instanceof Error ? (error.stack ?? error.message) : error);
+    return NextResponse.json({ error: "import-failed" }, { status: 500 });
   }
 }

@@ -111,7 +111,7 @@ describe("clearTaskNote — the reviewer decides a point is resolved", () => {
   it("refuses a staff member clearing someone else's note", async () => {
     const noteId = await openNote(PARTNER);
     as(STAFFER, "staff");
-    await expect(clearTaskNote(noteId, "Done.")).rejects.toThrow("requires-senior-or-author");
+    await expect(clearTaskNote(noteId, "Done.")).rejects.toThrow("requires-manager-or-author");
   });
 
   it("lets the author withdraw their own note whatever their rank", async () => {
@@ -122,10 +122,18 @@ describe("clearTaskNote — the reviewer decides a point is resolved", () => {
     expect(row.rows[0].status).toBe("cleared");
   });
 
-  it("lets a senior clear a note they did not raise", async () => {
+  it("refuses a senior clearing a note they did not raise (UAT B19: manager or above)", async () => {
     const noteId = await openNote(PARTNER);
     as(STAFFER, "senior");
+    await expect(clearTaskNote(noteId, "Resolved.")).rejects.toThrow("requires-manager-or-author");
+  });
+
+  it("lets a manager who did not prepare the paper clear a note they did not raise", async () => {
+    const noteId = await openNote(PARTNER);
+    as(STAFFER, "manager");
     await expect(clearTaskNote(noteId, "Resolved.")).resolves.toBeUndefined();
+    const row = await admin.query<{ status: string }>("SELECT status FROM review_note WHERE id = $1", [noteId]);
+    expect(row.rows[0].status).toBe("cleared");
   });
 });
 

@@ -5,32 +5,23 @@
 // is used verbatim as the 700 shade (primary buttons) and the rest of the
 // scale is derived from its hue.
 
-import { Paragraph, TextRun } from "docx";
 import type { PoolClient } from "pg";
+import { DEFAULT_ENGAGEMENT_NAMING } from "@/lib/complexity";
 import { withTenant } from "@/lib/db";
+import type { Branding } from "@/lib/letterhead";
 import { canManageFirm } from "@/lib/rbac";
 import { requirePortalUser, requireTenant } from "@/lib/tenant";
+
+// The Branding shape and the .docx letterhead builders are pure and live in
+// lib/letterhead.ts, so document generators (lib/docx.ts) can render a
+// letterhead without this module's session/database dependencies.
+export { letterheadFooter, letterheadParagraphs, type Branding } from "@/lib/letterhead";
 
 export class BrandingError extends Error {
   constructor(public readonly code: string) {
     super(code);
     this.name = "BrandingError";
   }
-}
-
-export interface Branding {
-  /** Firm name shown in the nav and on letterheads. Defaults to tenant.name. */
-  displayName: string;
-  /** Hex accent (#rrggbb) used as the UI primary; null = platform default. */
-  accent: string | null;
-  /** Small logo as a data URI (png/jpeg), shown in the nav. */
-  logo: string | null;
-  /** Letterhead address lines + footer for generated documents. */
-  letterhead1: string;
-  letterhead2: string;
-  footer: string;
-  /** Engagement naming convention; {CLIENT} and {YEAR} are substituted. */
-  engagementNaming: string;
 }
 
 const HEX_RE = /^#[0-9a-fA-F]{6}$/;
@@ -52,7 +43,7 @@ interface BrandingRow {
 }
 
 /** Default engagement naming convention (see lib/complexity.ts). */
-const DEFAULT_NAMING = "{CLIENT} AUDIT {YEAR}";
+const DEFAULT_NAMING = DEFAULT_ENGAGEMENT_NAMING;
 
 function merge(row: BrandingRow): Branding {
   const stored = row.branding ?? {};
@@ -200,10 +191,33 @@ const DARKER = [800, 900, 950];
  * near-black — so it stays monotonic for any accent. Accents too light to
  * carry white button text (or nearly black) are rejected.
  */
+/** WCAG relative luminance of a #rrggbb colour. */
+function relativeLuminance(hex: string): number {
+  const channel = (i: number): number => {
+    const c = parseInt(hex.slice(i, i + 2), 16) / 255;
+    return c <= 0.03928 ? c / 12.92 : ((c + 0.055) / 1.055) ** 2.4;
+  };
+  return 0.2126 * channel(1) + 0.7152 * channel(3) + 0.0722 * channel(5);
+}
+
+/** WCAG contrast ratio of the colour against white — what button text sits on. */
+export function contrastAgainstWhite(hex: string): number {
+  return 1.05 / (relativeLuminance(hex) + 0.05);
+}
+
+/**
+ * The floor for white text on the accent (buttons, links on white). 3:1 is
+ * WCAG AA for large/bold text; pure yellow (#ffff00) sits at 1.07:1 and made
+ * buttons and links almost invisible (UAT B116). The HSL lightness guard let
+ * it through because yellow is "light" only in luminance, not in HSL.
+ */
+const MIN_CONTRAST = 3;
+
 export function accentShades(accent: string): Record<number, string> {
   if (!HEX_RE.test(accent)) throw new BrandingError("invalid-color");
   const { h, s, l } = hexToHsl(accent);
   if (l > 0.8 || l < 0.08) throw new BrandingError("invalid-color");
+  if (contrastAgainstWhite(accent) < MIN_CONTRAST) throw new BrandingError("invalid-color");
   const scale: Record<number, string> = { 700: accent.toLowerCase() };
   LIGHTER.forEach((shade, index) => {
     const towardWhite = (LIGHTER.length - index) / (LIGHTER.length + 1); // 50 → 7/8 … 600 → 1/8
@@ -221,32 +235,4 @@ export function accentCss(accent: string): string {
   const scale = accentShades(accent);
   const vars = ACCENT_SHADES.map((shade) => `--color-emerald-${shade}: ${scale[shade]};`).join(" ");
   return `:root { ${vars} }`;
-}
-
-// ---- letterhead block for generated .docx documents ----
-
-/** Paragraphs stamped at the top of letters, reports and legal documents. */
-export function letterheadParagraphs(branding: Branding): Paragraph[] {
-  const lines: Paragraph[] = [
-    new Paragraph({
-      children: [new TextRun({ text: branding.displayName, bold: true, size: 26 })],
-    }),
-  ];
-  for (const line of [branding.letterhead1, branding.letterhead2]) {
-    if (line) {
-      lines.push(new Paragraph({ children: [new TextRun({ text: line, size: 18 })] }));
-    }
-  }
-  lines.push(new Paragraph({ children: [new TextRun({ text: "", size: 8 })] }));
-  return lines;
-}
-
-/** Footer paragraph (e.g. professional registration) when configured. */
-export function letterheadFooter(branding: Branding): Paragraph[] {
-  if (!branding.footer) return [];
-  return [
-    new Paragraph({
-      children: [new TextRun({ text: branding.footer, italics: true, size: 16 })],
-    }),
-  ];
 }

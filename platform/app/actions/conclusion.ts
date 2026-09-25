@@ -12,8 +12,10 @@ import {
 } from "@/lib/completion";
 import { runFsTieout } from "@/lib/fs-tieout";
 import { generateLetter, type LetterKind } from "@/lib/letters";
+import { withTenant } from "@/lib/db";
 import { getLocale } from "@/lib/locale";
 import { decideOpinion, generateAuditReport } from "@/lib/report";
+import { requireTenant } from "@/lib/tenant";
 
 async function guarded(path: string, fn: () => Promise<string | void>): Promise<never> {
   let target = path;
@@ -120,13 +122,31 @@ export async function issueReportAction(engagementId: string, formData: FormData
     });
     const reportDate = String(formData.get("reportDate") ?? "");
     if (!reportDate) throw new Error("fields-required");
+    // ISA 705 ¶20: a modified opinion carries the basis for it. ISA 701 ¶16:
+    // for a listed entity the report either describes the key audit matters
+    // or states that there are none, with the reason recorded (UAT B57).
+    const basisText = String(formData.get("basisText") ?? "").trim();
+    if (decision.opinion !== "unmodified" && !basisText) throw new Error("basis-required");
+    const kamText = String(formData.get("kamText") ?? "").trim();
+    const kamNoneReason = String(formData.get("kamNoneReason") ?? "").trim();
+    const kamNone = formData.get("kamNone") === "on";
+    const { tenantId } = await requireTenant();
+    const listed = await withTenant(tenantId, async (tx) => {
+      const r = await tx.query<{ listed: boolean }>(
+        "SELECT c.listed FROM engagement e JOIN client c ON c.id = e.client_id WHERE e.id = $1",
+        [engagementId],
+      );
+      return Boolean(r.rows[0]?.listed);
+    });
+    if (listed && !kamText && !(kamNone && kamNoneReason)) throw new Error("kam-required");
     await issueReport(engagementId, decision.opinion, reportDate);
     const documentId = await generateAuditReport({
       engagementId,
       opinion: decision.opinion,
-      basisText: String(formData.get("basisText") ?? "") || undefined,
+      basisText: basisText || undefined,
       goingConcernParagraph: decision.goingConcernParagraph,
-      kamText: String(formData.get("kamText") ?? "") || undefined,
+      kamText: kamText || undefined,
+      kamNoneReason: listed && kamNone ? kamNoneReason : undefined,
       reportDate,
     });
     return `/documents/${documentId}`;

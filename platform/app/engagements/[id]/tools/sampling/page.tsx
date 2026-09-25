@@ -6,7 +6,10 @@ import { SamplingStudio } from "@/components/SamplingStudio";
 import { Panel, PanelHeader } from "@/components/ui/atlas";
 import { engagementTasks } from "@/lib/engagement-dashboard";
 import { getEngagement } from "@/lib/engagements";
+import { listTodResults } from "@/lib/engines";
+import { LEAD_INDEXES } from "@/lib/lead-classes";
 import { getLocale } from "@/lib/locale";
+import { approvedMateriality } from "@/lib/materiality";
 import { listScots } from "@/lib/scots";
 
 export const metadata = { title: "Sampling · AuditISA" };
@@ -18,16 +21,25 @@ export const metadata = { title: "Sampling · AuditISA" };
  * and tolerable misstatement, attributes from control frequency. The runs live
  * on the cycle tasks; this screen routes to them.
  */
-export default async function SamplingPage(props: { params: Promise<{ id: string }> }) {
+export default async function SamplingPage(props: {
+  params: Promise<{ id: string }>;
+  searchParams: Promise<{ error?: string; recorded?: string }>;
+}) {
   const session = await auth();
   if (!session?.user) redirect("/login");
 
   const { id } = await props.params;
+  const { error, recorded } = await props.searchParams;
   const locale = await getLocale();
   const fr = locale === "fr";
   const engagement = await getEngagement(id);
   if (!engagement) notFound();
-  const [tasks, scots] = await Promise.all([engagementTasks(id), listScots(id)]);
+  const [tasks, scots, materiality, todResults] = await Promise.all([
+    engagementTasks(id),
+    listScots(id),
+    approvedMateriality(id),
+    listTodResults(id),
+  ]);
   // the purpose list: every control selected for testing on S2.1, with the
   // attributes the frequency table needs — and whether it is the ONLY selected
   // control covering one of its assertions (larger minimum sample).
@@ -86,6 +98,11 @@ export default async function SamplingPage(props: { params: Promise<{ id: string
             purposes={purposes}
             s22Href={(() => { const t = tasks.find((x) => x.code === "S2.2"); return t ? `/engagements/${id}/sections/${t.id}` : undefined; })()}
             locale={fr ? "fr" : "en"}
+            te={materiality?.performance ?? null}
+            indexes={LEAD_INDEXES.map((d) => ({ code: d.code, label: fr ? d.labelFr : d.labelEn }))}
+            results={todResults}
+            resultsError={error ?? null}
+            resultsRecorded={recorded === "1"}
           />
         </div>
       </Panel>

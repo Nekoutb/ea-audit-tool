@@ -22,6 +22,8 @@ import { approveMateriality, computeMateriality, createMaterialityVersion } from
 import { addCustomStep, generateProgram, listProgramSteps, sectionCoverage } from "@/lib/programs";
 import { inherentRating, listPotentialRisks, listRisks, promotePotentialRisk, raisePotentialRisk, rebutRevenueFraudRisk, updateRisk } from "@/lib/risks";
 import { assignTeamMember } from "@/lib/team";
+import { paperFor, savePaper } from "@/lib/working-papers";
+import { requiredKeys } from "@/lib/papers/types";
 
 const admin = new pg.Pool({ connectionString: process.env.DATABASE_URL });
 
@@ -44,6 +46,20 @@ async function signAsPartner(code: string): Promise<void> {
   const documentId = await generateDocument(itemId(code), "en");
   await signDocument(documentId, "preparer");
   await signDocument(documentId, "partner");
+}
+
+/**
+ * Answer every required field of a task's working paper (Yes to each factor
+ * and conclusion): a blank paper cannot be signed (UAT B17).
+ */
+async function completePaper(engagement: string, code: string): Promise<void> {
+  await savePaper(
+    engagement,
+    code,
+    Object.fromEntries(
+      requiredKeys(paperFor(code)).map((k) => [k, k.startsWith("q_") || k.startsWith("c_") ? "yes" : "Done — see file."]),
+    ),
+  );
 }
 
 beforeAll(async () => {
@@ -188,7 +204,7 @@ describe("acceptance gates → planning (2.2, 2.3, 2.4)", () => {
   });
 
   it("passes after P1.1 completion + partner sign-off, then advances", async () => {
-    await saveForm(engagementId, "P1.1", {
+    const checks = {
       engagement_type: "new",
       integrity_ok: true,
       competence_ok: true,
@@ -196,8 +212,20 @@ describe("acceptance gates → planning (2.2, 2.3, 2.4)", () => {
       aml_ok: true,
       independence_ok: true,
       risk_rating: "moderate",
-      conclusion: "accept",
-    });
+    };
+    // UAT B12: "accept" needs every required check answered Yes — and, on a
+    // NEW engagement, the predecessor-auditor communication recorded.
+    await expect(saveForm(engagementId, "P1.1", { ...checks, conclusion: "accept" })).rejects.toThrow(
+      "acceptance-checks-failed",
+    );
+    await expect(
+      saveForm(engagementId, "P1.1", { ...checks, predecessor_ok: true, aml_ok: false, conclusion: "accept" }),
+    ).rejects.toThrow("acceptance-checks-failed");
+    await saveForm(engagementId, "P1.1", { ...checks, predecessor_ok: true, conclusion: "accept" });
+    // UAT B17: a blank working paper carries nothing to attest to.
+    const p11 = await generateDocument(itemId("P1.1"), "en");
+    await expect(signDocument(p11, "preparer")).rejects.toThrow("paper-incomplete");
+    await completePaper(engagementId, "P1.1");
     await signAsPartner("P1.1");
     const gates = await acceptanceGates(engagementId);
     expect(gates.every((g) => g.ok)).toBe(true);
@@ -272,10 +300,22 @@ describe("planning-close gates (2.9, 2.10, 2.13)", () => {
   it("closes once every gate passes, snapshots, and opens execution", async () => {
     await generateProgram(itemId("E3.1"), "en"); // links mgmt_override
     await addCustomStep(itemId("E4.2"), "Substantive coverage for purchases.", ["C", "A"]);
-    for (const code of ["P2.2", "P5.2", "S3.1"]) await signAsPartner(code);
+    // UAT B17: a bespoke paper with unanswered fields cannot be handed off.
+    const p22 = await generateDocument(itemId("P2.2"), "en");
+    await expect(signDocument(p22, "preparer")).rejects.toThrow("paper-incomplete");
+    for (const code of ["P2.2", "P5.2", "S3.1"]) {
+      await completePaper(engagementId, code);
+      await signAsPartner(code);
+    }
+    // UAT B15: the three judgement papers alone do not close planning — the
+    // partner approves the plan itself on P7.2 (ISA 300 ¶11, ISA 220 ¶30).
+    const before = await planningCloseGates(engagementId);
+    expect(before.filter((g) => !g.ok).map((g) => g.key)).toEqual(["p72_partner_signed"]);
+    await signAsPartner("P7.2");
 
     const gates = await planningCloseGates(engagementId);
-    expect(gates.every((g) => g.ok)).toBe(true);
+    // Named, so a failure says which gate held rather than "false".
+    expect(gates.filter((g) => !g.ok).map((g) => g.key)).toEqual([]);
 
     await closePlanning(engagementId);
     const phase = await admin.query<{ phase: string }>("SELECT phase FROM engagement WHERE id = $1", [engagementId]);
@@ -344,13 +384,26 @@ describe("letter/working-paper collision (review fix)", () => {
     const workpaperId = await generateDocument(d31.id, "en");
     expect(workpaperId).not.toBe(letterId);
 
-    // Partner-signing the LETTER does not satisfy the P1.1 gate...
-    await signDocument(letterId, "preparer");
-    await signDocument(letterId, "partner");
+    // The engagement letter is filed under P1.4 (ISA 210), a planning task.
+    // Gates, not guidance (UAT B15): nothing of a later phase is signed while
+    // acceptance is still open, so the letter cannot be signed at all yet...
+    await expect(signDocument(letterId, "preparer")).rejects.toThrow("acceptance-open");
     let gates = await acceptanceGates(fresh);
     expect(gates.find((g) => g.key === "d31_partner_signed")?.ok).toBe(false);
 
+    // ...and even a partner signature sitting on the LETTER (written straight
+    // into the table, since the rule above refuses it) does not satisfy the
+    // P1.1 gate, which counts working papers only.
+    await admin.query(
+      `INSERT INTO signoff (tenant_id, document_id, version_no, role, user_id)
+       VALUES ($1, $2, 1, 'preparer', $3), ($1, $2, 1, 'partner', $3)`,
+      [TENANT, letterId, USER],
+    );
+    gates = await acceptanceGates(fresh);
+    expect(gates.find((g) => g.key === "d31_partner_signed")?.ok).toBe(false);
+
     // ...only signing the working paper does.
+    await completePaper(fresh, "P1.1");
     await signDocument(workpaperId, "preparer");
     await signDocument(workpaperId, "partner");
     gates = await acceptanceGates(fresh);

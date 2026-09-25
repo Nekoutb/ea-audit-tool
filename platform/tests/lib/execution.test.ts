@@ -76,6 +76,20 @@ afterAll(async () => {
   await closePool();
 });
 
+describe("phase gate (UAT B15) — execution work waits for planning to close", () => {
+  it("refuses execution work while acceptance is open, then admits it in the execution phase", async () => {
+    await expect(
+      saveSectionConclusion(e100, "Too early: acceptance still open.", true),
+    ).rejects.toThrow("acceptance-open");
+    await expect(
+      recordControlTest({ engagementId, fileItemId: e110, description: "3-way match", result: "effective" }),
+    ).rejects.toThrow("acceptance-open");
+    // The rest of the suite exercises fieldwork, so the engagement is moved to
+    // execution directly — the acceptance/planning gates have their own suites.
+    await admin.query("UPDATE engagement SET phase = 'execution' WHERE id = $1", [engagementId]);
+  });
+});
+
 describe("program-step execution + evidence (4.2/4.3)", () => {
   it("completes a step with a conclusion and attaches evidence", async () => {
     await addCustomStep(e110, "Test unrecorded liabilities.", ["C"]);
@@ -92,7 +106,11 @@ describe("program-step execution + evidence (4.2/4.3)", () => {
 describe("findings routing (4.4/4.5) — one destination each", () => {
   it("routes to C1.2 and C5.1 with origin backlinks", async () => {
     await routeFinding({ engagementId, fileItemId: e100, route: "b4", title: "Revenue cut-off issue" });
-    await routeFinding({ engagementId, fileItemId: e110, route: "c1", title: "Weak PO approval" });
+    // UAT B21: a C5.1 control finding carries a severity, or it is refused.
+    await expect(
+      routeFinding({ engagementId, fileItemId: e110, route: "c1", title: "Weak PO approval" }),
+    ).rejects.toThrow("invalid-severity");
+    await routeFinding({ engagementId, fileItemId: e110, route: "c1", title: "Weak PO approval", severity: "deficiency" });
     const findings = await listFindings(engagementId);
     expect(findings.find((f) => f.route === "b4")?.sectionCode).toBe("E4.1");
     expect(findings.find((f) => f.route === "c1")?.sectionCode).toBe("E4.2");
@@ -114,17 +132,21 @@ describe("findings routing (4.4/4.5) — one destination each", () => {
 
   it("accumulates non-trivial misstatements against final materiality (4.6)", async () => {
     await routeFinding({ engagementId, fileItemId: e100, route: "b5", title: "Overstated revenue", amount: 8_000_000, mtype: "factual" });
-    await routeFinding({ engagementId, fileItemId: e100, route: "b5", title: "Provision shortfall", amount: 4_000_000, mtype: "judgmental" });
+    await routeFinding({ engagementId, fileItemId: e100, route: "b5", title: "Provision shortfall", amount: 2_000_000, mtype: "judgmental" });
     let b5 = await evaluateB5(engagementId);
-    expect(b5.uncorrectedTotal).toBe(12_000_000);
-    expect(b5.exceedsMateriality).toBe(true); // > 10M overall
+    // UAT B50: the SAD is measured against the uncorrected misstatements
+    // threshold, UMT = PM − TE = 10M − 7.5M = 2.5M, not against overall
+    // materiality.
+    expect(b5.finalMateriality).toBe(2_500_000);
+    expect(b5.uncorrectedTotal).toBe(10_000_000);
+    expect(b5.exceedsMateriality).toBe(true); // > 2.5M UMT
     expect(b5.trivialCount).toBe(1);
 
-    // Correcting one brings the aggregate back under materiality.
+    // Correcting the large one brings the aggregate back under the threshold.
     const big = b5.items.find((item) => item.amount === 8_000_000)!;
     await setMisstatementCorrected(big.id, true);
     b5 = await evaluateB5(engagementId);
-    expect(b5.uncorrectedTotal).toBe(4_000_000);
+    expect(b5.uncorrectedTotal).toBe(2_000_000);
     expect(b5.exceedsMateriality).toBe(false);
   });
 });
@@ -175,6 +197,18 @@ describe("revise-approach (4.10)", () => {
 
 describe("section conclusion + review chain (4.11)", () => {
   it("prepares, reviews, and requires partner on significant-risk sections", async () => {
+    // UAT B45: "objectives achieved" cannot stand over no retained procedure
+    // without a written rationale, nor over an open program step.
+    await expect(
+      saveSectionConclusion(e100, "Objectives achieved; revenue fairly stated.", true),
+    ).rejects.toThrow("no-procedures-rationale-required");
+    await addCustomStep(e100, "Revenue cut-off test.", ["C"]);
+    await expect(
+      saveSectionConclusion(e100, "Objectives achieved; revenue fairly stated.", true),
+    ).rejects.toThrow("steps-open");
+    const revenueStep = (await listProgramSteps(e100)).find((s) => s.status === "planned")!;
+    await completeStep(revenueStep.id, "Cut-off tested; no exceptions.");
+
     // E4.1 carries the presumed significant revenue risk → partner required.
     await saveSectionConclusion(e100, "Objectives achieved; revenue fairly stated.", true);
     const conclusion = (await import("@/lib/execution")).getSectionConclusion;

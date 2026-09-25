@@ -5,8 +5,11 @@
 // force a decision, the revise-approach loop (§8.4), and section conclusions
 // with the two-stage (+ partner on significant risk) review chain (§6.3).
 
+import type { PoolClient } from "pg";
 import { withTenant } from "@/lib/db";
 import { hasOtherReviewer } from "@/lib/documents";
+import { phaseStillOpen } from "@/lib/gates";
+import { uncorrectedMisstatementThreshold } from "@/lib/materiality-model";
 import { createNotification } from "@/lib/notifications";
 import { canPartnerSignoff, canReview } from "@/lib/rbac";
 import { requireTenant, requireWrite } from "@/lib/tenant";
@@ -18,6 +21,18 @@ export class ExecutionError extends Error {
     super(code);
     this.name = "ExecutionError";
   }
+}
+
+/**
+ * Execution work is recorded only once planning has closed (UAT B15): the
+ * gates block, they do not merely flip a flag while the file fills up.
+ */
+async function assertExecutionOpen(tx: PoolClient, engagementId: string): Promise<void> {
+  const r = await tx.query<{ phase: string }>("SELECT phase FROM engagement WHERE id = $1", [engagementId]);
+  const phase = r.rows[0]?.phase;
+  if (!phase) return;
+  const stillOpen = phaseStillOpen("execution", phase);
+  if (stillOpen) throw new ExecutionError(stillOpen);
 }
 
 // ---- 4.2 program-step execution ----
@@ -36,6 +51,11 @@ export async function completeStep(
   const { tenantId, userId } = await requireTenant();
   if (!conclusion.trim()) throw new ExecutionError("conclusion-required");
   await withTenant(tenantId, async (tx) => {
+    const owner = await tx.query<{ engagement_id: string }>(
+      "SELECT engagement_id FROM program_step WHERE id = $1",
+      [stepId],
+    );
+    if (owner.rows[0]) await assertExecutionOpen(tx, owner.rows[0].engagement_id);
     const updated = await tx.query(
       `UPDATE program_step
           SET status = 'complete', conclusion = $2, completed_by = $3, completed_at = now()
@@ -152,6 +172,10 @@ export async function listEvidence(stepId: string): Promise<EvidenceInfo[]> {
 
 export type FindingRoute = "b4" | "c1" | "b5" | "revise";
 
+/** ISA 265 grading of a control deficiency routed to C5.1. */
+export const FINDING_SEVERITIES = ["significant_deficiency", "deficiency", "observation"] as const;
+export type FindingSeverity = (typeof FINDING_SEVERITIES)[number];
+
 export interface RouteFindingInput {
   engagementId: string;
   fileItemId?: string;
@@ -159,6 +183,9 @@ export interface RouteFindingInput {
   route: FindingRoute;
   title: string;
   detail?: string;
+  /** b4/c1: the deficiency's grading — required for a C5.1 point (UAT B21) */
+  severity?: FindingSeverity;
+  recommendation?: string;
   // b5 only:
   amount?: number;
   accounts?: string;
@@ -179,10 +206,15 @@ export async function routeFinding(input: RouteFindingInput): Promise<RouteResul
 
   return withTenant(tenantId, async (tx) => {
     if (input.route === "b4" || input.route === "c1") {
+      const severity = input.severity && FINDING_SEVERITIES.includes(input.severity) ? input.severity : null;
+      if (input.route === "c1" && !severity) throw new ExecutionError("invalid-severity");
       await tx.query(
-        `INSERT INTO finding (tenant_id, engagement_id, file_item_id, program_step_id, route, title, detail, created_by)
-         VALUES ($1,$2,$3,$4,$5,$6,$7,$8)`,
-        [tenantId, input.engagementId, input.fileItemId ?? null, input.programStepId ?? null, input.route, input.title, input.detail ?? null, userId],
+        `INSERT INTO finding (tenant_id, engagement_id, file_item_id, program_step_id, route, title, detail, severity, recommendation, created_by)
+         VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10)`,
+        [
+          tenantId, input.engagementId, input.fileItemId ?? null, input.programStepId ?? null, input.route,
+          input.title, input.detail ?? null, severity, input.recommendation?.trim() || null, userId,
+        ],
       );
       return { destination: input.route };
     }
@@ -303,8 +335,8 @@ export async function evaluateB5(engagementId: string): Promise<B5Evaluation> {
         ORDER BY m.created_at`,
       [engagementId],
     );
-    const materiality = await tx.query<{ overall: string; trivial: string }>(
-      `SELECT overall::text, trivial::text FROM materiality
+    const materiality = await tx.query<{ overall: string; performance: string; trivial: string }>(
+      `SELECT overall::text, performance::text, trivial::text FROM materiality
         WHERE engagement_id = $1 AND status = 'approved'
         ORDER BY version_no DESC LIMIT 1`,
       [engagementId],
@@ -325,7 +357,15 @@ export async function evaluateB5(engagementId: string): Promise<B5Evaluation> {
     const correctedTotal = items
       .filter((item) => !item.trivial && item.corrected)
       .reduce((sum, item) => sum + item.amount, 0);
-    const finalMateriality = materiality.rows[0] ? Number(materiality.rows[0].overall) : null;
+    // One threshold everywhere: the register, the completion gate and the SAD
+    // all measure uncorrected misstatements against UMT = PM − TE, never
+    // against overall materiality (UAT B50, lib/materiality-model.ts).
+    const finalMateriality = materiality.rows[0]
+      ? uncorrectedMisstatementThreshold({
+          overall: Number(materiality.rows[0].overall),
+          performance: Number(materiality.rows[0].performance),
+        })
+      : null;
     return {
       items,
       uncorrectedTotal,
@@ -376,6 +416,7 @@ export async function recordControlTest(input: {
     throw new ExecutionError("deviation-decision-required");
   }
   await withTenant(tenantId, async (tx) => {
+    await assertExecutionOpen(tx, input.engagementId);
     await tx.query(
       `INSERT INTO control_test
          (tenant_id, engagement_id, file_item_id, description, result, deviation_decision, note, scot_control_id, created_by)
@@ -413,8 +454,8 @@ export async function recordControlTest(input: {
         }
       } else {
         await tx.query(
-          `INSERT INTO finding (tenant_id, engagement_id, file_item_id, route, title, detail, created_by)
-           VALUES ($1, $2, $3, 'c1', $4, $5, $6)`,
+          `INSERT INTO finding (tenant_id, engagement_id, file_item_id, route, title, detail, severity, created_by)
+           VALUES ($1, $2, $3, 'c1', $4, $5, 'deficiency', $6)`,
           [tenantId, input.engagementId, input.fileItemId, `Control deficiency: ${input.description}`, input.note ?? null, userId],
         );
       }
@@ -455,6 +496,8 @@ export interface FindingInfo {
   status: "open" | "cleared";
   response: string | null;
   sectionCode: string | null;
+  severity: FindingSeverity | null;
+  recommendation: string | null;
 }
 
 export async function listFindings(engagementId: string): Promise<FindingInfo[]> {
@@ -468,8 +511,11 @@ export async function listFindings(engagementId: string): Promise<FindingInfo[]>
       status: "open" | "cleared";
       response: string | null;
       section_code: string | null;
+      severity: FindingSeverity | null;
+      recommendation: string | null;
     }>(
-      `SELECT f.id, f.route, f.title, f.detail, f.status, f.response, fi.code AS section_code
+      `SELECT f.id, f.route, f.title, f.detail, f.status, f.response, fi.code AS section_code,
+              f.severity, f.recommendation
          FROM finding f LEFT JOIN file_item fi ON fi.id = f.file_item_id
         WHERE f.engagement_id = $1
         ORDER BY f.created_at`,
@@ -483,6 +529,8 @@ export async function listFindings(engagementId: string): Promise<FindingInfo[]>
       status: row.status,
       response: row.response,
       sectionCode: row.section_code,
+      severity: row.severity,
+      recommendation: row.recommendation,
     }));
   });
 }
@@ -508,6 +556,8 @@ export interface SectionConclusionInfo {
   reviewedByName: string | null;
   partnerReviewedByName: string | null;
   partnerRequired: boolean;
+  /** why the section is concluded with no procedure retained (UAT B45) */
+  noProceduresRationale: string | null;
 }
 
 export async function getSectionConclusion(fileItemId: string): Promise<SectionConclusionInfo | null> {
@@ -519,8 +569,9 @@ export async function getSectionConclusion(fileItemId: string): Promise<SectionC
       prepared: string | null;
       reviewed: string | null;
       partner: string | null;
+      no_procedures_rationale: string | null;
     }>(
-      `SELECT sc.conclusion, sc.objectives_achieved,
+      `SELECT sc.conclusion, sc.objectives_achieved, sc.no_procedures_rationale,
               (SELECT coalesce(name, email) FROM app_user WHERE id = sc.prepared_by) AS prepared,
               (SELECT coalesce(name, email) FROM app_user WHERE id = sc.reviewed_by) AS reviewed,
               (SELECT coalesce(name, email) FROM app_user WHERE id = sc.partner_reviewed_by) AS partner
@@ -531,7 +582,7 @@ export async function getSectionConclusion(fileItemId: string): Promise<SectionC
     const row = result.rows[0];
     if (!row) {
       return partnerRequired
-        ? { conclusion: "", objectivesAchieved: false, preparedByName: null, reviewedByName: null, partnerReviewedByName: null, partnerRequired }
+        ? { conclusion: "", objectivesAchieved: false, preparedByName: null, reviewedByName: null, partnerReviewedByName: null, partnerRequired, noProceduresRationale: null }
         : null;
     }
     return {
@@ -541,8 +592,33 @@ export async function getSectionConclusion(fileItemId: string): Promise<SectionC
       reviewedByName: row.reviewed,
       partnerReviewedByName: row.partner,
       partnerRequired,
+      noProceduresRationale: row.no_procedures_rationale,
     };
   });
+}
+
+/**
+ * The procedures behind a section conclusion: an "objectives achieved"
+ * conclusion cannot stand over open program steps, and with no procedure
+ * retained at all it needs a written rationale (UAT B45).
+ */
+async function assertProceduresSupportConclusion(
+  tx: import("pg").PoolClient,
+  fileItemId: string,
+  objectivesAchieved: boolean,
+  rationale: string | null,
+): Promise<void> {
+  if (!objectivesAchieved) return;
+  const steps = await tx.query<{ retained: string; open: string }>(
+    `SELECT count(*) FILTER (WHERE status <> 'na')::text AS retained,
+            count(*) FILTER (WHERE status = 'planned')::text AS open
+       FROM program_step WHERE file_item_id = $1`,
+    [fileItemId],
+  );
+  if (Number(steps.rows[0]?.open ?? 0) > 0) throw new ExecutionError("steps-open");
+  if (Number(steps.rows[0]?.retained ?? 0) === 0 && !rationale) {
+    throw new ExecutionError("no-procedures-rationale-required");
+  }
 }
 
 async function sectionHasSignificantRisk(
@@ -562,25 +638,30 @@ export async function saveSectionConclusion(
   fileItemId: string,
   conclusion: string,
   objectivesAchieved: boolean,
+  noProceduresRationale?: string,
 ): Promise<void> {
   const { tenantId, userId } = await requireTenant();
   if (!conclusion.trim()) throw new ExecutionError("conclusion-required");
+  const rationale = noProceduresRationale?.trim() || null;
   const written = await withTenant(tenantId, async (tx) => {
     const item = await tx.query<{ engagement_id: string; code: string }>(
       "SELECT engagement_id, code FROM file_item WHERE id = $1 AND section = 'E'",
       [fileItemId],
     );
     if (!item.rows[0]) throw new ExecutionError("not-found");
+    await assertExecutionOpen(tx, item.rows[0].engagement_id);
+    await assertProceduresSupportConclusion(tx, fileItemId, objectivesAchieved, rationale);
     await tx.query(
       `INSERT INTO section_conclusion
-         (tenant_id, engagement_id, file_item_id, conclusion, objectives_achieved, prepared_by)
-       VALUES ($1, $2, $3, $4, $5, $6)
+         (tenant_id, engagement_id, file_item_id, conclusion, objectives_achieved, no_procedures_rationale, prepared_by)
+       VALUES ($1, $2, $3, $4, $5, $6, $7)
        ON CONFLICT (file_item_id) DO UPDATE
          SET conclusion = EXCLUDED.conclusion, objectives_achieved = EXCLUDED.objectives_achieved,
+             no_procedures_rationale = EXCLUDED.no_procedures_rationale,
              prepared_by = EXCLUDED.prepared_by, prepared_at = now(),
              reviewed_by = NULL, reviewed_at = NULL,
              partner_reviewed_by = NULL, partner_reviewed_at = NULL`,
-      [tenantId, item.rows[0].engagement_id, fileItemId, conclusion, objectivesAchieved, userId],
+      [tenantId, item.rows[0].engagement_id, fileItemId, conclusion, objectivesAchieved, rationale, userId],
     );
     // The section conclusion is part of what a sign-off on this item attests
     // to, so rewriting it voids any signature given over the earlier text.
@@ -604,13 +685,20 @@ export async function reviewSectionConclusion(fileItemId: string, asPartner: boo
   await withTenant(tenantId, async (tx) => {
     // No self-review (ISA 220 (Revised) ¶29): whoever prepared the section
     // conclusion cannot also review it while the firm has another reviewer.
-    const prepared = await tx.query<{ prepared_by: string | null }>(
-      "SELECT prepared_by FROM section_conclusion WHERE file_item_id = $1",
+    const prepared = await tx.query<{ prepared_by: string | null; objectives_achieved: boolean; no_procedures_rationale: string | null }>(
+      "SELECT prepared_by, objectives_achieved, no_procedures_rationale FROM section_conclusion WHERE file_item_id = $1",
       [fileItemId],
     );
     const preparedBy = prepared.rows[0]?.prepared_by ?? null;
     if (preparedBy === userId && (await hasOtherReviewer(tx, tenantId, userId))) {
       throw new ExecutionError("self-review");
+    }
+    // The reviewer signs over the same evidence rule the preparer met: steps
+    // opened since, or a rationale removed, block the review (UAT B45).
+    if (prepared.rows[0]) {
+      await assertProceduresSupportConclusion(
+        tx, fileItemId, prepared.rows[0].objectives_achieved, prepared.rows[0].no_procedures_rationale,
+      );
     }
 
     const column = asPartner ? "partner_reviewed_by" : "reviewed_by";

@@ -53,7 +53,8 @@ export default async function EngagementsPage(props: {
   const archivedCount = all.filter((e) => e.phase === "archived").length;
   const years = [...new Set(all.map((e) => e.fiscalYear))].sort((a, b) => b - a);
   const partners = [...new Set(all.map((e) => e.partnerName).filter((p): p is string => Boolean(p)))].sort();
-  const hasFilters = Boolean(query || year || partner || mine === "1");
+  const hasFilters = Boolean(query || year || partner || mine === "1" || stage);
+  const stageOptions = ["acceptance", "planning", "execution", "conclusion", "archived"] as const;
 
   const now = new Date();
   const todayIso = now.toISOString().slice(0, 10);
@@ -64,7 +65,13 @@ export default async function EngagementsPage(props: {
       ? (e.reportDate ?? e.periodEnd)
       : phaseDeadline(e.periodEnd, e.phase as DashboardPhase);
     const status = isArchived
-      ? { label: te.status.archived, tone: "muted" as const }
+      ? {
+          // the retention date is part of an archived file's identity (ISA 230 ¶15)
+          label: e.retentionUntil
+            ? `${te.status.archived} · ${locale === "fr" ? "conservation jusqu'au" : "retain until"} ${e.retentionUntil}`
+            : te.status.archived,
+          tone: "muted" as const,
+        }
       : e.reportDate
         ? { label: te.status.reportIssued, tone: "done" as const }
         : deadlineIso < todayIso
@@ -115,8 +122,18 @@ export default async function EngagementsPage(props: {
       </div>
 
       <form method="GET" className="flex flex-wrap items-center gap-2.5" data-testid="register-filters">
-        {stage ? <input type="hidden" name="stage" value={stage} /> : null}
         {showArchived && stage !== "archived" ? <input type="hidden" name="archived" value="1" /> : null}
+        <select
+          name="stage"
+          defaultValue={stage ?? ""}
+          className="max-w-[220px] rounded-full border border-line-strong bg-surface px-3 py-2 text-[12.5px] text-ink-soft outline-none backdrop-blur-xl"
+          data-testid="filter-stage"
+        >
+          <option value="">{te.stage}: {te.allOption}</option>
+          {stageOptions.map((s) => (
+            <option key={s} value={s}>{te.stages[s]}</option>
+          ))}
+        </select>
         <input
           type="search"
           name="q"

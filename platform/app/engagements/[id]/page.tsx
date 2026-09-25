@@ -27,7 +27,7 @@ export default async function EngagementFilePage(props: { params: Promise<{ id: 
 
   return (
     <main className="min-h-screen w-full px-6 py-8">
-      <AppNav locale={locale} />
+      <AppNav locale={locale} current={{ id, label: engagement.name ?? engagement.clientName }} />
       <div className="mt-8 flex items-baseline justify-between">
         <h1 className="text-2xl font-semibold tracking-[-0.02em] text-ink">
           {engagement.clientName} — {engagement.fiscalYear}
@@ -74,6 +74,21 @@ export default async function EngagementFilePage(props: { params: Promise<{ id: 
             data-testid="export-file-index"
           >
             {td.export}
+          </a>
+          {/* the complete audit file as a ZIP, and the trail as CSV (UAT B157) */}
+          <a
+            href={`/api/engagements/${id}/export/bundle`}
+            className="mt-1 block text-xs font-semibold text-emerald-700 hover:underline dark:text-emerald-400"
+            data-testid="export-bundle"
+          >
+            {locale === "fr" ? "Dossier complet (ZIP)" : "Audit-file bundle (ZIP)"}
+          </a>
+          <a
+            href={`/api/engagements/${id}/activity/export`}
+            className="mt-1 block text-xs font-semibold text-emerald-700 hover:underline dark:text-emerald-400"
+            data-testid="export-trail"
+          >
+            {locale === "fr" ? "Piste d'audit (CSV)" : "Audit trail (CSV)"}
           </a>
         </Panel>
       </section>

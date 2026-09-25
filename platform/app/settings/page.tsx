@@ -2,6 +2,7 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import { auth } from "@/auth";
 import { updateBrandingAction } from "@/app/actions/branding";
+import { setRetentionYearsAction } from "@/app/actions/retention";
 import { AppNav } from "@/components/AppNav";
 import { ErrorBanner } from "@/components/GatesPanel";
 import { LanguageSwitcher } from "@/components/LanguageSwitcher";
@@ -9,7 +10,8 @@ import { Panel, PanelHeader, btnPrimary } from "@/components/ui/atlas";
 import { DEFAULT_ACCENT, getBranding } from "@/lib/branding";
 import { getMessages } from "@/lib/i18n";
 import { getLocale } from "@/lib/locale";
-import { canManageFirm, type Role } from "@/lib/rbac";
+import { atLeast, canManageFirm, type Role } from "@/lib/rbac";
+import { RETENTION_MAX_YEARS, RETENTION_MIN_YEARS, retentionPolicy } from "@/lib/retention";
 
 export const metadata = { title: "Settings · AuditISA" };
 
@@ -25,6 +27,8 @@ export default async function SettingsPage(props: {
   const t = getMessages(locale);
   const ts = t.settings;
   const branding = await getBranding();
+  const retention = await retentionPolicy();
+  const canSeeRetentionReport = atLeast(session.user.role as Role, "manager");
 
   const input =
     "rounded-[var(--radius-atlas-sm)] border border-line-strong bg-surface px-3 py-2 text-sm text-ink outline-none focus:border-emerald-600 focus:ring-2 focus:ring-emerald-600/20";
@@ -103,6 +107,54 @@ export default async function SettingsPage(props: {
           </div>
         </Panel>
       ) : null}
+
+      {/* Retention period and the destruction report (UAT B65) */}
+      <Panel className="mt-6 p-6" data-testid="retention-panel">
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <PanelHeader
+            title={locale === "fr" ? "Conservation des dossiers" : "File retention"}
+            hint={
+              locale === "fr"
+                ? `durée de conservation après le rapport (minimum ${RETENTION_MIN_YEARS} ans) et dossiers arrivant à échéance`
+                : `retention after the report date (minimum ${RETENTION_MIN_YEARS} years) and files reaching their expiry`
+            }
+          />
+          {canSeeRetentionReport ? (
+            <Link href="/settings/retention" data-testid="retention-report-link" className={btnPrimary}>
+              {locale === "fr" ? "Rapport de conservation" : "Retention report"}
+            </Link>
+          ) : null}
+        </div>
+        {isAdmin ? (
+          <form action={setRetentionYearsAction} className="mt-4 flex flex-wrap items-end gap-3">
+            <label className={label}>
+              {locale === "fr" ? "Durée de conservation (années)" : "Retention period (years)"}
+              <input
+                name="years"
+                type="number"
+                min={RETENTION_MIN_YEARS}
+                max={RETENTION_MAX_YEARS}
+                required
+                defaultValue={retention.years}
+                className={`${input} w-32`}
+                data-testid="retention-years"
+              />
+            </label>
+            <button type="submit" className={btnPrimary} data-testid="retention-save">
+              {ts.save}
+            </button>
+            <span className="text-xs text-muted">
+              {locale === "fr"
+                ? "S'applique aux dossiers archivés à partir de maintenant ; un dossier déjà archivé garde sa date."
+                : "Applies to files archived from now on; an already archived file keeps its date."}
+            </span>
+          </form>
+        ) : (
+          <p className="mt-4 text-sm text-muted" data-testid="retention-readonly">
+            {locale === "fr" ? `Durée actuelle : ${retention.years} ans.` : `Current period: ${retention.years} years.`} {ts.adminOnly}
+          </p>
+        )}
+      </Panel>
 
       <Panel className="mt-6 p-6">
         <PanelHeader title={t.integrations.title} hint={t.integrations.subtitle} />

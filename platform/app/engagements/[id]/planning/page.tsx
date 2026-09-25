@@ -11,19 +11,19 @@ import {
   removeTeamAction,
   setBudgetAction,
   setMaterialAction,
-  setPbcStatusAction,
 } from "@/app/actions/planning";
 import { AppNav } from "@/components/AppNav";
 import { MaterialityBasis } from "@/components/MaterialityBasis";
 import { ErrorBanner, GatesPanel } from "@/components/GatesPanel";
 import { Chip, Panel, PanelHeader, btnPrimary } from "@/components/ui/atlas";
 import { withTenant } from "@/lib/db";
+import { engagementTasks } from "@/lib/engagement-dashboard";
 import { getEngagement, listFileItems } from "@/lib/engagements";
 import { FORM_DEFINITIONS, isFormComplete, type FormValues } from "@/lib/forms";
 import { planningCloseGates } from "@/lib/gates";
 import { formatFCFA, getMessages } from "@/lib/i18n";
 import { getLocale } from "@/lib/locale";
-import { BENCHMARK_RANGES, BENCHMARKS, listMaterialityVersions, tbBenchmarkAmounts } from "@/lib/materiality";
+import { BENCHMARK_RANGES, BENCHMARKS, PERFORMANCE_PCT_RANGE, TRIVIAL_PCT_RANGE, approvedMateriality, listMaterialityVersions, tbBenchmarkAmounts } from "@/lib/materiality";
 import { listBudget, listFirmUsers, listPbc, listTeam, TEAM_ROLES } from "@/lib/team";
 import { requireTenant } from "@/lib/tenant";
 
@@ -114,6 +114,26 @@ export default async function PlanningPage(props: {
     listFileItems(id),
   ]);
   const eSections = items.filter((item) => item.section === "E");
+  // The driver list used to read the legacy form_response rows and partner
+  // sign-offs only, so a paper prepared and reviewed on its working-paper
+  // screen still showed "Not started". The task's own preparer/reviewer state
+  // (conditional items included) now wins, and P6.1 reads complete once the
+  // partner approved a materiality version.
+  const [activeTasks, conditionalTasks, approvedM] = await Promise.all([
+    engagementTasks(id),
+    engagementTasks(id, true),
+    approvedMateriality(id),
+  ]);
+  const taskByCode = new Map([...activeTasks, ...conditionalTasks].map((task) => [task.code, task]));
+  for (const code of PLANNING_CODES) {
+    if (statuses.get(code) === "not_required") continue;
+    const task = taskByCode.get(code);
+    const current = statuses.get(code) ?? "not_started";
+    if (task?.status === "reviewed") statuses.set(code, "signed");
+    else if (task?.status === "in_review" && current !== "signed") statuses.set(code, "complete");
+    else if (task?.status === "in_progress" && current === "not_started") statuses.set(code, "in_progress");
+    if (code === "P6.1" && approvedM && statuses.get(code) !== "signed") statuses.set(code, "complete");
+  }
   // Strategy driver rows open the working paper; the map resolves code -> item.
   const itemIdOf = new Map(items.map((item) => [item.code, item.id]));
   const materialFlags = await (async () => {
@@ -134,7 +154,7 @@ export default async function PlanningPage(props: {
 
   return (
     <main className="min-h-screen w-full px-6 py-8">
-      <AppNav locale={locale} />
+      <AppNav locale={locale} current={{ id, label: engagement.name ?? engagement.clientName }} />
       <h1 className="mt-8 text-2xl font-semibold tracking-[-0.02em] text-ink">
         {engagement.clientName} — {engagement.fiscalYear} · {tp.planningTitle}
       </h1>
@@ -261,15 +281,19 @@ export default async function PlanningPage(props: {
           </label>
           <label className="flex flex-col gap-1 text-sm">
             <span className="text-ink-soft">{tp.materiality.performancePct}</span>
-            <input name="performancePct" type="number" min="60" max="85" defaultValue="75" className={input} />
+            <input name="performancePct" type="number" min={PERFORMANCE_PCT_RANGE.min} max={PERFORMANCE_PCT_RANGE.max} defaultValue={PERFORMANCE_PCT_RANGE.default} className={input} />
           </label>
           <label className="flex flex-col gap-1 text-sm">
             <span className="text-ink-soft">{tp.materiality.trivialPct}</span>
-            <input name="trivialPct" type="number" step="0.5" min="0.5" max="10" defaultValue="5" className={input} />
+            <input name="trivialPct" type="number" step="0.5" min={TRIVIAL_PCT_RANGE.min} max={TRIVIAL_PCT_RANGE.max} defaultValue={TRIVIAL_PCT_RANGE.default} className={input} />
           </label>
           <label className="col-span-2 flex flex-col gap-1 text-sm">
             <span className="text-ink-soft">{tp.materiality.justification}</span>
             <input name="justification" required className={input} data-testid="materiality-justification" />
+          </label>
+          <label className="col-span-2 flex flex-col gap-1 text-sm">
+            <span className="text-ink-soft">{tp.materiality.performanceJustification}</span>
+            <input name="performanceJustification" className={input} data-testid="materiality-te-justification" />
           </label>
           <div className="flex items-end">
             <button type="submit" className={btnPrimary} data-testid="create-materiality">
@@ -327,12 +351,20 @@ export default async function PlanningPage(props: {
         <ul className="mt-2 flex flex-wrap gap-2 text-sm">
           {budget.map((line) => (
             <li key={line.grade} className="rounded-[var(--radius-atlas-xs)] bg-surface-2 px-2 py-1 text-ink-soft tnum">
-              {line.grade}: {line.hours} h
+              {(tp.team.roles as Record<string, string>)[line.grade] ?? line.grade}: {line.hours} h
             </li>
           ))}
         </ul>
+        {/* The grade is one of the team roles, so the actual hours (logged
+            under each member's team role) fall into the same row on /time. */}
         <form action={setBudgetAction.bind(null, id)} className="mt-2 flex flex-wrap items-end gap-3">
-          <input name="grade" placeholder={tp.budget.grade} aria-label={tp.budget.grade} required className={input} />
+          <select name="grade" aria-label={tp.budget.grade} required className={input} data-testid="budget-grade">
+            {TEAM_ROLES.map((role) => (
+              <option key={role} value={role}>
+                {tp.team.roles[role]}
+              </option>
+            ))}
+          </select>
           <input name="hours" type="number" step="0.5" min="0" placeholder={tp.budget.hours} aria-label={tp.budget.hours} required className={input} />
           <button type="submit" className={btn}>
             {tp.budget.set}
@@ -348,20 +380,14 @@ export default async function PlanningPage(props: {
               <span>{item.title}</span>
               <span className="flex items-center gap-2">
                 <span className="text-xs text-muted">{tp.pbc.status[item.status]}</span>
-                {item.status !== "accepted" ? (
-                  <form
-                    action={setPbcStatusAction.bind(
-                      null,
-                      id,
-                      item.id,
-                      item.status === "requested" ? "uploaded" : "accepted",
-                    )}
-                  >
-                    <button type="submit" className="inline-flex min-h-[24px] items-center text-xs text-emerald-700 hover:underline dark:text-emerald-400">
-                      → {tp.pbc.status[item.status === "requested" ? "uploaded" : "accepted"]}
-                    </button>
-                  </form>
-                ) : null}
+                {/* Status is read-only here (UAT B09): the client's upload and
+                    the reviewer's acceptance happen on the PBC screen. */}
+                <Link
+                  href={`/engagements/${id}/pbc`}
+                  className="inline-flex min-h-[24px] items-center text-xs text-emerald-700 hover:underline dark:text-emerald-400"
+                >
+                  {tp.pbc.title} →
+                </Link>
               </span>
             </li>
           ))}

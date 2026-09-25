@@ -7,6 +7,7 @@
 
 import { createHash } from "node:crypto";
 import type { PoolClient } from "pg";
+import { recordActivity } from "@/lib/activity";
 import { withTenant } from "@/lib/db";
 import { resolveSection } from "@/lib/leadsheets";
 import { LEAD_INDEXES, SUB_INDEX_BY_CODE, leadIndexFor, subIndexFor } from "@/lib/lead-classes";
@@ -85,6 +86,31 @@ function parseAmount(value: unknown): number {
 const unreadable = (value: unknown): boolean =>
   value !== null && value !== undefined && String(value).trim() !== "" && parseAmountOrNull(value) === null;
 
+/**
+ * An account cell that names an account: SYSCOHADA codes are numeric, so a
+ * title line ("BALANCE GENERALE"), a repeated header ("Compte") or a footer
+ * ("Total general") in the account column is not a row of the balance (UAT B28).
+ */
+export const isAccountCell = (value: string): boolean => /^\d/.test(value);
+
+const AMOUNT_COLUMNS: TbColumn[] = ["openingDebit", "openingCredit", "opening", "debit", "credit", "closingDebit", "closingCredit", "closing"];
+const TOTAL_ROW = /^(sous[\s-]?total|sub[\s-]?total|grand[\s-]?total|total)\b/i;
+
+/**
+ * Which rows the extraction leaves out. A row with no account at all, a
+ * total/subtotal line, and a title or repeated header — a word in the account
+ * column with nothing readable in the amount columns — are not rows of the
+ * balance (UAT B28). A word in the account column that DOES carry amounts is
+ * a mis-coded account: it stays in, and the codification check reports it
+ * (E6.5) rather than the import silently dropping a figure.
+ */
+const skipTbRow = (account: string, raw: Record<string, unknown>, mapping: TbMapping): boolean => {
+  if (!account) return true;
+  if (isAccountCell(account)) return false;
+  if (TOTAL_ROW.test(account)) return true;
+  return !AMOUNT_COLUMNS.some((column) => mapping[column] && parseAmountOrNull(raw[mapping[column]!]) !== null);
+};
+
 export interface TbUnreadableColumn {
   /** the TB field the column was mapped to */
   column: TbColumn;
@@ -106,13 +132,12 @@ export interface TbReadability {
 
 /** Collected while the rows are extracted; validateTbRows folds it into the summary. */
 export function readabilityOf(table: ParsedTable, mapping: TbMapping): TbReadability {
-  const columns: TbColumn[] = ["openingDebit", "openingCredit", "opening", "debit", "credit", "closingDebit", "closingCredit", "closing"];
   const found = new Map<TbColumn, TbUnreadableColumn>();
   let rowsWithoutAccount = 0;
   table.rows.forEach((raw, i) => {
     const account = String(raw[mapping.account!] ?? "").trim();
-    if (!account) { rowsWithoutAccount += 1; return; }
-    for (const column of columns) {
+    if (skipTbRow(account, raw, mapping)) { rowsWithoutAccount += 1; return; }
+    for (const column of AMOUNT_COLUMNS) {
       const header = mapping[column];
       if (!header) continue;
       const value = raw[header];
@@ -141,7 +166,7 @@ export function extractTbRows(table: ParsedTable, mapping: TbMapping): TbImportR
   const rows: TbImportRow[] = [];
   for (const raw of table.rows) {
     const account = String(raw[mapping.account!] ?? "").trim();
-    if (!account) continue;
+    if (skipTbRow(account, raw, mapping)) continue;
     const get = (column: TbColumn): number =>
       mapping[column] ? parseAmount(raw[mapping[column]!]) : 0;
     let openingDebit = get("openingDebit");
@@ -336,9 +361,15 @@ export async function importTrialBalance(
     );
     const trialBalanceId = tb.rows[0].id;
 
-    // one TB per timing: a new upload replaces the previous one outright
+    // One LIVE TB per timing: a new upload supersedes the previous one but
+    // never deletes it — the earlier version keeps its number and its rows, so
+    // the history can be read and version numbers stay monotonic. The working
+    // TB (current_version_no) moves only on a VALID pre-audit import below, so
+    // an invalid re-import is recorded as invalid and the last valid version
+    // keeps driving the lead schedules.
     await tx.query(
-      "DELETE FROM trial_balance_version WHERE trial_balance_id = $1 AND timing = $2",
+      `UPDATE trial_balance_version SET superseded_at = now()
+        WHERE trial_balance_id = $1 AND timing = $2 AND superseded_at IS NULL`,
       [trialBalanceId, timing],
     );
 
@@ -387,6 +418,17 @@ export async function importTrialBalance(
       await tx.query("UPDATE trial_balance SET current_version_no = $2 WHERE id = $1", [trialBalanceId, versionNo]);
     }
     return { versionId: version.rows[0].id, versionNo, summary };
+  }).then(async (result) => {
+    // The trial balance is the file's primary evidence: every import is in the trail (UAT B62).
+    await recordActivity({
+      engagementId,
+      entityType: "trial_balance_version",
+      entityId: result.versionId,
+      action: "tb_imported",
+      summary: `Trial balance imported (${timing}, v${result.versionNo}, ${filename}) — ${result.summary.status}`,
+      after: { timing, versionNo: result.versionNo, filename, status: result.summary.status, rows: rows.length },
+    });
+    return result;
   });
 }
 
@@ -401,6 +443,10 @@ export interface TbVersionSummary {
   isCurrent: boolean;
   createdAt: string;
   summary: TbValidationSummary | null;
+  timing: TbTiming;
+  sourceFilename: string | null;
+  /** replaced by a later upload to the same slot; kept for the history */
+  superseded: boolean;
 }
 
 export async function listTbVersions(engagementId: string): Promise<TbVersionSummary[]> {
@@ -417,10 +463,14 @@ export async function listTbVersions(engagementId: string): Promise<TbVersionSum
       current_version_no: number;
       created_at: string;
       validation_summary: TbValidationSummary | Record<string, never>;
+      timing: TbTiming;
+      source_filename: string | null;
+      superseded: boolean;
     }>(
       `SELECT v.id, v.version_no, v.version_kind, v.validation_status, v.row_count,
               v.total_debit::text, v.total_credit::text, tb.current_version_no,
-              to_char(v.created_at, 'YYYY-MM-DD HH24:MI') AS created_at, v.validation_summary
+              to_char(v.created_at, 'YYYY-MM-DD HH24:MI') AS created_at, v.validation_summary,
+              v.timing, v.source_filename, (v.superseded_at IS NOT NULL) AS superseded
          FROM trial_balance_version v
          JOIN trial_balance tb ON tb.id = v.trial_balance_id
         WHERE tb.engagement_id = $1
@@ -438,6 +488,9 @@ export async function listTbVersions(engagementId: string): Promise<TbVersionSum
       isCurrent: row.version_no === row.current_version_no,
       createdAt: row.created_at,
       summary: "status" in row.validation_summary ? (row.validation_summary as TbValidationSummary) : null,
+      timing: row.timing,
+      sourceFilename: row.source_filename,
+      superseded: row.superseded,
     }));
   });
 }
@@ -467,7 +520,7 @@ export async function listTbTimings(engagementId: string): Promise<TbTimingSlot[
               to_char(v.created_at, 'YYYY-MM-DD HH24:MI') AS created_at, v.validation_summary
          FROM trial_balance_version v
          JOIN trial_balance tb ON tb.id = v.trial_balance_id
-        WHERE tb.engagement_id = $1
+        WHERE tb.engagement_id = $1 AND v.superseded_at IS NULL
         ORDER BY v.created_at DESC`,
       [engagementId],
     );

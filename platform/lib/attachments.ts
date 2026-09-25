@@ -38,6 +38,14 @@ function assertCanWrite(role: Role): void {
   if (!atLeast(role, "staff")) throw new AttachmentPermissionError();
 }
 
+export interface AttachmentVersion {
+  id: string;
+  version: number;
+  sizeBytes: number;
+  uploadedBy: string;
+  uploadedAt: string;
+}
+
 export interface AttachmentRow {
   id: string;
   name: string;
@@ -46,6 +54,8 @@ export interface AttachmentRow {
   version: number;
   uploadedBy: string;
   uploadedAt: string;
+  /** the earlier live versions of this name, newest first — each downloadable by id (UAT B108) */
+  history?: AttachmentVersion[];
 }
 
 /**
@@ -68,7 +78,11 @@ const guardFileItem = (fileItemId: string) =>
 const guardAttachment = (attachmentId: string) =>
   guardEngagementOf("SELECT engagement_id FROM task_attachment WHERE id = $1", attachmentId);
 
-/** Latest live version of each filename on the task, newest upload first. */
+/**
+ * Latest live version of each filename on the task, newest upload first, each
+ * carrying its earlier live versions so the history is reachable from the
+ * screen and not only by id (UAT B108).
+ */
 export async function listAttachments(fileItemId: string): Promise<AttachmentRow[]> {
   const { tenantId } = await requireTenant();
   await guardFileItem(fileItemId);
@@ -81,11 +95,12 @@ export async function listAttachments(fileItemId: string): Promise<AttachmentRow
       version: number;
       uploaded_by_name: string;
       uploaded_at: string;
+      sort_key: string;
     }>(
-      `SELECT DISTINCT ON (a.name)
-              a.id, a.name, a.mime, a.size_bytes, a.version,
+      `SELECT a.id, a.name, a.mime, a.size_bytes, a.version,
               coalesce(u.name, u.email) AS uploaded_by_name,
-              to_char(a.uploaded_at, 'DD Mon YYYY HH24:MI') AS uploaded_at
+              to_char(a.uploaded_at, 'DD Mon YYYY HH24:MI') AS uploaded_at,
+              to_char(a.uploaded_at, 'YYYY-MM-DD HH24:MI:SS.US') AS sort_key
          FROM task_attachment a
          JOIN app_user u ON u.id = a.uploaded_by
         WHERE a.file_item_id = $1
@@ -93,17 +108,43 @@ export async function listAttachments(fileItemId: string): Promise<AttachmentRow
         ORDER BY a.name, a.version DESC`,
       [fileItemId],
     );
-    return r.rows
+    const byName = new Map<string, AttachmentRow & { sortKey: string }>();
+    for (const row of r.rows) {
+      const current = byName.get(row.name);
+      if (!current) {
+        byName.set(row.name, {
+          id: row.id,
+          name: row.name,
+          mime: row.mime,
+          sizeBytes: row.size_bytes,
+          version: row.version,
+          uploadedBy: row.uploaded_by_name,
+          uploadedAt: row.uploaded_at,
+          history: [],
+          sortKey: row.sort_key,
+        });
+      } else {
+        current.history!.push({
+          id: row.id,
+          version: row.version,
+          sizeBytes: row.size_bytes,
+          uploadedBy: row.uploaded_by_name,
+          uploadedAt: row.uploaded_at,
+        });
+      }
+    }
+    return [...byName.values()]
+      .sort((a, b) => (a.sortKey < b.sortKey ? 1 : -1))
       .map((row) => ({
         id: row.id,
         name: row.name,
         mime: row.mime,
-        sizeBytes: row.size_bytes,
+        sizeBytes: row.sizeBytes,
         version: row.version,
-        uploadedBy: row.uploaded_by_name,
-        uploadedAt: row.uploaded_at,
-      }))
-      .sort((a, b) => (a.uploadedAt < b.uploadedAt ? 1 : -1));
+        uploadedBy: row.uploadedBy,
+        uploadedAt: row.uploadedAt,
+        history: row.history,
+      }));
   });
 }
 
@@ -192,8 +233,16 @@ export async function renameAttachment(id: string, newNameRaw: string): Promise<
   if (!next) throw new Error("name-required");
   const oldExt = target.name.includes(".") ? target.name.slice(target.name.lastIndexOf(".")) : "";
   if (oldExt && !next.toLowerCase().endsWith(oldExt.toLowerCase())) next += oldExt;
+  if (next === target.name) return next;
 
   await withTenant(tenantId, async (tx) => {
+    // Another live document already carries the name: say so in words rather
+    // than letting the unique constraint's text reach the screen (UAT B148).
+    const taken = await tx.query(
+      "SELECT 1 FROM task_attachment WHERE file_item_id = $1 AND name = $2 AND deleted_at IS NULL LIMIT 1",
+      [target.file_item_id, next],
+    );
+    if (taken.rows.length > 0) throw new Error("name-taken");
     await tx.query(
       `UPDATE task_attachment SET name = $3
         WHERE file_item_id = $1 AND name = $2 AND deleted_at IS NULL`,
@@ -251,7 +300,7 @@ export async function deleteAttachment(id: string): Promise<void> {
     entityType: "attachment",
     entityId: id,
     action: "deleted",
-    summary: target.name,
+    summary: `Deleted: ${target.name} (restorable for ${RESTORE_WINDOW_DAYS} days)`,
     meta: {
       fileItemId: target.file_item_id,
       name: target.name,
@@ -306,8 +355,45 @@ export async function restoreAttachment(attachmentId: string): Promise<void> {
     entityType: "attachment",
     entityId: attachmentId,
     action: "restored",
-    summary: target.name,
+    summary: `Restored: ${target.name}`,
     meta: { fileItemId: target.file_item_id, name: target.name, versions },
+  });
+}
+
+/**
+ * The task's soft-deleted documents still inside the recovery window — one
+ * row per name (latest version), so the task page can offer Restore (UAT
+ * B109: the delete dialog promised 30-day recovery and no screen offered it).
+ */
+export async function listDeletedAttachments(fileItemId: string): Promise<AttachmentRow[]> {
+  const { tenantId } = await requireTenant();
+  await guardFileItem(fileItemId);
+  return withTenant(tenantId, async (tx) => {
+    const r = await tx.query<{
+      id: string; name: string; mime: string; size_bytes: number; version: number;
+      deleted_by_name: string | null; deleted_at: string;
+    }>(
+      `SELECT DISTINCT ON (a.name)
+              a.id, a.name, a.mime, a.size_bytes, a.version,
+              coalesce(u.name, u.email) AS deleted_by_name,
+              to_char(a.deleted_at, 'DD Mon YYYY HH24:MI') AS deleted_at
+         FROM task_attachment a
+         LEFT JOIN app_user u ON u.id = a.deleted_by
+        WHERE a.file_item_id = $1
+          AND a.deleted_at IS NOT NULL
+          AND a.deleted_at >= now() - ($2::int * interval '1 day')
+        ORDER BY a.name, a.version DESC`,
+      [fileItemId, RESTORE_WINDOW_DAYS],
+    );
+    return r.rows.map((row) => ({
+      id: row.id,
+      name: row.name,
+      mime: row.mime,
+      sizeBytes: row.size_bytes,
+      version: row.version,
+      uploadedBy: row.deleted_by_name ?? "",
+      uploadedAt: row.deleted_at,
+    }));
   });
 }
 

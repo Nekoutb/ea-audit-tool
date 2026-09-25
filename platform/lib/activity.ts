@@ -217,7 +217,7 @@ export function logAttachment(
  */
 export function logMaterialityChange(
   engagementId: string,
-  event: "revised" | "approved",
+  event: "created" | "revised" | "approved",
   versionNo: number,
   values: { before?: unknown; after?: unknown } = {},
 ): Promise<void> {
@@ -317,7 +317,10 @@ export async function listActivity(engagementId: string, limit = 200): Promise<A
       `SELECT a.id, a.entity_id,
               (SELECT coalesce(name, email) FROM app_user WHERE id = a.user_id) AS user_name,
               a.acting_role, a.entity_type, a.action, a.summary, a.outcome,
-              to_char(a.created_at, 'YYYY-MM-DD HH24:MI') AS at
+              -- to the second and with its zone: two entries a few seconds
+              -- apart must read as such, and a reader must know which clock
+              -- (UAT B156)
+              to_char(a.created_at AT TIME ZONE 'UTC', 'YYYY-MM-DD HH24:MI:SS') || ' UTC' AS at
          FROM activity_log a
         WHERE a.engagement_id = $1
         ORDER BY a.created_at DESC

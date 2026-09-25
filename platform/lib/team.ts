@@ -4,14 +4,25 @@
 import { randomBytes } from "node:crypto";
 import type { PoolClient } from "pg";
 import { accountMail, appUrl } from "@/lib/account-mail";
+import { recordActivity } from "@/lib/activity";
 import { createInvite } from "@/lib/invites";
 import { sendEmail, platformSender } from "@/lib/email";
+import { launchCampaign } from "@/lib/independence";
 import { getLocale } from "@/lib/locale";
 import { createNotification } from "@/lib/notifications";
 import { withTenant } from "@/lib/db";
 import { requireEngagementAccess } from "@/lib/engagement-access";
+import { assertMutable } from "@/lib/mutability";
 import { atLeast } from "@/lib/rbac";
-import { ForbiddenError, requireTenant } from "@/lib/tenant";
+import { ForbiddenError, requireTenant, requireWrite } from "@/lib/tenant";
+
+/**
+ * Times are stored in UTC and used to be shown that way with no zone, so a
+ * sign-off at 06:29 local read 05:29 (UAT B133). The firm's zone is fixed to
+ * West Africa Time for now and the label travels with the value.
+ */
+export const DISPLAY_TIME_ZONE = "Africa/Douala";
+export const DISPLAY_TIME_ZONE_LABEL = "WAT";
 
 /** The six-level audit ladder (top down), plus the independent EQR. */
 export type TeamRole =
@@ -34,6 +45,8 @@ export interface TeamMember {
   teamRole: TeamRole;
   status: "invited" | "accepted" | "declined";
   respondedAt: string | null;
+  /** why the member declined, when they did (UAT B130) */
+  declineReason: string | null;
 }
 
 export async function listTeam(engagementId: string): Promise<TeamMember[]> {
@@ -47,13 +60,15 @@ export async function listTeam(engagementId: string): Promise<TeamMember[]> {
       team_role: TeamRole;
       status: "invited" | "accepted" | "declined";
       responded_at: string | null;
+      decline_reason: string | null;
     }>(
       `SELECT tm.id, tm.user_id, coalesce(u.name, u.email) AS user_name, u.email, tm.team_role,
               coalesce(tm.status, 'accepted') AS status,
-              to_char(tm.responded_at, 'DD Mon YYYY HH24:MI') AS responded_at
+              to_char(tm.responded_at AT TIME ZONE $2, 'DD Mon YYYY HH24:MI') || ' ' || $3 AS responded_at,
+              tm.decline_reason
          FROM team_member tm JOIN app_user u ON u.id = tm.user_id
         WHERE tm.engagement_id = $1 ORDER BY tm.created_at`,
-      [engagementId],
+      [engagementId, DISPLAY_TIME_ZONE, DISPLAY_TIME_ZONE_LABEL],
     );
     return result.rows.map((r) => ({
       id: r.id,
@@ -63,22 +78,49 @@ export async function listTeam(engagementId: string): Promise<TeamMember[]> {
       teamRole: r.team_role,
       status: r.status,
       respondedAt: r.responded_at,
+      declineReason: r.decline_reason,
     }));
   });
 }
 
-/** Firm users assignable to the engagement (same tenant via membership). */
+/**
+ * Firm users assignable to the engagement (same tenant via membership). Client
+ * portal contacts hold a membership too, as role client_user, and used to be
+ * offered as team members and independence recipients (UAT B91).
+ */
 export async function listFirmUsers(): Promise<{ id: string; name: string; email: string }[]> {
   const { tenantId } = await requireTenant();
   return withTenant(tenantId, async (tx) => {
     const result = await tx.query<{ id: string; name: string; email: string }>(
       `SELECT u.id, coalesce(u.name, u.email) AS name, u.email
          FROM app_user u JOIN membership m ON m.user_id = u.id
-        WHERE m.tenant_id = $1 ORDER BY name`,
+        WHERE m.tenant_id = $1 AND m.role <> 'client_user' ORDER BY name`,
       [tenantId],
     );
     return result.rows;
   });
+}
+
+/**
+ * A member joining after the independence campaign was issued is asked at
+ * once (UAT B13): the gate now requires a confirmation from everyone on the
+ * team, so a late joiner with no confirmation would silently block it — or,
+ * before the gate was fixed, silently pass it. No campaign yet: nothing to do,
+ * the launch will address the whole team.
+ */
+async function askIndependenceIfCampaignOpen(engagementId: string, userId: string): Promise<void> {
+  const { tenantId } = await requireTenant();
+  const open = await withTenant(tenantId, (tx) =>
+    tx.query("SELECT 1 FROM independence_campaign WHERE engagement_id = $1 LIMIT 1", [engagementId]),
+  );
+  if ((open.rowCount ?? 0) === 0) return;
+  try {
+    await launchCampaign(engagementId, [userId]);
+  } catch (error) {
+    // The assignment stands; a confirmation that could not be issued shows
+    // up as "not asked" on the independence tool and on the gate.
+    console.warn("[team] independence confirmation not issued:", error instanceof Error ? error.message : error);
+  }
 }
 
 /**
@@ -117,6 +159,9 @@ export async function assignTeamMember(
 ): Promise<void> {
   assertTeamRole(teamRole);
   const { tenantId, role } = await requireTeamManager(engagementId, teamRole);
+  // an archived file keeps the team it closed with (the trigger refuses the
+  // write anyway; the typed error is the one the page can translate)
+  await assertMutable(engagementId);
   await withTenant(tenantId, async (tx) => {
     const existing = await tx.query<{ team_role: TeamRole }>(
       "SELECT team_role FROM team_member WHERE engagement_id = $1 AND user_id = $2",
@@ -127,11 +172,11 @@ export async function assignTeamMember(
     if (current === "partner" && teamRole !== "partner" && !atLeast(role, "partner")) {
       throw new ForbiddenError("partner-only-team-role");
     }
-    // The member must belong to this firm.
-    const member = await tx.query("SELECT 1 FROM membership WHERE tenant_id = $1 AND user_id = $2", [
-      tenantId,
-      userId,
-    ]);
+    // The member must belong to this firm — as staff, not as a client contact.
+    const member = await tx.query(
+      "SELECT 1 FROM membership WHERE tenant_id = $1 AND user_id = $2 AND role <> 'client_user'",
+      [tenantId, userId],
+    );
     if ((member.rowCount ?? 0) === 0) throw new Error("not-a-firm-member");
     if (teamRole === "eqr_reviewer" && current && current !== "eqr_reviewer") {
       throw new Error("eqr-on-team");
@@ -146,13 +191,17 @@ export async function assignTeamMember(
       [tenantId, engagementId, userId, teamRole],
     );
   });
+  await askIndependenceIfCampaignOpen(engagementId, userId);
 }
 
 export async function removeTeamMember(engagementId: string, userId: string): Promise<void> {
   const { tenantId, role } = await requireTeamManager(engagementId);
-  await withTenant(tenantId, async (tx) => {
-    const existing = await tx.query<{ team_role: TeamRole }>(
-      "SELECT team_role FROM team_member WHERE engagement_id = $1 AND user_id = $2",
+  await assertMutable(engagementId);
+  const removed = await withTenant(tenantId, async (tx) => {
+    const existing = await tx.query<{ team_role: TeamRole; who: string }>(
+      `SELECT tm.team_role, coalesce(u.name, u.email) AS who
+         FROM team_member tm JOIN app_user u ON u.id = tm.user_id
+        WHERE tm.engagement_id = $1 AND tm.user_id = $2`,
       [engagementId, userId],
     );
     if (existing.rows[0]?.team_role === "partner" && !atLeast(role, "partner")) {
@@ -162,7 +211,19 @@ export async function removeTeamMember(engagementId: string, userId: string): Pr
       engagementId,
       userId,
     ]);
+    return existing.rows[0] ?? null;
   });
+  // Who left the team, and as what, belongs in the trail (UAT B62).
+  if (removed) {
+    await recordActivity({
+      engagementId,
+      entityType: "team_member",
+      entityId: userId,
+      action: "team_removed",
+      summary: `${removed.who} removed from the team (${removed.team_role.replace(/_/g, " ")})`,
+      before: { userId, teamRole: removed.team_role },
+    });
+  }
 }
 
 /**
@@ -208,8 +269,8 @@ export async function assignTask(
   itemId: string,
   userIdOrNull: string | null,
 ): Promise<void> {
-  const { tenantId } = await requireTenant();
-  await withTenant(tenantId, async (tx) => {
+  const { tenantId, userId: actorId } = await requireTenant();
+  const task = await withTenant(tenantId, async (tx) => {
     if (userIdOrNull) {
       const member = await tx.query(
         "SELECT 1 FROM team_member WHERE engagement_id = $1 AND user_id = $2",
@@ -217,12 +278,35 @@ export async function assignTask(
       );
       if ((member.rowCount ?? 0) === 0) throw new Error("not-found");
     }
-    const updated = await tx.query(
-      "UPDATE file_item SET assignee_user_id = $3 WHERE id = $2 AND engagement_id = $1",
+    const updated = await tx.query<{ code: string; title_en: string }>(
+      "UPDATE file_item SET assignee_user_id = $3 WHERE id = $2 AND engagement_id = $1 RETURNING code, title_en",
       [engagementId, itemId, userIdOrNull],
     );
     if ((updated.rowCount ?? 0) === 0) throw new Error("not-found");
+    return updated.rows[0];
   });
+  // The assignee hears about it and the trail records it (UAT B62).
+  await recordActivity({
+    engagementId,
+    entityType: "file_item",
+    entityId: itemId,
+    action: userIdOrNull ? "task_assigned" : "task_unassigned",
+    summary: userIdOrNull ? `${task.code} assigned` : `${task.code} unassigned`,
+    after: { assigneeUserId: userIdOrNull },
+  });
+  if (userIdOrNull && userIdOrNull !== actorId) {
+    try {
+      await createNotification({
+        tenantId,
+        userId: userIdOrNull,
+        kind: "task_assigned",
+        title: `Task assigned: ${task.code} — ${task.title_en}`,
+        href: `/engagements/${engagementId}/sections/${itemId}`,
+      });
+    } catch {
+      // a failed notification must never undo the assignment
+    }
+  }
 }
 
 /**
@@ -246,8 +330,8 @@ export async function assignTasks(
   role: TaskAssignmentRole = "assignee",
 ): Promise<number> {
   if (itemIds.length === 0) return 0;
-  const { tenantId } = await requireTenant();
-  return withTenant(tenantId, async (tx) => {
+  const { tenantId, userId: actorId } = await requireTenant();
+  const result = await withTenant(tenantId, async (tx) => {
     if (userIdOrNull) {
       const member = await tx.query(
         "SELECT 1 FROM team_member WHERE engagement_id = $1 AND user_id = $2",
@@ -255,12 +339,37 @@ export async function assignTasks(
       );
       if ((member.rowCount ?? 0) === 0) throw new Error("not-found");
     }
-    const updated = await tx.query(
-      `UPDATE file_item SET ${ASSIGNMENT_COLUMN[role]} = $3 WHERE engagement_id = $1 AND id = ANY($2::uuid[])`,
+    const updated = await tx.query<{ code: string }>(
+      `UPDATE file_item SET ${ASSIGNMENT_COLUMN[role]} = $3 WHERE engagement_id = $1 AND id = ANY($2::uuid[]) RETURNING code`,
       [engagementId, itemIds, userIdOrNull],
     );
-    return updated.rowCount ?? 0;
+    return { n: updated.rowCount ?? 0, codes: updated.rows.map((r) => r.code) };
   });
+  if (result.n > 0) {
+    await recordActivity({
+      engagementId,
+      entityType: "engagement",
+      entityId: engagementId,
+      action: userIdOrNull ? "tasks_assigned" : "tasks_unassigned",
+      summary: `${result.n} task(s) ${userIdOrNull ? "assigned" : "unassigned"} as ${role}: ${result.codes.slice(0, 12).join(", ")}${result.codes.length > 12 ? "…" : ""}`,
+      after: { role, userId: userIdOrNull, codes: result.codes },
+    });
+    if (userIdOrNull && userIdOrNull !== actorId) {
+      try {
+        await createNotification({
+          tenantId,
+          userId: userIdOrNull,
+          kind: "task_assigned",
+          title: `${result.n} task(s) assigned to you as ${role}`,
+          body: result.codes.slice(0, 20).join(", "),
+          href: `/engagements/${engagementId}/tasks`,
+        });
+      } catch {
+        // a failed notification must never undo the assignment
+      }
+    }
+  }
+  return result.n;
 }
 
 /**
@@ -311,6 +420,9 @@ export async function setBudgetLine(
 ): Promise<void> {
   const { tenantId } = await requireTenant();
   if (!grade.trim() || !(hours >= 0)) throw new Error("invalid-budget");
+  // Actual hours are attributed to the logger's team role, so a budget line
+  // must carry one of those keys or the two never meet on the same row.
+  if (!(TEAM_ROLES as readonly string[]).includes(grade.trim())) throw new Error("invalid-grade");
   await withTenant(tenantId, async (tx) => {
     await tx.query(
       `INSERT INTO budget_line (tenant_id, engagement_id, grade, hours)
@@ -339,7 +451,9 @@ export async function listPbc(engagementId: string): Promise<PbcItem[]> {
 }
 
 export async function addPbcItem(engagementId: string, title: string): Promise<void> {
-  const { tenantId } = await requireTenant();
+  // A read-only or portal account raises no request (UAT B09).
+  const { tenantId } = await requireWrite();
+  await requireEngagementAccess(engagementId);
   if (!title.trim()) throw new Error("title-required");
   await withTenant(tenantId, async (tx) => {
     await tx.query("INSERT INTO pbc_item (tenant_id, engagement_id, title) VALUES ($1, $2, $3)", [
@@ -350,12 +464,11 @@ export async function addPbcItem(engagementId: string, title: string): Promise<v
   });
 }
 
-export async function setPbcStatus(id: string, status: PbcItem["status"]): Promise<void> {
-  const { tenantId } = await requireTenant();
-  await withTenant(tenantId, async (tx) => {
-    await tx.query("UPDATE pbc_item SET status = $2 WHERE id = $1", [id, status]);
-  });
-}
+// setPbcStatus is gone (UAT B09): it was a bare UPDATE with no role, content or
+// transition check, so any staff member could mark a request "uploaded" then
+// "accepted" with no file. The only ways a request changes status now are the
+// client's upload (lib/pbc.ts uploadPbc) and the reviewer's acceptance of that
+// upload (lib/pbc.ts acceptPbc).
 
 /**
  * Add a team member by email address. An existing firm user is matched; an
@@ -495,6 +608,7 @@ export async function addTeamMemberByEmail(
     title: `Added to ${engagementName}`,
     body: "Accept or decline the engagement from its dashboard.",
   });
+  await askIndependenceIfCampaignOpen(engagementId, userId);
 }
 
 /** The signed-in user's own membership status on the engagement, if any. */
@@ -511,14 +625,45 @@ export async function myTeamStatus(
   });
 }
 
-/** Accept or decline the engagement invitation; the response is timestamped. */
-export async function respondToEngagement(engagementId: string, accept: boolean): Promise<void> {
+/**
+ * Accept or decline the engagement invitation; the response is timestamped.
+ * A decline carries its reason and reaches the engagement partners (UAT B130):
+ * a member walking away from a file is an independence or capacity signal
+ * the partner has to hear, not a silent status change.
+ */
+export async function respondToEngagement(engagementId: string, accept: boolean, reason = ""): Promise<void> {
   const { tenantId, userId } = await requireTenant();
-  await withTenant(tenantId, async (tx) => {
-    await tx.query(
-      `UPDATE team_member SET status = $3, responded_at = now()
-        WHERE engagement_id = $1 AND user_id = $2 AND status = 'invited'`,
-      [engagementId, userId, accept ? "accepted" : "declined"],
+  const why = reason.trim();
+  if (!accept && !why) throw new Error("reason-required");
+  const outcome = await withTenant(tenantId, async (tx) => {
+    const updated = await tx.query<{ who: string; team_role: string }>(
+      `UPDATE team_member tm SET status = $3, responded_at = now(), decline_reason = $4
+         FROM app_user u
+        WHERE tm.engagement_id = $1 AND tm.user_id = $2 AND tm.status = 'invited' AND u.id = tm.user_id
+        RETURNING coalesce(u.name, u.email) AS who, tm.team_role`,
+      [engagementId, userId, accept ? "accepted" : "declined", accept ? null : why],
     );
+    if (!updated.rows[0]) return null;
+    const partners = await tx.query<{ user_id: string }>(
+      "SELECT user_id FROM team_member WHERE engagement_id = $1 AND team_role = 'partner' AND user_id <> $2",
+      [engagementId, userId],
+    );
+    return { ...updated.rows[0], partners: partners.rows.map((p) => p.user_id) };
   });
+  if (outcome && !accept) {
+    for (const partnerId of outcome.partners) {
+      try {
+        await createNotification({
+          tenantId,
+          userId: partnerId,
+          kind: "engagement-declined",
+          title: `${outcome.who} declined the engagement`,
+          body: why.slice(0, 400),
+          href: `/engagements/${engagementId}/team`,
+        });
+      } catch {
+        // a failed notification must never undo the response
+      }
+    }
+  }
 }

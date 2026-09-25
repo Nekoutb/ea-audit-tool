@@ -13,9 +13,21 @@
  * absent, which is precisely the request an attacker sends.
  */
 
+let warnedUnset = false;
+
 export function clientIp(headers: Headers): string | null {
   const name = process.env.CLIENT_IP_HEADER?.trim().toLowerCase();
-  if (!name) return null;
+  if (!name) {
+    // Said once per process, loudly: without the header the per-(email, IP)
+    // brake is off and only the looser email-only ceiling protects sign-in
+    // (UAT B38). Set CLIENT_IP_HEADER (e.g. cf-connecting-ip behind
+    // Cloudflare) on an origin that only accepts the proxy's connections.
+    if (!warnedUnset && process.env.NODE_ENV === "production") {
+      warnedUnset = true;
+      console.warn("[auth] CLIENT_IP_HEADER is not set: the login throttle runs on the email-only ceiling; configure the trusted proxy header.");
+    }
+    return null;
+  }
 
   const raw = headers.get(name);
   if (!raw) return null;

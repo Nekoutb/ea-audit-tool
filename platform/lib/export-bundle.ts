@@ -97,6 +97,12 @@ export async function exportEngagementBundle(engagementId: string): Promise<Bund
   const recorded: Recorded[] = [];
   const stamp = eng.archived_at ? new Date(eng.archived_at) : new Date();
 
+  // Built BEFORE the stream starts: exportFileIndex resolves the tenant from
+  // the request, which is gone by the time a pull-based stream asks for it,
+  // and its failure was swallowed — the workbook never made the bundle
+  // (UAT B66). A failure here fails the export loudly instead.
+  const index = await exportFileIndex(engagementId);
+
   /** Emit one entry: header, then bytes, recording its hash. */
   function* put(path: string, body: Uint8Array): Generator<Uint8Array> {
     const clean = safeZipPath(path);
@@ -124,7 +130,6 @@ export async function exportEngagementBundle(engagementId: string): Promise<Bund
       complete: eng.archived_at !== null,
     }));
 
-    const index = await exportFileIndex(engagementId).catch(() => null);
     if (index) yield* put(`00-index/${index.filename}`, new Uint8Array(index.content));
 
     /* ---- 10-working-papers ------------------------------------------- */
@@ -135,7 +140,10 @@ export async function exportEngagementBundle(engagementId: string): Promise<Bund
       ).then((r) => r.rows),
     );
 
-    // The answers under wp:<code> ARE the working papers.
+    // The answers under wp:<code> ARE the working papers; psp:<code> holds the
+    // E4 procedure results. Both are grouped under the bare task code — the
+    // lookup by bare code used to find only the forms saved without a prefix
+    // (P1.1), so every other paper.json was missing (UAT B66).
     const answers = await withTenant(tenantId, (tx) =>
       tx.query<{ code: string; field_key: string; value: unknown; updated_at: string }>(
         `SELECT code, field_key, value, updated_at::text
@@ -145,9 +153,10 @@ export async function exportEngagementBundle(engagementId: string): Promise<Bund
     );
     const byCode = new Map<string, Record<string, unknown>>();
     for (const a of answers) {
-      const bucket = byCode.get(a.code) ?? {};
+      const code = a.code.replace(/^(wp|psp):/, "");
+      const bucket = byCode.get(code) ?? {};
       bucket[a.field_key] = a.value;
-      byCode.set(a.code, bucket);
+      byCode.set(code, bucket);
     }
 
     const conclusions = await withTenant(tenantId, (tx) =>

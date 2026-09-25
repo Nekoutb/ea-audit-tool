@@ -8,6 +8,7 @@ import { NavLink } from "@/components/NavLink";
 import { SubmitButton } from "@/components/SubmitButton";
 import { Chip, Panel, btnPrimary } from "@/components/ui/atlas";
 import { withTenant } from "@/lib/db";
+import { CONDITIONAL_TRIGGERS } from "@/lib/engagement-dashboard";
 import { getEngagement, listFileItems } from "@/lib/engagements";
 import { shortTitle } from "@/lib/file-index";
 import { fieldLabel, FORM_DEFINITIONS, loadForm } from "@/lib/forms";
@@ -18,17 +19,10 @@ import { requireTenant } from "@/lib/tenant";
 export const metadata = { title: "Planning considerations · AuditISA" };
 
 // The five one-field conditional planning forms, merged into one screen
-// (UI audit S1). Keep the trigger map in sync with planning/page.tsx.
+// (UI audit S1). The trigger map is shared (lib/engagement-dashboard).
 const CONSIDERATION_CODES = ["P4.2", "P4.3", "S5.1", "S5.2", "S5.3"] as const;
-const CONDITIONAL_TRIGGERS: Record<string, string> = {
-  "P4.2": "assess_control_env",
-  "P4.3": "assess_it_env",
-  "S5.1": "uses_expert",
-  "S5.2": "uses_service_org",
-  "S5.3": "has_internal_audit",
-};
 
-async function d1Triggers(engagementId: string): Promise<Record<string, unknown>> {
+async function d1Triggers(engagementId: string): Promise<Record<string, unknown>> {
   const { tenantId } = await requireTenant();
   return withTenant(tenantId, async (tx) => {
     const r = await tx.query<{ field_key: string; value: unknown }>(

@@ -13,6 +13,7 @@ import { withTenant } from "@/lib/db";
 import { requireTenant } from "@/lib/tenant";
 import {
   SAD_CAPTIONS,
+  SAD_CAPTION_LABELS,
   SAD_COLUMN_COUNT,
   SAD_QUAL_FACTORS,
   SAD_TYPES,
@@ -23,7 +24,8 @@ import {
   type SadView,
 } from "@/lib/sad-model";
 
-import { amountOr } from "@/lib/amount";
+import { amountOr, parseAmount } from "@/lib/amount";
+import { getLocale } from "@/lib/locale";
 export type { SadCaption, SadEntry, SadView } from "@/lib/sad-model";
 
 /** Shared parser: this stripped the decimal comma and inflated FCFA figures. */
@@ -32,7 +34,16 @@ const num = (v: string): number => amountOr(v, 0);
 const CODE = "sad";
 const RESULT_FIELD = /^(finding|adj_debit_account|adj_debit_amount|adj_credit_account|adj_credit_amount)_(.+)$/;
 const OVERRIDE_FIELD = /^(drcap|crcap|mtype|corrected|rationale)_(.+)$/;
-const META_KEY = /^(concl_text|cf_rows|disc_rows|q_[a-z_]+|qx_[a-z_]+)$/;
+/** Spellings of "corrected" the workbook has sent; anything else is refused on save. */
+const CORRECTED_YES = ["yes", "1", "true"];
+const CORRECTED_NO = ["no", "0", "false", ""];
+// The workbook's tab meta: conclusion text, manual row arrays, the qualitative
+// factors of the conclusion tab (q_/qx_ and the template's tq_1..5 with their
+// tq_Nc comments), and the figures of the uncorrected-summary tab (tax rate,
+// prior-period turnaround, income after tax) — the last group used to be
+// refused as invalid-field and lost on reload (UAT B33).
+const META_KEY = /^(concl_text|cf_rows|disc_rows|tax_rate|turnaround_factual|turnaround_judgmental|income_after_tax|q_[a-z_]+|qx_[a-z_]+|tq_[1-5]c?)$/;
+const META_NUMERIC = ["turnaround_factual", "turnaround_judgmental", "income_after_tax"];
 
 interface FsAmounts {
   /** one total per grid column (credit-positive for liabilities/equity, col 5 = 7 minus 6 net) */
@@ -172,7 +183,8 @@ export async function sadView(engagementId: string): Promise<SadView> {
         drSuggested: drOverride === null,
         crSuggested: crOverride === null,
         mtype: (SAD_TYPES as readonly string[]).includes(o.mtype) ? o.mtype : "factual",
-        corrected: o.corrected === "yes",
+        // "1"/"true" were what the first workbook posted; they meant yes (UAT B32)
+        corrected: CORRECTED_YES.includes(o.corrected),
         rationale: o.rationale ?? "",
         posted: postedSet.has(stepId),
       });
@@ -204,6 +216,7 @@ export async function saveSad(engagementId: string, stepId: string, field: strin
   if (!/^[0-9a-f-]{36}$/.test(stepId)) throw new Error("invalid-step");
   if ((field === "drcap" || field === "crcap") && !(SAD_CAPTIONS as readonly string[]).includes(value)) throw new Error("invalid-caption");
   if (field === "mtype" && !(SAD_TYPES as readonly string[]).includes(value)) throw new Error("invalid-type");
+  if (field === "corrected" && !CORRECTED_YES.includes(value) && !CORRECTED_NO.includes(value)) throw new Error("invalid-value");
   if (field === "rationale" && value.length > 4000) throw new Error("invalid-value");
   const { tenantId, userId } = await requireTenant();
   await withTenant(tenantId, async (tx) => {
@@ -225,6 +238,7 @@ export async function saveSad(engagementId: string, stepId: string, field: strin
  */
 export async function saveSadMeta(engagementId: string, key: string, value: string): Promise<void> {
   const factor = key.match(/^(q|qx)_([a-z_]+)$/);
+  const template = key.match(/^tq_[1-5](c?)$/);
   if (["concl_text", "cf_rows", "disc_rows"].includes(key)) {
     if (key !== "concl_text") {
       try {
@@ -235,6 +249,14 @@ export async function saveSadMeta(engagementId: string, key: string, value: stri
     }
   } else if (factor && (SAD_QUAL_FACTORS as readonly string[]).includes(factor[2])) {
     if (factor[1] === "q" && !["yes", "no", "na", ""].includes(value)) throw new Error("invalid-value");
+  } else if (template) {
+    // tq_N is the answer, tq_Nc its comment
+    if (template[1] === "" && !["yes", "no", "na", ""].includes(value)) throw new Error("invalid-value");
+  } else if (key === "tax_rate") {
+    const rate = amountOr(value, NaN);
+    if (value.trim() !== "" && !(rate >= 0 && rate <= 100)) throw new Error("invalid-value");
+  } else if (META_NUMERIC.includes(key)) {
+    if (value.trim() !== "" && parseAmount(value) === null) throw new Error("invalid-value");
   } else {
     throw new Error("invalid-field");
   }
@@ -264,7 +286,11 @@ export async function postSadEntry(engagementId: string, stepId: string): Promis
   const entry = view.entries.find((e) => e.stepId === stepId);
   if (!entry) throw new Error("not-found");
   const amount = Math.max(Math.abs(entry.drAmount), Math.abs(entry.crAmount));
-  const accounts = `Dr ${entry.drAccount || "—"} (${entry.drCaption}) / Cr ${entry.crAccount || "—"} (${entry.crCaption})`;
+  // The register shows this text as stored: captions are written as their
+  // labels in the poster's language, not as raw keys (UAT B152).
+  const locale = await getLocale();
+  const caption = (c: SadCaption) => SAD_CAPTION_LABELS[c][locale === "fr" ? "fr" : "en"];
+  const accounts = `Dr ${entry.drAccount || "—"} (${caption(entry.drCaption)}) / Cr ${entry.crAccount || "—"} (${caption(entry.crCaption)})`;
   const trivial = view.materiality ? amount < view.materiality.trivial : false;
   await withTenant(tenantId, async (tx) => {
     const existing = await tx.query<{ id: string }>(

@@ -2,6 +2,8 @@ import {
   AlignmentType,
   BorderStyle,
   Document,
+  Footer,
+  Header,
   HeadingLevel,
   Packer,
   Paragraph,
@@ -11,6 +13,7 @@ import {
   TextRun,
   WidthType,
 } from "docx";
+import { letterheadFooter, letterheadParagraphs, type Branding } from "@/lib/letterhead";
 import type { Locale } from "@/lib/i18n";
 import type { WorkpaperTemplate } from "@/lib/templates";
 
@@ -21,6 +24,8 @@ export interface WorkpaperMergeFields {
   fiscalYear: number;
   periodEnd: string;
   preparedBy: string;
+  /** Extra file facts merged under the identity block (e.g. the S6.1 strategy figures). */
+  extraRows?: { label: string; value: string }[];
 }
 
 const LABELS: Record<Locale, Record<string, string>> = {
@@ -84,6 +89,8 @@ export async function generateWorkpaperDocx(
   template: WorkpaperTemplate,
   fields: WorkpaperMergeFields,
   locale: Locale,
+  /** The firm's letterhead, stamped in the header and footer (UAT B145). */
+  branding?: Branding | null,
 ): Promise<Buffer> {
   const t = LABELS[locale];
 
@@ -137,6 +144,21 @@ export async function generateWorkpaperDocx(
   const doc = new Document({
     sections: [
       {
+        ...(branding
+          ? {
+              headers: { default: new Header({ children: letterheadParagraphs(branding) }) },
+              footers: {
+                default: new Footer({
+                  children: [
+                    new Paragraph({
+                      children: [new TextRun({ text: `${branding.displayName} — ${fields.code}`, size: 16 })],
+                    }),
+                    ...letterheadFooter(branding),
+                  ],
+                }),
+              },
+            }
+          : {}),
         children: [
           new Paragraph({
             heading: HeadingLevel.TITLE,
@@ -149,6 +171,7 @@ export async function generateWorkpaperDocx(
               metaRow(t.fiscalYear, String(fields.fiscalYear)),
               metaRow(t.periodEnd, fields.periodEnd),
               metaRow(t.preparedBy, fields.preparedBy),
+              ...(fields.extraRows ?? []).map((r) => metaRow(r.label, r.value)),
             ],
           }),
           new Paragraph({ text: "" }),

@@ -7,14 +7,28 @@ import { AgingGrid } from "@/components/AgingGrid";
 import { GlInsightsBoard } from "@/components/GlInsightsBoard";
 import { agingFor } from "@/lib/aging";
 import { classVolumes, entryLag, glAccountPrefixes, preparersReviewers, weekdayAnalysis } from "@/lib/gl-insights";
-import { Panel } from "@/components/ui/atlas";
-import { getEngagement } from "@/lib/engagements";
+import { Panel, PanelHeader } from "@/components/ui/atlas";
+import { ErrorBanner } from "@/components/GatesPanel";
+import { SubmitButton } from "@/components/SubmitButton";
+import { runReconFromAnalyzerAction } from "@/app/actions/engines";
+import { RECON_PREFIXES, latestReconRun, reconPreview } from "@/lib/engines";
+import { getEngagement, listFileItems } from "@/lib/engagements";
 import { formatFCFA, getMessages } from "@/lib/i18n";
 import { getLocale } from "@/lib/locale";
 import { listDatasets } from "@/lib/subledgers";
 import { isSubLedgerKind, type SubLedgerKind } from "@/lib/subledger-kinds";
 
 export const metadata = { title: "Analyzer · AuditISA" };
+
+/** The E4 paper a sub-ledger agreement is filed under (UAT B80). */
+const RECON_TASK: Record<string, string> = {
+  ar_open_items: "E4.1",
+  ap_open_items: "E4.2",
+  inventory_listing: "E4.3",
+  fixed_asset_register: "E4.4",
+  payroll_register: "E4.11",
+  bank_statement: "E4.7",
+};
 
 // The dedicated analyzer pages: each tool uploads ONLY its own data kind and
 // lists only its own datasets. Back returns to the Tools list, not the dashboard.
@@ -31,11 +45,13 @@ const ANALYZER_TITLES: Partial<Record<SubLedgerKind, { en: string; fr: string }>
 
 export default async function AnalyzerPage(props: {
   params: Promise<{ id: string; kind: string }>;
+  searchParams: Promise<{ error?: string; reconciled?: string }>;
 }) {
   const session = await auth();
   if (!session?.user) redirect("/login");
 
   const { id, kind } = await props.params;
+  const { error, reconciled } = await props.searchParams;
   if (!isSubLedgerKind(kind)) notFound();
   const locale = await getLocale();
   const t = getMessages(locale);
@@ -53,6 +69,17 @@ export default async function AnalyzerPage(props: {
     ? await Promise.all([preparersReviewers(id), classVolumes(id), weekdayAnalysis(id), entryLag(id), glAccountPrefixes(id)])
     : [null, null, null, null, []];
   const title = ANALYZER_TITLES[kind] ?? { en: kind, fr: kind };
+  // Sub-ledger agreement to the control account (UAT B80): the latest dataset
+  // of the kind against the TB closing of its control prefixes, with the run
+  // that records it filed under the account's E4 paper.
+  const reconDataset = kind in RECON_PREFIXES ? (datasets.find((d) => d.timing === "pre_audit") ?? datasets[0] ?? null) : null;
+  const [recon, reconRun, reconTask] = reconDataset
+    ? await Promise.all([
+        reconPreview(reconDataset.id).catch(() => null),
+        latestReconRun(reconDataset.id).catch(() => null),
+        listFileItems(id).then((items) => items.find((fi) => fi.code === RECON_TASK[kind]) ?? null),
+      ])
+    : [null, null, null];
 
   return (
     <main className="min-h-screen w-full px-6 py-8">
@@ -81,6 +108,52 @@ export default async function AnalyzerPage(props: {
           </Link>
         ) : null}
       </div>
+
+      <ErrorBanner error={error} locale={locale} />
+
+      {recon && reconDataset ? (
+        <Panel className="mt-5" data-testid="recon-panel">
+          <PanelHeader
+            title={fr ? "Rapprochement au compte de contrôle" : "Agreement to the control account"}
+            hint={`${reconDataset.sourceFilename} · ${fr ? "comptes" : "accounts"} ${recon.prefixes.join(", ")}`}
+          />
+          <div className="mt-3 flex flex-wrap items-center gap-6 text-sm">
+            <span>
+              {fr ? "Total du fichier" : "Dataset total"}: <b className="tnum">{formatFCFA(recon.datasetTotal)}</b>
+            </span>
+            <span>
+              {fr ? "Balance générale" : "Trial balance"}: <b className="tnum">{formatFCFA(recon.tbTotal)}</b>
+            </span>
+            <span
+              data-testid="recon-difference"
+              className={Math.abs(recon.difference) > 0.5 ? "font-semibold text-rose" : "font-semibold text-emerald-700 dark:text-emerald-400"}
+            >
+              {fr ? "Écart" : "Difference"}: <span className="tnum">{formatFCFA(recon.difference)}</span>
+            </span>
+            {reconTask ? (
+              <form action={runReconFromAnalyzerAction.bind(null, id, kind, reconTask.id)} className="flex items-center gap-2">
+                <input type="hidden" name="datasetId" value={reconDataset.id} />
+                {kind === "bank_statement" ? <input type="hidden" name="periodEnd" value={engagement.periodEnd} /> : null}
+                <SubmitButton
+                  className="rounded-[var(--radius-atlas-sm)] bg-emerald-700 px-3 py-1.5 text-xs font-semibold text-white hover:bg-emerald-800"
+                  testId="recon-run"
+                >
+                  {fr ? "Rapprocher" : "Reconcile"}
+                </SubmitButton>
+              </form>
+            ) : (
+              <span className="text-xs text-muted">{fr ? `Papier ${RECON_TASK[kind]} absent du dossier` : `Paper ${RECON_TASK[kind]} is not in the file`}</span>
+            )}
+          </div>
+          {reconciled === "1" || reconRun ? (
+            <p className="mt-2 text-xs text-muted" data-testid="recon-last-run">
+              {reconRun
+                ? `${fr ? "Dernier rapprochement" : "Last reconciliation"} ${reconRun.createdAt} — ${fr ? "écart" : "difference"} ${formatFCFA(Number(reconRun.summary.difference ?? 0))}${reconRun.summary.aboveTrivial ? (fr ? " · au-dessus du seuil négligeable, constat ouvert sur C1.2" : " · above clearly trivial, finding raised on C1.2") : ""}${reconTask ? ` · ${RECON_TASK[kind]}` : ""}`
+                : fr ? "Rapprochement enregistré." : "Reconciliation recorded."}
+            </p>
+          ) : null}
+        </Panel>
+      ) : null}
 
       <Panel className="mt-5">
         <DatasetAnalyzer engagementId={id} locale={locale} messages={t.planning} fixedKind={kind} />

@@ -4,6 +4,7 @@ import { copyAttachment, listAttachments, listEngagementAttachments, saveAttachm
 import { atLeast } from "@/lib/rbac";
 import { ForbiddenError, requireTenant } from "@/lib/tenant";
 import { allowedExtensions, checkUpload, UnsafeFileError } from "@/lib/upload-safety";
+import { oversizedBody } from "@/lib/api-errors";
 
 const MAX_BYTES = 25 * 1024 * 1024; // same 25 MB ceiling as working papers
 
@@ -68,12 +69,24 @@ export async function POST(request: Request, context: { params: Promise<{ fileIt
       const saved = await copyAttachment(fileItemId, body.copyFrom);
       return NextResponse.json({ attachment: saved });
     }
-    const form = await request.formData();
+    // Too big is answered at once from Content-Length, and a body the runtime
+    // refuses to parse is reported as such rather than as a 500 (UAT B25).
+    const tooLarge = oversizedBody(request, MAX_BYTES);
+    if (tooLarge) return tooLarge;
+    let form: FormData;
+    try {
+      form = await request.formData();
+    } catch (e) {
+      return NextResponse.json({ error: "file-too-large", limitMb: MAX_BYTES / (1024 * 1024), detail: e instanceof Error ? e.message : String(e) }, { status: 413 });
+    }
     const file = form.get("file");
     if (!(file instanceof File)) {
       return NextResponse.json({ error: "file-required" }, { status: 400 });
     }
-    if (file.size === 0 || file.size > MAX_BYTES) {
+    if (file.size > MAX_BYTES) {
+      return NextResponse.json({ error: "file-too-large", limitMb: MAX_BYTES / (1024 * 1024) }, { status: 413 });
+    }
+    if (file.size === 0) {
       return NextResponse.json({ error: "file-size" }, { status: 400 });
     }
     const content = Buffer.from(await file.arrayBuffer());

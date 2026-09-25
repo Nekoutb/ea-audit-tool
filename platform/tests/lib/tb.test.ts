@@ -17,10 +17,12 @@ import {
   addOverride,
   createJournal,
   diffTbVersions,
+  extractTbRows,
   importTrialBalance,
   inferTbMapping,
   listTbVersions,
   postJournal,
+  readabilityOf,
 } from "@/lib/tb";
 
 const admin = new pg.Pool({ connectionString: process.env.DATABASE_URL });
@@ -72,6 +74,36 @@ describe("column-mapping inference (3.1)", () => {
     expect(inferTbMapping(["Account", "Balance"]).closing).toBe("Balance");
     expect(() => inferTbMapping(["foo", "bar"])).toThrow("missing-account-column");
     expect(() => inferTbMapping(["Compte", "note"])).toThrow("missing-amount-columns");
+  });
+});
+
+describe("row extraction: titles and totals out, mis-coded accounts in (UAT B28 / E6.5)", () => {
+  const headers = HEADERS.split(";");
+  const mapping = inferTbMapping(headers);
+  const row = (cells: string): Record<string, unknown> =>
+    Object.fromEntries(headers.map((h, i) => [h, cells.split(";")[i] ?? ""]));
+  const table = {
+    headers,
+    rows: [
+      row("BALANCE GENERALE 2025;;;;;"), // title line: no amounts
+      row(HEADERS), // repeated header: words in the amount columns
+      row("411000;Clients;0;0;100;0"),
+      row("ABC;Bad;0;0;0;0"), // a word for an account, but it carries (zero) amounts
+      row("Total general;;0;0;100;0"), // footer
+      row(";Sans compte;0;0;5;0"), // empty account cell
+    ],
+  };
+
+  it("skips title, repeated-header, total and account-less rows and counts them", () => {
+    const rows = extractTbRows(table, mapping);
+    expect(rows.map((r) => r.account)).toEqual(["411000", "ABC"]);
+    expect(readabilityOf(table, mapping).rowsWithoutAccount).toBe(4);
+    expect(readabilityOf(table, mapping).unreadable).toEqual([]);
+  });
+
+  it("keeps a non-numeric account that carries amounts so codification can flag it", () => {
+    const rows = extractTbRows(table, mapping);
+    expect(rows.find((r) => r.account === "ABC")).toBeDefined();
   });
 });
 

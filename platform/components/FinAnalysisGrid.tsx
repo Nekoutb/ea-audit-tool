@@ -175,8 +175,8 @@ export function FinAnalysisGrid({
                     const v = variance(row);
                     return (
                       <tr key={row.key} data-testid={`ratio-${row.key}`}>
-                        <td className={`${GRID_CELL} overflow-hidden text-ellipsis`} title={row.note ?? row.label}>
-                          {row.label}
+                        <td className={`${GRID_CELL} overflow-hidden text-ellipsis`} title={row.note ?? (locale === "fr" ? row.labelFr : row.label)}>
+                          {locale === "fr" ? row.labelFr : row.label}
                         </td>
                         <td className={GRID_NUM}>{fmtValue(row, row.current, unit)}</td>
                         <td className={GRID_NUM}>{fmtValue(row, row.prior, unit)}</td>

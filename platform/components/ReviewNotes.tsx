@@ -28,16 +28,43 @@ export function ReviewNotes({
   const [busy, setBusy] = useState(false);
   const [answering, setAnswering] = useState<string | null>(null);
   const [answer, setAnswer] = useState("");
+  const [error, setError] = useState<string | null>(null);
+  // Set once the server says the file is archived: the composer is then
+  // pointless and is hidden rather than left to fail again (UAT B43).
+  const [archived, setArchived] = useState(false);
+
+  // A refusal used to vanish — `if (!ok) return;` with nothing shown — and the
+  // typed note with it. The error code now comes back and is said out loud.
+  const errorText = (code: string | null): string => {
+    if (code === "engagement-archived" || code === "archived")
+      return fr ? "Dossier archivé — lecture seule. La note n'a pas été enregistrée." : "Archived file — read-only. The note was not saved.";
+    if (code === "forbidden") return fr ? "Votre rôle ne permet pas cette action." : "Your role does not allow this action.";
+    // clearing is the reviewer's call (UAT B19); the preparer replies instead
+    if (code === "not-preparer-clears")
+      return fr ? "Vous avez préparé cette feuille — répondez à la note et laissez le réviseur la régler." : "You prepared this paper — reply to the note and let the reviewer clear it.";
+    if (code === "requires-manager-or-author")
+      return fr ? "Seuls l'auteur de la note ou un manager n'ayant pas préparé la feuille peuvent la régler. Utilisez Répondre." : "Only the note's author or a manager who did not prepare the paper can clear it. Use Reply instead.";
+    if (code === "response-required") return fr ? "Rédigez d'abord une réponse." : "Write a reply first.";
+    if (code === null) return fr ? "Connexion interrompue — la note n'a pas été enregistrée." : "The connection dropped — the note was not saved.";
+    return fr ? `Échec de l'enregistrement (${code}).` : `Save failed (${code}).`;
+  };
 
   async function post(path: string, body: unknown): Promise<boolean> {
     setBusy(true);
+    setError(null);
     const response = await fetch(`/api/engagements/${engagementId}/task-notes${path}`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(body),
     }).catch(() => null);
     setBusy(false);
-    return Boolean(response?.ok);
+    if (response?.ok) return true;
+    const code = response
+      ? await response.json().then((d: { error?: string }) => d.error ?? String(response.status)).catch(() => String(response.status))
+      : null;
+    if (code === "engagement-archived" || code === "archived") setArchived(true);
+    setError(errorText(code));
+    return false;
   }
 
   async function raise() {
@@ -64,7 +91,19 @@ export function ReviewNotes({
   async function clear(id: string) {
     const ok = await post("/clear", { noteId: id, response: answer });
     if (!ok) return;
-    setList((l) => l.map((n) => (n.id === id ? { ...n, status: "cleared", response: answer || null } : n)));
+    setList((l) => l.map((n) => (n.id === id ? { ...n, status: "cleared", response: [n.response, answer].filter(Boolean).join("\n") || null } : n)));
+    setAnswering(null);
+    setAnswer("");
+  }
+
+  // Reply WITHOUT clearing (UAT B19): the preparer answers, the exchange is
+  // kept on the note, and the reviewer who raised it decides it is resolved.
+  async function reply(id: string) {
+    if (!answer.trim()) return;
+    const ok = await post("/respond", { noteId: id, response: answer });
+    if (!ok) return;
+    const line = `[${fr ? "Vous" : "You"}] ${answer.trim()}`;
+    setList((l) => l.map((n) => (n.id === id ? { ...n, response: [n.response, line].filter(Boolean).join("\n") } : n)));
     setAnswering(null);
     setAnswer("");
   }
@@ -85,7 +124,7 @@ export function ReviewNotes({
             </span>
           ) : null}
         </h2>
-        {canRaise ? (
+        {canRaise && !archived ? (
           <button
             type="button"
             onClick={() => setAdding((a) => !a)}
@@ -97,7 +136,13 @@ export function ReviewNotes({
         ) : null}
       </div>
 
-      {adding ? (
+      {error ? (
+        <p role="alert" className="mt-1.5 text-[11.5px] font-semibold text-rose" data-testid="wp-note-error">
+          {error}
+        </p>
+      ) : null}
+
+      {adding && !archived ? (
         <div className="mt-1.5">
           <RichText
             defaultValue={draft}
@@ -153,15 +198,26 @@ export function ReviewNotes({
                       className="w-full resize-none rounded-[var(--radius-atlas-xs)] bg-surface px-1.5 py-1 text-[11.3px] text-ink outline-none focus:ring-1 focus:ring-emerald-600/40"
                       data-testid={`wp-note-answer-${note.id}`}
                     />
-                    <button
-                      type="button"
-                      onClick={() => void clear(note.id)}
-                      disabled={busy}
-                      className="mt-1 rounded-[var(--radius-atlas-xs)] border border-line-strong px-2 py-0.5 text-[11px] font-medium text-ink-soft hover:bg-surface"
-                      data-testid={`wp-note-clear-${note.id}`}
-                    >
-                      {fr ? "Régler" : "Clear"}
-                    </button>
+                    <span className="mt-1 flex gap-1.5">
+                      <button
+                        type="button"
+                        onClick={() => void reply(note.id)}
+                        disabled={busy || !answer.trim()}
+                        className="rounded-[var(--radius-atlas-xs)] bg-emerald-700 px-2 py-0.5 text-[11px] font-medium text-white hover:bg-emerald-800 disabled:opacity-50"
+                        data-testid={`wp-note-reply-${note.id}`}
+                      >
+                        {fr ? "Répondre" : "Reply"}
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => void clear(note.id)}
+                        disabled={busy}
+                        className="rounded-[var(--radius-atlas-xs)] border border-line-strong px-2 py-0.5 text-[11px] font-medium text-ink-soft hover:bg-surface"
+                        data-testid={`wp-note-clear-${note.id}`}
+                      >
+                        {fr ? "Régler" : "Clear"}
+                      </button>
+                    </span>
                   </div>
                 ) : (
                   <button
@@ -170,7 +226,7 @@ export function ReviewNotes({
                     className="mt-0.5 text-[10.5px] font-semibold text-emerald-700 hover:underline dark:text-emerald-400"
                     data-testid={`wp-note-answer-open-${note.id}`}
                   >
-                    {fr ? "Répondre & régler" : "Answer & clear"}
+                    {fr ? "Répondre / régler" : "Reply / clear"}
                   </button>
                 )
               ) : null}

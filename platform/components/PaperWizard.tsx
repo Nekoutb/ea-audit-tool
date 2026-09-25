@@ -3,6 +3,7 @@
 import { useLayoutEffect, useMemo, useRef, useState, type FormEvent } from "react";
 import { RichText } from "@/components/RichText";
 import { SubmitButton } from "@/components/SubmitButton";
+import { UnsavedGuard } from "@/components/UnsavedGuard";
 import {
   conclKey,
   conclWhyKey,
@@ -395,6 +396,7 @@ export function PaperWizard({
 
   return (
     <form action={action} data-testid={`wp-form-${code}`} className="flex h-full min-h-0 flex-col">
+      <UnsavedGuard message={fr ? "Des modifications non enregistrées seront perdues." : "Unsaved changes will be lost."} />
       <div className="flex items-center justify-between gap-2 border-b border-line pb-2">
         <span className="text-[11.5px] font-bold uppercase tracking-[0.07em] text-muted">
           {step === conclPage
@@ -441,28 +443,29 @@ export function PaperWizard({
       </div>
 
       {/* the measuring shell: all steps render inside; its height drives packing */}
-      <div ref={areaRef} className="relative min-h-0 flex-1 overflow-hidden">
+      {/* wp-steps / wp-step: print lays every step out in flow (globals.css @media print, UAT B107) */}
+      <div ref={areaRef} className="wp-steps relative min-h-0 flex-1 overflow-hidden">
       {/* step 0: the embed when one is given, else conclusion + key findings */}
       {embed ? (
-        <div hidden={step !== 0} className="absolute inset-0 mt-2 overflow-y-auto overflow-x-hidden" data-testid="wp-embed">
+        <div hidden={step !== 0} className="wp-step absolute inset-0 mt-2 overflow-y-auto overflow-x-hidden" data-testid="wp-embed">
           {embed}
         </div>
       ) : (
-      <div hidden={step !== 0} className="absolute inset-0 mt-2 flex flex-col gap-1.5 overflow-y-auto overflow-x-hidden">
+      <div hidden={step !== 0} className="wp-step absolute inset-0 mt-2 flex flex-col gap-1.5 overflow-y-auto overflow-x-hidden">
         {conclusionBlock}
         {(steps[0] ?? []).map(renderItem)}
       </div>
       )}
 
       {conclPage >= 0 ? (
-        <div hidden={step !== conclPage} className="absolute inset-0 mt-2 flex flex-col gap-1.5 overflow-y-auto overflow-x-hidden" data-testid="wp-conclusion-page">
+        <div hidden={step !== conclPage} className="wp-step absolute inset-0 mt-2 flex flex-col gap-1.5 overflow-y-auto overflow-x-hidden" data-testid="wp-conclusion-page">
           {conclusionBlock}
         </div>
       ) : null}
 
       {/* pages beyond the first */}
       {soloEmbed ? null : steps.slice(1).map((pageItems, si) => (
-        <div key={si} hidden={step !== si + 1} className="absolute inset-0 mt-2 flex flex-col gap-1.5 overflow-y-auto overflow-x-hidden">
+        <div key={si} hidden={step !== si + 1} className="wp-step absolute inset-0 mt-2 flex flex-col gap-1.5 overflow-y-auto overflow-x-hidden">
           {pageItems.map(renderItem)}
         </div>
       ))}

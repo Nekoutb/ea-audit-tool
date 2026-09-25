@@ -38,9 +38,12 @@ export async function changeOwnPassword(current: string, next: string, confirm: 
   const problem = passwordProblem(next, user.email);
   if (problem) throw new PasswordError(problem);
 
+  // session_version moves with the credential: every token minted against
+  // the old password stops validating (UAT B90).
   await pool.query(
     `UPDATE app_user
-        SET password_hash = $2, must_change_password = false, password_changed_at = now()
+        SET password_hash = $2, must_change_password = false, password_changed_at = now(),
+            session_version = coalesce(session_version, 1) + 1
       WHERE id = $1`,
     [userId, await bcrypt.hash(next, 10)],
   );

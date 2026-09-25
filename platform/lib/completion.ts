@@ -9,11 +9,13 @@ import { MGMT_OVERRIDE_PROCEDURE } from "@/lib/risks";
 import { withTenant } from "@/lib/db";
 import { carryForwardFromPriorYear } from "@/lib/forms";
 import type { GateResult } from "@/lib/gates";
+import { uncorrectedMisstatementThreshold } from "@/lib/materiality-model";
 import { canPartnerSignoff } from "@/lib/rbac";
 import { assertMutable } from "@/lib/mutability";
 import { requireRole, requireTenant } from "@/lib/tenant";
-import { logArchive, logEngagementFinalised } from "@/lib/activity";
+import { logArchive, logEngagementFinalised, recordActivity } from "@/lib/activity";
 import { enqueueBackup } from "@/lib/backup-jobs";
+import { stampRetention } from "@/lib/retention";
 
 export class CompletionError extends Error {
   constructor(public readonly code: string) {
@@ -34,6 +36,12 @@ export async function recordCompletion(
   engagementId: string,
   key: string,
   data: Record<string, unknown> = {},
+  /**
+   * The record's version as the form loaded it (completionRecordVersion) —
+   * "" when there was none. Given, the write is refused with "stale-edit" if
+   * somebody else saved in between, instead of overwriting them (UAT B104).
+   */
+  expectedVersion?: string,
 ): Promise<void> {
   // Four of these keys ARE completion gates, and recordExists() tests existence
   // rather than content — so writing the key is passing the gate. Senior is the
@@ -49,14 +57,48 @@ export async function recordCompletion(
   // migrations/20260820000002_archive_immutability.sql) — it must stay writable
   // across the rollforward boundary. Everything else is part of this file.
   if (key !== "points_forward") await assertMutable(engagementId);
-  await withTenant(tenantId, async (tx) => {
-    await tx.query(
+  const existed = await withTenant(tenantId, async (tx) => {
+    if (expectedVersion !== undefined) {
+      // Lock the row and compare its version with the one the form was built
+      // on: last-write-wins silently lost two of three concurrent edits.
+      const current = await tx.query<{ v: string }>(
+        `SELECT extract(epoch FROM done_at)::text AS v FROM completion_record
+          WHERE engagement_id = $1 AND key = $2 FOR UPDATE`,
+        [engagementId, key],
+      );
+      if ((current.rows[0]?.v ?? "") !== expectedVersion) throw new CompletionError("stale-edit");
+    }
+    const r = await tx.query<{ existed: boolean }>(
       `INSERT INTO completion_record (tenant_id, engagement_id, key, data, done_by)
        VALUES ($1, $2, $3, $4, $5)
        ON CONFLICT (engagement_id, key)
-       DO UPDATE SET data = EXCLUDED.data, done_by = EXCLUDED.done_by, done_at = now()`,
+       DO UPDATE SET data = EXCLUDED.data, done_by = EXCLUDED.done_by, done_at = now()
+       RETURNING (xmax <> 0) AS existed`,
       [tenantId, engagementId, key, JSON.stringify(data), userId],
     );
+    return r.rows[0]?.existed ?? false;
+  });
+  // Completion records are gate evidence (final analytical review, tie-out,
+  // partner conclusion …): the trail names each one written (UAT B62).
+  await recordActivity({
+    engagementId,
+    entityType: "completion_record",
+    entityId: null,
+    action: existed ? "completion_record_updated" : "completion_record_recorded",
+    summary: `Completion record ${key} ${existed ? "updated" : "recorded"}`,
+    meta: { key },
+  });
+}
+
+/** The version token of a completion record, for the form's hidden field ("" when none). */
+export async function completionRecordVersion(engagementId: string, key: string): Promise<string> {
+  const { tenantId } = await requireTenant();
+  return withTenant(tenantId, async (tx) => {
+    const r = await tx.query<{ v: string }>(
+      "SELECT extract(epoch FROM done_at)::text AS v FROM completion_record WHERE engagement_id = $1 AND key = $2",
+      [engagementId, key],
+    );
+    return r.rows[0]?.v ?? "";
   });
 }
 
@@ -131,9 +173,10 @@ async function completionGatesTx(tx: PoolClient, engagementId: string): Promise<
       WHERE engagement_id = $1 AND added_after_planning AND addition_approved_by IS NULL`,
     [engagementId],
   );
-  // 3. C1.1: no uncorrected misstatements above FINAL materiality.
-  const materiality = await tx.query<{ overall: string }>(
-    `SELECT overall::text FROM materiality
+  // 3. C1.1: no uncorrected misstatements above the uncorrected-misstatement
+  // threshold (PM − TE) — the same line the register and the SAD use (UAT B50).
+  const materiality = await tx.query<{ overall: string; performance: string }>(
+    `SELECT overall::text, performance::text FROM materiality
       WHERE engagement_id = $1 AND status = 'approved'
       ORDER BY version_no DESC LIMIT 1`,
     [engagementId],
@@ -143,9 +186,13 @@ async function completionGatesTx(tx: PoolClient, engagementId: string): Promise<
       WHERE engagement_id = $1 AND trivial = false AND corrected = false`,
     [engagementId],
   );
-  const b5Ok =
-    materiality.rows[0] !== undefined &&
-    Math.abs(Number(uncorrected.rows[0]?.total ?? 0)) <= Number(materiality.rows[0].overall);
+  const umt = materiality.rows[0]
+    ? uncorrectedMisstatementThreshold({
+        overall: Number(materiality.rows[0].overall),
+        performance: Number(materiality.rows[0].performance),
+      })
+    : null;
+  const b5Ok = umt !== null && Math.abs(Number(uncorrected.rows[0]?.total ?? 0)) <= umt;
   // 10. C1.2 all cleared.
   const openB4 = await count(
     tx,
@@ -160,6 +207,37 @@ async function completionGatesTx(tx: PoolClient, engagementId: string): Promise<
       WHERE fi.engagement_id = $1 AND fi.code = 'C3.1' AND d.kind = 'letter'`,
     [engagementId],
   );
+  // 11. Engagement quality review (ISQM 2 ¶25): where P1.5 requires one (or an
+  // EQR reviewer sits on the team), the C4.2 paper must be signed with the
+  // review confirmed complete and every matter resolved.
+  const paperAnswer = async (code: string, key: string): Promise<string> => {
+    const r = await tx.query<{ v: string | null }>(
+      `SELECT value #>> '{}' AS v FROM form_response
+        WHERE engagement_id = $1 AND code = $2 AND field_key = $3`,
+      [engagementId, `wp:${code}`, key],
+    );
+    return (r.rows[0]?.v ?? "").trim();
+  };
+  const eqrOnTeam = await count(
+    tx,
+    "SELECT count(*)::text AS n FROM team_member WHERE engagement_id = $1 AND team_role = 'eqr_reviewer'",
+    [engagementId],
+  );
+  const eqrRequired = (await paperAnswer("P1.5", "q_eqr")) === "yes" || eqrOnTeam > 0;
+  const c42Signed = await count(
+    tx,
+    `SELECT count(*)::text AS n FROM document d JOIN file_item fi ON fi.id = d.file_item_id
+      WHERE fi.engagement_id = $1 AND fi.code = 'C4.2'
+        AND d.kind IN ('workpaper', 'leadsheet') AND d.status = 'signed'`,
+    [engagementId],
+  );
+  const eqrOk =
+    !eqrRequired ||
+    (c42Signed > 0 &&
+      (await paperAnswer("C4.2", "q_complete")) === "yes" &&
+      (await paperAnswer("C4.2", "q_resolved")) === "yes");
+  // 12. C4.3: no point outstanding at the report date.
+  const c43Ok = (await paperAnswer("C4.3", "q_none_open")) === "yes";
 
   return [
     { key: "sections_concluded", ok: unconcluded === 0 && openSteps === 0 },
@@ -171,6 +249,8 @@ async function completionGatesTx(tx: PoolClient, engagementId: string): Promise<
     { key: "subsequent_events", ok: await recordExists(tx, engagementId, "subsequent_events") },
     { key: "rep_letters_generated", ok: repLetters >= 2 },
     { key: "b4_cleared", ok: openB4 === 0 },
+    { key: "eqr_complete", ok: eqrOk },
+    { key: "c43_cleared", ok: c43Ok },
     { key: "partner_conclusion", ok: await recordExists(tx, engagementId, "partner_conclusion") },
   ];
 }
@@ -184,13 +264,16 @@ export interface ConclusionState {
   reportDate: string | null;
   opinion: string | null;
   archivedAt: string | null;
+  /** the date the archived file may first be considered for destruction */
+  retentionUntil: string | null;
 }
 
 export async function getConclusionState(engagementId: string): Promise<ConclusionState> {
   const { tenantId } = await requireTenant();
   return withTenant(tenantId, async (tx) => {
-    const result = await tx.query<{ report_date: string | null; opinion: string | null; archived_at: string | null }>(
-      `SELECT report_date::text, opinion, to_char(archived_at, 'YYYY-MM-DD') AS archived_at
+    const result = await tx.query<{ report_date: string | null; opinion: string | null; archived_at: string | null; retention_until: string | null }>(
+      `SELECT report_date::text, opinion, to_char(archived_at, 'YYYY-MM-DD') AS archived_at,
+              to_char(retention_until, 'YYYY-MM-DD') AS retention_until
          FROM engagement WHERE id = $1`,
       [engagementId],
     );
@@ -199,6 +282,7 @@ export async function getConclusionState(engagementId: string): Promise<Conclusi
       reportDate: result.rows[0].report_date,
       opinion: result.rows[0].opinion,
       archivedAt: result.rows[0].archived_at,
+      retentionUntil: result.rows[0].retention_until,
     };
   });
 }
@@ -335,6 +419,32 @@ async function paperGapsTx(
   return { unsigned, unreviewed };
 }
 
+/**
+ * Tasks nobody addressed (UAT B63): the paper gates count only tasks that
+ * already hold work, so a file with 67 untouched tasks archived "17/17 green".
+ * Every non-conditional task must either carry work or be marked not
+ * applicable with a reason (file_item.na_reason).
+ */
+async function untouchedTasksTx(tx: PoolClient, engagementId: string): Promise<string[]> {
+  const rows = await tx.query<{ code: string }>(
+    `SELECT fi.code
+       FROM file_item fi
+      WHERE fi.engagement_id = $1
+        AND fi.conditional = false
+        AND btrim(coalesce(fi.na_reason, '')) = ''
+        AND NOT EXISTS (SELECT 1 FROM program_step ps WHERE ps.file_item_id = fi.id AND ps.status <> 'na')
+        AND NOT EXISTS (SELECT 1 FROM section_conclusion sc WHERE sc.file_item_id = fi.id)
+        AND NOT EXISTS (SELECT 1 FROM document d WHERE d.file_item_id = fi.id AND d.kind IN ('workpaper', 'leadsheet'))
+        AND NOT EXISTS (SELECT 1 FROM form_response fr
+                         WHERE fr.engagement_id = fi.engagement_id
+                           AND fr.code = 'wp:' || fi.code
+                           AND btrim(coalesce(fr.value #>> '{}', '')) <> '')
+      ORDER BY fi.sort_order, fi.code`,
+    [engagementId],
+  );
+  return rows.rows.map((r) => r.code);
+}
+
 export async function archiveGates(engagementId: string): Promise<ArchiveGate[]> {
   const { tenantId } = await requireTenant();
   const { paperFor, paperComplete, loadPaper } = await import("@/lib/working-papers");
@@ -351,6 +461,7 @@ export async function archiveGates(engagementId: string): Promise<ArchiveGate[]>
     // FILE-ITEM based, not document based: every task that holds work must hold
     // a paper, and that paper must be prepared and reviewed (finding C5)
     const gaps = await paperGapsTx(tx, engagementId);
+    const untouched = await untouchedTasksTx(tx, engagementId);
     // review notes, whichever way they were raised: on a document, on a task
     // (engagement_id set), or on a task through its file item. Resolving all
     // three shapes keeps the gate consistent with the item-based paper gates —
@@ -380,6 +491,12 @@ export async function archiveGates(engagementId: string): Promise<ArchiveGate[]>
       { key: "report_issued", ok: reportDate.rows[0]?.report_date != null, pending: reportDate.rows[0]?.report_date ? 0 : 1 },
       { key: "completion_gates", ok: completionPending === 0, pending: completionPending },
       { key: "controls_concluded", ok: openControls === 0, pending: openControls },
+      {
+        key: "tasks_addressed",
+        ok: untouched.length === 0,
+        pending: untouched.length,
+        codes: untouched.slice(0, CODE_CAP),
+      },
       {
         key: "reviews_complete",
         ok: gaps.unreviewed.length === 0,
@@ -417,6 +534,18 @@ export async function archiveEngagement(engagementId: string): Promise<void> {
     if (!engagement.rows[0]) throw new CompletionError("not-found");
     if (!engagement.rows[0].report_date) throw new CompletionError("no-report");
     if (engagement.rows[0].archived_at) throw new CompletionError("already-archived");
+
+    // Fix the retention date in the same transaction that closes the file, from
+    // the firm's period as it stands today — and BEFORE the manifest is built,
+    // so the manifest records the date rather than null. Stamping it here
+    // rather than reading the firm setting later means a change to that
+    // setting cannot retrospectively shorten the life of a file already
+    // archived.
+    const policy = await tx.query<{ retention_years: number }>(
+      "SELECT coalesce(t.retention_years, 10) AS retention_years FROM tenant t WHERE t.id = $1",
+      [tenantId],
+    );
+    await stampRetention(tx, engagementId, Number(policy.rows[0]?.retention_years ?? 10));
 
     /*
      * The archive manifest: what this file contained at the moment it closed.
@@ -496,6 +625,7 @@ export async function archiveEngagement(engagementId: string): Promise<void> {
          'attachments', (SELECT coalesce(json_agg(json_build_object(
                             'name', ta.name, 'mime', ta.mime, 'bytes', ta.size_bytes,
                             'version', ta.version, 'uploadedAt', ta.uploaded_at,
+                            'sha256', encode(sha256(ta.content), 'hex'),
                             'deletedAt', ta.deleted_at
                           ) ORDER BY ta.name, ta.version), '[]'::json)
                           FROM task_attachment ta WHERE ta.engagement_id = $1),
@@ -536,21 +666,9 @@ export async function archiveEngagement(engagementId: string): Promise<void> {
        ON CONFLICT (engagement_id, key) DO NOTHING`,
       [tenantId, engagementId, JSON.stringify(snapshot.rows[0].data), userId],
     );
-    // Fix the retention date in the same transaction that closes the file, from
-    // the firm's period as it stands today. Stamping it here rather than reading
-    // the firm setting later means a change to that setting cannot
-    // retrospectively shorten the life of a file already archived.
-    const policy = await tx.query<{ retention_years: number }>(
-      "SELECT coalesce(t.retention_years, 10) AS retention_years FROM tenant t WHERE t.id = $1",
-      [tenantId],
-    );
     await tx.query(
-      `UPDATE engagement
-          SET phase = 'archived',
-              archived_at = now(),
-              retention_until = (coalesce(report_date, period_end) + ($2 || ' years')::interval)::date
-        WHERE id = $1`,
-      [engagementId, String(policy.rows[0]?.retention_years ?? 10)],
+      "UPDATE engagement SET phase = 'archived', archived_at = now() WHERE id = $1",
+      [engagementId],
     );
   });
   // After COMMIT: an audit entry must not be rolled back with the work it

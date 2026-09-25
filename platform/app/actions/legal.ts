@@ -15,6 +15,7 @@ import {
   generateTitresAttestation,
   markDeadlineDone,
   revealFait,
+  setLegalDates,
   setShareCapital,
 } from "@/lib/legal";
 
@@ -39,6 +40,16 @@ export async function generateDeadlinesAction(engagementId: string): Promise<voi
   await guarded(pagePath(engagementId), async () => {
     await generateDeadlines(engagementId);
   });
+}
+
+/** AGM / planned report dates: the inputs the AGM-relative C5.2 rows derive from (UAT B35). */
+export async function setLegalDatesAction(engagementId: string, formData: FormData): Promise<void> {
+  await guarded(pagePath(engagementId), () =>
+    setLegalDates(engagementId, {
+      agmDate: String(formData.get("agmDate") ?? ""),
+      reportDate: String(formData.get("reportDate") ?? ""),
+    }),
+  );
 }
 
 export async function markDeadlineDoneAction(engagementId: string, key: string): Promise<void> {
@@ -78,7 +89,7 @@ export async function article715Action(engagementId: string): Promise<void> {
 
 export async function startAlerteAction(engagementId: string, formData: FormData): Promise<void> {
   await guarded(pagePath(engagementId), async () => {
-    await startAlerte(engagementId, String(formData.get("note") ?? ""));
+    await startAlerte(engagementId, String(formData.get("note") ?? ""), String(formData.get("eventDate") ?? ""));
   });
 }
 
@@ -90,6 +101,7 @@ export async function advanceAlerteAction(
   await guarded(pagePath(engagementId), () =>
     advanceAlerte(alerteId, String(formData.get("toStage") ?? ""), String(formData.get("note") ?? ""), {
       satisfactory: formData.get("satisfactory") === "on",
+      eventDate: String(formData.get("eventDate") ?? ""),
     }),
   );
 }
@@ -148,9 +160,17 @@ export async function cocacAction(engagementId: string, formData: FormData): Pro
   await guarded(pagePath(engagementId), async () => {
     const key = String(formData.get("key") ?? "");
     if (!["worksplit", "crossreview", "disagreement"].includes(key)) throw new Error("invalid-key");
-    await recordCompletion(engagementId, `f8_${key}`, {
-      text: String(formData.get("text") ?? ""),
-      confirmed: formData.get("confirmed") === "on",
-    });
+    // The version the form was built on: a colleague's save in between is
+    // refused ("stale-edit") rather than silently overwritten (UAT B104).
+    const baseVersion = formData.get("baseVersion");
+    await recordCompletion(
+      engagementId,
+      `f8_${key}`,
+      {
+        text: String(formData.get("text") ?? ""),
+        confirmed: formData.get("confirmed") === "on",
+      },
+      typeof baseVersion === "string" ? baseVersion : undefined,
+    );
   });
 }

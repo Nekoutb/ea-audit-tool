@@ -8,6 +8,7 @@
 
 import { createHash, randomBytes } from "node:crypto";
 import bcrypt from "bcryptjs";
+import { safeNext } from "@/lib/account-mail";
 import { pool } from "@/lib/db";
 import { passwordProblem } from "@/lib/password-policy";
 
@@ -21,7 +22,11 @@ const digest = (token: string): string => createHash("sha256").update(token).dig
 /** Only a path on this site, so an invitation cannot bounce someone elsewhere. */
 function safePath(next: string | null | undefined): string | null {
   const p = typeof next === "string" ? next.trim() : "";
-  return p.startsWith("/") && !p.startsWith("//") ? p : null;
+  if (!p) return null;
+  // One rule for every stored destination (UAT B07): the sign-in form's
+  // safeNext rejects "//host", "/\host" and anything that resolves off-site.
+  const safe = safeNext(p);
+  return safe === "/" && p !== "/" ? null : safe;
 }
 
 /**

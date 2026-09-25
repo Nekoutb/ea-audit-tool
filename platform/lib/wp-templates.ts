@@ -291,6 +291,19 @@ export async function assignTemplate(fileItemId: string, key: string): Promise<{
   // An archived file is filed as it stood; nothing may be added to it.
   await assertMutable(engagementId);
 
+  // The E1.2 paper is built from the engagement's own controls, grids and
+  // exceptions when the file has them — the auditor asked for the paper of
+  // THIS file, not the blank shelf copy (which is what an empty file gets).
+  if (key === "toc-scot") {
+    const { exportTocWorkbook } = await import("@/lib/toc-export");
+    const built = await exportTocWorkbook(engagementId).catch(() => null);
+    if (built) {
+      const name = findTemplate(key)!.name;
+      await attachBytes(engagementId, fileItemId, name, built.content);
+      return { name };
+    }
+  }
+
   const bytes = await templateContent(key);
   if (!bytes) throw new TemplateError("template-unavailable");
   await attachBytes(engagementId, fileItemId, bytes.name, bytes.content);
