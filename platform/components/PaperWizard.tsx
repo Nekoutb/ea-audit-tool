@@ -123,9 +123,15 @@ export function PaperWizard({
   embedTitle,
   embedOnly,
   baseVersion,
+  baseDigests,
+  lockedKeys,
 }: {
+  /** fields shown but not editable by this user (C4.2: the reviewer's part vs the team's, UAT run 3 B02) */
+  lockedKeys?: string[];
   /** paperVersion() at load time, posted back so a concurrent save is refused, not overwritten */
   baseVersion?: string;
+  /** paperBaseDigests() of the loaded values: only a field both people changed is held back */
+  baseDigests?: string;
   code: string;
   def: PaperDef;
   values: Record<string, string>;
@@ -140,6 +146,8 @@ export function PaperWizard({
   embedOnly?: boolean;
 }) {
   const fr = locale === "fr";
+  const locked = new Set(lockedKeys ?? []);
+  const ro = (key: string) => Boolean(readOnly) || locked.has(key);
   const items = useMemo(() => buildItems(def, fr), [def, fr]);
   // Measure the space a page really has on this screen, and pack items so
   // the worst case (every yellow box open) still fits — anything more flows
@@ -216,7 +224,7 @@ export function PaperWizard({
         name={name}
         value={v}
         defaultChecked={checked}
-        disabled={readOnly}
+        disabled={ro(name)}
         onChange={() => answer(name, v)}
         data-testid={`wp-${name}-${v}`}
         className="h-3.5 w-3.5 accent-emerald-700"
@@ -266,7 +274,7 @@ export function PaperWizard({
                               name={f.key}
                               value={o.value}
                               defaultChecked={values[f.key] === o.value}
-                              disabled={readOnly}
+                              disabled={ro(f.key)}
                               data-testid={`wp-${f.key}-${o.value}`}
                               className="peer sr-only"
                             />
@@ -289,7 +297,7 @@ export function PaperWizard({
                       name={f.key}
                       defaultValue={values[f.key] ?? ""}
                       placeholder={fr ? "Consigner les travaux effectués" : "Record the work performed"}
-                      readOnly={readOnly}
+                      readOnly={ro(f.key)}
                       testId={`wp-${f.key}`}
                     />
                   </label>
@@ -313,7 +321,7 @@ export function PaperWizard({
                       name={procKey(item.key)}
                       defaultValue={values[procKey(item.key)] ?? ""}
                       placeholder={fr ? "Résultat et référence du dossier" : "Result and working-paper reference"}
-                      readOnly={readOnly}
+                      readOnly={ro(procKey(item.key))}
                       testId={`wp-${procKey(item.key)}`}
                     />
                   </div>
@@ -341,7 +349,7 @@ export function PaperWizard({
                       name={item.whyKey}
                       defaultValue={values[item.whyKey] ?? ""}
                       placeholder={fr ? "Motif, et suite donnée" : "Reason, and how it was resolved"}
-                      readOnly={readOnly}
+                      readOnly={ro(item.whyKey)}
                       testId={`wp-${item.whyKey}`}
                     />
                   ) : null}
@@ -371,7 +379,7 @@ export function PaperWizard({
                   name={conclWhyKey(i)}
                   defaultValue={values[conclWhyKey(i)] ?? ""}
                   placeholder={fr ? "Expliquer la réponse « Non »" : "Explain the “No” answer"}
-                  readOnly={readOnly}
+                  readOnly={ro(conclWhyKey(i))}
                 />
               ) : null}
             </div>
@@ -381,7 +389,7 @@ export function PaperWizard({
             <RichText
               name="key_findings"
               defaultValue={values["key_findings"] ?? ""}
-              readOnly={readOnly}
+              readOnly={ro("key_findings")}
               testId="wp-key-findings"
               placeholder={
                 fr
@@ -397,6 +405,7 @@ export function PaperWizard({
   return (
     <form action={action} data-testid={`wp-form-${code}`} className="flex h-full min-h-0 flex-col">
       {baseVersion !== undefined ? <input type="hidden" name="__baseVersion" value={baseVersion} /> : null}
+      {baseDigests !== undefined ? <input type="hidden" name="__baseDigests" value={baseDigests} /> : null}
       <UnsavedGuard message={fr ? "Des modifications non enregistrées seront perdues." : "Unsaved changes will be lost."} />
       <div className="flex items-center justify-between gap-2 border-b border-line pb-2">
         <span className="text-[11.5px] font-bold uppercase tracking-[0.07em] text-muted">

@@ -1016,7 +1016,7 @@
         "rep_letters_generated": "Both OHADA representation letters generated (C3.1)",
         "b4_cleared": "All C1.2 significant matters cleared",
         "b6_confirmations_closed": "No confirmations outstanding (C4.3)",
-        "eqr_complete": "Engagement quality review complete where required — C4.2 signed, review complete, matters resolved (ISQM 2 ¶25)",
+        "eqr_complete": "Engagement quality review complete where required — C4.2 answered and signed by the appointed quality reviewer, review complete, matters resolved (ISQM 2 ¶25)",
         "c43_cleared": "No point outstanding at the report date (C4.3)",
         "partner_conclusion": "Partner overall conclusion + independence reconfirmation (C4.1)"
       },
@@ -1330,6 +1330,9 @@
       "partner-only-team-role": "Only a partner can give or take away the engagement partner role.",
       "already-on-team": "This person is already on the engagement team. To change their role, use the team assignment on the planning page.",
       "eqr-read-only": "The engagement quality reviewer reviews the team's work and raises notes, but does not change it. Record the review in C4.2.",
+      "eqr-own-paper": "C4.2 is the engagement quality reviewer's own record: only the quality reviewer appointed on the team completes and signs it (ISQM 2 ¶24-27).",
+      "stale-edit-conflict": "A colleague changed some of the same fields while you were typing. Your other changes were saved; your text for those fields is kept in the form below — merge it with theirs and save again.",
+      "c58-equity-contradicts": "C5.8 cannot state that net equity exceeds half of the share capital: the legal monitor's figures put it below half. Check the figures on the legal page, or answer No and document the article 664 procedure.",
       "not-a-firm-member": "That person is not a member of this firm.",
       "invalid-team-role": "Choose a valid team role.",
       "engagement-tenant-mismatch": "That engagement belongs to another firm.",

@@ -30,8 +30,10 @@ export default async function IndependencePage(props: { params: Promise<{ id: st
   const exceptions = confirmations.filter((c) => c.status === "exception").length;
   const outstanding = confirmations.length - done - exceptions;
   // Team members holding no confirmation at all — the gate blocks on them (UAT B13).
+  // Only firm staff declare independence: a read-only observer or client
+  // contact is neither asked nor counted (UAT run 3 B04).
   const notAsked = team.filter(
-    (m) => m.status !== "declined" && !confirmations.some((c) => c.userId === m.userId),
+    (m) => m.status !== "declined" && m.declaresIndependence && !confirmations.some((c) => c.userId === m.userId),
   ).length;
 
   return (
@@ -60,7 +62,7 @@ export default async function IndependencePage(props: { params: Promise<{ id: st
             canManage ? (
               <form action={launchCampaignAction.bind(null, id)}>
                 {team
-                  .filter((m) => !confirmations.some((c) => c.userId === m.userId))
+                  .filter((m) => m.status !== "declined" && m.declaresIndependence && !confirmations.some((c) => c.userId === m.userId))
                   .map((m) => (
                     <input key={m.userId} type="hidden" name="userIds" value={m.userId} />
                   ))}

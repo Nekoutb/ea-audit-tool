@@ -11,7 +11,8 @@ export async function launchIndependenceToTeamAction(
   engagementId: string,
   returnTo: string,
 ): Promise<void> {
-  const team = await listTeam(engagementId);
+  // firm staff only: a read-only observer or client contact declares nothing (UAT run 3 B04)
+  const team = (await listTeam(engagementId)).filter((m) => m.status !== "declined" && m.declaresIndependence);
   const back = returnTo.startsWith(`/engagements/${engagementId}/`)
     ? returnTo
     : `/engagements/${engagementId}/dashboard`;

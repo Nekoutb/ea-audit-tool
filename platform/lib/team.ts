@@ -7,7 +7,7 @@ import { accountMail, appUrl } from "@/lib/account-mail";
 import { recordActivity } from "@/lib/activity";
 import { createInvite } from "@/lib/invites";
 import { sendEmail, platformSender } from "@/lib/email";
-import { launchCampaign } from "@/lib/independence";
+import { independenceEligibleSql, launchCampaign } from "@/lib/independence";
 import { getLocale } from "@/lib/locale";
 import { createNotification } from "@/lib/notifications";
 import { withTenant } from "@/lib/db";
@@ -47,6 +47,12 @@ export interface TeamMember {
   respondedAt: string | null;
   /** why the member declined, when they did (UAT B130) */
   declineReason: string | null;
+  /**
+   * Firm staff who declare independence. A client contact or read-only
+   * observer on the team neither receives a confirmation nor counts towards
+   * the acceptance gate (UAT run 3 B04).
+   */
+  declaresIndependence: boolean;
 }
 
 export async function listTeam(engagementId: string): Promise<TeamMember[]> {
@@ -61,11 +67,13 @@ export async function listTeam(engagementId: string): Promise<TeamMember[]> {
       status: "invited" | "accepted" | "declined";
       responded_at: string | null;
       decline_reason: string | null;
+      declares: boolean;
     }>(
       `SELECT tm.id, tm.user_id, coalesce(u.name, u.email) AS user_name, u.email, tm.team_role,
               coalesce(tm.status, 'accepted') AS status,
               to_char(tm.responded_at AT TIME ZONE $2, 'DD Mon YYYY HH24:MI') || ' ' || $3 AS responded_at,
-              tm.decline_reason
+              tm.decline_reason,
+              ${independenceEligibleSql("tm.user_id", "tm.tenant_id")} AS declares
          FROM team_member tm JOIN app_user u ON u.id = tm.user_id
         WHERE tm.engagement_id = $1 ORDER BY tm.created_at`,
       [engagementId, DISPLAY_TIME_ZONE, DISPLAY_TIME_ZONE_LABEL],
@@ -79,6 +87,7 @@ export async function listTeam(engagementId: string): Promise<TeamMember[]> {
       status: r.status,
       respondedAt: r.responded_at,
       declineReason: r.decline_reason,
+      declaresIndependence: Boolean(r.declares),
     }));
   });
 }
@@ -299,8 +308,10 @@ export async function assignTask(
   userIdOrNull: string | null,
 ): Promise<void> {
   const { tenantId, userId: actorId, role: actorRole } = await requireWrite();
-  // staffing the team's work is not the independent reviewer's call (UAT run 2 B18)
-  if (actorRole === "eqr_reviewer") throw new ForbiddenError("eqr-read-only");
+  // staffing the team's work is not the independent reviewer's call (UAT run 2 B18),
+  // whether EQR by firm role or by team role (UAT run 3 B03)
+  const { assertNotEqrWrite } = await import("@/lib/eqr");
+  await assertNotEqrWrite(tenantId, engagementId, actorId, actorRole);
   const task = await withTenant(tenantId, async (tx) => {
     if (userIdOrNull) {
       const member = await tx.query(
@@ -362,7 +373,8 @@ export async function assignTasks(
 ): Promise<number> {
   if (itemIds.length === 0) return 0;
   const { tenantId, userId: actorId, role: actorRole } = await requireWrite();
-  if (actorRole === "eqr_reviewer") throw new ForbiddenError("eqr-read-only");
+  const { assertNotEqrWrite } = await import("@/lib/eqr");
+  await assertNotEqrWrite(tenantId, engagementId, actorId, actorRole);
   const result = await withTenant(tenantId, async (tx) => {
     if (userIdOrNull) {
       const member = await tx.query(
@@ -612,6 +624,12 @@ export async function addTeamMemberByEmail(
        DO UPDATE SET team_role = EXCLUDED.team_role, status = 'invited', invited_at = now()`,
       [tenantId, engagementId, userId, teamRole],
     );
+    // Appointing the quality reviewer from the team page puts C4.2 on the
+    // file just as assignTeamMember does (UAT run 3 acpt.team-eqr).
+    if (teamRole === "eqr_reviewer") {
+      const { ensureTaskTx } = await import("@/lib/ensure-task");
+      await ensureTaskTx(tx, engagementId, "C4.2");
+    }
   });
 
   // Onboarding a colleague onto the tool: platform mail, so replies reach

@@ -147,11 +147,14 @@ async function acceptanceGatesTx(tx: PoolClient, engagementId: string): Promise<
   // Every active team member (invited or accepted — a declined invitation is
   // not on the team) must hold a completed or dispositioned confirmation: two
   // confirmations out of twenty-two used to turn the gate green (UAT B13).
+  const { independenceEligibleSql } = await import("@/lib/independence");
   const notAsked = await tx.query<{ n: string }>(
     `SELECT count(*)::text AS n
        FROM team_member tm
       WHERE tm.engagement_id = $1
         AND coalesce(tm.status, 'accepted') <> 'declined'
+        -- a client contact or read-only observer declares nothing (UAT run 3 B04)
+        AND ${independenceEligibleSql("tm.user_id", "tm.tenant_id")}
         AND NOT EXISTS (
           SELECT 1 FROM independence_confirmation ic
             JOIN independence_campaign c ON c.id = ic.campaign_id

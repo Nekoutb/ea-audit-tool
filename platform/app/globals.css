@@ -440,6 +440,51 @@ textarea.border-line {
     overflow: visible !important;
     text-overflow: clip !important;
   }
+  /*
+   * UAT run 3 firm.print: the task screen is a fixed-height grid of flex
+   * columns; on paper the wizard grew past its box and the side panels
+   * ("Fichiers de la tâche", "Tâches liées") were drawn over Part B. In print
+   * every level of that shell is a plain block, as tall as its content, so the
+   * panels flow after the paper instead of on top of it.
+   */
+  .wp-print-flow,
+  .wp-print-flow > *,
+  .wp-print-flow > * > section,
+  .wp-print-flow form,
+  .wp-print-flow .wp-steps {
+    display: block !important;
+    height: auto !important;
+    min-height: 0 !important;
+    max-height: none !important;
+    overflow: visible !important;
+    flex: none !important;
+    position: static !important;
+  }
+  .wp-print-flow > * + *,
+  .wp-print-flow > * > section + section,
+  .wp-print-flow > * > * + * {
+    margin-top: 6mm !important;
+  }
+  /*
+   * A heading that is also a toggle (lead-schedule groups) prints as text:
+   * `button` above hides controls, this keeps the code and title (UAT run 3
+   * firm.print). Higher specificity than the bare `button` rule.
+   */
+  button.print-show {
+    display: flex !important;
+    background: none !important;
+    color: #000 !important;
+  }
+  button.print-show [aria-hidden] {
+    display: none !important;
+  }
+  [data-testid^="ap-grid-"] th,
+  [data-testid^="ap-grid-"] td {
+    white-space: normal !important;
+    overflow-wrap: anywhere;
+    padding-left: 2px !important;
+    padding-right: 2px !important;
+  }
 }
 
 /*

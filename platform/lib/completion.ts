@@ -251,19 +251,41 @@ async function completionGatesTx(tx: PoolClient, engagementId: string): Promise<
     );
     return (r.rows[0]?.v ?? "").trim();
   };
+  //
+  // The review is the appointed reviewer's own (ISQM 2 ¶24-27, ISA 220 ¶36):
+  // the team completing and signing C4.2 used to turn the gate green although
+  // the EQR never opened it (UAT run 3 B02). Now it takes the reviewer's own
+  // active "eqr" sign-off on C4.2 — by a team member who is the engagement's
+  // EQR (team role, or a firm-role EQR on the team) — with q_complete and
+  // q_resolved answered yes and last written by that same reviewer.
   const eqrRequired = await eqrRequiredTx(tx, engagementId);
-  const c42Signed = await count(
-    tx,
-    `SELECT count(*)::text AS n FROM document d JOIN file_item fi ON fi.id = d.file_item_id
-      WHERE fi.engagement_id = $1 AND fi.code = 'C4.2'
-        AND d.kind IN ('workpaper', 'leadsheet') AND d.status = 'signed'`,
-    [engagementId],
-  );
-  const eqrOk =
-    !eqrRequired ||
-    (c42Signed > 0 &&
-      (await paperAnswer("C4.2", "q_complete")) === "yes" &&
-      (await paperAnswer("C4.2", "q_resolved")) === "yes");
+  const eqrSigned = eqrRequired
+    ? await count(
+        tx,
+        `SELECT count(*)::text AS n
+           FROM signoff s
+           JOIN document d ON d.id = s.document_id
+           JOIN file_item fi ON fi.id = d.file_item_id
+          WHERE fi.engagement_id = $1 AND fi.code = 'C4.2'
+            AND d.kind IN ('workpaper', 'leadsheet')
+            AND s.role = 'eqr' AND s.voided_at IS NULL AND s.invalidated_at IS NULL
+            AND EXISTS (
+              SELECT 1 FROM team_member tm
+               WHERE tm.engagement_id = $1 AND tm.user_id = s.user_id
+                 AND coalesce(tm.status, 'accepted') <> 'declined'
+                 AND (tm.team_role = 'eqr_reviewer'
+                      OR EXISTS (SELECT 1 FROM membership m
+                                  WHERE m.user_id = tm.user_id AND m.tenant_id = tm.tenant_id
+                                    AND m.role = 'eqr_reviewer')))
+            AND (SELECT count(*) FROM form_response r
+                  WHERE r.engagement_id = $1 AND r.code = 'wp:C4.2'
+                    AND r.field_key IN ('q_complete', 'q_resolved')
+                    AND btrim(r.value #>> '{}') = 'yes'
+                    AND r.updated_by = s.user_id) = 2`,
+        [engagementId],
+      )
+    : 0;
+  const eqrOk = !eqrRequired || eqrSigned > 0;
   // 12. C4.3: no point outstanding at the report date.
   const c43Ok = (await paperAnswer("C4.3", "q_none_open")) === "yes";
 

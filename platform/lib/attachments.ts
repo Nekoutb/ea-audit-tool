@@ -14,6 +14,7 @@
 import { logAttachment, recordActivity } from "@/lib/activity";
 import { withTenant } from "@/lib/db";
 import { visibleToUser } from "@/lib/engagement-access";
+import { assertNotEqrWriteOnItem } from "@/lib/eqr";
 import { assertMutable } from "@/lib/mutability";
 import { atLeast, type Role } from "@/lib/rbac";
 import { ForbiddenError, requireTenant } from "@/lib/tenant";
@@ -168,6 +169,8 @@ export async function saveAttachment(
   const { tenantId, userId, role } = await requireTenant();
   await guardFileItem(fileItemId);
   assertCanWrite(role);
+  // the quality reviewer files evidence only on C4.2, their own record (UAT run 3 B03)
+  await assertNotEqrWriteOnItem(tenantId, fileItemId, userId, role);
   const saved = await withTenant(tenantId, async (tx) => {
     const item = await tx.query<{ engagement_id: string }>(
       "SELECT engagement_id FROM file_item WHERE id = $1",
@@ -234,7 +237,7 @@ export async function getAttachment(
  * engagement and for read-only/portal accounts.
  */
 export async function renameAttachment(id: string, newNameRaw: string): Promise<string> {
-  const { tenantId, role } = await requireTenant();
+  const { tenantId, userId, role } = await requireTenant();
   await guardAttachment(id);
   assertCanWrite(role);
   const target = await withTenant(tenantId, async (tx) => {
@@ -252,6 +255,7 @@ export async function renameAttachment(id: string, newNameRaw: string): Promise<
   });
   if (!target) throw new Error("not-found");
   await assertMutable(target.engagement_id);
+  await assertNotEqrWriteOnItem(tenantId, target.file_item_id, userId, role);
 
   let next = newNameRaw.trim().replace(/[\/:*?"<>|]/g, "").slice(0, 120);
   if (!next) throw new Error("name-required");
@@ -309,6 +313,7 @@ export async function deleteAttachment(id: string): Promise<void> {
   });
   if (!target) throw new Error("not-found");
   await assertMutable(target.engagement_id);
+  await assertNotEqrWriteOnItem(tenantId, target.file_item_id, userId, role);
 
   const versions = await withTenant(tenantId, async (tx) => {
     const r = await tx.query(
@@ -343,7 +348,7 @@ export async function deleteAttachment(id: string): Promise<void> {
  * recovery becomes a deliberate, out-of-band act.
  */
 export async function restoreAttachment(attachmentId: string): Promise<void> {
-  const { tenantId, role } = await requireTenant();
+  const { tenantId, userId, role } = await requireTenant();
   await guardAttachment(attachmentId);
   assertCanDelete(role);
   const target = await withTenant(tenantId, async (tx) => {
@@ -364,6 +369,7 @@ export async function restoreAttachment(attachmentId: string): Promise<void> {
   if (!target) throw new Error("not-found");
   if (target.expired) throw new Error("restore-window-expired");
   await assertMutable(target.engagement_id);
+  await assertNotEqrWriteOnItem(tenantId, target.file_item_id, userId, role);
 
   const versions = await withTenant(tenantId, async (tx) => {
     const r = await tx.query(

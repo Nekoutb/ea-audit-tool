@@ -4,7 +4,7 @@
 
 import { withTenant } from "@/lib/db";
 import type { Locale } from "@/lib/i18n";
-import { ForbiddenError, requireTenant, requireWrite } from "@/lib/tenant";
+import { requireTenant, requireWrite } from "@/lib/tenant";
 
 export type FieldType = "boolean" | "text" | "select" | "number" | "date";
 
@@ -192,7 +192,9 @@ export async function saveForm(
 ): Promise<void> {
   const { tenantId, userId, role } = await requireWrite();
   // The EQR reads the team's forms but does not rewrite them (UAT run 2 B18).
-  if (role === "eqr_reviewer") throw new ForbiddenError("eqr-read-only");
+  // ... whether they hold the firm role or the team role on it (UAT run 3 B03)
+  const { assertNotEqrWrite } = await import("@/lib/eqr");
+  await assertNotEqrWrite(tenantId, engagementId, userId, role);
   const definition = FORM_DEFINITIONS[code];
   if (!definition) throw new Error(`unknown form: ${code}`);
 

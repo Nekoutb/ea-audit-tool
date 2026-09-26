@@ -243,6 +243,19 @@ export default async function DocumentPage(props: {
                   </form>
                 );
               })}
+              {/* the quality reviewer's own sign-off on C4.2 (UAT run 3 B02) */}
+              {signoffs
+                .filter((s) => s.role === "eqr" && !s.voidedAt)
+                .map((s) => (
+                  <span
+                    key={`eqr-${s.versionNo}-${s.signedAt}`}
+                    data-testid="signed-eqr"
+                    title={`EQR: ${s.userName} · v${s.versionNo} · ${s.signedAt}`}
+                    className="inline-flex items-center gap-1.5 rounded-full bg-indigo-100 py-1 pl-2.5 pr-2.5 text-[11px] font-bold text-indigo-900 dark:bg-indigo-950/60 dark:text-indigo-300"
+                  >
+                    EQR · {initials(s.userName)}
+                  </span>
+                ))}
             </div>
 
             {isSigned && canReopen ? (

@@ -1016,7 +1016,7 @@
         "rep_letters_generated": "Les deux lettres d'affirmation OHADA générées (C3.1)",
         "b4_cleared": "Toutes les questions significatives C1.2 levées",
         "b6_confirmations_closed": "Aucune circularisation en attente (C4.3)",
-        "eqr_complete": "Revue de qualité de la mission achevée lorsqu'elle est requise — C4.2 signée, revue achevée, points résolus (ISQM 2 ¶25)",
+        "eqr_complete": "Revue de qualité de la mission achevée lorsqu'elle est requise — C4.2 renseignée et signée par le réviseur qualité désigné, revue achevée, points résolus (ISQM 2 ¶25)",
         "c43_cleared": "Aucun point en suspens à la date du rapport (C4.3)",
         "partner_conclusion": "Conclusion d'ensemble de l'associé + reconfirmation d'indépendance (C4.1)"
       },
@@ -1330,6 +1330,9 @@
       "partner-only-team-role": "Seul un associé peut attribuer ou retirer le rôle d'associé de la mission.",
       "already-on-team": "Cette personne fait déjà partie de l'équipe de mission. Pour changer son rôle, utilisez l'affectation de l'équipe sur la page de planification.",
       "eqr-read-only": "Le réviseur qualité (EQR) revoit les travaux de l'équipe et émet des notes, mais ne les modifie pas. Consignez la revue en C4.2.",
+      "eqr-own-paper": "C4.2 est le dossier propre du réviseur qualité : seul le réviseur qualité (EQR) désigné dans l'équipe le renseigne et le signe (ISQM 2 ¶24-27).",
+      "stale-edit-conflict": "Un collègue a modifié certains des mêmes champs pendant votre saisie. Vos autres modifications ont été enregistrées ; votre texte pour ces champs est conservé dans le formulaire ci-dessous — fusionnez-le avec le sien et enregistrez à nouveau.",
+      "c58-equity-contradicts": "C5.8 ne peut pas indiquer que les capitaux propres excèdent la moitié du capital social : les chiffres du suivi juridique les situent en dessous. Vérifiez les chiffres sur la page juridique, ou répondez Non et documentez la procédure de l'article 664.",
       "not-a-firm-member": "Cette personne n'est pas membre du cabinet.",
       "invalid-team-role": "Choisissez un rôle d'équipe valide.",
       "engagement-tenant-mismatch": "Cette mission appartient à un autre cabinet.",

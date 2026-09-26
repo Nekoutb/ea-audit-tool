@@ -68,7 +68,7 @@ export default async function AcceptancePage(props: {
   // The letters are filed on tasks; there are none until the entity is classified.
   const classified = Boolean(engagement.complexity);
   const users = team
-    .filter((m) => m.status !== "declined")
+    .filter((m) => m.status !== "declined" && m.declaresIndependence)
     .map((m) => ({ id: m.userId, name: m.userName }));
   // A gate that fails after the phase has moved on means a gating paper was
   // reopened (UAT B99): say so, since the phase itself does not move back.

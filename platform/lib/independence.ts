@@ -56,6 +56,19 @@ export interface ConfirmationSummary {
 }
 
 /**
+ * SQL predicate: the user is firm staff who declares independence — not a
+ * client contact, not a read-only observer. launchCampaign refuses the others
+ * as recipients, so the acceptance gate must not wait for them either: a
+ * read-only observer on the team made the gate impossible to pass (UAT run 3
+ * B04). One definition, used by the campaign, the gate and the screens.
+ */
+export function independenceEligibleSql(userCol: string, tenantCol: string): string {
+  return `EXISTS (SELECT 1 FROM membership m_ie
+                   WHERE m_ie.tenant_id = ${tenantCol} AND m_ie.user_id = ${userCol}
+                     AND m_ie.role NOT IN ('client_user', 'read_only'))`;
+}
+
+/**
  * Launch (or extend) the engagement's campaign — one confirmation per user.
  * Re-launching reuses the existing campaign and only adds missing recipients,
  * so double-submits cannot create duplicate outstanding confirmations that

@@ -9,6 +9,7 @@ import type { PoolClient } from "pg";
 import { recordActivity } from "@/lib/activity";
 import { withTenant } from "@/lib/db";
 import { createNotification } from "@/lib/notifications";
+import type { Role } from "@/lib/rbac";
 import { MGMT_OVERRIDE_PROCEDURE } from "@/lib/risks";
 import { ForbiddenError, requireTenant, requireWrite } from "@/lib/tenant";
 import { ACCEPTANCE_PAPERS } from "@/lib/papers/acceptance";
@@ -490,12 +491,102 @@ async function syncSeededResponseStep(
 /** The one paper the engagement quality reviewer writes: their own review record. */
 export const EQR_OWN_PAPER = "C4.2";
 
+/**
+ * Who may write what on a working paper, as far as the quality review goes.
+ * The EQR (firm role, or team role on this engagement — UAT run 3 B03) writes
+ * nothing on the team's papers. On C4.2, where an EQR is required, the
+ * reviewer's part (EQR_C42_KEYS) is the appointed reviewer's alone and the
+ * reviewer writes nothing else (ISQM 2 ¶24-27, UAT run 3 B02). A field posted
+ * back unchanged is simply not written; changing a field that is not yours is
+ * refused. Returns the values that may be written.
+ */
+export async function filterPaperWrite(
+  tenantId: string,
+  engagementId: string,
+  userId: string,
+  role: Role,
+  code: string,
+  values: Record<string, string>,
+): Promise<Record<string, string>> {
+  const { actsAsEqrTx, isAppointedEqrTx, EQR_C42_KEYS } = await import("@/lib/eqr");
+  const { eqrRequiredTx } = await import("@/lib/completion");
+  return withTenant(tenantId, async (tx) => {
+    if (code !== EQR_OWN_PAPER) {
+      if (await actsAsEqrTx(tx, engagementId, userId, role)) throw new ForbiddenError("eqr-read-only");
+      return values;
+    }
+    const appointed = await isAppointedEqrTx(tx, engagementId, userId);
+    if (!appointed && role === "eqr_reviewer") throw new ForbiddenError("eqr-own-paper");
+    if (!appointed && !(await eqrRequiredTx(tx, engagementId))) return values;
+    const stored = await tx.query<{ field_key: string; v: string | null }>(
+      "SELECT field_key, value #>> '{}' AS v FROM form_response WHERE engagement_id = $1 AND code = $2",
+      [engagementId, WP(code)],
+    );
+    const current = new Map(stored.rows.map((r) => [r.field_key, r.v ?? ""]));
+    const same = (a: string, b: string) => a.replace(/\r\n/g, "\n").trim() === b.replace(/\r\n/g, "\n").trim();
+    const keys = paperKeys(paperFor(code));
+    const out: Record<string, string> = {};
+    for (const [key, value] of Object.entries(values)) {
+      if (!keys.has(key)) continue;
+      const mine = appointed === EQR_C42_KEYS.includes(key);
+      if (mine) {
+        out[key] = value;
+      } else if (!same(current.get(key) ?? "", value)) {
+        throw new ForbiddenError(appointed ? "eqr-read-only" : "eqr-own-paper");
+      }
+    }
+    return out;
+  });
+}
+
+/** A browser posts a textarea's line breaks as CRLF: compare text without them. */
+function normText(value: string): string {
+  return (value ?? "").replace(/\r\n/g, "\n");
+}
+
+/** A short digest of one field's value as the form loaded it. */
+function fieldDigest(value: string): string {
+  return createHash("sha256").update(normText(value)).digest("hex").slice(0, 16);
+}
+
+/**
+ * The digests of the values a form was built from, posted back with it so a
+ * save can tell the fields the user changed from those they left alone
+ * (UAT run 3 firm.perf-concurrent).
+ */
+export function paperBaseDigests(values: Record<string, string>): string {
+  return JSON.stringify(Object.fromEntries(Object.entries(values).map(([k, v]) => [k, fieldDigest(v)])));
+}
+
+/**
+ * Some of the fields this user changed were also changed by a colleague since
+ * the form was loaded. Everything else was saved; `drafts` holds the user's
+ * text for the clashing fields so the screen can give it back to them.
+ */
+export class StaleEditConflict extends Error {
+  constructor(
+    public readonly keys: string[],
+    public readonly drafts: Record<string, string>,
+  ) {
+    super("stale-edit-conflict");
+    this.name = "StaleEditConflict";
+  }
+}
+
 export async function savePaper(
   engagementId: string,
   code: string,
   values: Record<string, string>,
   /** paperVersion() as the form loaded it; given, a newer save refuses this one ("stale-edit"). */
   expectedVersion?: string,
+  /**
+   * paperBaseDigests() of the values the form was built from. Given with
+   * expectedVersion, a concurrent save no longer refuses the whole paper:
+   * fields nobody else touched are saved, fields only the colleague changed
+   * keep the colleague's text, and only a field BOTH changed is held back
+   * (StaleEditConflict) — nobody's edit is lost (UAT run 3 firm.perf-concurrent).
+   */
+  baseDigests?: Record<string, string>,
 ): Promise<void> {
   const { assertMutable } = await import("@/lib/mutability");
   await assertMutable(engagementId);
@@ -503,7 +594,8 @@ export async function savePaper(
   // The EQR evaluates the team's work independently (ISQM 2 ¶18): they read
   // and raise notes, but never rewrite the papers they review (UAT run 2 B18).
   // C4.2 is their own paper: the review's record.
-  if (role === "eqr_reviewer" && code !== EQR_OWN_PAPER) throw new ForbiddenError("eqr-read-only");
+  // The guard covers the team-role EQR too, not only the firm role (UAT run 3 B03).
+  values = await filterPaperWrite(tenantId, engagementId, userId, role, code, values);
   const allowed = paperKeys(paperFor(code));
   // E6.10 (UAT B114): "column N agrees" cannot be answered Yes while the
   // tie-out of the trial balance shows differences nobody has explained.
@@ -513,15 +605,51 @@ export async function savePaper(
     const explained = (values.p_tie_n ?? (await loadPaper(engagementId, code)).p_tie_n ?? "").trim();
     if (tie && !tie.pass && !explained) throw new Error("tieout-unexplained");
   }
+  // C5.8 (UAT run 3 firm.stat.c5-8): "net equity exceeds half of the share
+  // capital" cannot be answered Yes while the /legal monitor's live figures
+  // put equity below half the capital — the paper would contradict them.
+  if (code === "C5.8" && values.q_above === "yes") {
+    const { equityStatus } = await import("@/lib/legal");
+    const figures = await equityStatus(engagementId).catch(() => null);
+    if (figures && figures.hasTb && figures.halfCapital !== null && figures.breach) {
+      throw new Error("c58-equity-contradicts");
+    }
+  }
+  const conflicts: string[] = [];
   const invalidated = await withTenant(tenantId, async (tx) => {
+    // fields a colleague changed since the form was loaded, with their text
+    const movedUnder = new Map<string, string>();
     if (expectedVersion !== undefined) {
       // Serialise saves of this paper, then compare with the version the form
       // was built on: a colleague's save in between refuses this one.
       await tx.query("SELECT pg_advisory_xact_lock(hashtext($1))", [`wp-save:${engagementId}:${code}`]);
-      if ((await paperVersionTx(tx, engagementId, code)) !== expectedVersion) throw new Error("stale-edit");
+      if ((await paperVersionTx(tx, engagementId, code)) !== expectedVersion) {
+        if (!baseDigests) throw new Error("stale-edit");
+        // A field "moved" when what is stored now is not what the form was
+        // built from — a colleague re-saving it unchanged does not count.
+        const stored = await tx.query<{ field_key: string; v: string | null }>(
+          `SELECT field_key, value #>> '{}' AS v FROM form_response
+            WHERE engagement_id = $1 AND code = $2 AND field_key = ANY($3::text[])`,
+          [engagementId, WP(code), [...allowed]],
+        );
+        for (const r of stored.rows) {
+          const v = r.v ?? "";
+          if (fieldDigest(v) !== (baseDigests[r.field_key] ?? fieldDigest(""))) movedUnder.set(r.field_key, v);
+        }
+      }
     }
     for (const [key, value] of Object.entries(values)) {
       if (!allowed.has(key)) continue;
+      if (movedUnder.has(key)) {
+        const touched = fieldDigest(value) !== (baseDigests?.[key] ?? fieldDigest(""));
+        // left alone by this user: the colleague's text stands
+        if (!touched) continue;
+        // both changed it, differently: hold this one back, keep the user's text
+        if (normText(movedUnder.get(key) ?? "") !== normText(value)) {
+          conflicts.push(key);
+          continue;
+        }
+      }
       await tx.query(
         `INSERT INTO form_response (tenant_id, engagement_id, code, field_key, value, updated_by, carried_forward)
          VALUES ($1, $2, $3, $4, $5, $6, false)
@@ -545,6 +673,9 @@ export async function savePaper(
 
   // Outside the transaction: the trail and the notice must not roll back the save.
   await reportInvalidatedSignoffs(tenantId, engagementId, code, invalidated, userId);
+  if (conflicts.length > 0) {
+    throw new StaleEditConflict(conflicts, Object.fromEntries(conflicts.map((k) => [k, values[k] ?? ""])));
+  }
 }
 
 /**

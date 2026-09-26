@@ -18,7 +18,12 @@ import { phaseStillOpen } from "@/lib/gates";
 export const DOCX_MIME =
   "application/vnd.openxmlformats-officedocument.wordprocessingml.document";
 
-export type SignoffRole = "preparer" | "reviewer" | "partner";
+/**
+ * "eqr" is the engagement quality reviewer's own sign-off: only on C4.2, only
+ * by the appointed reviewer; the eqr_complete gate requires it (UAT run 3 B02).
+ */
+export type SignoffRole = "preparer" | "reviewer" | "partner" | "eqr";
+const SIGNOFF_ROLES: readonly string[] = ["preparer", "reviewer", "partner", "eqr"];
 
 export interface DocumentDetail {
   id: string;
@@ -680,10 +685,12 @@ export async function embeddedWorkGap(tx: PoolClient, engagementId: string, code
 export async function signDocument(documentId: string, requested: SignoffRole): Promise<SignoffRole> {
   const { tenantId, userId, role: userRole } = await requireWrite();
   await guardDocument(documentId);
+  if (!SIGNOFF_ROLES.includes(requested)) throw new DocumentRuleError("forbidden");
   // The EQR reviews the file independently of the team (ISQM 2 ¶18): signing
   // it as preparer, reviewer or partner would make them part of the work they
-  // are there to challenge (UAT B11). Their sign-off lives on the EQR screen.
-  if (userRole === "eqr_reviewer") throw new DocumentRuleError("forbidden");
+  // are there to challenge (UAT B11). Their one sign-off is "eqr", on C4.2.
+  // (Checked again inside the transaction for the team-role EQR, UAT run 3 B03.)
+  if (userRole === "eqr_reviewer" && requested !== "eqr") throw new DocumentRuleError("forbidden");
   // Named refusals (UAT B129): the banner says which rank the role needs.
   if (requested === "reviewer" && !canReview(userRole)) throw new DocumentRuleError("requires-senior");
   if (requested === "partner" && !canPartnerSignoff(userRole)) throw new DocumentRuleError("requires-partner");
@@ -717,7 +724,23 @@ export async function signDocument(documentId: string, requested: SignoffRole): 
     );
     const row = doc.rows[0];
     if (!row) throw new DocumentRuleError("not-found");
-    if (row.status === "signed") throw new DocumentRuleError("signed-locked");
+    // The quality review is the appointed reviewer's own (ISQM 2 ¶24-27, UAT
+    // run 3 B02/B03): the "eqr" sign-off is theirs alone and only on C4.2, and
+    // the EQR — by firm role or by team role — signs nothing else. The team's
+    // P/R on C4.2 attest its governance communications; they do not stand in
+    // for the review, which the completion gate reads from the "eqr" sign-off.
+    {
+      const { actsAsEqrTx, isAppointedEqrTx, EQR_PAPER } = await import("@/lib/eqr");
+      if (role === "eqr") {
+        if (row.code !== EQR_PAPER) throw new DocumentRuleError("forbidden");
+        if (!(await isAppointedEqrTx(tx, row.engagement_id, userId))) throw new DocumentRuleError("eqr-own-paper");
+      } else if (await actsAsEqrTx(tx, row.engagement_id, userId, userRole)) {
+        throw new DocumentRuleError("forbidden");
+      }
+    }
+    // the team's reviewer signature locks the paper; the reviewer's own
+    // sign-off is added over it (it attests the review, not the team's work)
+    if (row.status === "signed" && role !== "eqr") throw new DocumentRuleError("signed-locked");
     // Gates, not guidance (UAT B15): nothing of a later phase is signed while
     // an earlier phase's gates are still open.
     const stillOpen = phaseStillOpen(phaseOfTask(row.section, row.code), row.phase, row.code);
@@ -756,7 +779,7 @@ export async function signDocument(documentId: string, requested: SignoffRole): 
     );
     const activeRoles = new Set(active.rows.map((r) => r.role));
     if (activeRoles.has(role)) throw new DocumentRuleError("already-signed");
-    if (role !== "preparer" && !activeRoles.has("preparer"))
+    if (role !== "preparer" && role !== "eqr" && !activeRoles.has("preparer"))
       throw new DocumentRuleError("preparer-first");
 
     // A blank paper carries nothing to attest to (UAT B17): every procedure,
@@ -782,7 +805,7 @@ export async function signDocument(documentId: string, requested: SignoffRole): 
       if (!(await rasPartnerApprovedTx(tx, row.engagement_id))) throw new DocumentRuleError("ras-not-approved");
     }
 
-    if (role !== "preparer") {
+    if (role !== "preparer" && role !== "eqr") {
       // ISA 220 (Revised) ¶29: the work of the preparer is reviewed by someone
       // else. Refuse the reviewer/partner signature to the preparer themselves.
       const preparer = active.rows.find((r) => r.role === "preparer");
@@ -815,6 +838,8 @@ export async function signDocument(documentId: string, requested: SignoffRole): 
     // The reviewer sign-off completes the two-stage minimum and locks the
     // paper — except on the partner-gated papers, which stay open until the
     // partner's own signature is recorded (UAT B20).
+    // (The EQR's own sign-off does not lock the paper: the team still signs
+    // its governance communications on C4.2, and the gate reads the "eqr" row.)
     if (role === "partner" || (role === "reviewer" && !PARTNER_GATED.has(row.code))) {
       await tx.query("UPDATE document SET status = 'signed' WHERE id = $1", [documentId]);
     }
@@ -833,6 +858,7 @@ const SIGNOFF_TIER_FLOOR: Record<string, Role | undefined> = {
   preparer: "staff",
   reviewer: "senior",
   partner: "partner",
+  eqr: "partner",
 };
 
 export async function reopenDocument(documentId: string, reason: string): Promise<void> {

@@ -66,9 +66,14 @@ export async function addTaskNote(
   fileItemId: string,
   body: string,
 ): Promise<void> {
-  const { tenantId, userId } = await requireWrite();
+  const { tenantId, userId, role } = await requireWrite();
   const text = body.trim();
   if (!text) throw new Error("note-required");
+  // The caller must see the engagement in the URL, and the task must belong to
+  // it: a note raised through another engagement blocked this paper's sign-off
+  // while its own team could not clear it (UAT run 3 B01).
+  await assertNoteReachable(engagementId, tenantId, userId, role);
+  if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(fileItemId)) throw new Error("not-found");
   const target = await withTenant(tenantId, async (tx) => {
     // the task assignee receives the note; a task with no assignee keeps it unaddressed
     let row: { user_id: string | null; email: string | null; code: string } | null = null;
@@ -77,14 +82,18 @@ export async function addTaskNote(
         `SELECT fi.assignee_user_id AS user_id, u.email, fi.code
            FROM file_item fi
            LEFT JOIN app_user u ON u.id = fi.assignee_user_id
-          WHERE fi.id = $1`,
-        [fileItemId],
+          WHERE fi.id = $1 AND fi.engagement_id = $2`,
+        [fileItemId, engagementId],
       );
       row = r.rows[0] ?? null;
     } catch {
-      const r = await tx.query<{ code: string }>("SELECT code FROM file_item WHERE id = $1", [fileItemId]);
+      const r = await tx.query<{ code: string }>(
+        "SELECT code FROM file_item WHERE id = $1 AND engagement_id = $2",
+        [fileItemId, engagementId],
+      );
       row = r.rows[0] ? { user_id: null, email: null, code: r.rows[0].code } : null;
     }
+    if (!row) throw new Error("not-found");
     await tx.query(
       `INSERT INTO review_note (tenant_id, document_id, file_item_id, engagement_id, author_id, assignee_id, body)
        VALUES ($1, NULL, $2, $3, $4, $5, $6)`,

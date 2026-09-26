@@ -266,7 +266,7 @@ export async function generateDocumentAction(fileItemId: string): Promise<void> 
  */
 async function signOffFromList(
   formData: FormData,
-  role: "preparer" | "reviewer",
+  role: "preparer" | "reviewer" | "eqr",
 ): Promise<never> {
   const fileItemId = String(formData.get("fileItemId") ?? "");
   const engagementId = String(formData.get("engagementId") ?? "");
@@ -412,6 +412,11 @@ export async function signOffPreparerAction(formData: FormData): Promise<void> {
 
 export async function signOffReviewerAction(formData: FormData): Promise<void> {
   await signOffFromList(formData, "reviewer");
+}
+
+/** The engagement quality reviewer's own sign-off, on C4.2 only (UAT run 3 B02). */
+export async function signOffEqrAction(formData: FormData): Promise<void> {
+  await signOffFromList(formData, "eqr");
 }
 
 export async function checkoutAction(documentId: string): Promise<void> {

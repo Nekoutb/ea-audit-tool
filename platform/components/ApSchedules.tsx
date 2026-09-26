@@ -171,7 +171,8 @@ export function ApSchedules({
                   onClick={() => setOpen((o) => ({ ...o, [schedule.def.code]: !isOpen }))}
                   data-testid={`ap-toggle-${schedule.def.code}`}
                   aria-expanded={isOpen}
-                  className="flex w-full items-center gap-2 px-3 py-1.5 text-left transition hover:bg-surface-2"
+                  // print-show: the schedule's code and title print as a heading (UAT run 3 firm.print)
+                  className="print-show flex w-full items-center gap-2 px-3 py-1.5 text-left transition hover:bg-surface-2"
                 >
                   <span className={`text-[11px] text-muted transition-transform ${isOpen ? "rotate-90" : ""}`} aria-hidden>▸</span>
                   <span className="w-9 font-mono text-[12.5px] font-extrabold text-emerald-800 dark:text-emerald-300">

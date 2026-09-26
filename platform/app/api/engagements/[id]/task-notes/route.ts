@@ -13,6 +13,12 @@ export async function POST(request: Request, context: { params: Promise<{ id: st
     await addTaskNote(id, body.fileItemId, body.body);
     return NextResponse.json({ ok: true });
   } catch (error) {
+    // the task must belong to the engagement in the URL (UAT run 3 B01)
+    const code = error instanceof Error ? error.message : "";
+    if (code === "not-found") return NextResponse.json({ error: code }, { status: 404 });
+    if (code === "not-on-this-engagement" || code === "read-only-role") {
+      return NextResponse.json({ error: code }, { status: 403 });
+    }
     return saveFailed("task-notes", error);
   }
 }

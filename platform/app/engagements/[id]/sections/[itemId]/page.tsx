@@ -48,18 +48,23 @@ import { Panel, PanelHeader, Chip } from "@/components/ui/atlas";
 import { withTenant } from "@/lib/db";
 import { getEngagement } from "@/lib/engagements";
 import { FINDING_SEVERITIES, getSectionConclusion } from "@/lib/execution";
-import { getMessages } from "@/lib/i18n";
+import { formatFCFA, getMessages } from "@/lib/i18n";
+import { cookies } from "next/headers";
+import { decodePaperDraft, paperDraftCookie, paperFieldLabel } from "@/lib/paper-drafts";
+import { equityConclusionOf, equityStatus, listDeadlines } from "@/lib/legal";
 import { getLocale } from "@/lib/locale";
 import { approvedMateriality } from "@/lib/materiality";
 import { groupOfTask } from "@/lib/task-groups";
-import { signOffPreparerAction, signOffReviewerAction } from "@/app/actions/audit-file";
+import { signOffEqrAction, signOffPreparerAction, signOffReviewerAction } from "@/app/actions/audit-file";
 import { listAttachments, listDeletedAttachments } from "@/lib/attachments";
 import { listItemDocuments } from "@/lib/documents";
 import { ensureDefaultWorkpaper, templateForCode } from "@/lib/wp-templates";
 import { effectiveDueDate, taskForItem, engagementTasks } from "@/lib/engagement-dashboard";
 import { listConfirmations, sendDueReminders } from "@/lib/independence";
 import { listTeam as listEngagementTeam } from "@/lib/team";
-import { EQR_OWN_PAPER, loadPaper, paperFor, paperVersion } from "@/lib/working-papers";
+import { EQR_OWN_PAPER, loadPaper, paperBaseDigests, paperFor, paperVersion } from "@/lib/working-papers";
+import { EQR_C42_KEYS, eqrStanding } from "@/lib/eqr";
+import { paperKeys } from "@/lib/papers/types";
 import { listProgramSteps } from "@/lib/programs";
 import { canReview, canWrite } from "@/lib/rbac";
 import { getTaskAssignee, listTeam } from "@/lib/team";
@@ -129,6 +134,23 @@ export default async function SectionPage(props: {
   // version BEFORE values: a save in between then refuses (safe), never overwrites
   const paperBaseVersion = await paperVersion(id, section.code);
   const paperValues = await loadPaper(id, section.code);
+  // What the form is built from, posted back so a concurrent save holds back
+  // only a field both people changed (UAT run 3 firm.perf-concurrent) …
+  const paperDigests = paperBaseDigests(paperValues);
+  // … and the user's own text for such a field, given back after the refusal.
+  const heldBack =
+    error === "stale-edit-conflict" ? decodePaperDraft((await cookies()).get(paperDraftCookie(itemId))?.value) : null;
+  const wizardValues = heldBack ? { ...paperValues, ...heldBack.drafts } : paperValues;
+  // C5.8 shows the /legal equity monitor's figures and conclusion (UAT run 3 firm.stat.c5-8)
+  const c58 =
+    section.code === "C5.8"
+      ? await Promise.all([equityStatus(id), listDeadlines(id)])
+          .then(([figures, deadlines]) => ({
+            figures,
+            conclusion: equityConclusionOf(figures, deadlines.find((d) => d.key === "egm_equity") ?? null),
+          }))
+          .catch(() => null)
+      : null;
   const attachments = await listAttachments(itemId);
   // The Independence task (P2.1) embeds the campaign. Rendering it also runs
   // the 24-hour reminder sweep — idempotent per day, so simply working the
@@ -331,11 +353,28 @@ export default async function SectionPage(props: {
   // A read-only account never edits; the EQR reads the team's work and writes
   // only their own review record, C4.2 (UAT run 2 B01/B18). The server refuses
   // either way — this keeps the page from offering what it will refuse.
-  const isEqr = userRole === "eqr_reviewer";
+  // The EQR is the firm-role reviewer OR whoever holds the team role on this
+  // engagement (UAT run 3 B03). On C4.2 the review part (EQR_C42_KEYS) is the
+  // appointed reviewer's alone where an EQR is required, and the reviewer
+  // writes nothing else there (B02) — the server refuses either way.
+  const eqr = await eqrStanding(id);
+  const isEqr = eqr.actsAsEqr;
+  const isC42 = section.code === EQR_OWN_PAPER;
   const mayWrite = userRole !== null && canWrite(userRole);
-  const viewOnly = archived || !mayWrite || (isEqr && section.code !== EQR_OWN_PAPER);
+  const viewOnly =
+    archived || !mayWrite || (isEqr && !isC42) || (isC42 && userRole === "eqr_reviewer" && !eqr.appointed);
+  const lockedKeys = !isC42
+    ? undefined
+    : eqr.appointed
+      ? [...paperKeys(paperFor(section.code))].filter((k) => !EQR_C42_KEYS.includes(k))
+      : eqr.required
+        ? [...EQR_C42_KEYS]
+        : undefined;
   // the EQR signs nothing through the P/R chips (signDocument refuses them)
   const chipsLocked = archived || !mayWrite || isEqr;
+  // the appointed reviewer's own sign-off chip, on C4.2 only
+  const showEqrChip = isC42 && (eqr.appointed || eqr.required || eqr.signoff !== null);
+  const eqrChipActive = showEqrChip && eqr.appointed && !archived && mayWrite && eqr.signoff === null;
   const canMarkNa = userRole !== null && canReview(userRole) && !isEqr;
   const taskInfo = await taskForItem(id, section.code);
   const CROSS_LINKS: Record<string, string[]> = {
@@ -754,6 +793,27 @@ export default async function SectionPage(props: {
           )}
           </>
           )}
+          {showEqrChip ? (
+            eqrChipActive ? (
+              <form action={signOffEqrAction}>
+                <input type="hidden" name="fileItemId" value={itemId} />
+                <input type="hidden" name="engagementId" value={id} />
+                <input type="hidden" name="returnTo" value={`/engagements/${id}/sections/${itemId}`} />
+                <button type="submit" className={chip(false)} title={fr ? "Signer en tant que réviseur qualité (EQR)" : "Sign as engagement quality reviewer"} data-testid="chip-eqr" data-signed="false">
+                  EQR
+                </button>
+              </form>
+            ) : (
+              <span
+                className={chip(eqr.signoff !== null)}
+                title={eqr.signoff ? `${eqr.signoff.name} · ${eqr.signoff.at}` : fr ? "Réservé au réviseur qualité désigné" : "For the appointed quality reviewer only"}
+                data-testid="chip-eqr"
+                data-signed={String(eqr.signoff !== null)}
+              >
+                EQR
+              </span>
+            )
+          ) : null}
         </span>
         <span className="flex items-center gap-1.5 text-[12px] text-muted">
           {fr ? "Assigné à" : "Assigned to"}
@@ -780,8 +840,65 @@ export default async function SectionPage(props: {
       </div>
 
       <ErrorBanner error={error} locale={locale} />
+      {heldBack ? (
+        <div className="mb-3 rounded-[var(--radius-atlas-sm)] border border-line bg-[var(--color-warn-soft)] px-3 py-2 text-[12.5px] text-ink" data-testid="wp-held-back">
+          <p className="font-semibold">
+            {fr
+              ? "Vos autres modifications ont été enregistrées. Votre texte pour les champs ci-dessous a été conservé dans le formulaire ; un collègue les a modifiés entre-temps. Comparez avec sa version, fusionnez, puis enregistrez."
+              : "Your other changes were saved. Your text for the fields below is kept in the form; a colleague changed them meanwhile. Compare with their version, merge, then save."}
+          </p>
+          <ul className="mt-1.5 flex flex-col gap-1">
+            {Object.keys(heldBack.drafts).map((key) => (
+              <li key={key}>
+                <b>{paperFieldLabel(paperDef, key, fr)}</b>
+                {" — "}
+                {fr ? "version enregistrée par le collègue : " : "colleague's saved version: "}
+                <span className="whitespace-pre-wrap text-ink-soft">{(paperValues[key] ?? "").slice(0, 600) || "—"}</span>
+              </li>
+            ))}
+          </ul>
+          {heldBack.truncated ? (
+            <p className="mt-1 text-warn">
+              {fr ? "Votre texte était trop long pour être conservé en entier : la fin a été coupée." : "Your text was too long to keep in full: its end was cut."}
+            </p>
+          ) : null}
+        </div>
+      ) : null}
+      {c58 ? (
+        <div className="mb-3 rounded-[var(--radius-atlas-sm)] border border-line bg-surface px-3 py-2 text-[12.5px]" data-testid="c58-equity">
+          <div className="flex flex-wrap items-center gap-2">
+            <b className="text-ink">{fr ? "Suivi des capitaux propres (art. 664)" : "Net equity monitor (art. 664)"}</b>
+            <Link href={`/engagements/${id}/legal`} className="text-emerald-700 underline dark:text-emerald-400" data-testid="c58-legal-link">
+              {fr ? "Ouvrir le suivi juridique" : "Open the legal monitor"}
+            </Link>
+          </div>
+          {c58.figures.hasTb ? (
+            <p className="mt-1 text-ink-soft tnum" data-testid="c58-figures">
+              {t.planning.legal.equityValue}: <b>{formatFCFA(c58.figures.equity)}</b>
+              {c58.figures.halfCapital !== null ? (
+                <>
+                  {" "}· {t.planning.legal.halfCapital}: <b>{formatFCFA(c58.figures.halfCapital)}</b>
+                </>
+              ) : (
+                <> · {fr ? "capital social non renseigné" : "share capital not recorded"}</>
+              )}
+            </p>
+          ) : (
+            <p className="mt-1 text-muted" data-testid="c58-figures">{t.planning.legal.noTbYet}</p>
+          )}
+          {c58.conclusion === "breach" ? (
+            <p className="mt-1 font-medium text-rose" data-testid="c58-conclusion" data-conclusion="breach">{t.planning.legal.equityBreach}</p>
+          ) : c58.conclusion === "unchecked-breach" ? (
+            <p className="mt-1 font-medium text-rose" data-testid="c58-conclusion" data-conclusion="unchecked-breach">{t.planning.legal.equityBelowUnchecked}</p>
+          ) : c58.conclusion === "stale" ? (
+            <p className="mt-1 font-medium text-warn" data-testid="c58-conclusion" data-conclusion="stale">{t.planning.legal.equityStale}</p>
+          ) : c58.conclusion === "ok" ? (
+            <p className="mt-1 font-medium text-emerald-700 dark:text-emerald-400" data-testid="c58-conclusion" data-conclusion="ok">{t.planning.legal.equityOk}</p>
+          ) : null}
+        </div>
+      ) : null}
 
-      <div className={`grid min-h-0 flex-1 grid-cols-1 gap-3 xl:overflow-hidden ${wideBoard ? "xl:grid-cols-[22fr_78fr]" : "xl:grid-cols-[25fr_50fr_25fr]"}`}>
+      <div className={`wp-print-flow grid min-h-0 flex-1 grid-cols-1 gap-3 xl:overflow-hidden ${wideBoard ? "xl:grid-cols-[22fr_78fr]" : "xl:grid-cols-[25fr_50fr_25fr]"}`}>
         <div className="flex min-h-0 flex-col gap-3 xl:overflow-hidden">
         <section className="flex min-h-0 flex-col overflow-hidden rounded-[var(--radius-atlas)] border border-glass-border bg-surface px-4 py-3 shadow-atlas-sm backdrop-blur-xl xl:max-h-[50%]" data-testid="wp-guidance">
           <h2 className="text-[11px] font-extrabold uppercase tracking-[0.07em] text-muted">Guidance</h2>
@@ -931,8 +1048,10 @@ export default async function SectionPage(props: {
             code={section.code}
             readOnly={viewOnly}
             def={paperDef}
-            values={paperValues}
+            values={wizardValues}
             baseVersion={paperBaseVersion}
+            baseDigests={paperDigests}
+            lockedKeys={lockedKeys}
             autoValues={autoValues}
             locale={fr ? "fr" : "en"}
             action={savePaperAction.bind(null, id, itemId, section.code)}

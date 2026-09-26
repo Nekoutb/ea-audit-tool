@@ -13,7 +13,8 @@ import { approveMateriality, createMaterialityVersion, type Benchmark } from "@/
 import { addCustomStep, generateProgram } from "@/lib/programs";
 import { addRisk, dismissPotentialRisk, linkRiskToIndex, linkRiskToStep, mapRiskToSection, promotePotentialRisk, raisePotentialRisk, rebutRevenueFraudRisk, unlinkRiskFromIndex, updateRisk, type Assertion, type RiskRating, type RiskStatus } from "@/lib/risks";
 import { canReview } from "@/lib/rbac";
-import { savePaper } from "@/lib/working-papers";
+import { savePaper, StaleEditConflict } from "@/lib/working-papers";
+import { encodePaperDraft, paperDraftCookie } from "@/lib/paper-drafts";
 import { addPbcItem, assignTask, assignTasks, assignTeamMember, removeTeamMember, setBudgetLine, type TaskAssignmentRole, type TeamRole } from "@/lib/team";
 import { getLocale } from "@/lib/locale";
 
@@ -134,8 +135,9 @@ export async function addRelatedPartyAction(engagementId: string, formData: Form
   await guarded(path, async () => {
     if (!name || !relationship) throw new Error("fields-required");
     const { requireWrite } = await import("@/lib/tenant");
-    const { tenantId, role } = await requireWrite();
-    if (role === "eqr_reviewer") throw new Error("eqr-read-only");
+    const { tenantId, userId, role } = await requireWrite();
+    const { assertNotEqrWrite } = await import("@/lib/eqr");
+    await assertNotEqrWrite(tenantId, engagementId, userId, role);
     await withTenant(tenantId, async (tx) => {
       await tx.query(
         "INSERT INTO related_party (tenant_id, engagement_id, name, relationship, notes) VALUES ($1, $2, $3, $4, $5)",
@@ -154,8 +156,9 @@ export async function addEstimateAction(engagementId: string, formData: FormData
   await guarded(path, async () => {
     if (!nature) throw new Error("fields-required");
     const { requireWrite } = await import("@/lib/tenant");
-    const { tenantId, role } = await requireWrite();
-    if (role === "eqr_reviewer") throw new Error("eqr-read-only");
+    const { tenantId, userId, role } = await requireWrite();
+    const { assertNotEqrWrite } = await import("@/lib/eqr");
+    await assertNotEqrWrite(tenantId, engagementId, userId, role);
     await withTenant(tenantId, async (tx) => {
       await tx.query(
         `INSERT INTO accounting_estimate (tenant_id, engagement_id, nature, method, assumptions, uncertainty, retro_review)
@@ -264,7 +267,9 @@ export async function markNotApplicableAction(
     const { tenantId, userId, role } = await requireTenant();
     if (!canReview(role)) throw new Error("forbidden");
     // scoping the team's work in or out is not the independent reviewer's call (UAT run 2 B18)
-    if (role === "eqr_reviewer") throw new Error("eqr-read-only");
+    // ... firm-role or team-role EQR alike (UAT run 3 B03)
+    const { actsAsEqr } = await import("@/lib/eqr");
+    if (await actsAsEqr(tenantId, engagementId, userId, role)) throw new Error("eqr-read-only");
     if (!clear && !reason) throw new Error("rationale-required");
     await assertMutable(engagementId);
     const updated = await withTenant(tenantId, async (tx) => {
@@ -589,9 +594,37 @@ export async function savePaperAction(
   // in between refuses this one ("stale-edit") instead of blanking their fields.
   const baseVersion = values.__baseVersion;
   delete values.__baseVersion;
-  await guarded(`/engagements/${engagementId}/sections/${itemId}`, () =>
-    savePaper(engagementId, code, values, baseVersion),
-  );
+  // The digests of the values the form was built on (UAT run 3
+  // firm.perf-concurrent): a colleague's save in between then refuses only a
+  // field both people changed, and the user's text for it is kept for them.
+  let baseDigests: Record<string, string> | undefined;
+  try {
+    const parsed: unknown = values.__baseDigests ? JSON.parse(values.__baseDigests) : undefined;
+    if (parsed && typeof parsed === "object") baseDigests = parsed as Record<string, string>;
+  } catch {
+    baseDigests = undefined;
+  }
+  delete values.__baseDigests;
+  const path = `/engagements/${engagementId}/sections/${itemId}`;
+  await guarded(path, async () => {
+    const { cookies } = await import("next/headers");
+    const jar = await cookies();
+    const cookieName = paperDraftCookie(itemId);
+    try {
+      await savePaper(engagementId, code, values, baseVersion, baseDigests);
+    } catch (error) {
+      if (error instanceof StaleEditConflict) {
+        jar.set(cookieName, encodePaperDraft(error.drafts).value, {
+          path,
+          maxAge: 60 * 30,
+          httpOnly: true,
+          sameSite: "lax",
+        });
+      }
+      throw error;
+    }
+    if (jar.get(cookieName)) jar.delete({ name: cookieName, path });
+  });
 }
 
 /** Risk Console: decide a computed lead — promote into the register or dismiss. */
