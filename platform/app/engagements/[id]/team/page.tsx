@@ -1,4 +1,5 @@
 import { notFound, redirect } from "next/navigation";
+import { localizedTitle } from "@/lib/page-title";
 import { auth } from "@/auth";
 import { removeTeamFromTeamPageAction } from "@/app/actions/planning";
 import { addTeamByEmailAction } from "@/app/actions/team-independence";
@@ -12,9 +13,9 @@ import { getEngagement } from "@/lib/engagements";
 import { getMessages } from "@/lib/i18n";
 import { getLocale } from "@/lib/locale";
 import { canReview } from "@/lib/rbac";
-import { TEAM_ROLES, listFirmUsers, listTeam, openAssignedTaskCounts } from "@/lib/team";
+import { DISPLAY_TIME_ZONE, DISPLAY_TIME_ZONE_LABEL, TEAM_ROLES, listFirmUsers, listTeam, openAssignedTaskCounts } from "@/lib/team";
 
-export const metadata = { title: "Manage team · AuditISA" };
+export const generateMetadata = localizedTitle("Manage team", "Gestion de l'équipe");
 
 // Page-local label for the open-assigned-tasks cell (not in messages/*.json).
 const OPEN_TASKS = {
@@ -48,6 +49,20 @@ export default async function TeamPage(props: {
   ]);
   const assignable = firmUsers.filter((u) => !team.some((m) => m.userId === u.id));
   const canManage = canReview(session.user.role);
+  // "25 sept. 2026 19:20 WAT" in French, "25 Sep 2026 19:20 WAT" in English (UAT B123)
+  const respondedFormat = new Intl.DateTimeFormat(locale === "fr" ? "fr-FR" : "en-GB", {
+    timeZone: DISPLAY_TIME_ZONE,
+    day: "numeric",
+    month: "short",
+    year: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
+    hour12: false,
+  });
+  const respondedLabel = (iso: string) => {
+    const d = new Date(iso);
+    return Number.isNaN(d.getTime()) ? iso : `${respondedFormat.format(d).replace(",", "").replace(" à ", " ")} ${DISPLAY_TIME_ZONE_LABEL}`;
+  };
 
   const th =
     "border-b border-line bg-surface-2 px-5 py-3 text-left text-[10px] font-extrabold uppercase tracking-[0.07em] text-muted";
@@ -137,12 +152,12 @@ export default async function TeamPage(props: {
                       {m.status === "accepted" ? (
                         <span className="font-semibold text-emerald-700 dark:text-emerald-400">
                           {locale === "fr" ? "Acceptée" : "Accepted"}
-                          {m.respondedAt ? ` · ${m.respondedAt}` : ""}
+                          {m.respondedAt ? ` · ${respondedLabel(m.respondedAt)}` : ""}
                         </span>
                       ) : m.status === "declined" ? (
                         <span className="font-semibold text-rose">
                           {locale === "fr" ? "Refusée" : "Declined"}
-                          {m.respondedAt ? ` · ${m.respondedAt}` : ""}
+                          {m.respondedAt ? ` · ${respondedLabel(m.respondedAt)}` : ""}
                           {m.declineReason ? (
                             <span className="block font-normal text-ink-soft" data-testid={`decline-reason-${m.userId}`}>
                               {locale === "fr" ? "Motif : " : "Reason: "}

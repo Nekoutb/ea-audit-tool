@@ -54,6 +54,8 @@ interface Drill {
   filter: DrillFilter;
   /** show the lines entry by entry, with each entry's totals */
   grouped?: boolean;
+  /** the lead-schedule balance the drill came from, to reconcile against (UAT run 2 B68) */
+  figure?: { opening: number; closing: number };
 }
 
 // ---------------------------------------------------------------------------
@@ -136,6 +138,7 @@ export function GlConsole({
   fiscalYear,
   analyzerHref,
   initialAccounts = [],
+  initialFigure = null,
 }: {
   engagementId: string;
   locale: "en" | "fr";
@@ -147,6 +150,8 @@ export function GlConsole({
   analyzerHref: string;
   /** accounts arriving from a lead-schedule figure (?accounts=…): selected and drilled at once */
   initialAccounts?: string[];
+  /** the TB opening and closing of the lead-schedule figure clicked */
+  initialFigure?: { opening: number; closing: number } | null;
 }) {
   const fr = locale === "fr";
   const T = (en: string, frText: string) => (fr ? frText : en);
@@ -196,6 +201,7 @@ export function GlConsole({
           labelEn: `Entries on ${initialAccounts.join(", ")}`,
           labelFr: `Écritures des comptes ${initialAccounts.join(", ")}`,
           filter: { accounts: initialAccounts },
+          ...(initialFigure ? { figure: initialFigure } : {}),
         }
       : null,
   );
@@ -615,6 +621,9 @@ export function GlConsole({
             onModeChange={setMode}
           />
 
+          {/* B2. COMBINED LINE FILTER: accounts AND dates AND amounts (UAT run 2 B67) */}
+          <LineFilterBar fr={fr} defaultAccounts={selected} onApply={openDrill} />
+
           {/* C. THREE VIEWS ------------------------------------------------- */}
           <div
             role="tablist"
@@ -758,6 +767,7 @@ export function GlConsole({
           onPage={setDrillOffset}
           onClose={() => setDrill(null)}
           grouped={drill.grouped === true}
+          figure={drill.figure}
         />
       ) : null}
     </div>
@@ -1428,8 +1438,9 @@ function AnalyticsView({
 // D. Drill-down: the lines behind one cell, paginated and capped.
 
 function DrillPanel({
-  fr, label, result, pending, error, offset, page, onPage, onClose, grouped = false,
+  fr, label, result, pending, error, offset, page, onPage, onClose, grouped = false, figure,
 }: {
+  figure?: { opening: number; closing: number };
   fr: boolean;
   label: string;
   result: DrillResult | null;
@@ -1572,6 +1583,24 @@ function DrillPanel({
                 </tbody>
               </SheetTable>
 
+              {figure && result ? (() => {
+                // opening + every matching movement must give the balance clicked
+                const computed = figure.opening + result.sumSigned;
+                const gap = Math.round(figure.closing - computed);
+                return (
+                  <p className="text-[12px] text-ink-soft tnum" data-testid="gl-drill-reconcile">
+                    {T("Opening balance (TB)", "Solde d'ouverture (balance)")} {num(figure.opening)}
+                    {" + "}{T(`movements (${result.total} lines)`, `mouvements (${result.total} lignes)`)} {num(result.sumSigned)}
+                    {" = "}<b>{num(computed)}</b>
+                    {" · "}{T("balance clicked", "solde de la balance")} {num(figure.closing)}
+                    {" · "}
+                    <span className={gap === 0 ? "font-semibold text-good" : "font-semibold text-rose"}>
+                      {T("gap", "écart")} {num(gap)}
+                    </span>
+                  </p>
+                );
+              })() : null}
+
               <div className="flex flex-wrap items-center gap-2">
                 <button
                   type="button"
@@ -1603,5 +1632,92 @@ function DrillPanel({
         </Sheet>
       </div>
     </div>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// B2. Combined line filter: every condition set must hold (AND), and the lines
+// open in the drill-down, as an Excel filter would (UAT run 2 B67).
+
+function LineFilterBar({
+  fr, defaultAccounts, onApply,
+}: {
+  fr: boolean;
+  defaultAccounts: string[];
+  onApply: (drill: Drill) => void;
+}) {
+  const T = (en: string, frText: string) => (fr ? frText : en);
+  const [accounts, setAccounts] = useState("");
+  const [dateFrom, setDateFrom] = useState("");
+  const [dateTo, setDateTo] = useState("");
+  const [minAbs, setMinAbs] = useState("");
+  const [maxAbs, setMaxAbs] = useState("");
+  const [journal, setJournal] = useState("");
+
+  function apply() {
+    const list = (accounts.trim() ? accounts.split(/[\s,;]+/) : defaultAccounts).map((a) => a.trim()).filter(Boolean);
+    const filter: DrillFilter = {};
+    const parts: { en: string; fr: string }[] = [];
+    if (list.length > 0) {
+      filter.accounts = list;
+      parts.push({ en: `accounts ${list.join(", ")}`, fr: `comptes ${list.join(", ")}` });
+    }
+    if (dateFrom) { filter.dateFrom = dateFrom; parts.push({ en: `from ${dateFrom}`, fr: `du ${dateFrom}` }); }
+    if (dateTo) { filter.dateTo = dateTo; parts.push({ en: `to ${dateTo}`, fr: `au ${dateTo}` }); }
+    const min = Number(minAbs.replace(/\s/g, "").replace(",", "."));
+    const max = Number(maxAbs.replace(/\s/g, "").replace(",", "."));
+    if (minAbs.trim() && Number.isFinite(min)) { filter.minAbs = min; parts.push({ en: `|amount| ≥ ${minAbs}`, fr: `|montant| ≥ ${minAbs}` }); }
+    if (maxAbs.trim() && Number.isFinite(max)) { filter.maxAbs = max; parts.push({ en: `|amount| ≤ ${maxAbs}`, fr: `|montant| ≤ ${maxAbs}` }); }
+    if (journal.trim()) { filter.journalCode = journal.trim(); parts.push({ en: `journal ${journal.trim()}`, fr: `journal ${journal.trim()}` }); }
+    onApply({
+      labelEn: parts.length ? `Lines: ${parts.map((p) => p.en).join(" and ")}` : "All lines",
+      labelFr: parts.length ? `Lignes : ${parts.map((p) => p.fr).join(" et ")}` : "Toutes les lignes",
+      filter,
+    });
+  }
+
+  return (
+    <form
+      onSubmit={(event) => { event.preventDefault(); apply(); }}
+      className="flex flex-wrap items-end gap-2 rounded-[var(--radius-atlas-sm)] border border-line bg-surface p-2.5"
+      data-testid="gl-line-filter"
+    >
+      <span className="w-full text-[11.5px] font-bold uppercase tracking-[0.06em] text-muted">
+        {T("Filter lines — every condition must hold", "Filtrer les lignes — toutes les conditions doivent être remplies")}
+      </span>
+      <label className="flex flex-col gap-0.5 text-[11px] text-ink-soft">
+        {T("Accounts", "Comptes")}
+        <input
+          value={accounts}
+          onChange={(e) => setAccounts(e.target.value)}
+          placeholder={defaultAccounts.length ? defaultAccounts.join(", ") : "411100, 521100"}
+          className={`${field} w-44`}
+          data-testid="gl-filter-accounts"
+        />
+      </label>
+      <label className="flex flex-col gap-0.5 text-[11px] text-ink-soft">
+        {T("From", "Du")}
+        <input type="date" value={dateFrom} onChange={(e) => setDateFrom(e.target.value)} className={field} data-testid="gl-filter-from" />
+      </label>
+      <label className="flex flex-col gap-0.5 text-[11px] text-ink-soft">
+        {T("To", "Au")}
+        <input type="date" value={dateTo} onChange={(e) => setDateTo(e.target.value)} className={field} data-testid="gl-filter-to" />
+      </label>
+      <label className="flex flex-col gap-0.5 text-[11px] text-ink-soft">
+        {T("Min |amount|", "|Montant| min")}
+        <input inputMode="decimal" value={minAbs} onChange={(e) => setMinAbs(e.target.value)} className={`${field} w-28`} data-testid="gl-filter-min" />
+      </label>
+      <label className="flex flex-col gap-0.5 text-[11px] text-ink-soft">
+        {T("Max |amount|", "|Montant| max")}
+        <input inputMode="decimal" value={maxAbs} onChange={(e) => setMaxAbs(e.target.value)} className={`${field} w-28`} data-testid="gl-filter-max" />
+      </label>
+      <label className="flex flex-col gap-0.5 text-[11px] text-ink-soft">
+        {T("Journal", "Journal")}
+        <input value={journal} onChange={(e) => setJournal(e.target.value)} className={`${field} w-20`} data-testid="gl-filter-journal" />
+      </label>
+      <button type="submit" className={btn} data-testid="gl-filter-apply">
+        {T("Show lines", "Afficher les lignes")}
+      </button>
+    </form>
   );
 }

@@ -1,4 +1,5 @@
 import { notFound, redirect } from "next/navigation";
+import { localizedTitle } from "@/lib/page-title";
 import { auth } from "@/auth";
 import { deleteTimeAction, logTimeAction } from "@/app/actions/time";
 import { AppNav } from "@/components/AppNav";
@@ -6,12 +7,13 @@ import { SubmitButton } from "@/components/SubmitButton";
 import { NavLink } from "@/components/NavLink";
 import { Panel, PanelHeader, btnPrimary } from "@/components/ui/atlas";
 import { getEngagement, listFileItems } from "@/lib/engagements";
+import { shortTitle } from "@/lib/file-index";
 import { getMessages } from "@/lib/i18n";
 import { getLocale } from "@/lib/locale";
 import { listTeam } from "@/lib/team";
 import { budgetVsActual, listMyTime } from "@/lib/time";
 
-export const metadata = { title: "Time · AuditISA" };
+export const generateMetadata = localizedTitle("Time", "Temps");
 
 export default async function TimePage(props: {
   params: Promise<{ id: string }>;
@@ -32,13 +34,24 @@ export default async function TimePage(props: {
   // Hours are attributed to the logger's team role; without one they can only
   // land under "Unassigned", so say so before the first entry is logged.
   const hasTeamRole = team.some((m) => m.userId === session.user.id && m.status !== "declined");
-  const taskOptions = items.filter((item) => !item.conditional);
+  // In file order — acceptance, strategy, execution, conclusion — then by code
+  // numerically, each with its title (UAT run2-B147: ~107 bare codes, unsorted).
+  const phaseRank = (code: string) => {
+    const i = "PSEC".indexOf(code.charAt(0));
+    return i < 0 ? 4 : i;
+  };
+  const taskOptions = items
+    .filter((item) => !item.conditional)
+    .sort((a, b) => phaseRank(a.code) - phaseRank(b.code) || a.code.localeCompare(b.code, undefined, { numeric: true }));
 
   const myTotal = entries.reduce((s, e) => s + Number(e.hours), 0);
   const totBudget = ba.reduce((s, r) => s + r.budget, 0);
   const totActual = ba.reduce((s, r) => s + r.actual, 0);
+  // grades are TEAM roles (Assistant audit, Senior audit…), not firm roles (UAT run2-B146)
   const gradeName = (g: string) =>
-    g === "unassigned" ? tt.unassigned : ((t.users.roles as Record<string, string>)[g] ?? g);
+    g === "unassigned"
+      ? tt.unassigned
+      : ((t.planning.team.roles as Record<string, string>)[g] ?? (t.users.roles as Record<string, string>)[g] ?? g);
 
   const input =
     "rounded-[var(--radius-atlas-sm)] border border-line-strong bg-surface px-3 py-2 text-sm text-ink outline-none focus:border-emerald-600 focus:ring-2 focus:ring-emerald-600/20";
@@ -85,7 +98,7 @@ export default async function TimePage(props: {
                 <select name="fileItemId" className={input} data-testid="time-task">
                   <option value="">{tt.noTask}</option>
                   {taskOptions.map((item) => (
-                    <option key={item.id} value={item.id}>{item.code}</option>
+                    <option key={item.id} value={item.id}>{item.code} — {shortTitle(item.code, locale, locale === "fr" ? item.titleFr : item.titleEn)}</option>
                   ))}
                 </select>
               </label>
@@ -126,7 +139,19 @@ export default async function TimePage(props: {
 
         <Panel flush className="flex min-w-0 flex-col">
           <div className="border-b border-line px-5 py-3.5">
-            <PanelHeader title={tt.budgetVsActual} />
+            <PanelHeader
+              title={tt.budgetVsActual}
+              right={
+                // the budget is set on the planning page; say where (UAT B58)
+                <a
+                  href={`/engagements/${id}/planning#budget`}
+                  className="text-xs font-semibold text-emerald-700 hover:underline dark:text-emerald-400"
+                  data-testid="time-set-budget"
+                >
+                  {locale === "fr" ? "Définir le budget" : "Set the budget"}
+                </a>
+              }
+            />
           </div>
           <div className="overflow-x-auto">
             <table className="w-full text-sm" data-testid="budget-actual">

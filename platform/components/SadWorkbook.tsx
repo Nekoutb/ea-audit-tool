@@ -16,6 +16,7 @@ import {
   SAD_CAPTION_LABELS,
   SAD_COLUMN_COUNT,
   SAD_TYPES,
+  MISSTATEMENT_TYPE_LABELS,
   captionColumn,
   type SadCaption,
   type SadCfRow,
@@ -27,13 +28,7 @@ import {
 const MAIN_TYPES = ["factual", "judgmental", "projected"];
 
 /** The misstatement types as the reader sees them (UAT B52). */
-const TYPE_LABELS: Record<string, { en: string; fr: string }> = {
-  factual: { en: "factual", fr: "avérée" },
-  judgmental: { en: "judgmental", fr: "de jugement" },
-  projected: { en: "projected", fr: "extrapolée" },
-  classification: { en: "reclassification", fr: "reclassement" },
-  disclosure: { en: "disclosure", fr: "information annexe" },
-};
+const TYPE_LABELS = MISSTATEMENT_TYPE_LABELS;
 const HDR = "#d9d9d9";
 const BAND = "#c0c0c0";
 const YEL = "#ffff99";
@@ -175,7 +170,7 @@ export function SadWorkbook({
         <b className="text-[12.5px]">{title}</b>
         <span><b>{fr ? "Entité :" : "Entity:"}</b> {view.entityName}</span>
         <span><b>{fr ? "Clôture :" : "Period ended:"}</b> {view.periodEnd}</span>
-        <span><b>{fr ? "Devise :" : "Currency:"}</b> XAF</span>
+        <span><b>{fr ? "Devise :" : "Currency:"}</b> {view.currency ?? "XAF"}</span>
         <span><b>PM:</b> <span className="tnum">{mat ? n(mat.overall) : "—"}</span></span>
         <span><b>TE:</b> <span className="tnum">{mat ? n(mat.performance) : "—"}</span></span>
         <span><b>{fr ? "Nominal :" : "Nominal:"}</b> <span className="tnum">{mat ? n(mat.trivial) : "—"}</span></span>

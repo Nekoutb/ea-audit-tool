@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { logExport } from "@/lib/activity";
 import { requireEngagementAccess } from "@/lib/engagement-access";
+import { getLocale } from "@/lib/locale";
 import { ForbiddenError } from "@/lib/tenant";
 import { exportTocWorkbook } from "@/lib/toc-export";
 import { fileResponseHeaders } from "@/lib/upload-safety";
@@ -11,12 +12,15 @@ import { fileResponseHeaders } from "@/lib/upload-safety";
  * recorded like every other export, and a failure reports what actually went
  * wrong rather than defaulting to an authentication error.
  */
-export async function GET(_request: Request, context: { params: Promise<{ id: string }> }) {
+export async function GET(request: Request, context: { params: Promise<{ id: string }> }) {
   const { id } = await context.params;
   try {
     await requireEngagementAccess(id);
 
-    const file = await exportTocWorkbook(id);
+    // the workbook follows the interface language (UAT run 2 B61)
+    const asked = new URL(request.url).searchParams.get("locale");
+    const locale = asked === "fr" || asked === "en" ? asked : (await getLocale()) === "fr" ? "fr" : "en";
+    const file = await exportTocWorkbook(id, locale);
     if (!file) return NextResponse.json({ error: "not-found" }, { status: 404 });
 
     await logExport(id, "e1.2-tests-of-controls", { filename: file.filename });

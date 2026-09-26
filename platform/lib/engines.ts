@@ -327,6 +327,8 @@ export async function runSampling(input: {
 export async function evaluateSampling(
   runId: string,
   misstatementFound: number,
+  /** language of the C1.1 finding title: the recorder's UI language (UAT B137) */
+  locale: "en" | "fr" = "en",
 ): Promise<{ projected: number; raisedToB5: boolean }> {
   const { tenantId } = await requireWrite();
   const context = await withTenant(tenantId, async (tx) => {
@@ -362,7 +364,9 @@ export async function evaluateSampling(
       engagementId: context.engagementId,
       fileItemId: context.fileItemId ?? undefined,
       route: "b5",
-      title: `Projected misstatement from sampling run ${runId.slice(0, 8)}`,
+      title: locale === "fr"
+        ? `Anomalie extrapolée — échantillonnage ${runId.slice(0, 8)}`
+        : `Projected misstatement from sampling run ${runId.slice(0, 8)}`,
       amount: context.projected,
       mtype: "projected",
     });
@@ -383,6 +387,8 @@ export interface TodResultInput {
   keyMisstatement: number;
   /** the population the sample represents: everything after the key items */
   remainingValue: number;
+  /** language of the C1.1 finding titles: the recorder's UI language (UAT B137) */
+  locale?: "en" | "fr";
 }
 
 export interface TodResultRow {
@@ -444,7 +450,8 @@ export async function recordTodResult(input: TodResultInput): Promise<{ runId: s
     });
     return runId;
   });
-  const { projected, raisedToB5 } = await evaluateSampling(runId, input.sampleMisstatement);
+  const fr = input.locale === "fr";
+  const { projected, raisedToB5 } = await evaluateSampling(runId, input.sampleMisstatement, fr ? "fr" : "en");
   // whether the projection reached C1.1 is part of the record the list shows
   await withTenant(tenantId, async (tx) => {
     await tx.query("UPDATE automation_run SET result_summary = result_summary || $2::jsonb WHERE id = $1", [
@@ -457,7 +464,9 @@ export async function recordTodResult(input: TodResultInput): Promise<{ runId: s
     await routeFinding({
       engagementId: input.engagementId,
       route: "b5",
-      title: `Factual misstatement in key items — ${indexCode} (ToD run ${runId.slice(0, 8)})`,
+      title: fr
+        ? `Anomalie avérée sur les éléments clés — ${indexCode} (test de détail ${runId.slice(0, 8)})`
+        : `Factual misstatement in key items — ${indexCode} (ToD run ${runId.slice(0, 8)})`,
       amount: Math.round(input.keyMisstatement),
       mtype: "factual",
       trivialConfirmed: true,

@@ -44,6 +44,7 @@ export interface TeamMember {
   email: string;
   teamRole: TeamRole;
   status: "invited" | "accepted" | "declined";
+  /** ISO timestamp (UTC); the page formats it in the reader's language (UAT B123) */
   respondedAt: string | null;
   /** why the member declined, when they did (UAT B130) */
   declineReason: string | null;
@@ -71,12 +72,12 @@ export async function listTeam(engagementId: string): Promise<TeamMember[]> {
     }>(
       `SELECT tm.id, tm.user_id, coalesce(u.name, u.email) AS user_name, u.email, tm.team_role,
               coalesce(tm.status, 'accepted') AS status,
-              to_char(tm.responded_at AT TIME ZONE $2, 'DD Mon YYYY HH24:MI') || ' ' || $3 AS responded_at,
+              to_char(tm.responded_at AT TIME ZONE 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS"Z"') AS responded_at,
               tm.decline_reason,
               ${independenceEligibleSql("tm.user_id", "tm.tenant_id")} AS declares
          FROM team_member tm JOIN app_user u ON u.id = tm.user_id
         WHERE tm.engagement_id = $1 ORDER BY tm.created_at`,
-      [engagementId, DISPLAY_TIME_ZONE, DISPLAY_TIME_ZONE_LABEL],
+      [engagementId],
     );
     return result.rows.map((r) => ({
       id: r.id,
@@ -314,14 +315,16 @@ export async function assignTask(
   await assertNotEqrWrite(tenantId, engagementId, actorId, actorRole);
   const task = await withTenant(tenantId, async (tx) => {
     if (userIdOrNull) {
-      const member = await tx.query(
-        "SELECT 1 FROM team_member WHERE engagement_id = $1 AND user_id = $2",
+      const member = await tx.query<{ team_role: string }>(
+        "SELECT team_role FROM team_member WHERE engagement_id = $1 AND user_id = $2",
         [engagementId, userIdOrNull],
       );
       if ((member.rowCount ?? 0) === 0) throw new Error("not-found");
+      // the quality reviewer stands apart from the work (ISQM 2 ¶18-20, UAT B73)
+      if (member.rows[0]?.team_role === "eqr_reviewer") throw new Error("eqr-not-assignable");
     }
-    const updated = await tx.query<{ code: string; title_en: string }>(
-      "UPDATE file_item SET assignee_user_id = $3 WHERE id = $2 AND engagement_id = $1 RETURNING code, title_en",
+    const updated = await tx.query<{ code: string; title_en: string; title_fr: string | null }>(
+      "UPDATE file_item SET assignee_user_id = $3 WHERE id = $2 AND engagement_id = $1 RETURNING code, title_en, title_fr",
       [engagementId, itemId, userIdOrNull],
     );
     if ((updated.rowCount ?? 0) === 0) throw new Error("not-found");
@@ -342,7 +345,9 @@ export async function assignTask(
         tenantId,
         userId: userIdOrNull,
         kind: "task_assigned",
-        title: `Task assigned: ${task.code} — ${task.title_en}`,
+        // bilingual, as the independence notices are (UAT B101 / run 3 B14)
+        title: `Task assigned · Tâche assignée : ${task.code}`,
+        body: `${task.title_en} · ${task.title_fr ?? task.title_en}`,
         href: `/engagements/${engagementId}/sections/${itemId}`,
       });
     } catch {
@@ -377,11 +382,13 @@ export async function assignTasks(
   await assertNotEqrWrite(tenantId, engagementId, actorId, actorRole);
   const result = await withTenant(tenantId, async (tx) => {
     if (userIdOrNull) {
-      const member = await tx.query(
-        "SELECT 1 FROM team_member WHERE engagement_id = $1 AND user_id = $2",
+      const member = await tx.query<{ team_role: string }>(
+        "SELECT team_role FROM team_member WHERE engagement_id = $1 AND user_id = $2",
         [engagementId, userIdOrNull],
       );
       if ((member.rowCount ?? 0) === 0) throw new Error("not-found");
+      // the quality reviewer stands apart from the work (ISQM 2 ¶18-20, UAT B73)
+      if (member.rows[0]?.team_role === "eqr_reviewer") throw new Error("eqr-not-assignable");
     }
     const updated = await tx.query<{ code: string }>(
       `UPDATE file_item SET ${ASSIGNMENT_COLUMN[role]} = $3 WHERE engagement_id = $1 AND id = ANY($2::uuid[]) RETURNING code`,
@@ -404,7 +411,7 @@ export async function assignTasks(
           tenantId,
           userId: userIdOrNull,
           kind: "task_assigned",
-          title: `${result.n} task(s) assigned to you as ${role}`,
+          title: `${result.n} task(s) assigned to you as ${role} · ${result.n} tâche(s) qui vous sont assignée(s) comme ${{ preparer: "préparateur", approver: "approbateur", assignee: "responsable" }[role]}`,
           body: result.codes.slice(0, 20).join(", "),
           href: `/engagements/${engagementId}/tasks`,
         });
@@ -499,12 +506,21 @@ export async function addPbcItem(engagementId: string, title: string): Promise<v
   const { tenantId } = await requireWrite();
   await requireEngagementAccess(engagementId);
   if (!title.trim()) throw new Error("title-required");
-  await withTenant(tenantId, async (tx) => {
-    await tx.query("INSERT INTO pbc_item (tenant_id, engagement_id, title) VALUES ($1, $2, $3)", [
-      tenantId,
-      engagementId,
-      title.trim(),
-    ]);
+  const itemId = await withTenant(tenantId, async (tx) => {
+    const created = await tx.query<{ id: string }>(
+      "INSERT INTO pbc_item (tenant_id, engagement_id, title) VALUES ($1, $2, $3) RETURNING id",
+      [tenantId, engagementId, title.trim()],
+    );
+    return created.rows[0]?.id ?? null;
+  });
+  // on the trail like the PBC page's own requests (UAT run 2 B74)
+  await recordActivity({
+    engagementId,
+    entityType: "pbc_item",
+    entityId: itemId,
+    action: "pbc_requested",
+    summary: `PBC requested: ${title.trim()}`,
+    after: { title: title.trim() },
   });
 }
 
@@ -541,6 +557,9 @@ export async function addTeamMemberByEmail(
 ): Promise<void> {
   assertTeamRole(teamRole);
   const { tenantId, userId: inviterId } = await requireTeamManager(engagementId, teamRole);
+  // an archived file keeps the team it closed with, and no account is
+  // provisioned for it (UAT B156)
+  await assertMutable(engagementId);
   const email = emailRaw.trim().toLowerCase();
   if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)) throw new Error("invalid-email");
 
@@ -621,7 +640,7 @@ export async function addTeamMemberByEmail(
       `INSERT INTO team_member (tenant_id, engagement_id, user_id, team_role, status, invited_at)
        VALUES ($1, $2, $3, $4, 'invited', now())
        ON CONFLICT (engagement_id, user_id)
-       DO UPDATE SET team_role = EXCLUDED.team_role, status = 'invited', invited_at = now()`,
+       DO UPDATE SET team_role = EXCLUDED.team_role, status = 'invited', invited_at = now(), decline_reason = NULL`,
       [tenantId, engagementId, userId, teamRole],
     );
     // Appointing the quality reviewer from the team page puts C4.2 on the
@@ -669,8 +688,10 @@ export async function addTeamMemberByEmail(
     tenantId,
     userId,
     kind: "engagement-invite",
-    title: `Added to ${engagementName}`,
-    body: "Accept or decline the engagement from its dashboard.",
+    // bilingual, and it opens the dashboard where the answer is given (UAT B101)
+    title: `Added to ${engagementName} · Ajouté(e) à ${engagementName}`,
+    body: "Accept or decline the engagement from its dashboard. · Acceptez ou refusez la mission depuis son tableau de bord.",
+    href: `/engagements/${engagementId}/dashboard`,
   });
   await askIndependenceIfCampaignOpen(engagementId, userId);
 }
@@ -721,7 +742,7 @@ export async function respondToEngagement(engagementId: string, accept: boolean,
           tenantId,
           userId: partnerId,
           kind: "engagement-declined",
-          title: `${outcome.who} declined the engagement`,
+          title: `${outcome.who} declined the engagement · ${outcome.who} a refusé la mission`,
           body: why.slice(0, 400),
           href: `/engagements/${engagementId}/team`,
         });

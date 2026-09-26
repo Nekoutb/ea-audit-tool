@@ -89,8 +89,25 @@ function headerLineIndex(cellsByLine: readonly string[][]): number {
   return 0;
 }
 
+/**
+ * The physical file row (1-based line or Excel row) a parsed record came from,
+ * carried as a non-enumerable property so it never becomes a column; messages
+ * then point at the row the user sees in the spreadsheet (UAT B135).
+ */
+export function sourceRowOf(record: Record<string, unknown>): number | null {
+  const n = (record as { __row?: unknown }).__row;
+  return typeof n === "number" ? n : null;
+}
+
+function tagSourceRow(record: Record<string, unknown>, rowNumber: number): void {
+  Object.defineProperty(record, "__row", { value: rowNumber, enumerable: false });
+}
+
 function parseCsv(text: string, headerRow = true): ParsedTable {
-  const lines = text.replace(/\r\n?/g, "\n").split("\n").filter((line) => line.trim().length > 0);
+  const allLines = text.replace(/\r\n?/g, "\n").split("\n");
+  const lineNos: number[] = [];
+  allLines.forEach((line, index) => { if (line.trim().length > 0) lineNos.push(index + 1); });
+  const lines = allLines.filter((line) => line.trim().length > 0);
   if (lines.length < (headerRow ? 2 : 1)) throw new SubLedgerError("empty-file");
   const delimiter = detectCsvDelimiter(lines);
   const split = (line: string): string[] => splitCsvLine(line, delimiter);
@@ -102,10 +119,12 @@ function parseCsv(text: string, headerRow = true): ParsedTable {
   const headers = headerRow
     ? split(lines[headerAt]).map((header, index) => header || `col_${index + 1}`)
     : Array.from({ length: width }, (_, index) => `col_${index + 1}`);
-  const rows = lines.slice(headerRow ? headerAt + 1 : 0).map((line) => {
+  const start = headerRow ? headerAt + 1 : 0;
+  const rows = lines.slice(start).map((line, offset) => {
     const cells = split(line);
     const row: Record<string, unknown> = {};
     headers.forEach((header, index) => { row[header] = cells[index] ?? ""; });
+    tagSourceRow(row, lineNos[start + offset]);
     return row;
   });
   return { headers, rows };
@@ -150,11 +169,16 @@ async function parseXlsx(buffer: Buffer, headerRow = true): Promise<ParsedTable>
     let firstNonEmpty = 0;
     let found = 0;
     for (let r = 1; r <= Math.min(sheet.rowCount, 25); r += 1) {
-      let values = 0;
+      // A merged title banner repeats its value in every cell of the range:
+      // only the master cell counts, and the row needs two DISTINCT values
+      // to be a header (UAT B64).
+      const distinct = new Set<string>();
       sheet.getRow(r).eachCell({ includeEmpty: false }, (cell) => {
+        if (cell.isMerged && cell.master !== cell) return;
         const v = cellScalar(cell.value);
-        if (v !== null && v !== undefined && String(v).trim() !== "") values += 1;
+        if (v !== null && v !== undefined && String(v).trim() !== "") distinct.add(String(v).trim());
       });
+      const values = distinct.size;
       if (values > 0 && !firstNonEmpty) firstNonEmpty = r;
       if (values >= 2) { found = r; break; }
     }
@@ -162,8 +186,14 @@ async function parseXlsx(buffer: Buffer, headerRow = true): Promise<ParsedTable>
   }
   const headers: string[] = [];
   if (headerRow) {
+    const seen = new Map<string, number>();
     sheet.getRow(headerRowNo).eachCell({ includeEmpty: true }, (cell, col) => {
-      headers[col - 1] = String(cellScalar(cell.value) ?? `col_${col}`).trim() || `col_${col}`;
+      const raw = cell.isMerged && cell.master !== cell ? null : cellScalar(cell.value);
+      const name = String(raw ?? `col_${col}`).trim() || `col_${col}`;
+      // identical headers would collapse the record keys: suffix _2, _3...
+      const count = (seen.get(name) ?? 0) + 1;
+      seen.set(name, count);
+      headers[col - 1] = count === 1 ? name : `${name}_${count}`;
     });
   } else {
     for (let c = 1; c <= sheet.columnCount; c += 1) headers[c - 1] = `col_${c}`;
@@ -180,6 +210,7 @@ async function parseXlsx(buffer: Buffer, headerRow = true): Promise<ParsedTable>
       record[header] = cell.isMerged && cell.master !== cell ? null : cellScalar(cell.value);
     });
     if (Object.values(record).some((v) => v !== null && v !== undefined && String(v).trim() !== "")) {
+      tagSourceRow(record, rowNumber);
       rows.push(record);
     }
   });

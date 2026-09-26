@@ -589,6 +589,15 @@ const D3_6: PaperDef = {
   ],
 };
 
+/**
+ * P1.5 Part B criteria: a "Yes" on any of them means an engagement quality
+ * review is required (the paper's own rule). Stored as q_<key>. The paper has
+ * no single "q_eqr" answer, so the completion gate reads these (UAT run 2 B33).
+ */
+export const EQR_CRITERIA_KEYS: readonly string[] = (D3_6.sections ?? []).flatMap((s) =>
+  s.kind === "yn" ? s.items.map((i) => i.key) : [],
+);
+
 /* ---------------------------------------------------------------- P2.3 --- */
 // The scope of the audit when the entity is more than one place: branches,
 // subsidiaries, sites whose figures reach the financial statements. Scoped to

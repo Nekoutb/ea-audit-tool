@@ -83,7 +83,7 @@ describe("recordCompletion — writing the key IS passing the gate", () => {
 
   it("reserves partner_conclusion to a partner", async () => {
     as(STAFFER, "manager");
-    await expect(recordCompletion(engagementId, "partner_conclusion", {})).rejects.toThrow("forbidden");
+    await expect(recordCompletion(engagementId, "partner_conclusion", {})).rejects.toThrow("requires-partner");
   });
 
   it("refuses the archive manifest as a system-owned key", async () => {

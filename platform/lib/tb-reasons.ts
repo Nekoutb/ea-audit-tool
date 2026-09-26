@@ -27,6 +27,16 @@ const COLUMN_LABEL: Record<TbColumn, { en: string; fr: string }> = {
  * a person can act on: the column that could not be read and the values in
  * it, the totals that do not agree and by how much, the accounts concerned.
  */
+/** A stored import status in the UI language (UAT run2-B106: the French UI showed 'valid'). */
+export function tbStatusLabel(status: string | null | undefined, locale: "en" | "fr"): string {
+  const fr = locale === "fr";
+  if (status === "valid") return fr ? "valide" : "valid";
+  if (status === "invalid") return fr ? "invalide" : "invalid";
+  if (status === "pending") return fr ? "en attente" : "pending";
+  if (!status) return "";
+  return fr ? "avec avertissements" : "with warnings";
+}
+
 export function explainTbSummary(summary: TbValidationSummary, locale: "en" | "fr"): TbReason[] {
   const fr = locale === "fr";
   const nf = (v: number) => new Intl.NumberFormat("fr-FR", { maximumFractionDigits: 2 }).format(v);
@@ -38,7 +48,7 @@ export function explainTbSummary(summary: TbValidationSummary, locale: "en" | "f
   if (r) {
     for (const u of r.unreadable) {
       const col = fr ? COLUMN_LABEL[u.column].fr : COLUMN_LABEL[u.column].en;
-      const ex = u.examples.map((e) => `${fr ? "ligne" : "row"} ${e.row} (${e.account}): "${e.value}"`).join("; ");
+      const ex = u.examples.map((e) => `${fr ? "ligne du fichier" : "file row"} ${e.row} (${e.account}): "${e.value}"`).join("; ");
       out.push({
         blocking: true,
         text: fr
@@ -98,7 +108,7 @@ export function explainTbSummary(summary: TbValidationSummary, locale: "en" | "f
     });
   }
   if (c.openingTiesToPrior.checked && c.openingTiesToPrior.exceptions.length > 0) {
-    const ex = c.openingTiesToPrior.exceptions.slice(0, 5).map((e) => `${e.account} (${nf(e.opening)} vs ${nf(e.priorClosing)})`).join(", ");
+    const ex = c.openingTiesToPrior.exceptions.slice(0, 5).map((e) => `${e.account === "12x/13x" ? (fr ? "résultat reporté 12x/13x (classes 6-8 et 12/13 N-1)" : "result carried forward 12x/13x (prior classes 6-8 and 12/13)") : e.account} (${nf(e.opening)} vs ${nf(e.priorClosing)})`).join(", ");
     out.push({
       blocking: false,
       text: fr

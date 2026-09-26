@@ -57,12 +57,14 @@ import { approvedMateriality } from "@/lib/materiality";
 import { groupOfTask } from "@/lib/task-groups";
 import { signOffEqrAction, signOffPreparerAction, signOffReviewerAction } from "@/app/actions/audit-file";
 import { listAttachments, listDeletedAttachments } from "@/lib/attachments";
-import { listItemDocuments } from "@/lib/documents";
+import { listItemDocuments, TEAM_REVIEW_ROLES } from "@/lib/documents";
 import { ensureDefaultWorkpaper, templateForCode } from "@/lib/wp-templates";
 import { effectiveDueDate, taskForItem, engagementTasks } from "@/lib/engagement-dashboard";
-import { listConfirmations, sendDueReminders } from "@/lib/independence";
+import { INDEPENDENCE_QUESTIONS, listConfirmations, sendDueReminders } from "@/lib/independence";
 import { listTeam as listEngagementTeam } from "@/lib/team";
 import { EQR_OWN_PAPER, loadPaper, paperBaseDigests, paperFor, paperVersion } from "@/lib/working-papers";
+import { describeSelectionDesign, type RecordedSelectionDesign } from "@/lib/je-selection";
+import { benchmarkLabel } from "@/lib/materiality-model";
 import { EQR_C42_KEYS, eqrStanding } from "@/lib/eqr";
 import { paperKeys } from "@/lib/papers/types";
 import { listProgramSteps } from "@/lib/programs";
@@ -70,18 +72,6 @@ import { canReview, canWrite } from "@/lib/rbac";
 import { getTaskAssignee, listTeam } from "@/lib/team";
 import { requireTenant } from "@/lib/tenant";
 
-/** Benchmark label for the S6.1 auto field, in the reader's language (UAT B74). */
-function benchmarkLabel(benchmark: string, fr: boolean): string {
-  const L: Record<string, [string, string]> = {
-    pbt: ["Profit before tax", "Résultat avant impôt"],
-    revenue: ["Revenue", "Chiffre d'affaires"],
-    total_assets: ["Total assets", "Total de l'actif"],
-    equity: ["Equity", "Capitaux propres"],
-    expenses: ["Total expenses", "Total des charges"],
-  };
-  const pair = L[benchmark];
-  return pair ? (fr ? pair[1] : pair[0]) : benchmark;
-}
 
 async function sectionInfo(itemId: string) {
   const { tenantId } = await requireTenant();
@@ -138,8 +128,10 @@ export default async function SectionPage(props: {
   // only a field both people changed (UAT run 3 firm.perf-concurrent) …
   const paperDigests = paperBaseDigests(paperValues);
   // … and the user's own text for such a field, given back after the refusal.
-  const heldBack =
-    error === "stale-edit-conflict" ? decodePaperDraft((await cookies()).get(paperDraftCookie(itemId))?.value) : null;
+  // A save refused for another reason (c58-equity-contradicts,
+  // tieout-unexplained — UAT run 4 B01) likewise gives back all the typed text.
+  const heldBack = error ? decodePaperDraft((await cookies()).get(paperDraftCookie(itemId))?.value) : null;
+  const heldConflict = error === "stale-edit-conflict" ? heldBack : null;
   const wizardValues = heldBack ? { ...paperValues, ...heldBack.drafts } : paperValues;
   // C5.8 shows the /legal equity monitor's figures and conclusion (UAT run 3 firm.stat.c5-8)
   const c58 =
@@ -168,9 +160,21 @@ export default async function SectionPage(props: {
     const m = approvedM;
     if (m) {
       const n = (x: number) => new Intl.NumberFormat("fr-FR").format(x);
-      autoValues.benchmark = `${m.benchmark} · PM ${n(m.overall)} (${m.percentage}% × ${n(m.benchmarkAmount)}) · TE ${n(m.performance)} (${m.performancePct}% PM) · SAD Nominal ${n(m.trivial)} (${m.trivialPct}% PM) FCFA (${m.status}${m.approvedByName ? " · " + m.approvedByName : ""})`;
+      // in the reader's language: benchmark name and status, not the raw keys (UAT B127)
+      const fr61 = locale === "fr";
+      const statusLabel =
+        m.status === "approved" ? (fr61 ? "approuvé" : "approved") : m.status === "draft" ? (fr61 ? "brouillon" : "draft") : (fr61 ? "remplacé" : "superseded");
+      autoValues.benchmark = `${benchmarkLabel(m.benchmark, fr61)} · PM ${n(m.overall)} (${m.percentage}% × ${n(m.benchmarkAmount)}) · TE ${n(m.performance)} (${m.performancePct}% PM) · SAD Nominal ${n(m.trivial)} (${m.trivialPct}% PM) FCFA (${statusLabel}${m.approvedByName ? " · " + m.approvedByName : ""})`;
       const sm = await specificThresholds(id);
-      if (sm.size > 0) autoValues.benchmark += ` · ${sm.size} specific threshold${sm.size > 1 ? "s" : ""} (P6.2)`;
+      if (sm.size > 0) {
+        autoValues.benchmark += fr61
+          ? ` · ${sm.size} seuil${sm.size > 1 ? "s" : ""} spécifique${sm.size > 1 ? "s" : ""} (P6.2)`
+          : ` · ${sm.size} specific threshold${sm.size > 1 ? "s" : ""} (P6.2)`;
+      }
+      // the written reason for the TE percentage travels with the figure (UAT B42)
+      if (m.performanceJustification) {
+        autoValues.benchmark += ` · ${locale === "fr" ? "Justification TE : " : "TE justification: "}${m.performanceJustification}`;
+      }
     }
   }
   if (section.code === "S6.1") {
@@ -190,23 +194,21 @@ export default async function SectionPage(props: {
   // S5.4 — the journal-entry selection design recorded by the JE engine (UAT B76)
   if (section.code === "S5.4" && paperValues.je_design) {
     try {
-      const d = JSON.parse(paperValues.je_design) as { criteria?: string[]; userRules?: unknown[]; selectedLines?: number; populationLines?: number; recordedBy?: string; recordedAt?: string };
-      const when = d.recordedAt ? d.recordedAt.slice(0, 16).replace("T", " ") : "";
-      autoValues.je_design = locale === "fr"
-        ? `Critères : ${(d.criteria ?? []).join(", ") || "—"} · règles : ${d.userRules?.length ?? 0} · ${d.selectedLines ?? 0} ligne(s) sélectionnée(s) sur ${d.populationLines ?? 0} · par ${d.recordedBy ?? "—"} le ${when}`
-        : `Criteria: ${(d.criteria ?? []).join(", ") || "—"} · rules: ${d.userRules?.length ?? 0} · ${d.selectedLines ?? 0} line(s) selected of ${d.populationLines ?? 0} · by ${d.recordedBy ?? "—"} on ${when}`;
-      // earlier designs stay on file as dated history (UAT run 2 B16)
-      let earlier = 0;
+      const d = JSON.parse(paperValues.je_design) as RecordedSelectionDesign;
+      // criteria by name with their thresholds, rules, firm-zone time (UAT B133 / run 3 B11)
+      autoValues.je_design = describeSelectionDesign(d, locale);
+      // earlier designs stay on file as dated history (UAT run 2 B16), each one readable
+      let earlier: RecordedSelectionDesign[] = [];
       try {
         const h = JSON.parse(paperValues.je_design_history ?? "[]") as unknown;
-        earlier = Array.isArray(h) ? h.length : 0;
+        earlier = Array.isArray(h) ? h.filter((x): x is RecordedSelectionDesign => typeof x === "object" && x !== null) : [];
       } catch {
-        earlier = 0;
+        earlier = [];
       }
-      if (earlier > 0) {
+      if (earlier.length > 0) {
         autoValues.je_design += locale === "fr"
-          ? ` · ${earlier} conception(s) antérieure(s) conservée(s) au dossier`
-          : ` · ${earlier} earlier design(s) kept on file`;
+          ? ` — Conception(s) antérieure(s) conservée(s) au dossier : ${earlier.map((x, i) => `(${i + 1}) ${describeSelectionDesign(x, locale)}`).join(" ")}`
+          : ` — Earlier design(s) kept on file: ${earlier.map((x, i) => `(${i + 1}) ${describeSelectionDesign(x, locale)}`).join(" ")}`;
       }
     } catch {
       autoValues.je_design = paperValues.je_design;
@@ -223,6 +225,31 @@ export default async function SectionPage(props: {
       // reminders must never block the task page
     }
     [campaign, campaignTeam] = await Promise.all([listConfirmations(id), listEngagementTeam(id)]);
+    // Part B is filled from the campaign itself: counts, then each exception
+    // with its member, question and disposition (UAT B35).
+    if (campaign.length > 0) {
+      const frP21 = locale === "fr";
+      const received = campaign.filter((c) => c.status === "completed" || c.status === "exception").length;
+      const outstanding = campaign.filter((c) => c.status === "sent" || c.status === "opened").length;
+      const exceptions = campaign.filter((c) => c.status === "exception");
+      const questionOf = (key: string) => {
+        const q = INDEPENDENCE_QUESTIONS.find((question) => question.key === key);
+        return q ? (frP21 ? q.labelFr : q.labelEn) : key;
+      };
+      const lines = [
+        frP21
+          ? `${received} déclaration(s) reçue(s) sur ${campaign.length} · ${outstanding} en attente · ${exceptions.length} exception(s)`
+          : `${received} of ${campaign.length} declaration(s) received · ${outstanding} outstanding · ${exceptions.length} exception(s)`,
+        ...exceptions.map((c) => {
+          const questions = Object.keys(c.explanations ?? {}).map(questionOf).join(" ; ");
+          const disposition = c.disposition
+            ? `${frP21 ? "Disposition : " : "Disposition: "}${c.disposition}`
+            : frP21 ? "Disposition de l'associé en attente" : "Partner disposition pending";
+          return `${c.userName} — ${questions || "exception"} — ${disposition}`;
+        }),
+      ];
+      autoValues.campaign = lines.join("\n");
+    }
   }
 
   // The fixed working-paper screen (non-execution tasks): sign-off state,
@@ -261,6 +288,13 @@ export default async function SectionPage(props: {
   // Archive button, so the decision sits beside the list of what would stop it.
   const archiveView =
     section.code === "C6.1" || section.code === "C6.2" ? await archiveChecklist(id, isFr ? "fr" : "en") : null;
+  // C4.3 lists the review notes still open: they keep its gate red (UAT run 2 B81).
+  const c43OpenNotes =
+    section.code === "C4.3"
+      ? await archiveChecklist(id, isFr ? "fr" : "en")
+          .then((c) => c.groups.flatMap((g) => g.gates).find((g) => g.key === "review_notes_cleared")?.items ?? [])
+          .catch(() => null)
+      : null;
   // S4.3/S4.4 — the planning sub-registers ride with the paper, and again on
   // the execution papers that take them over (E6.2 related parties, E6.7
   // estimates): one register, read and updated from either end.
@@ -327,7 +361,7 @@ export default async function SectionPage(props: {
   // P7 — the planning review & approval summary takes over the centre column
   const ras = section.code === "P7.2" ? await planningRas(id) : null;
   // C1.2 — the significant matters the memo covers, read from the file (UAT B151)
-  const srm = section.code === "C1.2" ? await srmMatters(id).catch(() => null) : null;
+  const srm = section.code === "C1.2" ? await srmMatters(id, isFr ? "fr" : "en").catch(() => null) : null;
   // Appendix 1 rows: the engagement team by seniority, then three free rows
   // for specialists brought in from outside the core team.
   const rasTeam = ras
@@ -414,10 +448,15 @@ export default async function SectionPage(props: {
     listTeam(id),
     getTaskAssignee(itemId),
   ]);
+  // the quality reviewer is never offered as an assignee (ISQM 2 ¶18-20, UAT B73)
+  const assignableTeam = team.filter((member) => member.teamRole !== "eqr_reviewer");
   const te = t.planning.execution;
   const tfd = t.planning.findings;
   const fr = locale === "fr";
   const canAssign = canReview(session.user.role) && !isEqr;
+  // the R chip follows the firm rank AND the role held on this team (UAT B32)
+  const myTeamRole = team.find((m) => m.userId === session.user.id)?.teamRole ?? null;
+  const mayReviewHere = canReview(session.user.role) && (myTeamRole === null || TEAM_REVIEW_ROLES.has(myTeamRole));
 
   // Tasks driven by a dedicated tool link to it right on the task header —
   // the reader never hunts through Tools for the screen that feeds the paper.
@@ -427,8 +466,9 @@ export default async function SectionPage(props: {
     "C1.1": { path: "tools/sad", en: "SAD tool", fr: "Outil SAD" },
     "S3.1": { path: "risks", en: "Risk register", fr: "Registre des risques" },
     "P1.1": { path: "tools/independence", en: "Independence tool", fr: "Outil d'indépendance" },
-    "S2.1": { path: "data", en: "Trial balance analyzer", fr: "Analyseur de balance" },
-    "S2.2": { path: "tools/gl-console", en: "GL console", fr: "Console grand livre" },
+    // P3.2 rests on the analytical procedures run on the imported TB; S2.1/S2.2
+    // (controls) pointed at unrelated TB/GL screens and are unlinked (UAT B60)
+    "P3.2": { path: "analytics", en: "Analytical procedures", fr: "Procédures analytiques" },
   };
   const toolLink = TOOL_LINKS[section.code] ?? null;
   const toolChip = toolLink ? (
@@ -459,7 +499,7 @@ export default async function SectionPage(props: {
         </>
       ) : canMarkNa ? (
         <>
-          <input name="naReason" required maxLength={500} placeholder={fr ? "Motif de non-application…" : "Why it does not apply…"} className={`${input} w-52`} data-testid="task-na-input" />
+          <input name="naReason" required maxLength={500} placeholder={fr ? "Motif de non-application…" : "Why it does not apply…"} className={`${input} w-52 print:hidden`} data-testid="task-na-input" />
           <SubmitButton className="rounded-[var(--radius-atlas-sm)] border border-line-strong px-2 py-1 text-[11.5px] text-ink-soft hover:bg-surface-2" testId="task-na-save">
             {fr ? "Marquer non applicable" : "Mark not applicable"}
           </SubmitButton>
@@ -497,15 +537,19 @@ export default async function SectionPage(props: {
         <div className="mt-5 flex flex-wrap items-center gap-3">
           <Link
             href={backHref ?? `/engagements/${id}/groups/e4`}
-            className="grid h-8 w-8 place-items-center rounded-full text-[16px] font-bold text-ink-soft transition hover:bg-surface-2 hover:text-ink"
+            className="grid h-8 w-8 place-items-center rounded-full text-[16px] font-bold text-ink-soft transition hover:bg-surface-2 hover:text-ink print:hidden"
             title={backHref ? (fr ? "Retour" : "Back") : fr ? "Retour aux comptes" : "Back to Accounts"}
             aria-label={fr ? "Retour" : "Back"}
             data-testid="wp-back-accounts"
           >
             ←
           </Link>
-          <h1 className="min-w-0 flex-1 truncate text-[20px] font-semibold leading-tight tracking-[-0.02em] text-ink">
-            {locale === "fr" ? section.title_fr : section.title_en}
+          {/* a floor width, the code and a tooltip: at 1400 px it showed "Cr…" (UAT B148) */}
+          <h1
+            className="wp-print-title min-w-[14rem] flex-1 truncate text-[20px] font-semibold leading-tight tracking-[-0.02em] text-ink"
+            title={`${section.code} — ${locale === "fr" ? section.title_fr : section.title_en}`}
+          >
+            {section.code} — {locale === "fr" ? section.title_fr : section.title_en}
           </h1>
           {accountCra ? (
             <Link href={`/engagements/${id}/cra`} title={fr ? "Évaluation combinée des risques (S3.1)" : "Combined risk assessment (S3.1)"} data-testid="wp-account-cra">
@@ -517,7 +561,7 @@ export default async function SectionPage(props: {
           {designItemId ? (
             <Link
               href={`/engagements/${id}/sections/${designItemId}`}
-              className="rounded-[var(--radius-atlas-sm)] border border-line-strong px-2 py-1 text-[11.5px] font-semibold text-ink-soft transition hover:bg-surface-2 hover:text-ink"
+              className="rounded-[var(--radius-atlas-sm)] border border-line-strong px-2 py-1 text-[11.5px] font-semibold text-ink-soft transition hover:bg-surface-2 hover:text-ink print:hidden"
               title={fr ? "Retour à la conception des procédures substantives" : "Back to the substantive-procedures design"}
               data-testid="wp-back-design"
             >
@@ -547,7 +591,7 @@ export default async function SectionPage(props: {
                     P
                   </button>
                 </form>
-                {rSigned || canReview(session.user.role) ? (
+                {rSigned || mayReviewHere ? (
                   <form action={signOffReviewerAction}>
                     <input type="hidden" name="fileItemId" value={itemId} />
                     <input type="hidden" name="engagementId" value={id} />
@@ -557,7 +601,7 @@ export default async function SectionPage(props: {
                     </button>
                   </form>
                 ) : (
-                  <span className={chip(false)} title={fr ? "Revue réservée aux seniors et rangs supérieurs" : "Review is for seniors and above"} data-testid="chip-reviewer" data-signed="false">
+                  <span className={chip(false)} title={fr ? "Revue réservée aux seniors et rangs supérieurs, dans l'équipe de la mission" : "Review is for seniors and above on the engagement team"} data-testid="chip-reviewer" data-signed="false">
                     R
                   </span>
                 )}
@@ -567,10 +611,10 @@ export default async function SectionPage(props: {
           <span className="flex items-center gap-1.5 text-[12px] text-muted">
             {fr ? "Assigné à" : "Assigned to"}
             {canAssign && !viewOnly ? (
-              <form action={assignTaskAction.bind(null, id, itemId)} className="flex items-center gap-1">
+              <form action={assignTaskAction.bind(null, id, itemId)} className="flex items-center gap-1 print:hidden">
                 <select name="assignee" defaultValue={assignee?.userId ?? ""} className={input} data-testid="task-assignee">
                   <option value="">—</option>
-                  {team.map((member) => (
+                  {assignableTeam.map((member) => (
                     <option key={member.userId} value={member.userId}>{member.userName}</option>
                   ))}
                   {/* an assignee no longer on the team is shown, not hidden behind "—" (UAT run 2 B04) */}
@@ -582,6 +626,9 @@ export default async function SectionPage(props: {
                 </select>
                 <SubmitButton className="rounded-[var(--radius-atlas-sm)] border border-line-strong px-2 py-1 text-[11.5px] text-ink-soft hover:bg-surface-2" testId="task-assign-save">OK</SubmitButton>
               </form>
+            ) : null}
+            {canAssign && !viewOnly ? (
+              <b className="hidden text-ink-soft print:inline">{assignee?.name ?? "—"}</b>
             ) : (
               <b className="text-ink-soft" data-testid="task-assignee">{assignee?.name ?? "—"}</b>
             )}
@@ -600,7 +647,7 @@ export default async function SectionPage(props: {
             designHref={designItemId ? `/engagements/${id}/sections/${designItemId}` : null}
             steps={localizePspSteps(steps.filter((s) => s.source === "psp" || s.description.startsWith("OSP-")), locale)}
             results={pspVals}
-            attachmentsSlot={<TaskAttachments fileItemId={itemId} initial={accountAttachments} deletedInitial={deletedAttachments} documents={itemDocuments} locale={fr ? "fr" : "en"} canManage={canManageEvidence && !viewOnly} readOnly={viewOnly} compact />}
+            attachmentsSlot={<TaskAttachments fileItemId={itemId} initial={accountAttachments} deletedInitial={deletedAttachments} documents={itemDocuments} locale={fr ? "fr" : "en"} canManage={canManageEvidence && !viewOnly} readOnly={viewOnly} readOnlyReason={archived ? "archived" : isEqr ? "eqr" : "role"} compact />}
             leadSchedule={
               accountSchedule
                 ? {
@@ -726,7 +773,7 @@ export default async function SectionPage(props: {
         {toolChip}
         <Link
           href={group ? `/engagements/${id}/groups/${group.id}` : `/engagements/${id}/dashboard`}
-          className="grid h-7 w-7 flex-shrink-0 place-items-center rounded-full text-[15px] font-bold text-ink-soft transition hover:bg-surface-2 hover:text-ink"
+          className="grid h-7 w-7 flex-shrink-0 place-items-center rounded-full text-[15px] font-bold text-ink-soft transition hover:bg-surface-2 hover:text-ink print:hidden"
           title={
             group
               ? fr
@@ -741,7 +788,7 @@ export default async function SectionPage(props: {
         >
           ←
         </Link>
-        <h1 className="min-w-0 flex-1 truncate text-[15px] font-bold tracking-[-0.01em] text-ink">
+        <h1 className="wp-print-title min-w-0 flex-1 truncate text-[15px] font-bold tracking-[-0.01em] text-ink">
           {section.code} — {locale === "fr" ? section.title_fr : section.title_en}
           {hasTools ? (
             <span
@@ -776,7 +823,7 @@ export default async function SectionPage(props: {
               P
             </button>
           </form>
-          {rSigned || canReview(session.user.role) ? (
+          {rSigned || mayReviewHere ? (
             <form action={signOffReviewerAction}>
               <input type="hidden" name="fileItemId" value={itemId} />
               <input type="hidden" name="engagementId" value={id} />
@@ -787,7 +834,7 @@ export default async function SectionPage(props: {
             </form>
           ) : (
             // below senior there is nothing to press and be refused (UAT B129)
-            <span className={chip(false)} title={fr ? "Revue réservée aux seniors et rangs supérieurs" : "Review is for seniors and above"} data-testid="chip-reviewer" data-signed="false">
+            <span className={chip(false)} title={fr ? "Revue réservée aux seniors et rangs supérieurs, dans l'équipe de la mission" : "Review is for seniors and above on the engagement team"} data-testid="chip-reviewer" data-signed="false">
               R
             </span>
           )}
@@ -818,10 +865,10 @@ export default async function SectionPage(props: {
         <span className="flex items-center gap-1.5 text-[12px] text-muted">
           {fr ? "Assigné à" : "Assigned to"}
           {canAssign && !viewOnly ? (
-            <form action={assignTaskAction.bind(null, id, itemId)} className="flex items-center gap-1">
+            <form action={assignTaskAction.bind(null, id, itemId)} className="flex items-center gap-1 print:hidden">
               <select name="assignee" defaultValue={assignee?.userId ?? ""} className={input} data-testid="task-assignee">
                 <option value="">—</option>
-                {team.map((member) => (
+                {assignableTeam.map((member) => (
                   <option key={member.userId} value={member.userId}>{member.userName}</option>
                 ))}
                 {assignee && !team.some((member) => member.userId === assignee.userId) ? (
@@ -832,6 +879,9 @@ export default async function SectionPage(props: {
               </select>
               <SubmitButton className="rounded-[var(--radius-atlas-sm)] border border-line-strong px-2 py-1 text-[11.5px] text-ink-soft hover:bg-surface-2" testId="task-assign-save">OK</SubmitButton>
             </form>
+          ) : null}
+          {canAssign && !viewOnly ? (
+            <b className="hidden text-ink-soft print:inline">{assignee?.name ?? "—"}</b>
           ) : (
             <b className="text-ink-soft" data-testid="task-assignee">{assignee?.name ?? "—"}</b>
           )}
@@ -840,7 +890,21 @@ export default async function SectionPage(props: {
       </div>
 
       <ErrorBanner error={error} locale={locale} />
-      {heldBack ? (
+      {heldBack && !heldConflict ? (
+        <div className="mb-3 rounded-[var(--radius-atlas-sm)] border border-line bg-[var(--color-warn-soft)] px-3 py-2 text-[12.5px] text-ink" data-testid="wp-refused-kept">
+          <p className="font-semibold">
+            {fr
+              ? "Rien n'a été enregistré. Votre saisie est conservée dans le formulaire : corrigez la réponse signalée ci-dessus, puis enregistrez."
+              : "Nothing was saved. Your entries are kept in the form: correct the answer flagged above, then save."}
+          </p>
+          {heldBack.truncated ? (
+            <p className="mt-1 text-warn">
+              {fr ? "Votre texte était trop long pour être conservé en entier : la fin a été coupée." : "Your text was too long to keep in full: its end was cut."}
+            </p>
+          ) : null}
+        </div>
+      ) : null}
+      {heldConflict ? (
         <div className="mb-3 rounded-[var(--radius-atlas-sm)] border border-line bg-[var(--color-warn-soft)] px-3 py-2 text-[12.5px] text-ink" data-testid="wp-held-back">
           <p className="font-semibold">
             {fr
@@ -848,7 +912,7 @@ export default async function SectionPage(props: {
               : "Your other changes were saved. Your text for the fields below is kept in the form; a colleague changed them meanwhile. Compare with their version, merge, then save."}
           </p>
           <ul className="mt-1.5 flex flex-col gap-1">
-            {Object.keys(heldBack.drafts).map((key) => (
+            {Object.keys(heldConflict.drafts).map((key) => (
               <li key={key}>
                 <b>{paperFieldLabel(paperDef, key, fr)}</b>
                 {" — "}
@@ -857,7 +921,7 @@ export default async function SectionPage(props: {
               </li>
             ))}
           </ul>
-          {heldBack.truncated ? (
+          {heldConflict.truncated ? (
             <p className="mt-1 text-warn">
               {fr ? "Votre texte était trop long pour être conservé en entier : la fin a été coupée." : "Your text was too long to keep in full: its end was cut."}
             </p>
@@ -897,11 +961,27 @@ export default async function SectionPage(props: {
           ) : null}
         </div>
       ) : null}
+      {c43OpenNotes ? (
+        <div className="mb-3 rounded-[var(--radius-atlas-sm)] border border-line bg-surface px-3 py-2 text-[12.5px]" data-testid="c43-open-notes">
+          <b className="text-ink">{fr ? "Notes de revue ouvertes" : "Open review notes"}</b>
+          {c43OpenNotes.length === 0 ? (
+            <p className="mt-1 text-muted">{fr ? "Aucune note de revue ouverte sur le dossier." : "No review note is open on the file."}</p>
+          ) : (
+            <ul className="mt-1 flex flex-col gap-0.5">
+              {c43OpenNotes.map((n, i) => (
+                <li key={i}>
+                  <Link href={n.href} className="text-rose underline">{n.label}</Link>
+                </li>
+              ))}
+            </ul>
+          )}
+        </div>
+      ) : null}
 
       <div className={`wp-print-flow grid min-h-0 flex-1 grid-cols-1 gap-3 xl:overflow-hidden ${wideBoard ? "xl:grid-cols-[22fr_78fr]" : "xl:grid-cols-[25fr_50fr_25fr]"}`}>
         <div className="flex min-h-0 flex-col gap-3 xl:overflow-hidden">
         <section className="flex min-h-0 flex-col overflow-hidden rounded-[var(--radius-atlas)] border border-glass-border bg-surface px-4 py-3 shadow-atlas-sm backdrop-blur-xl xl:max-h-[50%]" data-testid="wp-guidance">
-          <h2 className="text-[11px] font-extrabold uppercase tracking-[0.07em] text-muted">Guidance</h2>
+          <h2 className="text-[11px] font-extrabold uppercase tracking-[0.07em] text-muted">{fr ? "Orientations" : "Guidance"}</h2>
           <p className="mt-1 text-[10.5px] font-semibold text-emerald-700 dark:text-emerald-400">{paperDef.std}</p>
           <ul className="mt-2 flex min-h-0 flex-col gap-1.5 overflow-y-auto">
             {req.slice(0, 4).map((g, i) => (
@@ -979,7 +1059,7 @@ export default async function SectionPage(props: {
                         </td>
                         <td className="px-2 py-1 text-right tnum">—</td>
                         <td className="px-2 py-1 text-right tnum">—</td>
-                        <td className={`px-2 py-1 text-right tnum ${c.ok ? "text-emerald-700" : "font-semibold text-rose"}`}>{c.ok ? "0" : new Intl.NumberFormat("fr-FR").format(Math.round(c.amount))}</td>
+                        <td className={`px-2 py-1 text-right tnum ${c.ok ? "text-emerald-700" : "font-semibold text-rose"}`}>{c.ok ? "0" : new Intl.NumberFormat("fr-FR").format(Math.round(c.amount) || 0)}</td>
                       </tr>
                     ))}
                     {tieout.clientDiffs.map((d) => (
@@ -992,8 +1072,9 @@ export default async function SectionPage(props: {
                     ))}
                     {tieout.bilan.map((l) => (
                       <tr key={l.ref} className="border-t border-line" data-testid={`tieout-line-${l.ref}`}>
-                        <td className="px-2 py-1 text-ink-soft">{l.ref} · {l.label}</td>
-                        <td className="px-2 py-1 text-right tnum">{new Intl.NumberFormat("fr-FR").format(Math.round(l.amount))}</td>
+                        <td className="px-2 py-1 text-ink-soft">{l.ref} · {fr ? l.label : l.labelEn ?? l.label}</td>
+                        {/* "|| 0" folds a rounded -0 into 0 (UAT run2-B144) */}
+                        <td className="px-2 py-1 text-right tnum">{new Intl.NumberFormat("fr-FR").format(Math.round(l.amount) || 0)}</td>
                         <td className="px-2 py-1 text-right text-muted tnum">{fr ? "à pointer" : "to tie"}</td>
                         <td className="px-2 py-1 text-right tnum">—</td>
                       </tr>
@@ -1122,7 +1203,7 @@ export default async function SectionPage(props: {
 
         {wideBoard ? null : (
         <section className="flex min-h-0 flex-col gap-3 xl:overflow-hidden">
-          <TaskAttachments fileItemId={itemId} initial={attachments} deletedInitial={deletedAttachments} documents={itemDocuments} locale={fr ? "fr" : "en"} canManage={canManageEvidence && !viewOnly} readOnly={viewOnly} compact />
+          <TaskAttachments fileItemId={itemId} initial={attachments} deletedInitial={deletedAttachments} documents={itemDocuments} locale={fr ? "fr" : "en"} canManage={canManageEvidence && !viewOnly} readOnly={viewOnly} readOnlyReason={archived ? "archived" : isEqr ? "eqr" : "role"} compact />
           <div className="flex min-h-0 flex-1 flex-col overflow-hidden rounded-[var(--radius-atlas)] border border-glass-border bg-surface px-4 py-3 shadow-atlas-sm backdrop-blur-xl" data-testid="wp-linked">
             <h2 className="text-[11px] font-extrabold uppercase tracking-[0.07em] text-muted">
               {fr ? "Tâches liées" : "Linked tasks"}
@@ -1132,7 +1213,7 @@ export default async function SectionPage(props: {
                 <li>
                   {/* the E1.2 paper built from this file's controls, grids and
                       exceptions — the pre-filled one, not the blank template */}
-                  <a href={`/api/engagements/${id}/toc/export`} className="flex items-baseline gap-1.5 rounded-[var(--radius-atlas-xs)] px-1.5 py-1 text-[12.3px] font-semibold text-emerald-700 transition hover:bg-surface-2 dark:text-emerald-400" data-testid="linked-toc-export">
+                  <a href={`/api/engagements/${id}/toc/export?locale=${locale}`} className="flex items-baseline gap-1.5 rounded-[var(--radius-atlas-xs)] px-1.5 py-1 text-[12.3px] font-semibold text-emerald-700 transition hover:bg-surface-2 dark:text-emerald-400" data-testid="linked-toc-export">
                     <span className="font-mono text-[10.5px] text-muted">TL</span>
                     <span className="min-w-0 flex-1 truncate">{fr ? "Générer le papier E1.2 (pré-rempli, .xlsx)" : "Generate the E1.2 paper (pre-filled, .xlsx)"}</span>
                   </a>
@@ -1173,12 +1254,12 @@ export default async function SectionPage(props: {
                   {fr ? "Campagne d'indépendance" : "Independence campaign"}
                 </h3>
                 <ul className="mt-1 flex flex-col gap-0.5" data-testid="campaign-list">
-                  {campaign.slice(0, 5).map((c) => (
+                  {campaign.map((c) => (
                     <li key={c.id} className="flex items-center gap-2 text-[11.5px]" data-testid={`campaign-row-${c.userId}`}>
                       <span className={`h-1.5 w-1.5 flex-shrink-0 rounded-full ${c.status === "completed" ? "bg-emerald-600" : c.status === "exception" ? "bg-[var(--color-rose)]" : "border border-line-strong"}`} aria-hidden />
                       <span className="min-w-0 flex-1 truncate text-ink-soft">{c.userName}</span>
                       <span className="flex-shrink-0 text-[10.5px] text-muted tnum">
-                        {c.signedAt ? `Completed · ${c.signedAt}` : fr ? "En attente" : "Awaiting"}
+                        {c.signedAt ? `${fr ? "Répondu" : "Completed"} · ${c.signedAt}` : fr ? "En attente" : "Awaiting"}
                       </span>
                     </li>
                   ))}

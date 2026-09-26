@@ -7,28 +7,36 @@
 
 import { withTenant } from "@/lib/db";
 import { requireTenant } from "@/lib/tenant";
+import { riskTitle } from "@/lib/risks";
 import { loadPaper } from "@/lib/working-papers";
 
 export interface SrmMatters {
+  /** description in the reader's language (presumed ISA 240 risks are translated) */
   risks: { description: string; status: string }[];
   misstatements: { description: string; amount: number; corrected: boolean; mtype: string }[];
-  /** the free-text answers recorded on the C1.3 consultation paper */
+  /** the consultation recorded on the C1.3 paper, as one line per record */
   consultations: string[];
   findings: { title: string; code: string | null }[];
 }
 
-export async function srmMatters(engagementId: string): Promise<SrmMatters> {
+/** C1.3's procedure answers in the order a consultation record reads. */
+const C13_ORDER = ["p_identify", "p_consult", "p_information", "p_conclusion", "p_implement", "p_external"];
+
+export async function srmMatters(engagementId: string, locale: "en" | "fr" = "en"): Promise<SrmMatters> {
   const { tenantId } = await requireTenant();
-  // Yes/no answers (q_*) and their flags are not matters; the procedure
-  // results (p_*) and the conclusion text are what a consultation record says.
+  // C1.3 holds ONE consultation record across its procedure answers — the
+  // matter, who was consulted, the information, the conclusion, its
+  // implementation, any external referral. It is one matter, read in that
+  // order, not six (UAT run2-B152).
   const c13 = await loadPaper(engagementId, "C1.3").catch((): Record<string, string> => ({}));
-  const consultations = Object.entries(c13)
-    .filter(([key, value]) => !key.startsWith("q_") && value.trim().length > 2 && !["yes", "no", "na", "on"].includes(value.trim()))
-    .map(([, value]) => value.trim());
+  const parts = C13_ORDER.map((key) => (c13[key] ?? "").trim()).filter(
+    (value) => value.length > 2 && !["yes", "no", "na", "on"].includes(value),
+  );
+  const consultations = parts.length > 0 ? [parts.join(" — ")] : [];
 
   return withTenant(tenantId, async (tx) => {
-    const risks = await tx.query<{ description: string; status: string }>(
-      `SELECT description, status FROM risk
+    const risks = await tx.query<{ description: string; status: string; presumed_type: string | null }>(
+      `SELECT description, status, presumed_type FROM risk
         WHERE engagement_id = $1 AND significant AND rebutted = false
         ORDER BY created_at`,
       [engagementId],
@@ -47,7 +55,10 @@ export async function srmMatters(engagementId: string): Promise<SrmMatters> {
       [engagementId],
     );
     return {
-      risks: risks.rows,
+      risks: risks.rows.map((r) => ({
+        description: riskTitle({ description: r.description, presumedType: r.presumed_type }, locale),
+        status: r.status,
+      })),
       misstatements: misstatements.rows.map((m) => ({ ...m, amount: Number(m.amount) })),
       consultations,
       findings: findings.rows,

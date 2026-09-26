@@ -139,8 +139,10 @@ export async function todSideView(engagementId: string, options: TodExportOption
     const threshold = thresholdByIndex.get(def.code);
     const specific = specificByIndex.get(def.code);
     const teForIndex = specific !== undefined ? Math.min(te, specific) : te;
+    // capped at the account's TE: a specific figure never lifts the key-item
+    // threshold above tolerable error (UAT B43)
     const thresholdForIndex =
-      specific !== undefined ? Math.min(threshold ?? specific, specific) : (threshold ?? null);
+      specific !== undefined ? Math.min(threshold ?? teForIndex, teForIndex) : (threshold ?? null);
     sheets.push({
       indexCode: def.code,
       labelEn: def.labelEn,

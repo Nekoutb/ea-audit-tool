@@ -168,8 +168,15 @@ export async function exportEngagementBundle(engagementId: string): Promise<Bund
     );
     const conclusionOf = new Map(conclusions.map((c) => [c.file_item_id, c]));
 
+    // ONE folder per task, named "<code> <title>": answers, documents and
+    // attachments all land in it (UAT run2-B159 — attachments went under a
+    // bare-code folder beside the titled one).
+    const folderName = new Map(items.map((item) => [item.code, zipSegment(`${item.code} ${item.title_en}`)]));
+    const taskFolder = (code: string | null): string =>
+      code ? (folderName.get(code) ?? zipSegment(code)) : "_unfiled";
+
     for (const item of items) {
-      const folder = `10-working-papers/${zipSegment(`${item.code} ${item.title_en}`)}`;
+      const folder = `10-working-papers/${taskFolder(item.code)}`;
       const paper = byCode.get(item.code);
       if (paper) yield* put(`${folder}/paper.json`, json({ code: item.code, title: item.title_en, answers: paper }));
       const conclusion = conclusionOf.get(item.id);
@@ -187,7 +194,7 @@ export async function exportEngagementBundle(engagementId: string): Promise<Bund
     );
 
     for (const doc of documents) {
-      const folder = `10-working-papers/${zipSegment(doc.code ?? "_unfiled")}/documents/${zipSegment(doc.title)}`;
+      const folder = `10-working-papers/${taskFolder(doc.code)}/documents/${zipSegment(doc.title)}`;
       const versions = await withTenant(tenantId, (tx) =>
         tx.query<{ version_no: number; mime: string; sha256: string | null; byte_size: number; note: string | null; created_at: string }>(
           `SELECT version_no, mime, sha256, byte_size, note, created_at::text
@@ -225,8 +232,8 @@ export async function exportEngagementBundle(engagementId: string): Promise<Bund
         // Removed evidence goes in _removed/ rather than being omitted: an
         // inspection asks what was taken out as often as what remains.
         const folder = a.deleted_at
-          ? `10-working-papers/${zipSegment(a.code ?? "_unfiled")}/attachments/_removed`
-          : `10-working-papers/${zipSegment(a.code ?? "_unfiled")}/attachments`;
+          ? `10-working-papers/${taskFolder(a.code)}/attachments/_removed`
+          : `10-working-papers/${taskFolder(a.code)}/attachments`;
         const bytes = await withTenant(tenantId, (tx) =>
           tx.query<{ content: Buffer }>("SELECT content FROM task_attachment WHERE id = $1", [a.id])
             .then((r) => r.rows[0]?.content ?? null),
@@ -286,7 +293,13 @@ export async function exportEngagementBundle(engagementId: string): Promise<Bund
     );
     yield* put("70-audit-trail/activity.jsonl", enc(trail.map((r) => JSON.stringify(r)).join("\n") + "\n"));
 
-    /* ---- the inventory, last, because it describes everything above --- */
+    /* ---- README, then the inventory, then the checksums ---------------
+     * The README goes in BEFORE manifest.json and SHA256SUMS so both cover it,
+     * and its counts are the final ones (UAT run2-B160: README said 17 files,
+     * the manifest listed 15, SHA256SUMS 16, the zip held 18). */
+    const contentCount = recorded.length;
+    yield* put("README.txt", enc(readme(eng, { content: contentCount, total: contentCount + 3 })));
+
     const manifest = {
       format: "auditisa-export/1",
       generatedAt: new Date().toISOString(),
@@ -304,8 +317,6 @@ export async function exportEngagementBundle(engagementId: string): Promise<Bund
       .map((r) => `${r.sha256}  ${r.path}`)
       .join("\n") + "\n";
     yield* put("SHA256SUMS", enc(sums));
-
-    yield* put("README.txt", enc(readme(eng, recorded.length)));
 
     yield writer.finish();
   }
@@ -333,7 +344,10 @@ export async function exportEngagementBundle(engagementId: string): Promise<Bund
   return { filename, stream };
 }
 
-function readme(eng: { client: string; fiscal_year: number; report_date: string | null; archived_at: string | null }, count: number): string {
+function readme(
+  eng: { client: string; fiscal_year: number; report_date: string | null; archived_at: string | null },
+  count: { content: number; total: number },
+): string {
   return `AuditISA — audit file export
 ============================
 
@@ -341,7 +355,8 @@ Client        : ${eng.client}
 Financial year: ${eng.fiscal_year}
 Report date   : ${eng.report_date ?? "not issued"}
 Archived      : ${eng.archived_at ?? "NOT ARCHIVED — see the warning below"}
-Files         : ${count}
+Files         : ${count.total} (${count.content} content files, this README,
+                manifest.json and SHA256SUMS)
 
 WHAT THIS IS
 ------------
@@ -355,8 +370,10 @@ taken out of a file is as much a question as what remains.
 
 VERIFYING IT
 ------------
-Every file is listed in manifest.json with its SHA-256. From the extracted
-folder:
+manifest.json lists the ${count.content + 1} files written before it — the
+${count.content} content files and this README — each with its SHA-256.
+SHA256SUMS covers every file except itself (${count.total - 1} lines). From the
+extracted folder:
 
     sha256sum -c SHA256SUMS
 

@@ -6,6 +6,7 @@ import { useCompactView } from "@/lib/use-auto-size";
 import { SubmitButton } from "@/components/SubmitButton";
 import { UnsavedGuard } from "@/components/UnsavedGuard";
 import {
+  autoFieldEmpty,
   conclKey,
   conclWhyKey,
   procKey,
@@ -254,8 +255,8 @@ export function PaperWizard({
                   <div key={f.key}>
                     {header}
                     <span className="block text-[11.5px] text-muted">{label}</span>
-                    <p className="rounded-[var(--radius-atlas-sm)] bg-[color:var(--wp-auto)] px-2.5 py-1.5 text-[13.2px] text-ink-soft" data-testid={`wp-auto-${f.key}`}>
-                      {autoValues[f.key] ?? (fr ? `Renseigné par « ${f.source} »` : `Filled by the ${f.source}`)}
+                    <p className="whitespace-pre-line rounded-[var(--radius-atlas-sm)] bg-[color:var(--wp-auto)] px-2.5 py-1.5 text-[13.2px] text-ink-soft" data-testid={`wp-auto-${f.key}`}>
+                      {autoValues[f.key] ?? autoFieldEmpty(f.source, fr)}
                     </p>
                   </div>
                 );

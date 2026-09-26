@@ -742,8 +742,8 @@ const D5_4: PaperDef = {
       items: [
         { key: "beyond_finance", en: "The inquiries extended to people outside the finance function (procedure 2).", fr: "Les entretiens ont dépassé la fonction financière (procédure 2)." },
         { key: "tcwg", en: "Those charged with governance were asked directly about fraud (procedure 3).", fr: "Les responsables de la gouvernance ont été interrogés directement sur la fraude (procédure 3)." },
-        { key: "revenue", en: "The revenue recognition presumption has been applied rather than rebutted (procedure 6). A “No” requires the reasons for rebuttal below.", fr: "La présomption sur les produits a été appliquée et non réfutée (procédure 6). Un « Non » appelle les motifs ci-dessous." },
-        { key: "override", en: "Management override is recorded as a significant risk with responses planned in E3.1 (procedure 7).", fr: "Le contournement des contrôles est consigné comme risque important avec des réponses prévues en E3.1 (procédure 7)." },
+        { key: "revenue", en: "The revenue recognition presumption has been applied rather than rebutted (procedure 7). A “No” requires the reasons for rebuttal below.", fr: "La présomption sur les produits a été appliquée et non réfutée (procédure 7). Un « Non » appelle les motifs ci-dessous." },
+        { key: "override", en: "Management override is recorded as a significant risk with responses planned in E3.1 (procedure 8).", fr: "Le contournement des contrôles est consigné comme risque important avec des réponses prévues en E3.1 (procédure 8)." },
       ],
     },
   ],
@@ -1404,8 +1404,8 @@ const S5_4: PaperDef = {
       kind: "fields",
       titleEn: "Part A — Selection design",
       titleFr: "Partie A — Conception de la sélection",
-      introEn: "The criteria run by the journal-entry selection engine are recorded here automatically, with who ran them and when.",
-      introFr: "Les critères exécutés par le moteur de sélection des écritures sont consignés ici automatiquement, avec l'auteur et la date.",
+      introEn: "A design is recorded here when 'Record as the S5.4 design' is used in the journal-entry selection tool: the criteria with their thresholds, the rules, who recorded it and when. Earlier designs stay listed after it.",
+      introFr: "Une conception est consignée ici lorsque « Enregistrer comme conception S5.4 » est utilisé dans l'outil de sélection des écritures : les critères et leurs seuils, les règles, l'auteur et la date. Les conceptions antérieures restent listées à la suite.",
       fields: [
         { key: "je_design", kind: "auto", source: "je-selection", labelEn: "From the tool: criteria, thresholds, rules and the size of the selection", labelFr: "Depuis l'outil : critères, seuils, règles et taille de la sélection" },
         { key: "rationale", kind: "input", labelEn: "Why these criteria: the fraud risk factors of the engagement each one answers", labelFr: "Pourquoi ces critères : les facteurs de risque de fraude de la mission auxquels chacun répond" },
@@ -1415,8 +1415,59 @@ const S5_4: PaperDef = {
   ],
 };
 
+/* ---------------------------------------------------------------- S5.6 --- */
+// The general audit procedures every engagement performs whatever its accounts
+// (UAT B54: the task had only the generic fallback and was signed blank).
+const S5_6: PaperDef = {
+  std: "ISA 300 ¶9 · ISA 510 · ISA 560 · ISA 570 (Revised) · ISA 250 (Revised) · ISA 550 · ISA 540 (Revised) · ISA 260 (Revised)",
+  ownsEn: "the plan of the general procedures: what is done, when and by whom, on the matters every audit covers",
+  ownsFr: "le plan des procédures générales : quoi, quand et par qui, sur les points que couvre tout audit",
+  reqEn: [
+    "The audit plan includes a description of the nature, timing and extent of planned further audit procedures and of the other planned audit procedures required for the engagement to comply with the ISAs (ISA 300 ¶9(c)). Several of those procedures are required on every engagement whatever its assessed risks: opening balances, subsequent events, going concern, compliance with laws and regulations, related parties, accounting estimates and communication with those charged with governance.",
+  ],
+  reqFr: [
+    "Le plan de mission décrit la nature, le calendrier et l'étendue des procédures d'audit complémentaires prévues ainsi que des autres procédures prévues nécessaires au respect des ISA (ISA 300 ¶9(c)). Plusieurs de ces procédures s'imposent sur toute mission, quels que soient les risques évalués : soldes d'ouverture, événements postérieurs, continuité d'exploitation, respect des textes légaux et réglementaires, parties liées, estimations comptables et communication avec les personnes constituant le gouvernement d'entreprise.",
+  ],
+  sections: [
+    {
+      kind: "proc",
+      titleEn: "Part A — Planned general procedures",
+      titleFr: "Partie A — Procédures générales prévues",
+      introEn: "For each matter, record the procedures planned, their timing, the team member responsible and the working paper where they will be documented.",
+      introFr: "Pour chaque point, consigner les procédures prévues, leur calendrier, le membre de l'équipe responsable et la feuille de travail où elles seront documentées.",
+      procs: [
+        P("opening", "Opening balances: plan how the opening balances will be verified — review of the predecessor's working papers or procedures on the current period (ISA 510 ¶6).", "Soldes d'ouverture : prévoir la vérification des soldes d'ouverture — revue des dossiers du prédécesseur ou procédures sur l'exercice en cours (ISA 510 ¶6).", "Prior-year financial statements · predecessor's report", "États financiers N-1 · rapport du prédécesseur"),
+        P("subsequent", "Subsequent events: plan the procedures covering the period from the reporting date to the date of the report, and the inquiries of management at that date (ISA 560 ¶6–7).", "Événements postérieurs : prévoir les procédures couvrant la période de la clôture à la date du rapport, et les demandes d'informations à la direction à cette date (ISA 560 ¶6–7).", "Board minutes · post-closing ledger · management inquiry", "Procès-verbaux · écritures postérieures · entretien avec la direction"),
+        P("going_concern", "Going concern: plan the evaluation of management's assessment, covering at least twelve months from the reporting date (ISA 570 ¶10–13).", "Continuité d'exploitation : prévoir l'évaluation de l'appréciation de la direction, couvrant au moins douze mois à compter de la clôture (ISA 570 ¶10–13).", "Budgets · cash-flow forecasts · financing agreements", "Budgets · prévisions de trésorerie · conventions de financement"),
+        P("laws", "Laws and regulations: plan the procedures on the laws with a direct effect on the financial statements and the inquiries on non-compliance (ISA 250 ¶13–15).", "Textes légaux et réglementaires : prévoir les procédures sur les textes ayant une incidence directe sur les états financiers et les demandes d'informations sur les manquements (ISA 250 ¶13–15).", "Legal register · correspondence with regulators · tax filings", "Registre juridique · correspondance avec les autorités · déclarations fiscales"),
+        P("related_parties", "Related parties: plan the procedures on the related-party register (S4.3) and on transactions outside the normal course of business (ISA 550 ¶11–24).", "Parties liées : prévoir les procédures sur le registre des parties liées (S4.3) et sur les transactions hors du cours normal des affaires (ISA 550 ¶11–24).", "S4.3 register · share register · minutes", "Registre S4.3 · registre des titres · procès-verbaux"),
+        P("estimates", "Accounting estimates: plan the procedures on the estimates inventoried on S4.4, including the review of prior-period outcomes (ISA 540 ¶14).", "Estimations comptables : prévoir les procédures sur les estimations recensées en S4.4, y compris la revue du dénouement des estimations antérieures (ISA 540 ¶14).", "S4.4 inventory · prior-year estimates", "Inventaire S4.4 · estimations N-1"),
+        P("governance", "Communications: plan the communications with those charged with governance — the planned scope and timing, significant findings and independence (ISA 260 ¶14–17).", "Communications : prévoir les communications avec les personnes constituant le gouvernement d'entreprise — étendue et calendrier prévus, constatations importantes et indépendance (ISA 260 ¶14–17).", "Engagement letter · governance calendar", "Lettre de mission · calendrier de gouvernance"),
+      ],
+    },
+    {
+      kind: "yn",
+      titleEn: "Part B — Evaluation",
+      titleFr: "Partie B — Évaluation",
+      introEn: YN_INTRO_EN,
+      introFr: YN_INTRO_FR,
+      items: [
+        { key: "assigned", en: "Every general procedure has a responsible team member and a planned date.", fr: "Chaque procédure générale a un responsable dans l'équipe et une date prévue." },
+        { key: "linked", en: "Each planned procedure is linked to the working paper where it will be documented.", fr: "Chaque procédure prévue est rattachée à la feuille de travail où elle sera documentée." },
+      ],
+    },
+  ],
+  conclEn: [
+    "The general audit procedures required on this engagement are planned, with their nature, timing and responsible team member.",
+  ],
+  conclFr: [
+    "Les procédures générales d'audit requises sur cette mission sont planifiées, avec leur nature, leur calendrier et leur responsable.",
+  ],
+};
+
 export const STRATEGY_PAPERS: Record<string, PaperDef> = {
   "S5.4": S5_4,
+  "S5.6": S5_6,
   "S2.3": D8_1,
   "S2.4": D8_2,
   "S2.5": D8_3,

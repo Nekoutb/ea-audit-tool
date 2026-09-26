@@ -28,6 +28,13 @@ export default async function IndependencePage(props: {
     <main className="flex min-h-screen items-center justify-center bg-canvas px-4 py-10">
       <div className="w-full max-w-xl rounded-[var(--radius-atlas)] border border-line bg-surface p-8 shadow-[var(--shadow-atlas-lg)]">
         <h1 className="text-2xl font-semibold text-ink">{t.formTitle}</h1>
+        {/* which client and period this declaration covers (UAT B48) */}
+        <p className="mt-1 text-sm font-medium text-ink-soft" data-testid="confirmation-engagement">
+          {confirmation.engagementName}
+          {confirmation.engagementName !== confirmation.clientName ? ` · ${confirmation.clientName}` : ""}
+          {" · "}
+          {locale === "fr" ? "Exercice" : "Fiscal year"} {confirmation.fiscalYear}
+        </p>
         <ErrorBanner error={error} locale={locale} />
 
         {finished ? (

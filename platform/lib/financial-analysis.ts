@@ -49,16 +49,29 @@ interface Balances {
   ebitda: number;
 }
 
-function aggregate(rows: { account: string; value: number }[]): Balances {
-  const sum = (test: (r: { account: string; value: number }) => boolean) =>
+type Row = { account: string; value: number };
+
+/**
+ * The client's corrected lead-index mapping (client_lead_index_override)
+ * re-homes an account for the ratio buckets too, exactly as it does for the
+ * lead schedule (UAT B65): an overridden account counts where its index says
+ * (VA* cost of sales, E receivables, N payables, C cash, F inventory);
+ * accounts with no override keep the SYSCOHADA prefix rules.
+ */
+function aggregate(rows: Row[], overrideOf: (account: string) => string | null = () => null): Balances {
+  const sum = (test: (r: Row) => boolean) =>
     rows.reduce((total, row) => (test(row) ? total + row.value : total), 0);
-  const inventory = sum((r) => r.account.startsWith("3"));
-  const cash = sum((r) => r.account.startsWith("5") && !r.account.startsWith("59"));
+  const bucket = (prefixRule: (r: Row) => boolean, indexRule: (code: string) => boolean) => (r: Row) => {
+    const code = overrideOf(r.account);
+    return code ? indexRule(code) : prefixRule(r);
+  };
+  const inventory = sum(bucket((r) => r.account.startsWith("3"), (c) => c === "F"));
+  const cash = sum(bucket((r) => r.account.startsWith("5") && !r.account.startsWith("59"), (c) => c === "C"));
   const class4Debit = sum((r) => r.account.startsWith("4") && r.value > 0);
   const class4Credit = -sum((r) => r.account.startsWith("4") && r.value < 0);
   const revenue = -sum((r) => r.account.startsWith("7"));
   const expenses = sum((r) => r.account.startsWith("6"));
-  const cogs = sum((r) => r.account.startsWith("60"));
+  const cogs = sum(bucket((r) => r.account.startsWith("60"), (c) => c.startsWith("VA")));
   const financeCosts = sum((r) => r.account.startsWith("67"));
   const depreciation = sum((r) => r.account.startsWith("68") || r.account.startsWith("69"));
   const pbt = revenue - expenses;
@@ -68,11 +81,11 @@ function aggregate(rows: { account: string; value: number }[]): Balances {
   const hasResultAccount = rows.some((r) => r.account.startsWith("13") && r.value !== 0);
   return {
     inventory,
-    receivables: sum((r) => r.account.startsWith("41")),
+    receivables: sum(bucket((r) => r.account.startsWith("41"), (c) => c === "E")),
     cash,
     currentAssets: inventory + class4Debit + Math.max(cash, 0),
     currentLiabilities: class4Credit + Math.max(-cash, 0),
-    payables: -sum((r) => r.account.startsWith("40") && r.value < 0),
+    payables: -sum((r) => r.value < 0 && bucket((x) => x.account.startsWith("40"), (c) => c === "N")(r)),
     equity: -sum((r) => /^1[0-5]/.test(r.account)) + (hasResultAccount ? 0 : pbt),
     financialDebt: -sum((r) => /^1[6-8]/.test(r.account)),
     totalAssets: sum((r) => r.account.startsWith("2")) + inventory + class4Debit + Math.max(cash, 0),
@@ -144,12 +157,24 @@ export const RATIO_KEYS: readonly string[] = DEFS.map((def) => def.key);
 export async function financialAnalysis(engagementId: string): Promise<FinancialAnalysis | null> {
   const { tenantId } = await requireTenant();
   return withTenant(tenantId, async (tx) => {
-    const meta = await tx.query<{ period_end: string }>(
-      "SELECT to_char(period_end, 'YYYY-MM-DD') AS period_end FROM engagement WHERE id = $1",
+    const meta = await tx.query<{ period_end: string; client_id: string }>(
+      "SELECT to_char(period_end, 'YYYY-MM-DD') AS period_end, client_id FROM engagement WHERE id = $1",
       [engagementId],
     );
     if (!meta.rows[0]) return null;
     const periodEnd = meta.rows[0].period_end;
+    // longest override prefix wins, as in the lead schedule (lib/tb.ts)
+    const idxOver = await tx.query<{ account_prefix: string; index_code: string }>(
+      "SELECT account_prefix, index_code FROM client_lead_index_override WHERE client_id = $1",
+      [meta.rows[0].client_id],
+    );
+    const overrides = idxOver.rows
+      .map((r) => [r.account_prefix, r.index_code] as [string, string])
+      .sort((a, b) => b[0].length - a[0].length);
+    const overrideOf = (account: string): string | null => {
+      for (const [prefix, code] of overrides) if (account.startsWith(prefix)) return code;
+      return null;
+    };
 
     const tb = await tx.query<{ account_code: string; opening: string; closing: string }>(
       `SELECT r.account_code,
@@ -162,7 +187,7 @@ export async function financialAnalysis(engagementId: string): Promise<Financial
       [engagementId],
     );
     if (tb.rows.length === 0) return null;
-    const currentB = aggregate(tb.rows.map((r) => ({ account: r.account_code, value: Number(r.closing) })));
+    const currentB = aggregate(tb.rows.map((r) => ({ account: r.account_code, value: Number(r.closing) })), overrideOf);
 
     // the prior-year TB's closing balances beat the working TB's openings
     const priorTb = await tx.query<{ account_code: string; closing: string }>(
@@ -177,8 +202,8 @@ export async function financialAnalysis(engagementId: string): Promise<Financial
     );
     const priorB =
       priorTb.rows.length > 0
-        ? aggregate(priorTb.rows.map((r) => ({ account: r.account_code, value: Number(r.closing) })))
-        : aggregate(tb.rows.map((r) => ({ account: r.account_code, value: Number(r.opening) })));
+        ? aggregate(priorTb.rows.map((r) => ({ account: r.account_code, value: Number(r.closing) })), overrideOf)
+        : aggregate(tb.rows.map((r) => ({ account: r.account_code, value: Number(r.opening) })), overrideOf);
     const cur = ratioSet(currentB);
     const pri = ratioSet(priorB);
 

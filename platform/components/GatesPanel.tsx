@@ -6,10 +6,18 @@ import { getMessages, type Locale } from "@/lib/i18n";
  * planning.conclusion.gateNames; a panel used on both pages looks in both, so a
  * raw key such as sections_concluded never reaches the screen (UAT B118).
  */
-function gateLabel(t: ReturnType<typeof getMessages>["planning"], key: string): string {
+function gateLabel(
+  t: ReturnType<typeof getMessages>["planning"],
+  key: string,
+  scope: "planning" | "conclusion" = "planning",
+): string {
   const planning = t.gateNames as Record<string, string>;
   const conclusion = (t.conclusion?.gateNames ?? {}) as Record<string, string>;
-  return planning[key] ?? conclusion[key] ?? key;
+  const archive = ((t.conclusion as { archiveGateNames?: Record<string, string> } | undefined)?.archiveGateNames ?? {});
+  // on the conclusion page the completion and archive wording wins over the
+  // planning gate of the same key (UAT run 2 B84: review_notes_cleared)
+  if (scope === "conclusion") return conclusion[key] ?? archive[key] ?? planning[key] ?? key;
+  return planning[key] ?? conclusion[key] ?? archive[key] ?? key;
 }
 
 export function GatesPanel({ gates, locale }: { gates: GateResult[]; locale: Locale }) {
@@ -30,6 +38,19 @@ export function GatesPanel({ gates, locale }: { gates: GateResult[]; locale: Loc
           <span className={gate.ok ? "text-ink-soft" : "font-medium text-ink"}>
             {gateLabel(t, gate.key)}
           </span>
+          {!gate.ok && gate.detail ? (
+            <span className="text-xs text-muted" data-testid={`gate-detail-${gate.key}`}>
+              ({gate.detail})
+              {gate.href ? (
+                <>
+                  {" "}
+                  <a href={gate.href} className="font-semibold text-emerald-700 hover:underline dark:text-emerald-400">
+                    {locale === "fr" ? "Voir" : "Open"}
+                  </a>
+                </>
+              ) : null}
+            </span>
+          ) : null}
         </li>
       ))}
     </ul>
@@ -40,10 +61,16 @@ export function ErrorBanner({
   error,
   failed,
   locale,
+  scope = "planning",
+  details,
 }: {
   error?: string;
   failed?: string;
   locale: Locale;
+  /** which gate wording wins for a key both lists share */
+  scope?: "planning" | "conclusion";
+  /** per failed key, the tasks it names (e.g. "P3.2, C4.3") */
+  details?: Record<string, string>;
 }) {
   if (!error) return null;
   const t = getMessages(locale).planning;
@@ -59,7 +86,10 @@ export function ErrorBanner({
       {failedKeys.length > 0 ? (
         <ul className="mt-1 list-inside list-disc">
           {failedKeys.map((key) => (
-            <li key={key}>{gateLabel(t, key)}</li>
+            <li key={key}>
+              {gateLabel(t, key, scope)}
+              {details?.[key] ? <span className="ml-1 font-semibold tnum">({details[key]})</span> : null}
+            </li>
           ))}
         </ul>
       ) : null}

@@ -8,6 +8,7 @@ import { Document, HeadingLevel, Packer, Paragraph, TextRun } from "docx";
 import { type Branding, letterheadFooter, letterheadParagraphs, loadBranding } from "@/lib/branding";
 import { withTenant } from "@/lib/db";
 import { addDaysIso, addMonthsClamped, fileUnderCode, LegalError } from "@/lib/legal";
+import { periodEndFr } from "@/lib/report";
 import { requireTenant, requireWrite } from "@/lib/tenant";
 
 export type AlerteVariant = "sa" | "non_sa";
@@ -24,7 +25,9 @@ const FLOWS: Record<AlerteVariant, { stage: string; deadlineDays: number | null;
   ],
   sa: [
     { stage: "request_sent", deadlineDays: 15, basis: "Art. 153 — réponse du PCA/PDG sous 15 jours" },
-    { stage: "reply_recorded", deadlineDays: null, basis: "Art. 154" },
+    // No reply, or an unsatisfactory one: the CAC invites the chairman to have
+    // the board deliberate, within 15 days of the reply (UAT run 2 B167).
+    { stage: "reply_recorded", deadlineDays: 15, basis: "Art. 154 — invitation du président à faire délibérer le conseil sous 15 jours de la réponse" },
     { stage: "board_invited", deadlineDays: 15, basis: "Art. 154 — le président convoque le conseil sous 15 jours" },
     { stage: "board_deliberated", deadlineDays: 30, basis: "Art. 154 — extrait du PV au CAC et à la juridiction sous 1 mois" },
     { stage: "rapport_special", deadlineDays: null, basis: "Art. 155 — rapport spécial à la prochaine AG (le CAC peut convoquer l'AG)" },
@@ -52,11 +55,21 @@ const STAGE_LETTERS: Record<string, { title: string; body: string }> = {
   },
 };
 
+/** How each stage's document is titled on the file (UAT run 2 B166: raw stage codes were shown). */
+const STAGE_DOC_TITLES: Record<string, string> = {
+  request_sent: "demande d'explications",
+  court_informed: "information de la juridiction compétente",
+  board_invited: "invitation du conseil à délibérer",
+  rapport_special: "rapport spécial d'alerte",
+};
+
 export interface AlerteState {
   id: string;
   variant: AlerteVariant;
   stage: string;
   stageDeadline: string | null;
+  /** the latest recorded event date: the next step cannot be dated earlier (UAT run 2 B95) */
+  lastEventDate: string | null;
   discontinued: boolean;
   resumableUntil: string | null;
   nextStages: string[];
@@ -90,12 +103,24 @@ function nextStagesOf(variant: AlerteVariant, stage: string, discontinued: boole
   return [flow[index + 1].stage];
 }
 
+/** Who each stage's letter is addressed to. */
+function stageAddressee(stage: string, variant: AlerteVariant): string {
+  if (stage === "court_informed") return "Au Président de la juridiction compétente";
+  if (stage === "rapport_special") return variant === "sa" ? "Aux actionnaires" : "Aux associés";
+  return variant === "sa" ? "Au Président du conseil d'administration" : "Au gérant";
+}
+
+/**
+ * The stage letter, dated with the event date the clock runs from, addressed,
+ * and signed (UAT run 2 B94: the letters carried no date, addressee or signatory).
+ */
 async function buildStageLetter(
   branding: Branding,
   clientName: string,
   fiscalYear: number,
   stage: string,
   note: string,
+  context: { variant: AlerteVariant; eventDate: string; partnerName: string | null },
 ): Promise<Buffer | null> {
   const template = STAGE_LETTERS[stage];
   if (!template) return null;
@@ -103,21 +128,31 @@ async function buildStageLetter(
     ...letterheadParagraphs(branding),
     new Paragraph({ heading: HeadingLevel.TITLE, children: [new TextRun(template.title)] }),
     new Paragraph({ children: [new TextRun({ text: `${clientName} — Exercice ${fiscalYear}`, bold: true })] }),
+    new Paragraph(`${stageAddressee(stage, context.variant)} de ${clientName}`),
     new Paragraph(template.body),
     ...(note.trim() ? [new Paragraph(`Faits relevés / observations : ${note}`)] : []),
-    new Paragraph({ children: [new TextRun({ text: "Le commissaire aux comptes.", bold: true })] }),
+    new Paragraph(`Fait le ${periodEndFr(context.eventDate)}.`),
+    new Paragraph({ children: [new TextRun({ text: "Le commissaire aux comptes", bold: true })] }),
+    new Paragraph(branding.displayName),
+    ...(context.partnerName ? [new Paragraph(`${context.partnerName}, associé signataire`)] : []),
     ...letterheadFooter(branding),
   ];
   return Packer.toBuffer(new Document({ sections: [{ children }] }));
 }
+
+/** The engagement partner who signs, if one is on the team. */
+const PARTNER_NAME_SQL = `(SELECT coalesce(u.name, u.email) FROM team_member tm JOIN app_user u ON u.id = tm.user_id
+                            WHERE tm.engagement_id = e.id AND tm.team_role = 'partner'
+                              AND coalesce(tm.status, 'accepted') <> 'declined'
+                            ORDER BY tm.created_at LIMIT 1)`;
 
 /** Start the alerte: variant derives from the client's legal form. */
 export async function startAlerte(engagementId: string, note: string, eventDate?: string): Promise<string> {
   const { tenantId, userId } = await requireWrite(); // read_only may view the legal file, not change it (UAT B10)
   const today = eventDateOrToday(eventDate);
   return withTenant(tenantId, async (tx) => {
-    const info = await tx.query<{ legal_form: string; client_name: string; fiscal_year: number }>(
-      `SELECT c.legal_form, c.name AS client_name, e.fiscal_year
+    const info = await tx.query<{ legal_form: string; client_name: string; fiscal_year: number; partner_name: string | null }>(
+      `SELECT c.legal_form, c.name AS client_name, e.fiscal_year, ${PARTNER_NAME_SQL} AS partner_name
          FROM engagement e JOIN client c ON c.id = e.client_id WHERE e.id = $1`,
       [engagementId],
     );
@@ -138,7 +173,9 @@ export async function startAlerte(engagementId: string, note: string, eventDate?
     );
     const alerteId = created.rows[0].id;
     const branding = await loadBranding(tx, tenantId);
-    const letter = await buildStageLetter(branding, info.rows[0].client_name, info.rows[0].fiscal_year, "request_sent", note);
+    const letter = await buildStageLetter(branding, info.rows[0].client_name, info.rows[0].fiscal_year, "request_sent", note, {
+      variant, eventDate: today, partnerName: info.rows[0].partner_name,
+    });
     const documentId = letter
       ? await fileUnderCode(tx, {
           tenantId, userId, engagementId, code: "C5.5",
@@ -170,10 +207,10 @@ export async function advanceAlerte(
   await withTenant(tenantId, async (tx) => {
     const current = await tx.query<{
       id: string; engagement_id: string; variant: AlerteVariant; stage: string;
-      discontinued_at: string | null; client_name: string; fiscal_year: number;
+      discontinued_at: string | null; client_name: string; fiscal_year: number; partner_name: string | null;
     }>(
       `SELECT a.id, a.engagement_id, a.variant, a.stage, a.discontinued_at::text,
-              c.name AS client_name, e.fiscal_year
+              c.name AS client_name, e.fiscal_year, ${PARTNER_NAME_SQL} AS partner_name
          FROM alerte a
          JOIN engagement e ON e.id = a.engagement_id
          JOIN client c ON c.id = e.client_id
@@ -185,6 +222,13 @@ export async function advanceAlerte(
     if (row.discontinued_at) throw new LegalError("alerte-discontinued");
     const allowed = nextStagesOf(row.variant, row.stage, false);
     if (!allowed.includes(toStage)) throw new LegalError("invalid-transition");
+    // The chronology holds: a step cannot be dated before the one it follows,
+    // or its deadline would fall before the procedure began (UAT run 2 B95).
+    const last = await tx.query<{ d: string | null }>(
+      "SELECT to_char(max(event_date), 'YYYY-MM-DD') AS d FROM alerte_event WHERE alerte_id = $1",
+      [alerteId],
+    );
+    if (last.rows[0]?.d && today < last.rows[0].d) throw new LegalError("event-date-before-previous");
 
     // A satisfactory reply discontinues the procedure (resumable ≤ 6 months).
     if (toStage === "reply_recorded" && options.satisfactory) {
@@ -206,11 +250,13 @@ export async function advanceAlerte(
       alerteId, toStage, deadline,
     ]);
     const branding = await loadBranding(tx, tenantId);
-    const letter = await buildStageLetter(branding, row.client_name, row.fiscal_year, toStage, note);
+    const letter = await buildStageLetter(branding, row.client_name, row.fiscal_year, toStage, note, {
+      variant: row.variant, eventDate: today, partnerName: row.partner_name,
+    });
     const documentId = letter
       ? await fileUnderCode(tx, {
           tenantId, userId, engagementId: row.engagement_id, code: "C5.5",
-          title: `Alerte — ${toStage} (${row.fiscal_year})`,
+          title: `Alerte — ${STAGE_DOC_TITLES[toStage] ?? toStage} (${row.fiscal_year})`,
           kind: toStage === "rapport_special" ? "report" : "letter",
           content: letter, note: `alerte:${toStage}`,
         })
@@ -276,6 +322,7 @@ export async function getAlerte(engagementId: string): Promise<AlerteState | nul
       variant: row.variant,
       stage: row.stage,
       stageDeadline: row.stage_deadline,
+      lastEventDate: events.rows.reduce<string | null>((max, ev) => (max === null || ev.event_date > max ? ev.event_date : max), null),
       discontinued: row.discontinued_at !== null,
       resumableUntil: row.discontinued_at ? addMonthsClamped(row.discontinued_at, 6) : null,
       nextStages: nextStagesOf(row.variant, row.stage, row.discontinued_at !== null),

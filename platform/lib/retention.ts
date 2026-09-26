@@ -212,7 +212,7 @@ export async function placeLegalHold(engagementId: string, reason: string): Prom
     entityType: "legal_hold",
     entityId: id,
     action: "legal_hold.placed",
-    summary: "Legal hold placed — retention expiry suspended",
+    summary: `Legal hold placed — retention expiry suspended. Reason: ${text}`,
     meta: { reason: text },
   });
   return id;
@@ -229,22 +229,26 @@ export async function releaseLegalHold(engagementId: string, reason: string): Pr
   const text = reason.trim();
   if (!text) throw new RetentionError("reason-required");
 
-  const released = await withTenant(tenantId, async (tx) => {
-    const result = await tx.query(
+  const releasedId = await withTenant(tenantId, async (tx) => {
+    const result = await tx.query<{ id: string }>(
       `UPDATE legal_hold
           SET released_at = now(), released_by = $2, release_reason = $3
-        WHERE engagement_id = $1 AND released_at IS NULL`,
+        WHERE engagement_id = $1 AND released_at IS NULL
+        RETURNING id`,
       [engagementId, userId, text],
     );
-    return result.rowCount ?? 0;
+    return result.rows[0]?.id ?? null;
   });
-  if (released === 0) throw new RetentionError("no-active-hold");
+  if (!releasedId) throw new RetentionError("no-active-hold");
 
+  // The trail names the hold and carries the reason in its summary, which the
+  // activity page and CSV show (UAT run 2 B158).
   await recordActivity({
     engagementId,
     entityType: "legal_hold",
+    entityId: releasedId,
     action: "legal_hold.released",
-    summary: "Legal hold released — retention expiry resumes",
+    summary: `Legal hold released — retention expiry resumes. Reason: ${text}`,
     meta: { reason: text },
   });
 }

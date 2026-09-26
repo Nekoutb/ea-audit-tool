@@ -1,4 +1,5 @@
 import { redirect } from "next/navigation";
+import { localizedTitle } from "@/lib/page-title";
 import { auth } from "@/auth";
 import { AppNav } from "@/components/AppNav";
 import { EngagementWizard } from "@/components/EngagementWizard";
@@ -9,7 +10,7 @@ import { getMessages } from "@/lib/i18n";
 import { getLocale } from "@/lib/locale";
 import { atLeast, type Role } from "@/lib/rbac";
 
-export const metadata = { title: "New engagement · AuditISA" };
+export const generateMetadata = localizedTitle("New engagement", "Nouvelle mission");
 
 /** Engagement creation: the three identity questions; scope and team follow. */
 export default async function NewEngagementPage(props: {

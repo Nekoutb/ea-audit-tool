@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { localizedTitle } from "@/lib/page-title";
 import { notFound, redirect } from "next/navigation";
 import { auth } from "@/auth";
 import { AppNav } from "@/components/AppNav";
@@ -10,7 +11,7 @@ import {
 import { getLocale } from "@/lib/locale";
 import { listDatasets } from "@/lib/subledgers";
 
-export const metadata = { title: "Journal-entry selection · AuditISA" };
+export const generateMetadata = localizedTitle("Journal-entry selection", "Sélection des écritures");
 
 /**
  * Risk-directed selection of the journal-entry line items to test (ISA 240 ¶32).

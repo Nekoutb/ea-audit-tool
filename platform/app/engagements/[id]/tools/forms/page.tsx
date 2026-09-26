@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { localizedTitle } from "@/lib/page-title";
 import { notFound, redirect } from "next/navigation";
 import { auth } from "@/auth";
 import { assignFormsTasksAction } from "@/app/actions/planning";
@@ -13,7 +14,7 @@ import { canReview, type Role } from "@/lib/rbac";
 import { listTeam } from "@/lib/team";
 import { SECTION_ORDER, groupOfTask, sectionLabel, type SectionKey } from "@/lib/task-groups";
 
-export const metadata = { title: "Forms · AuditISA" };
+export const generateMetadata = localizedTitle("Forms", "Formulaires");
 
 /**
  * The Forms section: every standard form in the file, grouped by phase, each
@@ -39,7 +40,8 @@ export default async function FormsPage(props: {
   const byCode = new Map(tasks.map((x) => [x.code, x]));
 
   const canAssign = canReview(session.user.role as Role);
-  const team = canAssign ? await listTeam(id) : [];
+  // the quality reviewer is never offered as preparer or approver (ISQM 2 ¶18-20, UAT B73)
+  const team = canAssign ? (await listTeam(id)).filter((member) => member.teamRole !== "eqr_reviewer") : [];
 
   const byPhase = new Map<
     SectionKey,
@@ -88,7 +90,9 @@ export default async function FormsPage(props: {
         <p className="mt-3 rounded-[var(--radius-atlas-sm)] border border-red-300 bg-red-50 px-3 py-2 text-[12.5px] text-red-800 dark:border-red-900 dark:bg-red-950/40 dark:text-red-300" data-testid="forms-error">
           {error === "not-found"
             ? fr ? "Cette personne ne fait pas partie de l'équipe de la mission." : "That person is not on the engagement team."
-            : error}
+            : error === "eqr-not-assignable"
+              ? fr ? "Le réviseur qualité (EQR) ne peut pas se voir confier les travaux de la mission." : "The engagement quality reviewer cannot be assigned engagement work."
+              : error}
         </p>
       ) : null}
       {assigned ? (

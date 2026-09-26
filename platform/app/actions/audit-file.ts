@@ -123,7 +123,7 @@ export async function createEngagementAction(formData: FormData): Promise<void> 
       clientId,
       fiscalYear,
       periodEnd,
-      name: applyNamingConvention(naming, clientName, fiscalYear, { periodEnd, nature }),
+      name: applyNamingConvention(naming, clientName, fiscalYear, { periodEnd, nature }, await getLocale()),
       complexity: null,
       complexityAnswers: null,
       nature,
@@ -196,6 +196,7 @@ export async function updatePeriodEndAction(engagementId: string, formData: Form
   const { tenantId, role } = await requireTenant();
   if (!canReview(role)) redirect(`${path}?error=forbidden`);
   const naming = (await getBranding()).engagementNaming;
+  const namingLocale = await getLocale();
   const outcome = await withTenant(tenantId, async (tx) => {
     const r = await tx.query<{ phase: string; client_name: string; fiscal_year: number; nature: string | null; period_end: string }>(
       `SELECT e.phase, c.name AS client_name, e.fiscal_year, e.nature, to_char(e.period_end, 'YYYY-MM-DD') AS period_end
@@ -208,7 +209,7 @@ export async function updatePeriodEndAction(engagementId: string, formData: Form
     const name = applyNamingConvention(naming, row.client_name, row.fiscal_year, {
       periodEnd,
       nature: row.nature ?? "statutory_audit",
-    });
+    }, namingLocale);
     await tx.query("UPDATE engagement SET period_end = $2, name = $3 WHERE id = $1", [engagementId, periodEnd, name]);
     return row.period_end;
   });
@@ -218,10 +219,33 @@ export async function updatePeriodEndAction(engagementId: string, formData: Form
     entityType: "engagement",
     entityId: engagementId,
     action: "period_end_changed",
-    summary: `Period end changed to ${periodEnd}`,
+    summary: `Period end changed from ${outcome} to ${periodEnd}`,
     before: outcome,
     after: periodEnd,
   });
+  // The C5.2 calendar runs from the period end: a generated calendar follows
+  // the new date instead of showing the old deadlines (UAT run 2 B96).
+  const calendar = await withTenant(tenantId, async (tx) => {
+    const r = await tx.query<{ key: string }>("SELECT key FROM statutory_deadline WHERE engagement_id = $1", [engagementId]);
+    return r.rows.map((row) => row.key);
+  });
+  if (calendar.length > 0) {
+    const { addMonthsClamped, generateDeadlines } = await import("@/lib/legal");
+    await generateDeadlines(engagementId);
+    if (calendar.includes("egm_equity")) {
+      // the EGM row's basis is the AGO (period end + 6 months when no AGM date is set)
+      await withTenant(tenantId, async (tx) => {
+        await tx.query(
+          `UPDATE statutory_deadline sd SET due_date = $2::date
+             FROM engagement e
+            WHERE sd.engagement_id = e.id AND e.id = $1 AND sd.key = 'egm_equity'
+              AND sd.done = false AND e.agm_date IS NULL`,
+          [engagementId, addMonthsClamped(addMonthsClamped(periodEnd, 6), 4)],
+        );
+      });
+    }
+    revalidatePath(`/engagements/${engagementId}/legal`);
+  }
   revalidatePath(`/engagements/${engagementId}`);
   revalidatePath(path);
   redirect(`${path}?saved=1`);
@@ -236,16 +260,46 @@ export async function updatePeriodEndAction(engagementId: string, formData: Form
 export async function classifyEntityAction(engagementId: string, formData: FormData): Promise<void> {
   const answers = answersFromForm((name) => formData.get(name));
   const { level } = classifyComplexity(answers);
-  await applyComplexity(engagementId, level, answers);
+  // Once the file is propagated and planning has started, a reclassification
+  // is a recorded judgement with its reason, never a silent re-scope; after
+  // execution it is refused (UAT run 2 B77).
+  const back = `/engagements/${engagementId}/nature`;
+  const reason = String(formData.get("reason") ?? "").trim();
+  const { requireTenant } = await import("@/lib/tenant");
+  const { withTenant } = await import("@/lib/db");
+  const { tenantId } = await requireTenant();
+  const prior = await withTenant(tenantId, async (tx) => {
+    const r = await tx.query<{ phase: string; complexity: string | null; propagated: boolean }>(
+      `SELECT e.phase, e.complexity,
+              EXISTS (SELECT 1 FROM file_item fi WHERE fi.engagement_id = e.id) AS propagated
+         FROM engagement e WHERE e.id = $1`,
+      [engagementId],
+    );
+    return r.rows[0] ?? null;
+  });
+  const reclassifying = prior !== null && prior.propagated && prior.phase !== "acceptance";
+  if (reclassifying && prior.phase !== "planning" && prior.phase !== "execution") {
+    redirect(`${back}?error=reclassify-too-late`);
+  }
+  if (reclassifying && reason.length < 3) redirect(`${back}?error=reclassify-reason-required`);
+  try {
+    await applyComplexity(engagementId, level, answers);
+  } catch (error) {
+    if (error instanceof ForbiddenError) redirect(`${back}?error=${encodeURIComponent(error.message)}`);
+    throw error;
+  }
   await recordActivity({
     engagementId,
     entityType: "engagement",
     entityId: engagementId,
     action: "classified",
-    summary: `Nature of entity concluded: ${level.replace("_", " ")}`,
+    summary: `Nature of entity concluded: ${level.replace("_", " ")}${reclassifying ? ` (reason: ${reason.slice(0, 300)})` : ""}`,
+    before: prior?.propagated ? prior.complexity : undefined,
+    after: level,
+    meta: reclassifying ? { reason, phase: prior.phase } : null,
   });
   revalidatePath(`/engagements/${engagementId}`);
-  redirect(`/engagements/${engagementId}/team`);
+  redirect(reclassifying ? `/engagements/${engagementId}/dashboard` : `/engagements/${engagementId}/team`);
 }
 
 export async function generateDocumentAction(fileItemId: string): Promise<void> {
@@ -280,19 +334,34 @@ async function signOffFromList(
   let recorded: SignoffRole = role;
   let code = "";
   try {
-    const documentId = await generateDocument(fileItemId, locale); // get-or-create
-    recorded = await signDocument(documentId, role);
     const { requireTenant } = await import("@/lib/tenant");
     const { withTenant } = await import("@/lib/db");
     const { tenantId } = await requireTenant();
-    code = await withTenant(tenantId, async (tx) => {
-      const r = await tx.query<{ code: string }>("SELECT code FROM file_item WHERE id = $1", [fileItemId]);
-      return r.rows[0]?.code ?? "";
+    const item = await withTenant(tenantId, async (tx) => {
+      const r = await tx.query<{ code: string; section: string; phase: string }>(
+        "SELECT fi.code, fi.section, e.phase FROM file_item fi JOIN engagement e ON e.id = fi.engagement_id WHERE fi.id = $1",
+        [fileItemId],
+      );
+      return r.rows[0] ?? null;
     });
+    code = item?.code ?? "";
+    // The phase gate is checked BEFORE the paper is generated: a refused
+    // sign-off must leave no "working paper generated" behind (UAT run2-B142).
+    // signDocument repeats the check under its lock.
+    if (item) {
+      const { phaseOfTask } = await import("@/lib/engagement-dashboard");
+      const { phaseStillOpen } = await import("@/lib/gates");
+      const stillOpen = phaseStillOpen(phaseOfTask(item.section, item.code), item.phase, item.code);
+      if (stillOpen) throw new DocumentRuleError(stillOpen);
+    }
+    const documentId = await generateDocument(fileItemId, locale); // get-or-create
+    recorded = await signDocument(documentId, role);
   } catch (error) {
     if (error instanceof DocumentRuleError) {
       redirect(`${back}?error=${encodeURIComponent(error.code)}`);
     }
+    // a read-only account or someone off the team: a banner, not a 500 (UAT run 2 B37)
+    if (error instanceof ForbiddenError) redirect(`${back}?error=${encodeURIComponent(error.message)}`);
     if (isArchivedError(error)) redirect(`${back}?error=archived`);
     throw error;
   }

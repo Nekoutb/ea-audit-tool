@@ -42,7 +42,7 @@ export function ScotRegister({
   // The register renders inside the working paper's <form> on S1.1, so the
   // create row is plain inputs — a nested <form> would be dropped by the HTML
   // parser and break hydration.
-  const [draft, setDraft] = useState({ name: "", transactionType: "routine", strategy: "substantive", applications: "" });
+  const [draft, setDraft] = useState({ name: "", transactionType: "routine", strategy: "substantive", applications: "", description: "" });
 
   async function op(body: Record<string, unknown>) {
     setBusy(true);
@@ -68,7 +68,7 @@ export function ScotRegister({
   async function create() {
     if (!draft.name.trim()) return;
     const ok = await op({ op: "createScot", ...draft });
-    if (ok) setDraft({ name: "", transactionType: "routine", strategy: "substantive", applications: "" });
+    if (ok) setDraft({ name: "", transactionType: "routine", strategy: "substantive", applications: "", description: "" });
   }
 
   return (
@@ -107,7 +107,19 @@ export function ScotRegister({
           <tbody>
             {view.scots.map((scot) => (
               <tr key={scot.id} data-testid={`scot-row-${scot.name.replace(/[^A-Za-z0-9]/g, "_")}`}>
-                <td className={`${CELL} whitespace-normal font-semibold`}>{scot.name}</td>
+                <td className={`${CELL} whitespace-normal font-semibold`}>
+                  {scot.name}
+                  {/* the flow of transactions, editable in place (UAT run2-B132) */}
+                  <textarea
+                    defaultValue={scot.description ?? ""}
+                    rows={2}
+                    placeholder={fr ? "Description du flux…" : "Flow description…"}
+                    aria-label={fr ? "Description du flux" : "Flow description"}
+                    onBlur={(e) => { if (e.target.value !== (scot.description ?? "")) void op({ op: "updateScot", scotId: scot.id, description: e.target.value }); }}
+                    className="mt-1 block w-full resize-y bg-transparent text-[11px] font-normal text-ink-soft outline-none placeholder:text-muted"
+                    data-testid={`scot-description-${scot.id.slice(0, 6)}`}
+                  />
+                </td>
                 <td className={`${CELL} p-0`}>
                   <select
                     defaultValue={scot.transactionType}
@@ -141,7 +153,7 @@ export function ScotRegister({
                     >
                       <option value="">＋</option>
                       {LEAD_INDEXES.filter((d) => !scot.indexes.some((l) => l.indexCode === d.code)).map((d) => (
-                        <option key={d.code} value={d.code}>{d.code} — {d.labelEn}</option>
+                        <option key={d.code} value={d.code}>{d.code} — {fr ? d.labelFr : d.labelEn}</option>
                       ))}
                     </select>
                   </span>
@@ -213,6 +225,13 @@ export function ScotRegister({
           onChange={(e) => setDraft((d) => ({ ...d, applications: e.target.value }))}
           placeholder={fr ? "Applications" : "Applications"}
           className="rounded-[var(--radius-atlas-sm)] border border-line-strong bg-surface px-2 py-1 text-[12px] text-ink outline-none"
+        />
+        <input
+          value={draft.description}
+          onChange={(e) => setDraft((d) => ({ ...d, description: e.target.value }))}
+          placeholder={fr ? "Description du flux" : "Flow description"}
+          className="min-w-[220px] flex-1 rounded-[var(--radius-atlas-sm)] border border-line-strong bg-surface px-2 py-1 text-[12px] text-ink outline-none"
+          data-testid="scot-new-description"
         />
         <button type="button" onClick={() => void create()} disabled={busy} className="rounded-[var(--radius-atlas-sm)] bg-emerald-700 px-2.5 py-1 text-[12px] font-semibold text-white hover:bg-emerald-800 disabled:opacity-50" data-testid="scot-add">
           {fr ? "+ Créer" : "+ Create"}

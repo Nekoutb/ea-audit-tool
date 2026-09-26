@@ -94,8 +94,10 @@ export async function listEngagements(clientId?: string): Promise<EngagementRegi
                 ORDER BY tm.created_at LIMIT 1) AS partner_name,
               (SELECT count(*) FROM file_item fi
                 WHERE fi.engagement_id = e.id AND fi.conditional = false
-                  AND EXISTS (SELECT 1 FROM document d
-                               WHERE d.file_item_id = fi.id AND d.status = 'signed'))::text AS tasks_done,
+                  -- a task marked not applicable with a reason counts as complete (UAT run2-B157, run3-B15)
+                  AND (btrim(coalesce(fi.na_reason, '')) <> ''
+                       OR EXISTS (SELECT 1 FROM document d
+                                   WHERE d.file_item_id = fi.id AND d.status = 'signed')))::text AS tasks_done,
               (SELECT count(*) FROM file_item fi
                 WHERE fi.engagement_id = e.id AND fi.conditional = false)::text AS tasks_total,
               to_char((SELECT max(al.created_at) FROM activity_log al
@@ -157,7 +159,8 @@ export async function myTasks(limit = 40): Promise<MyTaskRow[]> {
          FROM file_item fi
          JOIN engagement e ON e.id = fi.engagement_id
          JOIN client c ON c.id = e.client_id
-        WHERE (fi.assignee_user_id = $1 OR fi.owner_id = $1)
+        -- the approver too, as the tasks page's filter=mine (UAT run 2 B72)
+        WHERE (fi.assignee_user_id = $1 OR fi.owner_id = $1 OR fi.approver_user_id = $1)
           AND fi.conditional = false
           AND e.phase <> 'archived'${visibilityClause(role, "e", 1)}
         ORDER BY (CASE WHEN EXISTS (SELECT 1 FROM document d WHERE d.file_item_id = fi.id AND d.status = 'signed') THEN 1 ELSE 0 END),

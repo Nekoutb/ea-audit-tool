@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { localizedTitle } from "@/lib/page-title";
 import { notFound, redirect } from "next/navigation";
 import { auth } from "@/auth";
 import { setClientArchivedAction, updateClientMasterAction } from "@/app/actions/clients";
@@ -8,7 +9,7 @@ import { ErrorBanner } from "@/components/GatesPanel";
 import { NavLink } from "@/components/NavLink";
 import { SubmitButton } from "@/components/SubmitButton";
 import { Chip, Panel, PanelHeader, btnPrimary } from "@/components/ui/atlas";
-import { FRAMEWORKS, LEGAL_FORMS, SECTORS, getClient, isSector } from "@/lib/clients";
+import { FRAMEWORKS, LEGAL_FORMS, SECTORS, getClient, isSector, legalFormLabel } from "@/lib/clients";
 import { withTenant } from "@/lib/db";
 import { listEngagements } from "@/lib/engagements";
 import { getMessages } from "@/lib/i18n";
@@ -16,7 +17,7 @@ import { getLocale } from "@/lib/locale";
 import { listPortalContacts } from "@/lib/pbc";
 import { requireTenant } from "@/lib/tenant";
 
-export const metadata = { title: "Entity record · AuditISA" };
+export const generateMetadata = localizedTitle("Entity record", "Fiche de l'entité");
 
 // Page-local labels (IA audit 5D — entity-record strings are not in messages/*.json yet).
 const LABELS = {
@@ -148,7 +149,7 @@ export default async function ClientDetailPage(props: {
         </NavLink>
         <div className="mt-2 flex flex-wrap items-center gap-2.5">
           <h1 className="text-2xl font-bold tracking-[-0.02em] text-ink">{client.name}</h1>
-          <Chip tone="muted">{client.legalForm}</Chip>
+          <Chip tone="muted">{legalFormLabel(client.legalForm, locale)}</Chip>
           {client.listed ? <Chip tone="accent">{t.clients.listed}</Chip> : null}
           {client.coCac ? <Chip tone="accent">{t.clients.coCac}</Chip> : null}
           {client.pie ? <Chip tone="warn">{L.pieChip}</Chip> : null}
@@ -185,7 +186,7 @@ export default async function ClientDetailPage(props: {
               <select name="legalForm" defaultValue={client.legalForm} className={inputClass} data-testid="entity-legal-form">
                 {LEGAL_FORMS.map((form) => (
                   <option key={form} value={form}>
-                    {form}
+                    {legalFormLabel(form, locale)}
                   </option>
                 ))}
               </select>

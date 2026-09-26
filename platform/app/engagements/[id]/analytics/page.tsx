@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { localizedTitle } from "@/lib/page-title";
 import { notFound, redirect } from "next/navigation";
 import { auth } from "@/auth";
 import { AppNav } from "@/components/AppNav";
@@ -8,7 +9,7 @@ import { apComments, apLeadSchedules } from "@/lib/analytical-procedures";
 import { getEngagement } from "@/lib/engagements";
 import { getLocale } from "@/lib/locale";
 
-export const metadata = { title: "Analytical Procedures · AuditISA" };
+export const generateMetadata = localizedTitle("Analytical Procedures", "Procédures analytiques");
 
 
 // The Excel look: hard grid lines, dense rows, bold header, double-ruled total.

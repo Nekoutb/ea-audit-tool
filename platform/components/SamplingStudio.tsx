@@ -23,6 +23,7 @@ import { recordTodResultAction } from "@/app/actions/engines";
 import type { TodResultRow } from "@/lib/engines";
 import { SubmitButton } from "@/components/SubmitButton";
 import { drawTocSample, normFreq, tocSuggested } from "@/lib/toc-sampling";
+import { freqLabel } from "@/lib/control-labels";
 
 export interface SamplingPurpose {
   controlId: string;
@@ -157,7 +158,7 @@ export function SamplingStudio({
     setBusy(null);
     if (r) {
       setDrawn((d) => ({ ...d, [p.controlId]: { items, at: new Date().toISOString() } }));
-      setDone(`${fr ? "Échantillon de" : "Sample of"} ${items.length || suggestion.size} ${fr ? "tiré au hasard pour" : "drawn at random for"} « ${p.controlName} » — ${fr ? "visible sur S2.2 et dans l'extrait Excel" : "on S2.2 and in the Excel extract"}.`);
+      setDone(`${fr ? "Échantillon de" : "Sample of"} ${items.length || suggestion.size} ${fr ? "tiré au hasard pour" : "drawn at random for"} « ${p.controlName} » — ${fr ? "listé pour test dans le papier E1.2 et dans l'extrait Excel" : "listed for testing in the E1.2 paper and in the Excel extract"}.`);
       router.refresh();
     }
   }
@@ -252,7 +253,7 @@ export function SamplingStudio({
                         {p.sampleSize ? <span className="ml-1.5 text-[10px] text-muted tnum">({fr ? "actuel" : "current"}: {p.sampleSize})</span> : null}
                       </td>
                       <td className={`${td} whitespace-normal text-ink-soft`}>{p.scotName}</td>
-                      <td className={`${td} text-ink-soft`}>{p.frequency ?? "—"}</td>
+                      <td className={`${td} text-ink-soft`}>{p.frequency ? freqLabel(normFreq(p.frequency), fr) : "—"}</td>
                       <td className={`${td} font-mono text-[10.5px] font-bold text-emerald-800 dark:text-emerald-300`}>{p.assertions.join("") || "—"}</td>
                       <td className={`${td} p-1`}>
                         <div className="flex items-center gap-1">

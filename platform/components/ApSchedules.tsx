@@ -153,6 +153,10 @@ export function ApSchedules({
         {unitBtn("fcfa", "FCFA")}
         {unitBtn("k", "'000")}
         {unitBtn("m", "Millions")}
+        {/* buttons do not print: the chosen unit prints as text (UAT run 3 B13) */}
+        <span className="hidden text-[11px] font-semibold print:inline" data-testid="ap-unit-print">
+          {unit === "fcfa" ? "FCFA" : unit === "k" ? (fr ? "milliers de FCFA" : "FCFA '000") : (fr ? "millions de FCFA" : "FCFA millions")}
+        </span>
       </div>
 
       <div className="flex items-start gap-4">
@@ -183,15 +187,16 @@ export function ApSchedules({
                   </span>
                 </button>
 
-                {isOpen ? (
-                  <div className="overflow-x-auto border-t border-line p-2">
+                {/* a collapsed schedule still prints its figures (UAT B91 / run 3 B13) */}
+                {(
+                  <div className={`${isOpen ? "" : "hidden print:block "}overflow-x-auto border-t border-line p-2`}>
                     <table className="w-full border-collapse bg-white dark:bg-surface" data-testid={`ap-grid-${schedule.def.code}`}>
                       <thead>
                         <tr className="bg-surface-2 font-bold text-ink">
                           <th className={`${CELL} text-left`}>{fr ? "Compte" : "Account"}</th>
                           <th className={`${CELL} text-left`}>{fr ? "Intitulé" : "Description"}</th>
-                          <th className={`${CELL} text-left`}>{fr ? "Classe de compte" : "Account class"}</th>
-                          <th className={`${CELL} text-left`}>{fr ? "Type de compte" : "Account type"}</th>
+                          <th className={`${CELL} text-left print:hidden`}>{fr ? "Classe de compte" : "Account class"}</th>
+                          <th className={`${CELL} text-left print:hidden`}>{fr ? "Type de compte" : "Account type"}</th>
                           <th className={NUMHEAD} style={numStyle}>{fr ? "Exercice N" : "Current Y"}</th>
                           <th
                             className={NUMHEAD}
@@ -217,7 +222,7 @@ export function ApSchedules({
                             <td className={`${CELL} font-mono`}>
                               {/* the figure drills to the ledger entries behind it (GL console) */}
                               <Link
-                                href={`/engagements/${engagementId}/tools/gl-console?accounts=${encodeURIComponent(row.account)}`}
+                                href={`/engagements/${engagementId}/tools/gl-console?accounts=${encodeURIComponent(row.account)}&opening=${row.opening}&closing=${row.closing}`}
                                 className="text-emerald-700 hover:underline dark:text-emerald-400"
                                 title={fr ? "Voir les écritures du grand livre" : "Open the general-ledger entries"}
                                 data-testid={`ap-drill-${schedule.def.code}-${row.account}`}
@@ -226,8 +231,8 @@ export function ApSchedules({
                               </Link>
                             </td>
                             <td className={`${CELL} max-w-[170px] truncate`} title={row.name}>{row.name}</td>
-                            <td className={CELL}>{accountClassLabel(schedule.def.accountClass, locale)}</td>
-                            <td className={CELL}>{accountTypeLabel(schedule.def.accountType, locale)}</td>
+                            <td className={`${CELL} print:hidden`}>{accountClassLabel(schedule.def.accountClass, locale)}</td>
+                            <td className={`${CELL} print:hidden`}>{accountTypeLabel(schedule.def.accountType, locale)}</td>
                             <td className={NUM}>{fmt(row.closing)}</td>
                             <td className={NUM}>{fmt(row.prior)}</td>
                             <td className={`${NUM} ${row.movement < 0 ? "text-rose" : ""}`}>{fmt(row.movement)}</td>
@@ -249,7 +254,7 @@ export function ApSchedules({
                         <tr className="border-t-2 font-bold" style={{ borderTopStyle: "double" }}>
                           <td className={`${CELL} font-mono`}>
                             <Link
-                              href={`/engagements/${engagementId}/tools/gl-console?accounts=${encodeURIComponent(schedule.accounts.map((a) => a.account).join(","))}`}
+                              href={`/engagements/${engagementId}/tools/gl-console?accounts=${encodeURIComponent(schedule.accounts.map((a) => a.account).join(","))}&opening=${schedule.accounts.reduce((sum, a) => sum + a.opening, 0)}&closing=${schedule.closing}`}
                               className="text-emerald-700 hover:underline dark:text-emerald-400"
                               title={fr ? "Voir toutes les écritures de cette feuille maîtresse" : "Open every ledger entry behind this lead schedule"}
                               data-testid={`ap-drill-${schedule.def.code}-total`}
@@ -260,8 +265,8 @@ export function ApSchedules({
                           <td className={`${CELL} max-w-[170px] truncate`}>
                             {schedule.def.code} — {leadIndexLabel(schedule.def, locale)}
                           </td>
-                          <td className={CELL} />
-                          <td className={CELL} />
+                          <td className={`${CELL} print:hidden`} />
+                          <td className={`${CELL} print:hidden`} />
                           <td className={NUM} data-testid={`ap-total-${schedule.def.code}`}>{fmt(schedule.closing)}</td>
                           <td className={NUM}>{fmt(schedule.prior)}</td>
                           <td className={`${NUM} ${schedule.movement < 0 ? "text-rose" : ""}`}>{fmt(schedule.movement)}</td>
@@ -282,7 +287,7 @@ export function ApSchedules({
                       </tbody>
                     </table>
                   </div>
-                ) : null}
+                )}
               </div>
             );
           })}

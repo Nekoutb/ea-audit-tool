@@ -1,4 +1,5 @@
 import { redirect } from "next/navigation";
+import { localizedTitle } from "@/lib/page-title";
 import { auth } from "@/auth";
 import { AppNav } from "@/components/AppNav";
 import { Panel } from "@/components/ui/atlas";
@@ -7,7 +8,7 @@ import { getLocale } from "@/lib/locale";
 import { canManageFirm, type Role } from "@/lib/rbac";
 import { teamWorkload } from "@/lib/resources";
 
-export const metadata = { title: "Team workload · AuditISA" };
+export const generateMetadata = localizedTitle("Team workload", "Charge de l'équipe");
 
 export default async function ResourcesPage() {
   const session = await auth();

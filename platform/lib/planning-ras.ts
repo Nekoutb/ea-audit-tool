@@ -181,11 +181,13 @@ async function assertQualityReviewer(
   actor: Role,
 ): Promise<void> {
   if (actor !== "eqr_reviewer") throw new ForbiddenError("eqr-must-be-the-quality-reviewer");
-  const onTeam = await tx.query(
-    "SELECT 1 FROM team_member WHERE engagement_id = $1 AND user_id = $2",
+  // Appointed on the Team page as the quality reviewer is the one team row
+  // that is not "on the team" (UAT run 3 B09): any other team role is.
+  const onTeam = await tx.query<{ team_role: string }>(
+    "SELECT team_role FROM team_member WHERE engagement_id = $1 AND user_id = $2",
     [engagementId, userId],
   );
-  if (onTeam.rows.length > 0) throw new ForbiddenError("eqr-cannot-be-on-the-team");
+  if (onTeam.rows.some((r) => r.team_role !== "eqr_reviewer")) throw new ForbiddenError("eqr-cannot-be-on-the-team");
 }
 
 /** Record one answer (or its explanation). Signing is a separate act. */
@@ -319,7 +321,10 @@ export async function signRas(
       "SELECT coalesce(name, email) AS name FROM app_user WHERE id = $1",
       [userId],
     );
-    const stamp = new Date().toISOString().slice(0, 16).replace("T", " ");
+    // the firm's zone with its label, as every other signature (UAT B110)
+    const stamp =
+      new Intl.DateTimeFormat("sv-SE", { timeZone: "Africa/Douala", dateStyle: "short", timeStyle: "short" }).format(new Date()) +
+      " WAT";
     await tx.query(
       `INSERT INTO form_response (tenant_id, engagement_id, code, field_key, value, updated_by)
        VALUES ($1, $2, $3, $4, to_jsonb($5::text), $6)

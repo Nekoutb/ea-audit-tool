@@ -14,6 +14,7 @@ import type { Messages } from "@/lib/i18n";
 
 async function loginAction(formData: FormData): Promise<void> {
   "use server";
+  const next = safeNext(formData.get("next"));
   try {
     await signIn("credentials", {
       email: String(formData.get("email") ?? ""),
@@ -25,7 +26,10 @@ async function loginAction(formData: FormData): Promise<void> {
       // engagement carries it here; "/" resolves to the most-recently-worked
       // engagement's dashboard. Validated on the page that renders the form —
       // an unchecked value here would be an open redirect.
-      redirectTo: safeNext(formData.get("next")),
+      redirectTo: next,
+      // the redirect is ours, below, as a relative path: the address bar then
+      // reads the page that renders, not /login (UAT run 2 B100)
+      redirect: false,
     });
   } catch (error) {
     if (error instanceof AuthError) {
@@ -38,10 +42,16 @@ async function loginAction(formData: FormData): Promise<void> {
         code === "mfa-required" || (typeof code === "string" && /^too-many-attempts(:\d{1,4})?$/.test(code))
           ? code
           : "1";
-      redirect(`/login?error=${encodeURIComponent(known)}`);
+      // keep the address and the destination across a mistyped password (UAT run 2 B97)
+      const email = String(formData.get("email") ?? "").trim();
+      const keep = new URLSearchParams({ error: known });
+      if (email) keep.set("email", email);
+      if (next !== "/") keep.set("next", next);
+      redirect(`/login?${keep.toString()}`);
     }
-    throw error; // NEXT_REDIRECT on success must propagate
+    throw error;
   }
+  redirect(next);
 }
 
 export function LoginForm({

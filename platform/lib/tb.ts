@@ -11,7 +11,7 @@ import { recordActivity } from "@/lib/activity";
 import { withTenant } from "@/lib/db";
 import { resolveSection } from "@/lib/leadsheets";
 import { LEAD_INDEXES, SUB_INDEX_BY_CODE, leadIndexFor, subIndexFor } from "@/lib/lead-classes";
-import { parseTabularFile, type ParsedTable } from "@/lib/subledgers";
+import { parseTabularFile, sourceRowOf, type ParsedTable } from "@/lib/subledgers";
 import { requireTenant, requireWrite } from "@/lib/tenant";
 import { amountOr, parseAmount as parseAmountOrNull } from "@/lib/amount";
 
@@ -117,7 +117,7 @@ export interface TbUnreadableColumn {
   /** the header in the file */
   header: string;
   count: number;
-  /** the first few offending values, with the file row (1-based, after the header) */
+  /** the first few offending values, with the physical file row (spreadsheet row / CSV line) */
   examples: { row: number; account: string; value: string }[];
 }
 
@@ -144,7 +144,7 @@ export function readabilityOf(table: ParsedTable, mapping: TbMapping): TbReadabi
       if (!unreadable(value)) continue;
       const entry = found.get(column) ?? { column, header, count: 0, examples: [] };
       entry.count += 1;
-      if (entry.examples.length < 5) entry.examples.push({ row: i + 1, account, value: String(value).slice(0, 40) });
+      if (entry.examples.length < 5) entry.examples.push({ row: sourceRowOf(raw) ?? i + 1, account, value: String(value).slice(0, 40) });
       found.set(column, entry);
     }
   });
@@ -263,12 +263,24 @@ export function validateTbRows(
 
   const openingExceptions: { account: string; opening: number; priorClosing: number }[] = [];
   if (priorClosings && hasOpening) {
+    // P&L accounts (classes 6-8) reset at year start and the result accounts
+    // (12x/13x) receive the prior result: tie those in one aggregate check
+    const carried = (account: string) => /^[6-8]/.test(account) || /^1[23]/.test(account);
     for (const row of rows) {
+      if (carried(row.account)) continue;
       const opening = row.openingDebit - row.openingCredit;
       const prior = priorClosings.get(row.account) ?? 0;
       if (Math.abs(opening - prior) > EPSILON) {
         openingExceptions.push({ account: row.account, opening, priorClosing: prior });
       }
+    }
+    let priorResult = 0;
+    for (const [account, closing] of priorClosings) if (carried(account)) priorResult += closing;
+    const openingResult = rows
+      .filter((row) => /^1[23]/.test(row.account))
+      .reduce((sum, row) => sum + row.openingDebit - row.openingCredit, 0);
+    if (Math.abs(openingResult - priorResult) > EPSILON) {
+      openingExceptions.push({ account: RESULT_CARRIED_FORWARD, opening: openingResult, priorClosing: priorResult });
     }
   }
 
@@ -293,6 +305,9 @@ export function validateTbRows(
   };
 }
 
+/** pseudo-account of the aggregate 'result carried forward' opening check */
+export const RESULT_CARRIED_FORWARD = "12x/13x";
+
 async function priorClosingsMap(tx: PoolClient, engagementId: string): Promise<Map<string, number> | null> {
   const prior = await tx.query<{ id: string }>(
     `SELECT p.id FROM engagement e
@@ -305,7 +320,14 @@ async function priorClosingsMap(tx: PoolClient, engagementId: string): Promise<M
     `SELECT r.account_code,
             (r.opening_debit - r.opening_credit + r.debit - r.credit)::text AS closing
        FROM trial_balance tb
-       JOIN trial_balance_version v ON v.trial_balance_id = tb.id AND v.version_no = tb.current_version_no
+       -- audited closings first: the latest live post-audit upload, else the
+       -- current version (which follows posted AJEs onto the adjusted TB)
+       JOIN trial_balance_version v ON v.id = COALESCE(
+              (SELECT pv.id FROM trial_balance_version pv
+                WHERE pv.trial_balance_id = tb.id AND pv.timing = 'post_audit' AND pv.superseded_at IS NULL
+                ORDER BY pv.version_no DESC LIMIT 1),
+              (SELECT cv.id FROM trial_balance_version cv
+                WHERE cv.trial_balance_id = tb.id AND cv.version_no = tb.current_version_no))
        JOIN trial_balance_row r ON r.version_id = v.id
       WHERE tb.engagement_id = $1`,
     [prior.rows[0].id],

@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { localizedTitle } from "@/lib/page-title";
 import { notFound, redirect } from "next/navigation";
 import { auth } from "@/auth";
 import {
@@ -13,6 +14,7 @@ import {
   setMaterialAction,
 } from "@/app/actions/planning";
 import { AppNav } from "@/components/AppNav";
+import { SubmitButton } from "@/components/SubmitButton";
 import { MaterialityBasis } from "@/components/MaterialityBasis";
 import { ErrorBanner, GatesPanel } from "@/components/GatesPanel";
 import { Chip, Panel, PanelHeader, btnPrimary } from "@/components/ui/atlas";
@@ -27,7 +29,7 @@ import { BENCHMARK_RANGES, BENCHMARKS, PERFORMANCE_PCT_RANGE, TRIVIAL_PCT_RANGE,
 import { listBudget, listFirmUsers, listPbc, listTeam, TEAM_ROLES } from "@/lib/team";
 import { requireTenant } from "@/lib/tenant";
 
-export const metadata = { title: "Planning · AuditISA" };
+export const generateMetadata = localizedTitle("Planning", "Planification");
 
 const PLANNING_CODES = [
   "S6.1", "P1.1", "S6.2", "P3.1", "P3.2", "P4.1", "P4.2", "P4.3", "S5.1", "S5.2", "S5.3",
@@ -238,9 +240,9 @@ export default async function PlanningPage(props: {
                     <td className="px-4 py-2 text-right">
                       {version.status === "draft" ? (
                         <form action={approveMaterialityAction.bind(null, id, version.versionNo)}>
-                          <button type="submit" className={btn} data-testid="approve-materiality">
+                          <SubmitButton className={btn} testId="approve-materiality">
                             {tp.materiality.approve}
-                          </button>
+                          </SubmitButton>
                         </form>
                       ) : null}
                     </td>
@@ -277,7 +279,7 @@ export default async function PlanningPage(props: {
           </label>
           <label className="flex flex-col gap-1 text-sm">
             <span className="text-ink-soft">{tp.materiality.percentage}</span>
-            <input name="percentage" type="number" step="0.1" min="0.1" max="100" required className={input} data-testid="materiality-pct" />
+            <input name="percentage" type="number" step="0.01" min="0.1" max="100" required className={input} data-testid="materiality-pct" />
           </label>
           <label className="flex flex-col gap-1 text-sm">
             <span className="text-ink-soft">{tp.materiality.performancePct}</span>
@@ -296,9 +298,9 @@ export default async function PlanningPage(props: {
             <input name="performanceJustification" className={input} data-testid="materiality-te-justification" />
           </label>
           <div className="flex items-end">
-            <button type="submit" className={btnPrimary} data-testid="create-materiality">
+            <SubmitButton className={btnPrimary} testId="create-materiality">
               {tp.materiality.compute}
-            </button>
+            </SubmitButton>
           </div>
         </form>
       </Panel>
@@ -345,7 +347,7 @@ export default async function PlanningPage(props: {
           </button>
         </form>
 
-        <h3 className="mt-6 text-sm font-semibold uppercase tracking-wide text-muted">
+        <h3 id="budget" className="mt-6 scroll-mt-4 text-sm font-semibold uppercase tracking-wide text-muted">
           {tp.budget.title}
         </h3>
         <ul className="mt-2 flex flex-wrap gap-2 text-sm">

@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { localizedTitle } from "@/lib/page-title";
 import { notFound, redirect } from "next/navigation";
 import { auth } from "@/auth";
 import { launchCampaignAction, sendReminderAction } from "@/app/actions/planning";
@@ -6,19 +7,26 @@ import { AppNav } from "@/components/AppNav";
 import { SubmitButton } from "@/components/SubmitButton";
 import { Chip, Panel, PanelHeader } from "@/components/ui/atlas";
 import { getEngagement } from "@/lib/engagements";
-import { listConfirmations } from "@/lib/independence";
+import { INDEPENDENCE_QUESTIONS, listConfirmations } from "@/lib/independence";
+import { ErrorBanner } from "@/components/GatesPanel";
 import { getLocale } from "@/lib/locale";
 import { canReview } from "@/lib/rbac";
 import { listTeam } from "@/lib/team";
 
-export const metadata = { title: "Independence Campaign · AuditISA" };
+export const generateMetadata = localizedTitle("Independence Campaign", "Campagne d'indépendance");
 
 /** The Independence Campaign: the inquiry issued to the team, responses managed here. */
-export default async function IndependencePage(props: { params: Promise<{ id: string }> }) {
+export default async function IndependencePage(props: {
+  params: Promise<{ id: string }>;
+  searchParams: Promise<{ error?: string }>;
+}) {
   const session = await auth();
   if (!session?.user) redirect("/login");
 
   const { id } = await props.params;
+  const { error } = await props.searchParams;
+  // the campaign's own buttons land back here, not on Acceptance (UAT B118)
+  const returnTo = `/engagements/${id}/tools/independence`;
   const locale = await getLocale();
   const fr = locale === "fr";
   const engagement = await getEngagement(id);
@@ -26,6 +34,11 @@ export default async function IndependencePage(props: { params: Promise<{ id: st
 
   const [confirmations, team] = await Promise.all([listConfirmations(id), listTeam(id)]);
   const canManage = canReview(session.user.role);
+  // the question itself in the reader's language, not its storage key (UAT B119)
+  const questionLabel = (key: string) => {
+    const q = INDEPENDENCE_QUESTIONS.find((question) => question.key === key);
+    return `${q ? (fr ? q.labelFr : q.labelEn) : key.replace(/_/g, " ")}${fr ? " :" : ":"}`;
+  };
   const done = confirmations.filter((c) => c.status === "completed").length;
   const exceptions = confirmations.filter((c) => c.status === "exception").length;
   const outstanding = confirmations.length - done - exceptions;
@@ -53,6 +66,7 @@ export default async function IndependencePage(props: { params: Promise<{ id: st
           {fr ? "Campagne d'indépendance" : "Independence Campaign"}
         </h1>
       </div>
+      <ErrorBanner error={error} locale={locale} />
 
       <Panel className="mt-4" id="independence">
         <PanelHeader
@@ -61,6 +75,7 @@ export default async function IndependencePage(props: { params: Promise<{ id: st
           right={
             canManage ? (
               <form action={launchCampaignAction.bind(null, id)}>
+                <input type="hidden" name="returnTo" value={returnTo} />
                 {team
                   .filter((m) => m.status !== "declined" && m.declaresIndependence && !confirmations.some((c) => c.userId === m.userId))
                   .map((m) => (
@@ -133,7 +148,7 @@ export default async function IndependencePage(props: { params: Promise<{ id: st
                         <div className="flex flex-col gap-1" data-testid={`indep-explanations-${c.id}`}>
                           {Object.entries(c.explanations).map(([k, note]) => (
                             <div key={k}>
-                              <span className="font-semibold text-rose">{k.replace(/_/g, " ")}:</span> {note}
+                              <span className="font-semibold text-rose">{questionLabel(k)}</span> {note}
                             </div>
                           ))}
                           {c.disposition ? (
@@ -152,6 +167,7 @@ export default async function IndependencePage(props: { params: Promise<{ id: st
                           disposition rather than by chasing (UAT B124) */}
                       {canManage && (c.status === "sent" || c.status === "opened") ? (
                         <form action={sendReminderAction.bind(null, id, c.id)}>
+                          <input type="hidden" name="returnTo" value={returnTo} />
                           <SubmitButton
                             testId={`indep-remind-${c.id}`}
                             className="rounded-[var(--radius-atlas-sm)] border border-line-strong bg-surface px-2.5 py-1 text-xs font-medium text-ink-soft hover:bg-surface-2"

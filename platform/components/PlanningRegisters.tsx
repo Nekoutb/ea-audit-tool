@@ -3,7 +3,7 @@
 // forms post the existing planning actions with a returnTo so each screen
 // lands back on itself.
 
-import { addEstimateAction, addRelatedPartyAction } from "@/app/actions/planning";
+import { addEstimateAction, addRelatedPartyAction, removeRegisterLineAction } from "@/app/actions/planning";
 import { Chip, Panel, PanelHeader } from "@/components/ui/atlas";
 import type { EstimateRow, RelatedPartyRow } from "@/lib/registers";
 
@@ -48,6 +48,9 @@ export function RelatedPartyRegister({
               <span className="font-medium text-ink">{party.name}</span> — {party.relationship}
               {party.notes ? ` · ${party.notes}` : ""}
               {party.carried_forward ? <Chip tone="warn">{carriedForwardLabel}</Chip> : null}
+              {readOnly ? null : (
+                <RemoveLine engagementId={engagementId} kind="party" id={party.id} returnTo={returnTo} fr={fr} />
+              )}
             </li>
           ))}
         </ul>
@@ -95,11 +98,14 @@ export function EstimatesRegister({
           {rows.map((estimate) => (
             <li
               key={estimate.id}
-              className="rounded-[var(--radius-atlas-sm)] border border-line bg-surface-2 px-3 py-2 text-ink-soft"
+              className="flex flex-wrap items-center gap-x-1.5 rounded-[var(--radius-atlas-sm)] border border-line bg-surface-2 px-3 py-2 text-ink-soft"
             >
               <span className="font-medium text-ink">{estimate.nature}</span>
               {estimate.method ? ` — ${estimate.method}` : ""}
               {estimate.uncertainty ? ` · ${estimate.uncertainty}` : ""}
+              {readOnly ? null : (
+                <RemoveLine engagementId={engagementId} kind="estimate" id={estimate.id} returnTo={returnTo} fr={fr} />
+              )}
             </li>
           ))}
         </ul>
@@ -116,5 +122,37 @@ export function EstimatesRegister({
       </form>
       )}
     </Panel>
+  );
+}
+
+/** Remove a wrong line (soft, logged; voids the sign-offs over the register — UAT B26). */
+function RemoveLine({
+  engagementId,
+  kind,
+  id,
+  returnTo,
+  fr,
+}: {
+  engagementId: string;
+  kind: "party" | "estimate";
+  id: string;
+  returnTo?: string;
+  fr: boolean;
+}) {
+  return (
+    <form action={removeRegisterLineAction.bind(null, engagementId)} className="ml-auto">
+      <input type="hidden" name="kind" value={kind} />
+      <input type="hidden" name="id" value={id} />
+      {returnTo ? <input type="hidden" name="returnTo" value={returnTo} /> : null}
+      <button
+        type="submit"
+        className="rounded-[var(--radius-atlas-xs)] px-1.5 text-xs text-muted hover:bg-surface hover:text-rose"
+        title={fr ? "Retirer cette ligne (consigné au journal)" : "Remove this line (logged)"}
+        aria-label={fr ? "Retirer cette ligne" : "Remove this line"}
+        data-testid={`register-remove-${id}`}
+      >
+        ✕
+      </button>
+    </form>
   );
 }

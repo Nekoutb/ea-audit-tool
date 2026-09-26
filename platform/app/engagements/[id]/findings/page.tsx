@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { localizedTitle } from "@/lib/page-title";
 import { notFound, redirect } from "next/navigation";
 import { auth } from "@/auth";
 import { clearFindingAction, raiseFindingAction, setCorrectedAction } from "@/app/actions/execution";
@@ -10,7 +11,7 @@ import { evaluateB5, FINDING_SEVERITIES, listFindings } from "@/lib/execution";
 import { formatFCFA, getMessages } from "@/lib/i18n";
 import { getLocale } from "@/lib/locale";
 
-export const metadata = { title: "Findings · AuditISA" };
+export const generateMetadata = localizedTitle("Findings", "Constats");
 
 export default async function FindingsPage(props: {
   params: Promise<{ id: string }>;

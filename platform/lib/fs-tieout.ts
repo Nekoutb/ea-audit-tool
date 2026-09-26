@@ -43,7 +43,10 @@ async function loadClosings(tx: PoolClient, engagementId: string): Promise<{ clo
 
 export interface FsLine {
   ref: string;
+  /** French caption (the SYSCOHADA statements' language) */
   label: string;
+  /** English caption for the English UI (UAT run2-B144) */
+  labelEn?: string;
   amount: number;
 }
 
@@ -166,16 +169,16 @@ export function computeBilan(c: Closings, crResult: number): {
   const class68 = c.get(["6", "7", "8"]);
 
   const lines: FsLine[] = [
-    { ref: "AZ~", label: "Actif immobilisé net (2x incl. 28/29)", amount: immobilisations + financier },
-    { ref: "BB", label: "Stocks et encours nets (3x)", amount: stocks },
-    { ref: "B~", label: "Tiers nets (4x — sign-split at FS presentation)", amount: tiersNet - ecartActif },
-    { ref: "BT~", label: "Trésorerie nette (5x)", amount: tresorerieNette },
-    { ref: "BU", label: "Écart de conversion — Actif (478)", amount: ecartActif },
-    { ref: "CP", label: "Capitaux propres (10–15, hors résultat)", amount: capitauxPropres },
-    { ref: "CJ", label: "Résultat net de l'exercice (du CR)", amount: crResult },
-    { ref: "DF~", label: "Dettes financières (16–18)", amount: dettesFinancieres },
-    { ref: "DC", label: "Provisions pour risques et charges (19)", amount: provisions },
-    { ref: "DV", label: "Écart de conversion — Passif (479)", amount: -ecartPassif },
+    { ref: "AZ~", label: "Actif immobilisé net (2x, y compris 28/29)", labelEn: "Net fixed assets (2x incl. 28/29)", amount: immobilisations + financier },
+    { ref: "BB", label: "Stocks et encours nets (3x)", labelEn: "Net inventories and work in progress (3x)", amount: stocks },
+    { ref: "B~", label: "Tiers nets (4x — ventilés par signe à la présentation des états)", labelEn: "Net third-party balances (4x — sign-split at FS presentation)", amount: tiersNet - ecartActif },
+    { ref: "BT~", label: "Trésorerie nette (5x)", labelEn: "Net cash (5x)", amount: tresorerieNette },
+    { ref: "BU", label: "Écart de conversion — Actif (478)", labelEn: "Translation difference — assets (478)", amount: ecartActif },
+    { ref: "CP", label: "Capitaux propres (10–15, hors résultat)", labelEn: "Equity (10–15, excluding the result)", amount: capitauxPropres },
+    { ref: "CJ", label: "Résultat net de l'exercice (du CR)", labelEn: "Net result for the year (from the income statement)", amount: crResult },
+    { ref: "DF~", label: "Dettes financières (16–18)", labelEn: "Financial debt (16–18)", amount: dettesFinancieres },
+    { ref: "DC", label: "Provisions pour risques et charges (19)", labelEn: "Provisions for risks and charges (19)", amount: provisions },
+    { ref: "DV", label: "Écart de conversion — Passif (479)", labelEn: "Translation difference — liabilities (479)", amount: -ecartPassif },
   ];
 
   const checks = [

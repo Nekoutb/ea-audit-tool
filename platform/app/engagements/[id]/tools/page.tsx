@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { localizedTitle } from "@/lib/page-title";
 import { notFound, redirect } from "next/navigation";
 import { auth } from "@/auth";
 import { AppNav } from "@/components/AppNav";
@@ -8,7 +9,7 @@ import { getEngagement } from "@/lib/engagements";
 import { getLocale } from "@/lib/locale";
 import { SECTION_ORDER, sectionLabel } from "@/lib/task-groups";
 
-export const metadata = { title: "Tools · AuditISA" };
+export const generateMetadata = localizedTitle("Tools", "Outils");
 
 /**
  * The tools landing: eight compact section tiles fitting one screen. Each

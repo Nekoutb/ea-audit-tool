@@ -25,9 +25,15 @@ import { NextResponse } from "next/server";
  * make formData() throw, and the catch-all turned that into a 500 after a
  * 30-second wait (UAT B25). Null when the request may proceed.
  */
+const MULTIPART_HEADROOM = 64 * 1024;
+
 export function oversizedBody(request: Request, maxBytes: number): NextResponse | null {
   const declared = Number(request.headers.get("content-length") ?? "");
-  if (Number.isFinite(declared) && declared > maxBytes) {
+  // Content-Length counts the multipart framing (boundaries, part headers) as
+  // well as the file, so a file just under the limit used to be refused (UAT
+  // B140). Allow 64 KB of framing here; the exact file-size check stays in the
+  // route, after parsing.
+  if (Number.isFinite(declared) && declared > maxBytes + MULTIPART_HEADROOM) {
     return NextResponse.json(
       { error: "file-too-large", limitMb: Math.round(maxBytes / (1024 * 1024)) },
       { status: 413 },

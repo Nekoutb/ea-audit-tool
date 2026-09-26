@@ -1001,7 +1001,11 @@ const IMPL: Record<string, Impl> = {
     const q = await tx.query<{ m: string; inScope: number; credited: number; debited: number; value: number }>(
       `WITH sided AS (
          SELECT ${MONTH} AS m, signed,
-                CASE WHEN left(account, 1) IN ('2','3','5','6') THEN 1
+                -- UAT B69: depreciation/impairment contra accounts (28, 29,
+                -- 39, 49, 59) are credit-natured, and treasury (class 5) is
+                -- debited and credited routinely, so it is out of scope
+                CASE WHEN left(account, 2) IN ('28','29','39','49','59') THEN -1
+                     WHEN left(account, 1) IN ('2','3','6') THEN 1
                      WHEN left(account, 1) IN ('1','7') THEN -1
                      ELSE 0 END AS side
            FROM gl_line WHERE ${SCOPE})
@@ -1030,8 +1034,8 @@ const IMPL: Record<string, Impl> = {
       exceptions: sum(rows, 3),
       population: sum(rows, 0),
       note: t(locale,
-        "SYSCOHADA normal sides: classes 2, 3, 5 and 6 are debit accounts; classes 1 and 7 are credit accounts. Class 4 (third parties) and classes 8–9 are two-sided by design and are outside the population. A contra posting is often a legitimate reversal — it is an exception to explain, not an error.",
-        "Sens normaux SYSCOHADA : les classes 2, 3, 5 et 6 sont débitrices ; les classes 1 et 7 sont créditrices. La classe 4 (tiers) et les classes 8–9 sont bilatérales par nature et hors population. Une comptabilisation à contre-sens est souvent une contrepassation légitime : c'est une exception à expliquer, non une erreur."),
+        "SYSCOHADA normal sides: classes 2, 3 and 6 are debit accounts; classes 1 and 7, and the depreciation and impairment accounts 28, 29, 39, 49 and 59, are credit accounts. Class 4 (third parties), class 5 (treasury, debited and credited in the normal course) and classes 8–9 are two-sided and outside the population. A contra posting is often a legitimate reversal — it is an exception to explain, not an error.",
+        "Sens normaux SYSCOHADA : les classes 2, 3 et 6 sont débitrices ; les classes 1 et 7, ainsi que les comptes d'amortissements et de dépréciations 28, 29, 39, 49 et 59, sont créditrices. La classe 4 (tiers), la classe 5 (trésorerie, débitée et créditée dans le cours normal) et les classes 8–9 sont bilatérales et hors population. Une comptabilisation à contre-sens est souvent une contrepassation légitime : c'est une exception à expliquer, non une erreur."),
     };
   },
 

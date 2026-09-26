@@ -81,6 +81,10 @@ export interface TaskDocumentRow {
   createdAt: string;
 }
 
+/** The server's ceiling (app/api/attachments/[fileItemId]/route.ts), checked before sending. */
+const UPLOAD_LIMIT_MB = 25;
+const UPLOAD_LIMIT_BYTES = UPLOAD_LIMIT_MB * 1024 * 1024;
+
 export function TaskAttachments({
   compact = false,
   fileItemId,
@@ -90,6 +94,7 @@ export function TaskAttachments({
   locale,
   canManage = false,
   readOnly = false,
+  readOnlyReason = "archived",
 }: {
   compact?: boolean;
   fileItemId: string;
@@ -103,6 +108,8 @@ export function TaskAttachments({
   canManage?: boolean;
   /** archived file: no upload, no edit-locally, no menu */
   readOnly?: boolean;
+  /** why the panel is read-only, for the header (UAT run3-B24: the EQR was told the file was archived) */
+  readOnlyReason?: "archived" | "eqr" | "role";
 }) {
   const fr = locale === "fr";
   const [rows, setRows] = useState<AttachmentRow[]>(initial);
@@ -145,9 +152,23 @@ export function TaskAttachments({
   }, [menuOpen]);
 
   async function upload(file: File): Promise<AttachmentRow | null> {
+    // Refused before a byte is sent: an oversized file used to upload in full
+    // (~90 s) only to be turned away by the server (UAT run2-B164).
+    if (file.size === 0 || file.size > UPLOAD_LIMIT_BYTES) {
+      const reason = file.size === 0
+        ? fr ? "fichier vide" : "empty file"
+        : fr ? `fichier trop volumineux (limite ${UPLOAD_LIMIT_MB} Mo)` : `file too large (limit ${UPLOAD_LIMIT_MB} MB)`;
+      setError((prev) => [prev, `${file.name}: ${reason}`].filter(Boolean).join(" · "));
+      return null;
+    }
     const body = new FormData();
     body.append("file", file);
-    const res = await fetch(`/api/attachments/${fileItemId}`, { method: "POST", body });
+    const res = await fetch(`/api/attachments/${fileItemId}`, { method: "POST", body }).catch(() => null);
+    if (!res) {
+      const reason = fr ? "erreur réseau — réessayez" : "network error — try again";
+      setError((prev) => [prev, `${file.name}: ${reason}`].filter(Boolean).join(" · "));
+      return null;
+    }
     if (!res.ok) {
       const j = (await res.json().catch(() => ({}))) as { error?: string; allowed?: string[]; limitMb?: number };
       const reason =
@@ -155,6 +176,18 @@ export function TaskAttachments({
           ? fr ? `fichier trop volumineux (limite ${j.limitMb ?? 25} Mo)` : `file too large (limit ${j.limitMb ?? 25} MB)`
           : j.error === "file-size"
           ? fr ? "vide ou au-delà de 25 Mo" : "empty or over the 25 MB ceiling"
+          // the bytes do not match the extension: a damaged or renamed file,
+          // not a refused type (UAT run 2 B89)
+          : j.error === "content-mismatch" || j.error === "not-an-office-file"
+          ? fr
+            ? "le contenu ne correspond pas à l'extension (fichier endommagé ou renommé) — ré-exportez-le depuis son application"
+            : "the content does not match the extension (damaged or renamed file) — re-export it from its application"
+          : j.error === "executable-refused"
+          ? fr ? "programme ou script refusé" : "programs and scripts are refused"
+          : j.error === "no-extension"
+          ? fr ? "fichier sans extension — renommez-le avec son extension (.pdf, .xlsx …)" : "file has no extension — rename it with its extension (.pdf, .xlsx …)"
+          : j.error === "empty-file"
+          ? fr ? "fichier vide" : "empty file"
           : j.allowed
             ? fr
               ? `type de fichier refusé (permis : ${j.allowed.join(", ")})`
@@ -316,7 +349,7 @@ export function TaskAttachments({
     stopWatch(row.name);
     setRows((list) => list.filter((r) => r.name !== row.name));
     // it moves to the recoverable list, dated now
-    setDeleted((list) => [{ ...row, uploadedBy: fr ? "moi" : "me", uploadedAt: new Date().toISOString().slice(0, 16).replace("T", " ") }, ...list.filter((r) => r.name !== row.name)]);
+    setDeleted((list) => [{ ...row, uploadedBy: fr ? "moi" : "me", uploadedAt: new Intl.DateTimeFormat("sv-SE", { timeZone: "Africa/Douala", dateStyle: "short", timeStyle: "short" }).format(new Date()) + " WAT" }, ...list.filter((r) => r.name !== row.name)]);
   }
 
   /** Undo a delete inside the recovery window: the file returns to the task. */
@@ -383,7 +416,11 @@ export function TaskAttachments({
         right={
           readOnly ? (
             <span className="text-[11px] font-semibold text-muted" data-testid="attachments-readonly">
-              {fr ? "Dossier archivé — lecture seule" : "Archived file — read-only"}
+              {readOnlyReason === "eqr"
+                ? fr ? "Lecture seule — revue qualité (EQR)" : "Read-only — engagement quality review (EQR)"
+                : readOnlyReason === "role"
+                  ? fr ? "Lecture seule — votre rôle ne permet pas de modifier les fichiers" : "Read-only — your role cannot change files"
+                  : fr ? "Dossier archivé — lecture seule" : "Archived file — read-only"}
             </span>
           ) : (
           <span className="relative inline-flex" ref={menuRef}>

@@ -52,7 +52,9 @@ export async function addTeamByEmailAction(
   try {
     await addTeamMemberByEmail(engagementId, email, role, engagementName, name);
   } catch (error) {
-    const code = error instanceof Error ? error.message : "invalid-email";
+    const raw = error instanceof Error ? error.message : "invalid-email";
+    // the archive trigger's message maps to the banner the page knows (UAT B156)
+    const code = /engagement-archived|^archived$/.test(raw) ? "archived" : raw;
     redirect(`${back}?error=${encodeURIComponent(code)}`);
   }
   await recordActivity({

@@ -31,6 +31,10 @@ const PHASE_TITLES: Record<string, string> = {
 
 export async function generateMetadata(props: { params: Promise<{ phase: string }> }) {
   const { phase } = await props.params;
+  if ((await getLocale()) === "fr") {
+    const fr: Record<string, string> = { "pre-planning": "Pré-planification", planning: "Planification", execution: "Exécution", conclusion: "Conclusion" };
+    return { title: `Tâches — ${fr[phase] ?? "Phase"} · AuditISA` };
+  }
   return { title: `${PHASE_TITLES[phase] ?? "Phase"} tasks · AuditISA` };
 }
 

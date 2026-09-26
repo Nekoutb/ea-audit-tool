@@ -268,9 +268,44 @@ async function structuredContentDigest(tx: PoolClient, engagementId: string, cod
        FROM task_attachment ta JOIN file_item fi ON fi.id = ta.file_item_id
       WHERE fi.engagement_id = $1 AND fi.code = $2 AND ta.deleted_at IS NULL`,
   );
+  // S3.1 is the front of the CRA matrix (UAT B49): a changed IR/CR or key-item
+  // threshold voids the partner's approval like an edit of the paper.
+  if (code === "S3.1") {
+    await optional(
+      "cra",
+      `SELECT md5(string_agg(index_code || ':' || assertion || ':' || relevant::text || ':' || coalesce(ir::text, '')
+                  || ':' || coalesce(ir_basis, '') || ':' || coalesce(cr::text, '') || ':' || coalesce(cr_basis, ''),
+                  '|' ORDER BY index_code, assertion)) AS d
+         FROM cra_assessment WHERE engagement_id = $1 AND $2 = 'S3.1'`,
+    );
+    await optional(
+      "craset",
+      `SELECT md5(string_agg(index_code || ':' || coalesce(key_item_threshold::text, ''), '|' ORDER BY index_code)) AS d
+         FROM cra_index_setting WHERE engagement_id = $1 AND $2 = 'S3.1'`,
+    );
+  }
+  // The S4.3 related-party register (also attested on E6.2) and the S4.4
+  // estimates inventory (UAT B26): adding, changing or removing a line voids
+  // the sign-offs given over the register as it stood.
+  if (code === "S4.3" || code === "E6.2") {
+    await optional(
+      "rp",
+      `SELECT md5(string_agg(id::text || ':' || name || ':' || coalesce(relationship, '') || ':' || coalesce(notes, ''), '|' ORDER BY id)) AS d
+         FROM related_party WHERE engagement_id = $1 AND removed_at IS NULL AND $2 IN ('S4.3', 'E6.2')`,
+    );
+  }
+  if (code === "S4.4") {
+    await optional(
+      "est",
+      `SELECT md5(string_agg(id::text || ':' || nature || ':' || coalesce(method, '') || ':' || coalesce(uncertainty, ''), '|' ORDER BY id)) AS d
+         FROM accounting_estimate WHERE engagement_id = $1 AND removed_at IS NULL AND $2 = 'S4.4'`,
+    );
+  }
   if (code === "S1.4") await digest(responses("code = 'fscp'"), [engagementId]);
   if (code === "S1.3") await digest(responses("code LIKE 'wt:%'"), [engagementId]);
   if (code === "S2.3" || code === "S2.5") await digest(responses("code = 'itapps'"), [engagementId]);
+  // S5.5 is the front of the substantive design board (UAT B53)
+  if (code === "S5.5") await digest(responses("code = 'dsp'"), [engagementId]);
   if (code === "S1.1") {
     await digest(
       `SELECT md5(coalesce(string_agg(s.id || ':' || s.name || ':' || coalesce(s.description, '') || ':' || s.transaction_type
@@ -336,6 +371,8 @@ export interface InvalidatedSignoff {
   document_id: string;
   user_id: string;
   title: string;
+  /** set when voiding this review also cleared the section conclusion's review */
+  conclusionReviewCleared?: boolean;
 }
 
 /**
@@ -366,6 +403,22 @@ export async function invalidateStaleSignoffs(
     [engagementId, code, SIGNOFF_INVALIDATED_REASON, hash],
   );
   if (stale.rows.length === 0) return [];
+  // A voided review voids the section conclusion's review with it: the
+  // conclusion must not keep reading "Reviewed by" the former reviewer, and
+  // sections_concluded stops counting it until it is reviewed again (UAT run 3 B05).
+  if (stale.rows.some((row) => row.role === "reviewer" || row.role === "partner")) {
+    const cleared = await tx.query(
+      `UPDATE section_conclusion sc
+          SET reviewed_by = NULL, reviewed_at = NULL, partner_reviewed_by = NULL, partner_reviewed_at = NULL
+         FROM file_item fi
+        WHERE fi.id = sc.file_item_id AND fi.engagement_id = $1 AND fi.code = $2
+          AND (sc.reviewed_by IS NOT NULL OR sc.partner_reviewed_by IS NOT NULL)`,
+      [engagementId, code],
+    );
+    if ((cleared.rowCount ?? 0) > 0) {
+      for (const row of stale.rows) row.conclusionReviewCleared = true;
+    }
+  }
   const documentIds = [...new Set(stale.rows.map((row) => row.document_id))];
   await tx.query(
     `UPDATE document d SET status = 'draft'
@@ -616,6 +669,7 @@ export async function savePaper(
     }
   }
   const conflicts: string[] = [];
+  const written: string[] = [];
   const invalidated = await withTenant(tenantId, async (tx) => {
     // fields a colleague changed since the form was loaded, with their text
     const movedUnder = new Map<string, string>();
@@ -638,6 +692,12 @@ export async function savePaper(
         }
       }
     }
+    // what is stored before this save, to name the fields it changes on the trail
+    const prior = await tx.query<{ field_key: string; v: string | null }>(
+      "SELECT field_key, value #>> '{}' AS v FROM form_response WHERE engagement_id = $1 AND code = $2",
+      [engagementId, WP(code)],
+    );
+    const before = new Map(prior.rows.map((r) => [r.field_key, r.v ?? ""]));
     for (const [key, value] of Object.entries(values)) {
       if (!allowed.has(key)) continue;
       if (movedUnder.has(key)) {
@@ -658,11 +718,14 @@ export async function savePaper(
                        carried_forward = false, updated_at = now()`,
         [tenantId, engagementId, WP(code), key, JSON.stringify(value), userId],
       );
+      if (normText(before.get(key) ?? "") !== normText(value)) written.push(key);
     }
     await syncSeededResponseStep(tx, tenantId, engagementId, code, userId);
     // P1.5 concluding that an EQR is required makes C4.2 a completion gate:
     // the paper must exist on the file whatever its complexity (UAT run 2 B13).
-    if (code === "P1.5" && values.q_eqr === "yes") {
+    // Part B has no single q_eqr answer: any criterion "yes" requires the review (UAT run 2 B33).
+    const { eqrDeterminationFields } = code === "P1.5" ? await import("@/lib/completion") : { eqrDeterminationFields: () => [] as string[] };
+    if (code === "P1.5" && eqrDeterminationFields().some((k) => values[k] === "yes")) {
       const { ensureTaskTx } = await import("@/lib/ensure-task");
       await ensureTaskTx(tx, engagementId, "C4.2");
     }
@@ -673,6 +736,17 @@ export async function savePaper(
 
   // Outside the transaction: the trail and the notice must not roll back the save.
   await reportInvalidatedSignoffs(tenantId, engagementId, code, invalidated, userId);
+  // who edited which paper is on the trail, as for the legacy forms (UAT B87)
+  if (written.length > 0) {
+    await recordActivity({
+      engagementId,
+      entityType: "form_response",
+      entityId: null,
+      action: "paper_saved",
+      summary: `${code} working paper saved — ${written.join(", ")}`,
+      meta: { code, keys: written },
+    });
+  }
   if (conflicts.length > 0) {
     throw new StaleEditConflict(conflicts, Object.fromEntries(conflicts.map((k) => [k, values[k] ?? ""])));
   }
@@ -690,6 +764,16 @@ export async function reportInvalidatedSignoffs(
   rows: InvalidatedSignoff[],
   actorUserId: string,
 ): Promise<void> {
+  if (rows.some((row) => row.conclusionReviewCleared)) {
+    await recordActivity({
+      engagementId,
+      entityType: "section_conclusion",
+      entityId: null,
+      action: "conclusion_review_cleared",
+      summary: `Section conclusion review on ${code} cleared — the reviewer sign-off was voided`,
+      meta: { code },
+    });
+  }
   for (const row of rows) {
     await recordActivity({
       engagementId,

@@ -307,7 +307,8 @@ export async function saveIndexThreshold(engagementId: string, indexCode: string
   if (!/^[A-Z][A-Z0-9]{0,2}$/.test(indexCode)) throw new Error("invalid-index");
   if (threshold !== null && !(Number.isFinite(threshold) && threshold > 0)) throw new Error("invalid-threshold");
   const { tenantId, userId } = await requireWrite();
-  await withTenant(tenantId, async (tx) => {
+  const { invalidateStaleSignoffs, reportInvalidatedSignoffs } = await import("@/lib/working-papers");
+  const invalidated = await withTenant(tenantId, async (tx) => {
     await tx.query(
       `INSERT INTO cra_index_setting (tenant_id, engagement_id, index_code, key_item_threshold, updated_by)
        VALUES ($1, $2, $3, $4, $5)
@@ -315,7 +316,10 @@ export async function saveIndexThreshold(engagementId: string, indexCode: string
          key_item_threshold = EXCLUDED.key_item_threshold, updated_by = EXCLUDED.updated_by, updated_at = now()`,
       [tenantId, engagementId, indexCode, threshold === null ? null : Math.round(threshold), userId],
     );
+    // S3.1 attests to the matrix and its thresholds (UAT B49)
+    return invalidateStaleSignoffs(tx, engagementId, "S3.1");
   });
+  await reportInvalidatedSignoffs(tenantId, engagementId, "S3.1", invalidated, userId);
 }
 
 export async function saveCraCell(
@@ -336,7 +340,7 @@ export async function saveCraCell(
     const cell = board.rows.find((r) => r.indexCode === indexCode)?.cells.find((c) => c.assertion === assertion);
     coverage = { controlsCovering: cell?.controlsCovering ?? 0, itgcState: board.itgcState };
   }
-  const change = await withTenant(tenantId, async (tx) => {
+  const written = await withTenant(tenantId, async (tx) => {
     const existing = await tx.query<{ ir: CraIr | null; ir_basis: string | null; cr: CraCr | null; cr_basis: string | null }>(
       `SELECT ir, ir_basis, cr, cr_basis FROM cra_assessment
         WHERE engagement_id = $1 AND index_code = $2 AND assertion = $3 FOR UPDATE`,
@@ -344,7 +348,9 @@ export async function saveCraCell(
     );
     const before = existing.rows[0] ?? null;
     if (coverage && (coverage.controlsCovering === 0 || coverage.itgcState === "not_support")) {
-      const basis = (patch.crBasis ?? before?.cr_basis ?? "").trim();
+      // Switching to rely needs a basis written for that decision in the same
+      // request: the old not-rely basis is no reason to rely (UAT B51).
+      const basis = (before?.cr === "rely" ? (patch.crBasis ?? before.cr_basis ?? "") : (patch.crBasis ?? "")).trim();
       if (!basis) throw new Error("rely-without-controls");
     }
     const nextIr = patch.ir === undefined ? (before?.ir ?? null) : patch.ir === "" ? null : patch.ir;
@@ -385,8 +391,16 @@ export async function saveCraCell(
         userId,
       ],
     );
-    return reassessed ? { before, nextIr, nextCr, reason } : null;
+    // a changed IR/CR voids the S3.1 sign-offs so the partner re-approves (UAT B49)
+    const { invalidateStaleSignoffs } = await import("@/lib/working-papers");
+    const voided = await invalidateStaleSignoffs(tx, engagementId, "S3.1");
+    return { change: reassessed ? { before, nextIr, nextCr, reason } : null, voided };
   });
+  {
+    const { reportInvalidatedSignoffs } = await import("@/lib/working-papers");
+    await reportInvalidatedSignoffs(tenantId, engagementId, "S3.1", written.voided, userId);
+  }
+  const change = written.change;
   if (change) {
     await recordActivity({
       engagementId,

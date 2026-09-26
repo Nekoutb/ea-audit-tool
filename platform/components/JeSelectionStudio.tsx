@@ -131,6 +131,8 @@ export function JeSelectionStudio({
   const [chosen, setChosen] = useState<string[]>(() => builtIn.map((c) => c.key));
   const [values, setValues] = useState<ParamValues>(() => initialValues(criteria));
   const [rules, setRules] = useState<DraftRule[]>([]);
+  // how the auditor's rules combine (UAT run 2 B67): any one of them, or all together
+  const [rulesMode, setRulesMode] = useState<"any" | "all">("any");
   const [limit, setLimit] = useState(200);
 
   const [pending, setPending] = useState(false);
@@ -242,6 +244,7 @@ export function JeSelectionStudio({
       value: rule.value,
       value2: rule.value2,
     })),
+    userRulesMode: rulesMode,
   });
 
   const run = async (offset: number) => {
@@ -776,6 +779,20 @@ export function JeSelectionStudio({
           <p className="mt-2 text-[11px] leading-snug text-muted">{fr ? custom.rationaleFr : custom.rationaleEn}</p>
         ) : null}
         <div className="mt-3 flex flex-col gap-2" data-testid="je-rules">
+          {rules.length > 1 ? (
+            <label className="flex flex-wrap items-center gap-2 text-[12px] text-ink-soft">
+              {T("Select a line when it matches", "Retenir une ligne lorsqu'elle remplit")}
+              <select
+                value={rulesMode}
+                onChange={(e) => setRulesMode(e.target.value === "all" ? "all" : "any")}
+                className={field}
+                data-testid="je-rules-mode"
+              >
+                <option value="any">{T("any condition", "au moins une condition")}</option>
+                <option value="all">{T("all conditions", "toutes les conditions")}</option>
+              </select>
+            </label>
+          ) : null}
           {rules.length === 0 ? (
             <p className="text-[12px] text-ink-soft" data-testid="je-rules-empty">
               {T(

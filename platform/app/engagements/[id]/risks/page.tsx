@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { localizedTitle } from "@/lib/page-title";
 import { notFound, redirect } from "next/navigation";
 import { auth } from "@/auth";
 import { approveRiskAdditionAction } from "@/app/actions/execution";
@@ -18,12 +19,13 @@ import { ErrorBanner } from "@/components/GatesPanel";
 import { Panel, PanelHeader } from "@/components/ui/atlas";
 import { getEngagement, listFileItems } from "@/lib/engagements";
 import { getMessages } from "@/lib/i18n";
+import { canPartnerSignoff } from "@/lib/rbac";
 import { getLocale } from "@/lib/locale";
-import { LEAD_INDEXES } from "@/lib/lead-classes";
-import { ASSERTIONS, inherentRating, listPotentialRisks, listRisks, type Risk } from "@/lib/risks";
+import { LEAD_INDEXES, leadIndexLabel } from "@/lib/lead-classes";
+import { ASSERTIONS, inherentRating, listPotentialRisks, listRisks, ratingLabel, riskTitle, type Risk } from "@/lib/risks";
 import { significantAccounts } from "@/lib/significant-accounts";
 
-export const metadata = { title: "Risk console · AuditISA" };
+export const generateMetadata = localizedTitle("Risk console", "Console des risques");
 
 // The Risk Console (ISA 315 Revised 2019): the two presumed ISA 240 risks,
 // the risks the auditor adds and documents by hand, and the potential risks
@@ -61,7 +63,7 @@ function Spectrum({ risks, fr }: { risks: Risk[]; fr: boolean }) {
         return (
           <g key={risk.id}>
             <circle cx={cx} cy={cy} r={risk.significant ? 6 : 4} className={`${tone} ${risk.significant ? "stroke-rose-700" : ""}`} strokeWidth="1.5" opacity="0.85" />
-            <title>{risk.description}</title>
+            <title>{riskTitle(risk, fr ? "fr" : "en")}</title>
           </g>
         );
       })}
@@ -88,6 +90,7 @@ export default async function RisksPage(props: {
   const fr = locale === "fr";
   const t = getMessages(locale);
   const tr = t.planning.risks;
+  const isPartner = canPartnerSignoff(session.user.role);
 
   const engagement = await getEngagement(id);
   if (!engagement) notFound();
@@ -98,6 +101,9 @@ export default async function RisksPage(props: {
     significantAccounts(id).catch(() => null),
   ]);
   const eSections = items.filter((item) => item.section === "E");
+  // One P5.2 record: the working paper, not the legacy form (UAT B47).
+  const p52Item = items.find((item) => item.code === "P5.2");
+  const p52Href = p52Item ? `/engagements/${id}/sections/${p52Item.id}` : `/engagements/${id}/forms/P5.2`;
 
   // coverage: the orphans planning should not close with
   const liveAssertion = risks.filter((r) => !r.rebutted && r.level === "assertion");
@@ -194,17 +200,17 @@ export default async function RisksPage(props: {
                 <label className="flex flex-1 flex-col text-[11px] text-muted">
                   {tr.likelihood}
                   <select name="likelihood" defaultValue="medium" className={`${input} text-xs`}>
-                    <option value="low">low</option>
-                    <option value="medium">medium</option>
-                    <option value="high">high</option>
+                    <option value="low">{ratingLabel("low", locale)}</option>
+                    <option value="medium">{ratingLabel("medium", locale)}</option>
+                    <option value="high">{ratingLabel("high", locale)}</option>
                   </select>
                 </label>
                 <label className="flex flex-1 flex-col text-[11px] text-muted">
                   {tr.magnitude}
                   <select name="magnitude" defaultValue="medium" className={`${input} text-xs`}>
-                    <option value="low">low</option>
-                    <option value="medium">medium</option>
-                    <option value="high">high</option>
+                    <option value="low">{ratingLabel("low", locale)}</option>
+                    <option value="medium">{ratingLabel("medium", locale)}</option>
+                    <option value="high">{ratingLabel("high", locale)}</option>
                   </select>
                 </label>
               </span>
@@ -219,7 +225,7 @@ export default async function RisksPage(props: {
                   <option value="">{fr ? "Indice menacé (facultatif)" : "Index threatened (optional)"}</option>
                   {LEAD_INDEXES.map((def) => (
                     <option key={def.code} value={def.code}>
-                      {def.code} — {def.labelEn}
+                      {def.code} — {leadIndexLabel(def, locale)}
                     </option>
                   ))}
                 </select>
@@ -261,7 +267,8 @@ export default async function RisksPage(props: {
                     <p className="text-ink">
                       {risk.description}
                       <span className="ml-2 text-xs text-muted">
-                        {tr.source}: {risk.sourceCode} · {risk.raisedByName} · {risk.status}
+                        {tr.source}: {risk.sourceCode} · {risk.raisedByName} ·{" "}
+                        {fr ? { open: "ouvert", dismissed: "écarté", promoted: "promu" }[risk.status] : risk.status}
                       </span>
                     </p>
                     {risk.status === "open" ? (
@@ -300,7 +307,7 @@ export default async function RisksPage(props: {
               >
                 <div className="flex flex-wrap items-center justify-between gap-2">
                   <p className="font-medium text-ink">
-                    {risk.description}
+                    {riskTitle(risk, locale)}
                     {risk.category ? (
                       <span
                         className={`ml-2 inline-flex items-center rounded-[var(--radius-atlas-xs)] px-1.5 py-0.5 text-xs font-semibold ${
@@ -354,11 +361,11 @@ export default async function RisksPage(props: {
                     </form>
                   ) : null}
                   <span className="text-xs text-muted">
-                    {tr.rating}: <b className="uppercase text-ink-soft">{risk.rating}</b>
+                    {tr.rating}: <b className="uppercase text-ink-soft">{ratingLabel(risk.rating, locale)}</b>
                     {/* ¶34: no reliance on controls → the RMM stays at the inherent assessment */}
                     {!risk.controlsReliance && !risk.rebutted ? (
                       <span className="ml-1" title={fr ? "Pas d'appui prévu sur les contrôles : RAS = risque inhérent (ISA 315 ¶34)" : "No controls reliance planned: RMM = inherent risk (ISA 315 ¶34)"}>
-                        · CRA = IR
+                        · {fr ? "RAS = RI" : "CRA = IR"}
                       </span>
                     ) : null}{" "}
                     · {tr.statuses[risk.status]} · {risk.linkedStepCount} {tr.linkedSteps}
@@ -391,7 +398,7 @@ export default async function RisksPage(props: {
                         <select name="indexCode" className={input} data-testid={`link-index-${risk.presumedType ?? risk.id}`}>
                           {LEAD_INDEXES.map((def) => (
                             <option key={def.code} value={def.code}>
-                              {def.code} — {def.labelEn}
+                              {def.code} — {leadIndexLabel(def, locale)}
                             </option>
                           ))}
                         </select>
@@ -422,17 +429,17 @@ export default async function RisksPage(props: {
                       <label className="flex flex-col text-xs text-muted">
                         {tr.likelihood}
                         <select name="likelihood" defaultValue={risk.likelihood} className={input}>
-                          <option value="low">low</option>
-                          <option value="medium">medium</option>
-                          <option value="high">high</option>
+                          <option value="low">{ratingLabel("low", locale)}</option>
+                          <option value="medium">{ratingLabel("medium", locale)}</option>
+                          <option value="high">{ratingLabel("high", locale)}</option>
                         </select>
                       </label>
                       <label className="flex flex-col text-xs text-muted">
                         {tr.magnitude}
                         <select name="magnitude" defaultValue={risk.magnitude} className={input}>
-                          <option value="low">low</option>
-                          <option value="medium">medium</option>
-                          <option value="high">high</option>
+                          <option value="low">{ratingLabel("low", locale)}</option>
+                          <option value="medium">{ratingLabel("medium", locale)}</option>
+                          <option value="high">{ratingLabel("high", locale)}</option>
                         </select>
                       </label>
                       {/* ISA 315 ¶31(a): the factors driving the susceptibility — a
@@ -524,7 +531,12 @@ export default async function RisksPage(props: {
                       </button>
                     </form>
 
-                    {risk.presumedType === "revenue_fraud" ? (
+                    {risk.presumedType === "revenue_fraud" && !isPartner ? (
+                      <p className="text-xs text-muted" data-testid="rebut-partner-only">
+                        {fr ? "Réfutation réservée à l'associé." : "Only a partner can rebut this presumption."}
+                      </p>
+                    ) : null}
+                    {risk.presumedType === "revenue_fraud" && isPartner ? (
                       <form action={rebutRiskAction.bind(null, id, risk.id)} className="flex items-end gap-2">
                         <input name="justification" placeholder={tr.rebutJustification} required className={input} />
                         <button type="submit" className={btn}>
@@ -542,7 +554,7 @@ export default async function RisksPage(props: {
       </div>
 
       <p className="mt-6 text-sm text-muted">
-        <Link href={`/engagements/${id}/forms/P5.2`} className="text-emerald-700 hover:underline dark:text-emerald-400">
+        <Link href={p52Href} className="text-emerald-700 hover:underline dark:text-emerald-400">
           P5.2
         </Link>
       </p>

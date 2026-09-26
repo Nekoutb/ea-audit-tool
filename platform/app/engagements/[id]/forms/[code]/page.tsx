@@ -25,18 +25,20 @@ import { getEngagement } from "@/lib/engagements";
 import { listEstimates, listRelatedParties } from "@/lib/registers";
 import { EstimatesRegister, RelatedPartyRegister } from "@/components/PlanningRegisters";
 import { shortTitle } from "@/lib/file-index";
-import { fieldLabel, FORM_DEFINITIONS, loadForm } from "@/lib/forms";
+import { fieldLabel, FORM_DEFINITIONS, loadForm, optionLabel } from "@/lib/forms";
 import { listReviewNotes, listVersions, type ReviewNoteInfo, type VersionInfo } from "@/lib/documents";
 import { getMessages } from "@/lib/i18n";
 import { getLocale } from "@/lib/locale";
 import { appliedTemplate } from "@/lib/template-overrides";
 import { displayCode, groupOfTask, groupTitle } from "@/lib/task-groups";
 import { requireTenant } from "@/lib/tenant";
+import { canWrite, isRole } from "@/lib/rbac";
 
 export async function generateMetadata(props: { params: Promise<{ code: string }> }) {
   const { code: raw } = await props.params;
   const code = decodeURIComponent(raw);
-  return { title: `${code} ${shortTitle(code, "en", "")} · AuditISA`.replace(/\s{2,}/g, " ") };
+  const locale = await getLocale();
+  return { title: `${code} ${shortTitle(code, locale, "")} · AuditISA`.replace(/\s{2,}/g, " ") };
 }
 
 async function subRegisters(engagementId: string, code: string) {
@@ -60,6 +62,9 @@ export default async function FormPage(props: {
   const t = getMessages(locale);
   const tp = t.planning;
 
+  // A read-only account sees the form as a record: no editable fields, no save,
+  // add, raise-risk or due-date controls (UAT run 3 B23).
+  const readOnly = !(isRole(session.user.role) && canWrite(session.user.role));
   const definition = FORM_DEFINITIONS[code];
   const engagement = await getEngagement(id);
   if (!definition || !engagement) notFound();
@@ -75,6 +80,9 @@ export default async function FormPage(props: {
     taskForItem(id, code),
     appliedTemplate(code),
   ]);
+  // P5.2 is recorded on its working paper; the legacy form is a second, empty
+  // record of the same discussion (UAT B47).
+  if (code === "P5.2" && task) redirect(`/engagements/${id}/sections/${task.id}`);
   const group = groupOfTask(code);
   const backHref = group ? `/engagements/${id}/groups/${group.id}` : `/engagements/${id}/phases/${phaseSlug}`;
   const backLabel = group
@@ -180,7 +188,7 @@ export default async function FormPage(props: {
           ) : null}
         </div>
 
-        {task ? (
+        {task && !readOnly ? (
           <form action={setDueDateAction} className="mt-2 flex flex-wrap items-center gap-2">
             <input type="hidden" name="fileItemId" value={task.id} />
             <input type="hidden" name="engagementId" value={id} />
@@ -250,6 +258,7 @@ export default async function FormPage(props: {
                   <select
                     name={field.key}
                     defaultValue={value === true ? "yes" : value === false ? "no" : ""}
+                    disabled={readOnly}
                     className={input}
                     data-testid={`field-${field.key}`}
                   >
@@ -261,13 +270,14 @@ export default async function FormPage(props: {
                   <select
                     name={field.key}
                     defaultValue={value === undefined ? "" : String(value)}
+                    disabled={readOnly}
                     className={input}
                     data-testid={`field-${field.key}`}
                   >
                     <option value="" />
                     {(field.options ?? []).map((option) => (
                       <option key={option} value={option}>
-                        {option}
+                        {optionLabel(option, locale)}
                       </option>
                     ))}
                   </select>
@@ -276,6 +286,7 @@ export default async function FormPage(props: {
                     name={field.key}
                     defaultValue={value === undefined ? "" : String(value)}
                     rows={2}
+                    readOnly={readOnly}
                     className={input}
                     data-testid={`field-${field.key}`}
                   />
@@ -284,6 +295,7 @@ export default async function FormPage(props: {
                     type={field.type === "number" ? "number" : "date"}
                     name={field.key}
                     defaultValue={value === undefined ? "" : String(value)}
+                    readOnly={readOnly}
                     className={`${input} tnum`}
                     data-testid={`field-${field.key}`}
                   />
@@ -369,7 +381,7 @@ export default async function FormPage(props: {
             </span>
           </span>
           <span className="flex items-center gap-2.5 text-[12.5px] text-ink-soft">
-            {task && task.preparerName && !task.reviewerName ? (
+            {!readOnly && task && task.preparerName && !task.reviewerName ? (
               <form action={signOffReviewerAction} className="inline-flex">
                 {signHidden}
                 <button type="submit" className="sobox r" title={t.dashboard.signAsReviewer} aria-label={t.dashboard.signAsReviewer} data-testid="task-sign-reviewer">R</button>
@@ -389,6 +401,7 @@ export default async function FormPage(props: {
             </span>
           </span>
         </div>
+        {readOnly ? null : (
         <div className="flex items-center gap-2.5">
           <SubmitOnceButton formId="task-form" className={btnGhost} testId="save-form">
             {tp.save}
@@ -405,6 +418,7 @@ export default async function FormPage(props: {
             </SubmitOnceButton>
           ) : null}
         </div>
+        )}
       </Panel>
 
       {/* REVIEW NOTES (canvas block 6) */}
@@ -431,13 +445,14 @@ export default async function FormPage(props: {
       </Panel>
 
       {code === "S4.3" ? (
-        <RelatedPartyRegister engagementId={id} rows={registers.parties} locale={locale} carriedForwardLabel={tp.carriedForward} title={`${t.fileIndex.title} — S4.3`} />
+        <RelatedPartyRegister engagementId={id} rows={registers.parties} locale={locale} carriedForwardLabel={tp.carriedForward} title={`${t.fileIndex.title} — S4.3`} readOnly={readOnly} />
       ) : null}
 
       {code === "S4.4" ? (
-        <EstimatesRegister engagementId={id} rows={registers.estimates} locale={locale} />
+        <EstimatesRegister engagementId={id} rows={registers.estimates} locale={locale} readOnly={readOnly} />
       ) : null}
 
+      {readOnly ? null : (
       <section className="rounded-[var(--radius-atlas)] border border-line bg-[var(--color-warn-soft)] p-5 shadow-[var(--shadow-atlas)]">
         <h2 className="text-sm font-semibold text-ink">{tp.raiseRisk}</h2>
         <form action={raiseRiskAction.bind(null, id, code)} className="mt-3 flex flex-wrap items-end gap-3">
@@ -453,6 +468,7 @@ export default async function FormPage(props: {
           </button>
         </form>
       </section>
+      )}
     </main>
   );
 }

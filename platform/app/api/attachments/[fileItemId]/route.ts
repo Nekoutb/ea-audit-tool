@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { assignTemplate, listTemplates } from "@/lib/wp-templates";
+import { assignTemplate, listTemplates, TemplateError } from "@/lib/wp-templates";
 import { copyAttachment, listAttachments, listEngagementAttachments, saveAttachment } from "@/lib/attachments";
 import { atLeast } from "@/lib/rbac";
 import { ForbiddenError, requireTenant } from "@/lib/tenant";
@@ -111,8 +111,13 @@ export async function POST(request: Request, context: { params: Promise<{ fileIt
     if (error instanceof ForbiddenError || (error instanceof Error && error.message === "forbidden")) {
       return NextResponse.json({ error: "forbidden" }, { status: 403 });
     }
-    if (error instanceof Error && error.message === "engagement-archived") {
+    // ArchivedError (assertMutable) says "archived"; the database trigger says
+    // "engagement-archived". Both are the same refusal (UAT B155).
+    if (error instanceof Error && (error.message === "engagement-archived" || error.message === "archived")) {
       return NextResponse.json({ error: "archived" }, { status: 409 });
+    }
+    if (error instanceof TemplateError) {
+      return NextResponse.json({ error: error.code }, { status: error.code === "task-not-found" ? 404 : 400 });
     }
     // An unexpected failure must say so, loudly and distinctly — collapsing
     // everything into 401 made a database refusal read as "upload failed".

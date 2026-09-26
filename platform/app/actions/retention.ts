@@ -9,7 +9,7 @@ import { placeLegalHold, releaseLegalHold, setRetentionYears } from "@/lib/reten
  * already enforced the roles (firm_admin / manager / partner); nothing on the
  * screen called it.
  */
-async function guarded(path: string, fn: () => Promise<void>): Promise<never> {
+async function guarded(path: string, fn: () => Promise<void>, successPath: string = path): Promise<never> {
   try {
     await fn();
   } catch (error) {
@@ -19,11 +19,12 @@ async function guarded(path: string, fn: () => Promise<void>): Promise<never> {
     throw error;
   }
   revalidatePath(path);
-  redirect(path);
+  redirect(successPath);
 }
 
 export async function setRetentionYearsAction(formData: FormData): Promise<void> {
-  await guarded("/settings", () => setRetentionYears(Number(formData.get("years"))));
+  // a saved period says so (UAT B113)
+  await guarded("/settings", () => setRetentionYears(Number(formData.get("years"))), "/settings?saved=retention");
 }
 
 export async function placeLegalHoldAction(engagementId: string, formData: FormData): Promise<void> {

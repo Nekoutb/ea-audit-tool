@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { localizedTitle } from "@/lib/page-title";
 import { notFound, redirect } from "next/navigation";
 import { auth } from "@/auth";
 import { saveFormAction } from "@/app/actions/planning";
@@ -16,7 +17,7 @@ import { getMessages } from "@/lib/i18n";
 import { getLocale } from "@/lib/locale";
 import { requireTenant } from "@/lib/tenant";
 
-export const metadata = { title: "Planning considerations · AuditISA" };
+export const generateMetadata = localizedTitle("Planning considerations", "Considérations de planification");
 
 // The five one-field conditional planning forms, merged into one screen
 // (UI audit S1). The trigger map is shared (lib/engagement-dashboard).

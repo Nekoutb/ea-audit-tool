@@ -24,6 +24,10 @@ import { requireTenant, requireWrite } from "@/lib/tenant";
 export interface GateResult {
   key: string;
   ok: boolean;
+  /** what is still in the way, e.g. the codes carrying open review notes (UAT B141) */
+  detail?: string;
+  /** where to clear it */
+  href?: string;
 }
 
 const PHASE_RANK: Record<string, number> = {
@@ -111,9 +115,13 @@ async function taskActive(tx: PoolClient, engagementId: string, code: string): P
  * whichever way the note was raised (on a document, on a task, or on a task
  * through its file item) — the same three shapes the archive gate resolves.
  */
-async function openReviewNotes(tx: PoolClient, engagementId: string, codePatterns: string[]): Promise<number> {
-  const result = await tx.query<{ n: string }>(
-    `SELECT count(*)::text AS n
+async function openReviewNotes(
+  tx: PoolClient,
+  engagementId: string,
+  codePatterns: string[],
+): Promise<{ n: number; codes: string[] }> {
+  const result = await tx.query<{ n: string; codes: string[] | null }>(
+    `SELECT count(*)::text AS n, array_agg(DISTINCT fi.code ORDER BY fi.code) AS codes
        FROM review_note rn
        LEFT JOIN document d ON d.id = rn.document_id
        LEFT JOIN file_item fi ON fi.id = coalesce(rn.file_item_id, d.file_item_id)
@@ -122,7 +130,19 @@ async function openReviewNotes(tx: PoolClient, engagementId: string, codePattern
         AND fi.code LIKE ANY($2::text[])`,
     [engagementId, codePatterns],
   );
-  return Number(result.rows[0].n);
+  return { n: Number(result.rows[0].n), codes: result.rows[0].codes ?? [] };
+}
+
+/** The review-notes gate, naming the notes in the way and linking to them (UAT B141). */
+function reviewNotesGate(engagementId: string, open: { n: number; codes: string[] }): GateResult {
+  return open.n === 0
+    ? { key: "review_notes_cleared", ok: true }
+    : {
+        key: "review_notes_cleared",
+        ok: false,
+        detail: `${open.n} · ${open.codes.join(", ")}`,
+        href: `/engagements/${engagementId}/tools/review-notes`,
+      };
 }
 
 async function acceptanceGatesTx(tx: PoolClient, engagementId: string): Promise<GateResult[]> {
@@ -173,7 +193,7 @@ async function acceptanceGatesTx(tx: PoolClient, engagementId: string): Promise<
     // Not vacuous: a campaign must exist AND be fully completed, for everyone on the team.
     { key: "independence_complete", ok: Number(indep.total) > 0 && Number(indep.open) === 0 && membersMissing === 0 },
     { key: "independence_exceptions_disposed", ok: Number(indep.undisposed) === 0 },
-    { key: "review_notes_cleared", ok: openNotes === 0 },
+    reviewNotesGate(engagementId, openNotes),
   ];
 }
 
@@ -292,7 +312,7 @@ async function planningCloseGatesTx(tx: PoolClient, engagementId: string): Promi
     { key: "rebuttals_approved", ok: Number(badRebuttal.rows[0].n) === 0 },
     { key: "material_sections_covered", ok: Number(uncovered.rows[0].n) === 0 },
     { key: "tb_mapped", ok: Number(unmapped.rows[0].n) === 0 },
-    { key: "review_notes_cleared", ok: openNotes === 0 },
+    reviewNotesGate(engagementId, openNotes),
   ];
 }
 

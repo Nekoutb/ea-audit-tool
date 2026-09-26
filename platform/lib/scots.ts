@@ -659,12 +659,34 @@ export async function addWcgw(scotId: string, description: string, assertions: u
 
 export async function deleteWcgw(wcgwId: string): Promise<void> {
   const { tenantId, userId } = await requireRole("senior");
-  const engagementId = await withTenant(tenantId, async (tx) => {
+  const { engagementId, deselected } = await withTenant(tenantId, async (tx) => {
     const owner = await engagementOfWcgw(tx, wcgwId);
+    const linked = await tx.query<{ control_id: string }>(
+      "SELECT control_id FROM wcgw_control WHERE wcgw_id = $1",
+      [wcgwId],
+    );
     await tx.query("DELETE FROM wcgw WHERE id = $1", [wcgwId]);
-    return owner;
+    const deselected = await deselectOrphanedControls(tx, linked.rows.map((r) => r.control_id));
+    return { engagementId: owner, deselected };
   });
-  await voidStaleScotSignoffs(tenantId, userId, engagementId, ["S1.2"]);
+  await voidStaleScotSignoffs(tenantId, userId, engagementId, deselected > 0 ? ["S1.2", "S2.1", "S2.2", "E1.2"] : ["S1.2"]);
+}
+
+/**
+ * A control tested for no WCGW answers no risk (UAT B45): once its last link
+ * is gone it leaves the S2.1 selection, as a new orphan control is refused.
+ * Returns how many controls were deselected.
+ */
+async function deselectOrphanedControls(tx: Q, controlIds: string[]): Promise<number> {
+  if (controlIds.length === 0) return 0;
+  const r = await tx.query<{ id: string }>(
+    `UPDATE scot_control c SET selected_for_testing = false
+      WHERE c.id = ANY($1::uuid[]) AND c.selected_for_testing
+        AND NOT EXISTS (SELECT 1 FROM wcgw_control wc WHERE wc.control_id = c.id)
+      RETURNING c.id`,
+    [controlIds],
+  );
+  return r.rows.length;
 }
 
 export async function addControl(
@@ -778,6 +800,26 @@ export async function updateControl(
     // basis. Doing it here — inside the same transaction as the conclusion —
     // means the assessment can never disagree with the test result.
     if (patch.operatingEval === "not_effective") {
+      // the assessment being replaced stays on the S3.1 revision trail, with
+      // E1.2's conclusion as the reason (UAT B136)
+      await tx.query(
+        `INSERT INTO cra_assessment_history
+           (tenant_id, engagement_id, index_code, assertion, ir, ir_basis, cr, cr_basis, new_ir, new_cr, reason, changed_by)
+         SELECT DISTINCT $1::uuid, ca.engagement_id, ca.index_code, ca.assertion, ca.ir, ca.ir_basis, ca.cr, ca.cr_basis,
+                ca.ir, 'not_rely', $3::text, $4::uuid
+           FROM scot_control c
+           JOIN scot s ON s.id = c.scot_id
+           JOIN scot_index si ON si.scot_id = s.id
+           JOIN wcgw_control wc ON wc.control_id = c.id
+           JOIN wcgw w ON w.id = wc.wcgw_id
+           CROSS JOIN LATERAL unnest(w.assertions) AS a(assertion)
+           JOIN cra_assessment ca
+             ON ca.engagement_id = s.engagement_id AND ca.index_code = si.index_code AND ca.assertion = a.assertion
+          WHERE c.id = $2
+            AND ca.cr IS DISTINCT FROM 'not_rely'
+            AND (ca.ir IS NOT NULL OR ca.cr IS NOT NULL)`,
+        [tenantId, controlId, CR_DEFICIENT_BASIS, userId],
+      );
       await tx.query(
         `INSERT INTO cra_assessment
            (tenant_id, engagement_id, index_code, assertion, relevant, cr, cr_basis, updated_by)
@@ -919,6 +961,7 @@ export async function musPreview(
 
 export async function toggleWcgwControl(wcgwId: string, controlId: string, linked: boolean): Promise<void> {
   const { tenantId, userId } = await requireRole("senior");
+  let deselected = 0;
   const engagementId = await withTenant(tenantId, async (tx) => {
     if (linked) {
       await tx.query(
@@ -928,10 +971,11 @@ export async function toggleWcgwControl(wcgwId: string, controlId: string, linke
       );
     } else {
       await tx.query("DELETE FROM wcgw_control WHERE wcgw_id = $1 AND control_id = $2", [wcgwId, controlId]);
+      deselected = await deselectOrphanedControls(tx, [controlId]);
     }
     return engagementOfWcgw(tx, wcgwId);
   });
-  await voidStaleScotSignoffs(tenantId, userId, engagementId, ["S1.2"]);
+  await voidStaleScotSignoffs(tenantId, userId, engagementId, deselected > 0 ? ["S1.2", "S2.1", "S2.2", "E1.2"] : ["S1.2"]);
 }
 
 export async function deleteControl(controlId: string): Promise<void> {

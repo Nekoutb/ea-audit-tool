@@ -5,10 +5,18 @@
 // "- " list items — so the stored value stays plain text that exports, diffs
 // and searches like any other answer in the file.
 
-import { useRef, useState, type CSSProperties } from "react";
+import { useRef, useState, useSyncExternalStore, type CSSProperties } from "react";
 import { useAutoSize } from "@/lib/use-auto-size";
 
 type Mark = "bold" | "italic" | "underline" | "bullet" | "number";
+
+/** Toolbar tooltips and accessible names in the UI language (UAT run3-B19). */
+const TOOL_LABELS: Record<"en" | "fr", Record<Mark, string>> = {
+  en: { bold: "Bold", italic: "Italic", underline: "Underline", bullet: "Bulleted list", number: "Numbered list" },
+  fr: { bold: "Gras", italic: "Italique", underline: "Souligné", bullet: "Liste à puces", number: "Liste numérotée" },
+};
+
+const noSubscribe = () => () => {};
 
 const WRAP: Record<"bold" | "italic" | "underline", string> = {
   bold: "**",
@@ -27,6 +35,7 @@ export function RichText({
   testId,
   onInput,
   autoSize = "compactable",
+  locale,
 }: {
   name?: string;
   defaultValue?: string;
@@ -43,7 +52,13 @@ export function RichText({
    * false leaves the height to the caller's classes.
    */
   autoSize?: "compactable" | "full" | false;
+  /** UI language of the tooltips; defaults to the page's <html lang> */
+  locale?: "en" | "fr";
 }) {
+  // The root layout stamps <html lang> with the UI locale; reading it keeps
+  // every caller bilingual without threading the locale through each one.
+  const docLang = useSyncExternalStore(noSubscribe, () => document.documentElement.lang, () => "");
+  const L = TOOL_LABELS[(locale ?? docLang) === "fr" ? "fr" : "en"];
   const ref = useRef<HTMLTextAreaElement>(null);
   const folded = useAutoSize(ref, autoSize !== false, autoSize === "compactable");
   /** floating toolbar over a mouse selection, positioned at the pointer */
@@ -102,11 +117,11 @@ export function RichText({
     <div className="flex min-h-0 flex-1 flex-col">
       {readOnly ? null : (
         <div className="mb-1 flex items-center gap-1" data-testid={testId ? `${testId}-toolbar` : undefined}>
-          <button type="button" onClick={() => apply("bold")} className={`${btn} font-extrabold`} title="Bold" data-testid={testId ? `${testId}-bold` : undefined}>B</button>
-          <button type="button" onClick={() => apply("italic")} className={`${btn} italic`} title="Italic" data-testid={testId ? `${testId}-italic` : undefined}>I</button>
-          <button type="button" onClick={() => apply("underline")} className={`${btn} underline`} title="Underline" data-testid={testId ? `${testId}-underline` : undefined}>U</button>
-          <button type="button" onClick={() => apply("bullet")} className={btn} title="Bulleted list" data-testid={testId ? `${testId}-bullet` : undefined}>•</button>
-          <button type="button" onClick={() => apply("number")} className={btn} title="Numbered list" data-testid={testId ? `${testId}-number` : undefined}>1.</button>
+          <button type="button" onClick={() => apply("bold")} className={`${btn} font-extrabold`} title={L.bold} aria-label={L.bold} data-testid={testId ? `${testId}-bold` : undefined}>B</button>
+          <button type="button" onClick={() => apply("italic")} className={`${btn} italic`} title={L.italic} aria-label={L.italic} data-testid={testId ? `${testId}-italic` : undefined}>I</button>
+          <button type="button" onClick={() => apply("underline")} className={`${btn} underline`} title={L.underline} aria-label={L.underline} data-testid={testId ? `${testId}-underline` : undefined}>U</button>
+          <button type="button" onClick={() => apply("bullet")} className={btn} title={L.bullet} aria-label={L.bullet} data-testid={testId ? `${testId}-bullet` : undefined}>•</button>
+          <button type="button" onClick={() => apply("number")} className={btn} title={L.number} aria-label={L.number} data-testid={testId ? `${testId}-number` : undefined}>1.</button>
         </div>
       )}
       <div className="relative">
@@ -141,9 +156,9 @@ export function RichText({
           onMouseDown={(e) => e.preventDefault()}
           data-testid={testId ? testId + "-popover" : undefined}
         >
-          <button type="button" onClick={() => { apply("bold"); setPop(null); }} className={btn + " font-extrabold"} title="Bold (Ctrl+B)">B</button>
-          <button type="button" onClick={() => { apply("italic"); setPop(null); }} className={btn + " italic"} title="Italic (Ctrl+I)">I</button>
-          <button type="button" onClick={() => { apply("underline"); setPop(null); }} className={btn + " underline"} title="Underline (Ctrl+U)">U</button>
+          <button type="button" onClick={() => { apply("bold"); setPop(null); }} className={btn + " font-extrabold"} title={`${L.bold} (Ctrl+B)`} aria-label={L.bold}>B</button>
+          <button type="button" onClick={() => { apply("italic"); setPop(null); }} className={btn + " italic"} title={`${L.italic} (Ctrl+I)`} aria-label={L.italic}>I</button>
+          <button type="button" onClick={() => { apply("underline"); setPop(null); }} className={btn + " underline"} title={`${L.underline} (Ctrl+U)`} aria-label={L.underline}>U</button>
         </div>
       ) : null}
     </div>

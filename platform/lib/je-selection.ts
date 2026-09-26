@@ -739,6 +739,12 @@ export interface EvaluationContext {
   settings: SelectionSettings;
   criteria: CriterionKey[];
   userRules: NormalisedUserRule[];
+  /**
+   * "any" (default): a line matching any auditor rule is selected; "all": only
+   * a line matching every auditor rule (UAT run 2 B67). Built-in criteria stay
+   * OR-ed with the rules either way.
+   */
+  userRulesMode?: "any" | "all";
   /** ISO date → label, the national calendar merged with the firm's own dates */
   holidays: Map<string, HolidayLabel>;
 }
@@ -1005,8 +1011,10 @@ export function reasonsFor(line: SelectionCandidate, ctx: EvaluationContext): Se
     }
   }
 
+  const allRules = ctx.userRulesMode === "all";
+  const everyRule = allRules && ctx.userRules.every((rule) => matchesUserRule(line, rule));
   for (const rule of ctx.userRules) {
-    if (!matchesUserRule(line, rule)) continue;
+    if (allRules ? !everyRule : !matchesUserRule(line, rule)) continue;
     reasons.push({
       criterion: rule.key,
       label: t(locale, rule.labelEn, rule.labelFr),
@@ -1100,6 +1108,8 @@ export interface SelectionRequest {
   criteria?: string[];
   params?: SelectionParams;
   userRules?: UserRule[];
+  /** how the auditor rules combine: "any" (default) or "all" (UAT run 2 B67) */
+  userRulesMode?: "any" | "all";
   limit?: number;
   offset?: number;
 }
@@ -1161,9 +1171,10 @@ export async function runSelection(
       : new Map<string, HolidayLabel>();
 
     const population = await loadPopulation(tx, engagementId, datasetId, settings.dateBasis);
-    const candidates = await loadCandidates(tx, engagementId, datasetId, criteria, userRules, settings, holidays);
+    const userRulesMode = request.userRulesMode === "all" ? "all" : "any";
+    const candidates = await loadCandidates(tx, engagementId, datasetId, criteria, userRules, settings, holidays, userRulesMode);
 
-    const core = selectFromCandidates(candidates, { locale, settings, criteria, userRules, holidays });
+    const core = selectFromCandidates(candidates, { locale, settings, criteria, userRules, userRulesMode, holidays });
 
     const notes: string[] = [];
     if (criteria.includes("public-holiday") && holidays.size === 0) {
@@ -1324,6 +1335,7 @@ async function loadCandidates(
   userRules: NormalisedUserRule[],
   settings: SelectionSettings,
   holidays: Map<string, HolidayLabel>,
+  userRulesMode: "any" | "all" = "any",
 ): Promise<SelectionCandidate[]> {
   const params: unknown[] = [datasetId, engagementId];
   const add = (value: unknown): string => {
@@ -1424,7 +1436,11 @@ async function loadCandidates(
         break;
     }
   }
-  for (const rule of userRules) clauses.push(userRuleSql(rule, add));
+  if (userRulesMode === "all" && userRules.length > 0) {
+    clauses.push(`(${userRules.map((rule) => userRuleSql(rule, add)).join(" AND ")})`);
+  } else {
+    for (const rule of userRules) clauses.push(userRuleSql(rule, add));
+  }
   if (clauses.length === 0) return [];
 
   const q = await tx.query<CandidateRow>(
@@ -1621,7 +1637,7 @@ export async function listHolidays(
  */
 export async function recordSelectionDesign(
   engagementId: string,
-  design: { datasetId: string; criteria: string[]; params: SelectionParams; userRules: UserRule[]; selectedLines: number; populationLines: number },
+  design: { datasetId: string; criteria: string[]; params: SelectionParams; userRules: UserRule[]; userRulesMode?: "any" | "all"; selectedLines: number; populationLines: number },
 ): Promise<void> {
   if (design.populationLines === 0 || design.selectedLines === 0) throw new Error("je-design-empty");
   await assertMutable(engagementId);
@@ -1664,4 +1680,81 @@ export async function recordSelectionDesign(
     return invalidateStaleSignoffs(tx, engagementId, "S5.4");
   });
   await reportInvalidatedSignoffs(tenantId, engagementId, "S5.4", invalidated, userId);
+}
+
+/** A recorded S5.4 design, as stored in form_response (je_design / je_design_history). */
+export interface RecordedSelectionDesign {
+  criteria?: string[];
+  params?: SelectionParams;
+  userRules?: UserRule[];
+  userRulesMode?: "any" | "all";
+  selectedLines?: number;
+  populationLines?: number;
+  recordedBy?: string;
+  recordedAt?: string;
+}
+
+/**
+ * One design as the S5.4 paper prints it, in the reader's language: criteria by
+ * name with the thresholds they ran with (defaults when none were set), the
+ * user rules, the size of the selection and who recorded it when, in the firm's
+ * zone (UAT B133 / run 3 B11: slugs, no thresholds, UTC time).
+ */
+export function describeSelectionDesign(d: RecordedSelectionDesign, locale: Locale): string {
+  const fr = locale === "fr";
+  const settings = resolveSettings(d.params ?? {});
+  const num = new Intl.NumberFormat(fr ? "fr-FR" : "en-GB");
+  const colon = fr ? " : " : ": ";
+  const criteria = (d.criteria ?? []).map((key) => {
+    const def = CRITERION_BY_KEY[key];
+    if (!def) return key;
+    const name = fr ? def.nameFr : def.nameEn;
+    const parts = def.params.map((param) => {
+      const label = fr ? param.labelFr : param.labelEn;
+      if (param.kind === "multi") {
+        const raw = (d.params as unknown as Record<string, unknown> | undefined)?.[param.key];
+        const list = Array.isArray(raw) && raw.length > 0 ? raw : (param.default as readonly string[]);
+        if (param.key === "pairings") {
+          const names = settings.pairings.map((k) => (fr ? PAIRING_BY_KEY[k]?.labelFr : PAIRING_BY_KEY[k]?.labelEn) ?? k);
+          return `${label}${colon}${names.join(", ")}`;
+        }
+        return `${label}${colon}${list.join(", ")}`;
+      }
+      const value = (settings as unknown as Record<string, unknown>)[param.key];
+      if (param.kind === "choice") {
+        const option = param.options?.find((o) => o.value === value);
+        return `${label}${colon}${option ? (fr ? option.labelFr : option.labelEn) : String(value)}`;
+      }
+      if (typeof value === "number") return `${label}${colon}${num.format(value)}`;
+      return `${label}${colon}${String(value ?? "")}`;
+    });
+    return parts.length > 0 ? `${name} (${parts.join(" ; ")})` : name;
+  });
+  const rules = (d.userRules ?? []).map((rule, i) => {
+    try {
+      const r = normaliseUserRule(rule, i);
+      return fr ? r.labelFr : r.labelEn;
+    } catch {
+      return fr ? "règle invalide" : "invalid rule";
+    }
+  });
+  let when = "";
+  if (d.recordedAt) {
+    const at = new Date(d.recordedAt);
+    when = Number.isNaN(at.getTime())
+      ? d.recordedAt
+      : new Intl.DateTimeFormat(fr ? "fr-FR" : "en-GB", {
+          dateStyle: "medium",
+          timeStyle: "short",
+          timeZone: "Africa/Douala",
+        }).format(at) + " WAT";
+  }
+  const criteriaText = criteria.join(" · ") || "—";
+  const joined = d.userRulesMode === "all" && rules.length > 1
+    ? (fr ? " (toutes les conditions)" : " (all conditions)")
+    : "";
+  const rulesText = rules.length > 0 ? `${rules.length}${joined} — ${rules.join(" ; ")}` : "0";
+  return fr
+    ? `Critères : ${criteriaText} · règles : ${rulesText} · ${d.selectedLines ?? 0} ligne(s) sélectionnée(s) sur ${d.populationLines ?? 0} · par ${d.recordedBy ?? "—"} le ${when}`
+    : `Criteria: ${criteriaText} · rules: ${rulesText} · ${d.selectedLines ?? 0} line(s) selected of ${d.populationLines ?? 0} · by ${d.recordedBy ?? "—"} on ${when}`;
 }

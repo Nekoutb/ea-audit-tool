@@ -65,7 +65,7 @@ export async function GET(request: Request, context: { params: Promise<{ id: str
       t.font = { bold: true, size: 13 };
       const r1 = ws.addRow([
         fr ? "Entité :" : "Entity:", view.entityName, fr ? "Clôture :" : "Period ended:", view.periodEnd,
-        fr ? "Devise :" : "Currency:", "XAF",
+        fr ? "Devise :" : "Currency:", view.currency ?? "XAF",
       ]);
       const r2 = ws.addRow([
         "PM:", mat?.overall ?? "", "TE:", mat?.performance ?? "",

@@ -75,6 +75,11 @@ describe("accent → shade scale", () => {
     expect(() => accentShades("#12345g")).toThrow("invalid-color");
   });
 
+  it("refuses a valid hex that white text cannot sit on as low contrast (UAT B161)", () => {
+    expect(() => accentShades("#ffff00")).toThrow("accent-low-contrast");
+    expect(() => accentShades("#fefefe")).toThrow("accent-low-contrast");
+  });
+
   it("emits a :root override for every emerald variable", () => {
     const css = accentCss("#1f6b56");
     expect(css).toContain(":root {");

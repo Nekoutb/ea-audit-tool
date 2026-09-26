@@ -157,6 +157,10 @@ interface EngagementLegalRow {
   mandate_start_year: number | null;
   client_name: string;
   fiscal_year: number;
+  /** the board meeting that arrête the accounts (C5.4 is addressed to it) */
+  board_date: string | null;
+  /** the engagement partner who signs the statutory documents */
+  partner_name: string | null;
 }
 
 async function loadLegalContext(tx: PoolClient, engagementId: string): Promise<EngagementLegalRow> {
@@ -164,14 +168,39 @@ async function loadLegalContext(tx: PoolClient, engagementId: string): Promise<E
     `SELECT to_char(e.period_end, 'YYYY-MM-DD') AS period_end,
             to_char(e.agm_date, 'YYYY-MM-DD') AS agm_date,
             to_char(e.report_date, 'YYYY-MM-DD') AS report_date,
+            to_char(e.board_date, 'YYYY-MM-DD') AS board_date,
             c.legal_form, c.share_capital::text, c.co_cac, c.mandate_type,
-            c.mandate_start_year, c.name AS client_name, e.fiscal_year
+            c.mandate_start_year, c.name AS client_name, e.fiscal_year,
+            (SELECT coalesce(u.name, u.email) FROM team_member tm JOIN app_user u ON u.id = tm.user_id
+              WHERE tm.engagement_id = e.id AND tm.team_role = 'partner'
+                AND coalesce(tm.status, 'accepted') <> 'declined'
+              ORDER BY tm.created_at LIMIT 1) AS partner_name
        FROM engagement e JOIN client c ON c.id = e.client_id
       WHERE e.id = $1`,
     [engagementId],
   );
   if (!result.rows[0]) throw new LegalError("not-found");
   return result.rows[0];
+}
+
+/** "1 234 FCFA", or "n/d" when there is no figure (no trial balance). */
+const amountOrNd = (value: string | null | undefined): string =>
+  value === null || value === undefined ? "n/d" : `${fmtAmount(value)} FCFA`;
+
+/** Today's date (YYYY-MM-DD, UTC) — the date a generated statutory document bears. */
+const todayIso = (): string => new Date().toISOString().slice(0, 10);
+
+/**
+ * Date and signature block of a generated statutory document (UAT run 2 B94,
+ * run 3 B08): the documents carried no date and no signatory.
+ */
+function signatureBlock(e: EngagementLegalRow, firmName: string, dateIso: string = todayIso()): Paragraph[] {
+  return [
+    p(`Fait le ${periodEndFr(dateIso)}.`),
+    p("Le commissaire aux comptes", true),
+    p(firmName),
+    ...(e.partner_name ? [p(`${e.partner_name}, associé signataire`)] : []),
+  ];
 }
 
 /**
@@ -190,9 +219,23 @@ export async function generateDeadlines(engagementId: string): Promise<DeadlineI
     if (e.agm_date) {
       rows.push(
         { key: "docs_to_cac", due: addDaysIso(e.agm_date, -45), basis: "Art. 71 — documents au CAC ≥ 45 jours avant l'AGO" },
-        { key: "cac_report_shareholders", due: addDaysIso(e.agm_date, -15), basis: "Rapport du CAC aux actionnaires ≥ 15 jours avant l'AGM (à défaut : rapport de carence)" },
+        { key: "cac_report_shareholders", due: addDaysIso(e.agm_date, -15), basis: "Rapport du CAC aux actionnaires ≥ 15 jours avant l'AGO (à défaut : rapport de carence)" },
         { key: "rapport_special_deposit", due: addDaysIso(e.agm_date, -15), basis: "Art. 442 — dépôt du rapport spécial au siège ≥ 15 jours avant l'AGO" },
       );
+    }
+    // Filing of the approved statements with the RCCM, within the month after
+    // their approval (UAT run 2 B92). Without an AGM date the row is provisional,
+    // from the latest lawful AGO (period end + 6 months).
+    rows.push({
+      key: "fs_filing_rccm",
+      due: addMonthsClamped(e.agm_date ?? addMonthsClamped(e.period_end, 6), 1),
+      basis: e.agm_date
+        ? "Art. 269 — dépôt des états financiers au greffe (RCCM) ≤ 1 mois après leur approbation"
+        : "Art. 269 — dépôt des états financiers au greffe (RCCM) ≤ 1 mois après leur approbation (provisoire : date de l'AGO non renseignée)",
+    });
+    // The art. 715 report is presented to the board that arrête the accounts (run 3 B08).
+    if (e.board_date) {
+      rows.push({ key: "art715_board", due: e.board_date, basis: "Art. 715 — rapport du CAC présenté au conseil d'arrêté des comptes" });
     }
     if (e.report_date) {
       rows.push({ key: "file_assembly", due: addDaysIso(e.report_date, 60), basis: "ISA 230 — assemblage du dossier ≤ 60 jours du rapport" });
@@ -229,6 +272,7 @@ export interface LegalDates {
   periodEnd: string;
   agmDate: string | null;
   reportDate: string | null;
+  boardDate: string | null;
 }
 
 /** The dates the C5.2 calendar is derived from (AGM-relative rows need the AGM date). */
@@ -236,7 +280,7 @@ export async function legalDates(engagementId: string): Promise<LegalDates> {
   const { tenantId } = await requireTenant();
   return withTenant(tenantId, async (tx) => {
     const e = await loadLegalContext(tx, engagementId);
-    return { periodEnd: e.period_end, agmDate: e.agm_date, reportDate: e.report_date };
+    return { periodEnd: e.period_end, agmDate: e.agm_date, reportDate: e.report_date, boardDate: e.board_date };
   });
 }
 
@@ -249,23 +293,32 @@ const ISO_DATE = /^\d{4}-\d{2}-\d{2}$/;
  */
 export async function setLegalDates(
   engagementId: string,
-  input: { agmDate?: string | null; reportDate?: string | null },
+  input: { agmDate?: string | null; reportDate?: string | null; boardDate?: string | null },
 ): Promise<void> {
   const { tenantId } = await requireWrite();
   const agmDate = input.agmDate?.trim() || null;
   const reportDate = input.reportDate?.trim() || null;
-  if ((agmDate && !ISO_DATE.test(agmDate)) || (reportDate && !ISO_DATE.test(reportDate))) {
+  // undefined leaves the board date as it is (callers that do not send it)
+  const boardDate = input.boardDate === undefined ? undefined : input.boardDate?.trim() || null;
+  if ((agmDate && !ISO_DATE.test(agmDate)) || (reportDate && !ISO_DATE.test(reportDate)) || (boardDate && !ISO_DATE.test(boardDate))) {
     throw new LegalError("invalid-date");
   }
   await withTenant(tenantId, async (tx) => {
     const updated = await tx.query(
       `UPDATE engagement
           SET agm_date = $2::date,
-              report_date = coalesce($3::date, report_date)
+              report_date = coalesce($3::date, report_date),
+              board_date = CASE WHEN $4::boolean THEN $5::date ELSE board_date END
         WHERE id = $1`,
-      [engagementId, agmDate, reportDate],
+      [engagementId, agmDate, reportDate, boardDate !== undefined, boardDate ?? null],
     );
     if (updated.rowCount === 0) throw new LegalError("not-found");
+    if (boardDate === null) {
+      await tx.query(
+        "DELETE FROM statutory_deadline WHERE engagement_id = $1 AND key = 'art715_board' AND done = false",
+        [engagementId],
+      );
+    }
   });
   await generateDeadlines(engagementId);
 }
@@ -458,6 +511,11 @@ export async function generateRapportSpecial(engagementId: string): Promise<stri
       title("Rapport spécial du commissaire aux comptes sur les conventions réglementées"),
       p(`${e.client_name} — Exercice clos le ${periodEndFr(e.period_end)}`, true),
       p(
+        e.agm_date
+          ? `À l'assemblée générale ordinaire des ${e.legal_form === "SA" ? "actionnaires" : "associés"} du ${periodEndFr(e.agm_date)}.`
+          : `À l'assemblée générale ordinaire des ${e.legal_form === "SA" ? "actionnaires" : "associés"}.`,
+      ),
+      p(
         "En notre qualité de commissaire aux comptes, nous vous présentons notre rapport sur les conventions réglementées dont nous avons été avisés, conformément aux dispositions de l'Acte uniforme relatif au droit des sociétés commerciales et du GIE.",
       ),
     ];
@@ -490,6 +548,7 @@ export async function generateRapportSpecial(engagementId: string): Promise<stri
     }
     children.push(
       p("Le présent rapport est déposé au siège social quinze jours au moins avant la réunion de l'assemblée générale ordinaire (art. 442).", false),
+      ...signatureBlock(e, branding.displayName),
       ...letterheadFooter(branding),
     );
 
@@ -509,11 +568,17 @@ export async function generateArticle715Report(engagementId: string): Promise<st
   return withTenant(tenantId, async (tx) => {
     const e = await loadLegalContext(tx, engagementId);
 
+    // Section 1 summarises the tasks of the audit file, not the program steps
+    // (which read "0 of 1" on a file of ~100 tasks — UAT run 2 B93): a task is
+    // performed when its working paper is signed by its preparer.
     const steps = await tx.query<{ total: string; complete: string; na: string }>(
       `SELECT count(*)::text AS total,
-              count(*) FILTER (WHERE status = 'complete')::text AS complete,
-              count(*) FILTER (WHERE status = 'na')::text AS na
-         FROM program_step WHERE engagement_id = $1`,
+              count(*) FILTER (WHERE EXISTS (
+                SELECT 1 FROM document d JOIN signoff s ON s.document_id = d.id
+                 WHERE d.file_item_id = fi.id AND d.kind IN ('workpaper', 'leadsheet')
+                   AND s.role = 'preparer' AND s.voided_at IS NULL))::text AS complete,
+              count(*) FILTER (WHERE btrim(coalesce(fi.na_reason, '')) <> '')::text AS na
+         FROM file_item fi WHERE fi.engagement_id = $1 AND fi.conditional = false`,
       [engagementId],
     );
     const conclusions = await tx.query<{ code: string; conclusion: string }>(
@@ -536,10 +601,12 @@ export async function generateArticle715Report(engagementId: string): Promise<st
       [engagementId],
     );
     // Results current vs prior year: résultat = -(classes 6+7+8 closings).
-    const results = await tx.query<{ fiscal_year: number; result: string }>(
+    // No trial-balance rows means no figure ("n/d"), not a result of 0 (UAT run 2 B93, run 3 B26).
+    const results = await tx.query<{ fiscal_year: number; result: string | null }>(
       `SELECT e2.fiscal_year,
-              coalesce(-sum(r.opening_debit - r.opening_credit + r.debit - r.credit)
-                        FILTER (WHERE r.account_code ~ '^[678]'), 0)::text AS result
+              CASE WHEN count(r.id) = 0 THEN NULL
+                   ELSE coalesce(-sum(r.opening_debit - r.opening_credit + r.debit - r.credit)
+                                  FILTER (WHERE r.account_code ~ '^[678]'), 0)::text END AS result
          FROM engagement e1
          JOIN engagement e2 ON e2.client_id = e1.client_id
                             AND e2.fiscal_year IN (e1.fiscal_year, e1.fiscal_year - 1)
@@ -558,9 +625,14 @@ export async function generateArticle715Report(engagementId: string): Promise<st
       ...letterheadParagraphs(branding),
       title("Rapport du commissaire aux comptes au conseil d'administration (art. 715)"),
       p(`${e.client_name} — Exercice clos le ${periodEndFr(e.period_end)}`, true),
+      p(
+        e.board_date
+          ? `Au conseil d'administration, en sa réunion du ${periodEndFr(e.board_date)} consacrée à l'arrêté des comptes.`
+          : "Au conseil d'administration, en sa réunion consacrée à l'arrêté des comptes.",
+      ),
       h("1. Contrôles et vérifications effectués et sondages opérés"),
       p(
-        `Diligences du programme de travail : ${steps.rows[0].complete} étapes réalisées et ${steps.rows[0].na} jugées non applicables sur ${steps.rows[0].total} planifiées.`,
+        `Tâches du dossier d'audit : ${steps.rows[0].complete} réalisées (papier de travail signé par son préparateur) et ${steps.rows[0].na} jugées non applicables, sur ${steps.rows[0].total} tâches applicables au dossier.`,
       ),
       ...conclusions.rows.map((row) => p(`Section ${row.code} : ${row.conclusion}`)),
       h("2. Postes du bilan et documents comptables appelant des modifications"),
@@ -576,8 +648,9 @@ export async function generateArticle715Report(engagementId: string): Promise<st
         : irregularities.rows.map((row) => p(row.title))),
       h("4. Conclusions sur les résultats de l'exercice comparés au précédent"),
       p(
-        `Résultat de l'exercice ${e.fiscal_year} : ${current ? fmtAmount(current.result) : "n/d"} FCFA ; exercice ${e.fiscal_year - 1} : ${prior ? fmtAmount(prior.result) : "n/d"} FCFA.`,
+        `Résultat de l'exercice ${e.fiscal_year} : ${amountOrNd(current?.result)} ; exercice ${e.fiscal_year - 1} : ${amountOrNd(prior?.result)}.`,
       ),
+      ...signatureBlock(e, branding.displayName),
       ...letterheadFooter(branding),
     ];
 
@@ -690,6 +763,15 @@ export interface TitresAttestationInput {
   securitiesCount?: number;
 }
 
+/** Whether C5.7 is on the file — /legal offers the attestation only then (UAT run 3 B25). */
+export async function hasTitresTask(engagementId: string): Promise<boolean> {
+  const { tenantId } = await requireTenant();
+  return withTenant(tenantId, async (tx) => {
+    const r = await tx.query("SELECT 1 FROM file_item WHERE engagement_id = $1 AND code = 'C5.7'", [engagementId]);
+    return (r.rowCount ?? 0) > 0;
+  });
+}
+
 /**
  * The attestation states what the register showed and when, and is refused
  * until the C5.7 paper concludes the register is kept and agrees (UAT run 2 B21).
@@ -707,6 +789,10 @@ export async function generateTitresAttestation(
   if (!Number.isInteger(securitiesCount) || securitiesCount <= 0) throw new LegalError("titres-count-required");
   return withTenant(tenantId, async (tx) => {
     const e = await loadLegalContext(tx, engagementId);
+    // Without the C5.7 task on the file, "complete C5.7 first" pointed at a
+    // task that cannot be reached (UAT run 3 B25).
+    const task = await tx.query("SELECT 1 FROM file_item WHERE engagement_id = $1 AND code = 'C5.7'", [engagementId]);
+    if ((task.rowCount ?? 0) === 0) throw new LegalError("titres-task-missing");
     const answers = await tx.query<{ field_key: string; value: string | null }>(
       `SELECT field_key, value #>> '{}' AS value FROM form_response
         WHERE engagement_id = $1 AND code = 'wp:C5.7' AND field_key IN ('q_kept', 'q_agrees')`,
@@ -733,7 +819,8 @@ export async function generateTitresAttestation(
       p(
         "La direction déclare que les registres de titres nominatifs présentés au commissaire aux comptes sont complets, à jour, et retracent l'intégralité des mouvements de titres intervenus au cours de l'exercice.",
       ),
-      p("Signatures : le représentant légal · le commissaire aux comptes", true),
+      p("Le représentant légal de la société", true),
+      ...signatureBlock(e, branding.displayName),
       ...letterheadFooter(branding),
     ];
     const content = await Packer.toBuffer(new Document({ sections: [{ children }] }));

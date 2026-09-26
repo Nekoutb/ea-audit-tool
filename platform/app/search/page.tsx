@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { localizedTitle } from "@/lib/page-title";
 import { redirect } from "next/navigation";
 import { auth } from "@/auth";
 import { AppNav } from "@/components/AppNav";
@@ -6,7 +7,24 @@ import { Panel } from "@/components/ui/atlas";
 import { getLocale } from "@/lib/locale";
 import { search } from "@/lib/search";
 
-export const metadata = { title: "Search · AuditISA" };
+export const generateMetadata = localizedTitle("Search", "Recherche");
+
+/** Result-kind badges, by UI language (UAT run2-B103). */
+const KIND_LABEL: Record<string, { en: string; fr: string }> = {
+  client: { en: "Entity record", fr: "Fiche entité" },
+  engagement: { en: "Engagement", fr: "Mission" },
+  task: { en: "Task", fr: "Tâche" },
+  risk: { en: "Risk", fr: "Risque" },
+  finding: { en: "Finding", fr: "Constat" },
+  misstatement: { en: "Misstatement", fr: "Anomalie" },
+  "review note": { en: "Review note", fr: "Note de revue" },
+  conclusion: { en: "Conclusion", fr: "Conclusion" },
+  procedure: { en: "Procedure", fr: "Procédure" },
+  "control test": { en: "Control test", fr: "Test de contrôle" },
+  SCOT: { en: "SCOT", fr: "Flux (SCOT)" },
+  document: { en: "Document", fr: "Document" },
+  "working paper": { en: "Working paper", fr: "Feuille de travail" },
+};
 
 /**
  * Search results.
@@ -22,7 +40,7 @@ export default async function SearchPage(props: { searchParams: Promise<{ q?: st
   const { q } = await props.searchParams;
   const locale = await getLocale();
   const fr = locale === "fr";
-  const results = q ? await search(q) : { query: "", hits: [], truncated: false };
+  const results = q ? await search(q, fr ? "fr" : "en") : { query: "", hits: [], truncated: false };
 
   const input =
     "w-full rounded-[var(--radius-atlas-sm)] border border-line-strong bg-surface px-3 py-2 text-[14px] text-ink outline-none focus:border-emerald-600";
@@ -80,7 +98,7 @@ export default async function SearchPage(props: { searchParams: Promise<{ q?: st
                 <Panel className="p-3 transition hover:border-emerald-600">
                   <div className="flex flex-wrap items-baseline gap-2">
                     <span className="rounded-[var(--radius-atlas-xs)] bg-surface-2 px-1.5 py-0.5 text-[10px] font-extrabold uppercase tracking-[0.07em] text-muted">
-                      {hit.kind}
+                      {KIND_LABEL[hit.kind]?.[fr ? "fr" : "en"] ?? hit.kind}
                     </span>
                     {hit.code ? (
                       <span className="font-mono text-[11.5px] text-emerald-700 dark:text-emerald-400">{hit.code}</span>

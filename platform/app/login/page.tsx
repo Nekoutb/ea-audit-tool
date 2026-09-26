@@ -10,12 +10,14 @@ import { getLocale } from "@/lib/locale";
 export default async function LoginPage(props: {
   searchParams: Promise<{ error?: string; email?: string; next?: string }>;
 }) {
-  // Already signed in? Skip the form.
+  const { error, email, next } = await props.searchParams;
+  // Already signed in? Skip the form — and still honour the emailed link's
+  // destination (UAT B98); never bounce back to /login itself.
   const session = await auth();
   if (session?.user) {
-    redirect("/dashboard");
+    const target = safeNext(next);
+    redirect(target !== "/" && !target.startsWith("/login") ? target : "/dashboard");
   }
-  const { error, email, next } = await props.searchParams;
   // the account emails link here with the address filled in; anything that is
   // not an address is ignored
   const presetEmail =

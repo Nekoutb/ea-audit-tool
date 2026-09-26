@@ -1,4 +1,5 @@
 import { ForbiddenError } from "@/lib/tenant";
+import { localizedTitle } from "@/lib/page-title";
 import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
 import { auth } from "@/auth";
@@ -27,7 +28,7 @@ import { getMessages } from "@/lib/i18n";
 import { getLocale } from "@/lib/locale";
 import { atLeast, isRole } from "@/lib/rbac";
 
-export const metadata = { title: "Working paper · AuditISA" };
+export const generateMetadata = localizedTitle("Working paper", "Feuille de travail");
 
 export default async function DocumentPage(props: {
   params: Promise<{ id: string }>;
@@ -58,6 +59,9 @@ export default async function DocumentPage(props: {
   ]);
 
   const isSigned = document.status === "signed";
+  // An archived file is read-only: no check-out, upload, sign, reopen or note
+  // controls (UAT B85) — the server refuses them anyway.
+  const archived = engagement?.phase === "archived";
   const checkedOutByMe = document.checkedOutBy === session.user.id;
   const openNotes = notes.filter((note) => note.status === "open");
   const errorText = error ? (td.errors[error as keyof typeof td.errors] ?? error) : null;
@@ -67,7 +71,7 @@ export default async function DocumentPage(props: {
   const viewerRole = isRole(session.user.role) ? session.user.role : null;
   const partnerSigned = signoffs.some((s) => s.role === "partner" && !s.voidedAt);
   const canReopen =
-    viewerRole !== null && atLeast(viewerRole, "manager") && (!partnerSigned || atLeast(viewerRole, "partner"));
+    !archived && viewerRole !== null && atLeast(viewerRole, "manager") && (!partnerSigned || atLeast(viewerRole, "partner"));
 
   const btn =
     "rounded-[var(--radius-atlas-sm)] border border-line-strong bg-surface px-3 py-1.5 text-sm font-medium text-ink-soft hover:bg-surface-2 disabled:opacity-50";
@@ -110,6 +114,11 @@ export default async function DocumentPage(props: {
             </Chip>
           </span>
         </div>
+        {archived ? (
+          <p className="mt-2 text-sm text-muted" data-testid="doc-archived">
+            {td.archivedNotice}
+          </p>
+        ) : null}
         {document.checkedOutBy ? (
           <p className="mt-1 text-sm text-warn" data-testid="checkout-info">
             {td.checkedOutBy}: {document.checkedOutByName}
@@ -131,7 +140,7 @@ export default async function DocumentPage(props: {
         {/* Document: preview + editing controls */}
         <div className="flex min-w-0 flex-col gap-4">
           <section className="flex flex-wrap items-center gap-3">
-            {!isSigned && !document.checkedOutBy ? (
+            {!archived && !isSigned && !document.checkedOutBy ? (
               <form
                 action={async () => {
                   "use server";
@@ -143,7 +152,7 @@ export default async function DocumentPage(props: {
                 </button>
               </form>
             ) : null}
-            {checkedOutByMe ? (
+            {checkedOutByMe && !archived ? (
               <form
                 action={async () => {
                   "use server";
@@ -166,7 +175,7 @@ export default async function DocumentPage(props: {
             ) : null}
           </section>
 
-          {checkedOutByMe ? (
+          {checkedOutByMe && !archived ? (
             <section className="rounded-[var(--radius-atlas)] border border-emerald-200 bg-emerald-50/40 p-4 dark:border-emerald-900 dark:bg-emerald-950/20">
               <p className="mb-3 text-sm text-ink-soft">{td.uploadHint}</p>
               <UploadVersion documentId={id} messages={td} />
@@ -201,7 +210,14 @@ export default async function DocumentPage(props: {
                       : td.signPartner;
                 const active = signoffs.find((s) => s.role === role && !s.voidedAt);
                 if (active) {
-                  const detail = `${label}: ${active.userName} · v${active.versionNo} · ${active.signedAt}`;
+                  // a record, not an action: "Prepared by", not "Sign as preparer" (UAT B124)
+                  const recordLabel =
+                    role === "preparer"
+                      ? td.signedByPreparer
+                      : role === "reviewer"
+                        ? td.signedByReviewer
+                        : td.signedByPartner;
+                  const detail = `${recordLabel} ${active.userName} · v${active.versionNo} · ${active.signedAt}`;
                   return (
                     <span
                       key={role}
@@ -210,7 +226,9 @@ export default async function DocumentPage(props: {
                       className={`inline-flex items-center gap-1.5 rounded-full py-1 pl-1.5 pr-2.5 text-[11px] font-bold ${
                         role === "preparer"
                           ? "bg-emerald-100 text-emerald-900 dark:bg-emerald-950 dark:text-emerald-300"
-                          : "bg-indigo-100 text-indigo-900 dark:bg-indigo-950/60 dark:text-indigo-300"
+                          : role === "reviewer"
+                            ? "bg-indigo-100 text-indigo-900 dark:bg-indigo-950/60 dark:text-indigo-300"
+                            : "bg-amber-100 text-amber-900 dark:bg-amber-950/60 dark:text-amber-300"
                       }`}
                     >
                       <span
@@ -218,17 +236,19 @@ export default async function DocumentPage(props: {
                         className={`grid h-5 w-5 place-items-center rounded-full text-[10px] font-extrabold ${
                           role === "preparer"
                             ? "bg-emerald-200/80 dark:bg-emerald-900"
-                            : "bg-indigo-200/80 dark:bg-indigo-900"
+                            : role === "reviewer"
+                              ? "bg-indigo-200/80 dark:bg-indigo-900"
+                              : "bg-amber-200/80 dark:bg-amber-900"
                         }`}
                       >
-                        {role === "reviewer" ? "R" : "P"}
+                        {role === "reviewer" ? "R" : role === "partner" ? td.badgePartner : "P"}
                       </span>
                       {initials(active.userName)}
                       <span className="sr-only">{detail}</span>
                     </span>
                   );
                 }
-                if (isSigned) return null;
+                if (isSigned || archived) return null;
                 return (
                   <form
                     key={role}
@@ -320,7 +340,7 @@ export default async function DocumentPage(props: {
                         {td.noteResponse}: {note.response}
                       </p>
                     ) : null}
-                    {note.status === "open" ? (
+                    {note.status === "open" && !archived ? (
                       <form
                         action={async (formData: FormData) => {
                           "use server";
@@ -343,6 +363,7 @@ export default async function DocumentPage(props: {
                   </li>
                 ))}
               </ul>
+              {archived ? null : (
               <form
                 action={async (formData: FormData) => {
                   "use server";
@@ -361,6 +382,7 @@ export default async function DocumentPage(props: {
                   {td.addNote}
                 </button>
               </form>
+              )}
             </div>
           </details>
 
@@ -413,6 +435,7 @@ export default async function DocumentPage(props: {
                             {td.download}
                           </a>
                           {!isSigned &&
+                          !archived &&
                           !document.checkedOutBy &&
                           version.versionNo !== document.currentVersion ? (
                             <form

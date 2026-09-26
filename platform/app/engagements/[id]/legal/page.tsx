@@ -1,4 +1,5 @@
 import { notFound, redirect } from "next/navigation";
+import { localizedTitle } from "@/lib/page-title";
 import { auth } from "@/auth";
 import {
   addConventionAction,
@@ -25,10 +26,10 @@ import { completionRecordVersion, getCompletionRecord } from "@/lib/completion";
 import { getEngagement } from "@/lib/engagements";
 import { formatFCFA, getMessages } from "@/lib/i18n";
 import { canPartnerSignoff, type Role } from "@/lib/rbac";
-import { CONVENTION_CAPACITIES, equityConclusionOf, equityStatus, legalDates, listConventions, listDeadlines, listFaits } from "@/lib/legal";
+import { CONVENTION_CAPACITIES, equityConclusionOf, equityStatus, hasTitresTask, legalDates, listConventions, listDeadlines, listFaits } from "@/lib/legal";
 import { getLocale } from "@/lib/locale";
 
-export const metadata = { title: "OHADA legal · AuditISA" };
+export const generateMetadata = localizedTitle("OHADA legal", "Juridique OHADA");
 
 export default async function LegalPage(props: {
   params: Promise<{ id: string }>;
@@ -46,7 +47,7 @@ export default async function LegalPage(props: {
 
   const engagement = await getEngagement(id);
   if (!engagement) notFound();
-  const [deadlines, register, alerte, faits, worksplit, crossreview, disagreement, dates, equity, versions] = await Promise.all([
+  const [deadlines, register, alerte, faits, worksplit, crossreview, disagreement, dates, equity, versions, titresTask] = await Promise.all([
     listDeadlines(id),
     listConventions(id),
     getAlerte(id),
@@ -60,8 +61,10 @@ export default async function LegalPage(props: {
     Promise.all(
       (["worksplit", "crossreview", "disagreement"] as const).map((k) => completionRecordVersion(id, `f8_${k}`)),
     ).then(([w, c, d]) => ({ worksplit: w, crossreview: c, disagreement: d })),
+    hasTitresTask(id),
   ]);
   // AGM-relative rows the calendar can only compute once the AGM date is known
+  // (the RCCM filing row is generated provisionally from the latest lawful AGO)
   const agmRelativeKeys = ["docs_to_cac", "cac_report_shareholders", "rapport_special_deposit"] as const;
   const pendingKeys = dates.agmDate
     ? []
@@ -83,6 +86,13 @@ export default async function LegalPage(props: {
   const deadlineName = (key: string): string =>
     tl.deadlineNames[key as keyof typeof tl.deadlineNames] ?? key;
   const stageName = (stage: string): string => tl.stages[stage as keyof typeof tl.stages] ?? stage;
+  // The basis in the interface language; the stored French text is the fallback (UAT run 2 B114, run 3 B27).
+  const deadlineBasis = (key: string, stored: string): string => {
+    const text = tl.deadlineBasis[key as keyof typeof tl.deadlineBasis] ?? stored;
+    // without an AGM date the RCCM filing row runs from the latest lawful AGO
+    return key === "fs_filing_rccm" && !dates.agmDate ? `${text} (${tl.provisionalNoAgm})` : text;
+  };
+  const today = new Date().toISOString().slice(0, 10);
 
   return (
     <main className="min-h-screen w-full px-6 py-8">
@@ -112,6 +122,10 @@ export default async function LegalPage(props: {
           <label className={label}>
             {tl.reportDate}
             <input name="reportDate" type="date" defaultValue={dates.reportDate ?? ""} className={`${input} mt-1`} data-testid="report-date" />
+          </label>
+          <label className={label}>
+            {tl.boardDate}
+            <input name="boardDate" type="date" defaultValue={dates.boardDate ?? ""} className={`${input} mt-1`} data-testid="board-date" />
           </label>
           <button type="submit" className={btn} data-testid="save-legal-dates">
             {tl.saveDates}
@@ -146,7 +160,7 @@ export default async function LegalPage(props: {
                         `${deadline.daysLeft} ${tl.daysLeft}`
                       )}
                     </td>
-                    <td className="px-3 py-2 text-xs text-muted">{deadline.basis}</td>
+                    <td className="px-3 py-2 text-xs text-muted">{deadlineBasis(deadline.key, deadline.basis)}</td>
                     <td className="w-20 px-3 py-2 text-right">
                       {!deadline.done ? (
                         <form action={markDeadlineDoneAction.bind(null, id, deadline.key)}>
@@ -253,6 +267,9 @@ export default async function LegalPage(props: {
               {tl.article715}
             </button>
           </form>
+          {!titresTask ? (
+            <p className="self-center text-xs text-muted" data-testid="titres-task-missing">{t.planning.errors["titres-task-missing"]}</p>
+          ) : (
           <form action={titresAttestationAction.bind(null, id)} className="flex flex-wrap items-end gap-2">
             <label className={label}>
               {tl.inspectionDate}
@@ -266,6 +283,7 @@ export default async function LegalPage(props: {
               {tl.titres} · {tl.generateAttestation}
             </button>
           </form>
+          )}
         </div>
       </section>
 
@@ -294,6 +312,9 @@ export default async function LegalPage(props: {
             <p data-testid="alerte-stage">
               {tl.stage}: <strong>{stageName(alerte.stage)}</strong>
               {alerte.stageDeadline ? ` · ${tl.stageDeadline}: ${alerte.stageDeadline}` : ""}
+              {alerte.stageDeadline && !alerte.discontinued && alerte.stage !== "closed" && alerte.stageDeadline < today ? (
+                <span className="ml-1 font-semibold text-rose" data-testid="alerte-overdue">{tl.overdue}</span>
+              ) : null}
               {alerte.discontinued ? ` · ${tl.discontinued} ${alerte.resumableUntil}` : ""}
             </p>
             <ul className="mt-2 flex flex-col gap-1 text-xs text-muted">
@@ -323,7 +344,7 @@ export default async function LegalPage(props: {
                 </label>
                 <label className={label}>
                   {tl.eventDate}
-                  <input name="eventDate" type="date" max={new Date().toISOString().slice(0, 10)} className={`${input} mt-1 block tnum`} data-testid="alerte-advance-date" />
+                  <input name="eventDate" type="date" min={alerte.lastEventDate ?? undefined} max={today} className={`${input} mt-1 block tnum`} data-testid="alerte-advance-date" />
                 </label>
                 {alerte.nextStages[0] === "reply_recorded" ? (
                   <label className="flex items-center gap-1 text-xs text-muted">

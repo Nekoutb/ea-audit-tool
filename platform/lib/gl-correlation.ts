@@ -413,6 +413,13 @@ export interface DrillFilter {
   approver?: string;
   /** minimum absolute signed amount */
   minAbs?: number;
+  /** maximum absolute signed amount (UAT run 2 B67) */
+  maxAbs?: number;
+  /** journal date window, YYYY-MM-DD inclusive (UAT run 2 B67) */
+  dateFrom?: string;
+  dateTo?: string;
+  /** journal code, exact (UAT run 2 B67) */
+  journalCode?: string;
   /** only lines dated on a Saturday or Sunday */
   weekendOnly?: boolean;
   /** only lines with no document reference */
@@ -443,6 +450,8 @@ export interface DrillLine {
 export interface DrillResult {
   lines: DrillLine[];
   total: number;
+  /** the signed sum of EVERY line the filter matches, not just this page */
+  sumSigned: number;
   limit: number;
   offset: number;
 }
@@ -497,6 +506,21 @@ export async function drillDown(
     if (!Number.isFinite(min) || min < 0) throw new Error("invalid-amount");
     where.push(`abs(l.signed) >= ${add(min)}::numeric`);
   }
+  if (filter.maxAbs !== undefined) {
+    const max = Number(filter.maxAbs);
+    if (!Number.isFinite(max) || max < 0) throw new Error("invalid-amount");
+    where.push(`abs(l.signed) <= ${add(max)}::numeric`);
+  }
+  for (const [key, op] of [["dateFrom", ">="], ["dateTo", "<="]] as const) {
+    const value = filter[key];
+    if (value === undefined) continue;
+    const date = String(value).trim();
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(date) || Number.isNaN(Date.parse(`${date}T00:00:00Z`))) throw new Error("invalid-date");
+    where.push(`l.journal_date ${op} ${add(date)}::date`);
+  }
+  if (filter.journalCode !== undefined) {
+    where.push(`coalesce(trim(l.journal_code), '') = ${add(String(filter.journalCode).trim().slice(0, 50))}`);
+  }
   if (filter.weekendOnly) where.push("extract(isodow FROM l.journal_date) IN (6, 7)");
   if (filter.missingReference) where.push("coalesce(trim(l.reference), '') = ''");
 
@@ -527,8 +551,8 @@ export async function drillDown(
   const order = filter.wholeEntries ? "l.je_number, l.line_no" : "l.journal_date NULLS LAST, l.je_number, l.line_no";
   const { tenantId } = await requireTenant();
   return withTenant(tenantId, async (tx) => {
-    const total = await tx.query<{ n: number }>(
-      `SELECT count(*)::int AS n FROM gl_line l ${scan} WHERE ${clause}`,
+    const total = await tx.query<{ n: number; s: number }>(
+      `SELECT count(*)::int AS n, coalesce(sum(l.signed), 0)::float8 AS s FROM gl_line l ${scan} WHERE ${clause}`,
       params,
     );
     const q = await tx.query<{
@@ -571,6 +595,7 @@ export async function drillDown(
         signed: round2(r.signed),
       })),
       total: total.rows[0]?.n ?? 0,
+      sumSigned: round2(total.rows[0]?.s ?? 0),
       limit,
       offset,
     };

@@ -398,7 +398,13 @@ textarea.border-line {
     height: auto !important;
     max-height: none !important;
     overflow: visible !important;
-    page-break-inside: avoid;
+    /* a step taller than a page must break; keeping it whole pushed it past
+       the side panels (UAT run 3 B12): only the boxes inside avoid breaks */
+    page-break-inside: auto;
+    break-inside: auto;
+  }
+  .wp-step > * {
+    break-inside: avoid;
   }
   .wp-step + .wp-step {
     margin-top: 8mm;
@@ -439,6 +445,13 @@ textarea.border-line {
     white-space: normal !important;
     overflow: visible !important;
     text-overflow: clip !important;
+  }
+  /* the task title takes its own line above the header chips: squeezed, it
+     wrapped word by word over the back link (UAT run 4 B07) */
+  .wp-print-title {
+    flex: 1 1 100% !important;
+    min-width: 0 !important;
+    order: -1;
   }
   /*
    * UAT run 3 firm.print: the task screen is a fixed-height grid of flex
@@ -481,9 +494,61 @@ textarea.border-line {
   [data-testid^="ap-grid-"] th,
   [data-testid^="ap-grid-"] td {
     white-space: normal !important;
-    overflow-wrap: anywhere;
+    /* wrap on word boundaries only: "anywhere" printed 101000 as 10/10/00 (UAT run 4 B03) */
+    overflow-wrap: break-word;
+    word-break: normal;
     padding-left: 2px !important;
     padding-right: 2px !important;
+  }
+  /* the grid fits the A4 width: fixed layout, smaller type (UAT B91 / run 3 B13) */
+  [data-testid^="ap-grid-"] {
+    table-layout: fixed !important;
+    font-size: 8px !important;
+  }
+  [data-testid^="ap-grid-"] th,
+  [data-testid^="ap-grid-"] td {
+    font-size: 8px !important;
+    min-width: 0 !important;
+    width: auto !important;
+    max-width: none !important;
+  }
+  [data-testid^="ap-grid-"] textarea,
+  [data-testid^="ap-grid-"] input {
+    width: 100% !important;
+    min-width: 0 !important;
+    font-size: 8px !important;
+  }
+  /*
+   * UAT run 4 B03: the fixed layout shared the width equally, so the account
+   * and description columns were squeezed to a few characters. The class and
+   * type columns are print:hidden; the header row (which sets a fixed
+   * layout's widths) gives each remaining column a share of the page.
+   */
+  [data-testid^="ap-grid-"] tr > :first-child {
+    white-space: nowrap !important;
+    overflow-wrap: normal !important;
+    word-break: normal !important;
+  }
+  [data-testid^="ap-grid-"] tr > :nth-child(2) {
+    overflow-wrap: normal !important;
+    word-break: normal !important;
+  }
+  [data-testid^="ap-grid-"] thead th:nth-child(1) {
+    width: 12% !important;
+  }
+  [data-testid^="ap-grid-"] thead th:nth-child(2) {
+    width: 25% !important;
+  }
+  [data-testid^="ap-grid-"] thead th:nth-child(5),
+  [data-testid^="ap-grid-"] thead th:nth-child(6),
+  [data-testid^="ap-grid-"] thead th:nth-child(7) {
+    width: 13% !important;
+  }
+  [data-testid^="ap-grid-"] thead th:nth-child(8) {
+    width: 8% !important;
+  }
+  [data-testid^="ap-grid-"] thead th:nth-child(9) {
+    width: 16% !important;
   }
 }
 

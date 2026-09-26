@@ -48,6 +48,46 @@ describe("readabilityOf", () => {
     expect(fr.some((l) => l.text.includes("Colonne « Débit »"))).toBe(true);
   });
 
+  it("ties P&L and result accounts to the prior year in one aggregate check (UAT B27)", () => {
+    const mapping = { account: "c", openingDebit: "od", openingCredit: "oc", debit: "d", credit: "c2" } as never;
+    const row = (account: string, od: number, oc: number) =>
+      ({ account, label: null, openingDebit: od, openingCredit: oc, debit: 0, credit: 0, raw: {} });
+    // prior year: sales 45m credit, purchases 33m debit -> 12m profit to carry
+    const prior = new Map([["521000", 2_000_000], ["601000", 33_000_000], ["701000", -45_000_000]]);
+    const ok = validateTbRows(
+      [row("521000", 2_000_000, 0), row("601000", 0, 0), row("701000", 0, 0), row("130000", 0, 12_000_000)],
+      ["52", "60", "70", "13"], prior, mapping,
+    );
+    expect(ok.checks.openingTiesToPrior.exceptions).toEqual([]);
+    const off = validateTbRows([row("521000", 2_000_000, 0), row("130000", 0, 10_000_000)], ["52", "13"], prior, mapping);
+    expect(off.checks.openingTiesToPrior.exceptions).toEqual([{ account: "12x/13x", opening: -10_000_000, priorClosing: -12_000_000 }]);
+    expect(explainTbSummary(off, "fr").some((l) => l.text.includes("résultat reporté 12x/13x"))).toBe(true);
+  });
+
+  it("points unreadable amounts at the physical CSV line (UAT B135)", async () => {
+    const { parseTabularFile } = await import("@/lib/subledgers");
+    const table = await parseTabularFile("t.csv", Buffer.from("BALANCE\n\nCompte;Libellé;Débit;Crédit\n411100;Clients;100;\n\n521100;Banque;n/a;\n701100;Ventes;;100\n"));
+    const r = readabilityOf(table, inferTbMapping(table.headers));
+    expect(r.unreadable[0].examples).toEqual([{ row: 6, account: "521100", value: "n/a" }]);
+  });
+
+  it("skips a merged title banner and finds the real header row (UAT B64)", async () => {
+    const ExcelJS = (await import("exceljs")).default;
+    const { parseTabularFile } = await import("@/lib/subledgers");
+    const wb = new ExcelJS.Workbook();
+    const ws = wb.addWorksheet("TB");
+    ws.getCell("A1").value = "BALANCE GENERALE 2025";
+    ws.mergeCells("A1:D1");
+    ws.getRow(3).values = ["Compte", "Libellé", "Débit", "Crédit"];
+    ws.getRow(4).values = ["411100", "Clients", 100, null];
+    ws.getRow(5).values = ["701100", "Ventes", "n/a", 100];
+    const table = await parseTabularFile("t.xlsx", Buffer.from(await wb.xlsx.writeBuffer()));
+    expect(table.headers).toEqual(["Compte", "Libellé", "Débit", "Crédit"]);
+    expect(table.rows).toHaveLength(2);
+    const r = readabilityOf(table, inferTbMapping(table.headers));
+    expect(r.unreadable[0].examples).toEqual([{ row: 5, account: "701100", value: "n/a" }]);
+  });
+
   it("says nothing about a clean file", () => {
     const table = rows(
       { Compte: "411100", Libellé: "Clients", Débit: "100", Crédit: "" },

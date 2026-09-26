@@ -1,4 +1,5 @@
 import { notFound, redirect } from "next/navigation";
+import { localizedTitle } from "@/lib/page-title";
 import { auth } from "@/auth";
 import { AppNav } from "@/components/AppNav";
 import { NavLink } from "@/components/NavLink";
@@ -12,7 +13,7 @@ import { getLocale } from "@/lib/locale";
 import { displayCode } from "@/lib/task-groups";
 import { requireTenant } from "@/lib/tenant";
 
-export const metadata = { title: "My Tasks · AuditISA" };
+export const generateMetadata = localizedTitle("My Tasks", "Mes tâches");
 
 // Page-local labels (the framework doc's "My Tasks" queue is not in messages/*.json yet).
 const LABELS = {
@@ -22,6 +23,8 @@ const LABELS = {
     review: "For my review",
     todo: "To-dos",
     mine: "Assigned to me",
+    unassigned: "Unassigned",
+    preparer: "Preparer",
     hideCompleted: "Hide completed",
     due: "Due",
   },
@@ -31,6 +34,8 @@ const LABELS = {
     review: "Pour ma revue",
     todo: "À faire",
     mine: "Assignées à moi",
+    unassigned: "Non assignées",
+    preparer: "Préparateur",
     hideCompleted: "Masquer les terminées",
     due: "Échéance",
   },
@@ -53,10 +58,18 @@ const DOT_CLASS: Record<PhaseTaskStatus, string> = {
   not_started: "border-[1.5px] border-line-strong bg-transparent",
 };
 
-type Filter = "all" | "review" | "todo" | "mine" | "open";
+type Filter = "all" | "review" | "todo" | "mine" | "unassigned" | "open";
 
 const isMine = (t: PhaseTask, userId: string): boolean =>
   t.assigneeUserId === userId || t.ownerUserId === userId || t.approverUserId === userId;
+
+/**
+ * Nobody staffed: no preparer and no direct assignee, not yet reviewed and not
+ * marked not applicable — the same set the dashboard's unstaffed-tasks banner
+ * counts (UAT run2-B143).
+ */
+const isUnassigned = (t: PhaseTask): boolean =>
+  !t.ownerUserId && !t.assigneeUserId && t.status !== "reviewed" && !t.naReason;
 
 function applyFilter(tasks: PhaseTask[], filter: Filter, userId: string): PhaseTask[] {
   if (filter === "review") return tasks.filter((t) => t.status === "in_review");
@@ -65,6 +78,7 @@ function applyFilter(tasks: PhaseTask[], filter: Filter, userId: string): PhaseT
   // — the same definition the dashboard's my-tasks tile counts, so tile and
   // list agree (UAT B94).
   if (filter === "mine") return tasks.filter((t) => isMine(t, userId));
+  if (filter === "unassigned") return tasks.filter(isUnassigned);
   if (filter === "open") return tasks.filter((t) => t.status !== "reviewed");
   return tasks;
 }
@@ -84,8 +98,9 @@ async function openNoteCounts(engagementId: string): Promise<Map<string, number>
     const result = await tx.query<{ id: string; n: string }>(
       `SELECT fi.id, count(*)::text AS n
          FROM review_note rn
-         JOIN document d ON d.id = rn.document_id
-         JOIN file_item fi ON fi.id = d.file_item_id
+         -- a note raised on the task itself has no document (UAT run 2 B71)
+         LEFT JOIN document d ON d.id = rn.document_id
+         JOIN file_item fi ON fi.id = coalesce(rn.file_item_id, d.file_item_id)
         WHERE fi.engagement_id = $1 AND rn.status = 'open'
         GROUP BY fi.id`,
       [engagementId],
@@ -119,7 +134,7 @@ export default async function MyTasksPage(props: {
   const [tasks, noteCounts] = await Promise.all([engagementTasks(id), openNoteCounts(id)]);
 
   const filter: Filter =
-    rawFilter === "review" || rawFilter === "todo" || rawFilter === "mine" || rawFilter === "open"
+    rawFilter === "review" || rawFilter === "todo" || rawFilter === "mine" || rawFilter === "unassigned" || rawFilter === "open"
       ? rawFilter
       : "all";
   const visible = applyFilter(tasks, filter, session.user.id);
@@ -145,6 +160,13 @@ export default async function MyTasksPage(props: {
       count: tasks.filter((task) => isMine(task, session.user.id)).length,
       href: `${base}?filter=mine`,
       testId: "filter-assigned",
+    },
+    {
+      key: "unassigned",
+      label: L.unassigned,
+      count: tasks.filter(isUnassigned).length,
+      href: `${base}?filter=unassigned`,
+      testId: "filter-unassigned",
     },
     {
       key: "open",
@@ -230,13 +252,15 @@ export default async function MyTasksPage(props: {
                       {notes} ✎
                     </span>
                   ) : null}
-                  {task.assigneeName ? (
+                  {/* the direct assignee, else the preparer the phase staffing
+                      gave the task (UAT run2-B143: staffed tasks looked unassigned) */}
+                  {task.assigneeName ?? task.ownerName ? (
                     <span
-                      title={task.assigneeName}
+                      title={task.assigneeName ?? `${L.preparer}: ${task.ownerName}`}
                       data-testid={`assignee-chip-${task.code}`}
                       className="inline-flex flex-shrink-0 items-center rounded-full border border-line bg-surface-2 px-2 py-0.5 text-[10.5px] font-bold tracking-wide text-ink-soft"
                     >
-                      {initials(task.assigneeName)}
+                      {initials((task.assigneeName ?? task.ownerName) as string)}
                     </span>
                   ) : null}
                   <span className="w-[120px] flex-shrink-0 text-right text-[12px] text-muted tnum">

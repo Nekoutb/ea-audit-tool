@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { localizedTitle } from "@/lib/page-title";
 import { notFound, redirect } from "next/navigation";
 import { auth } from "@/auth";
 import { AppNav } from "@/components/AppNav";
@@ -7,7 +8,7 @@ import { getEngagement } from "@/lib/engagements";
 import { getLocale } from "@/lib/locale";
 import { listDatasets } from "@/lib/subledgers";
 
-export const metadata = { title: "GL Correlation Console · AuditISA" };
+export const generateMetadata = localizedTitle("GL Correlation Console", "Console de corrélation du grand livre");
 
 /**
  * The GL Correlation Console: the imported general ledger interrogated three
@@ -19,13 +20,20 @@ export const metadata = { title: "GL Correlation Console · AuditISA" };
  */
 export default async function GlConsolePage(props: {
   params: Promise<{ id: string }>;
-  searchParams: Promise<{ accounts?: string }>;
+  searchParams: Promise<{ accounts?: string; opening?: string; closing?: string }>;
 }) {
   const session = await auth();
   if (!session?.user) redirect("/login");
 
   const { id } = await props.params;
-  const { accounts } = await props.searchParams;
+  const { accounts, opening, closing } = await props.searchParams;
+  // the lead-schedule figure clicked, so the drill reconciles to it (UAT run 2 B68)
+  const openingN = Number(opening);
+  const closingN = Number(closing);
+  const initialFigure =
+    opening !== undefined && closing !== undefined && Number.isFinite(openingN) && Number.isFinite(closingN)
+      ? { opening: openingN, closing: closingN }
+      : null;
   // ?accounts=411000,411100 from a lead-schedule figure: drilled on arrival
   const initialAccounts = (accounts ?? "")
     .split(",")
@@ -83,6 +91,7 @@ export default async function GlConsolePage(props: {
           fiscalYear={engagement.fiscalYear}
           analyzerHref={`/engagements/${id}/analyzers/journal_entries`}
           initialAccounts={initialAccounts}
+          initialFigure={initialAccounts.length > 0 ? initialFigure : null}
         />
       </div>
     </main>

@@ -49,6 +49,8 @@ export interface JeExportOptions {
   criteria?: string[];
   params?: SelectionParams;
   userRules?: UserRule[];
+  /** how the auditor rules combine, as run in the studio (UAT run 2 B67) */
+  userRulesMode?: "any" | "all";
   limit?: number;
 }
 
@@ -70,7 +72,8 @@ export function exportOptionsFrom(body: unknown, locale: "en" | "fr"): JeExportO
   const criteria = Array.isArray(b.criteria) ? b.criteria.map((k) => String(k)) : undefined;
   const params = b.params && typeof b.params === "object" ? (b.params as SelectionParams) : undefined;
   const userRules = Array.isArray(b.userRules) ? (b.userRules as UserRule[]) : undefined;
-  return { locale, datasetId, criteria, params, userRules, limit: SELECTION_CAP };
+  const userRulesMode = b.userRulesMode === "all" ? "all" : "any";
+  return { locale, datasetId, criteria, params, userRules, userRulesMode, limit: SELECTION_CAP };
 }
 
 /** Every built-in criterion. "user-defined" is not one of them: it is the shape of a rule the auditor writes. */
@@ -174,6 +177,7 @@ export async function jeView(
     criteria,
     params: { ...options.params, locale },
     userRules: options.userRules,
+    userRulesMode: options.userRulesMode,
     limit: options.limit,
   });
 

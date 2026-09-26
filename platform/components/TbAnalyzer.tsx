@@ -10,6 +10,7 @@ import { useRouter } from "next/navigation";
 import type { Messages } from "@/lib/i18n";
 import type { TbValidationSummary } from "@/lib/tb";
 import { TbValidationReasons } from "@/components/TbValidationReasons";
+import { tbStatusLabel } from "@/lib/tb-reasons";
 import { ACCOUNT_CLASSES, INDEX_SECTION, LEAD_INDEXES, LEAD_INDEX_BY_CODE, defaultIndexForClass } from "@/lib/lead-classes";
 
 type TbColumn =
@@ -141,7 +142,7 @@ export function TbAnalyzer({
       timing === "pre_audit" ? (fr ? "TB pré-audit" : "Pre-audit TB")
       : timing === "post_audit" ? (fr ? "TB post-audit" : "Post-audit TB")
       : fr ? "TB exercice précédent" : "Prior year TB";
-    setStatus(`${timingLabel}: ${body.status}`);
+    setStatus(`${timingLabel}: ${tbStatusLabel(body.status, fr ? "fr" : "en")}`);
     setLastSummary((body.summary as TbValidationSummary | undefined) ?? null);
     setPreview(null);
     router.refresh();
@@ -424,7 +425,7 @@ export function TbAnalyzer({
                           >
                             <option value="">—</option>
                             {LEAD_INDEXES.map((d) => (
-                              <option key={d.code} value={d.code}>{d.code} — {d.labelEn}</option>
+                              <option key={d.code} value={d.code}>{d.code} — {fr ? d.labelFr : d.labelEn}</option>
                             ))}
                           </select>
                         </td>

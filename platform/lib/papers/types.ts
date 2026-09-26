@@ -16,6 +16,24 @@ export interface PaperField {
   options?: { value: string; en: string; fr: string }[];
 }
 
+/**
+ * The empty state of an auto field, in the reader's language: the tool's name,
+ * never the raw source key (UAT B127: "Renseigné par « materiality »").
+ */
+const AUTO_SOURCES: Record<string, [string, string]> = {
+  materiality: ["the materiality tool — no approved materiality yet", "l'outil de seuil de signification — aucun seuil approuvé"],
+  strategy: ["the risk strategy tool — nothing recorded yet", "l'outil de stratégie des risques — rien d'enregistré"],
+  "je-selection": ["the journal-entry selection tool — no design recorded yet", "l'outil de sélection des écritures — aucune conception enregistrée"],
+  "independence inquiry": ["the independence campaign — nothing received yet", "la campagne d'indépendance — rien de reçu"],
+  "engagement record": ["the engagement record", "la fiche de la mission"],
+};
+
+export function autoFieldEmpty(source: string | undefined, fr: boolean): string {
+  const pair = source ? AUTO_SOURCES[source] : undefined;
+  if (fr) return `Renseigné par ${pair ? pair[1] : "l'outil lié"}`;
+  return `Filled by ${pair ? pair[0] : "the linked tool"}`;
+}
+
 /** One numbered procedure: what to do, where the information comes from. */
 export interface PaperProc {
   key: string;

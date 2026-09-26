@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { localizedTitle } from "@/lib/page-title";
 import { notFound, redirect } from "next/navigation";
 import { auth } from "@/auth";
 import { AppNav } from "@/components/AppNav";
@@ -18,7 +19,7 @@ import { getLocale } from "@/lib/locale";
 import { listDatasets } from "@/lib/subledgers";
 import { isSubLedgerKind, type SubLedgerKind } from "@/lib/subledger-kinds";
 
-export const metadata = { title: "Analyzer · AuditISA" };
+export const generateMetadata = localizedTitle("Analyzer", "Analyseur");
 
 /** The E4 paper a sub-ledger agreement is filed under (UAT B80). */
 const RECON_TASK: Record<string, string> = {

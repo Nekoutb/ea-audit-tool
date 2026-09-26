@@ -28,8 +28,14 @@ const LEVEL_TONE: Record<EngagementComplexity, "rose" | "warn" | "good"> = {
 export function NatureAssessment({
   action,
   labels,
+  initialAnswers,
+  reasonLabel,
 }: {
   action: (formData: FormData) => void;
+  /** the answers already recorded, so the questionnaire reopens as saved (UAT run 2 B77) */
+  initialAnswers?: Partial<ComplexityAnswers> | null;
+  /** set once planning has started: a reclassification must say why */
+  reasonLabel?: string;
   labels: {
     title: string;
     hint: string;
@@ -42,7 +48,7 @@ export function NatureAssessment({
   };
 }) {
   const [answers, setAnswers] = useState<ComplexityAnswers>(
-    Object.fromEntries(COMPLEXITY_QUESTIONS.map((q) => [q.key, false])),
+    Object.fromEntries(COMPLEXITY_QUESTIONS.map((q) => [q.key, initialAnswers?.[q.key] === true])),
   );
   const { level } = useMemo(() => classifyComplexity(answers), [answers]);
   const formCount = useMemo(() => itemsForComplexity(level).length, [level]);
@@ -86,6 +92,19 @@ export function NatureAssessment({
               {labels.formsNote.replace("{count}", String(formCount))} · {labels.scopeNote[level]}
             </span>
           </div>
+          {reasonLabel ? (
+            <label className="flex w-full flex-col gap-1 text-[12.5px] text-ink-soft">
+              {reasonLabel}
+              <textarea
+                name="reason"
+                required
+                minLength={3}
+                rows={2}
+                className="w-full rounded-[var(--radius-atlas-sm)] border border-line-strong bg-surface px-2.5 py-1.5 text-[13px] text-ink outline-none focus:border-emerald-600"
+                data-testid="classify-reason"
+              />
+            </label>
+          ) : null}
           <SubmitButton className={btnPrimary} testId="classify-entity">
             {labels.submit}
           </SubmitButton>

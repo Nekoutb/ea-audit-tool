@@ -161,9 +161,9 @@ export interface JeView {
  * is asserted — every identity, criterion and result cell arrives as an entry
  * cell, and the sample carries no selection the tool did not make.
  */
-export function blankJeTemplate(): JeView {
+export function blankJeTemplate(locale: "en" | "fr" = "en"): JeView {
   return {
-    locale: "en",
+    locale,
     clientName: "",
     fiscalYear: new Date().getFullYear(),
     periodEnd: "",

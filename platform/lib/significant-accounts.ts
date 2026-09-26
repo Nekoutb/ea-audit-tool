@@ -267,6 +267,11 @@ export async function saveSignificance(
       if (materiality && Number.isFinite(amount) && amount > 0 && amount >= materiality.overall) {
         throw new Error("specific-above-materiality");
       }
+      // …and it drives the account's testing below tolerable error, so a figure
+      // at or above TE would raise the key-item threshold instead (UAT B43).
+      if (materiality && Number.isFinite(amount) && amount > 0 && amount >= materiality.performance) {
+        throw new Error("specific-above-te");
+      }
       if (cleaned === "" || !Number.isFinite(amount) || amount <= 0) {
         await tx.query(
           "DELETE FROM form_response WHERE engagement_id = $1 AND code = 'wp:P6.1' AND field_key = $2",

@@ -2,8 +2,11 @@
 
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
+import { getBranding } from "@/lib/branding";
 import { FRAMEWORKS, isLegalForm, isSector, setClientArchived } from "@/lib/clients";
+import { applyNamingConvention } from "@/lib/complexity";
 import { withTenant } from "@/lib/db";
+import { getLocale } from "@/lib/locale";
 import { ForbiddenError, requireTenant } from "@/lib/tenant";
 
 /** Trimmed nullable text field ("" → NULL), length-capped. */
@@ -30,7 +33,11 @@ export async function updateClientMasterAction(clientId: string, formData: FormD
     if (name === null) redirect(`${path}?error=name-required`);
     const legalFormRaw = formData.get("legalForm");
     const legalForm = isLegalForm(legalFormRaw) ? legalFormRaw : null;
+    const naming = (await getBranding()).engagementNaming;
+    const namingLocale = await getLocale();
     await withTenant(tenantId, async (tx) => {
+      const before = await tx.query<{ name: string }>("SELECT name FROM client WHERE id = $1", [clientId]);
+      const oldName = before.rows[0]?.name ?? null;
       await tx.query(
         `UPDATE client
             SET registration_number = $2, niu = $3, address = $4,
@@ -50,9 +57,30 @@ export async function updateClientMasterAction(clientId: string, formData: FormD
           legalForm,
         ],
       );
+      // UAT B116: a corrected client name also corrects the titles of its
+      // acceptance/planning engagements — only those still carrying the name
+      // the firm's convention produced from the old client name (a title the
+      // team chose by hand is left alone).
+      if (name && oldName && name !== oldName) {
+        const engagements = await tx.query<{ id: string; name: string | null; fiscal_year: number; nature: string | null; period_end: string }>(
+          `SELECT id, name, fiscal_year, nature, to_char(period_end, 'YYYY-MM-DD') AS period_end
+             FROM engagement WHERE client_id = $1 AND phase IN ('acceptance', 'planning')`,
+          [clientId],
+        );
+        for (const e of engagements.rows) {
+          const parts = { periodEnd: e.period_end, nature: e.nature ?? "statutory_audit" };
+          const generated = (["en", "fr"] as const).map((l) => applyNamingConvention(naming, oldName, e.fiscal_year, parts, l));
+          if (e.name !== null && !generated.includes(e.name)) continue;
+          await tx.query("UPDATE engagement SET name = $2 WHERE id = $1", [
+            e.id,
+            applyNamingConvention(naming, name, e.fiscal_year, parts, namingLocale),
+          ]);
+        }
+      }
     });
     revalidatePath(path);
     revalidatePath("/clients");
+    revalidatePath("/engagements");
   }
   redirect(path);
 }

@@ -14,6 +14,9 @@ import { logReopen, logSignOff, logSignOffVoided, logVersionRestored, recordActi
 import { loadBranding } from "@/lib/branding";
 import { phaseOfTask } from "@/lib/engagement-dashboard";
 import { phaseStillOpen } from "@/lib/gates";
+import { benchmarkLabel } from "@/lib/materiality-model";
+import { riskTitle } from "@/lib/risks";
+import { LEAD_INDEXES } from "@/lib/lead-classes";
 
 export const DOCX_MIME =
   "application/vnd.openxmlformats-officedocument.wordprocessingml.document";
@@ -228,8 +231,8 @@ async function strategyMemoRows(
         ORDER BY version_no DESC LIMIT 1`,
       [engagementId],
     ),
-    tx.query<{ description: string }>(
-      "SELECT description FROM risk WHERE engagement_id = $1 AND significant AND rebutted = false ORDER BY created_at LIMIT 12",
+    tx.query<{ description: string; presumed_type: string | null }>(
+      "SELECT description, presumed_type FROM risk WHERE engagement_id = $1 AND significant AND rebutted = false ORDER BY created_at LIMIT 12",
       [engagementId],
     ),
     tx.query<{ codes: string | null }>(
@@ -244,18 +247,37 @@ async function strategyMemoRows(
   ]);
   const a = Object.fromEntries(answers.rows.map((r) => [r.field_key, r.value ?? ""]));
   const mat = m.rows[0];
+  // The scoping line lists the significant accounts P6.2 records (UAT B55), by
+  // index and name in the reader's language, with any material E section.
+  const { significantAccounts } = await import("@/lib/significant-accounts");
+  const sa = await significantAccounts(engagementId).catch(() => null);
+  const scopedParts = (sa?.rows ?? [])
+    .filter((r) => r.status === "significant")
+    .map((r) => {
+      const def = LEAD_INDEXES.find((d) => d.code === r.index);
+      return `${r.index} ${def ? (fr ? def.labelFr : def.labelEn) : r.label}`;
+    });
+  for (const code of (scoped.rows[0]?.codes ?? "").split(", ").filter(Boolean)) {
+    if (!scopedParts.some((p) => p.startsWith(`${code} `) || p === code)) scopedParts.push(code);
+  }
+  const pct = (x: string) => new Intl.NumberFormat(fr ? "fr-FR" : "en-GB", { maximumFractionDigits: 3 }).format(Number(x));
   return [
     {
       label: fr ? "Seuil de signification approuvé" : "Approved materiality",
       value: mat
-        ? `${mat.benchmark} · ${mat.percentage} % · PM ${n(mat.overall)} · TE ${n(mat.performance)} · SAD ${n(mat.trivial)} FCFA`
+        ? `${benchmarkLabel(mat.benchmark, fr)} · ${pct(mat.percentage)} % · PM ${n(mat.overall)} · TE ${n(mat.performance)} · SAD ${n(mat.trivial)} FCFA`
         : fr ? "Non encore approuvé" : "Not approved yet",
     },
     {
       label: fr ? "Risques importants" : "Significant risks",
-      value: risks.rows.length ? risks.rows.map((r) => r.description).join(" ; ") : "—",
+      value: risks.rows.length
+        ? risks.rows.map((r) => riskTitle({ description: r.description, presumedType: r.presumed_type }, locale)).join(" ; ")
+        : "—",
     },
-    { label: fr ? "Sections significatives (E)" : "Material sections (E)", value: scoped.rows[0]?.codes ?? "—" },
+    {
+      label: fr ? "Comptes et sections significatifs" : "Significant accounts and sections",
+      value: scopedParts.length > 0 ? scopedParts.join(" ; ") : "—",
+    },
     { label: fr ? "Orientation donnée à l'équipe" : "Direction set for the team", value: a.direction?.trim() || "—" },
     { label: fr ? "Modifications de la stratégie" : "Changes to the strategy", value: a.changes?.trim() || "—" },
   ];
@@ -365,7 +387,7 @@ export async function listVersions(documentId: string): Promise<VersionInfo[]> {
     }>(
       `SELECT v.version_no, v.byte_size, v.sha256, v.note,
               coalesce(u.name, u.email) AS created_by_name,
-              to_char(v.created_at, 'YYYY-MM-DD HH24:MI') AS created_at
+              to_char(v.created_at AT TIME ZONE 'Africa/Douala', 'YYYY-MM-DD HH24:MI') || ' WAT' AS created_at
          FROM document_version v
          LEFT JOIN app_user u ON u.id = v.created_by
         WHERE v.document_id = $1
@@ -681,6 +703,9 @@ export async function embeddedWorkGap(tx: PoolClient, engagementId: string, code
   return null;
 }
 
+/** Engagement-team roles that may sign as reviewer (UAT B32). */
+export const TEAM_REVIEW_ROLES: ReadonlySet<string> = new Set(["senior", "manager", "senior_manager", "director", "partner"]);
+
 /** Returns the sign-off tier actually recorded (a partner's R on a gated paper is "partner"). */
 export async function signDocument(documentId: string, requested: SignoffRole): Promise<SignoffRole> {
   const { tenantId, userId, role: userRole } = await requireWrite();
@@ -745,10 +770,22 @@ export async function signDocument(documentId: string, requested: SignoffRole): 
     // an earlier phase's gates are still open.
     const stillOpen = phaseStillOpen(phaseOfTask(row.section, row.code), row.phase, row.code);
     if (stillOpen) throw new DocumentRuleError(stillOpen);
-    if (role === "reviewer" && PARTNER_GATED.has(row.code) && canPartnerSignoff(userRole)) role = "partner";
+    // Signing rights also follow the role held on THIS engagement's team (UAT
+    // B32): a senior staffed as an assistant does not review, and only the
+    // team's partner approves. Someone with no team row keeps the firm rule.
+    const staffed = await tx.query<{ team_role: string }>(
+      "SELECT team_role FROM team_member WHERE engagement_id = $1 AND user_id = $2",
+      [row.engagement_id, userId],
+    );
+    const teamRole = staffed.rows[0]?.team_role ?? null;
+    const teamMayReview = teamRole === null || TEAM_REVIEW_ROLES.has(teamRole);
+    const teamMayApprove = teamRole === null || teamRole === "partner";
+    if (role === "reviewer" && !teamMayReview) throw new DocumentRuleError("requires-team-reviewer");
+    if (role === "partner" && !teamMayApprove) throw new DocumentRuleError("requires-team-partner");
+    if (role === "reviewer" && PARTNER_GATED.has(row.code) && canPartnerSignoff(userRole) && teamMayApprove) role = "partner";
     // Partner-only approvals: these tasks carry the judgments only the audit
     // partner may approve — a manager's review sign-off is refused outright.
-    if ((role === "reviewer" || role === "partner") && PARTNER_ONLY_APPROVAL.has(row.code) && !canPartnerSignoff(userRole)) {
+    if ((role === "reviewer" || role === "partner") && PARTNER_ONLY_APPROVAL.has(row.code) && !(canPartnerSignoff(userRole) && teamMayApprove)) {
       throw new DocumentRuleError("partner-only");
     }
     if (row.current_version === 0) throw new DocumentRuleError("no-version");
@@ -797,6 +834,21 @@ export async function signDocument(documentId: string, requested: SignoffRole): 
       const gap = await embeddedWorkGap(tx, row.engagement_id, row.code);
       if (gap) throw new DocumentRuleError(gap);
     }
+    // P6.2: a significance decision departing from the default needs its
+    // written justification before anyone signs the scoping (UAT B44). The
+    // grid itself autosaves permissively.
+    if (row.kind === "workpaper" && row.code === "P6.2") {
+      const { significantAccounts } = await import("@/lib/significant-accounts");
+      const view = await significantAccounts(row.engagement_id);
+      if (view && view.unjustified > 0) throw new DocumentRuleError("significance-unjustified");
+    }
+    // S2.3 concludes on the IT strategy of every relevant application: an
+    // application still at "— decide" leaves nothing to attest (UAT run 2 B46).
+    if (row.code === "S2.3") {
+      const { itAppsView } = await import("@/lib/itgc");
+      const apps = await itAppsView(row.engagement_id);
+      if (apps.rows.some((app) => app.strategy === "")) throw new DocumentRuleError("itapp-strategy-missing");
+    }
     // The approval of the plan is the partner's signature on the P7.2 summary,
     // which requires every confirmation and deliverable; the row's R/P chip
     // cannot stand in for it with the summary unapproved (UAT run 2 B07).
@@ -825,6 +877,14 @@ export async function signDocument(documentId: string, requested: SignoffRole): 
         [documentId, row.file_item_id],
       );
       if (Number(openNotes.rows[0].n) > 0) throw new DocumentRuleError("open-notes");
+
+      // A paper cannot read "Reviewed" while its section conclusion still reads
+      // "Reviewed by: —" (UAT B149): the conclusion review comes first.
+      const unreviewed = await tx.query<{ n: string }>(
+        "SELECT count(*)::text AS n FROM section_conclusion WHERE file_item_id = $1 AND reviewed_by IS NULL AND partner_reviewed_by IS NULL",
+        [row.file_item_id],
+      );
+      if (Number(unreviewed.rows[0].n) > 0) throw new DocumentRuleError("review-conclusion-first");
     }
 
     // Bind the signature to the paper content as it stands right now.
@@ -1003,7 +1063,7 @@ export async function listReviewNotes(documentId: string): Promise<ReviewNoteInf
       created_at: string;
     }>(
       `SELECT n.id, coalesce(u.name, u.email) AS author_name, n.body, n.response, n.status,
-              to_char(n.created_at, 'YYYY-MM-DD HH24:MI') AS created_at
+              to_char(n.created_at AT TIME ZONE 'Africa/Douala', 'YYYY-MM-DD HH24:MI') || ' WAT' AS created_at
          FROM review_note n
          JOIN app_user u ON u.id = n.author_id
         WHERE n.document_id = $1

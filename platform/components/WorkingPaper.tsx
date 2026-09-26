@@ -2,6 +2,7 @@ import { SubmitButton } from "@/components/SubmitButton";
 import { Panel, PanelHeader } from "@/components/ui/atlas";
 import type { Locale } from "@/lib/i18n";
 import {
+  autoFieldEmpty,
   conclKey,
   conclWhyKey,
   procKey,
@@ -211,7 +212,7 @@ function FieldRow({
           className="rounded-[var(--radius-atlas-sm)] bg-[color:var(--wp-auto)] px-3 py-2 text-sm text-ink-soft"
           data-testid={`wp-auto-${f.key}`}
         >
-          {v ?? (fr ? `Renseigné par « ${f.source} »` : `Filled by the ${f.source}`)}
+          {v ?? autoFieldEmpty(f.source, fr)}
         </p>
       </div>
     );

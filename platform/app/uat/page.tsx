@@ -1,4 +1,5 @@
 import { notFound, redirect } from "next/navigation";
+import { localizedTitle } from "@/lib/page-title";
 import { auth } from "@/auth";
 import { AppNav } from "@/components/AppNav";
 import { SubmitButton } from "@/components/SubmitButton";
@@ -8,7 +9,7 @@ import { getLocale } from "@/lib/locale";
 import { listResults, progressFor, recordResult, uatAvailable } from "@/lib/uat";
 import { UAT_SECTIONS, type UatStatus } from "@/lib/uat-scenarios";
 
-export const metadata = { title: "Acceptance testing · AuditISA" };
+export const generateMetadata = localizedTitle("Acceptance testing", "Recette utilisateur");
 
 /**
  * The acceptance-testing workbook.
@@ -273,7 +274,8 @@ export default async function UatPage(props: {
                       {result?.updatedAt ? (
                         <span className="text-xs text-muted">
                           {fr ? "Dernière réponse " : "Last answered "}
-                          {new Date(result.updatedAt).toLocaleString(fr ? "fr-FR" : "en-GB")}
+                          {/* firm time, labelled — not the server's UTC (UAT B165) */}
+                          {new Date(result.updatedAt).toLocaleString(fr ? "fr-FR" : "en-GB", { timeZone: "Africa/Douala", timeZoneName: "short" })}
                         </span>
                       ) : null}
                     </div>

@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { localizedTitle } from "@/lib/page-title";
 import { notFound, redirect } from "next/navigation";
 import { auth } from "@/auth";
 import { AppNav } from "@/components/AppNav";
@@ -7,7 +8,7 @@ import { apComments, apLeadSchedules } from "@/lib/analytical-procedures";
 import { getEngagement } from "@/lib/engagements";
 import { getLocale } from "@/lib/locale";
 
-export const metadata = { title: "Lead Schedule · AuditISA" };
+export const generateMetadata = localizedTitle("Lead Schedule", "Tableau de synthèse");
 
 /**
  * The Lead Schedule tool: the index-named schedules exactly as the analytical
@@ -41,10 +42,16 @@ export default async function LeadSchedulePage(props: { params: Promise<{ id: st
         <h1 className="text-[22px] font-semibold leading-tight tracking-[-0.02em] text-ink">
           {fr ? "Feuilles maîtresses" : "Lead Schedule"}
         </h1>
+        {/* the printout identifies the file it belongs to (UAT B91) */}
+        <p className="hidden basis-full text-[11px] print:block" data-testid="leadschedule-print-header">
+          {engagement.clientName} · {fr ? "Clôture" : "Period end"} {engagement.periodEnd} ·{" "}
+          {fr ? "Imprimé le" : "Printed"} {new Intl.DateTimeFormat(fr ? "fr-FR" : "en-GB", { timeZone: "Africa/Douala", dateStyle: "short", timeStyle: "short" }).format(new Date())}{" "}
+          {fr ? "par" : "by"} {session.user.name ?? session.user.email ?? ""}
+        </p>
         {schedules.length > 0 ? (
           <a
             href={`/api/engagements/${id}/lead-schedule-export`}
-            className="ml-auto rounded-[var(--radius-atlas-sm)] bg-emerald-700 px-4 py-1.5 text-[13px] font-semibold text-white hover:bg-emerald-800"
+            className="ml-auto rounded-[var(--radius-atlas-sm)] bg-emerald-700 px-4 py-1.5 text-[13px] font-semibold text-white hover:bg-emerald-800 print:hidden"
             data-testid="leadschedule-export"
           >
             {fr ? "Extraire vers Excel" : "Extract to Excel"}

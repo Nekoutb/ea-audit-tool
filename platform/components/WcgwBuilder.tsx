@@ -17,23 +17,10 @@ import { Fragment, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import type { Scot, ScotStudioView } from "@/lib/scots";
+import { CONTROL_FREQUENCIES, freqLabel, objectiveLabel, typeShort } from "@/lib/control-labels";
 
 const ASSERTION_CODES = ["C", "E", "A", "V", "P"] as const;
-export const CONTROL_FREQUENCIES = [
-  { value: "daily", en: "Daily", fr: "Quotidien" },
-  { value: "weekly", en: "Weekly", fr: "Hebdomadaire" },
-  { value: "monthly", en: "Monthly", fr: "Mensuel" },
-  { value: "quarterly", en: "Quarterly", fr: "Trimestriel" },
-  { value: "semi_annually", en: "Semi-annually", fr: "Semestriel" },
-  { value: "annually", en: "Annually", fr: "Annuel" },
-] as const;
 const slug = (s: string) => s.replace(/[^A-Za-z0-9]/g, "_");
-const freqLabel = (v: string | null, fr: boolean) => {
-  const f = CONTROL_FREQUENCIES.find((x) => x.value === v);
-  return f ? (fr ? f.fr : f.en) : v ?? "—";
-};
-const typeShort = (t: string, fr: boolean) =>
-  t === "manual" ? (fr ? "Manuel" : "Manual") : t === "it_dependent" ? (fr ? "Dépendant IT" : "IT-dependent") : fr ? "Automatisé" : "Automated";
 
 // The S1.2 group renders INSIDE the PaperWizard's <form>, so no <form>
 // elements of our own — nested forms are dropped by the HTML parser and break
@@ -239,6 +226,18 @@ export function WcgwBuilder({
 
               {isOpen ? (
                 <div className="border-t border-line">
+                  {/* the documented flow of transactions this paper asks for (UAT run2-B132) */}
+                  <label className="flex flex-col gap-1 px-2.5 py-2 text-[10px] font-extrabold uppercase tracking-[0.07em] text-muted">
+                    {fr ? "Description du flux de transactions" : "Flow of transactions"}
+                    <textarea
+                      defaultValue={scot.description ?? ""}
+                      rows={3}
+                      placeholder={fr ? "Initiation, autorisation, enregistrement, traitement et restitution des opérations…" : "How transactions are initiated, authorised, recorded, processed and reported…"}
+                      onBlur={(e) => { if (e.target.value !== (scot.description ?? "")) void op({ op: "updateScot", scotId: scot.id, description: e.target.value }); }}
+                      className="w-full rounded-[var(--radius-atlas-xs)] border border-line-strong bg-[var(--color-warn-soft)] px-2 py-1.5 text-[12px] font-normal normal-case tracking-normal text-ink outline-none focus:border-emerald-600"
+                      data-testid={`scot-description-${slug(scot.name)}`}
+                    />
+                  </label>
                   <table className="w-full table-fixed text-[12px]">
                     <colgroup>
                       <col style={{ width: "52%" }} />
@@ -281,7 +280,7 @@ export function WcgwBuilder({
                                     <button
                                       key={cid}
                                       type="button"
-                                      title={`${c.owner ?? "—"} · ${typeShort(c.controlType, fr)} · ${freqLabel(c.frequency, fr)} · ${c.objective}${fr ? " — cliquer pour délier" : " — click to unlink"}`}
+                                      title={`${c.owner ?? "—"} · ${typeShort(c.controlType, fr)} · ${freqLabel(c.frequency, fr)} · ${objectiveLabel(c.objective, fr)}${fr ? " — cliquer pour délier" : " — click to unlink"}`}
                                       onClick={() => void op({ op: "toggleLink", wcgwId: w.id, controlId: cid, linked: false })}
                                       className="rounded-full bg-emerald-700 px-2 py-[1.5px] text-[10.5px] font-semibold text-white hover:bg-rose-700"
                                       data-testid={`wcgw-ctrl-${slug(c.name.slice(0, 20))}`}
@@ -497,7 +496,7 @@ export function WcgwBuilder({
             <div key={c.id} className="rounded-[var(--radius-atlas-sm)] border border-line px-3 py-2" data-testid={`design-card-${slug(c.name.slice(0, 20))}`}>
               <div className="flex flex-wrap items-center gap-2">
                 <span className="text-[12.5px] font-bold text-ink">{c.name}</span>
-                <span className="text-[10.5px] text-muted">{scot.name} · {c.owner ?? "—"} · {typeShort(c.controlType, fr)} · {freqLabel(c.frequency, fr)} · {c.objective}</span>
+                <span className="text-[10.5px] text-muted">{scot.name} · {c.owner ?? "—"} · {typeShort(c.controlType, fr)} · {freqLabel(c.frequency, fr)} · {objectiveLabel(c.objective, fr)}</span>
                 <span
                   className={`ml-auto rounded-full px-2 py-[1px] text-[10.5px] font-bold ${c.sampleSize ? "bg-emerald-50 text-emerald-800 dark:bg-emerald-950/40 dark:text-emerald-300" : "bg-[var(--color-warn-soft)] text-warn"}`}
                   title={c.sampleNote ?? undefined}
@@ -582,7 +581,7 @@ export function WcgwBuilder({
                     <div key={c.id} className="rounded-[var(--radius-atlas-xs)] border border-line px-2 py-1.5">
                       <div className="flex flex-wrap items-center gap-2">
                         <span className="text-[12px] font-semibold text-ink">{c.name}</span>
-                        <span className="text-[10.5px] text-muted">{c.owner ?? "—"} · {typeShort(c.controlType, fr)} · {freqLabel(c.frequency, fr)} · {c.objective}</span>
+                        <span className="text-[10.5px] text-muted">{c.owner ?? "—"} · {typeShort(c.controlType, fr)} · {freqLabel(c.frequency, fr)} · {objectiveLabel(c.objective, fr)}</span>
                         <span
                           className={`ml-auto rounded-full px-2 py-[1px] text-[10px] font-bold ${
                             c.operating === "effective"

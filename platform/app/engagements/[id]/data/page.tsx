@@ -1,19 +1,21 @@
 import Link from "next/link";
+import { localizedTitle } from "@/lib/page-title";
 import { notFound, redirect } from "next/navigation";
 import { auth } from "@/auth";
 import { AppNav } from "@/components/AppNav";
 import { ErrorBanner } from "@/components/GatesPanel";
 import { TbAnalyzer } from "@/components/TbAnalyzer";
 import { TbValidationReasons } from "@/components/TbValidationReasons";
+import { tbStatusLabel } from "@/lib/tb-reasons";
 import { Chip, Panel } from "@/components/ui/atlas";
 import { getEngagement } from "@/lib/engagements";
 import { getMessages } from "@/lib/i18n";
 import { getLocale } from "@/lib/locale";
-import { listTbTimings, listTbVersions } from "@/lib/tb";
+import { diffTbVersions, listTbTimings, listTbVersions, type TbDiffLine } from "@/lib/tb";
 import { rollForward } from "@/lib/tb-rollforward";
 import { RollForwardGrid } from "@/components/RollForwardGrid";
 
-export const metadata = { title: "Trial Balance Analyzer · AuditISA" };
+export const generateMetadata = localizedTitle("Trial Balance Analyzer", "Analyseur de balance");
 
 /**
  * The Trial Balance Analyzer: upload to the Pre-audit or Post-audit slot
@@ -37,6 +39,19 @@ export default async function DataPage(props: {
   const engagement = await getEngagement(id);
   if (!engagement) notFound();
   const [timings, roll, versions] = await Promise.all([listTbTimings(id), rollForward(id), listTbVersions(id)]);
+  // UAT B66: each version compared with the previous upload to the same slot
+  // (non-zero closing differences only); bounded to the ten latest pairs
+  const previousOf = new Map<number, number>();
+  versions.forEach((v, i) => {
+    const prev = versions.slice(i + 1).find((o) => o.timing === v.timing);
+    if (prev && previousOf.size < 10) previousOf.set(v.versionNo, prev.versionNo);
+  });
+  const diffs = new Map<number, TbDiffLine[]>(
+    await Promise.all(
+      [...previousOf].map(async ([vNo, prevNo]) => [vNo, await diffTbVersions(id, prevNo, vNo)] as [number, TbDiffLine[]]),
+    ),
+  );
+  const amount = new Intl.NumberFormat(fr ? "fr-FR" : "en-US", { maximumFractionDigits: 0 });
   const slotLabel = (timing: "pre_audit" | "post_audit" | "prior_year") =>
     timing === "pre_audit" ? (fr ? "pré-audit" : "pre-audit") : timing === "post_audit" ? (fr ? "post-audit" : "post-audit") : fr ? "N-1" : "prior year";
   const slotOf = (timing: "pre_audit" | "post_audit" | "prior_year") => timings.find((x) => x.timing === timing);
@@ -79,7 +94,7 @@ export default async function DataPage(props: {
                   </span>
                   {slot ? (
                     <Chip tone={slot.status === "valid" ? "good" : slot.status === "invalid" ? "rose" : "warn"}>
-                      {slot.status}
+                      {tbStatusLabel(slot.status, fr ? "fr" : "en")}
                     </Chip>
                   ) : null}
                 </div>
@@ -114,11 +129,47 @@ export default async function DataPage(props: {
                 <li key={v.id} className={`flex flex-wrap items-center gap-2 ${v.superseded ? "text-muted" : ""}`} data-testid={`tb-version-${v.versionNo}`}>
                   <span className="font-mono tnum">v{v.versionNo}</span>
                   <span>{slotLabel(v.timing)}</span>
-                  <Chip tone={v.status === "valid" ? "good" : v.status === "invalid" ? "rose" : "warn"}>{v.status}</Chip>
+                  <Chip tone={v.status === "valid" ? "good" : v.status === "invalid" ? "rose" : "warn"}>{tbStatusLabel(v.status, fr ? "fr" : "en")}</Chip>
                   {v.isCurrent ? <span title={fr ? "Balance de travail" : "Working TB"}>★</span> : null}
                   {v.superseded ? <span>({fr ? "remplacée" : "superseded"})</span> : null}
                   <span className="truncate">{v.sourceFilename ?? ""}</span>
                   <span className="tnum">{v.rowCount} {fr ? "lignes" : "rows"} · {v.createdAt}</span>
+                  <span className="tnum" data-testid={`tb-version-totals-${v.versionNo}`}>
+                    {fr ? "Débit" : "Debit"} {amount.format(v.totalDebit)} · {fr ? "Crédit" : "Credit"} {amount.format(v.totalCredit)}
+                  </span>
+                  {previousOf.has(v.versionNo) ? (
+                    <details className="basis-full pl-6" data-testid={`tb-version-diff-${v.versionNo}`}>
+                      <summary className="cursor-pointer text-[11.5px]">
+                        {fr ? "Comparer avec la version précédente" : "Compare with the previous version"} (v{previousOf.get(v.versionNo)})
+                        {" · "}
+                        {(diffs.get(v.versionNo) ?? []).length} {fr ? "compte(s) modifié(s)" : "account(s) changed"}
+                      </summary>
+                      {(diffs.get(v.versionNo) ?? []).length === 0 ? (
+                        <p className="text-[11.5px] text-muted">{fr ? "Aucune différence de solde de clôture." : "No closing-balance differences."}</p>
+                      ) : (
+                        <table className="mt-1 text-[11.5px]">
+                          <thead>
+                            <tr className="text-left text-muted">
+                              <th className="pr-3">{fr ? "Compte" : "Account"}</th>
+                              <th className="pr-3 text-right">v{previousOf.get(v.versionNo)}</th>
+                              <th className="pr-3 text-right">v{v.versionNo}</th>
+                              <th className="text-right">{fr ? "Écart" : "Difference"}</th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {(diffs.get(v.versionNo) ?? []).slice(0, 100).map((d) => (
+                              <tr key={d.account} className="tnum">
+                                <td className="pr-3 font-mono">{d.account}</td>
+                                <td className="pr-3 text-right">{amount.format(d.closingA)}</td>
+                                <td className="pr-3 text-right">{amount.format(d.closingB)}</td>
+                                <td className="text-right">{amount.format(d.difference)}</td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      )}
+                    </details>
+                  ) : null}
                 </li>
               ))}
             </ul>

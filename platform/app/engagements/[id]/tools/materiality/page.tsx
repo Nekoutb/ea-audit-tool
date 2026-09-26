@@ -1,8 +1,10 @@
 import Link from "next/link";
+import { localizedTitle } from "@/lib/page-title";
 import { notFound, redirect } from "next/navigation";
 import { auth } from "@/auth";
 import { approveMaterialityAction, createMaterialityAction } from "@/app/actions/planning";
 import { AppNav } from "@/components/AppNav";
+import { SubmitButton } from "@/components/SubmitButton";
 import { MaterialityBasis } from "@/components/MaterialityBasis";
 import { MaterialityBenchmarkSelect } from "@/components/MaterialityBenchmarkSelect";
 import { ErrorBanner } from "@/components/GatesPanel";
@@ -13,7 +15,7 @@ import { getLocale } from "@/lib/locale";
 import { BENCHMARKS, BENCHMARK_RANGES, PERFORMANCE_PCT_RANGE, TRIVIAL_PCT_RANGE, listMaterialityVersions, materialityDeviations, tbBenchmarkAmounts } from "@/lib/materiality";
 import { canPartnerSignoff } from "@/lib/rbac";
 
-export const metadata = { title: "Materiality · AuditISA" };
+export const generateMetadata = localizedTitle("Materiality", "Seuil de signification");
 
 /**
  * The Materiality tool: trial-balance bases, one Generate, the current
@@ -97,11 +99,12 @@ export default async function MaterialityPage(props: {
           </label>
           <label className="flex flex-col gap-1 text-[12.5px]">
             <span className="text-ink-soft">{tp.materiality.amount}</span>
-            <input name="benchmarkAmount" type="number" min="1" required className={input} data-testid="materiality-amount" />
+            {/* pre-filled for the default benchmark, as a change of benchmark does (UAT run2-B126) */}
+            <input name="benchmarkAmount" type="number" min="1" required className={input} data-testid="materiality-amount" defaultValue={tbBases && tbBases[BENCHMARKS[0]] ? Math.abs(tbBases[BENCHMARKS[0]]) : undefined} />
           </label>
           <label className="flex flex-col gap-1 text-[12.5px]">
             <span className="text-ink-soft">{tp.materiality.percentage}</span>
-            <input name="percentage" type="number" step="0.1" min="0.1" max="100" required className={input} data-testid="materiality-pct" />
+            <input name="percentage" type="number" step="0.01" min="0.1" max="100" required className={input} data-testid="materiality-pct" defaultValue={(BENCHMARK_RANGES[BENCHMARKS[0]].min + BENCHMARK_RANGES[BENCHMARKS[0]].max) / 2} />
           </label>
           <label className="flex flex-col gap-1 text-[12.5px]">
             <span className="text-ink-soft">{tp.materiality.performancePct}</span>
@@ -124,13 +127,12 @@ export default async function MaterialityPage(props: {
             <input name="overrideJustification" className={input} data-testid="materiality-justification" />
           </label>
           <div className="flex items-end">
-            <button
-              type="submit"
+            <SubmitButton
               className="rounded-[var(--radius-atlas-sm)] bg-emerald-700 px-4 py-1.5 text-[13px] font-semibold text-white hover:bg-emerald-800"
-              data-testid="create-materiality"
+              testId="create-materiality"
             >
               {fr ? "Générer" : "Generate"}
-            </button>
+            </SubmitButton>
           </div>
         </form>
 
@@ -192,6 +194,12 @@ export default async function MaterialityPage(props: {
                 <b className="text-ink">{fr ? "Seuil de travail (TE)" : "Tolerable Error"}</b>:{" "}
                 <span className="font-semibold text-ink tnum">{formatFCFA(latest.performance)}</span>{" "}
                 <span className="tnum">({latest.performancePct}% {fr ? "de PM" : "of PM"} · {latest.benchmarkAmount > 0 ? ((latest.performance / latest.benchmarkAmount) * 100).toFixed(2) : "—"}% {fr ? "de la base" : "of basis"})</span>
+                {latest.performanceJustification ? (
+                  <span className="block text-[12px] italic" data-testid="materiality-te-justification-shown">
+                    {fr ? "Justification : " : "Justification: "}
+                    {latest.performanceJustification}
+                  </span>
+                ) : null}
               </span>
               <span className="text-muted">
                 <b className="text-ink">{fr ? "SAD nominal" : "SAD Nominal"}</b>:{" "}
@@ -207,13 +215,12 @@ export default async function MaterialityPage(props: {
                 ) : isPartner ? (
                   <form action={approveMaterialityAction.bind(null, id, latest.versionNo)} className="inline">
                     <input type="hidden" name="returnTo" value={returnTo} />
-                    <button
-                      type="submit"
+                    <SubmitButton
                       className="rounded-[var(--radius-atlas-sm)] border border-line-strong bg-surface px-2.5 py-1 text-xs font-medium text-ink-soft hover:bg-surface-2"
-                      data-testid="approve-materiality"
+                      testId="approve-materiality"
                     >
                       {tp.materiality.approve}
-                    </button>
+                    </SubmitButton>
                   </form>
                 ) : (
                   // no button to press and be refused below partner (UAT B129)
@@ -248,7 +255,12 @@ export default async function MaterialityPage(props: {
                     <td className="px-3 py-1.5">{tp.materiality.benchmarks[v.benchmark]}</td>
                     <td className="px-3 py-1.5 text-right tnum">{v.percentage}</td>
                     <td className="px-3 py-1.5 text-right tnum">{formatFCFA(v.overall)}</td>
-                    <td className="px-3 py-1.5 text-right tnum">{formatFCFA(v.performance)}</td>
+                    <td className="px-3 py-1.5 text-right tnum">
+                      {formatFCFA(v.performance)}
+                      {v.performanceJustification ? (
+                        <span className="block text-[11px] italic text-muted">{v.performanceJustification}</span>
+                      ) : null}
+                    </td>
                     <td className="px-3 py-1.5 text-right tnum">{formatFCFA(v.trivial)}</td>
                     <td className="px-3 py-1.5">
                       {v.status === "approved"

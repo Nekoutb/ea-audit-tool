@@ -8,6 +8,7 @@ export interface EngagementDashboard {
   phase: string;
   steps: { total: number; complete: number; na: number };
   risks: { identified: number; concluded: number; significant: number };
+  /** `materiality` is the uncorrected-misstatement threshold (PM − TE), null without approved materiality */
   b5: { uncorrected: number; materiality: number | null };
   documentsUnsigned: number;
   pbcOpen: number;
@@ -38,7 +39,9 @@ export async function engagementDashboard(engagementId: string): Promise<Engagem
               (SELECT count(*)::text FROM risk WHERE engagement_id = e.id AND status = 'concluded') AS risks_concluded,
               (SELECT count(*)::text FROM risk WHERE engagement_id = e.id AND significant AND rebutted = false) AS risks_significant,
               (SELECT sum(amount)::text FROM misstatement WHERE engagement_id = e.id AND trivial = false AND corrected = false) AS b5_uncorrected,
-              (SELECT overall::text FROM materiality WHERE engagement_id = e.id AND status = 'approved' ORDER BY version_no DESC LIMIT 1) AS materiality,
+              -- measured against the uncorrected-misstatement threshold (PM − TE),
+              -- as the SAD and /findings do, not overall materiality (UAT run 2 B78)
+              (SELECT greatest(0, overall - performance)::text FROM materiality WHERE engagement_id = e.id AND status = 'approved' ORDER BY version_no DESC LIMIT 1) AS materiality,
               (SELECT count(*)::text FROM document WHERE engagement_id = e.id AND status = 'draft') AS docs_unsigned,
               (SELECT count(*)::text FROM pbc_item WHERE engagement_id = e.id AND status <> 'accepted') AS pbc_open,
               (SELECT count(*)::text FROM misstatement WHERE engagement_id = e.id AND trivial = false) AS missta_count,
@@ -147,7 +150,7 @@ export async function firmDashboard(): Promise<FirmDashboard> {
       `SELECT e.id AS engagement_id, c.name AS client_name, e.fiscal_year,
               (SELECT sum(amount)::text FROM misstatement
                 WHERE engagement_id = e.id AND trivial = false AND corrected = false) AS uncorrected,
-              (SELECT overall::text FROM materiality
+              (SELECT greatest(0, overall - performance)::text FROM materiality
                 WHERE engagement_id = e.id AND status = 'approved'
                 ORDER BY version_no DESC LIMIT 1) AS materiality
          FROM engagement e JOIN client c ON c.id = e.client_id
@@ -197,10 +200,19 @@ export interface PortfolioAction {
  * sign-off. Reviewer-facing rows are for the caller to gate by role.
  */
 export async function portfolioActions(): Promise<PortfolioAction[]> {
-  const { tenantId, userId } = await requireTenant();
+  const { tenantId, userId, role } = await requireTenant();
+  // Only engagements the user may open, and only the rows their rank can act
+  // on: a staff member saw other teams' review queues, with dead links
+  // (UAT run 2 B59).
+  const { visibilityClause } = await import("@/lib/engagement-access");
+  const { canPartnerSignoff, canReview } = await import("@/lib/rbac");
+  const visible = visibilityClause(role, "e", 1);
+  // the clause binds $1 only when it is not empty (partners see everything)
+  const visibleParams = visible ? [userId] : [];
+  const none = { rows: [] as never[] };
   return withTenant(tenantId, async (tx) => {
     const [review, notes, independence, acceptance] = await Promise.all([
-      tx.query<{ id: string; label: string; n: string }>(
+      !canReview(role) ? none : tx.query<{ id: string; label: string; n: string }>(
         `SELECT e.id, coalesce(e.name, c.name) AS label, count(*)::text AS n
            FROM file_item fi
            JOIN engagement e ON e.id = fi.engagement_id
@@ -213,16 +225,17 @@ export async function portfolioActions(): Promise<PortfolioAction[]> {
             AND NOT EXISTS (SELECT 1 FROM document d
                           JOIN signoff s ON s.document_id = d.id
                            AND s.role IN ('reviewer', 'partner') AND s.voided_at IS NULL
-                         WHERE d.file_item_id = fi.id)
+                         WHERE d.file_item_id = fi.id)${visible}
           GROUP BY e.id, label
           ORDER BY count(*) DESC
           LIMIT 6`,
+        visibleParams,
       ),
       tx.query<{ id: string; label: string; n: string }>(
         `SELECT e.id, coalesce(e.name, c.name) AS label, count(*)::text AS n
            FROM review_note rn
-           JOIN document d ON d.id = rn.document_id
-           JOIN file_item fi ON fi.id = d.file_item_id
+           LEFT JOIN document d ON d.id = rn.document_id
+           JOIN file_item fi ON fi.id = coalesce(rn.file_item_id, d.file_item_id)
            JOIN engagement e ON e.id = fi.engagement_id
            JOIN client c ON c.id = e.client_id
           WHERE rn.status = 'open' AND fi.owner_id = $1 AND e.phase <> 'archived'
@@ -240,7 +253,7 @@ export async function portfolioActions(): Promise<PortfolioAction[]> {
           LIMIT 6`,
         [userId],
       ),
-      tx.query<{ id: string; label: string }>(
+      !canPartnerSignoff(role) ? none : tx.query<{ id: string; label: string }>(
         `SELECT e.id, coalesce(e.name, c.name) AS label
            FROM engagement e
            JOIN client c ON c.id = e.client_id
@@ -254,8 +267,9 @@ export async function portfolioActions(): Promise<PortfolioAction[]> {
                           JOIN document d ON d.file_item_id = fi.id AND d.kind = 'workpaper'
                           JOIN signoff s ON s.document_id = d.id
                            AND s.role = 'partner' AND s.voided_at IS NULL
-                         WHERE fi.engagement_id = e.id AND fi.code = 'P1.1')
+                         WHERE fi.engagement_id = e.id AND fi.code = 'P1.1')${visible}
           LIMIT 6`,
+        visibleParams,
       ),
     ]);
     const actions: PortfolioAction[] = [];

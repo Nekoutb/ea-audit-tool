@@ -6,6 +6,11 @@ export type LegalForm = "SA" | "SARL" | "SAS" | "GIE" | "OTHER";
 
 export const LEGAL_FORMS: readonly LegalForm[] = ["SA", "SARL", "SAS", "GIE", "OTHER"];
 
+/** The legal form as the reader sees it: 'OTHER' reads 'Autre' / 'Other' (UAT B115). */
+export function legalFormLabel(form: string, locale: "en" | "fr"): string {
+  return form === "OTHER" ? (locale === "fr" ? "Autre" : "Other") : form;
+}
+
 export function isLegalForm(value: unknown): value is LegalForm {
   return typeof value === "string" && (LEGAL_FORMS as readonly string[]).includes(value);
 }
@@ -91,12 +96,13 @@ export async function listClients(options: { includeArchived?: boolean; q?: stri
          FROM client c
          LEFT JOIN engagement e ON e.client_id = c.id
         WHERE ($1::boolean OR c.archived_at IS NULL)
-          AND ($2 = '' OR c.name ILIKE '%' || $2 || '%'
-               OR coalesce(c.registration_number, '') ILIKE '%' || $2 || '%'
-               OR coalesce(c.niu, '') ILIKE '%' || $2 || '%')
+          AND ($2 = '' OR c.name ILIKE '%' || $3 || '%' ESCAPE '\\'
+               OR coalesce(c.registration_number, '') ILIKE '%' || $3 || '%' ESCAPE '\\'
+               OR coalesce(c.niu, '') ILIKE '%' || $3 || '%' ESCAPE '\\')
         GROUP BY c.id
         ORDER BY c.name`,
-      [options.includeArchived === true, q],
+      // % and _ are searched as themselves, not as wildcards (UAT B162)
+      [options.includeArchived === true, q, q.replace(/[\\%_]/g, (c) => `\\${c}`)],
     );
     return result.rows.map((row) => ({
       id: row.id,

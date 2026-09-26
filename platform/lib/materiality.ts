@@ -64,6 +64,8 @@ export interface MaterialityVersion {
   percentage: number;
   justification: string;
   performancePct: number;
+  /** why TE departs from the default share of PM, with any deviation reason (UAT B42) */
+  performanceJustification: string | null;
   /** clearly-trivial (SAD) threshold as % of overall materiality */
   trivialPct: number;
   overall: number;
@@ -92,6 +94,7 @@ function toVersion(row: {
   percentage: string;
   justification: string;
   performance_pct: string;
+  performance_justification: string | null;
   trivial_pct: string;
   overall: string;
   performance: string;
@@ -107,6 +110,7 @@ function toVersion(row: {
     percentage: Number(row.percentage),
     justification: row.justification,
     performancePct: Number(row.performance_pct),
+    performanceJustification: row.performance_justification,
     trivialPct: Number(row.trivial_pct),
     overall: Number(row.overall),
     performance: Number(row.performance),
@@ -118,7 +122,7 @@ function toVersion(row: {
 
 const SELECT_VERSION = `
   SELECT m.id, m.version_no, m.benchmark, m.benchmark_amount::text, m.percentage::text,
-         m.justification, m.performance_pct::text, m.trivial_pct::text, m.overall::text, m.performance::text,
+         m.justification, m.performance_pct::text, m.performance_justification, m.trivial_pct::text, m.overall::text, m.performance::text,
          m.trivial::text, m.status, coalesce(u.name, u.email) AS approved_by_name
     FROM materiality m
     LEFT JOIN app_user u ON u.id = m.approved_by`;
@@ -221,6 +225,11 @@ export async function createMaterialityVersion(
     !Number.isFinite(input.trivialPct) || input.trivialPct < TRIVIAL_PCT_RANGE.min || input.trivialPct > TRIVIAL_PCT_RANGE.max
   ) {
     throw new Error("invalid-materiality");
+  }
+  // A TE away from the firm's default share of PM is a judgement the file
+  // must carry in writing (ISA 320 ¶11, UAT B42).
+  if (input.performancePct !== PERFORMANCE_PCT_RANGE.default && !input.performanceJustification?.trim()) {
+    throw new Error("performance-justification-required");
   }
   // Out-of-range percentages and amounts unrelated to the TB base are not
   // refused outright — ISA 320 ¶A4–A7 leave the benchmark to judgement — but

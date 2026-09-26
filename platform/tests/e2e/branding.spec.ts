@@ -71,8 +71,8 @@ test("firm branding: settings → themed UI + nav identity, isolated per tenant"
   await alice.goto("/settings");
   await alice.getByTestId("branding-accent").fill("#fefefe");
   await alice.getByTestId("branding-save").click();
-  await alice.waitForURL("**/settings?error=invalid-color", { timeout: 30_000 });
-  await expect(alice.getByTestId("planning-error")).toContainText(/hex colour/i);
+  await alice.waitForURL("**/settings?error=accent-low-contrast", { timeout: 30_000 });
+  await expect(alice.getByTestId("planning-error")).toContainText(/too light or too dark/i);
 
   // Firm B is untouched: default name, default green primary.
   const bob = await signIn(browser, "bob@firm-b.test");

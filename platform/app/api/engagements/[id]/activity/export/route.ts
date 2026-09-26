@@ -19,9 +19,9 @@ export async function GET(_request: Request, context: { params: Promise<{ id: st
     await requireEngagementAccess(id);
     const rows = await listActivity(id, 5000);
     const lines = [
-      ["at", "user", "role", "entity_type", "entity_id", "action", "summary", "outcome"].join(","),
+      ["at", "user", "role", "entity_type", "entity_id", "action", "summary", "outcome", "before", "after"].join(","),
       ...rows.map((row) =>
-        [row.at, row.userName, row.actingRole, row.entityType, row.entityId, row.action, row.summary, row.outcome]
+        [row.at, row.userName, row.actingRole, row.entityType, row.entityId, row.action, row.summary, row.outcome, row.beforeValue, row.afterValue]
           .map(csvCell)
           .join(","),
       ),

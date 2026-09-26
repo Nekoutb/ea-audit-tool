@@ -14,6 +14,7 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import type { ScotStudioView } from "@/lib/scots";
 import { tocRowsPlanned, tocRowsTested } from "@/lib/toc-grid";
+import { freqLabel, transactionTypeLabel, typeShort } from "@/lib/control-labels";
 
 export function TocBoard({
   engagementId,
@@ -148,7 +149,7 @@ export function TocBoard({
           <div key={scot.id} className="overflow-hidden rounded-[var(--radius-atlas-sm)] border border-line bg-surface" data-testid={`toc-scot-${scot.id}`}>
             <div className="flex flex-wrap items-center gap-2 border-b border-line bg-surface-2 px-3 py-2">
               <span className="text-[12.8px] font-bold text-ink">{scot.name}</span>
-              <span className="rounded-full border border-line-strong px-2 py-0.5 text-[10.5px] font-semibold text-muted">{scot.transactionType}</span>
+              <span className="rounded-full border border-line-strong px-2 py-0.5 text-[10.5px] font-semibold text-muted">{transactionTypeLabel(scot.transactionType, fr)}</span>
               <span className="ml-auto text-[11px] text-muted">
                 {fr ? "Contrôles testés" : "Controls tested"}: <b className="text-ink tnum">{tested.length}</b>
                 <span className="px-1.5 text-line-strong">·</span>
@@ -183,8 +184,8 @@ export function TocBoard({
                           {c.testDesign ? <span className="mt-0.5 block text-[10.5px] italic leading-snug text-muted">{c.testDesign}</span> : null}
                         </td>
                         <td className={`${td} text-[11px] text-ink-soft`}>
-                          {c.controlType}
-                          {c.frequency ? <span className="block text-muted">{c.frequency}</span> : null}
+                          {typeShort(c.controlType, fr)}
+                          {c.frequency ? <span className="block text-muted">{freqLabel(c.frequency, fr)}</span> : null}
                         </td>
                         <td className={`${td} text-[12px] font-bold text-ink`} data-testid={`toc-asserts-${c.id}`}>
                           {asserts.join(" ") || "—"}

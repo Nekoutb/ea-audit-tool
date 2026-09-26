@@ -16,6 +16,8 @@ import { requireRole, requireTenant, requireWrite } from "@/lib/tenant";
 import { logArchive, logEngagementFinalised, recordActivity } from "@/lib/activity";
 import { enqueueBackup } from "@/lib/backup-jobs";
 import { stampRetention } from "@/lib/retention";
+import { EQR_CRITERIA_KEYS } from "@/lib/papers/acceptance";
+import { ynKey } from "@/lib/papers/types";
 
 export class CompletionError extends Error {
   constructor(public readonly code: string) {
@@ -47,10 +49,13 @@ export async function recordCompletion(
   // rather than content — so writing the key is passing the gate. Senior is the
   // floor: in a small firm the senior running fieldwork legitimately performs
   // and records the final analytical review and the tie-out.
-  const { tenantId, userId, role } = await requireRole("senior");
-  if (key === "partner_conclusion" && !canPartnerSignoff(role)) {
-    throw new CompletionError("forbidden");
+  // The partner check comes first so staff refused the partner conclusion are
+  // told it is the partner's, not that a senior is needed (UAT run 2 B36).
+  const writer = await requireWrite();
+  if (key === "partner_conclusion" && !canPartnerSignoff(writer.role)) {
+    throw new CompletionError("requires-partner");
   }
+  const { tenantId, userId } = await requireRole("senior");
   if (SYSTEM_COMPLETION_KEYS.has(key)) throw new CompletionError("system-key");
   // points_forward is written for NEXT year's file and is the reason
   // completion_record is exempt from the archive triggers (see the header of
@@ -131,18 +136,26 @@ async function recordExists(tx: PoolClient, engagementId: string, key: string): 
   );
 }
 
+/** The P1.5 fields whose "yes" requires a quality review (q_<criterion>, plus legacy q_eqr). */
+export function eqrDeterminationFields(): string[] {
+  return ["q_eqr", ...EQR_CRITERIA_KEYS.map(ynKey)];
+}
+
 /**
  * Whether the engagement requires an engagement quality review: P1.5 concluded
  * so, or a quality reviewer sits on the team. Where it does, C4.2 belongs on
  * the file whatever the complexity tier (UAT run 2 B13).
  */
 export async function eqrRequiredTx(tx: PoolClient, engagementId: string): Promise<boolean> {
+  // P1.5 has no single "q_eqr" answer: a review is required when any Part B
+  // criterion is answered yes (UAT run 2 B33). q_eqr is still honoured for
+  // files saved under the older paper.
   const r = await tx.query<{ required: boolean }>(
     `SELECT EXISTS (SELECT 1 FROM team_member WHERE engagement_id = $1 AND team_role = 'eqr_reviewer')
          OR EXISTS (SELECT 1 FROM form_response
-                     WHERE engagement_id = $1 AND code = 'wp:P1.5' AND field_key = 'q_eqr'
+                     WHERE engagement_id = $1 AND code = 'wp:P1.5' AND field_key = ANY($2::text[])
                        AND btrim(value #>> '{}') = 'yes') AS required`,
-    [engagementId],
+    [engagementId, eqrDeterminationFields()],
   );
   return Boolean(r.rows[0]?.required);
 }
@@ -287,7 +300,19 @@ async function completionGatesTx(tx: PoolClient, engagementId: string): Promise<
     : 0;
   const eqrOk = !eqrRequired || eqrSigned > 0;
   // 12. C4.3: no point outstanding at the report date.
-  const c43Ok = (await paperAnswer("C4.3", "q_none_open")) === "yes";
+  // The answer alone was a self-declaration: an open review note anywhere on
+  // the file keeps the gate red (UAT run 2 B81). Same three note shapes as the
+  // archive gate.
+  const openNotesAtReport = await count(
+    tx,
+    `SELECT count(*)::text AS n FROM review_note rn
+       LEFT JOIN document d ON d.id = rn.document_id
+       LEFT JOIN file_item fi ON fi.id = rn.file_item_id
+      WHERE rn.status = 'open'
+        AND coalesce(d.engagement_id, rn.engagement_id, fi.engagement_id) = $1`,
+    [engagementId],
+  );
+  const c43Ok = (await paperAnswer("C4.3", "q_none_open")) === "yes" && openNotesAtReport === 0;
 
   return [
     { key: "sections_concluded", ok: unconcluded === 0 && openSteps === 0 },
@@ -354,7 +379,7 @@ export async function issueReport(
   reportDate: string,
 ): Promise<void> {
   const { tenantId, role } = await requireWrite();
-  if (!canPartnerSignoff(role)) throw new CompletionError("forbidden");
+  if (!canPartnerSignoff(role)) throw new CompletionError("requires-partner");
   await withTenant(tenantId, async (tx) => {
     const engagement = await tx.query<{ phase: string; report_date: string | null }>(
       "SELECT phase, report_date::text FROM engagement WHERE id = $1 FOR UPDATE",
@@ -362,11 +387,23 @@ export async function issueReport(
     );
     if (!engagement.rows[0]) throw new CompletionError("not-found");
     if (engagement.rows[0].phase !== "execution" && engagement.rows[0].phase !== "conclusion") {
-      throw new CompletionError("wrong-phase");
+      throw new CompletionError("report-requires-execution");
     }
     if (engagement.rows[0].report_date) throw new CompletionError("already-issued");
     const gates = await completionGatesTx(tx, engagementId);
     const failed = gates.filter((gate) => !gate.ok).map((gate) => gate.key);
+    // ISA 560 ¶6: subsequent events are reviewed up to the report date. The
+    // recorded "reviewed to" date must reach the date being put on the report
+    // (UAT run 2 B79).
+    if (!failed.includes("subsequent_events")) {
+      const se = await tx.query<{ reviewed_to: string | null }>(
+        `SELECT data->>'reviewedTo' AS reviewed_to FROM completion_record
+          WHERE engagement_id = $1 AND key = 'subsequent_events'`,
+        [engagementId],
+      );
+      const reviewedTo = se.rows[0]?.reviewed_to ?? "";
+      if (!reviewedTo || reviewedTo < reportDate) failed.push("subsequent_events");
+    }
     if (failed.length > 0) throw new CompletionGateError(failed);
     await tx.query(
       "UPDATE engagement SET phase = 'conclusion', report_date = $2, opinion = $3 WHERE id = $1",
@@ -525,6 +562,20 @@ export async function archiveGates(engagementId: string): Promise<ArchiveGate[]>
           AND coalesce(d.engagement_id, rn.engagement_id, fi.engagement_id) = $1`,
       [engagementId],
     );
+    // the tasks those notes hang on, so the refusal can name them (UAT run 2 B84)
+    const noteCodes = openNotes === 0 ? [] : (
+      await tx.query<{ code: string }>(
+        `SELECT DISTINCT coalesce(fd.code, fi.code) AS code FROM review_note rn
+           LEFT JOIN document d ON d.id = rn.document_id
+           LEFT JOIN file_item fd ON fd.id = d.file_item_id
+           LEFT JOIN file_item fi ON fi.id = rn.file_item_id
+          WHERE rn.status = 'open'
+            AND coalesce(d.engagement_id, rn.engagement_id, fi.engagement_id) = $1
+            AND coalesce(fd.code, fi.code) IS NOT NULL
+          ORDER BY 1`,
+        [engagementId],
+      )
+    ).rows.map((r) => r.code);
     // every control selected for testing is concluded on: design evaluated and
     // operating effectiveness tested (or the selection reversed in S2.1)
     const openControls = await count(
@@ -560,7 +611,7 @@ export async function archiveGates(engagementId: string): Promise<ArchiveGate[]>
         codes: gaps.unsigned.slice(0, CODE_CAP),
       },
       { key: "review_approval", ok: c41, pending: c41 ? 0 : 1 },
-      { key: "review_notes_cleared", ok: openNotes === 0, pending: openNotes },
+      { key: "review_notes_cleared", ok: openNotes === 0, pending: openNotes, codes: noteCodes.slice(0, CODE_CAP) },
       { key: "c62_checklist", ok: c62, pending: c62 ? 0 : 1 },
     ];
   });
@@ -572,7 +623,7 @@ export async function archiveGates(engagementId: string): Promise<ArchiveGate[]>
  */
 export async function archiveEngagement(engagementId: string): Promise<void> {
   const { tenantId, userId, role } = await requireWrite();
-  if (!canPartnerSignoff(role)) throw new CompletionError("forbidden");
+  if (!canPartnerSignoff(role)) throw new CompletionError("archive-partner-only");
   const gates = await archiveGates(engagementId);
   const failedGates = gates.filter((gate) => !gate.ok).map((gate) => gate.key);
   if (failedGates.length > 0) throw new CompletionGateError(failedGates);

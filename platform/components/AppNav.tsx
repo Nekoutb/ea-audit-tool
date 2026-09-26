@@ -8,6 +8,7 @@ import { getMessages, type Locale } from "@/lib/i18n";
 import { listMyNotifications, unreadCount, type Notification as NotificationItem } from "@/lib/notifications";
 import { NotificationBell } from "@/components/NotificationBell";
 import Link from "next/link";
+import { redirect } from "next/navigation";
 import { SECTION_ORDER, sectionLabel } from "@/lib/task-groups";
 
 function initials(source: string): string {
@@ -273,7 +274,10 @@ export async function AppNav({
         <form
           action={async () => {
             "use server";
-            await signOut({ redirectTo: "/login" });
+            // a relative redirect of our own, so the address bar reads /login
+            // rather than the page signed out from (UAT run 2 B100)
+            await signOut({ redirect: false });
+            redirect("/login");
           }}
         >
           <button

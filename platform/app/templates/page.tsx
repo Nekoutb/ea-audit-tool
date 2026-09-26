@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { localizedTitle } from "@/lib/page-title";
 import { redirect } from "next/navigation";
 import { auth } from "@/auth";
 import { AppNav } from "@/components/AppNav";
@@ -10,7 +11,7 @@ import { templateFor } from "@/lib/templates";
 import { getMessages } from "@/lib/i18n";
 import { getLocale } from "@/lib/locale";
 
-export const metadata = { title: "Templates · AuditISA" };
+export const generateMetadata = localizedTitle("Templates", "Modèles");
 
 export default async function TemplatesPage(props: {
   searchParams: Promise<{ saved?: string; error?: string }>;

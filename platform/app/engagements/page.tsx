@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { localizedTitle } from "@/lib/page-title";
 import { redirect } from "next/navigation";
 import { auth } from "@/auth";
 import { AppNav } from "@/components/AppNav";
@@ -10,7 +11,7 @@ import { ErrorBanner } from "@/components/GatesPanel";
 import { getMessages } from "@/lib/i18n";
 import { getLocale } from "@/lib/locale";
 
-export const metadata = { title: "Engagements · AuditISA" };
+export const generateMetadata = localizedTitle("Engagements", "Missions");
 
 type StageTone = "acc" | "warn" | "prog" | "done" | "muted";
 const STAGE_TONE: Record<string, StageTone> = {

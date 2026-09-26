@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { localizedTitle } from "@/lib/page-title";
 import { redirect } from "next/navigation";
 import { auth } from "@/auth";
 import { sendTestNotification } from "@/app/actions/notifications";
@@ -12,7 +13,7 @@ import { myOpenTaskNotes } from "@/lib/task-notes";
 import { getMessages } from "@/lib/i18n";
 import { getLocale } from "@/lib/locale";
 
-export const metadata = { title: "My engagements · AuditISA" };
+export const generateMetadata = localizedTitle("My engagements", "Mes missions");
 
 /**
  * The screen after sign-in: a welcome, and the engagements the user is
@@ -73,7 +74,7 @@ export default async function DashboardPage() {
 
   return (
     <main className="flex min-h-screen w-full flex-col gap-4 px-6 py-8">
-      <AppNav locale={locale} minimal />
+      <AppNav locale={locale} />
 
       <div className="mx-auto w-full max-w-3xl pt-6">
         <div className="flex items-end justify-between gap-4">
@@ -157,10 +158,11 @@ export default async function DashboardPage() {
                   <Link
                     key={e.id}
                     href={`/engagements/${e.id}/dashboard`}
-                    className="flex items-center gap-4 rounded-[var(--radius-atlas-xs)] px-4 py-3.5 transition hover:bg-surface-2"
+                    className="flex flex-col gap-2 rounded-[var(--radius-atlas-xs)] px-4 py-3.5 transition hover:bg-surface-2 sm:flex-row sm:items-center sm:gap-4"
                   >
                     <span className="min-w-0 flex-1">
-                      <span className="block truncate text-[14px] font-semibold text-ink">
+                      {/* the name wraps on a phone instead of reading "UAT-R…" (UAT run 2 B39) */}
+                      <span className="block break-words text-[14px] font-semibold text-ink sm:truncate">
                         {e.name ?? e.clientName}
                       </span>
                       <span className="block truncate text-[12px] text-muted tnum">
@@ -169,7 +171,7 @@ export default async function DashboardPage() {
                       </span>
                     </span>
                     <span className="flex flex-shrink-0 items-center gap-3">
-                      <span className="h-[6px] w-[72px] overflow-hidden rounded-full bg-line">
+                      <span className="hidden h-[6px] w-[72px] overflow-hidden rounded-full bg-line sm:block">
                         <span className="block h-full rounded-full bg-emerald-600" style={{ width: `${pct}%` }} />
                       </span>
                       <span className="w-9 text-right text-[11px] text-muted tnum">{pct}%</span>

@@ -184,11 +184,17 @@ export function listTemplates(): WpTemplate[] {
  * The papers the product builds rather than ships. Keyed so adding one is an
  * entry here and an entry in TEMPLATES, not another branch to read past.
  */
-const GENERATED: Record<string, () => Promise<Buffer>> = {
-  "toc-scot": () => buildTocWorkbook(blankTocTemplate()),
+const GENERATED: Record<string, (locale: "en" | "fr") => Promise<Buffer>> = {
+  // built in the reader's language where the builder supports it (UAT run 2 B61)
+  "toc-scot": (locale) => buildTocWorkbook(blankTocTemplate(locale)),
   "itgc-e11": () => buildItgcWorkbook(blankItgcTemplate()),
-  "je-testing": () => buildJeWorkbook(blankJeTemplate()),
-  "fs-checklist-ohada": () => buildFsChecklistWorkbook(blankFsChecklistTemplate()),
+  "je-testing": (locale) => buildJeWorkbook(blankJeTemplate(locale)),
+  "fs-checklist-ohada": (locale) => buildFsChecklistWorkbook(blankFsChecklistTemplate(locale)),
+};
+
+/** French file names of the generated papers that are built in French. */
+const GENERATED_NAME_FR: Record<string, string> = {
+  "toc-scot": "E1.2 Tests des contrôles.xlsx",
 };
 
 /** Static template bytes, read once per process — the shipped files never change. */
@@ -201,13 +207,15 @@ const CACHE = new Map<string, Buffer>();
  */
 export async function templateContent(
   key: string,
+  locale: "en" | "fr" = "en",
 ): Promise<{ name: string; mime: string; content: Buffer } | null> {
   const template = findTemplate(key);
   if (!template) return null;
 
   if (!template.file) {
     const build = GENERATED[template.key];
-    if (build) return { name: template.name, mime: XLSX_MIME, content: await build() };
+    const name = (locale === "fr" && GENERATED_NAME_FR[template.key]) || template.name;
+    if (build) return { name, mime: XLSX_MIME, content: await build(locale) };
     return null;
   }
 
@@ -294,26 +302,38 @@ export async function assignTemplate(fileItemId: string, key: string): Promise<{
   // The E1.2 paper is built from the engagement's own controls, grids and
   // exceptions when the file has them — the auditor asked for the paper of
   // THIS file, not the blank shelf copy (which is what an empty file gets).
+  const { getLocale } = await import("@/lib/locale");
+  const locale = (await getLocale()) === "fr" ? "fr" : "en";
   if (key === "toc-scot") {
     const { exportTocWorkbook } = await import("@/lib/toc-export");
-    const built = await exportTocWorkbook(engagementId).catch(() => null);
+    const built = await exportTocWorkbook(engagementId, locale).catch(() => null);
     if (built) {
-      const name = findTemplate(key)!.name;
+      const name = (locale === "fr" && GENERATED_NAME_FR[key]) || findTemplate(key)!.name;
       await attachBytes(engagementId, fileItemId, name, built.content);
-      await voidSignoffsAfterAssign(fileItemId);
+      await voidSignoffsAfterAssign(engagementId, fileItemId, name);
       return { name };
     }
   }
 
-  const bytes = await templateContent(key);
+  const bytes = await templateContent(key, locale);
   if (!bytes) throw new TemplateError("template-unavailable");
   await attachBytes(engagementId, fileItemId, bytes.name, bytes.content);
-  await voidSignoffsAfterAssign(fileItemId);
+  await voidSignoffsAfterAssign(engagementId, fileItemId, bytes.name);
   return { name: bytes.name };
 }
 
 /** An assigned template is evidence on the task: signatures over the old set are voided (UAT run 2 B10). */
-async function voidSignoffsAfterAssign(fileItemId: string): Promise<void> {
+async function voidSignoffsAfterAssign(engagementId: string, fileItemId: string, name: string): Promise<void> {
+  // the assignment is on the trail like an upload (UAT B87)
+  const { recordActivity } = await import("@/lib/activity");
+  await recordActivity({
+    engagementId,
+    entityType: "attachment",
+    entityId: null,
+    action: "attachment_template_assigned",
+    summary: `Template assigned: ${name}`,
+    meta: { fileItemId, name },
+  });
   const { voidStaleSignoffsOfItem } = await import("@/lib/working-papers");
   await voidStaleSignoffsOfItem(fileItemId);
 }

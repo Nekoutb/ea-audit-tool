@@ -34,6 +34,7 @@ interface SelectionBody {
   criteria?: unknown;
   params?: unknown;
   userRules?: unknown;
+  userRulesMode?: unknown;
   limit?: unknown;
   offset?: unknown;
   /** record this run as the S5.4 selection design (the studio's "Record" button) */
@@ -57,7 +58,8 @@ export async function POST(request: Request, context: { params: Promise<{ id: st
     const criteria = Array.isArray(body.criteria) ? body.criteria.map((key) => String(key)) : [];
     const params = (body.params ?? {}) as SelectionParams;
     const userRules = Array.isArray(body.userRules) ? (body.userRules as UserRule[]) : [];
-    const result = await runSelection(id, datasetId, { criteria, params, userRules, limit: Number(body.limit), offset: Number(body.offset) });
+    const userRulesMode = body.userRulesMode === "all" ? "all" : "any";
+    const result = await runSelection(id, datasetId, { criteria, params, userRules, userRulesMode, limit: Number(body.limit), offset: Number(body.offset) });
 
     // An exploratory run no longer rewrites the S5.4 design (UAT run 2 B16):
     // only the auditor's explicit "Record as the S5.4 design" does.
@@ -67,6 +69,7 @@ export async function POST(request: Request, context: { params: Promise<{ id: st
         criteria,
         params,
         userRules,
+        userRulesMode,
         selectedLines: result.selectedLines,
         populationLines: result.population.lines,
       });

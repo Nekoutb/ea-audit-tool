@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { localizedTitle } from "@/lib/page-title";
 import { notFound, redirect } from "next/navigation";
 import { auth } from "@/auth";
 import { AppNav } from "@/components/AppNav";
@@ -18,7 +19,7 @@ import {
 } from "@/lib/task-groups";
 import { PHASE_INTRO, paperFor } from "@/lib/working-papers";
 
-export const metadata = { title: "Phase · AuditISA" };
+export const generateMetadata = localizedTitle("Phase", "Phase");
 
 const STATUS_LABEL: Record<"en" | "fr", Record<PhaseTaskStatus, string>> = {
   en: { reviewed: "Reviewed", in_review: "For review", in_progress: "In progress", not_started: "Not started" },

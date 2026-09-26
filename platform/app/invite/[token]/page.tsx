@@ -1,10 +1,11 @@
 import { redirect } from "next/navigation";
+import { localizedTitle } from "@/lib/page-title";
 import { SubmitButton } from "@/components/SubmitButton";
 import { acceptInvite, inviteTarget, InviteError } from "@/lib/invites";
 import { MIN_PASSWORD_LENGTH } from "@/lib/password-policy";
 import { getLocale } from "@/lib/locale";
 
-export const metadata = { title: "Choose your password · AuditISA" };
+export const generateMetadata = localizedTitle("Choose your password", "Choisissez votre mot de passe");
 
 /**
  * Where a new colleague lands from their invitation: they choose a password

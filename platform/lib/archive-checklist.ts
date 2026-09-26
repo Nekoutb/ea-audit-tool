@@ -261,7 +261,8 @@ async function itemise(
     // Single-destination gates: the item is the place itself.
     review_approval: [{ label: locale === "fr" ? "C4.1 — récapitulatif de revue et d'approbation" : "C4.1 — review and approval summary", href: link("C4.1", `${base}/groups/c4`), code: "C4.1" }],
     eqr_complete: [{ label: locale === "fr" ? "C4.2 — revue de qualité de la mission" : "C4.2 — engagement quality review", href: link("C4.2", `${base}/groups/c4`), code: "C4.2" }],
-    c43_cleared: [{ label: locale === "fr" ? "C4.3 — points en suspens" : "C4.3 — points outstanding", href: link("C4.3", `${base}/groups/c4`), code: "C4.3" }],
+    // C4.3 stays red while any review note is open (UAT run 2 B81): name them.
+    c43_cleared: [{ label: locale === "fr" ? "C4.3 — points en suspens" : "C4.3 — points outstanding", href: link("C4.3", `${base}/groups/c4`), code: "C4.3" }, ...noteItems],
     c62_checklist: [{ label: locale === "fr" ? "C6.2 — documentation et archivage" : "C6.2 — documentation and archive", href: link("C6.2", `${base}/groups/c6`), code: "C6.2" }],
   };
 }

@@ -16,7 +16,7 @@ import {
   type TocView,
 } from "@/lib/toc-workbook";
 
-export async function tocView(engagementId: string): Promise<TocView | null> {
+export async function tocView(engagementId: string, locale: "en" | "fr" = "en"): Promise<TocView | null> {
   const { tenantId } = await requireTenant();
   const engagement = await getEngagement(engagementId);
   if (!engagement) return null;
@@ -79,6 +79,15 @@ export async function tocView(engagementId: string): Promise<TocView | null> {
         desc: r.desc,
         results: r.results,
       }));
+      // The occurrences drawn in the sampling tool are listed under the control
+      // for testing (UAT run 2 B62), unless the grid already carries them.
+      const pop = control.tocPopulation;
+      const refOf = (item: number) => (pop ? `${item} / ${pop}` : String(item));
+      const inGrid = new Set(rows.map((r) => r.ref.trim()));
+      for (const item of control.tocSampleItems ?? []) {
+        if (inGrid.has(refOf(item)) || inGrid.has(String(item))) continue;
+        rows.push({ ref: refOf(item), date: "", desc: "", results: {}, drawn: true });
+      }
       controls.push({
         ref,
         scot: scot.name,
@@ -99,7 +108,7 @@ export async function tocView(engagementId: string): Promise<TocView | null> {
         // A report only reaches the IPE tab where the control actually leans on
         // one. An automated or IT-dependent control always does; a purely
         // manual control does so only if the studio recorded a source.
-        ipe: control.controlType === "manual" ? [] : [`Report or extract used by ${control.name}`],
+        ipe: control.controlType === "manual" ? [] : [locale === "fr" ? `État ou extraction utilisé par ${control.name}` : `Report or extract used by ${control.name}`],
         // Rotation is not captured per control yet; the columns stay empty
         // rather than asserting criteria nobody has confirmed.
         rotation: null,
@@ -121,6 +130,7 @@ export async function tocView(engagementId: string): Promise<TocView | null> {
   }));
 
   return {
+    locale,
     clientName: engagement.clientName,
     fiscalYear: engagement.fiscalYear,
     periodEnd: engagement.periodEnd,
@@ -135,10 +145,13 @@ export async function tocView(engagementId: string): Promise<TocView | null> {
 
 export async function exportTocWorkbook(
   engagementId: string,
+  locale: "en" | "fr" = "en",
 ): Promise<{ filename: string; content: Buffer } | null> {
-  const view = await tocView(engagementId);
+  const view = await tocView(engagementId, locale);
   if (!view) return null;
   const content = await buildTocWorkbook(view);
   const safeClient = view.clientName.replace(/[^\w-]+/g, "_");
-  return { filename: `E1.2-tests-of-controls-${safeClient}-${view.fiscalYear}.xlsx`, content };
+  // the file is named in the reader's language too (UAT run 2 B61)
+  const stem = locale === "fr" ? "E1.2-tests-des-controles" : "E1.2-tests-of-controls";
+  return { filename: `${stem}-${safeClient}-${view.fiscalYear}.xlsx`, content };
 }

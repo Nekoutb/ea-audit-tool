@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { localizedTitle } from "@/lib/page-title";
 import { notFound, redirect } from "next/navigation";
 import { auth } from "@/auth";
 import { AppNav } from "@/components/AppNav";
@@ -8,7 +9,7 @@ import { getEngagement } from "@/lib/engagements";
 import { financialAnalysis } from "@/lib/financial-analysis";
 import { getLocale } from "@/lib/locale";
 
-export const metadata = { title: "Financial Analysis · AuditISA" };
+export const generateMetadata = localizedTitle("Financial Analysis", "Analyse financière");
 
 /** The ratio battery: Current Y vs Prior Y from the pre-audit TB, one page. */
 export default async function FinancialAnalysisPage(props: { params: Promise<{ id: string }> }) {

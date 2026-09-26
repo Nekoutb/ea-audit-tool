@@ -16,6 +16,7 @@ import { NATURE_OPTIONS, TIMING_OPTIONS, craLevelOf, timingAllowed, type OspProc
 import type { DspRow, DspView } from "@/lib/design-procedures";
 import { craTone, thresholdSuggestion, timingSuggestion, todLabel, worstTod } from "@/lib/cra-model";
 import { Chip } from "@/components/ui/atlas";
+import { LEAD_INDEX_BY_CODE } from "@/lib/lead-classes";
 
 // timingAllowed lives in the model (UAT B75): the same rule now refuses an
 // out-of-window timing on the server, not only in this drop-down.
@@ -137,7 +138,17 @@ export function DesignProceduresBoard({
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ op: "save", indexCode, field, value }),
     }).catch(() => null);
-    if (!r?.ok) setError(fr ? "Échec de l'enregistrement." : "Save failed.");
+    if (!r?.ok) {
+      // the server's named refusals, in the reader's language (UAT B52)
+      const code = r ? String(((await r.json().catch(() => ({}))) as { error?: string }).error ?? "") : "";
+      setError(
+        code === "nature-not-permitted"
+          ? fr ? "Nature interdite : un risque important exige des tests de détail (ISA 330 ¶21)." : "Nature not permitted: a significant risk requires tests of details (ISA 330 ¶21)."
+          : code === "timing-not-permitted"
+            ? fr ? "Calendrier non permis à l'ECR de cette assertion." : "Timing not permitted at this assertion's CRA."
+            : fr ? "Échec de l'enregistrement." : "Save failed.",
+      );
+    }
   }
 
   function toggleSel(indexCode: string, assertion: string, pos: number) {
@@ -235,7 +246,7 @@ export function DesignProceduresBoard({
               data-testid={`dsp-row-${row.indexCode}`}
             >
               <span className="font-mono text-[11.5px] font-extrabold text-emerald-700/70 tnum dark:text-emerald-400/70">{row.indexCode}</span>
-              <span className="min-w-0 flex-1 truncate text-[12.8px] font-semibold text-ink">{row.label}</span>
+              <span className="min-w-0 flex-1 truncate text-[12.8px] font-semibold text-ink">{fr ? (LEAD_INDEX_BY_CODE[row.indexCode]?.labelFr ?? row.label) : row.label}</span>
               {row.worst && level ? <Chip tone={craTone(level)}>{todLabel(row.worst, fr ? "fr" : "en")}</Chip> : <Chip tone="muted">{fr ? "ECR à évaluer" : "CRA pending"}</Chip>}
               <span className="text-[11px] text-muted">{isOpen ? "▾" : "▸"}</span>
             </button>
@@ -389,6 +400,12 @@ export function DesignProceduresBoard({
                               {c.significant ? (
                                 <p className="mt-0.5 text-[10px] text-muted">{fr ? "Test de détail obligatoire (ISA 330 ¶21)" : "Test of details required (ISA 330 ¶21)"}</p>
                               ) : null}
+                              {/* a stored nature a later risk made non-compliant (UAT B52) */}
+                              {c.significant && v(`${c.assertion}_nature`) === "sap_led" ? (
+                                <p className="mt-0.5 text-[10px] font-semibold text-rose" data-testid={`dsp-nature-conflict-${row.indexCode}-${c.assertion}`}>
+                                  {fr ? "Nature interdite pour un risque important — à revoir" : "Nature barred for a significant risk — revise it"}
+                                </p>
+                              ) : null}
                             </td>
                             <td className="px-1.5 py-1.5">
                               <select
@@ -405,6 +422,12 @@ export function DesignProceduresBoard({
                                   </option>
                                 ))}
                               </select>
+                              {/* a stored timing a reassessed CRA no longer permits (UAT B50) */}
+                              {v(`${c.assertion}_timing`) !== "" && !allowed.includes(v(`${c.assertion}_timing`)) ? (
+                                <p className="mt-0.5 text-[10px] font-semibold text-rose" data-testid={`dsp-timing-conflict-${row.indexCode}-${c.assertion}`}>
+                                  {fr ? "Calendrier non permis à l'ECR actuel — à revoir" : "Timing not permitted at the current CRA — revise it"}
+                                </p>
+                              ) : null}
                             </td>
                             <td className="px-1.5 py-1.5">
                               <input

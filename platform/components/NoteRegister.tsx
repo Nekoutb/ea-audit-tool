@@ -127,9 +127,9 @@ export function NoteRegister({
                       {note.code}
                     </Link>
                   </td>
-                  <td className={`${GRID_CELL} overflow-hidden text-ellipsis`} title={note.taskTitle}>
+                  <td className={`${GRID_CELL} overflow-hidden text-ellipsis`} title={fr ? note.taskTitleFr : note.taskTitle}>
                     <Link href={`/engagements/${engagementId}/sections/${note.fileItemId}`} className="hover:underline">
-                      {note.taskTitle}
+                      {fr ? note.taskTitleFr : note.taskTitle}
                     </Link>
                   </td>
                   <td className={`${GRID_CELL} overflow-hidden text-ellipsis`}>
@@ -161,6 +161,12 @@ export function NoteRegister({
                           : `${Math.round(note.resolutionHours / 24)} ${fr ? "j" : "d"}`
                         : (note.clearedAt ?? "—")
                       : "—"}
+                    {note.status === "cleared" && note.clearedByName ? (
+                      <span className="block text-[10px]" data-testid={`nr-cleared-by-${note.id}`}>
+                        {fr ? "Réglée par" : "Cleared by"} {note.clearedByName}
+                        {note.clearedAt ? ` · ${note.clearedAt}` : ""}
+                      </span>
+                    ) : null}
                   </td>
                 </tr>
               ))

@@ -3,6 +3,7 @@ import { logExport } from "@/lib/activity";
 import { requireEngagementAccess } from "@/lib/engagement-access";
 import { ForbiddenError } from "@/lib/tenant";
 import { fileResponseHeaders } from "@/lib/upload-safety";
+import { getLocale } from "@/lib/locale";
 import { templateContent } from "@/lib/wp-templates";
 
 /**
@@ -13,14 +14,17 @@ import { templateContent } from "@/lib/wp-templates";
  * is only served to somebody who may open the engagement.
  */
 export async function GET(
-  _request: Request,
+  request: Request,
   context: { params: Promise<{ id: string; key: string }> },
 ) {
   const { id, key } = await context.params;
   try {
     await requireEngagementAccess(id);
 
-    const file = await templateContent(key);
+    // the paper follows the interface language (UAT run 2 B61)
+    const asked = new URL(request.url).searchParams.get("locale");
+    const locale = asked === "fr" || asked === "en" ? asked : (await getLocale()) === "fr" ? "fr" : "en";
+    const file = await templateContent(key, locale);
     if (!file) return NextResponse.json({ error: "not-found" }, { status: 404 });
 
     await logExport(id, `sample-working-paper:${key}`, { filename: file.name });

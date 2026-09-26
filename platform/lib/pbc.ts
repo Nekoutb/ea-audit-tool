@@ -7,6 +7,7 @@
 import { createHash } from "node:crypto";
 import bcrypt from "bcryptjs";
 import type { PoolClient } from "pg";
+import { recordActivity } from "@/lib/activity";
 import { withTenant } from "@/lib/db";
 import { createNotification } from "@/lib/notifications";
 import { canReview } from "@/lib/rbac";
@@ -58,6 +59,15 @@ export async function addPbcItem(engagementId: string, title: string, note: stri
       [tenantId, engagementId],
     );
     return { itemId: created.rows[0].id, portalUsers: users.rows };
+  });
+  // the request is part of the audit trail (UAT run 2 B74)
+  await recordActivity({
+    engagementId,
+    entityType: "pbc_item",
+    entityId: itemId,
+    action: "pbc_requested",
+    summary: `PBC requested: ${title.trim()}`,
+    after: { title: title.trim(), portalContacts: portalUsers.length },
   });
   for (const user of portalUsers) {
     await createNotification({
@@ -124,7 +134,16 @@ async function queryItems(tx: PoolClient, where: string, params: unknown[]): Pro
  */
 export async function chasePbc(itemId: string): Promise<void> {
   const { tenantId } = await requireWrite();
-  const { title, note, portalUsers } = await withTenant(tenantId, async (tx) => {
+  const { title, note, portalUsers, engagementId } = await withTenant(tenantId, async (tx) => {
+    // A reminder nobody can receive is not a chase (UAT run 2 B76): with no
+    // portal contact for the client, refuse before counting anything.
+    const contacts = await tx.query<{ n: string }>(
+      `SELECT count(*)::text AS n FROM membership m
+        WHERE m.tenant_id = $1 AND m.role = 'client_user'
+          AND m.client_id = (SELECT e.client_id FROM pbc_item p JOIN engagement e ON e.id = p.engagement_id WHERE p.id = $2)`,
+      [tenantId, itemId],
+    );
+    if (Number(contacts.rows[0]?.n ?? 0) === 0) throw new PbcError("no-portal-contact");
     const updated = await tx.query<{ title: string; note: string; engagement_id: string }>(
       `UPDATE pbc_item SET chased_at = now(), chase_count = coalesce(chase_count, 0) + 1
         WHERE id = $1 AND status = 'requested'
@@ -139,7 +158,15 @@ export async function chasePbc(itemId: string): Promise<void> {
           AND m.client_id = (SELECT client_id FROM engagement WHERE id = $2)`,
       [tenantId, row.engagement_id],
     );
-    return { title: row.title, note: row.note, portalUsers: users.rows };
+    return { title: row.title, note: row.note, portalUsers: users.rows, engagementId: row.engagement_id };
+  });
+  await recordActivity({
+    engagementId,
+    entityType: "pbc_item",
+    entityId: itemId,
+    action: "pbc_chased",
+    summary: `PBC chased: ${title}`,
+    meta: { portalContacts: portalUsers.length },
   });
   for (const user of portalUsers) {
     await createNotification({
@@ -178,6 +205,27 @@ export async function uploadPbc(
       [itemId, clientId, checked.name, checked.mime, file.content, userId],
     );
     if (updated.rowCount === 0) throw new PbcError("not-found");
+    // The client's upload goes on the engagement trail (UAT run 2 B74). Written
+    // here, not through recordActivity, which refuses portal accounts; best
+    // effort like recordActivity (a savepoint keeps the upload if it fails).
+    await tx.query("SAVEPOINT pbc_trail");
+    await tx.query(
+      `INSERT INTO activity_log
+         (tenant_id, engagement_id, user_id, acting_role, entity_type, entity_id, action, summary, meta, after_value, outcome)
+       SELECT $1, p.engagement_id, $2, 'client_user', 'pbc_item', p.id, 'pbc_uploaded',
+              'PBC uploaded by the client: ' || p.title || ' (' || $3 || ')', $4::jsonb, $4::jsonb, 'success'
+         FROM pbc_item p WHERE p.id = $5`,
+      [
+        tenantId,
+        userId,
+        checked.name,
+        JSON.stringify({ filename: checked.name, sha256: createHash("sha256").update(file.content).digest("hex"), bytes: file.content.length }),
+        itemId,
+      ],
+    ).then(
+      () => tx.query("RELEASE SAVEPOINT pbc_trail"),
+      () => tx.query("ROLLBACK TO SAVEPOINT pbc_trail"),
+    );
     const team = await tx.query<{ user_id: string; engagement_id: string }>(
       `SELECT tm.user_id, fi.engagement_id FROM team_member tm
         JOIN pbc_item fi ON fi.engagement_id = tm.engagement_id
@@ -244,7 +292,7 @@ export async function acceptPbc(itemId: string, attachFileItemId?: string): Prom
   const { tenantId, userId, role } = await requireWrite();
   if (!canReview(role)) throw new PbcError("forbidden");
   if (!attachFileItemId) throw new PbcError("attach-required");
-  return withTenant(tenantId, async (tx) => {
+  const accepted = await withTenant(tenantId, async (tx) => {
     const item = await tx.query<{
       id: string; engagement_id: string; title: string; status: string;
       filename: string | null; mime: string | null; content: Buffer | null;
@@ -261,7 +309,31 @@ export async function acceptPbc(itemId: string, attachFileItemId?: string): Prom
       "UPDATE pbc_item SET status = 'accepted', accepted_by = $2, accepted_at = now(), document_id = $3 WHERE id = $1",
       [itemId, userId, documentId],
     );
-    return documentId;
+    return { documentId, engagementId: row.engagement_id, title: row.title };
+  });
+  await logPbcFiled("pbc_accepted", itemId, attachFileItemId, accepted);
+  return accepted.documentId;
+}
+
+/** The acceptance / filing of an upload, with the task it went to (UAT run 2 B74). */
+async function logPbcFiled(
+  action: "pbc_accepted" | "pbc_attached",
+  itemId: string,
+  fileItemId: string,
+  filed: { documentId: string; engagementId: string; title: string },
+): Promise<void> {
+  const { tenantId } = await requireTenant();
+  const code = await withTenant(tenantId, async (tx) => {
+    const r = await tx.query<{ code: string }>("SELECT code FROM file_item WHERE id = $1", [fileItemId]);
+    return r.rows[0]?.code ?? "";
+  }).catch(() => "");
+  await recordActivity({
+    engagementId: filed.engagementId,
+    entityType: "pbc_item",
+    entityId: itemId,
+    action,
+    summary: `PBC ${action === "pbc_accepted" ? "accepted" : "filed"}: ${filed.title}${code ? ` → ${code}` : ""}`,
+    after: { documentId: filed.documentId, code },
   });
 }
 
@@ -273,7 +345,7 @@ export async function attachAcceptedPbc(itemId: string, attachFileItemId: string
   const { tenantId, userId, role } = await requireWrite();
   if (!canReview(role)) throw new PbcError("forbidden");
   if (!attachFileItemId) throw new PbcError("attach-required");
-  return withTenant(tenantId, async (tx) => {
+  const filed = await withTenant(tenantId, async (tx) => {
     const item = await tx.query<{
       engagement_id: string; title: string; status: string; document_id: string | null;
       filename: string | null; content: Buffer | null;
@@ -286,8 +358,10 @@ export async function attachAcceptedPbc(itemId: string, attachFileItemId: string
     if (row.status !== "accepted" || row.document_id || !row.content) throw new PbcError("wrong-status");
     const documentId = await filePbcAsDocument(tx, tenantId, userId, { ...row, content: row.content }, attachFileItemId);
     await tx.query("UPDATE pbc_item SET document_id = $2 WHERE id = $1", [itemId, documentId]);
-    return documentId;
+    return { documentId, engagementId: row.engagement_id, title: row.title };
   });
+  await logPbcFiled("pbc_attached", itemId, attachFileItemId, filed);
+  return filed.documentId;
 }
 
 /**

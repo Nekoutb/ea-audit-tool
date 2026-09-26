@@ -1,11 +1,12 @@
 import { redirect } from "next/navigation";
+import { localizedTitle } from "@/lib/page-title";
 import { auth, signOut } from "@/auth";
 import { Panel, PanelHeader } from "@/components/ui/atlas";
 import { getLocale } from "@/lib/locale";
 import { PasswordError, changeOwnPassword } from "@/lib/password";
 import { MIN_PASSWORD_LENGTH } from "@/lib/password-policy";
 
-export const metadata = { title: "Change password · AuditISA" };
+export const generateMetadata = localizedTitle("Change password", "Changer le mot de passe");
 
 /**
  * Password self-service, and the only screen a temporary-password account can

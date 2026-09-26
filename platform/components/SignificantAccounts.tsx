@@ -8,6 +8,7 @@
 
 import { useState } from "react";
 import type { SignificantAccountsView } from "@/lib/significant-accounts";
+import { LEAD_INDEX_BY_CODE } from "@/lib/lead-classes";
 import { GRID_CELL, GRID_COMMENT_INPUT, GRID_HEAD, GRID_NUM } from "@/components/ui/grid";
 
 type Unit = "fcfa" | "k" | "m";
@@ -125,7 +126,10 @@ export function SignificantAccounts({
           </span>
         ) : null}
         {(() => {
-          const missing = rows.filter((r) => r.status === "significant" && r.assertions.length === 0).length;
+          // assertions derived from the risk console count too (UAT B104)
+          const missing = rows.filter(
+            (r) => r.status === "significant" && r.assertions.length === 0 && r.riskAssertions.length === 0,
+          ).length;
           return missing > 0 ? (
             <span className="text-[11px] font-semibold text-warn" data-testid="sa-no-assertions">
               {missing} {fr ? "compte(s) significatif(s) sans assertions" : "significant account(s) without assertions"}
@@ -181,7 +185,7 @@ export function SignificantAccounts({
                     ) : null}
                   </td>
                   <td className={`${GRID_CELL} overflow-hidden text-ellipsis`} title={`${row.accountType} · ${row.accountClass}`}>
-                    {row.label}
+                    {fr ? (LEAD_INDEX_BY_CODE[row.index]?.labelFr ?? row.label) : row.label}
                   </td>
                   <td
                     className={`${GRID_NUM} ${row.aboveTe ? "bg-[var(--color-warn-soft)] font-bold" : ""}`}

@@ -216,8 +216,9 @@ const MIN_CONTRAST = 3;
 export function accentShades(accent: string): Record<number, string> {
   if (!HEX_RE.test(accent)) throw new BrandingError("invalid-color");
   const { h, s, l } = hexToHsl(accent);
-  if (l > 0.8 || l < 0.08) throw new BrandingError("invalid-color");
-  if (contrastAgainstWhite(accent) < MIN_CONTRAST) throw new BrandingError("invalid-color");
+  // a valid hex that is too light or too dark says so, not "must be a hex colour" (UAT B161)
+  if (l > 0.8 || l < 0.08) throw new BrandingError("accent-low-contrast");
+  if (contrastAgainstWhite(accent) < MIN_CONTRAST) throw new BrandingError("accent-low-contrast");
   const scale: Record<number, string> = { 700: accent.toLowerCase() };
   LIGHTER.forEach((shade, index) => {
     const towardWhite = (LIGHTER.length - index) / (LIGHTER.length + 1); // 50 → 7/8 … 600 → 1/8

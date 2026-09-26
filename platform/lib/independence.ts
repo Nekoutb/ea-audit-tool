@@ -193,11 +193,29 @@ export async function getMyConfirmation(token: string): Promise<{
   id: string;
   status: string;
   answers: IndependenceAnswers | null;
+  /** which file the declaration is for (UAT B48) */
+  clientName: string;
+  engagementName: string;
+  fiscalYear: number;
 } | null> {
   const { tenantId, userId } = await requireTenant();
   return withTenant(tenantId, async (tx) => {
-    const result = await tx.query<{ id: string; status: string; answers: IndependenceAnswers | null; user_id: string }>(
-      "SELECT id, status, answers, user_id FROM independence_confirmation WHERE token = $1",
+    const result = await tx.query<{
+      id: string;
+      status: string;
+      answers: IndependenceAnswers | null;
+      user_id: string;
+      client_name: string;
+      engagement_name: string;
+      fiscal_year: number;
+    }>(
+      `SELECT ic.id, ic.status, ic.answers, ic.user_id, cl.name AS client_name,
+              coalesce(e.name, cl.name) AS engagement_name, e.fiscal_year
+         FROM independence_confirmation ic
+         JOIN independence_campaign c ON c.id = ic.campaign_id
+         JOIN engagement e ON e.id = c.engagement_id
+         JOIN client cl ON cl.id = e.client_id
+        WHERE ic.token = $1`,
       [token],
     );
     const row = result.rows[0];
@@ -208,7 +226,14 @@ export async function getMyConfirmation(token: string): Promise<{
         [row.id],
       );
     }
-    return { id: row.id, status: row.status, answers: row.answers };
+    return {
+      id: row.id,
+      status: row.status,
+      answers: row.answers,
+      clientName: row.client_name,
+      engagementName: row.engagement_name,
+      fiscalYear: Number(row.fiscal_year),
+    };
   });
 }
 
@@ -299,7 +324,7 @@ export async function submitConfirmation(
       const created = await tx.query<{ id: string }>(
         `INSERT INTO document (tenant_id, engagement_id, file_item_id, title, language, kind, created_by, current_version)
          VALUES ($1, $2, $3, $4, 'en', 'letter', $5, 1) RETURNING id`,
-        [tenantId, engagementId, item.rows[0].id, `Independence confirmation — ${signatureName}`, userId],
+        [tenantId, engagementId, item.rows[0].id, `Independence confirmation · Confirmation d'indépendance — ${signatureName}`, userId],
       );
       await tx.query(
         `INSERT INTO document_version
@@ -331,6 +356,13 @@ export async function submitConfirmation(
     // blocks the P2.1 sign-off until it has one: tell the engagement partners
     // now rather than leaving it to be found on the acceptance page.
     if (status === "exception") {
+      const exceptionEngagementName = await withTenant(tenantId, async (tx) => {
+        const r = await tx.query<{ name: string }>(
+          "SELECT coalesce(e.name, cl.name) AS name FROM engagement e JOIN client cl ON cl.id = e.client_id WHERE e.id = $1",
+          [signedEngagementId],
+        );
+        return r.rows[0]?.name ?? "";
+      });
       const partners = await withTenant(tenantId, (tx) =>
         tx.query<{ user_id: string }>(
           "SELECT user_id FROM team_member WHERE engagement_id = $1 AND team_role = 'partner' AND user_id <> $2",
@@ -342,8 +374,8 @@ export async function submitConfirmation(
           tenantId,
           userId: partner.user_id,
           kind: "independence-exception",
-          title: `Independence exception: ${signatureName.trim()}`,
-          body: "A team member declared an independence threat. Record the partner disposition on the acceptance page before P2.1 is signed off.",
+          title: `Independence exception · Exception d'indépendance : ${signatureName.trim()}`,
+          body: `${exceptionEngagementName}: a team member declared an independence threat — record the partner disposition before P2.1 is signed off. · ${exceptionEngagementName} : un membre de l'équipe a déclaré une menace à l'indépendance — consignez la disposition de l'associé avant la signature de P2.1.`,
           href: `/engagements/${signedEngagementId}/acceptance`,
         });
       }
@@ -387,19 +419,20 @@ export async function disposeException(confirmationId: string, disposition: stri
 /** Manual reminder (auto-cadence deferred until a scheduler exists — DECISIONS.md). */
 export async function sendReminder(confirmationId: string): Promise<void> {
   const { tenantId } = await requireTenant();
-  const target: { userId: string; email: string; token: string } | null = await withTenant(
+  const target: { userId: string; email: string; token: string; engagementName: string } | null = await withTenant(
     tenantId,
     async (tx) => {
-      const result = await tx.query<{ user_id: string; email: string; token: string }>(
+      const result = await tx.query<{ user_id: string; email: string; token: string; engagement_name: string }>(
         `UPDATE independence_confirmation ic
             SET reminder_count = reminder_count + 1, last_reminder_at = now()
-           FROM app_user u
+           FROM app_user u, independence_campaign c, engagement e, client cl
           WHERE ic.id = $1 AND u.id = ic.user_id AND ic.status IN ('sent', 'opened')
-          RETURNING ic.user_id, u.email, ic.token`,
+            AND c.id = ic.campaign_id AND e.id = c.engagement_id AND cl.id = e.client_id
+          RETURNING ic.user_id, u.email, ic.token, coalesce(e.name, cl.name) AS engagement_name`,
         [confirmationId],
       );
       const row = result.rows[0];
-      return row ? { userId: row.user_id, email: row.email, token: row.token } : null;
+      return row ? { userId: row.user_id, email: row.email, token: row.token, engagementName: row.engagement_name } : null;
     },
   );
   if (target) {
@@ -410,12 +443,14 @@ export async function sendReminder(confirmationId: string): Promise<void> {
       body: `Complete your confirmation: /independence/${target.token}\n\nOr simply REPLY to this email with "I CONFIRM my independence" — your reply is logged with its timestamp.`,
       tag: `IND-${target.token}`,
     });
+    // bilingual, naming the engagement and linking to the form (UAT B34)
     await createNotification({
       tenantId,
       userId: target.userId,
       kind: "independence-reminder",
-      title: "Independence confirmation outstanding",
-      body: "Please complete your independence confirmation.",
+      title: "Independence confirmation outstanding · Confirmation d'indépendance en attente",
+      body: `${target.engagementName}: please complete your independence confirmation. · ${target.engagementName} : veuillez compléter votre confirmation d'indépendance.`,
+      href: `/independence/${target.token}`,
     });
   }
 }
@@ -430,15 +465,16 @@ export async function sendReminder(confirmationId: string): Promise<void> {
 export async function sendDueReminders(engagementId: string): Promise<number> {
   const { tenantId } = await requireTenant();
   const due = await withTenant(tenantId, async (tx) => {
-    const r = await tx.query<{ user_id: string; email: string; token: string }>(
+    const r = await tx.query<{ user_id: string; email: string; token: string; engagement_name: string }>(
       `UPDATE independence_confirmation ic
           SET reminder_count = ic.reminder_count + 1, last_reminder_at = now()
-         FROM independence_campaign c, app_user u
+         FROM independence_campaign c, app_user u, engagement e, client cl
         WHERE c.id = ic.campaign_id AND c.engagement_id = $1 AND u.id = ic.user_id
+          AND e.id = c.engagement_id AND cl.id = e.client_id
           AND ic.status IN ('sent', 'opened')
           AND ic.created_at < now() - interval '24 hours'
           AND (ic.last_reminder_at IS NULL OR ic.last_reminder_at < now() - interval '24 hours')
-        RETURNING ic.user_id, u.email, ic.token`,
+        RETURNING ic.user_id, u.email, ic.token, coalesce(e.name, cl.name) AS engagement_name`,
       [engagementId],
     );
     return r.rows;
@@ -456,8 +492,9 @@ export async function sendDueReminders(engagementId: string): Promise<number> {
       tenantId,
       userId: row.user_id,
       kind: "independence-reminder",
-      title: "Independence confirmation outstanding",
-      body: `Your confirmation is more than a day old. Complete it: /independence/${row.token}`,
+      title: "Independence confirmation outstanding · Confirmation d'indépendance en attente",
+      body: `${row.engagement_name}: your confirmation is more than a day old. · ${row.engagement_name} : votre confirmation attend depuis plus d'un jour.`,
+      href: `/independence/${row.token}`,
     });
   }
   return due.length;

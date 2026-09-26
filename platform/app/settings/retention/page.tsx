@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { localizedTitle } from "@/lib/page-title";
 import { redirect } from "next/navigation";
 import { auth } from "@/auth";
 import { AppNav } from "@/components/AppNav";
@@ -7,7 +8,7 @@ import { getLocale } from "@/lib/locale";
 import { atLeast, type Role } from "@/lib/rbac";
 import { retentionPolicy, retentionReport } from "@/lib/retention";
 
-export const metadata = { title: "Retention · AuditISA" };
+export const generateMetadata = localizedTitle("Retention", "Conservation");
 
 /**
  * The firm's retention report (UAT B65): every archived file with its

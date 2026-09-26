@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { localizedTitle } from "@/lib/page-title";
 import { notFound, redirect } from "next/navigation";
 import { auth } from "@/auth";
 import { AppNav } from "@/components/AppNav";
@@ -20,6 +21,7 @@ import {
 } from "@/lib/engagement-dashboard";
 import { respondEngagementAction } from "@/app/actions/team-independence";
 import { SubmitButton } from "@/components/SubmitButton";
+import { ErrorBanner } from "@/components/GatesPanel";
 import { getEngagement } from "@/lib/engagements";
 import { myTeamStatus } from "@/lib/team";
 import { getMessages } from "@/lib/i18n";
@@ -34,7 +36,7 @@ import {
   type SectionKey,
 } from "@/lib/task-groups";
 
-export const metadata = { title: "Engagement dashboard · AuditISA" };
+export const generateMetadata = localizedTitle("Engagement dashboard", "Tableau de bord de la mission");
 
 const ROUTE_TONE: Record<AttentionTone, string> = {
   rose: "text-rose bg-[var(--color-rose-soft)]",
@@ -64,7 +66,9 @@ function buildSections(
   return SECTION_ORDER.map((key) => {
     const groups = groupsOfSection(key).map((g) => {
       const members = g.members.map((code) => byCode.get(code)).filter((t): t is PhaseTask => Boolean(t));
-      const done = members.filter((t) => t.status === "reviewed").length;
+      // a task marked not applicable with a reason is complete: an archived
+      // file whose every task is performed or validly N/A reads 100 % (UAT run2-B157, run3-B15)
+      const done = members.filter((t) => t.status === "reviewed" || Boolean(t.naReason)).length;
       return {
         id: g.id,
         title: groupTitle(g, locale),
@@ -92,13 +96,13 @@ function buildSections(
 
 export default async function EngagementDashboardPage(props: {
   params: Promise<{ id: string }>;
-  searchParams: Promise<{ phase?: string }>;
+  searchParams: Promise<{ phase?: string; error?: string }>;
 }) {
   const session = await auth();
   if (!session?.user) redirect("/login");
 
   const { id } = await props.params;
-  const { phase: phaseParam } = await props.searchParams;
+  const { phase: phaseParam, error } = await props.searchParams;
   const locale = await getLocale();
   const t = getMessages(locale);
   const td = t.dashboard;
@@ -132,6 +136,9 @@ export default async function EngagementDashboardPage(props: {
     <main className="flex h-screen w-full flex-col gap-4 overflow-hidden px-6 py-6">
       <AppNav locale={locale} current={{ id, label: engagement.name ?? engagement.clientName }} hideLinks />
 
+      {/* a refused accept/decline says why (UAT B121) */}
+      <ErrorBanner error={error} locale={locale} />
+
       {myStatus === "invited" ? (
         <div
           className="flex flex-wrap items-center justify-between gap-3 rounded-[var(--radius-atlas)] border border-emerald-600/40 bg-emerald-50 px-5 py-3.5 dark:bg-emerald-950/30"
@@ -142,7 +149,7 @@ export default async function EngagementDashboardPage(props: {
               ? "Vous avez été ajouté à cette mission. L’acceptez-vous ?"
               : "You have been added to this engagement. Do you accept it?"}
           </p>
-          <span className="flex gap-2">
+          <span className="flex min-w-0 flex-wrap gap-2">
             <form action={respondEngagementAction.bind(null, id, true)}>
               <SubmitButton
                 className="rounded-[var(--radius-atlas-sm)] bg-emerald-700 px-4 py-1.5 text-sm font-semibold text-white hover:bg-emerald-800"
@@ -151,14 +158,16 @@ export default async function EngagementDashboardPage(props: {
                 {fr ? "Accepter" : "Accept"}
               </SubmitButton>
             </form>
-            <form action={respondEngagementAction.bind(null, id, false)} className="flex flex-wrap items-center gap-2">
+            <form action={respondEngagementAction.bind(null, id, false)} className="flex min-w-0 flex-wrap items-center gap-2">
               {/* a decline says why, and the partner hears it (UAT B130) */}
               <input
                 name="reason"
                 required
                 minLength={3}
+                pattern=".*\S.*\S.*\S.*"
+                title={fr ? "Un motif est requis." : "A reason is required."}
                 placeholder={fr ? "Motif du refus (obligatoire)" : "Reason for declining (required)"}
-                className="w-64 rounded-[var(--radius-atlas-sm)] border border-line-strong bg-surface px-2.5 py-1.5 text-[13px] text-ink outline-none focus:border-emerald-600"
+                className="w-full min-w-0 rounded-[var(--radius-atlas-sm)] border border-line-strong bg-surface px-2.5 py-1.5 text-[13px] text-ink outline-none focus:border-emerald-600 sm:w-64"
                 data-testid="decline-reason"
               />
               <SubmitButton

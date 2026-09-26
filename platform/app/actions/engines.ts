@@ -13,6 +13,7 @@ import {
   type SamplingMethod,
 } from "@/lib/engines";
 import type { ConfidenceLevel } from "@/lib/sampling-params";
+import { getLocale } from "@/lib/locale";
 
 async function guarded(path: string, fn: () => Promise<string | void>): Promise<never> {
   let target = path;
@@ -66,7 +67,7 @@ export async function evaluateSamplingAction(
 ): Promise<void> {
   const path = sectionPath(engagementId, fileItemId);
   await guarded(path, async () => {
-    await evaluateSampling(runId, Number(formData.get("misstatement") ?? 0));
+    await evaluateSampling(runId, Number(formData.get("misstatement") ?? 0), await getLocale());
   });
 }
 
@@ -85,6 +86,7 @@ export async function recordTodResultAction(engagementId: string, formData: Form
       sampleMisstatement: amount("sampleMisstatement") || 0,
       keyMisstatement: amount("keyMisstatement") || 0,
       remainingValue: amount("remainingValue"),
+      locale: await getLocale(),
     });
     return `${path}?recorded=1`;
   });

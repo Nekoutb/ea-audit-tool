@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { localizedTitle } from "@/lib/page-title";
 import { redirect } from "next/navigation";
 import { auth } from "@/auth";
 import { updateBrandingAction } from "@/app/actions/branding";
@@ -13,7 +14,7 @@ import { getLocale } from "@/lib/locale";
 import { atLeast, canManageFirm, type Role } from "@/lib/rbac";
 import { RETENTION_MAX_YEARS, RETENTION_MIN_YEARS, retentionPolicy } from "@/lib/retention";
 
-export const metadata = { title: "Settings · AuditISA" };
+export const generateMetadata = localizedTitle("Settings", "Paramètres");
 
 export default async function SettingsPage(props: {
   searchParams: Promise<{ error?: string; saved?: string }>;
@@ -44,7 +45,7 @@ export default async function SettingsPage(props: {
           data-testid="branding-saved"
           className="mt-4 rounded-[var(--radius-atlas-sm)] border border-emerald-300 bg-emerald-50 px-4 py-3 text-sm text-emerald-800 dark:border-emerald-900 dark:bg-emerald-950/40 dark:text-emerald-300"
         >
-          {ts.saved}
+          {saved === "retention" ? ts.savedRetention : ts.saved}
         </p>
       ) : null}
 
@@ -141,7 +142,7 @@ export default async function SettingsPage(props: {
               />
             </label>
             <button type="submit" className={btnPrimary} data-testid="retention-save">
-              {ts.save}
+              {ts.saveRetention}
             </button>
             <span className="text-xs text-muted">
               {locale === "fr"

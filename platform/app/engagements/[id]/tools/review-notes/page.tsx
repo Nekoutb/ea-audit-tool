@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { localizedTitle } from "@/lib/page-title";
 import { notFound, redirect } from "next/navigation";
 import { auth } from "@/auth";
 import { AppNav } from "@/components/AppNav";
@@ -8,7 +9,7 @@ import { getEngagement } from "@/lib/engagements";
 import { getLocale } from "@/lib/locale";
 import { noteRegister } from "@/lib/task-notes";
 
-export const metadata = { title: "Review notes · AuditISA" };
+export const generateMetadata = localizedTitle("Review notes", "Notes de revue");
 
 /**
  * The review-note register: every note of the engagement, filterable by scope

@@ -1,4 +1,5 @@
 import { notFound, redirect } from "next/navigation";
+import { localizedTitle } from "@/lib/page-title";
 import { auth } from "@/auth";
 import { AppNav } from "@/components/AppNav";
 import { NavLink } from "@/components/NavLink";
@@ -9,7 +10,74 @@ import { getEngagement } from "@/lib/engagements";
 import { getMessages } from "@/lib/i18n";
 import { getLocale } from "@/lib/locale";
 
-export const metadata = { title: "Activity · AuditISA" };
+/**
+ * The trail stores its summaries in English; the materiality lines are
+ * rendered in the reader's language (UAT B127: "Materiality v3 approved").
+ */
+function localizedSummary(summary: string, locale: string): string {
+  if (locale !== "fr") return summary;
+  const m = /^Materiality v(\d+) (created|revised|approved)$/.exec(summary);
+  if (m) {
+    const verb = m[2] === "created" ? "créé" : m[2] === "revised" ? "révisé" : "approuvé";
+    return `Seuil de signification v${m[1]} ${verb}`;
+  }
+  // the team, assignment, sign-off and evidence lines (UAT run 3 B14);
+  // anything unrecognised is shown as stored
+  const role = (r: string) =>
+    (({
+      partner: "associé",
+      manager: "manager",
+      senior: "senior",
+      staff: "assistant",
+      "eqr reviewer": "réviseur qualité (EQR)",
+      eqr: "réviseur qualité (EQR)",
+      preparer: "préparateur",
+      reviewer: "réviseur",
+    }) as Record<string, string>)[r] ?? r;
+  const rules: [RegExp, (g: string[]) => string][] = [
+    [/^(.+) removed from the team \((.+)\)$/, (g) => `${g[1]} retiré(e) de l'équipe (${role(g[2])})`],
+    [/^(\S+) unassigned \((.+) left the team\)$/, (g) => `${g[1]} désassignée (${g[2]} a quitté l'équipe)`],
+    [/^(\S+) assigned$/, (g) => `${g[1]} assignée`],
+    [/^(\S+) unassigned$/, (g) => `${g[1]} désassignée`],
+    [/^(\S+ )?signed off as (\w+)$/, (g) => `${g[1] ?? ""}signé comme ${role(g[2])}`],
+    [/^(\w+) sign-off on (\S+) voided — the paper was edited after signing$/, (g) => `Signature ${role(g[1])} sur ${g[2]} annulée — le document a été modifié après signature`],
+    [/^Attachment (uploaded|deleted|restored): (.+)$/, (g) => `Pièce jointe ${({ uploaded: "déposée", deleted: "supprimée", restored: "restaurée" } as Record<string, string>)[g[1]]} : ${g[2]}`],
+    [/^Attachment renamed (.+) → (.+)$/, (g) => `Pièce jointe renommée ${g[1]} → ${g[2]}`],
+    [/^Deleted: (.+) \(restorable for (\d+) days\)$/, (g) => `Supprimé : ${g[1]} (restaurable pendant ${g[2]} jours)`],
+    [/^Independence confirmation signed by (.+) — (completed|exception)$/, (g) => `Confirmation d'indépendance signée par ${g[1]} — ${g[2] === "exception" ? "exception" : "sans exception"}`],
+    [/^S5\.5 (\S+) (\S+) changed$/, (g) => `S5.5 ${g[1]} ${g[2]} modifié`],
+    // the remaining common entries (UAT run 2 B24)
+    [/^Engagement created$/, () => "Mission créée"],
+    [/^Nature of entity concluded: (complex|non complex|very simple)(?: \(reason: (.+)\))?$/, (g) => `Nature de l'entité conclue : ${({ complex: "complexe", "non complex": "non complexe", "very simple": "très simple" } as Record<string, string>)[g[1]] ?? g[1]}${g[2] ? ` (motif : ${g[2]})` : ""}`],
+    [/^Period end changed from (\S+) to (\S+)$/, (g) => `Date de clôture modifiée : ${g[1]} → ${g[2]}`],
+    [/^Period end changed to (\S+)$/, (g) => `Date de clôture modifiée : ${g[1]}`],
+    [/^Trial balance imported \((\w+), v(\d+), (.+)\) — (\w+)$/, (g) => `Balance importée (${g[1] === "pre_audit" ? "avant audit" : g[1] === "post_audit" ? "après audit" : g[1]}, v${g[2]}, ${g[3]}) — ${g[4] === "valid" ? "valide" : g[4] === "invalid" ? "invalide" : g[4]}`],
+    [/^Restored: (.+)$/, (g) => `Restauré : ${g[1]}`],
+    [/^Review note raised on (\S+)$/, (g) => `Note de revue émise sur ${g[1] === "task" ? "la tâche" : g[1]}`],
+    [/^Review note on (\S+) (answered|cleared)$/, (g) => `Note de revue sur ${g[1] === "task" ? "la tâche" : g[1]} ${g[2] === "answered" ? "répondue" : "levée"}`],
+    [/^(\S+) working paper generated \((.+)\)$/, (g) => `${g[1]} feuille de travail générée (${g[2]})`],
+    [/^(\S+) working paper saved — (.+)$/, (g) => `${g[1]} feuille de travail enregistrée — ${g[2]}`],
+    [/^(\S+) tasks instantiated$/, (g) => `Tâches ${g[1]} ajoutées`],
+    [/^Due date set to (\S+)$/, (g) => `Échéance fixée au ${g[1]}`],
+    [/^Due date cleared$/, () => "Échéance supprimée"],
+    [/^Acceptance gates passed — engagement moved to planning$/, () => "Conditions d'acceptation remplies — mission passée en planification"],
+    [/^Planning closed — snapshot taken, engagement moved to execution$/, () => "Planification clôturée — instantané pris, mission passée en exécution"],
+    [/^Refused: (.+)$/, (g) => `Refusé : ${g[1]}`],
+    [/^Audit file archived and locked$/, () => "Dossier archivé et verrouillé"],
+    // the client-request (PBC) trail (UAT run 2 B74)
+    [/^PBC requested: (.+)$/, (g) => `Demande au client (PBC) émise : ${g[1]}`],
+    [/^PBC chased: (.+)$/, (g) => `Demande au client (PBC) relancée : ${g[1]}`],
+    [/^PBC uploaded by the client: (.+)$/, (g) => `Document déposé par le client (PBC) : ${g[1]}`],
+    [/^PBC (accepted|filed): (.+)$/, (g) => `Demande au client (PBC) ${g[1] === "accepted" ? "acceptée" : "classée"} : ${g[2]}`],
+  ];
+  for (const [re, fr] of rules) {
+    const hit = re.exec(summary);
+    if (hit) return fr([...hit]);
+  }
+  return summary;
+}
+
+export const generateMetadata = localizedTitle("Activity", "Activité");
 
 /** Engagement activity timeline — the unified audit trail of user actions. */
 export default async function ActivityPage(props: { params: Promise<{ id: string }> }) {
@@ -86,7 +154,7 @@ export default async function ActivityPage(props: { params: Promise<{ id: string
                   <div className="min-w-0 flex-1">
                     <p className="truncate text-[13.5px] text-ink">
                       <span className="font-semibold">{row.userName ?? "—"}</span>
-                      <span className="text-ink-soft"> · {row.summary ?? row.action}</span>
+                      <span className="text-ink-soft"> · {localizedSummary(row.summary ?? row.action, locale)}</span>
                     </p>
                     <p className="text-[11.5px] text-muted">
                       {(ta.entityLabels as Record<string, string>)[row.entityType] ?? row.entityType}

@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { localizedTitle } from "@/lib/page-title";
 import { notFound, redirect } from "next/navigation";
 import { auth } from "@/auth";
 import { AppNav } from "@/components/AppNav";
@@ -12,7 +13,7 @@ import { getLocale } from "@/lib/locale";
 import { approvedMateriality } from "@/lib/materiality";
 import { listScots } from "@/lib/scots";
 
-export const metadata = { title: "Sampling · AuditISA" };
+export const generateMetadata = localizedTitle("Sampling", "Échantillonnage");
 
 /** Cycle tasks that carry the sampling engine. */
 

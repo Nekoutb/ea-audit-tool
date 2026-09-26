@@ -75,6 +75,17 @@ export async function subsequentEventsAction(engagementId: string, formData: For
   await guarded(pagePath(engagementId), async () => {
     const reviewedTo = String(formData.get("reviewedTo") ?? "");
     if (!reviewedTo) throw new Error("fields-required");
+    // ISA 560: the review runs from the period end to the report date, so a
+    // "reviewed to" date on or before the period end reviews nothing (UAT run 2 B79).
+    const { tenantId } = await requireTenant();
+    const periodEnd = await withTenant(tenantId, async (tx) => {
+      const r = await tx.query<{ period_end: string | null }>(
+        "SELECT to_char(period_end, 'YYYY-MM-DD') AS period_end FROM engagement WHERE id = $1",
+        [engagementId],
+      );
+      return r.rows[0]?.period_end ?? null;
+    });
+    if (periodEnd && reviewedTo <= periodEnd) throw new Error("reviewed-before-period-end");
     await recordCompletion(engagementId, "subsequent_events", {
       reviewedTo,
       events: String(formData.get("events") ?? ""),

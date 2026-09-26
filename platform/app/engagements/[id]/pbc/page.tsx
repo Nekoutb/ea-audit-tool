@@ -1,4 +1,5 @@
 import { notFound, redirect } from "next/navigation";
+import { localizedTitle } from "@/lib/page-title";
 import { auth } from "@/auth";
 import { acceptPbcAction, addPbcItemAction, attachPbcAction, chasePbcAction } from "@/app/actions/pbc";
 import { AppNav } from "@/components/AppNav";
@@ -9,12 +10,17 @@ import { getMessages } from "@/lib/i18n";
 import { getLocale } from "@/lib/locale";
 import { listPbcItems } from "@/lib/pbc";
 
-export const metadata = { title: "PBC requests · AuditISA" };
+export const generateMetadata = localizedTitle("PBC requests", "Demandes PBC");
 
-/** Whole days since a YYYY-MM-DD date — how long the client has had the request. */
+/**
+ * Whole calendar days since a YYYY-MM-DD date — how long the client has had the
+ * request. Compared as calendar dates in the firm's time zone (WAT), so a
+ * request made today is 0 days old whatever the hour (UAT run2-B112).
+ */
 function ageDays(iso: string): number {
-  const then = new Date(`${iso}T00:00:00Z`).getTime();
-  return Number.isFinite(then) ? Math.max(0, Math.round((Date.now() - then) / 86_400_000)) : 0;
+  const then = Date.parse(`${iso.slice(0, 10)}T00:00:00Z`);
+  const today = Date.parse(`${new Intl.DateTimeFormat("en-CA", { timeZone: "Africa/Douala" }).format(new Date())}T00:00:00Z`);
+  return Number.isFinite(then) && Number.isFinite(today) ? Math.max(0, Math.floor((today - then) / 86_400_000)) : 0;
 }
 
 export default async function PbcPage(props: {

@@ -58,6 +58,33 @@ export interface Risk {
   linkedStepCount: number;
 }
 
+/** The two presumed ISA 240 risks carry a fixed title in each language (UAT B25). */
+const PRESUMED_TITLES: Record<"revenue_fraud" | "mgmt_override", { en: string; fr: string }> = {
+  revenue_fraud: {
+    en: "Presumed fraud risk in revenue recognition (ISA 240)",
+    fr: "Risque présumé de fraude dans la comptabilisation des produits (ISA 240)",
+  },
+  mgmt_override: {
+    en: "Management override of controls (ISA 240)",
+    fr: "Contournement des contrôles par la direction (ISA 240)",
+  },
+};
+
+/** A risk's title in the reader's language: presumed risks are translated, others shown as typed. */
+export function riskTitle(
+  risk: { description: string; presumedType: string | null },
+  locale: "en" | "fr",
+): string {
+  const presumed = risk.presumedType ? PRESUMED_TITLES[risk.presumedType as keyof typeof PRESUMED_TITLES] : undefined;
+  return presumed ? presumed[locale] : risk.description;
+}
+
+/** The low/medium/high scale in the reader's language. */
+export function ratingLabel(rating: RiskRating, locale: "en" | "fr"): string {
+  if (locale !== "fr") return rating;
+  return { low: "faible", medium: "moyen", high: "élevé" }[rating];
+}
+
 /** Inherent risk = likelihood × magnitude on the spectrum of inherent risk. */
 export function inherentRating(likelihood: RiskRating, magnitude: RiskRating): RiskRating {
   const score = { low: 1, medium: 2, high: 3 };
@@ -474,7 +501,7 @@ export async function riskDerivedAssertions(
 /** Rebut the presumed revenue-fraud risk — requires justification + partner. */
 export async function rebutRevenueFraudRisk(riskId: string, justification: string): Promise<void> {
   const { tenantId, userId, role } = await requireWrite();
-  if (!canPartnerSignoff(role)) throw new Error("forbidden");
+  if (!canPartnerSignoff(role)) throw new Error("rebut-partner-only");
   if (!justification.trim()) throw new Error("justification-required");
   await withTenant(tenantId, async (tx) => {
     const updated = await tx.query(

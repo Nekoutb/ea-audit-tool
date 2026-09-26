@@ -128,7 +128,7 @@ export const DEFAULT_FILE_INDEX: readonly FileIndexEntry[] = [
   { code: "E4.25", section: "E", titleEn: "Change in Inventories (VA2)", titleFr: "Variation de stocks (VA2)" },
   { code: "E4.26", section: "E", titleEn: "Personnel Costs (VB)", titleFr: "Charges de personnel (VB)" },
   { code: "E4.27", section: "E", titleEn: "Taxes & Duties (VO)", titleFr: "Impôts et taxes (VO)" },
-  { code: "E4.28", section: "E", titleEn: "External Services (VD1)", titleFr: "Services extérieurs (VD1)" },
+  { code: "E4.28", section: "E", titleEn: "Non-Stored Purchases, Transport & External Services (VD1)", titleFr: "Achats non stockés, transports & services extérieurs (VD1)" },
   { code: "E4.29", section: "E", titleEn: "Depreciation & Provisions (VD2)", titleFr: "Dotations amortissements et provisions (VD2)" },
   { code: "E4.30", section: "E", titleEn: "Provision Reversals (VD3)", titleFr: "Reprises de provisions (VD3)" },
   { code: "E4.31", section: "E", titleEn: "Other Expenses (VD4)", titleFr: "Autres charges (VD4)" },
@@ -269,7 +269,7 @@ const SHORT_TITLES: Record<string, { en: string; fr: string }> = {
   "E4.25": { en: "Change in Inventories (VA2)", fr: "Variation de stocks (VA2)" },
   "E4.26": { en: "Personnel Costs (VB)", fr: "Charges de personnel (VB)" },
   "E4.27": { en: "Taxes & Duties (VO)", fr: "Impôts et taxes (VO)" },
-  "E4.28": { en: "External Services (VD1)", fr: "Services extérieurs (VD1)" },
+  "E4.28": { en: "Purchases, Transport & Ext. Services (VD1)", fr: "Achats, transports & serv. ext. (VD1)" },
   "E4.29": { en: "Depreciation & Provisions (VD2)", fr: "Dotations et provisions (VD2)" },
   "E4.30": { en: "Provision Reversals (VD3)", fr: "Reprises de provisions (VD3)" },
   "E4.31": { en: "Other Expenses (VD4)", fr: "Autres charges (VD4)" },
@@ -338,11 +338,17 @@ const CORE_CODES = new Set([
   // cannot close. 20260925000003 backfills them on existing very simple files.
   "E3.1", "E4.20",
   "E4.1", "E4.2", "E4.3", "E4.8", "E4.9", "E6.3", "E6.4", "E6.5", "E6.6", "E6.9", "E6.10",
+  // Required on every audit whatever the entity's size (UAT run 2 B40): cash
+  // and bank (E4.7, confirmed on the simplest file), laws and regulations
+  // (ISA 250 ¶13-14), related parties (ISA 550 ¶11-24, planning and response)
+  // and accounting estimates (ISA 540 ¶13-18, planning and response).
+  // 20260926000060 backfills them on existing open files.
+  "E4.7", "E6.1", "E6.2", "E6.7", "S4.3", "S4.4",
   "C5.2",
 ]);
 
 /** Only instantiated on complex engagements. */
-const EXTENDED_CODES = new Set(["C4.2", "E4.6", "E4.7", "E4.12", "E4.13", "C5.5", "C5.9"]);
+const EXTENDED_CODES = new Set(["C4.2", "E4.6", "E4.12", "E4.13", "C5.5", "C5.9"]);
 
 export function tierOf(entry: FileIndexEntry): FileIndexTier {
   if (entry.tier) return entry.tier;

@@ -86,6 +86,7 @@ export function applyNamingConvention(
   clientName: string,
   fiscalYear: number | string,
   parts: { periodEnd?: string; nature?: string } = {},
+  locale: "en" | "fr" = "en",
 ): string {
   const periodEnd = parts.periodEnd ?? `${fiscalYear}-12-31`;
   const monthDay = periodEnd.length === 10 ? periodEnd.slice(5) : periodEnd;
@@ -93,8 +94,8 @@ export function applyNamingConvention(
   return (pattern || DEFAULT_ENGAGEMENT_NAMING)
     .replaceAll("{CLIENT}", clientName.trim().toUpperCase())
     .replaceAll("{YEAR}", String(fiscalYear))
-    .replaceAll("{PERIOD_END}", `${periodEndLabel(monthDay)} ${fiscalYear}`.trim())
-    .replaceAll("{NATURE}", natureLabel(nature))
+    .replaceAll("{PERIOD_END}", `${periodEndLabel(monthDay, locale)} ${fiscalYear}`.trim())
+    .replaceAll("{NATURE}", natureLabel(nature, locale))
     .trim()
     .slice(0, 120);
 }
@@ -153,17 +154,27 @@ const MONTHS_EN = [
   "JULY", "AUGUST", "SEPTEMBER", "OCTOBER", "NOVEMBER", "DECEMBER",
 ];
 
-/** "MM-DD" → "DECEMBER 31"; any month-day, not only the four preset options. */
-function periodEndLabel(monthDay: string): string {
+const MONTHS_FR = [
+  "JANVIER", "FÉVRIER", "MARS", "AVRIL", "MAI", "JUIN",
+  "JUILLET", "AOÛT", "SEPTEMBRE", "OCTOBRE", "NOVEMBRE", "DÉCEMBRE",
+];
+
+/**
+ * "MM-DD" → "DECEMBER 31" (en) or "31 DÉCEMBRE" (fr, day first); any
+ * month-day, not only the four preset options (UAT run2-B117).
+ */
+function periodEndLabel(monthDay: string, locale: "en" | "fr" = "en"): string {
   const known = YEAR_END_OPTIONS.find((o) => o.value === monthDay);
-  if (known) return known.en.toUpperCase();
+  if (known) return (locale === "fr" ? known.fr : known.en).toUpperCase();
   const m = /^(\d{2})-(\d{2})$/.exec(monthDay);
   if (!m) return "";
-  const month = MONTHS_EN[Number(m[1]) - 1];
-  return month ? `${month} ${Number(m[2])}` : "";
+  const month = (locale === "fr" ? MONTHS_FR : MONTHS_EN)[Number(m[1]) - 1];
+  if (!month) return "";
+  return locale === "fr" ? `${Number(m[2])} ${month}` : `${month} ${Number(m[2])}`;
 }
 
-/** A known nature renders its English label; free text passes through as typed. */
-function natureLabel(nature: string): string {
-  return (NATURE_OPTIONS.find((o) => o.value === nature)?.en ?? nature.replaceAll("_", " ")).toUpperCase();
+/** A known nature renders its label in the naming language; free text passes through as typed. */
+function natureLabel(nature: string, locale: "en" | "fr" = "en"): string {
+  const known = NATURE_OPTIONS.find((o) => o.value === nature);
+  return (known ? (locale === "fr" ? known.fr : known.en) : nature.replaceAll("_", " ")).toUpperCase();
 }

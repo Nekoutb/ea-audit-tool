@@ -8,6 +8,7 @@ import {
   type EngagementPhase,
   type EngagementSummary,
 } from "@/lib/engagements";
+import { riskTitle } from "@/lib/risks";
 import { fileItemHasAssignee } from "@/lib/team";
 import { requireTenant } from "@/lib/tenant";
 import { visibilityClause } from "@/lib/engagement-access";
@@ -72,7 +73,9 @@ export interface PhaseProgress {
 export function phaseOfTask(section: string, code: string): DashboardPhase {
   if (section === "E") return "execution";
   if (section === "A" || section === "B" || section === "C" || section === "F") return "conclusion";
-  if (["P1.1", "S6.1", "S6.2", "P2.2", "P5.2"].includes(code)) return "acceptance";
+  // P1.2-P1.5 and P2.1 are acceptance procedures too: they are evidenced
+  // before planning starts (UAT run 2 B28).
+  if (["P1.1", "P1.2", "P1.3", "P1.4", "P1.5", "P2.1", "S6.1", "S6.2", "P2.2", "P5.2"].includes(code)) return "acceptance";
   return "planning";
 }
 
@@ -80,7 +83,7 @@ export function phaseOfTask(section: string, code: string): DashboardPhase {
 const BUCKET_CASE = `CASE
   WHEN fi.section = 'E' THEN 'execution'
   WHEN fi.section IN ('A', 'B', 'C', 'F') THEN 'conclusion'
-  WHEN fi.code IN ('P1.1', 'S6.1', 'S6.2', 'P2.2', 'P5.2') THEN 'acceptance'
+  WHEN fi.code IN ('P1.1', 'P1.2', 'P1.3', 'P1.4', 'P1.5', 'P2.1', 'S6.1', 'S6.2', 'P2.2', 'P5.2') THEN 'acceptance'
   ELSE 'planning'
 END`;
 
@@ -147,6 +150,14 @@ const HAS_WORK = `(
   EXISTS (SELECT 1 FROM program_step ps WHERE ps.file_item_id = fi.id AND ps.status = 'complete')
   OR EXISTS (SELECT 1 FROM task_attachment ta WHERE ta.file_item_id = fi.id AND ta.deleted_at IS NULL)
   OR EXISTS (SELECT 1 FROM section_conclusion sc WHERE sc.file_item_id = fi.id)
+  -- answers saved on the working paper itself (UAT run 2 B57); a value
+  -- carried forward from the prior year is not this year's work
+  OR EXISTS (
+    SELECT 1 FROM form_response fr
+     WHERE fr.engagement_id = fi.engagement_id AND fr.code = 'wp:' || fi.code
+       AND fr.carried_forward = false
+       AND coalesce(fr.value #>> '{}', '') NOT IN ('', 'null', '""')
+  )
 )`;
 
 function taskStatus(row: {
@@ -189,6 +200,8 @@ export interface PhaseTask {
   reviewerName: string | null;
   reviewerAt: string | null;
   status: PhaseTaskStatus;
+  /** Why the task was marked not applicable (file_item.na_reason), or null/absent. */
+  naReason?: string | null;
 }
 
 /** Three-letter initials, e.g. "Nekout Boma" → NBO, "Josiane" → JOS. */
@@ -228,6 +241,7 @@ export async function phaseTasks(engagementId: string, phase: DashboardPhase): P
       reviewer_name: string | null;
       reviewer_at: string | null;
       has_work: boolean;
+      na_reason: string | null;
     }>(
       `SELECT fi.id, fi.code, fi.section, fi.title_en, fi.title_fr,
               d.id AS document_id,
@@ -240,7 +254,8 @@ export async function phaseTasks(engagementId: string, phase: DashboardPhase): P
               (SELECT coalesce(name, email) FROM app_user WHERE id = fi.approver_user_id) AS approver_name,
               ps.signer AS preparer_name, to_char(ps.signed_at, 'DD Mon YYYY') AS preparer_at,
               rs.signer AS reviewer_name, to_char(rs.signed_at, 'DD Mon YYYY') AS reviewer_at,
-              ${HAS_WORK} AS has_work
+              ${HAS_WORK} AS has_work,
+              nullif(btrim(coalesce(fi.na_reason, '')), '') AS na_reason
          FROM file_item fi
          LEFT JOIN LATERAL (
            SELECT id FROM document
@@ -284,6 +299,7 @@ export async function phaseTasks(engagementId: string, phase: DashboardPhase): P
         preparerAt: row.preparer_at,
         reviewerName: row.reviewer_name,
         reviewerAt: row.reviewer_at,
+        naReason: row.na_reason,
         status,
       };
     });
@@ -372,8 +388,8 @@ export async function engagementAttention(
         ORDER BY abs(amount) DESC LIMIT 4`,
       [engagementId],
     );
-    const risks = await tx.query<{ description: string; age: number }>(
-      `SELECT description, (CURRENT_DATE - created_at::date) AS age
+    const risks = await tx.query<{ description: string; presumed_type: string | null; age: number }>(
+      `SELECT description, presumed_type, (CURRENT_DATE - created_at::date) AS age
          FROM risk
         WHERE engagement_id = $1 AND significant AND rebutted = false AND status <> 'concluded'
         ORDER BY created_at DESC LIMIT 3`,
@@ -395,12 +411,19 @@ export async function engagementAttention(
       [engagementId],
     );
 
+    // The chips speak the reader's language and the trial balance's currency
+    // (UAT run3-B17: English metas and a hard-coded XAF on a French XOF file).
+    const fr = locale === "fr";
+    const tb = await tx.query<{ currency: string }>("SELECT currency FROM trial_balance WHERE engagement_id = $1", [engagementId]);
+    const currency = tb.rows[0]?.currency ?? "XAF";
+    const money = (x: number) => `${new Intl.NumberFormat(fr ? "fr-FR" : "en-US").format(x)} ${currency}`;
+
     const items: AttentionItem[] = [];
     for (const f of findings.rows) {
       items.push({
         code: f.route.toUpperCase(),
         title: f.title,
-        meta: f.code ? `Finding · ${f.code}` : "Finding",
+        meta: f.code ? `${fr ? "Constat" : "Finding"} · ${f.code}` : fr ? "Constat" : "Finding",
         tone: f.route === "b4" ? "rose" : "warn",
         ageDays: Number(f.age),
       });
@@ -409,25 +432,31 @@ export async function engagementAttention(
       items.push({
         code: "C1.1",
         title: m.description,
-        meta: `Uncorrected · XAF ${Number(m.amount).toLocaleString("fr-FR")}`,
+        meta: `${fr ? "Non corrigée" : "Uncorrected"} · ${money(Number(m.amount))}`,
         tone: "warn",
         ageDays: Number(m.age),
       });
     }
     for (const r of risks.rows) {
-      items.push({ code: "S3.1", title: r.description, meta: "Significant risk", tone: "rose", ageDays: Number(r.age) });
+      items.push({
+        code: "S3.1",
+        title: riskTitle({ description: r.description, presumedType: r.presumed_type }, locale),
+        meta: locale === "fr" ? "Risque important" : "Significant risk",
+        tone: "rose",
+        ageDays: Number(r.age),
+      });
     }
     for (const d of docs.rows) {
       items.push({
         code: d.code,
         title: locale === "fr" ? d.title_fr : d.title_en,
-        meta: "Working paper awaiting sign-off",
+        meta: fr ? "Feuille de travail en attente de signature" : "Working paper awaiting sign-off",
         tone: "accent",
         ageDays: Number(d.age),
       });
     }
     for (const p of pbc.rows) {
-      items.push({ code: "PBC", title: p.title, meta: "Outstanding from client", tone: "warn", ageDays: Number(p.age) });
+      items.push({ code: "PBC", title: p.title, meta: fr ? "En attente du client" : "Outstanding from client", tone: "warn", ageDays: Number(p.age) });
     }
     return items.sort((a, b) => a.ageDays - b.ageDays).slice(0, 8);
   });
@@ -600,6 +629,7 @@ async function loadTasks(engagementId: string, scope: TaskScope): Promise<PhaseT
       reviewer_name: string | null;
       reviewer_at: string | null;
       has_work: boolean;
+      na_reason: string | null;
     }>(
       `SELECT fi.id, fi.code, fi.section, fi.title_en, fi.title_fr,
               d.id AS document_id,
@@ -612,7 +642,8 @@ async function loadTasks(engagementId: string, scope: TaskScope): Promise<PhaseT
               (SELECT coalesce(name, email) FROM app_user WHERE id = fi.approver_user_id) AS approver_name,
               ps.signer AS preparer_name, to_char(ps.signed_at, 'DD Mon YYYY') AS preparer_at,
               rs.signer AS reviewer_name, to_char(rs.signed_at, 'DD Mon YYYY') AS reviewer_at,
-              ${HAS_WORK} AS has_work
+              ${HAS_WORK} AS has_work,
+              nullif(btrim(coalesce(fi.na_reason, '')), '') AS na_reason
          FROM file_item fi
          LEFT JOIN LATERAL (
            SELECT id FROM document
@@ -655,6 +686,7 @@ async function loadTasks(engagementId: string, scope: TaskScope): Promise<PhaseT
         preparerAt: row.preparer_at,
         reviewerName: row.reviewer_name,
         reviewerAt: row.reviewer_at,
+        naReason: row.na_reason,
         status,
       };
     });
@@ -686,7 +718,7 @@ async function statsScoped(engagementId: string | null): Promise<DashboardStats>
          -- always equals the list it links to.
          (SELECT count(*) FROM file_item fi
            WHERE ($1::uuid IS NULL OR fi.engagement_id = $1) AND fi.conditional = false
-             AND (fi.owner_id = $2 OR fi.assignee_user_id = $2)
+             AND (fi.owner_id = $2 OR fi.assignee_user_id = $2 OR fi.approver_user_id = $2)
              AND NOT EXISTS (
                SELECT 1 FROM document d JOIN signoff s ON s.document_id = d.id
                 WHERE d.file_item_id = fi.id AND s.role IN ('reviewer','partner') AND s.voided_at IS NULL
@@ -703,7 +735,7 @@ async function statsScoped(engagementId: string | null): Promise<DashboardStats>
              ))::text AS for_my_review,
          (SELECT count(*) FROM file_item fi
            WHERE ($1::uuid IS NULL OR fi.engagement_id = $1) AND fi.conditional = false
-             AND (fi.owner_id = $2 OR fi.assignee_user_id = $2)
+             AND (fi.owner_id = $2 OR fi.assignee_user_id = $2 OR fi.approver_user_id = $2)
              AND NOT EXISTS (SELECT 1 FROM document d WHERE d.file_item_id = fi.id))::text AS to_do,
          -- notes reach me either through a document I own or, since review
          -- notes live on tasks, by being addressed to me directly
@@ -767,6 +799,7 @@ export async function taskForItem(engagementId: string, code: string): Promise<P
       reviewer_name: string | null;
       reviewer_at: string | null;
       has_work: boolean;
+      na_reason: string | null;
     }>(
       `SELECT fi.id, fi.code, fi.section, fi.title_en, fi.title_fr,
               d.id AS document_id,
@@ -779,7 +812,8 @@ export async function taskForItem(engagementId: string, code: string): Promise<P
               (SELECT coalesce(name, email) FROM app_user WHERE id = fi.approver_user_id) AS approver_name,
               ps.signer AS preparer_name, to_char(ps.signed_at, 'DD Mon YYYY') AS preparer_at,
               rs.signer AS reviewer_name, to_char(rs.signed_at, 'DD Mon YYYY') AS reviewer_at,
-              ${HAS_WORK} AS has_work
+              ${HAS_WORK} AS has_work,
+              nullif(btrim(coalesce(fi.na_reason, '')), '') AS na_reason
          FROM file_item fi
          LEFT JOIN LATERAL (
            SELECT id FROM document
@@ -823,6 +857,7 @@ export async function taskForItem(engagementId: string, code: string): Promise<P
       preparerAt: row.preparer_at,
       reviewerName: row.reviewer_name,
       reviewerAt: row.reviewer_at,
+      naReason: row.na_reason,
       status,
     };
   });
@@ -857,6 +892,10 @@ export async function unassignedTaskCount(engagementId: string): Promise<number>
       `SELECT count(*)::text AS n FROM file_item fi
         WHERE fi.engagement_id = $1 AND fi.conditional = false
           AND fi.owner_id IS NULL AND fi.assignee_user_id IS NULL
+          -- a task marked not applicable with a reason needs nobody (UAT run2-B157)
+          AND btrim(coalesce(fi.na_reason, '')) = ''
+          -- nothing is handed out on an archived file
+          AND NOT EXISTS (SELECT 1 FROM engagement e WHERE e.id = fi.engagement_id AND e.archived_at IS NOT NULL)
           AND NOT EXISTS (
             SELECT 1 FROM document d JOIN signoff sg ON sg.document_id = d.id
              WHERE d.file_item_id = fi.id AND sg.role IN ('reviewer','partner') AND sg.voided_at IS NULL

@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { localizedTitle } from "@/lib/page-title";
 import { notFound, redirect } from "next/navigation";
 import { auth } from "@/auth";
 import { AppNav } from "@/components/AppNav";
@@ -7,7 +8,7 @@ import { getEngagement } from "@/lib/engagements";
 import { getLocale } from "@/lib/locale";
 import { sadView } from "@/lib/sad";
 
-export const metadata = { title: "Summary of Audit Differences · AuditISA" };
+export const generateMetadata = localizedTitle("Summary of Audit Differences", "Récapitulatif des écarts d'audit");
 
 /**
  * The Summary of Audit Differences (ISA 450): adjustments proposed in the

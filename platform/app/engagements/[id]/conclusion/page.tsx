@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { localizedTitle } from "@/lib/page-title";
 import { notFound, redirect } from "next/navigation";
 import { auth } from "@/auth";
 import {
@@ -26,13 +27,13 @@ import {
   getConclusionState,
 } from "@/lib/completion";
 import { getEngagement } from "@/lib/engagements";
-import { atLeast, type Role } from "@/lib/rbac";
-import { activeHold, retentionDate, retentionPolicy } from "@/lib/retention";
+import { atLeast, canPartnerSignoff, type Role } from "@/lib/rbac";
+import { listHolds, retentionDate, retentionPolicy } from "@/lib/retention";
 import { REPORT_COMPONENTS } from "@/lib/report-components";
 import { getMessages } from "@/lib/i18n";
 import { getLocale } from "@/lib/locale";
 
-export const metadata = { title: "Conclusion · AuditISA" };
+export const generateMetadata = localizedTitle("Conclusion", "Conclusion");
 
 export default async function ConclusionPage(props: {
   params: Promise<{ id: string }>;
@@ -49,7 +50,7 @@ export default async function ConclusionPage(props: {
 
   const engagement = await getEngagement(id);
   if (!engagement) notFound();
-  const [gates, archGates, state, disclosure, subsequent, points, partner, client, hold, retention] = await Promise.all([
+  const [gates, archGates, state, disclosure, subsequent, points, partner, client, holds, retention] = await Promise.all([
     completionGates(id),
     archiveGates(id),
     getConclusionState(id),
@@ -58,13 +59,21 @@ export default async function ConclusionPage(props: {
     getCompletionRecord(id, "points_forward"),
     getCompletionRecord(id, "partner_conclusion"),
     getClient(engagement.clientId),
-    activeHold(id),
+    listHolds(id),
     retentionPolicy(),
   ]);
+  const hold = holds.find((h) => h.releasedAt === null) ?? null;
+  const releasedHolds = holds.filter((h) => h.releasedAt !== null);
   const role = session.user.role as Role;
   const canPlaceHold = atLeast(role, "manager");
   const canReleaseHold = atLeast(role, "partner");
-  const retentionUntil = state.reportDate ? retentionDate(state.reportDate, engagement.periodEnd, retention.years) : null;
+  // Partner-only actions are offered to a partner only; others see who acts (UAT run 2 B36, run 3 B16).
+  const isPartner = canPartnerSignoff(role);
+  const awaitingPartner = locale === "fr" ? "En attente de l'associé de la mission" : "Awaiting the engagement partner";
+  // Once archived, the date stamped at archiving governs; a later change to the
+  // firm's period does not move it (UAT run 2 B86).
+  const retentionUntil =
+    state.retentionUntil ?? (state.reportDate ? retentionDate(state.reportDate, engagement.periodEnd, retention.years) : null);
 
   // A4 (Wave 5): the ISA 700 required-components checklist, read-only.
   // No draft report text exists pre-issue (the report is assembled as DOCX at
@@ -98,7 +107,14 @@ export default async function ConclusionPage(props: {
       <h1 className="mt-8 text-2xl font-semibold text-ink">
         {engagement.clientName} — {engagement.fiscalYear} · {tc.title}
       </h1>
-      <ErrorBanner error={error} failed={failed} locale={locale} />
+      {/* completion / archive wording, and the tasks each failed gate names (UAT run 2 B84) */}
+      <ErrorBanner
+        error={error}
+        failed={failed}
+        locale={locale}
+        scope="conclusion"
+        details={Object.fromEntries(archGates.filter((g) => !g.ok && g.codes?.length).map((g) => [g.key, (g.codes ?? []).join(", ")]))}
+      />
 
       {state.archivedAt ? (
         <p
@@ -127,6 +143,7 @@ export default async function ConclusionPage(props: {
             ? `Durée de conservation du cabinet : ${retention.years} ans à compter du rapport.`
             : `Firm retention period: ${retention.years} years from the report date.`}
           {retentionUntil ? ` · ${locale === "fr" ? "Conservation jusqu'au" : "Retain until"} ${retentionUntil}` : ""}
+          {state.archivedAt && state.retentionUntil ? (locale === "fr" ? " (fixée à l'archivage)" : " (fixed at archiving)") : ""}
         </p>
         {hold ? (
           <div className="mt-3 rounded-[var(--radius-atlas-sm)] bg-[var(--color-warn-soft)] px-3 py-2 text-sm text-warn" data-testid="legal-hold-active">
@@ -173,6 +190,34 @@ export default async function ConclusionPage(props: {
             {locale === "fr" ? "Aucune suspension juridique. Un manager ou un associé peut en placer une." : "No legal hold. A manager or partner can place one."}
           </p>
         )}
+        {/* Released holds stay visible with both reasons (UAT run 2 B158). */}
+        {releasedHolds.length > 0 ? (
+          <div className="mt-3" data-testid="legal-hold-history">
+            <p className="text-xs font-semibold text-ink-soft">
+              {locale === "fr" ? "Historique des suspensions levées" : "Released holds"}
+            </p>
+            <table className="mt-1 w-full text-left text-xs">
+              <thead className="text-muted">
+                <tr>
+                  <th className="py-1 pr-3 font-medium">{locale === "fr" ? "Placée" : "Placed"}</th>
+                  <th className="py-1 pr-3 font-medium">{locale === "fr" ? "Motif" : "Reason"}</th>
+                  <th className="py-1 pr-3 font-medium">{locale === "fr" ? "Levée" : "Released"}</th>
+                  <th className="py-1 font-medium">{locale === "fr" ? "Motif de la levée" : "Release reason"}</th>
+                </tr>
+              </thead>
+              <tbody className="text-ink-soft">
+                {releasedHolds.map((h) => (
+                  <tr key={h.id} className="border-t border-line/60 align-top">
+                    <td className="py-1 pr-3 tnum">{h.placedAt.slice(0, 16)} · {h.placedByName ?? "—"}</td>
+                    <td className="py-1 pr-3">{h.reason}</td>
+                    <td className="py-1 pr-3 tnum">{(h.releasedAt ?? "").slice(0, 16)} · {h.releasedByName ?? "—"}</td>
+                    <td className="py-1">{h.releaseReason ?? "—"}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        ) : null}
       </Panel>
 
       <Panel className="mt-6">
@@ -293,6 +338,13 @@ export default async function ConclusionPage(props: {
             </button>
           </form>
 
+          {!isPartner ? (
+            <div className={subCard} data-testid="partner-conclusion-partner-only">
+              <p className="text-sm font-semibold text-ink">{tc.partnerConclusion}</p>
+              {partner?.conclusion ? <p className="mt-2 text-xs text-ink-soft">{String(partner.conclusion)}</p> : null}
+              <p className="mt-2 text-xs text-muted">{partner ? "✓" : awaitingPartner}</p>
+            </div>
+          ) : (
           <form
             action={partnerConclusionAction.bind(null, id)}
             className={subCard}
@@ -318,6 +370,7 @@ export default async function ConclusionPage(props: {
               {tc.save}
             </button>
           </form>
+          )}
         </div>
       </Panel>
       </>
@@ -367,7 +420,17 @@ export default async function ConclusionPage(props: {
                     );
                   })}
                 </ul>
-                {archGates.every((g) => g.ok) ? (
+                {!isPartner ? (
+                  <button
+                    type="button"
+                    disabled
+                    className={`${primary} mt-3 cursor-not-allowed opacity-40`}
+                    title={locale === "fr" ? "Réservé à l'associé de la mission" : "Reserved to the engagement partner"}
+                    data-testid="archive-file-partner-only"
+                  >
+                    {tc.archive} · {locale === "fr" ? "Réservé à l'associé" : "Partner only"}
+                  </button>
+                ) : archGates.every((g) => g.ok) ? (
                   <form action={archiveAction.bind(null, id)} className="mt-3">
                     <button type="submit" className={primary} data-testid="archive-file">
                       {tc.archive}
@@ -404,6 +467,16 @@ export default async function ConclusionPage(props: {
               </form>
             )}
           </div>
+        ) : !isPartner ? (
+          <p className="mt-3 text-xs text-muted" data-testid="issue-report-partner-only">
+            {awaitingPartner} — {locale === "fr" ? "seul un associé émet le rapport." : "only a partner issues the report."}
+          </p>
+        ) : engagement.phase !== "execution" && engagement.phase !== "conclusion" ? (
+          // Issuing is refused before execution: say so instead of offering a
+          // form that is lost on submit (UAT run 2 B154).
+          <p className="mt-3 text-xs text-muted" data-testid="issue-report-wrong-phase">
+            {t.planning.errors["report-requires-execution"]}
+          </p>
         ) : (
           <form action={issueReportAction.bind(null, id)} className="mt-3 flex flex-col gap-2">
             <div className="flex flex-wrap gap-4">

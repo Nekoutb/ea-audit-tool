@@ -103,8 +103,9 @@ export async function sadView(engagementId: string): Promise<SadView> {
 /** sadView inside the caller's transaction — the C4.1 gate reads the SAD as it stands (UAT run 2 B12). */
 export async function sadViewTx(tx: PoolClient, engagementId: string): Promise<SadView> {
   return (async () => {
-    const eng = await tx.query<{ client_name: string; period_end: string }>(
-      `SELECT c.name AS client_name, to_char(e.period_end, 'YYYY-MM-DD') AS period_end
+    const eng = await tx.query<{ client_name: string; period_end: string; currency: string | null }>(
+      `SELECT c.name AS client_name, to_char(e.period_end, 'YYYY-MM-DD') AS period_end,
+              (SELECT tb.currency FROM trial_balance tb WHERE tb.engagement_id = e.id) AS currency
          FROM engagement e JOIN client c ON c.id = e.client_id
         WHERE e.id = $1`,
       [engagementId],
@@ -209,6 +210,53 @@ export async function sadViewTx(tx: PoolClient, engagementId: string): Promise<S
           reg.corrected !== e.corrected;
       }
     }
+    // Misstatements on the C1.1 register that no working-paper step produced —
+    // the Sampling tool's projection, findings routed to C1.1 — belong on the
+    // SAD as well, in the section of their type (UAT run 2 B63). Their amount
+    // sits on the income statement unless the caption is overridden; the
+    // overrides are keyed by misstatement id.
+    const registerOnly = await tx.query<{
+      id: string; description: string; amount: string; mtype: string; corrected: boolean;
+      file_item_id: string | null; code: string | null; title_en: string | null;
+    }>(
+      `SELECT m.id, m.description, m.amount::text AS amount, m.mtype, m.corrected,
+              coalesce(fi.id, c11.id) AS file_item_id, coalesce(fi.code, c11.code) AS code,
+              coalesce(fi.title_en, c11.title_en) AS title_en
+         FROM misstatement m
+         LEFT JOIN file_item fi ON fi.id = m.file_item_id
+         LEFT JOIN file_item c11 ON c11.engagement_id = m.engagement_id AND c11.code = 'C1.1'
+        WHERE m.engagement_id = $1 AND m.program_step_id IS NULL AND m.trivial = false
+        ORDER BY m.created_at`,
+      [engagementId],
+    );
+    for (const r of registerOnly.rows) {
+      const o = overrides.get(r.id) ?? {};
+      const drOverride = (SAD_CAPTIONS as readonly string[]).includes(o.drcap) ? (o.drcap as SadCaption) : null;
+      const crOverride = (SAD_CAPTIONS as readonly string[]).includes(o.crcap) ? (o.crcap as SadCaption) : null;
+      entries.push({
+        stepId: r.id,
+        taskCode: r.code ?? "C1.1",
+        taskItemId: r.file_item_id ?? "",
+        taskTitle: r.title_en ?? "",
+        ref: r.code ?? "C1.1",
+        finding: r.description,
+        drAccount: "",
+        drAmount: Number(r.amount),
+        crAccount: "",
+        crAmount: 0,
+        drCaption: drOverride ?? "expense",
+        crCaption: crOverride ?? "expense",
+        drSuggested: drOverride === null,
+        crSuggested: crOverride === null,
+        // the register row carries the type and corrected flag itself
+        mtype: r.mtype,
+        corrected: r.corrected,
+        rationale: o.rationale ?? "",
+        posted: true,
+        stale: false,
+        registerOnly: true,
+      });
+    }
     entries.sort((a, b) => a.taskCode.localeCompare(b.taskCode, undefined, { numeric: true }) || a.ref.localeCompare(b.ref));
 
     const m = mat.rows[0];
@@ -223,6 +271,7 @@ export async function sadViewTx(tx: PoolClient, engagementId: string): Promise<S
         : null,
       entityName: eng.rows[0]?.client_name ?? "",
       periodEnd: eng.rows[0]?.period_end ?? "",
+      currency: eng.rows[0]?.currency ?? "XAF",
       fsCaptions: fs ? fs.columns : null,
       incomeBeforeTax: fs ? fs.incomeBeforeTax : null,
       meta,
@@ -322,6 +371,32 @@ export async function postSadEntry(engagementId: string, stepId: string): Promis
   const view = await sadView(engagementId);
   const entry = view.entries.find((e) => e.stepId === stepId);
   if (!entry) throw new Error("not-found");
+  if (entry.registerOnly) {
+    // A register row with no step behind it (UAT run 2 B63): the SAD edits its
+    // type and corrected flag in place; amount and wording stay as recorded.
+    await withTenant(tenantId, async (tx) => {
+      const r = await tx.query<{ field_key: string; value: string | null }>(
+        `SELECT field_key, value #>> '{}' AS value FROM form_response
+          WHERE engagement_id = $1 AND code = $2 AND field_key = ANY($3::text[])`,
+        [engagementId, CODE, [`mtype_${stepId}`, `corrected_${stepId}`]],
+      );
+      const get = (k: string) => r.rows.find((x) => x.field_key === `${k}_${stepId}`)?.value ?? null;
+      const mtype = get("mtype");
+      const corrected = get("corrected");
+      await tx.query(
+        `UPDATE misstatement
+            SET mtype = coalesce($3, mtype), corrected = coalesce($4, corrected)
+          WHERE id = $1 AND engagement_id = $2 AND program_step_id IS NULL`,
+        [
+          stepId,
+          engagementId,
+          mtype && (SAD_TYPES as readonly string[]).includes(mtype) ? mtype : null,
+          corrected === null ? null : CORRECTED_YES.includes(corrected),
+        ],
+      );
+    });
+    return;
+  }
   const amount = Math.max(Math.abs(entry.drAmount), Math.abs(entry.crAmount));
   // The register shows this text as stored: captions are written as their
   // labels in the poster's language, not as raw keys (UAT B152).

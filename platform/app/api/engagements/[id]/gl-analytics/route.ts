@@ -88,6 +88,10 @@ function readDrillFilter(value: unknown): DrillFilter {
   if (raw.reviewer !== undefined) filter.reviewer = String(raw.reviewer);
   if (raw.approver !== undefined) filter.approver = String(raw.approver);
   if (raw.minAbs !== undefined) filter.minAbs = Number(raw.minAbs);
+  if (raw.maxAbs !== undefined) filter.maxAbs = Number(raw.maxAbs);
+  if (raw.dateFrom !== undefined) filter.dateFrom = String(raw.dateFrom);
+  if (raw.dateTo !== undefined) filter.dateTo = String(raw.dateTo);
+  if (raw.journalCode !== undefined) filter.journalCode = String(raw.journalCode);
   if (raw.weekendOnly !== undefined) filter.weekendOnly = raw.weekendOnly === true;
   if (raw.missingReference !== undefined) filter.missingReference = raw.missingReference === true;
   return filter;

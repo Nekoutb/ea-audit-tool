@@ -28,6 +28,15 @@ export const SAD_CAPTION_LABELS: Record<SadCaption, { en: string; fr: string }> 
 
 export const SAD_TYPES = ["factual", "judgmental", "projected", "classification", "disclosure"] as const;
 
+/** The misstatement types as the reader sees them (UAT B52; shared with C1.2, run2-B151). */
+export const MISSTATEMENT_TYPE_LABELS: Record<string, { en: string; fr: string }> = {
+  factual: { en: "factual", fr: "avérée" },
+  judgmental: { en: "judgmental", fr: "de jugement" },
+  projected: { en: "projected", fr: "extrapolée" },
+  classification: { en: "reclassification", fr: "reclassement" },
+  disclosure: { en: "disclosure", fr: "information annexe" },
+};
+
 /** The six columns of the workbook's caption grid. */
 export const SAD_COLUMN_COUNT = 6;
 
@@ -117,6 +126,12 @@ export interface SadEntry {
   posted: boolean;
   /** posted, but the register row no longer matches the working paper (UAT run 2 B11) */
   stale?: boolean;
+  /**
+   * A C1.1 register row with no working-paper step behind it — a sampling
+   * projection or a routed finding (UAT run 2 B63). stepId is then the
+   * misstatement id, and the register row is its own source.
+   */
+  registerOnly?: boolean;
 }
 
 export interface SadView {
@@ -127,6 +142,8 @@ export interface SadView {
   entityName: string;
   /** period end, YYYY-MM-DD */
   periodEnd: string;
+  /** the trial balance's currency (UAT run2-B128: the SAD said XAF, the TB XOF); absent = XAF */
+  currency?: string;
   /**
    * FS caption totals from the current TB, one per grid column (credit-positive
    * for liabilities/equity, column 5 = classes 7 minus 6 net). Null = no TB.

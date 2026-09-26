@@ -118,9 +118,20 @@ export function CraBoard({
       if (typed === null || !typed.trim()) return;
       reason = typed.trim();
     }
-    const previous = { [field]: current } as Partial<CraCell>;
-    patchCell(row.indexCode, cell.assertion, { [field]: value === "" ? null : value } as Partial<CraCell>);
-    const ok = await save(row.indexCode, cell.assertion, { [field]: value, reason });
+    // Relying with no tested control (or ITGCs not supporting) needs a basis
+    // written for this decision, not the one kept from "not rely" (UAT B51).
+    let crBasis: string | undefined;
+    if (field === "cr" && value === "rely" && current !== "rely" && (cell.controlsCovering === 0 || view.itgcState === "not_support")) {
+      const typed = window.prompt(
+        fr ? "Fondement de l'appui sur les contrôles (ISA 330 ¶8) :" : "Basis for relying on controls (ISA 330 ¶8):",
+        "",
+      );
+      if (typed === null || !typed.trim()) return;
+      crBasis = typed.trim();
+    }
+    const previous = { [field]: current, ...(crBasis !== undefined ? { crBasis: cell.crBasis } : {}) } as Partial<CraCell>;
+    patchCell(row.indexCode, cell.assertion, { [field]: value === "" ? null : value, ...(crBasis !== undefined ? { crBasis } : {}) } as Partial<CraCell>);
+    const ok = await save(row.indexCode, cell.assertion, { [field]: value, reason, ...(crBasis !== undefined ? { crBasis } : {}) });
     if (!ok) patchCell(row.indexCode, cell.assertion, previous);
     else if (reason !== undefined) {
       patchCell(row.indexCode, cell.assertion, {
@@ -339,7 +350,7 @@ export function CraBoard({
                               {cell.history.map((h, k) => (
                                 <li key={k}>
                                   {riskWord(h.ir, h.cr)} → {riskWord(h.newIr, h.newCr)}
-                                  {h.reason ? ` (${h.reason})` : ""}
+                                  {h.reason ? ` (${crBasisLabel(h.reason, fr ? "fr" : "en")})` : ""}
                                   {h.by ? ` · ${h.by}` : ""} · {h.at}
                                   {h.irBasis || h.crBasis ? (
                                     <span className="block italic">

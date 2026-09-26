@@ -1,4 +1,5 @@
 import { notFound, redirect } from "next/navigation";
+import { localizedTitle } from "@/lib/page-title";
 import { auth } from "@/auth";
 import { AppNav } from "@/components/AppNav";
 import { CraBoard } from "@/components/CraBoard";
@@ -10,7 +11,7 @@ import { getEngagement } from "@/lib/engagements";
 import { getMessages } from "@/lib/i18n";
 import { getLocale } from "@/lib/locale";
 
-export const metadata = { title: "CRA · AuditISA" };
+export const generateMetadata = localizedTitle("CRA", "ECR");
 
 /** The Combined Risk Assessment matrix, full screen: IR × CR per relevant
     assertion of each significant account, plus the SCOT rollup. */

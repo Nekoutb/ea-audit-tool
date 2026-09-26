@@ -1,4 +1,5 @@
 import { notFound, redirect } from "next/navigation";
+import { localizedTitle } from "@/lib/page-title";
 import { auth } from "@/auth";
 import { addCommentAction } from "@/app/actions/comments";
 import { AppNav } from "@/components/AppNav";
@@ -11,7 +12,7 @@ import { getEngagement } from "@/lib/engagements";
 import { getMessages } from "@/lib/i18n";
 import { getLocale } from "@/lib/locale";
 
-export const metadata = { title: "Discussion · AuditISA" };
+export const generateMetadata = localizedTitle("Discussion", "Discussion");
 
 function Thread({
   root,

@@ -23,7 +23,7 @@ import { itemsForComplexity, shortTitle } from "@/lib/file-index";
 import { phaseStillOpen } from "@/lib/gates";
 import { getMessages } from "@/lib/i18n";
 import { getLocale } from "@/lib/locale";
-import { canReview } from "@/lib/rbac";
+import { canReview, canWrite } from "@/lib/rbac";
 import { GROUP_BY_ID, displayCode, groupTitle, sectionLabel } from "@/lib/task-groups";
 import { dspDesignGaps, dspDesignedIndexes } from "@/lib/design-procedures";
 import { indexesForTask } from "@/lib/psp";
@@ -31,7 +31,8 @@ import { indexesForTask } from "@/lib/psp";
 export async function generateMetadata(props: { params: Promise<{ group: string }> }) {
   const { group } = await props.params;
   const g = GROUP_BY_ID[group];
-  return { title: `${g ? `${g.code} ${g.titleEn}` : "Task group"} · AuditISA` };
+  const locale = await getLocale();
+  return { title: `${g ? `${g.code} ${groupTitle(g, locale)}` : locale === "fr" ? "Groupe de tâches" : "Task group"} · AuditISA` };
 }
 
 const MONTHS: Record<"en" | "fr", string[]> = {
@@ -258,7 +259,7 @@ export default async function GroupTasksPage(props: {
                     returnTo={returnTo}
                     signPreparerLabel={td.signAsPreparer}
                     signReviewerLabel={td.signAsReviewer}
-                    canSign={!phaseStillOpen(phaseOfTask(tasks[i].section, tasks[i].code), engagement.phase, tasks[i].code)}
+                    canSign={canWrite(session.user.role) && !phaseStillOpen(phaseOfTask(tasks[i].section, tasks[i].code), engagement.phase, tasks[i].code)}
                     canReview={canReview(session.user.role)}
                   />
                 ))}

@@ -406,19 +406,18 @@ describe("letter/working-paper collision (review fix)", () => {
     const workpaperId = await generateDocument(d31.id, "en");
     expect(workpaperId).not.toBe(letterId);
 
-    // The engagement letter is filed under P1.4 (ISA 210), a planning task.
-    // Gates, not guidance (UAT B15): nothing of a later phase is signed while
-    // acceptance is still open, so the letter cannot be signed at all yet...
-    await expect(signDocument(letterId, "preparer")).rejects.toThrow("acceptance-open");
+    // The engagement letter is filed under P1.4 (ISA 210). P1.2-P1.5 are
+    // acceptance-phase tasks (UAT run2-B28), so the letter can be signed while
+    // acceptance is open...
+    await signDocument(letterId, "preparer");
     let gates = await acceptanceGates(fresh);
     expect(gates.find((g) => g.key === "d31_partner_signed")?.ok).toBe(false);
 
-    // ...and even a partner signature sitting on the LETTER (written straight
-    // into the table, since the rule above refuses it) does not satisfy the
-    // P1.1 gate, which counts working papers only.
+    // ...but even a partner signature on the LETTER does not satisfy the P1.1
+    // gate, which counts working papers only.
     await admin.query(
       `INSERT INTO signoff (tenant_id, document_id, version_no, role, user_id)
-       VALUES ($1, $2, 1, 'preparer', $3), ($1, $2, 1, 'partner', $3)`,
+       VALUES ($1, $2, 1, 'partner', $3)`,
       [TENANT, letterId, USER],
     );
     gates = await acceptanceGates(fresh);

@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { localizedTitle } from "@/lib/page-title";
 import { notFound, redirect } from "next/navigation";
 import { auth } from "@/auth";
 import {
@@ -23,7 +24,7 @@ import { listTeam } from "@/lib/team";
 import { withTenant } from "@/lib/db";
 import { requireTenant } from "@/lib/tenant";
 
-export const metadata = { title: "Acceptance & continuance · AuditISA" };
+export const generateMetadata = localizedTitle("Acceptance & continuance", "Acceptation & maintien");
 
 async function clientMandate(clientId: string): Promise<{
   mandateType: "statutes" | "ago" | null;

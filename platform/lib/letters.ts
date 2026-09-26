@@ -67,6 +67,20 @@ interface LetterFields {
   significantMatters?: string[];
   /** tcwg_completion: the team's independence position */
   independence?: { total: number; completed: number; exceptions: number; undisposed: number };
+  /** planning_tcwg: what the file records at planning (ISA 260 ¶15-17, UAT run 2 B56) */
+  planning?: {
+    addressees: string;
+    scope: string;
+    materiality: { overall: number; performance: number; trivial: number } | null;
+    risks: string[];
+    team: { name: string; role: string }[];
+  };
+}
+
+/** Close a sentence with a full stop unless it already ends in punctuation (UAT run 2 B145). */
+export function endSentence(text: string): string {
+  const t = text.trim();
+  return /[.!?…]$/.test(t) ? t : `${t}.`;
 }
 
 const fcfa = (n: number) => new Intl.NumberFormat("fr-FR").format(Math.round(n));
@@ -79,6 +93,45 @@ function mandateYears(type: "statutes" | "ago"): number {
 
 export function mandateExpiryYear(type: "statutes" | "ago", startYear: number): number {
   return startYear + mandateYears(type) - 1;
+}
+
+/** The governance report's independence paragraph, stated from the campaign's counts. */
+export function independenceStatement(
+  ind: { total: number; completed: number; exceptions: number; undisposed: number },
+  fr: boolean,
+): string {
+  if (ind.total === 0) {
+    return fr
+      ? "Aucune confirmation d'indépendance n'a été demandée à l'équipe à la date du présent rapport."
+      : "No independence confirmation has been requested from the team at the date of this report.";
+  }
+  const outstanding = Math.max(ind.total - ind.completed - ind.exceptions, 0);
+  const parts: string[] = [];
+  if (outstanding === 0) {
+    parts.push(
+      fr
+        ? `Chaque membre de l'équipe a confirmé son indépendance par écrit : ${ind.total} confirmation(s) demandée(s), ${ind.completed} sans exception, ${ind.exceptions} avec exception déclarée.`
+        : `Every team member confirmed independence in writing: ${ind.total} confirmation(s) requested, ${ind.completed} without exception, ${ind.exceptions} with an exception declared.`,
+    );
+  } else {
+    parts.push(
+      fr
+        ? `${ind.total} confirmation(s) d'indépendance demandée(s) : ${ind.completed} reçue(s) sans exception, ${ind.exceptions} avec exception déclarée, ${outstanding} non encore reçue(s).`
+        : `${ind.total} independence confirmation(s) requested: ${ind.completed} received without exception, ${ind.exceptions} with an exception declared, ${outstanding} not yet received.`,
+    );
+  }
+  if (ind.exceptions > 0) {
+    parts.push(
+      ind.undisposed > 0
+        ? fr
+          ? `${ind.undisposed} exception(s) sont en attente de la décision de l'associé. Les sauvegardes appliquées aux exceptions sont consignées en P2.1.`
+          : `${ind.undisposed} exception(s) await the partner's disposition. The safeguards applied to the exceptions are recorded on P2.1.`
+        : fr
+          ? "Les sauvegardes appliquées aux exceptions sont consignées en P2.1."
+          : "The safeguards applied to the exceptions are recorded on P2.1.",
+    );
+  }
+  return parts.join(" ");
 }
 
 function p(text: string, bold = false): Paragraph {
@@ -182,12 +235,47 @@ async function buildLetter(
           ),
         ],
       }),
-      p(`${f.clientName} — ${f.fiscalYear}`),
+      p(`${f.clientName} — ${fr ? "exercice clos le" : "year ended"} ${f.periodEnd}`),
+    );
+    // ISA 260 ¶15-17: scope and timing, significant risks, materiality, the
+    // team and independence, drawn from the file (UAT run 2 B56).
+    const pl = f.planning;
+    if (pl?.addressees) children.push(p(`${fr ? "Destinataires" : "Addressees"} : ${pl.addressees}`));
+    children.push(
+      p(fr ? "Étendue et calendrier prévus de l'audit (ISA 260 ¶15)" : "Planned scope and timing of the audit (ISA 260 ¶15)", true),
       p(
         fr
-          ? "Étendue et calendrier prévus de l'audit : approche par les risques, seuils de signification, calendrier d'intervention et équipe."
-          : "Planned scope and timing of the audit: risk-based approach, materiality, fieldwork timetable and team.",
+          ? `Nous effectuons l'audit des états financiers de l'exercice clos le ${f.periodEnd}, établis selon le référentiel ${frameworkLabel(f.framework)}, conformément aux Normes internationales d'audit (ISA) et aux dispositions de l'AUSCGIE. L'approche est fondée sur l'évaluation des risques d'anomalies significatives.`
+          : `We audit the financial statements for the year ended ${f.periodEnd}, prepared under ${frameworkLabel(f.framework)}, in accordance with International Standards on Auditing (ISA) and the AUSCGIE. The approach is based on the assessment of the risks of material misstatement.`,
       ),
+    );
+    if (pl?.scope) children.push(p(endSentence(pl.scope)));
+    children.push(p(fr ? "Risques importants identifiés (ISA 260 ¶15)" : "Significant risks identified (ISA 260 ¶15)", true));
+    if (pl && pl.risks.length > 0) children.push(...pl.risks.map((r) => p(`• ${endSentence(r)}`)));
+    else children.push(p(fr ? "Aucun risque important n'est consigné au dossier à la date de la présente communication." : "No significant risk is recorded on the file at the date of this communication."));
+    children.push(p(fr ? "Seuils de signification (ISA 320)" : "Materiality (ISA 320)", true));
+    if (pl?.materiality) {
+      children.push(
+        p(
+          fr
+            ? `Seuil de signification pour les états financiers pris dans leur ensemble : ${fcfa(pl.materiality.overall)} FCFA. Seuil de planification : ${fcfa(pl.materiality.performance)} FCFA. Seuil en deçà duquel les anomalies sont manifestement insignifiantes : ${fcfa(pl.materiality.trivial)} FCFA.`
+            : `Materiality for the financial statements as a whole: ${fcfa(pl.materiality.overall)} FCFA. Performance materiality: ${fcfa(pl.materiality.performance)} FCFA. Threshold below which misstatements are clearly trivial: ${fcfa(pl.materiality.trivial)} FCFA.`,
+        ),
+      );
+    } else {
+      children.push(p(fr ? "Les seuils de signification ne sont pas encore approuvés à la date de la présente communication." : "Materiality has not yet been approved at the date of this communication."));
+    }
+    children.push(p(fr ? "Équipe d'audit" : "Audit team", true));
+    if (pl && pl.team.length > 0) children.push(...pl.team.map((m) => p(`• ${m.name} — ${m.role}`)));
+    else children.push(p(fr ? "La composition de l'équipe n'est pas encore arrêtée." : "The team has not yet been set."));
+    children.push(
+      p(fr ? "Indépendance (ISA 260 ¶17)" : "Independence (ISA 260 ¶17)", true),
+      p(
+        fr
+          ? "Le cabinet et l'équipe se conforment aux règles d'éthique applicables en matière d'indépendance. Les confirmations d'indépendance de l'équipe sont consignées en P2.1."
+          : "The firm and the team comply with the applicable ethical requirements on independence. The team's independence confirmations are recorded on P2.1.",
+      ),
+      p(fr ? "Le commissaire aux comptes." : "The statutory auditor.", true),
     );
   } else if (kind === "rep_affirmation") {
     // OHADA layer 1: affirmation letter on the draft FS BEFORE the board
@@ -300,11 +388,9 @@ async function buildLetter(
         ? (f.c1Points ?? []).map((point) => p(`• ${point}`))
         : [p(fr ? "Aucune déficience significative relevée." : "No significant deficiency identified.")]),
       p(fr ? "Indépendance (ISA 260 ¶17)" : "Independence (ISA 260 ¶17)", true),
-      p(
-        fr
-          ? `Chaque membre de l'équipe a confirmé son indépendance par écrit : ${ind.completed} confirmation(s) sans exception, ${ind.exceptions} exception(s) déclarée(s), dont ${ind.undisposed} en attente de la décision de l'associé, sur ${ind.total} demandée(s). Les sauvegardes appliquées aux exceptions sont consignées en P2.1.`
-          : `Every team member confirmed independence in writing: ${ind.completed} confirmation(s) without exception, ${ind.exceptions} exception(s) declared, of which ${ind.undisposed} await the partner's disposition, out of ${ind.total} requested. The safeguards applied to the exceptions are recorded on P2.1.`,
-      ),
+      // The statement follows the campaign as it stands: "every member
+      // confirmed" only when every requested confirmation is back (UAT run 2 B83).
+      p(independenceStatement(ind, fr)),
       p(fr ? "Le commissaire aux comptes." : "The statutory auditor.", true),
     );
   } else {
@@ -365,7 +451,13 @@ export async function generateLetter(
     const row = info.rows[0];
     if (!row) throw new Error("not-found");
 
-    const code = LETTER_CODES[kind];
+    // P7.1 asks for the planning communication to be filed against it: file it
+    // there when the task is on the file, else under C5.1 as before (UAT run 2 B56).
+    let code = LETTER_CODES[kind];
+    if (kind === "planning_tcwg") {
+      const p71 = await tx.query("SELECT 1 FROM file_item WHERE engagement_id = $1 AND code = 'P7.1'", [engagementId]);
+      if ((p71.rowCount ?? 0) > 0) code = "P7.1";
+    }
     const item = await tx.query<{ id: string }>(
       "SELECT id FROM file_item WHERE engagement_id = $1 AND code = $2",
       [engagementId, code],
@@ -392,8 +484,8 @@ export async function generateLetter(
         severity ? `[${(locale === "fr" ? gradeFr : gradeEn)[severity] ?? severity}] ` : "";
       c1Points = findings.rows.map((f) => {
         const body = f.detail ? `${f.title} — ${f.detail}` : f.title;
-        const reco = f.recommendation ? ` ${locale === "fr" ? "Recommandation" : "Recommendation"} : ${f.recommendation}.` : "";
-        const resp = f.management_response ? ` ${locale === "fr" ? "Réponse de la direction" : "Management response"} : ${f.management_response}.` : "";
+        const reco = f.recommendation ? ` ${locale === "fr" ? "Recommandation" : "Recommendation"} : ${endSentence(f.recommendation)}` : "";
+        const resp = f.management_response ? ` ${locale === "fr" ? "Réponse de la direction" : "Management response"} : ${endSentence(f.management_response)}` : "";
         return `${gradeOf(f.severity)}${body}${reco}${resp}`;
       });
     }
@@ -422,11 +514,36 @@ export async function generateLetter(
         .filter((v) => v.length > 0);
     };
     const specificRepresentations =
-      kind === "rep_affirmation" ? await paperAnswers("C3.1", ["p_specific", "p_materiality", "key_findings"]) : undefined;
-    const significantMatters =
-      kind === "tcwg_completion"
-        ? await paperAnswers("C1.2", ["p_collect", "p_conclusion", "p_judgements", "p_disagreements", "key_findings"])
-        : undefined;
+      // key_findings is the auditor's own note, not a representation (UAT run 2 B153)
+      kind === "rep_affirmation" ? await paperAnswers("C3.1", ["p_specific", "p_materiality"]) : undefined;
+    let significantMatters: string[] | undefined;
+    if (kind === "tcwg_completion") {
+      // The matters raised to the C1.2 register come first, with their grading
+      // and status; the C1.2 paper's own answers follow (UAT run 2 B82).
+      const b4 = await tx.query<{ title: string; detail: string | null; severity: string | null; status: string; management_response: string | null }>(
+        `SELECT title, detail, severity, status, management_response FROM finding
+          WHERE engagement_id = $1 AND route = 'b4'
+          ORDER BY created_at`,
+        [engagementId],
+      );
+      const fr = locale === "fr";
+      const sevLabel: Record<string, [string, string]> = {
+        significant_deficiency: ["Déficience significative", "Significant deficiency"],
+        deficiency: ["Déficience", "Deficiency"],
+        observation: ["Observation", "Observation"],
+      };
+      const statusLabel = (s: string) =>
+        s === "open" ? (fr ? "ouvert" : "open") : s === "cleared" || s === "closed" || s === "resolved" ? (fr ? "levé" : "cleared") : s;
+      significantMatters = [
+        ...b4.rows.map((m) => {
+          const grade = m.severity ? `[${(sevLabel[m.severity] ?? [m.severity, m.severity])[fr ? 0 : 1]}] ` : "";
+          const body = m.detail ? `${m.title} — ${endSentence(m.detail)}` : endSentence(m.title);
+          const resp = m.management_response ? ` ${fr ? "Réponse de la direction" : "Management response"} : ${endSentence(m.management_response)}` : "";
+          return `${grade}${body} (${fr ? "statut" : "status"} : ${statusLabel(m.status)})${resp}`;
+        }),
+        ...(await paperAnswers("C1.2", ["p_collect", "p_conclusion", "p_judgements", "p_disagreements", "key_findings"])),
+      ];
+    }
     let independence: LetterFields["independence"];
     if (kind === "tcwg_completion") {
       const ic = await tx.query<{ total: string; completed: string; exceptions: string; undisposed: string }>(
@@ -441,6 +558,51 @@ export async function generateLetter(
       );
       const x = ic.rows[0];
       independence = { total: Number(x.total), completed: Number(x.completed), exceptions: Number(x.exceptions), undisposed: Number(x.undisposed) };
+    }
+    let planning: LetterFields["planning"];
+    if (kind === "planning_tcwg") {
+      const m = await tx.query<{ overall: string; performance: string; trivial: string }>(
+        `SELECT overall::text, performance::text, trivial::text FROM materiality
+          WHERE engagement_id = $1 AND status = 'approved'
+          ORDER BY version_no DESC LIMIT 1`,
+        [engagementId],
+      );
+      const risks = await tx.query<{ description: string }>(
+        `SELECT description FROM risk
+          WHERE engagement_id = $1 AND significant AND rebutted = false
+          ORDER BY created_at`,
+        [engagementId],
+      );
+      const team = await tx.query<{ name: string; team_role: string }>(
+        `SELECT coalesce(u.name, u.email) AS name, tm.team_role
+           FROM team_member tm JOIN app_user u ON u.id = tm.user_id
+          WHERE tm.engagement_id = $1 AND coalesce(tm.status, 'accepted') <> 'declined'
+            AND tm.team_role <> 'eqr_reviewer'
+          ORDER BY tm.created_at`,
+        [engagementId],
+      );
+      const roleLabel: Record<string, [string, string]> = {
+        partner: ["Associé responsable", "Engagement partner"],
+        director: ["Directeur", "Director"],
+        senior_manager: ["Manager senior", "Senior manager"],
+        manager: ["Manager", "Manager"],
+        senior: ["Senior", "Senior"],
+        staff: ["Assistant", "Staff"],
+      };
+      const addressees = await paperAnswers("P7.1", ["addressees"]);
+      const scope = await paperAnswers("P7.1", ["scope"]);
+      planning = {
+        addressees: addressees[0] ?? "",
+        scope: scope[0] ?? "",
+        materiality: m.rows[0]
+          ? { overall: Number(m.rows[0].overall), performance: Number(m.rows[0].performance), trivial: Number(m.rows[0].trivial) }
+          : null,
+        risks: risks.rows.map((r) => r.description),
+        team: team.rows.map((t) => ({
+          name: t.name,
+          role: (roleLabel[t.team_role] ?? [t.team_role, t.team_role])[locale === "fr" ? 0 : 1],
+        })),
+      };
     }
 
     const fr = locale === "fr";
@@ -474,6 +636,7 @@ export async function generateLetter(
         specificRepresentations,
         significantMatters,
         independence,
+        planning,
       },
       locale,
       branding,

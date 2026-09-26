@@ -32,14 +32,23 @@ const GROUP_LABEL: Record<RatioGroup, { en: string; fr: string }> = {
   Investment: { en: "Investment ratios", fr: "Ratios d'investissement" },
 };
 
-function fmtValue(row: RatioRow, value: number | null, unit: Unit): string {
+/** A plain number in the UI language: "4,63" in French, "4.63" in English (UAT run2-B139). */
+function fmtNumber(value: number, locale: "en" | "fr", digits = 2): string {
+  return new Intl.NumberFormat(locale === "fr" ? "fr-FR" : "en-US", { maximumFractionDigits: digits }).format(value);
+}
+
+/**
+ * A cell value. The variance of a percentage row is a difference of two
+ * percentages — percentage points, not a percent (UAT run2-B139).
+ */
+function fmtValue(row: RatioRow, value: number | null, unit: Unit, locale: "en" | "fr", variance = false): string {
   if (value === null) return "—";
   if (row.unit === "FCFA") {
     const scaled = unit === "k" ? value / 1_000 : unit === "m" ? value / 1_000_000 : value;
     return new Intl.NumberFormat("fr-FR", { maximumFractionDigits: unit === "m" ? 2 : 0 }).format(scaled);
   }
-  if (row.unit === "%") return `${value}%`;
-  return `${value}`;
+  if (row.unit === "%") return `${fmtNumber(value, locale)}${variance ? " pts" : locale === "fr" ? " %" : "%"}`;
+  return fmtNumber(value, locale);
 }
 
 function CommentCell({
@@ -178,13 +187,13 @@ export function FinAnalysisGrid({
                         <td className={`${GRID_CELL} overflow-hidden text-ellipsis`} title={row.note ?? (locale === "fr" ? row.labelFr : row.label)}>
                           {locale === "fr" ? row.labelFr : row.label}
                         </td>
-                        <td className={GRID_NUM}>{fmtValue(row, row.current, unit)}</td>
-                        <td className={GRID_NUM}>{fmtValue(row, row.prior, unit)}</td>
+                        <td className={GRID_NUM}>{fmtValue(row, row.current, unit, locale)}</td>
+                        <td className={GRID_NUM}>{fmtValue(row, row.prior, unit, locale)}</td>
                         <td className={`${GRID_NUM} ${v.amount !== null && v.amount < 0 ? "text-rose" : ""}`}>
-                          {v.amount !== null ? fmtValue(row, v.amount, unit) : "—"}
+                          {v.amount !== null ? fmtValue(row, v.amount, unit, locale, true) : "—"}
                         </td>
                         <td className={`${GRID_NUM} ${v.pct !== null && v.pct < 0 ? "text-rose" : "text-muted"}`}>
-                          {v.pct !== null ? `${v.pct >= 0 ? "+" : ""}${v.pct}%` : "—"}
+                          {v.pct !== null ? `${v.pct >= 0 ? "+" : ""}${fmtNumber(v.pct, locale, 1)}${fr ? " %" : "%"}` : "—"}
                         </td>
                         <td className={`${GRID_CELL} p-0`}>
                           <CommentCell

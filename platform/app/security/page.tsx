@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { localizedTitle } from "@/lib/page-title";
 import { redirect } from "next/navigation";
 import { auth } from "@/auth";
 import { AppNav } from "@/components/AppNav";
@@ -8,7 +9,7 @@ import { getLocale } from "@/lib/locale";
 import { MfaError, beginEnrolment, confirmEnrolment, disableMfa, mfaStatus } from "@/lib/mfa";
 import { mfaDisabled } from "@/lib/mfa-policy";
 
-export const metadata = { title: "Security · AuditISA" };
+export const generateMetadata = localizedTitle("Security", "Sécurité");
 
 /**
  * Two-factor enrolment. The secret is shown once, as text in readable groups

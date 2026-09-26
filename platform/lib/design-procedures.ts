@@ -297,6 +297,16 @@ export async function saveDsp(engagementId: string, indexCode: string, field: st
   if (design && value !== "") {
     const [, assertion, kind] = design;
     if (kind === "nature" && !NATURE_VALUES.includes(value)) throw new Error("invalid-value");
+    // ISA 330 ¶21: a significant risk needs tests of details, so an
+    // analytics-led nature is barred on its assertion (UAT B52) — and on the
+    // account-level nature when any of its assertions carries one.
+    if (kind === "nature" && value === "sap_led") {
+      const row = (await dspView(engagementId)).rows.find((r) => r.indexCode === indexCode);
+      const significant = assertion
+        ? Boolean(row?.cells.find((c) => c.assertion === assertion)?.significant)
+        : Boolean(row?.cells.some((c) => c.significant));
+      if (significant) throw new Error("nature-not-permitted");
+    }
     if (kind === "timing") {
       if (!TIMING_VALUES.includes(value)) throw new Error("invalid-value");
       if (assertion) {
@@ -309,7 +319,12 @@ export async function saveDsp(engagementId: string, indexCode: string, field: st
     }
   }
   const { tenantId, userId } = await requireWrite();
-  await withTenant(tenantId, async (tx) => {
+  const { invalidateStaleSignoffs, reportInvalidatedSignoffs } = await import("@/lib/working-papers");
+  const { before, stale } = await withTenant(tenantId, async (tx) => {
+    const prior = await tx.query<{ value: string | null }>(
+      "SELECT value #>> '{}' AS value FROM form_response WHERE engagement_id = $1 AND code = $2 AND field_key = $3",
+      [engagementId, CODE, `${indexCode}_${field}`],
+    );
     await tx.query(
       `INSERT INTO form_response (tenant_id, engagement_id, code, field_key, value, updated_by, carried_forward)
        VALUES ($1, $2, $3, $4, $5, $6, false)
@@ -330,7 +345,26 @@ export async function saveDsp(engagementId: string, indexCode: string, field: st
       const { ensureTaskTx } = await import("@/lib/ensure-task");
       await ensureTaskTx(tx, engagementId, taskCode);
     }
+    // The design is the S5.5 paper's content: a change after sign-off voids
+    // the signatures it moved (UAT B53), as an answer on the paper does.
+    return {
+      before: prior.rows[0]?.value ?? null,
+      stale: await invalidateStaleSignoffs(tx, engagementId, "S5.5"),
+    };
   });
+  await reportInvalidatedSignoffs(tenantId, engagementId, "S5.5", stale, userId);
+  if ((before ?? "") !== value) {
+    const { recordActivity } = await import("@/lib/activity");
+    await recordActivity({
+      engagementId,
+      entityType: "file_item",
+      action: "dsp_changed",
+      summary: `S5.5 ${indexCode} ${field} changed`,
+      meta: { code: "S5.5", indexCode, field },
+      before: before ?? "",
+      after: value,
+    });
+  }
 }
 
 /** Index codes with at least one procedure — library or custom — in the S5.5 design. */

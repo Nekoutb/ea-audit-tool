@@ -4,6 +4,8 @@
 // draw selected — each with the columns the tester fills. Pure over
 // TocSampleView; lib/toc-sample-export.ts assembles the view.
 import ExcelJS from "exceljs";
+import { freqLabel, typeShort } from "@/lib/control-labels";
+import { normFreq } from "@/lib/toc-sampling";
 
 export interface TocSampleControl {
   controlName: string;
@@ -112,7 +114,7 @@ export async function buildTocSampleWorkbook(view: TocSampleView): Promise<Buffe
   band(cover, T("Controls selected for testing", "Contrôles sélectionnés pour test"), 7);
   header(cover, [T("Control", "Contrôle"), "SCOT", T("Frequency", "Fréquence"), T("Population", "Population"), T("Sample", "Échantillon"), T("Drawn on", "Tiré le"), T("Tab", "Onglet")]);
   view.controls.forEach((c, i) => {
-    const row = cover.addRow([c.controlName, c.scotName, c.frequency ?? "—", c.population ?? "—", c.items.length > 0 ? c.items.length : (c.sampleSize ?? "—"), c.drawnAt ? c.drawnAt.slice(0, 16).replace("T", " ") : T("not drawn", "non tiré"), controlTabName(i, c.controlName)]);
+    const row = cover.addRow([c.controlName, c.scotName, c.frequency ? freqLabel(normFreq(c.frequency), fr) : "—", c.population ?? "—", c.items.length > 0 ? c.items.length : (c.sampleSize ?? "—"), c.drawnAt ? c.drawnAt.slice(0, 16).replace("T", " ") : T("not drawn", "non tiré"), controlTabName(i, c.controlName)]);
     row.eachCell((cell) => box(cell));
   });
 
@@ -127,8 +129,8 @@ export async function buildTocSampleWorkbook(view: TocSampleView): Promise<Buffe
     band(ws, T("Control and sample", "Contrôle et échantillon"), 7);
     kv(ws, [
       ["SCOT", c.scotName],
-      [T("Control type", "Type de contrôle"), c.controlType],
-      [T("Frequency", "Fréquence"), c.frequency ?? "—"],
+      [T("Control type", "Type de contrôle"), typeShort(c.controlType, fr)],
+      [T("Frequency", "Fréquence"), c.frequency ? freqLabel(normFreq(c.frequency), fr) : "—"],
       [T("Assertions covered", "Assertions couvertes"), c.assertions.join(", ") || "—"],
       [T("Population (occurrences in the period)", "Population (occurrences dans la période)"), c.population ?? "—"],
       [T("Minimum sample (frequency table)", "Taille minimale (table des fréquences)"), c.sampleSize ?? "—"],

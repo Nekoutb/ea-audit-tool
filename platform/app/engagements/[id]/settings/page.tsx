@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { localizedTitle } from "@/lib/page-title";
 import { notFound, redirect } from "next/navigation";
 import { auth } from "@/auth";
 import { updatePeriodEndAction } from "@/app/actions/audit-file";
@@ -11,7 +12,7 @@ import { getEngagement } from "@/lib/engagements";
 import { getLocale } from "@/lib/locale";
 import { canReview, type Role } from "@/lib/rbac";
 
-export const metadata = { title: "Engagement settings · AuditISA" };
+export const generateMetadata = localizedTitle("Engagement settings", "Paramètres de la mission");
 
 /**
  * Engagement settings: what belongs to THIS engagement — the team, and the

@@ -103,7 +103,7 @@ const accountPapers: UatScenario[] = ACCOUNTS.map(([code, name]) =>
         path: "/engagements/:id/phases/execution",
         why: `${code} has no lead-schedule index: the paper holds procedures and evidence, not a balance agreed to the trial balance.`,
         steps: [
-          `Open ${code} from the execution phase list (it is not on /groups/e4, which lists indexed accounts only).`,
+          `Open ${code} from /groups/e4 or the execution phase list; it has no lead-schedule index, so it is listed even without an S5.5 design and holds procedures and evidence rather than a TB-agreed balance.`,
           "Add the custom procedures the work needs and record their results.",
           "Attach the supporting evidence to the task.",
           "Prepare the conclusion, have a second person review it, and sign P then R.",
@@ -189,8 +189,14 @@ const statutoryPapers: UatScenario[] = STATUTORY.map(([code, name, check, expect
   key: `firm.stat.${code.toLowerCase().replace(".", "-")}`,
   title: `${name}`,
   ref: code,
-  path: "/engagements/:id/legal",
-  steps: [`Open ${code} and complete it for this engagement.`, "Attach the supporting document or register.", check],
+  // the paper and its files live on the task page; /legal only hosts the
+  // generators and monitoring panels (UAT B176)
+  path: "/engagements/:id/tasks",
+  steps: [
+    `Open ${code} from /tasks and complete its working paper for this engagement.`,
+    `Attach the supporting document or register in the task's files panel on ${code} (the /legal screen has no upload; use it only for the generators and panels).`,
+    check,
+  ],
   expect,
 }));
 
@@ -662,10 +668,10 @@ export const UAT_SECTIONS: UatSection[] = [
       [
         "p12",
         "Predecessor auditor communication",
-        ["Complete P1.2, recording the communication or why none was required."],
+        ["Open P1.2 from /groups/p1 (it is not on the acceptance page) and complete it, recording the communication or why none was required."],
         "Recorded with the reason, not silently skipped.",
         "P1.2",
-        "/engagements/:id/acceptance",
+        "/engagements/:id/groups/p1",
       ],
       [
         "p13",
@@ -693,18 +699,13 @@ export const UAT_SECTIONS: UatSection[] = [
       [
         "p15",
         "Engagement quality review determination",
-        ["Complete P1.5 and record whether an EQR is required and why."],
+        [
+          "Open P1.5 from /groups/p1 and record whether an EQR is required and why.",
+          "Sign it off only after the independence scenarios (acpt.indep-*): P1.1 must be partner-signed, the independence confirmations answered, any declared exception dispositioned and the file in planning.",
+        ],
         "The determination and its reasoning are recorded.",
         "P1.5",
-        "/engagements/:id/acceptance",
-      ],
-      [
-        "p21",
-        "Independence and ethics conclusion",
-        ["Complete P2.1."],
-        "Completed and signed.",
-        "P2.1",
-        "/engagements/:id/acceptance",
+        "/engagements/:id/groups/p1",
       ],
       [
         "indep-launch",
@@ -745,12 +746,23 @@ export const UAT_SECTIONS: UatSection[] = [
         "/engagements/:id/team",
       ],
       [
+        "p21",
+        "Independence and ethics conclusion",
+        [
+          "Precondition: the independence scenarios above are done — P1.1 is partner-signed, the confirmations are answered, any declared exception is dispositioned and the file is in planning.",
+          "Open P2.1 from /groups/p2 and complete it.",
+        ],
+        "Completed and signed.",
+        "P2.1",
+        "/engagements/:id/groups/p2",
+      ],
+      [
         "p22",
         "Assess the team and specialised skills",
-        ["Complete P2.2, recording the skills assessment."],
+        ["Open P2.2 from /groups/p2 and complete it, recording the skills assessment."],
         "Completed and signed.",
         "P2.2",
-        "/engagements/:id/acceptance",
+        "/engagements/:id/groups/p2",
       ],
       [
         "p23",
@@ -847,8 +859,12 @@ export const UAT_SECTIONS: UatSection[] = [
       [
         "timeline",
         "Statutory dates are calculated",
-        ["Enter the period end and the expected report date."],
-        "The statutory deadlines are computed and match what your firm would compute.",
+        [
+          "Check the period end shown on the legal screen (it comes from the engagement and is read-only there).",
+          "Enter the planned AGM date and the planned report date, then click 'Save dates & refresh'.",
+          "Click 'Generate / refresh calendar'.",
+        ],
+        "The statutory deadlines are computed — including the three that follow the AGM date — and match what your firm would compute.",
         "C5.2",
         "/engagements/:id/legal",
       ],
@@ -937,9 +953,12 @@ export const UAT_SECTIONS: UatSection[] = [
       ],
       [
         "reopen",
-        "A phase can be reopened deliberately",
-        ["Reopen acceptance after completing it."],
-        "Possible for someone senior enough, and recorded in the trail.",
+        "The acceptance gate can be reopened deliberately",
+        [
+          "After acceptance, as the partner, open P1.1 from /documents/{id} and reopen it with a reason.",
+          "Try the same as a manager once the partner has signed P1.1.",
+        ],
+        "Only the partner can reopen a partner-signed P1.1; its sign-offs are voided, the gate-reopened banner shows while the phase itself is unchanged, and the reopening is in the activity trail.",
         undefined,
       ],
     ]),
@@ -1482,9 +1501,10 @@ export const UAT_SECTIONS: UatSection[] = [
           "e31-je-criteria",
           "Apply the journal selection criteria",
           [
-            "Apply criteria — round sums, unusual accounts, postings outside working hours, manual entries by unexpected users.",
+            "Apply criteria — round amounts, unusual account pairings, weekend and public-holiday postings, and preparer = approver.",
+            "Look for an out-of-hours criterion: there is none, because the ledger carries a posting date but no time of day; confirm the E3.1 workbook explains why out-of-hours postings are not testable.",
           ],
-          "The entries selected are the ones the criteria describe.",
+          "The entries selected are the ones the criteria describe, and the absence of an out-of-hours test is explained rather than silent.",
           "E3.1",
           "/engagements/:id/tools/je-selection",
         ],
@@ -1629,26 +1649,26 @@ export const UAT_SECTIONS: UatSection[] = [
         [
           "assign",
           "Assign tasks to people",
-          ["Assign several tasks to different people, with an owner and an approver."],
+          ["In Tools > Forms (or with the 'Assigned to' select on a working paper), assign several tasks to different people, with an owner and an approver."],
           "Each appears on the right person's dashboard.",
           undefined,
-          "/engagements/:id/tasks",
+          "/engagements/:id/tools/forms",
         ],
         [
           "assign-phase",
           "Assign a whole phase at once",
-          ["Assign every task in a phase to one person."],
+          ["In Tools > Forms, assign every task in a phase to one person."],
           "All are assigned in one action.",
           undefined,
-          "/engagements/:id/tasks",
+          "/engagements/:id/tools/forms",
         ],
         [
           "assign-unassigned",
           "Unassigned work is visible",
-          ["Look for tasks nobody owns."],
+          ["In Tools > Forms, look for tasks nobody owns."],
           "They are listed rather than quietly forgotten.",
           undefined,
-          "/engagements/:id/tasks",
+          "/engagements/:id/tools/forms",
         ],
         [
           "progress",
@@ -2010,7 +2030,7 @@ export const UAT_SECTIONS: UatSection[] = [
       [
         "archive-delete",
         "Nothing can be removed",
-        ["Try to delete an attachment, remove a custom program step, and clear a saved working-paper answer on the archived file."],
+        ["Try to delete an attachment, un-complete a performed program step or clear a procedure result, and clear a saved working-paper answer on the archived file."],
         "All three refused with the archived-file message. Nothing can be removed from a file that has been archived.",
         "C6.2",
       ],
@@ -2060,8 +2080,11 @@ export const UAT_SECTIONS: UatSection[] = [
       [
         "hold-blocks",
         "A held engagement cannot be deleted",
-        ["Try to delete it, and try to delete the firm."],
-        "Both refused, naming the hold.",
+        [
+          "As firm admin and as partner, confirm that no delete-engagement action exists anywhere (the file can only be archived).",
+          "As a platform super admin, on /admin run 'Delete firm' against a UAT firm that has a held engagement.",
+        ],
+        "Firm users have no way to delete the engagement; the firm deletion is refused with 'firm-has-legal-hold'.",
         undefined,
       ],
       [

@@ -48,6 +48,8 @@ export async function setLegalDatesAction(engagementId: string, formData: FormDa
     setLegalDates(engagementId, {
       agmDate: String(formData.get("agmDate") ?? ""),
       reportDate: String(formData.get("reportDate") ?? ""),
+      // the board meeting the C5.4 art. 715 report goes to (UAT run 3 B08)
+      boardDate: formData.has("boardDate") ? String(formData.get("boardDate") ?? "") : undefined,
     }),
   );
 }

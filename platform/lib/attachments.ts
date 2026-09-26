@@ -110,7 +110,7 @@ export async function listAttachments(fileItemId: string): Promise<AttachmentRow
     }>(
       `SELECT a.id, a.name, a.mime, a.size_bytes, a.version,
               coalesce(u.name, u.email) AS uploaded_by_name,
-              to_char(a.uploaded_at, 'DD Mon YYYY HH24:MI') AS uploaded_at,
+              to_char(a.uploaded_at AT TIME ZONE 'Africa/Douala', 'YYYY-MM-DD HH24:MI') || ' WAT' AS uploaded_at,
               to_char(a.uploaded_at, 'YYYY-MM-DD HH24:MI:SS.US') AS sort_key
          FROM task_attachment a
          JOIN app_user u ON u.id = a.uploaded_by
@@ -187,7 +187,7 @@ export async function saveAttachment(
               coalesce((SELECT max(version) FROM task_attachment
                          WHERE file_item_id = $3 AND name = $4), 0) + 1,
               $7, $8
-       RETURNING id, version, to_char(uploaded_at, 'DD Mon YYYY HH24:MI') AS uploaded_at`,
+       RETURNING id, version, to_char(uploaded_at AT TIME ZONE 'Africa/Douala', 'YYYY-MM-DD HH24:MI') || ' WAT' AS uploaded_at`,
       [tenantId, engagementId, fileItemId, name, mime, content.length, content, userId],
     );
     return {
@@ -409,7 +409,7 @@ export async function listDeletedAttachments(fileItemId: string): Promise<Attach
       `SELECT DISTINCT ON (a.name)
               a.id, a.name, a.mime, a.size_bytes, a.version,
               coalesce(u.name, u.email) AS deleted_by_name,
-              to_char(a.deleted_at, 'DD Mon YYYY HH24:MI') AS deleted_at
+              to_char(a.deleted_at AT TIME ZONE 'Africa/Douala', 'YYYY-MM-DD HH24:MI') || ' WAT' AS deleted_at
          FROM task_attachment a
          LEFT JOIN app_user u ON u.id = a.deleted_by
         WHERE a.file_item_id = $1
@@ -444,7 +444,7 @@ export async function listEngagementAttachments(fileItemId: string): Promise<
     const r = await tx.query<{ id: string; name: string; size_bytes: number; code: string; uploaded_at: string }>(
       `SELECT DISTINCT ON (ta.file_item_id, ta.name)
               ta.id, ta.name, ta.size_bytes, fi.code,
-              to_char(ta.uploaded_at, 'DD Mon YYYY') AS uploaded_at
+              to_char(ta.uploaded_at AT TIME ZONE 'Africa/Douala', 'YYYY-MM-DD') AS uploaded_at
          FROM task_attachment ta
          JOIN file_item fi ON fi.id = ta.file_item_id
         WHERE ta.engagement_id = (SELECT engagement_id FROM file_item WHERE id = $1)

@@ -400,9 +400,9 @@ export async function buildFsChecklistWorkbook(view: FsChecklistView): Promise<B
 }
 
 /** The paper empty of client answers — what the Sample working papers shelf hands out. */
-export function blankFsChecklistTemplate(): FsChecklistView {
+export function blankFsChecklistTemplate(locale: "en" | "fr" = "en"): FsChecklistView {
   return {
-    locale: "en",
+    locale,
     clientName: "",
     fiscalYear: new Date().getFullYear(),
     periodEnd: "",

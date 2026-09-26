@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { localizedTitle } from "@/lib/page-title";
 import { notFound, redirect } from "next/navigation";
 import { auth } from "@/auth";
 import { AppNav } from "@/components/AppNav";
@@ -7,7 +8,7 @@ import { engagementTasks } from "@/lib/engagement-dashboard";
 import { getEngagement } from "@/lib/engagements";
 import { getLocale } from "@/lib/locale";
 
-export const metadata = { title: "Data Analytics · AuditISA" };
+export const generateMetadata = localizedTitle("Data Analytics", "Analyse de données");
 
 /** The Data Analytics section: the six analyzers, each on its own screen. */
 const ANALYZERS: {
@@ -23,7 +24,7 @@ const ANALYZERS: {
   { id: "gl-analyzer", nameEn: "General Ledger Analyzer", nameFr: "Analyseur du grand livre", descEn: "Journal-entry population for the fraud procedures and close-process work", descFr: "Population d'écritures pour les procédures de fraude et l'arrêté", feeds: ["E3.1", "S1.4"], href: (id) => `/engagements/${id}/analyzers/journal_entries` },
   { id: "ar-analyzer", nameEn: "Accounts Receivable Analyzer", nameFr: "Analyseur des créances clients", descEn: "Open-items ageing, concentrations and circularisation candidates", descFr: "Balance âgée, concentrations et candidats à la circularisation", feeds: ["E4.1"], href: (id) => `/engagements/${id}/analyzers/ar_open_items` },
   { id: "ap-analyzer", nameEn: "Accounts Payable Analyzer", nameFr: "Analyseur des dettes fournisseurs", descEn: "Open items, supplier statements and the unrecorded-liabilities search", descFr: "Postes ouverts, relevés fournisseurs et recherche de passifs non comptabilisés", feeds: ["E4.2"], href: (id) => `/engagements/${id}/analyzers/ap_open_items` },
-  { id: "inventory-analyzer", nameEn: "Inventory Analyzer", nameFr: "Analyseur des stocks", descEn: "Inventory listing against the ledger, count support and valuation checks", descFr: "État des stocks contre la comptabilité, appui d'inventaire et contrôles de valorisation", feeds: ["E4.4"], href: (id) => `/engagements/${id}/analyzers/inventory_listing` },
+  { id: "inventory-analyzer", nameEn: "Inventory Analyzer", nameFr: "Analyseur des stocks", descEn: "Inventory listing against the ledger, count support and valuation checks", descFr: "État des stocks contre la comptabilité, appui d'inventaire et contrôles de valorisation", feeds: ["E4.3"], href: (id) => `/engagements/${id}/analyzers/inventory_listing` },
   { id: "financial-analysis", nameEn: "Financial Analysis", nameFr: "Analyse financière", descEn: "Current, quick and cash ratios, DSO/DPO from the GL, gearing, turnover and return ratios", descFr: "Ratios de liquidité, DSO/DPO depuis le grand livre, endettement, rotation et rentabilité", feeds: ["P3.2", "S4.2"], href: (id) => `/engagements/${id}/tools/financial-analysis` },
   { id: "analytics", nameEn: "Analytical Procedures", nameFr: "Procédures analytiques", descEn: "Current against prior period, by lead schedule, with ratios", descFr: "Exercice courant contre antérieur, par feuille maîtresse", feeds: ["P3.2", "C2.1"], href: (id) => `/engagements/${id}/analytics` },
 ];

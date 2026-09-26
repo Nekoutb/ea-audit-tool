@@ -298,6 +298,9 @@ export interface ActivityRow {
   summary: string | null;
   outcome: ActivityOutcome;
   at: string;
+  /** the recorded previous / new value as JSON text (UAT run 2 B24), null when none */
+  beforeValue: string | null;
+  afterValue: string | null;
 }
 
 export async function listActivity(engagementId: string, limit = 200): Promise<ActivityRow[]> {
@@ -313,8 +316,10 @@ export async function listActivity(engagementId: string, limit = 200): Promise<A
       summary: string | null;
       outcome: ActivityOutcome;
       at: string;
+      before_value: string | null;
+      after_value: string | null;
     }>(
-      `SELECT a.id, a.entity_id,
+      `SELECT a.id, a.entity_id, a.before_value::text AS before_value, a.after_value::text AS after_value,
               (SELECT coalesce(name, email) FROM app_user WHERE id = a.user_id) AS user_name,
               a.acting_role, a.entity_type, a.action, a.summary, a.outcome,
               -- to the second and with its zone: two entries a few seconds
@@ -337,6 +342,8 @@ export async function listActivity(engagementId: string, limit = 200): Promise<A
       summary: row.summary,
       outcome: row.outcome ?? "success",
       at: row.at,
+      beforeValue: row.before_value,
+      afterValue: row.after_value,
     }));
   });
 }

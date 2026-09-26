@@ -81,6 +81,7 @@ export async function saveFormAction(
     const listPath = group
       ? `/engagements/${engagementId}/groups/${group.id}`
       : `/engagements/${engagementId}/phases/${slug}`;
+    let itemId: string | null = null;
     try {
       await saveForm(engagementId, code, values, String(formData.get("__revision") ?? "") || undefined);
       const { tenantId } = await requireTenant();
@@ -92,6 +93,7 @@ export async function saveFormAction(
         return r.rows[0] ?? null;
       });
       if (!item) throw new Error("not-found");
+      itemId = item.id;
       const locale = await getLocale();
       const documentId = await generateDocument(item.id, locale);
       await signDocument(documentId, "preparer");
@@ -103,6 +105,11 @@ export async function saveFormAction(
         summary: `${code} saved & handed off`,
       });
     } catch (error) {
+      // The paper's own inputs live on its working-paper screen, not on this
+      // form: send the preparer there to complete them (UAT B30).
+      if (error instanceof Error && error.message === "paper-incomplete" && itemId) {
+        redirect(`/engagements/${engagementId}/sections/${itemId}?error=paper-incomplete`);
+      }
       if (error instanceof DocumentRuleError || (error instanceof Error && /^[a-z0-9-]+$/.test(error.message))) {
         redirect(`${path}?error=${encodeURIComponent((error as Error).message)}`);
       }
@@ -133,17 +140,26 @@ export async function addRelatedPartyAction(engagementId: string, formData: Form
   const name = String(formData.get("name") ?? "").trim();
   const relationship = String(formData.get("relationship") ?? "").trim();
   await guarded(path, async () => {
-    if (!name || !relationship) throw new Error("fields-required");
-    const { requireWrite } = await import("@/lib/tenant");
-    const { tenantId, userId, role } = await requireWrite();
-    const { assertNotEqrWrite } = await import("@/lib/eqr");
-    await assertNotEqrWrite(tenantId, engagementId, userId, role);
-    await withTenant(tenantId, async (tx) => {
-      await tx.query(
-        "INSERT INTO related_party (tenant_id, engagement_id, name, relationship, notes) VALUES ($1, $2, $3, $4, $5)",
-        [tenantId, engagementId, name, relationship, String(formData.get("notes") ?? "") || null],
-      );
-    });
+    // duplicate refusal, sign-off invalidation and the trail live in the library (UAT B26)
+    const { addRelatedParty } = await import("@/lib/registers");
+    await addRelatedParty(engagementId, { name, relationship, notes: String(formData.get("notes") ?? "").trim() || null });
+  });
+}
+
+/** Remove a wrong register line (S4.3 / S4.4); logged, and it voids the sign-offs over the register. */
+export async function removeRegisterLineAction(engagementId: string, formData: FormData): Promise<void> {
+  const kind = String(formData.get("kind") ?? "");
+  const id = String(formData.get("id") ?? "");
+  const returnTo = String(formData.get("returnTo") ?? "");
+  const path = returnTo.startsWith(`/engagements/${engagementId}/`)
+    ? returnTo
+    : `/engagements/${engagementId}/forms/${kind === "estimate" ? "S4.4" : "S4.3"}`;
+  await guarded(path, async () => {
+    if (!/^[0-9a-f-]{36}$/i.test(id)) throw new Error("not-found");
+    const { removeEstimate, removeRelatedParty } = await import("@/lib/registers");
+    if (kind === "estimate") await removeEstimate(engagementId, id);
+    else if (kind === "party") await removeRelatedParty(engagementId, id);
+    else throw new Error("not-found");
   });
 }
 
@@ -154,33 +170,27 @@ export async function addEstimateAction(engagementId: string, formData: FormData
     : `/engagements/${engagementId}/forms/S4.4`;
   const nature = String(formData.get("nature") ?? "").trim();
   await guarded(path, async () => {
-    if (!nature) throw new Error("fields-required");
-    const { requireWrite } = await import("@/lib/tenant");
-    const { tenantId, userId, role } = await requireWrite();
-    const { assertNotEqrWrite } = await import("@/lib/eqr");
-    await assertNotEqrWrite(tenantId, engagementId, userId, role);
-    await withTenant(tenantId, async (tx) => {
-      await tx.query(
-        `INSERT INTO accounting_estimate (tenant_id, engagement_id, nature, method, assumptions, uncertainty, retro_review)
-         VALUES ($1, $2, $3, $4, $5, $6, $7)`,
-        [
-          tenantId,
-          engagementId,
-          nature,
-          String(formData.get("method") ?? "") || null,
-          String(formData.get("assumptions") ?? "") || null,
-          String(formData.get("uncertainty") ?? "") || null,
-          String(formData.get("retro_review") ?? "") || null,
-        ],
-      );
+    const { addEstimate } = await import("@/lib/registers");
+    await addEstimate(engagementId, {
+      nature,
+      method: String(formData.get("method") ?? "") || null,
+      assumptions: String(formData.get("assumptions") ?? "") || null,
+      uncertainty: String(formData.get("uncertainty") ?? "") || null,
+      retroReview: String(formData.get("retro_review") ?? "") || null,
     });
   });
 }
 
 // ---- Independence (2.3/2.4) ----
 
+/** A same-engagement returnTo from the form, else the Acceptance page (UAT B118). */
+function independenceBack(engagementId: string, formData?: FormData): string {
+  const returnTo = String(formData?.get("returnTo") ?? "");
+  return returnTo.startsWith(`/engagements/${engagementId}/`) ? returnTo : `/engagements/${engagementId}/acceptance`;
+}
+
 export async function launchCampaignAction(engagementId: string, formData: FormData): Promise<void> {
-  const path = `/engagements/${engagementId}/acceptance`;
+  const path = independenceBack(engagementId, formData);
   const userIds = formData.getAll("userIds").map(String).filter(Boolean);
   await guarded(path, async () => {
     await launchCampaign(engagementId, userIds);
@@ -218,8 +228,12 @@ export async function disposeExceptionAction(
   );
 }
 
-export async function sendReminderAction(engagementId: string, confirmationId: string): Promise<void> {
-  const path = `/engagements/${engagementId}/acceptance`;
+export async function sendReminderAction(
+  engagementId: string,
+  confirmationId: string,
+  formData?: FormData,
+): Promise<void> {
+  const path = independenceBack(engagementId, formData);
   await guarded(path, () => sendReminder(confirmationId));
 }
 
@@ -620,6 +634,27 @@ export async function savePaperAction(
           httpOnly: true,
           sameSite: "lax",
         });
+      } else if (error instanceof Error && /^[a-z0-9-]+$/.test(error.message) && !/archived/.test(error.message)) {
+        // A refused save (e.g. c58-equity-contradicts, tieout-unexplained —
+        // UAT run 4 B01) keeps everything else the user typed: the page puts
+        // it back into the form, with the refused answer left unanswered.
+        const refusedKey: Record<string, string> = {
+          "c58-equity-contradicts": "q_above",
+          "tieout-unexplained": "q_n_agrees",
+        };
+        const kept: Record<string, string> = Object.fromEntries(
+          Object.entries(values).filter(([k]) => !k.startsWith("$") && !k.startsWith("__")),
+        );
+        const refused = refusedKey[error.message];
+        if (refused) kept[refused] = "";
+        if (Object.keys(kept).length > 0) {
+          jar.set(cookieName, encodePaperDraft(kept).value, {
+            path,
+            maxAge: 60 * 30,
+            httpOnly: true,
+            sameSite: "lax",
+          });
+        }
       }
       throw error;
     }

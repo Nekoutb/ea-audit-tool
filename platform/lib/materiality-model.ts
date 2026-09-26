@@ -23,3 +23,16 @@ export function uncorrectedMisstatementThreshold(
   if (!mat) return null;
   return Math.max(0, mat.overall - mat.performance);
 }
+
+/** A materiality benchmark's name in the reader's language (UAT B74 / B134). */
+export function benchmarkLabel(benchmark: string, fr: boolean): string {
+  const L: Record<string, [string, string]> = {
+    pbt: ["Profit before tax", "Résultat avant impôt"],
+    revenue: ["Revenue", "Chiffre d'affaires"],
+    total_assets: ["Total assets", "Total de l'actif"],
+    equity: ["Equity", "Capitaux propres"],
+    expenses: ["Total expenses", "Total des charges"],
+  };
+  const pair = L[benchmark];
+  return pair ? (fr ? pair[1] : pair[0]) : benchmark;
+}

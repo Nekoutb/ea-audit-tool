@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { localizedTitle } from "@/lib/page-title";
 import { notFound, redirect } from "next/navigation";
 import { auth } from "@/auth";
 import { generateDocumentAction } from "@/app/actions/audit-file";
@@ -10,7 +11,7 @@ import { SECTIONS } from "@/lib/file-index";
 import { formatFCFA, getMessages } from "@/lib/i18n";
 import { getLocale } from "@/lib/locale";
 
-export const metadata = { title: "Audit file · AuditISA" };
+export const generateMetadata = localizedTitle("Audit file", "Dossier d'audit");
 
 export default async function EngagementFilePage(props: { params: Promise<{ id: string }> }) {
   const session = await auth();

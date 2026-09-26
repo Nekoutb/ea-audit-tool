@@ -2,6 +2,7 @@
 // sampling tool and the E1.2 test-of-controls board. Discovery sampling: the
 // sizes assume no or very few exceptions in the population; exceptions found
 // mean extend or stop and reassess (SAMPLE 3.6.2).
+import { freqLabel } from "@/lib/control-labels";
 
 export const normFreq = (f: string | null): string => {
   const s = (f ?? "").toLowerCase();
@@ -46,7 +47,7 @@ export function tocSuggested(
   const size = table[f];
   if (!size) return null;
   const capped = population && population > 0 ? Math.min(size, population) : size;
-  return { size: capped, rule: fr ? `Manuel ${frequency ?? ""} → minimum ${size}` : `Manual, ${frequency ?? "?"} → minimum ${size}` };
+  return { size: capped, rule: fr ? `Manuel, ${freqLabel(f, true).toLowerCase()} → minimum ${size}` : `Manual, ${freqLabel(f, false).toLowerCase()} → minimum ${size}` };
 }
 
 /**

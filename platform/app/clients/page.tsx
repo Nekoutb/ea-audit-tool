@@ -1,16 +1,17 @@
 import { redirect } from "next/navigation";
+import { localizedTitle } from "@/lib/page-title";
 import Link from "next/link";
 import { auth } from "@/auth";
 import { createClientAction } from "@/app/actions/audit-file";
 import { AppNav } from "@/components/AppNav";
 import { ErrorBanner } from "@/components/GatesPanel";
 import { Chip, Panel, PanelHeader, btnPrimary } from "@/components/ui/atlas";
-import { LEGAL_FORMS, SECTORS, listClients } from "@/lib/clients";
+import { LEGAL_FORMS, SECTORS, legalFormLabel, listClients } from "@/lib/clients";
 import { getMessages } from "@/lib/i18n";
 import { getLocale } from "@/lib/locale";
 import { canWrite } from "@/lib/rbac";
 
-export const metadata = { title: "Entity records · AuditISA" };
+export const generateMetadata = localizedTitle("Entity records", "Fiches des entités");
 
 export default async function ClientsPage(props: {
   searchParams: Promise<{ q?: string; archived?: string; error?: string; name?: string; legalForm?: string }>;
@@ -87,7 +88,7 @@ export default async function ClientsPage(props: {
                     {client.name}
                     {client.archivedAt ? <span className="ml-2"><Chip tone="muted">{t.clients.archivedChip}</Chip></span> : null}
                   </td>
-                  <td className="px-4 py-3 text-ink-soft">{client.legalForm}</td>
+                  <td className="px-4 py-3 text-ink-soft">{legalFormLabel(client.legalForm, locale)}</td>
                   <td className="px-4 py-3 text-ink-soft tnum" data-testid={`client-registration-${client.id}`}>{client.registrationNumber ?? "—"}</td>
                   <td className="px-4 py-3 text-ink-soft tnum">{client.engagementCount}</td>
                   <td className="px-4 py-3 text-right">
@@ -118,7 +119,7 @@ export default async function ClientsPage(props: {
             <select name="legalForm" className={inputClass} defaultValue={draftLegalForm}>
               {LEGAL_FORMS.map((form) => (
                 <option key={form} value={form}>
-                  {form}
+                  {legalFormLabel(form, locale)}
                 </option>
               ))}
             </select>

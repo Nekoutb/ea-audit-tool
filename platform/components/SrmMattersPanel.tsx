@@ -7,6 +7,15 @@
 
 import { useState } from "react";
 import type { SrmMatters } from "@/lib/summary-review-memo";
+import { MISSTATEMENT_TYPE_LABELS } from "@/lib/sad-model";
+
+/** Risk register statuses in the reader's language (UAT run2-B151). */
+const RISK_STATUS_LABELS: Record<string, { en: string; fr: string }> = {
+  identified: { en: "identified", fr: "identifié" },
+  response_planned: { en: "response planned", fr: "réponse prévue" },
+  response_executed: { en: "response executed", fr: "réponse mise en œuvre" },
+  concluded: { en: "concluded", fr: "conclu" },
+};
 
 export function SrmMattersPanel({ matters, locale }: { matters: SrmMatters; locale: "en" | "fr" }) {
   const fr = locale === "fr";
@@ -17,13 +26,13 @@ export function SrmMattersPanel({ matters, locale }: { matters: SrmMatters; loca
   const groups: { title: string; lines: string[]; testId: string }[] = [
     {
       title: T("Significant risks (S3.1)", "Risques importants (S3.1)"),
-      lines: matters.risks.map((r) => `${r.description} — ${r.status.replace(/_/g, " ")}`),
+      lines: matters.risks.map((r) => `${r.description} — ${RISK_STATUS_LABELS[r.status]?.[locale] ?? r.status.replace(/_/g, " ")}`),
       testId: "srm-risks",
     },
     {
       title: T("Misstatements above clearly trivial (C1.1)", "Anomalies au-delà du seuil négligeable (C1.1)"),
       lines: matters.misstatements.map(
-        (m) => `${m.description} — ${n(m.amount)} · ${m.mtype} · ${m.corrected ? T("corrected", "corrigée") : T("uncorrected", "non corrigée")}`,
+        (m) => `${m.description} — ${n(m.amount)} · ${MISSTATEMENT_TYPE_LABELS[m.mtype]?.[locale] ?? m.mtype} · ${m.corrected ? T("corrected", "corrigée") : T("uncorrected", "non corrigée")}`,
       ),
       testId: "srm-misstatements",
     },

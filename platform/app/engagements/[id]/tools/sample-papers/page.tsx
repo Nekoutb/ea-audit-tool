@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { localizedTitle } from "@/lib/page-title";
 import { notFound, redirect } from "next/navigation";
 import { auth } from "@/auth";
 import { AppNav } from "@/components/AppNav";
@@ -8,7 +9,7 @@ import { getEngagement } from "@/lib/engagements";
 import { getLocale } from "@/lib/locale";
 import { TEMPLATE_CATEGORIES, listTemplates } from "@/lib/wp-templates";
 
-export const metadata = { title: "Sample working papers · AuditISA" };
+export const generateMetadata = localizedTitle("Sample working papers", "Feuilles de travail types");
 
 /**
  * The shelf of blank working papers. Every standard paper the methodology

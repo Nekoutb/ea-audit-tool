@@ -1,4 +1,5 @@
 import { redirect } from "next/navigation";
+import { localizedTitle } from "@/lib/page-title";
 import { auth } from "@/auth";
 import { AppNav } from "@/components/AppNav";
 import { FirmOnboardingWizard } from "@/components/FirmOnboardingWizard";
@@ -17,7 +18,7 @@ import {
 import { mailDomain } from "@/lib/email";
 import { getLocale } from "@/lib/locale";
 
-export const metadata = { title: "Admin console · AuditISA" };
+export const generateMetadata = localizedTitle("Admin console", "Console d'administration");
 
 /**
  * The platform admin console (super admin only): every audit firm on the

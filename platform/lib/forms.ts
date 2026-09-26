@@ -15,6 +15,11 @@ export interface FormField {
   labelFr: string;
   options?: readonly string[]; // for select
   required?: boolean;
+  /**
+   * false = a year-specific answer that must NOT be carried into next year's
+   * file even when the form rolls forward (UAT B122).
+   */
+  rollsForward?: false;
 }
 
 export interface FormDefinition {
@@ -25,6 +30,22 @@ export interface FormDefinition {
 }
 
 const YES_NO_RATING = ["low", "moderate", "high"] as const;
+
+/** Display labels of the select option codes; the stored value is unchanged (UAT B105). */
+const OPTION_LABELS: Record<string, { en: string; fr: string }> = {
+  new: { en: "New engagement", fr: "Nouvelle mission" },
+  continuing: { en: "Continuing engagement", fr: "Mission récurrente" },
+  low: { en: "Low", fr: "Faible" },
+  moderate: { en: "Moderate", fr: "Modéré" },
+  high: { en: "High", fr: "Élevé" },
+  accept: { en: "Accept", fr: "Accepter" },
+  decline: { en: "Decline", fr: "Refuser" },
+};
+
+export function optionLabel(option: string, locale: Locale): string {
+  const label = OPTION_LABELS[option];
+  return label ? (locale === "fr" ? label.fr : label.en) : option;
+}
 
 export const FORM_DEFINITIONS: Record<string, FormDefinition> = {
   "P1.1": {
@@ -68,7 +89,7 @@ export const FORM_DEFINITIONS: Record<string, FormDefinition> = {
       { key: "accounting_policies", type: "text", labelEn: "Accounting policies appropriateness", labelFr: "Pertinence des méthodes comptables" },
       { key: "inherent_risk_factors", type: "text", labelEn: "Inherent risk factors", labelFr: "Facteurs de risque inhérent" },
       { key: "it_dependence", type: "text", labelEn: "IT dependence", labelFr: "Dépendance informatique" },
-      { key: "significant_changes", type: "text", labelEn: "Significant changes since last year", labelFr: "Changements significatifs depuis l'exercice précédent" },
+      { key: "significant_changes", type: "text", rollsForward: false, labelEn: "Significant changes since last year", labelFr: "Changements significatifs depuis l'exercice précédent" },
     ],
   },
   "P3.2": {
@@ -378,6 +399,10 @@ export async function carryForwardFromPriorYear(engagementId: string): Promise<n
     const codes = Object.values(FORM_DEFINITIONS)
       .filter((d) => d.rollsForward)
       .map((d) => d.code);
+    // year-specific answers ("significant changes since last year") start blank
+    const skipped = Object.values(FORM_DEFINITIONS)
+      .filter((d) => d.rollsForward)
+      .flatMap((d) => d.fields.filter((f) => f.rollsForward === false).map((f) => `${d.code}|${f.key}`));
 
     const copied = await tx.query<{ n: string }>(
       `WITH ins AS (
@@ -385,20 +410,21 @@ export async function carryForwardFromPriorYear(engagementId: string): Promise<n
          SELECT $1, $2, code, field_key, value, $4, true
            FROM form_response
           WHERE engagement_id = $3 AND code = ANY($5)
+            AND NOT (code || '|' || field_key = ANY($6::text[]))
          ON CONFLICT (engagement_id, code, field_key) DO NOTHING
          RETURNING 1
        ) SELECT count(*)::text AS n FROM ins`,
-      [tenantId, engagementId, priorId, userId, codes],
+      [tenantId, engagementId, priorId, userId, codes, skipped],
     );
 
     await tx.query(
       `INSERT INTO related_party (tenant_id, engagement_id, name, relationship, notes, carried_forward)
        SELECT $1, $2, name, relationship, notes, true
          FROM related_party rp
-        WHERE rp.engagement_id = $3
+        WHERE rp.engagement_id = $3 AND rp.removed_at IS NULL
           AND NOT EXISTS (
             SELECT 1 FROM related_party x
-             WHERE x.engagement_id = $2 AND x.name = rp.name
+             WHERE x.engagement_id = $2 AND x.removed_at IS NULL AND lower(btrim(x.name)) = lower(btrim(rp.name))
           )`,
       [tenantId, engagementId, priorId],
     );

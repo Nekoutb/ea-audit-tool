@@ -15,6 +15,8 @@ export interface ApAccountRow {
   closing: number;
   /** the prior-year closing: from the valid prior-year TB when one is uploaded, else the current TB's opening balance */
   prior: number;
+  /** the current TB's opening balance, so a drill to the ledger can reconcile to the figure (UAT run 2 B68) */
+  opening: number;
   movement: number;
   variancePct: number | null;
 }
@@ -105,6 +107,7 @@ export async function apLeadSchedules(engagementId: string): Promise<ApLeadSched
         name: row.account_name ?? "—",
         closing,
         prior,
+        opening: Math.round(Number(row.opening)),
         movement: closing - prior,
         variancePct: pct(closing - prior, prior),
       });
