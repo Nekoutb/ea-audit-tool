@@ -1,7 +1,11 @@
 import { notFound, redirect } from "next/navigation";
 import { localizedTitle } from "@/lib/page-title";
 import { auth } from "@/auth";
-import { removeTeamFromTeamPageAction } from "@/app/actions/planning";
+import {
+  removeTeamFromTeamPageAction,
+  setPartnerDelegateAction,
+  transferEngagementPartnerAction,
+} from "@/app/actions/planning";
 import { addTeamByEmailAction } from "@/app/actions/team-independence";
 import { AppNav } from "@/components/AppNav";
 import { ErrorBanner } from "@/components/GatesPanel";
@@ -12,8 +16,16 @@ import { initials } from "@/lib/engagement-dashboard";
 import { getEngagement } from "@/lib/engagements";
 import { getMessages } from "@/lib/i18n";
 import { getLocale } from "@/lib/locale";
-import { canReview } from "@/lib/rbac";
-import { DISPLAY_TIME_ZONE, DISPLAY_TIME_ZONE_LABEL, TEAM_ROLES, listFirmUsers, listTeam, openAssignedTaskCounts } from "@/lib/team";
+import { atLeast, canReview, isRole } from "@/lib/rbac";
+import {
+  DISPLAY_TIME_ZONE,
+  DISPLAY_TIME_ZONE_LABEL,
+  TEAM_ROLES,
+  engagementPartnerInfo,
+  listFirmUsers,
+  listTeam,
+  openAssignedTaskCounts,
+} from "@/lib/team";
 
 export const generateMetadata = localizedTitle("Manage team", "Gestion de l'équipe");
 
@@ -42,11 +54,24 @@ export default async function TeamPage(props: {
   const engagement = await getEngagement(id);
   if (!engagement) notFound();
 
-  const [team, firmUsers, openCounts] = await Promise.all([
+  const [team, firmUsers, openCounts, seat] = await Promise.all([
     listTeam(id),
     listFirmUsers(),
     openAssignedTaskCounts(id),
+    engagementPartnerInfo(id),
   ]);
+  const fr = locale === "fr";
+  // F003: the engagement partner seat. Firm partners and administrators may
+  // hold it; the partner or a firm administrator hands it over or delegates.
+  const firmPartners = firmUsers.filter((u) => isRole(u.role) && atLeast(u.role, "partner"));
+  const maySteerSeat =
+    session.user.role === "firm_admin" || (seat.partnerId !== null && seat.partnerId === session.user.id);
+  const delegateCandidates = firmPartners.filter(
+    (u) =>
+      u.id !== seat.partnerId &&
+      team.some((m) => m.userId === u.id && m.status !== "declined" && m.teamRole !== "eqr_reviewer"),
+  );
+  const ladderBelowPartner = TEAM_ROLES.filter((r) => r !== "partner" && r !== "eqr_reviewer");
   const assignable = firmUsers.filter((u) => !team.some((m) => m.userId === u.id));
   const canManage = canReview(session.user.role);
   // "25 sept. 2026 19:20 WAT" in French, "25 Sep 2026 19:20 WAT" in English (UAT B123)
@@ -198,6 +223,97 @@ export default async function TeamPage(props: {
             </table>
           </div>
         )}
+      </Panel>
+
+      <Panel className="p-6" data-testid="engagement-partner-panel">
+        <PanelHeader
+          title={fr ? "Associé responsable de la mission" : "Engagement partner"}
+          hint={
+            fr
+              ? "Un seul associé par mission. Les signatures d'associé sont les siennes, ou celles de l'associé qu'il délègue."
+              : "One partner per engagement. Partner sign-offs are theirs, or those of the partner they delegate to."
+          }
+        />
+        <dl className="mt-4 grid gap-2 text-sm sm:grid-cols-2">
+          <div>
+            <dt className="text-xs font-semibold uppercase tracking-wide text-muted">{fr ? "Associé" : "Partner"}</dt>
+            <dd className="text-ink" data-testid="engagement-partner">
+              {seat.partnerName ?? (fr ? "Non désigné" : "Not designated")}
+              {seat.partnerStatus === "invited" ? (
+                <span className="ml-2 text-xs text-muted">{fr ? "(invitation en attente)" : "(invitation pending)"}</span>
+              ) : null}
+            </dd>
+          </div>
+          <div>
+            <dt className="text-xs font-semibold uppercase tracking-wide text-muted">{fr ? "Délégué" : "Delegate"}</dt>
+            <dd className="text-ink" data-testid="engagement-partner-delegate">
+              {seat.delegateName ?? (fr ? "Aucun" : "None")}
+            </dd>
+          </div>
+        </dl>
+        {maySteerSeat && seat.partnerId ? (
+          <div className="mt-5 flex flex-col gap-5">
+            <form
+              action={transferEngagementPartnerAction.bind(null, id)}
+              className="flex flex-wrap items-end gap-3"
+              data-testid="transfer-partner-form"
+            >
+              <label className="flex flex-col gap-1 text-sm text-ink-soft">
+                {fr ? "Transférer le rôle à" : "Transfer the role to"}
+                <select name="newPartner" required defaultValue="" className={input} data-testid="transfer-partner-to">
+                  <option value="" disabled>
+                    —
+                  </option>
+                  {firmPartners
+                    .filter((u) => u.id !== seat.partnerId)
+                    .map((u) => (
+                      <option key={u.id} value={u.id}>
+                        {u.name}
+                      </option>
+                    ))}
+                </select>
+              </label>
+              <label className="flex flex-col gap-1 text-sm text-ink-soft">
+                {fr ? "Nouveau rôle de l'associé sortant" : "Outgoing partner's new role"}
+                <select name="outgoingRole" defaultValue="director" className={input} data-testid="transfer-outgoing-role">
+                  {ladderBelowPartner.map((r) => (
+                    <option key={r} value={r}>
+                      {roleLabels[r]}
+                    </option>
+                  ))}
+                </select>
+              </label>
+              <SubmitButton className={btnPrimary} testId="transfer-partner">
+                {fr ? "Transférer" : "Transfer"}
+              </SubmitButton>
+            </form>
+            <form
+              action={setPartnerDelegateAction.bind(null, id)}
+              className="flex flex-wrap items-end gap-3"
+              data-testid="partner-delegate-form"
+            >
+              <label className="flex flex-col gap-1 text-sm text-ink-soft">
+                {fr ? "Associé délégué (signatures d'associé)" : "Delegate partner (partner sign-offs)"}
+                <select name="delegate" defaultValue={seat.delegateId ?? ""} className={input} data-testid="partner-delegate">
+                  <option value="">{fr ? "Aucun" : "None"}</option>
+                  {delegateCandidates.map((u) => (
+                    <option key={u.id} value={u.id}>
+                      {u.name}
+                    </option>
+                  ))}
+                </select>
+              </label>
+              <SubmitButton className={btnPrimary} testId="partner-delegate-save">
+                {fr ? "Enregistrer" : "Save"}
+              </SubmitButton>
+              <span className="w-full text-xs text-muted">
+                {fr
+                  ? "Le délégué doit être un associé du cabinet déjà membre de l'équipe."
+                  : "The delegate must be a partner of the firm who is already on the team."}
+              </span>
+            </form>
+          </div>
+        ) : null}
       </Panel>
 
       {canManage ? (

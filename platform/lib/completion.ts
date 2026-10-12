@@ -11,6 +11,7 @@ import { carryForwardFromPriorYear } from "@/lib/forms";
 import type { GateResult } from "@/lib/gates";
 import { uncorrectedMisstatementThreshold } from "@/lib/materiality-model";
 import { canPartnerSignoff } from "@/lib/rbac";
+import { partnerTierRefusal } from "@/lib/signoff-policy";
 import { assertMutable } from "@/lib/mutability";
 import { requireRole, requireTenant, requireWrite } from "@/lib/tenant";
 import { logArchive, logEngagementFinalised, recordActivity } from "@/lib/activity";
@@ -54,6 +55,11 @@ export async function recordCompletion(
   const writer = await requireWrite();
   if (key === "partner_conclusion" && !canPartnerSignoff(writer.role)) {
     throw new CompletionError("requires-partner");
+  }
+  // the partner's conclusion is the engagement partner's own (F003)
+  if (key === "partner_conclusion") {
+    const refusal = await partnerTierRefusal(writer.tenantId, engagementId, writer.userId);
+    if (refusal) throw new CompletionError(refusal);
   }
   const { tenantId, userId } = await requireRole("senior");
   if (SYSTEM_COMPLETION_KEYS.has(key)) throw new CompletionError("system-key");
@@ -378,8 +384,11 @@ export async function issueReport(
   opinion: "unmodified" | "qualified" | "adverse" | "disclaimer",
   reportDate: string,
 ): Promise<void> {
-  const { tenantId, role } = await requireWrite();
+  const { tenantId, userId, role } = await requireWrite();
   if (!canPartnerSignoff(role)) throw new CompletionError("requires-partner");
+  // the report is issued by the engagement partner or their delegate (F003)
+  const refusal = await partnerTierRefusal(tenantId, engagementId, userId);
+  if (refusal) throw new CompletionError(refusal);
   await withTenant(tenantId, async (tx) => {
     const engagement = await tx.query<{ phase: string; report_date: string | null }>(
       "SELECT phase, report_date::text FROM engagement WHERE id = $1 FOR UPDATE",
@@ -624,6 +633,10 @@ export async function archiveGates(engagementId: string): Promise<ArchiveGate[]>
 export async function archiveEngagement(engagementId: string): Promise<void> {
   const { tenantId, userId, role } = await requireWrite();
   if (!canPartnerSignoff(role)) throw new CompletionError("archive-partner-only");
+  {
+    const refusal = await partnerTierRefusal(tenantId, engagementId, userId);
+    if (refusal) throw new CompletionError(refusal);
+  }
   const gates = await archiveGates(engagementId);
   const failedGates = gates.filter((gate) => !gate.ok).map((gate) => gate.key);
   if (failedGates.length > 0) throw new CompletionGateError(failedGates);

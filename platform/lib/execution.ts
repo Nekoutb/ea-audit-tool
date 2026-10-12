@@ -7,11 +7,11 @@
 
 import type { PoolClient } from "pg";
 import { withTenant } from "@/lib/db";
-import { hasOtherReviewer } from "@/lib/documents";
 import { phaseStillOpen } from "@/lib/gates";
 import { uncorrectedMisstatementThreshold } from "@/lib/materiality-model";
 import { createNotification } from "@/lib/notifications";
 import { canPartnerSignoff, canReview } from "@/lib/rbac";
+import { belowMinimumCode, effectiveRuleTx, partnerTierRefusalTx, teamRank } from "@/lib/signoff-policy";
 import { requireTenant, requireWrite } from "@/lib/tenant";
 import { invalidateStaleSignoffs, reportInvalidatedSignoffs, voidStaleSignoffsOfItem } from "@/lib/working-papers";
 import { logMisstatementChange } from "@/lib/activity";
@@ -698,14 +698,33 @@ export async function reviewSectionConclusion(fileItemId: string, asPartner: boo
   if (!asPartner && !canReview(role)) throw new ExecutionError("forbidden");
   await withTenant(tenantId, async (tx) => {
     // No self-review (ISA 220 (Revised) ¶29): whoever prepared the section
-    // conclusion cannot also review it while the firm has another reviewer.
+    // conclusion never reviews it — no sole-practitioner exemption (F001).
     const prepared = await tx.query<{ prepared_by: string | null; objectives_achieved: boolean; no_procedures_rationale: string | null }>(
       "SELECT prepared_by, objectives_achieved, no_procedures_rationale FROM section_conclusion WHERE file_item_id = $1",
       [fileItemId],
     );
     const preparedBy = prepared.rows[0]?.prepared_by ?? null;
-    if (preparedBy === userId && (await hasOtherReviewer(tx, tenantId, userId))) {
-      throw new ExecutionError("self-review");
+    if (preparedBy === userId) throw new ExecutionError("self-review");
+    // The review is a sign-off like any other (F002/F003): by an accepted
+    // member of the team at the task's minimum reviewer role, and the
+    // partner's review by the engagement partner or their delegate.
+    const item = await tx.query<{ engagement_id: string; code: string; team_role: string | null; status: string | null }>(
+      `SELECT fi.engagement_id, fi.code, tm.team_role, coalesce(tm.status, 'accepted') AS status
+         FROM file_item fi
+         LEFT JOIN team_member tm ON tm.engagement_id = fi.engagement_id AND tm.user_id = $2
+        WHERE fi.id = $1`,
+      [fileItemId, userId],
+    );
+    const it = item.rows[0];
+    if (!it) throw new ExecutionError("not-found");
+    if (it.team_role === null) throw new ExecutionError("not-on-team-to-sign");
+    if (it.status !== "accepted") throw new ExecutionError("accept-engagement-first");
+    if (asPartner) {
+      const refusal = await partnerTierRefusalTx(tx, it.engagement_id, userId);
+      if (refusal) throw new ExecutionError(refusal);
+    } else {
+      const rule = await effectiveRuleTx(tx, tenantId, it.code);
+      if (teamRank(it.team_role) < teamRank(rule.minReviewer)) throw new ExecutionError(belowMinimumCode(rule.minReviewer));
     }
     // The reviewer signs over the same evidence rule the preparer met: steps
     // opened since, or a rationale removed, block the review (UAT B45).

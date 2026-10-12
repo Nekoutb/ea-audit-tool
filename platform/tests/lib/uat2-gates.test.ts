@@ -58,13 +58,19 @@ let year = 2000;
 
 async function engagement(complexity: "very_simple" | "non_complex" | "complex", firstAudit = false): Promise<string> {
   year += 1;
-  return createEngagement({
+  const id = await createEngagement({
     clientId,
     fiscalYear: year,
     periodEnd: `${year}-12-31`,
     complexity,
     complexityAnswers: firstAudit ? { firstAudit: true } : {},
   });
+  // the signer is an accepted member of the team (F002), here its partner (F003)
+  await admin.query(
+    "INSERT INTO team_member (tenant_id, engagement_id, user_id, team_role, status) VALUES ($1, $2, $3, 'partner', 'accepted')",
+    [TENANT, id, USER],
+  );
+  return id;
 }
 
 beforeAll(async () => {

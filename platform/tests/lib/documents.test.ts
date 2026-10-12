@@ -4,6 +4,9 @@ import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
 // Fixed fixture ids for this suite (cleaned up before and after).
 const TENANT = "cccccccc-cccc-cccc-cccc-cccccccccccc";
 const USER = "cccccccc-cccc-cccc-cccc-ccccccccccc1";
+// The engagement partner: the preparer never reviews their own paper (F001),
+// and partner-tier sign-offs are the designated partner's (F003).
+const PARTNER = "cccccccc-cccc-cccc-cccc-ccccccccccc2";
 
 // The documents module resolves the actor via requireTenant() -> auth(); mock
 // the session so the state machine can be exercised directly against the DB.
@@ -58,7 +61,12 @@ let documentId: string;
 
 async function removeFixture(): Promise<void> {
   await admin.query("DELETE FROM tenant WHERE id = $1", [TENANT]); // cascades
-  await admin.query("DELETE FROM app_user WHERE id = $1", [USER]);
+  await admin.query("DELETE FROM app_user WHERE id = ANY($1::uuid[])", [[USER, PARTNER]]);
+}
+
+/** Act as `id` with firm role `role` from here on. */
+function actAs(id: string, role: string): void {
+  vi.mocked(auth).mockResolvedValue({ user: { id, tenantId: TENANT, role, locale: "en" } } as never);
 }
 
 beforeAll(async () => {
@@ -83,6 +91,18 @@ beforeAll(async () => {
     fiscalYear: 2025,
     periodEnd: "2025-12-31",
   });
+  // Signing needs an accepted seat on the team (F002) and partner sign-offs a
+  // designated engagement partner (F003).
+  await admin.query(
+    "INSERT INTO app_user (id, email, name, password_hash) VALUES ($1, 'docs-partner@test.local', 'Doc Partner', 'x')",
+    [PARTNER],
+  );
+  await admin.query("INSERT INTO membership (user_id, tenant_id, role) VALUES ($1, $2, 'partner')", [PARTNER, TENANT]);
+  await admin.query(
+    `INSERT INTO team_member (tenant_id, engagement_id, user_id, team_role, status)
+     VALUES ($1, $2, $3, 'manager', 'accepted'), ($1, $2, $4, 'partner', 'accepted')`,
+    [TENANT, engagementId, USER, PARTNER],
+  );
 });
 
 afterAll(async () => {
@@ -143,12 +163,19 @@ describe("document lifecycle", () => {
     await answerPaper("P1.1");
     await signDocument(documentId, "preparer");
 
+    // the preparer never reviews their own paper, sole practice or not (F001)
+    await expect(signDocument(documentId, "reviewer")).rejects.toThrow(/self-review/);
+
     await addReviewNote(documentId, "Please tighten the conclusion.");
+    // the reviewer is the engagement partner, an accepted member of the team
+    actAs(PARTNER, "partner");
     await expect(signDocument(documentId, "reviewer")).rejects.toThrow(/open-notes/);
 
     const note = (await listReviewNotes(documentId)).find((n) => n.status === "open");
     await clearReviewNote(note!.id, "Conclusion expanded.");
-    await signDocument(documentId, "reviewer");
+    // the engagement partner's R on a partner-gated paper is recorded as partner
+    expect(await signDocument(documentId, "reviewer")).toBe("partner");
+    actAs(USER, "firm_admin");
 
     const document = await getDocument(documentId);
     expect(document?.status).toBe("signed");
@@ -171,10 +198,7 @@ describe("document lifecycle", () => {
   });
 
   it("partner-only codes refuse a manager's approval and accept a partner's", async () => {
-    const asRole = (role: string) =>
-      vi.mocked(auth).mockResolvedValue({
-        user: { id: USER, tenantId: TENANT, role, locale: "en" },
-      } as never);
+    const asRole = (role: string) => actAs(role === "partner" ? PARTNER : USER, role);
     const items = await listFileItems(engagementId);
     const s61 = items.find((item) => item.code === "S6.1");
     expect(s61).toBeDefined();

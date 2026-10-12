@@ -156,6 +156,7 @@ export default async function GroupTasksPage(props: {
       reviewer,
       preparerSigned,
       reviewerSigned,
+      selfPrepared: preparerSigned && task.preparerUserId === session.user.id,
     };
   });
 
@@ -259,6 +260,7 @@ export default async function GroupTasksPage(props: {
                     returnTo={returnTo}
                     signPreparerLabel={td.signAsPreparer}
                     signReviewerLabel={td.signAsReviewer}
+                    selfReviewLabel={t.document.errors["self-review"]}
                     canSign={canWrite(session.user.role) && !phaseStillOpen(phaseOfTask(tasks[i].section, tasks[i].code), engagement.phase, tasks[i].code)}
                     canReview={canReview(session.user.role)}
                   />

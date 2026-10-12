@@ -26,6 +26,8 @@ export interface PhaseRowData {
   reviewer: Cell;
   preparerSigned: boolean;
   reviewerSigned: boolean;
+  /** the reader signed this task as preparer: their R is greyed out (F001) */
+  selfPrepared?: boolean;
 }
 
 const LINE_CLASS: Record<LineTone, string> = {
@@ -65,6 +67,7 @@ export function PhaseTaskRow({
   signReviewerLabel,
   canSign = true,
   canReview = true,
+  selfReviewLabel,
 }: {
   row: PhaseRowData;
   engagementId: string;
@@ -77,6 +80,8 @@ export function PhaseTaskRow({
   canSign?: boolean;
   /** false below senior: no R button to press and be refused (UAT B129) */
   canReview?: boolean;
+  /** why the reader's own R is greyed out when they prepared the task (F001) */
+  selfReviewLabel?: string;
 }) {
   const router = useRouter();
 
@@ -142,6 +147,20 @@ export function PhaseTaskRow({
         <div className="flex min-w-0 items-center gap-3">
           {row.reviewerSigned ? (
             <span className="sobox r" aria-hidden>R</span>
+          ) : row.preparerSigned && row.selfPrepared ? (
+            // the preparer never reviews their own work, so there is nothing to press (F001)
+            <button
+              type="button"
+              disabled
+              onClick={stop}
+              className="sobox off"
+              title={selfReviewLabel}
+              aria-label={selfReviewLabel}
+              aria-disabled="true"
+              data-testid={`sign-reviewer-self-${row.code}`}
+            >
+              R
+            </button>
           ) : row.preparerSigned && canSign && canReview ? (
             <form action={signOffReviewerAction} onClick={stop}>
               {hidden}

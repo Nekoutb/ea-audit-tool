@@ -101,6 +101,46 @@ async function partnerSigned(
   return Number(result.rows[0].n) > 0;
 }
 
+/**
+ * The approval a gating paper needs: the partner's signature where the firm's
+ * effective rule for the task requires one (lib/signoff-policy.ts, falling
+ * back to PARTNER_GATED), otherwise the reviewer's — a firm that lifts the
+ * partner requirement on a task must still be able to close the gate.
+ */
+async function approvalSigned(tx: PoolClient, engagementId: string, code: string): Promise<boolean> {
+  const { effectiveRuleTx } = await import("@/lib/signoff-policy");
+  const tenant = await tx.query<{ tenant_id: string }>("SELECT tenant_id FROM engagement WHERE id = $1", [engagementId]);
+  const tenantId = tenant.rows[0]?.tenant_id;
+  if (!tenantId) return false;
+  const rule = await effectiveRuleTx(tx, tenantId, code);
+  if (rule.partnerRequired) return partnerSigned(tx, engagementId, code);
+  const result = await tx.query<{ n: string }>(
+    `SELECT count(*)::text AS n
+       FROM signoff s
+       JOIN document d ON d.id = s.document_id
+       JOIN file_item fi ON fi.id = d.file_item_id
+      WHERE fi.engagement_id = $1 AND fi.code = $2
+        AND d.kind = 'workpaper'
+        AND s.role IN ('reviewer', 'partner') AND s.voided_at IS NULL`,
+    [engagementId, code],
+  );
+  return Number(result.rows[0].n) > 0;
+}
+
+/**
+ * Exactly one ACCEPTED engagement partner on the team (F003): partner-tier
+ * sign-offs are theirs (or their delegate's), so the file cannot leave
+ * acceptance without one.
+ */
+async function engagementPartnerDesignated(tx: PoolClient, engagementId: string): Promise<boolean> {
+  const r = await tx.query<{ n: string }>(
+    `SELECT count(*)::text AS n FROM team_member
+      WHERE engagement_id = $1 AND team_role = 'partner' AND coalesce(status, 'accepted') = 'accepted'`,
+    [engagementId],
+  );
+  return Number(r.rows[0].n) === 1;
+}
+
 /** The task is on the file and active (not an untriggered conditional). */
 async function taskActive(tx: PoolClient, engagementId: string, code: string): Promise<boolean> {
   const result = await tx.query(
@@ -150,7 +190,8 @@ async function acceptanceGatesTx(tx: PoolClient, engagementId: string): Promise<
   const formComplete = isFormComplete(FORM_DEFINITIONS["P1.1"], d31);
   const concludedAccept = d31.conclusion === "accept";
   const checksPassed = p11FailedChecks(d31).length === 0;
-  const signed = await partnerSigned(tx, engagementId, "P1.1");
+  const signed = await approvalSigned(tx, engagementId, "P1.1");
+  const partnerDesignated = await engagementPartnerDesignated(tx, engagementId);
 
   const independence = await tx.query<{ total: string; open: string; undisposed: string }>(
     `SELECT
@@ -190,6 +231,7 @@ async function acceptanceGatesTx(tx: PoolClient, engagementId: string): Promise<
     { key: "d31_form_complete", ok: formComplete && concludedAccept },
     { key: "d31_checks_passed", ok: formComplete && checksPassed },
     { key: "d31_partner_signed", ok: signed },
+    { key: "engagement_partner_designated", ok: partnerDesignated, href: `/engagements/${engagementId}/team` },
     // Not vacuous: a campaign must exist AND be fully completed, for everyone on the team.
     { key: "independence_complete", ok: Number(indep.total) > 0 && Number(indep.open) === 0 && membersMissing === 0 },
     { key: "independence_exceptions_disposed", ok: Number(indep.undisposed) === 0 },
@@ -215,7 +257,7 @@ async function planningCloseGatesTx(tx: PoolClient, engagementId: string): Promi
     if (!(await taskActive(tx, engagementId, code))) continue;
     gateDocs.push({
       key: `${code.toLowerCase().replace(".", "")}_partner_signed`,
-      ok: await partnerSigned(tx, engagementId, code),
+      ok: await approvalSigned(tx, engagementId, code),
     });
   }
   // The plan's approval is the partner signature on the P7.2 summary itself,

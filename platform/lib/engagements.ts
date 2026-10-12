@@ -289,7 +289,15 @@ export async function createEngagement(input: {
       await ensureTaskTx(tx, engagementId, "P1.2");
     }
     // Assign the engagement partner (default reviewer) when chosen at creation.
+    // The seat is a firm partner's or firm administrator's (F003).
     if (input.partnerId) {
+      const rank = await tx.query<{ role: string }>(
+        "SELECT role::text AS role FROM membership WHERE tenant_id = $1 AND user_id = $2",
+        [tenantId, input.partnerId],
+      );
+      if (!["partner", "firm_admin"].includes(rank.rows[0]?.role ?? "")) {
+        throw new Error("partner-role-requires-partner-rank");
+      }
       await tx.query(
         `INSERT INTO team_member (tenant_id, engagement_id, user_id, team_role)
          VALUES ($1, $2, $3, 'partner')

@@ -9,6 +9,7 @@ import { Panel } from "@/components/ui/atlas";
 import { DEFAULT_FILE_INDEX, shortTitle } from "@/lib/file-index";
 import { getEngagement } from "@/lib/engagements";
 import { engagementTasksWithActiveConditionals } from "@/lib/engagement-dashboard";
+import { getMessages } from "@/lib/i18n";
 import { getLocale } from "@/lib/locale";
 import { canReview, type Role } from "@/lib/rbac";
 import { listTeam } from "@/lib/team";
@@ -92,7 +93,8 @@ export default async function FormsPage(props: {
             ? fr ? "Cette personne ne fait pas partie de l'équipe de la mission." : "That person is not on the engagement team."
             : error === "eqr-not-assignable"
               ? fr ? "Le réviseur qualité (EQR) ne peut pas se voir confier les travaux de la mission." : "The engagement quality reviewer cannot be assigned engagement work."
-              : error}
+              : // the firm sign-off rules (F002) and the other domain refusals
+                ((getMessages(locale).planning.errors as Record<string, string>)[error] ?? error)}
         </p>
       ) : null}
       {assigned ? (

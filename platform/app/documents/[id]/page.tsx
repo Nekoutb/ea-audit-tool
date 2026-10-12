@@ -70,6 +70,11 @@ export default async function DocumentPage(props: {
   // for everyone and the refusal was a 500).
   const viewerRole = isRole(session.user.role) ? session.user.role : null;
   const partnerSigned = signoffs.some((s) => s.role === "partner" && !s.voidedAt);
+  // the reader holds the active preparer sign-off: reviewer and partner
+  // signatures are someone else's to give (F001)
+  const selfPrepared = signoffs.some(
+    (s) => s.role === "preparer" && !s.voidedAt && !s.invalidatedAt && s.userId === session.user.id,
+  );
   const canReopen =
     !archived && viewerRole !== null && atLeast(viewerRole, "manager") && (!partnerSigned || atLeast(viewerRole, "partner"));
 
@@ -249,6 +254,22 @@ export default async function DocumentPage(props: {
                   );
                 }
                 if (isSigned || archived) return null;
+                if (role !== "preparer" && selfPrepared) {
+                  return (
+                    <button
+                      key={role}
+                      type="button"
+                      disabled
+                      aria-disabled="true"
+                      className={`${btn} cursor-not-allowed`}
+                      title={td.errors["self-review"]}
+                      aria-label={`${label} — ${td.errors["self-review"]}`}
+                      data-testid={`sign-${role}-self`}
+                    >
+                      {label}
+                    </button>
+                  );
+                }
                 return (
                   <form
                     key={role}

@@ -195,6 +195,8 @@ export interface PhaseTask {
   approverName: string | null;
   /** Preparer sign-off, if signed. */
   preparerName: string | null;
+  /** who signed as preparer: they never review the paper (F001) */
+  preparerUserId?: string | null;
   preparerAt: string | null;
   /** Reviewer / partner sign-off, if signed. */
   reviewerName: string | null;
@@ -237,6 +239,7 @@ export async function phaseTasks(engagementId: string, phase: DashboardPhase): P
       approver_user_id: string | null;
       approver_name: string | null;
       preparer_name: string | null;
+      preparer_user_id: string | null;
       preparer_at: string | null;
       reviewer_name: string | null;
       reviewer_at: string | null;
@@ -252,7 +255,7 @@ export async function phaseTasks(engagementId: string, phase: DashboardPhase): P
               ${assignee.name} AS assignee_name,
               fi.approver_user_id,
               (SELECT coalesce(name, email) FROM app_user WHERE id = fi.approver_user_id) AS approver_name,
-              ps.signer AS preparer_name, to_char(ps.signed_at, 'DD Mon YYYY') AS preparer_at,
+              ps.signer AS preparer_name, ps.signer_id AS preparer_user_id, to_char(ps.signed_at, 'DD Mon YYYY') AS preparer_at,
               rs.signer AS reviewer_name, to_char(rs.signed_at, 'DD Mon YYYY') AS reviewer_at,
               ${HAS_WORK} AS has_work,
               nullif(btrim(coalesce(fi.na_reason, '')), '') AS na_reason
@@ -263,7 +266,7 @@ export async function phaseTasks(engagementId: string, phase: DashboardPhase): P
             ORDER BY created_at LIMIT 1
          ) d ON true
          LEFT JOIN LATERAL (
-           SELECT coalesce(u.name, u.email) AS signer, s.signed_at
+           SELECT coalesce(u.name, u.email) AS signer, s.user_id AS signer_id, s.signed_at
              FROM signoff s JOIN app_user u ON u.id = s.user_id
             WHERE s.document_id = d.id AND s.role = 'preparer' AND s.voided_at IS NULL
             ORDER BY s.signed_at LIMIT 1
@@ -296,6 +299,7 @@ export async function phaseTasks(engagementId: string, phase: DashboardPhase): P
         approverUserId: row.approver_user_id,
         approverName: row.approver_name,
         preparerName: row.preparer_name,
+        preparerUserId: row.preparer_user_id,
         preparerAt: row.preparer_at,
         reviewerName: row.reviewer_name,
         reviewerAt: row.reviewer_at,
@@ -625,6 +629,7 @@ async function loadTasks(engagementId: string, scope: TaskScope): Promise<PhaseT
       approver_user_id: string | null;
       approver_name: string | null;
       preparer_name: string | null;
+      preparer_user_id: string | null;
       preparer_at: string | null;
       reviewer_name: string | null;
       reviewer_at: string | null;
@@ -640,7 +645,7 @@ async function loadTasks(engagementId: string, scope: TaskScope): Promise<PhaseT
               ${assignee.name} AS assignee_name,
               fi.approver_user_id,
               (SELECT coalesce(name, email) FROM app_user WHERE id = fi.approver_user_id) AS approver_name,
-              ps.signer AS preparer_name, to_char(ps.signed_at, 'DD Mon YYYY') AS preparer_at,
+              ps.signer AS preparer_name, ps.signer_id AS preparer_user_id, to_char(ps.signed_at, 'DD Mon YYYY') AS preparer_at,
               rs.signer AS reviewer_name, to_char(rs.signed_at, 'DD Mon YYYY') AS reviewer_at,
               ${HAS_WORK} AS has_work,
               nullif(btrim(coalesce(fi.na_reason, '')), '') AS na_reason
@@ -651,7 +656,7 @@ async function loadTasks(engagementId: string, scope: TaskScope): Promise<PhaseT
             ORDER BY created_at LIMIT 1
          ) d ON true
          LEFT JOIN LATERAL (
-           SELECT coalesce(u.name, u.email) AS signer, s.signed_at
+           SELECT coalesce(u.name, u.email) AS signer, s.user_id AS signer_id, s.signed_at
              FROM signoff s JOIN app_user u ON u.id = s.user_id
             WHERE s.document_id = d.id AND s.role = 'preparer' AND s.voided_at IS NULL
             ORDER BY s.signed_at LIMIT 1
@@ -683,6 +688,7 @@ async function loadTasks(engagementId: string, scope: TaskScope): Promise<PhaseT
         approverUserId: row.approver_user_id,
         approverName: row.approver_name,
         preparerName: row.preparer_name,
+        preparerUserId: row.preparer_user_id,
         preparerAt: row.preparer_at,
         reviewerName: row.reviewer_name,
         reviewerAt: row.reviewer_at,
@@ -795,6 +801,7 @@ export async function taskForItem(engagementId: string, code: string): Promise<P
       approver_user_id: string | null;
       approver_name: string | null;
       preparer_name: string | null;
+      preparer_user_id: string | null;
       preparer_at: string | null;
       reviewer_name: string | null;
       reviewer_at: string | null;
@@ -810,7 +817,7 @@ export async function taskForItem(engagementId: string, code: string): Promise<P
               ${assignee.name} AS assignee_name,
               fi.approver_user_id,
               (SELECT coalesce(name, email) FROM app_user WHERE id = fi.approver_user_id) AS approver_name,
-              ps.signer AS preparer_name, to_char(ps.signed_at, 'DD Mon YYYY') AS preparer_at,
+              ps.signer AS preparer_name, ps.signer_id AS preparer_user_id, to_char(ps.signed_at, 'DD Mon YYYY') AS preparer_at,
               rs.signer AS reviewer_name, to_char(rs.signed_at, 'DD Mon YYYY') AS reviewer_at,
               ${HAS_WORK} AS has_work,
               nullif(btrim(coalesce(fi.na_reason, '')), '') AS na_reason
@@ -821,7 +828,7 @@ export async function taskForItem(engagementId: string, code: string): Promise<P
             ORDER BY created_at LIMIT 1
          ) d ON true
          LEFT JOIN LATERAL (
-           SELECT coalesce(u.name, u.email) AS signer, s.signed_at
+           SELECT coalesce(u.name, u.email) AS signer, s.user_id AS signer_id, s.signed_at
              FROM signoff s JOIN app_user u ON u.id = s.user_id
             WHERE s.document_id = d.id AND s.role = 'preparer' AND s.voided_at IS NULL
             ORDER BY s.signed_at LIMIT 1
@@ -854,6 +861,7 @@ export async function taskForItem(engagementId: string, code: string): Promise<P
       approverUserId: row.approver_user_id,
       approverName: row.approver_name,
       preparerName: row.preparer_name,
+        preparerUserId: row.preparer_user_id,
       preparerAt: row.preparer_at,
       reviewerName: row.reviewer_name,
       reviewerAt: row.reviewer_at,

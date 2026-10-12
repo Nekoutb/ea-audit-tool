@@ -13,7 +13,14 @@ import { createNotification } from "@/lib/notifications";
 import { withTenant } from "@/lib/db";
 import { requireEngagementAccess } from "@/lib/engagement-access";
 import { assertMutable } from "@/lib/mutability";
-import { atLeast } from "@/lib/rbac";
+import { atLeast, isRole } from "@/lib/rbac";
+import {
+  belowMinimumCode,
+  effectiveTaskRule,
+  getPolicyTx,
+  getTaskRulesTx,
+  teamRank,
+} from "@/lib/signoff-policy";
 import { ForbiddenError, requireTenant, requireWrite } from "@/lib/tenant";
 
 /**
@@ -98,11 +105,11 @@ export async function listTeam(engagementId: string): Promise<TeamMember[]> {
  * portal contacts hold a membership too, as role client_user, and used to be
  * offered as team members and independence recipients (UAT B91).
  */
-export async function listFirmUsers(): Promise<{ id: string; name: string; email: string }[]> {
+export async function listFirmUsers(): Promise<{ id: string; name: string; email: string; role: string }[]> {
   const { tenantId } = await requireTenant();
   return withTenant(tenantId, async (tx) => {
-    const result = await tx.query<{ id: string; name: string; email: string }>(
-      `SELECT u.id, coalesce(u.name, u.email) AS name, u.email
+    const result = await tx.query<{ id: string; name: string; email: string; role: string }>(
+      `SELECT u.id, coalesce(u.name, u.email) AS name, u.email, m.role::text AS role
          FROM app_user u JOIN membership m ON m.user_id = u.id
         WHERE m.tenant_id = $1 AND m.role <> 'client_user' ORDER BY name`,
       [tenantId],
@@ -157,6 +164,57 @@ function assertTeamRole(teamRole: string): asserts teamRole is TeamRole {
   if (!(TEAM_ROLES as readonly string[]).includes(teamRole)) throw new Error("invalid-team-role");
 }
 
+/** The user's firm role in this tenant, or null when they are not a member. */
+async function firmRoleTx(tx: PoolClient, tenantId: string, userId: string): Promise<string | null> {
+  const r = await tx.query<{ role: string }>(
+    "SELECT role::text AS role FROM membership WHERE tenant_id = $1 AND user_id = $2",
+    [tenantId, userId],
+  );
+  return r.rows[0]?.role ?? null;
+}
+
+/** Firm partners and firm administrators may hold the engagement partner seat (F003). */
+function mayHoldPartnerSeat(firmRole: string | null): boolean {
+  return isRole(firmRole) && atLeast(firmRole, "partner");
+}
+
+/**
+ * The partner-seat rules shared by every way a team role is set (F003):
+ * only a firm partner (or firm administrator) holds it, there is one per
+ * engagement, and once a partner has accepted the seat it cannot be left
+ * empty: handing it over is transferEngagementPartner's job.
+ */
+async function assertPartnerSeatTx(
+  tx: PoolClient,
+  tenantId: string,
+  engagementId: string,
+  userId: string,
+  current: { team_role: string; status: string } | undefined,
+  nextRole: TeamRole | null,
+): Promise<void> {
+  if (nextRole === "partner") {
+    if (!mayHoldPartnerSeat(await firmRoleTx(tx, tenantId, userId))) {
+      throw new Error("partner-role-requires-partner-rank");
+    }
+    const others = await tx.query(
+      `SELECT 1 FROM team_member
+        WHERE engagement_id = $1 AND user_id <> $2 AND team_role = 'partner'
+          AND coalesce(status, 'accepted') <> 'declined'`,
+      [engagementId, userId],
+    );
+    if ((others.rowCount ?? 0) > 0) throw new Error("one-engagement-partner");
+  }
+  if (current?.team_role === "partner" && current.status === "accepted" && nextRole !== "partner") {
+    const others = await tx.query(
+      `SELECT 1 FROM team_member
+        WHERE engagement_id = $1 AND user_id <> $2 AND team_role = 'partner'
+          AND coalesce(status, 'accepted') = 'accepted'`,
+      [engagementId, userId],
+    );
+    if ((others.rowCount ?? 0) === 0) throw new Error("last-partner");
+  }
+}
+
 /**
  * Assign a user to the team. EQR rule (spec §2): the EQR must be independent of
  * the engagement team — the system blocks assigning an EQR who already holds a
@@ -173,8 +231,8 @@ export async function assignTeamMember(
   // write anyway; the typed error is the one the page can translate)
   await assertMutable(engagementId);
   await withTenant(tenantId, async (tx) => {
-    const existing = await tx.query<{ team_role: TeamRole }>(
-      "SELECT team_role FROM team_member WHERE engagement_id = $1 AND user_id = $2",
+    const existing = await tx.query<{ team_role: TeamRole; status: string }>(
+      "SELECT team_role, coalesce(status, 'accepted') AS status FROM team_member WHERE engagement_id = $1 AND user_id = $2",
       [engagementId, userId],
     );
     const current = existing.rows[0]?.team_role;
@@ -194,6 +252,7 @@ export async function assignTeamMember(
     if (teamRole !== "eqr_reviewer" && current === "eqr_reviewer") {
       throw new Error("eqr-on-team");
     }
+    await assertPartnerSeatTx(tx, tenantId, engagementId, userId, existing.rows[0], teamRole);
     await tx.query(
       `INSERT INTO team_member (tenant_id, engagement_id, user_id, team_role)
        VALUES ($1, $2, $3, $4)
@@ -214,8 +273,8 @@ export async function removeTeamMember(engagementId: string, userId: string): Pr
   const { tenantId, role } = await requireTeamManager(engagementId);
   await assertMutable(engagementId);
   const removed = await withTenant(tenantId, async (tx) => {
-    const existing = await tx.query<{ team_role: TeamRole; who: string }>(
-      `SELECT tm.team_role, coalesce(u.name, u.email) AS who
+    const existing = await tx.query<{ team_role: TeamRole; who: string; status: string }>(
+      `SELECT tm.team_role, coalesce(u.name, u.email) AS who, coalesce(tm.status, 'accepted') AS status
          FROM team_member tm JOIN app_user u ON u.id = tm.user_id
         WHERE tm.engagement_id = $1 AND tm.user_id = $2`,
       [engagementId, userId],
@@ -223,6 +282,12 @@ export async function removeTeamMember(engagementId: string, userId: string): Pr
     if (existing.rows[0]?.team_role === "partner" && !atLeast(role, "partner")) {
       throw new ForbiddenError("partner-only-team-role");
     }
+    await assertPartnerSeatTx(tx, tenantId, engagementId, userId, existing.rows[0], null);
+    // a delegate who leaves the team no longer signs for the partner
+    await tx.query(
+      "UPDATE engagement SET partner_delegate_user_id = NULL WHERE id = $1 AND partner_delegate_user_id = $2",
+      [engagementId, userId],
+    );
     await tx.query("DELETE FROM team_member WHERE engagement_id = $1 AND user_id = $2", [
       engagementId,
       userId,
@@ -322,6 +387,8 @@ export async function assignTask(
       if ((member.rowCount ?? 0) === 0) throw new Error("not-found");
       // the quality reviewer stands apart from the work (ISQM 2 ¶18-20, UAT B73)
       if (member.rows[0]?.team_role === "eqr_reviewer") throw new Error("eqr-not-assignable");
+      // the assignee does the work: the task's preparer rules apply (F002)
+      await assertAssignmentRulesTx(tx, tenantId, engagementId, [itemId], userIdOrNull, member.rows[0].team_role, "assignee");
     }
     const updated = await tx.query<{ code: string; title_en: string; title_fr: string | null }>(
       "UPDATE file_item SET assignee_user_id = $3 WHERE id = $2 AND engagement_id = $1 RETURNING code, title_en, title_fr",
@@ -364,6 +431,43 @@ export async function assignTask(
  * were repointed.
  */
 export type TaskAssignmentRole = "preparer" | "approver" | "assignee";
+
+/**
+ * The firm's sign-off rules applied at assignment (F002): the person doing
+ * the work (preparer or assignee) is at or above the task's minimum preparer
+ * role, the approver at or above its minimum reviewer role, and, unless the
+ * firm policy says otherwise, nobody is both preparer and approver of a task.
+ */
+async function assertAssignmentRulesTx(
+  tx: PoolClient,
+  tenantId: string,
+  engagementId: string,
+  itemIds: readonly string[],
+  userId: string,
+  teamRole: string,
+  as: TaskAssignmentRole,
+): Promise<void> {
+  const items = await tx.query<{ code: string; owner_id: string | null; approver_user_id: string | null; assignee_user_id: string | null }>(
+    `SELECT code, owner_id, approver_user_id, assignee_user_id FROM file_item
+      WHERE engagement_id = $1 AND id = ANY($2::uuid[])`,
+    [engagementId, [...itemIds]],
+  );
+  if (items.rows.length === 0) return;
+  const policy = await getPolicyTx(tx, tenantId);
+  const rules = await getTaskRulesTx(tx, tenantId, items.rows.map((i) => i.code));
+  for (const item of items.rows) {
+    const rule = effectiveTaskRule(policy, rules, item.code);
+    const minimum = as === "approver" ? rule.minReviewer : rule.minPreparer;
+    if (teamRank(teamRole) < teamRank(minimum)) throw new Error(belowMinimumCode(minimum));
+    if (policy.requireDistinctPreparerApprover) {
+      const clash =
+        as === "approver"
+          ? item.owner_id === userId || item.assignee_user_id === userId
+          : item.approver_user_id === userId;
+      if (clash) throw new Error("preparer-equals-approver");
+    }
+  }
+}
 const ASSIGNMENT_COLUMN: Record<TaskAssignmentRole, string> = {
   preparer: "owner_id",
   approver: "approver_user_id",
@@ -389,6 +493,7 @@ export async function assignTasks(
       if ((member.rowCount ?? 0) === 0) throw new Error("not-found");
       // the quality reviewer stands apart from the work (ISQM 2 ¶18-20, UAT B73)
       if (member.rows[0]?.team_role === "eqr_reviewer") throw new Error("eqr-not-assignable");
+      await assertAssignmentRulesTx(tx, tenantId, engagementId, itemIds, userIdOrNull, member.rows[0].team_role, role);
     }
     const updated = await tx.query<{ code: string }>(
       `UPDATE file_item SET ${ASSIGNMENT_COLUMN[role]} = $3 WHERE engagement_id = $1 AND id = ANY($2::uuid[]) RETURNING code`,
@@ -586,6 +691,14 @@ export async function addTeamMemberByEmail(
         WHERE lower(u.email) = $1 AND m.tenant_id = $2`,
         [email, tenantId],
       );
+      // the partner seat is a firm partner's (F003): an account provisioned
+      // here is staff, and an existing colleague must hold partner rank
+      if (
+        teamRole === "partner" &&
+        !(existing.rows[0] && mayHoldPartnerSeat(await firmRoleTx(tx, tenantId, existing.rows[0].id)))
+      ) {
+        throw new Error("partner-role-requires-partner-rank");
+      }
       if (existing.rows[0])
         return {
           userId: existing.rows[0].id,
@@ -636,6 +749,7 @@ export async function addTeamMemberByEmail(
       if (row.status !== "declined") throw new Error("already-on-team");
       if ((teamRole === "eqr_reviewer") !== (row.team_role === "eqr_reviewer")) throw new Error("eqr-on-team");
     }
+    if (teamRole === "partner") await assertPartnerSeatTx(tx, tenantId, engagementId, userId, undefined, "partner");
     await tx.query(
       `INSERT INTO team_member (tenant_id, engagement_id, user_id, team_role, status, invited_at)
        VALUES ($1, $2, $3, $4, 'invited', now())
@@ -751,4 +865,184 @@ export async function respondToEngagement(engagementId: string, accept: boolean,
       }
     }
   }
+}
+
+/* ------------------------- the engagement partner (F003) ------------------------- */
+
+export interface EngagementPartnerInfo {
+  partnerId: string | null;
+  partnerName: string | null;
+  partnerStatus: "invited" | "accepted" | null;
+  delegateId: string | null;
+  delegateName: string | null;
+}
+
+/** Who holds the partner seat on the engagement, and who signs for them. */
+export async function engagementPartnerInfo(engagementId: string): Promise<EngagementPartnerInfo> {
+  const { tenantId } = await requireTenant();
+  return withTenant(tenantId, async (tx) => {
+    const partner = await tx.query<{ user_id: string; name: string; status: "invited" | "accepted" }>(
+      `SELECT tm.user_id, coalesce(u.name, u.email) AS name, coalesce(tm.status, 'accepted') AS status
+         FROM team_member tm JOIN app_user u ON u.id = tm.user_id
+        WHERE tm.engagement_id = $1 AND tm.team_role = 'partner' AND coalesce(tm.status, 'accepted') <> 'declined'
+        ORDER BY (coalesce(tm.status, 'accepted') = 'accepted') DESC, tm.created_at LIMIT 1`,
+      [engagementId],
+    );
+    const delegate = await tx.query<{ id: string; name: string }>(
+      `SELECT u.id, coalesce(u.name, u.email) AS name
+         FROM engagement e JOIN app_user u ON u.id = e.partner_delegate_user_id
+        WHERE e.id = $1`,
+      [engagementId],
+    );
+    return {
+      partnerId: partner.rows[0]?.user_id ?? null,
+      partnerName: partner.rows[0]?.name ?? null,
+      partnerStatus: partner.rows[0]?.status ?? null,
+      delegateId: delegate.rows[0]?.id ?? null,
+      delegateName: delegate.rows[0]?.name ?? null,
+    };
+  });
+}
+
+/** The accepted partner(s) on the engagement: the seat's holder. */
+async function acceptedPartnersTx(tx: PoolClient, engagementId: string): Promise<string[]> {
+  const r = await tx.query<{ user_id: string }>(
+    `SELECT user_id FROM team_member
+      WHERE engagement_id = $1 AND team_role = 'partner' AND coalesce(status, 'accepted') = 'accepted'`,
+    [engagementId],
+  );
+  return r.rows.map((row) => row.user_id);
+}
+
+/**
+ * Hand the engagement partner seat to another firm partner in one
+ * transaction: the new user (added to the team if absent) becomes the
+ * partner and the outgoing partner takes `outgoingRole`. A firm
+ * administrator or the current engagement partner may do it.
+ */
+export async function transferEngagementPartner(
+  engagementId: string,
+  newUserId: string,
+  outgoingRole: string,
+): Promise<void> {
+  const { tenantId, userId: actorId, role: actorRole } = await requireWrite();
+  await requireEngagementAccess(engagementId);
+  await assertMutable(engagementId);
+  if (
+    !(TEAM_ROLES as readonly string[]).includes(outgoingRole) ||
+    outgoingRole === "partner" ||
+    outgoingRole === "eqr_reviewer"
+  ) {
+    throw new Error("invalid-team-role");
+  }
+  const outcome = await withTenant(tenantId, async (tx) => {
+    // the seat is locked for the length of the hand-over
+    await tx.query("SELECT 1 FROM engagement WHERE id = $1 FOR UPDATE", [engagementId]);
+    const current = await tx.query<{ user_id: string }>(
+      `SELECT user_id FROM team_member
+        WHERE engagement_id = $1 AND team_role = 'partner' AND coalesce(status, 'accepted') <> 'declined'
+        ORDER BY (coalesce(status, 'accepted') = 'accepted') DESC, created_at LIMIT 1`,
+      [engagementId],
+    );
+    const outgoing = current.rows[0]?.user_id ?? null;
+    if (!outgoing) throw new Error("designate-engagement-partner-first");
+    if (actorRole !== "firm_admin" && actorId !== outgoing) throw new ForbiddenError("transfer-partner-forbidden");
+    if (newUserId === outgoing) throw new Error("already-engagement-partner");
+    if (!mayHoldPartnerSeat(await firmRoleTx(tx, tenantId, newUserId))) {
+      throw new Error("partner-role-requires-partner-rank");
+    }
+    const incoming = await tx.query<{ team_role: string }>(
+      "SELECT team_role FROM team_member WHERE engagement_id = $1 AND user_id = $2",
+      [engagementId, newUserId],
+    );
+    // the quality reviewer stays outside the team (ISQM 2 para. 18)
+    if (incoming.rows[0]?.team_role === "eqr_reviewer") throw new Error("eqr-on-team");
+    await tx.query("UPDATE team_member SET team_role = $3 WHERE engagement_id = $1 AND user_id = $2", [
+      engagementId,
+      outgoing,
+      outgoingRole,
+    ]);
+    // The incoming partner holds the seat at once: an invitation left
+    // pending would leave the engagement with no partner to sign.
+    await tx.query(
+      `INSERT INTO team_member (tenant_id, engagement_id, user_id, team_role, status, responded_at)
+       VALUES ($1, $2, $3, 'partner', 'accepted', now())
+       ON CONFLICT (engagement_id, user_id)
+       DO UPDATE SET team_role = 'partner', status = 'accepted',
+                     responded_at = coalesce(team_member.responded_at, now()), decline_reason = NULL`,
+      [tenantId, engagementId, newUserId],
+    );
+    // the new partner signs in their own right; nobody delegates to themselves
+    await tx.query(
+      "UPDATE engagement SET partner_delegate_user_id = NULL WHERE id = $1 AND partner_delegate_user_id = $2",
+      [engagementId, newUserId],
+    );
+    const names = await tx.query<{ id: string; who: string }>(
+      "SELECT id, coalesce(name, email) AS who FROM app_user WHERE id = ANY($1::uuid[])",
+      [[outgoing, newUserId]],
+    );
+    const who = new Map(names.rows.map((n) => [n.id, n.who]));
+    return {
+      outgoing,
+      outgoingName: who.get(outgoing) ?? outgoing,
+      incomingName: who.get(newUserId) ?? newUserId,
+      added: incoming.rows.length === 0,
+      incomingWas: incoming.rows[0]?.team_role ?? null,
+    };
+  });
+  await recordActivity({
+    engagementId,
+    entityType: "team_member",
+    entityId: newUserId,
+    action: "engagement_partner_transferred",
+    summary: `Engagement partner transferred from ${outcome.outgoingName} to ${outcome.incomingName} (${outcome.outgoingName} now ${outgoingRole.replace(/_/g, " ")})`,
+    before: { partnerUserId: outcome.outgoing, incomingTeamRole: outcome.incomingWas },
+    after: { partnerUserId: newUserId, outgoingTeamRole: outgoingRole },
+  });
+  if (outcome.added) await askIndependenceIfCampaignOpen(engagementId, newUserId);
+}
+
+/**
+ * Delegate the partner-tier sign-offs to another firm partner on the team, or
+ * clear the delegation (null). The engagement partner or a firm
+ * administrator decides.
+ */
+export async function setPartnerDelegate(engagementId: string, delegateUserId: string | null): Promise<void> {
+  const { tenantId, userId: actorId, role: actorRole } = await requireWrite();
+  await requireEngagementAccess(engagementId);
+  await assertMutable(engagementId);
+  const change = await withTenant(tenantId, async (tx) => {
+    const partners = await acceptedPartnersTx(tx, engagementId);
+    if (actorRole !== "firm_admin" && !partners.includes(actorId)) throw new ForbiddenError("not-engagement-partner");
+    if (delegateUserId) {
+      if (partners.length === 0) throw new Error("designate-engagement-partner-first");
+      if (partners.includes(delegateUserId)) throw new Error("delegate-is-partner");
+      if (!mayHoldPartnerSeat(await firmRoleTx(tx, tenantId, delegateUserId))) {
+        throw new Error("delegate-requires-partner-rank");
+      }
+      const member = await tx.query<{ team_role: string }>(
+        `SELECT team_role FROM team_member
+          WHERE engagement_id = $1 AND user_id = $2 AND coalesce(status, 'accepted') <> 'declined'`,
+        [engagementId, delegateUserId],
+      );
+      if (!member.rows[0]) throw new Error("delegate-not-on-team");
+      if (member.rows[0].team_role === "eqr_reviewer") throw new Error("eqr-on-team");
+    }
+    const before = await tx.query<{ partner_delegate_user_id: string | null }>(
+      "SELECT partner_delegate_user_id FROM engagement WHERE id = $1 FOR UPDATE",
+      [engagementId],
+    );
+    await tx.query("UPDATE engagement SET partner_delegate_user_id = $2 WHERE id = $1", [engagementId, delegateUserId]);
+    return { before: before.rows[0]?.partner_delegate_user_id ?? null };
+  });
+  if (change.before === delegateUserId) return;
+  await recordActivity({
+    engagementId,
+    entityType: "engagement",
+    entityId: engagementId,
+    action: delegateUserId ? "partner_delegate_set" : "partner_delegate_cleared",
+    summary: delegateUserId ? "Partner sign-off delegated" : "Partner sign-off delegation cleared",
+    before: { delegateUserId: change.before },
+    after: { delegateUserId },
+  });
 }

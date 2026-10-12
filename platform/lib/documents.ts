@@ -17,6 +17,14 @@ import { phaseStillOpen } from "@/lib/gates";
 import { benchmarkLabel } from "@/lib/materiality-model";
 import { riskTitle } from "@/lib/risks";
 import { LEAD_INDEXES } from "@/lib/lead-classes";
+import {
+  PARTNER_GATED,
+  PARTNER_ONLY_APPROVAL,
+  belowMinimumCode,
+  effectiveRuleTx,
+  engagementPartnerTx,
+  teamRank,
+} from "@/lib/signoff-policy";
 
 export const DOCX_MIME =
   "application/vnd.openxmlformats-officedocument.wordprocessingml.document";
@@ -52,6 +60,8 @@ export interface VersionInfo {
 export interface SignoffInfo {
   id: string;
   role: SignoffRole;
+  /** the signer, so a screen can tell the reader they prepared the paper (F001) */
+  userId: string;
   versionNo: number;
   userName: string;
   signedAt: string;
@@ -547,6 +557,7 @@ export async function listSignoffs(documentId: string): Promise<SignoffInfo[]> {
       id: string;
       role: SignoffRole;
       version_no: number;
+      user_id: string;
       user_name: string;
       signed_at: string;
       voided_at: string | null;
@@ -554,7 +565,7 @@ export async function listSignoffs(documentId: string): Promise<SignoffInfo[]> {
       invalidated_at: string | null;
       invalidated_reason: string | null;
     }>(
-      `SELECT s.id, s.role, s.version_no, coalesce(u.name, u.email) AS user_name,
+      `SELECT s.id, s.role, s.version_no, s.user_id, coalesce(u.name, u.email) AS user_name,
               to_char(s.signed_at AT TIME ZONE $2, 'YYYY-MM-DD HH24:MI') || ' ' || $3 AS signed_at,
               to_char(s.voided_at AT TIME ZONE $2, 'YYYY-MM-DD HH24:MI') || ' ' || $3 AS voided_at, s.void_reason,
               to_char(s.invalidated_at AT TIME ZONE $2, 'YYYY-MM-DD HH24:MI') || ' ' || $3 AS invalidated_at,
@@ -569,6 +580,7 @@ export async function listSignoffs(documentId: string): Promise<SignoffInfo[]> {
     return result.rows.map((row) => ({
       id: row.id,
       role: row.role,
+      userId: row.user_id,
       versionNo: row.version_no,
       userName: row.user_name,
       signedAt: row.signed_at,
@@ -581,50 +593,20 @@ export async function listSignoffs(documentId: string): Promise<SignoffInfo[]> {
 }
 
 /**
- * Another member of the firm carries review authority (senior and above), i.e.
- * someone other than this user could review the work. Where nobody else can —
- * a sole practitioner — the self-review refusal would make the file impossible
- * to complete, so the rule stands down there and the signature record (which
- * carries the user on every role) shows preparer and reviewer are the same
- * person. Exported for the section-conclusion chain in lib/execution.ts.
- */
-export async function hasOtherReviewer(
-  tx: PoolClient,
-  tenantId: string,
-  userId: string,
-): Promise<boolean> {
-  const result = await tx.query<{ n: string }>(
-    `SELECT count(*)::text AS n
-       FROM membership
-      WHERE tenant_id = $1 AND user_id <> $2
-        AND role IN ('senior', 'manager', 'eqr_reviewer', 'partner', 'firm_admin')`,
-    [tenantId, userId],
-  );
-  return Number(result.rows[0].n) > 0;
-}
-
-/**
  * Sign the current version. Two-stage minimum (spec §6.3): preparer first, then
  * reviewer — reviewer/partner require review authority, an active preparer
  * sign-off, and NO open review notes. The reviewer sign-off locks the document.
  *
  * Two integrity rules on top (assurance findings C4 / H1):
- *  - no self-review: the holder of the active preparer sign-off cannot also
- *    sign as reviewer or partner while anyone else in the firm could review;
+ *  - no self-review: the holder of the active preparer sign-off can never
+ *    also sign as reviewer or partner — not even in a sole practice (F001);
  *  - the signature is bound to the paper's content by content_hash, so a later
  *    edit voids it (see invalidateStaleSignoffs in lib/working-papers.ts)
  *    instead of leaving an attestation standing over content nobody signed.
  */
-/** Tasks whose approval belongs to the audit partner alone (operator rule). */
-export const PARTNER_ONLY_APPROVAL = new Set(["P5.2", "P7.2", "S6.1", "S6.2", "S3.1", "C1.1"]);
-
-/**
- * Papers whose phase gate looks for a PARTNER signature (lib/gates.ts). A
- * reviewer sign-off on them must not lock the paper — the partner still has
- * to sign — and a partner pressing the list's R chip is recorded as the
- * partner they are, so the gate sees it (UAT B20).
- */
-export const PARTNER_GATED = new Set(["P1.1", "P2.2", "P5.2", "S3.1", "P7.2"]);
+// The partner-approval constants live with the firm sign-off policy, which
+// falls back to them when a firm has saved none (lib/signoff-policy.ts).
+export { PARTNER_ONLY_APPROVAL, PARTNER_GATED };
 
 /**
  * Papers whose screen is the structured board alone (embedOnly on the section
@@ -770,23 +752,55 @@ export async function signDocument(documentId: string, requested: SignoffRole): 
     // an earlier phase's gates are still open.
     const stillOpen = phaseStillOpen(phaseOfTask(row.section, row.code), row.phase, row.code);
     if (stillOpen) throw new DocumentRuleError(stillOpen);
-    // Signing rights also follow the role held on THIS engagement's team (UAT
-    // B32): a senior staffed as an assistant does not review, and only the
-    // team's partner approves. Someone with no team row keeps the firm rule.
-    const staffed = await tx.query<{ team_role: string }>(
-      "SELECT team_role FROM team_member WHERE engagement_id = $1 AND user_id = $2",
+    // Signing rights follow the role held on THIS engagement's team (UAT B32,
+    // F002): every tier but the EQR's own is signed by an ACCEPTED member of
+    // the team, at or above the task's minimum role. The firm-rank checks
+    // above stay as an additional floor.
+    const staffed = await tx.query<{ team_role: string; status: string }>(
+      "SELECT team_role, coalesce(status, 'accepted') AS status FROM team_member WHERE engagement_id = $1 AND user_id = $2",
       [row.engagement_id, userId],
     );
     const teamRole = staffed.rows[0]?.team_role ?? null;
-    const teamMayReview = teamRole === null || TEAM_REVIEW_ROLES.has(teamRole);
-    const teamMayApprove = teamRole === null || teamRole === "partner";
-    if (role === "reviewer" && !teamMayReview) throw new DocumentRuleError("requires-team-reviewer");
-    if (role === "partner" && !teamMayApprove) throw new DocumentRuleError("requires-team-partner");
-    if (role === "reviewer" && PARTNER_GATED.has(row.code) && canPartnerSignoff(userRole) && teamMayApprove) role = "partner";
-    // Partner-only approvals: these tasks carry the judgments only the audit
-    // partner may approve — a manager's review sign-off is refused outright.
-    if ((role === "reviewer" || role === "partner") && PARTNER_ONLY_APPROVAL.has(row.code) && !(canPartnerSignoff(userRole) && teamMayApprove)) {
-      throw new DocumentRuleError("partner-only");
+    const teamStatus = staffed.rows[0]?.status ?? null;
+    // whether the paper waits for the partner's own signature before it locks
+    let partnerRequired = PARTNER_GATED.has(row.code);
+    if (role !== "eqr") {
+      if (teamStatus === null) throw new DocumentRuleError("not-on-team-to-sign");
+      // still invited, or declined: nothing is signed until the engagement is accepted (UAT B133)
+      if (teamStatus !== "accepted") throw new DocumentRuleError("accept-engagement-first");
+      const rule = await effectiveRuleTx(tx, tenantId, row.code);
+      partnerRequired = rule.partnerRequired;
+      const designated = await engagementPartnerTx(tx, row.engagement_id);
+      const isEngagementPartner =
+        designated.partnerIds.includes(userId) || (designated.delegateId !== null && designated.delegateId === userId);
+      // Why a partner-tier signature by this user is refused, or null (F003).
+      const partnerRefusal = (): string | null =>
+        designated.partnerIds.length === 0
+          ? "designate-engagement-partner-first"
+          : isEngagementPartner
+            ? null
+            : "not-engagement-partner";
+      if (role === "preparer" && teamRank(teamRole) < teamRank(rule.minPreparer)) {
+        throw new DocumentRuleError(belowMinimumCode(rule.minPreparer));
+      }
+      // The engagement partner (or delegate) pressing R on a paper that needs
+      // the partner's signature is recorded as the partner they are (UAT B20).
+      if (role === "reviewer" && rule.partnerRequired && isEngagementPartner && canPartnerSignoff(userRole)) {
+        role = "partner";
+      }
+      if (role === "reviewer" && teamRank(teamRole) < teamRank(rule.minReviewer)) {
+        throw new DocumentRuleError(belowMinimumCode(rule.minReviewer));
+      }
+      // Partner-only approvals: these tasks carry the judgments only the
+      // engagement partner may approve — anyone else's review is refused.
+      if (role === "reviewer" && rule.partnerRequired && PARTNER_ONLY_APPROVAL.has(row.code)) {
+        const refusal = partnerRefusal();
+        throw new DocumentRuleError(canPartnerSignoff(userRole) ? (refusal ?? "partner-only") : "partner-only");
+      }
+      if (role === "partner") {
+        const refusal = partnerRefusal();
+        if (refusal) throw new DocumentRuleError(refusal);
+      }
     }
     if (row.current_version === 0) throw new DocumentRuleError("no-version");
     if (row.checked_out_by) throw new DocumentRuleError("checked-out");
@@ -796,18 +810,6 @@ export async function signDocument(documentId: string, requested: SignoffRole): 
     if (row.code === "P2.1" && role !== "preparer") {
       const { independenceOpenTx } = await import("@/lib/independence");
       if (await independenceOpenTx(tx, row.engagement_id)) throw new DocumentRuleError("independence-open");
-    }
-
-    // A member who has not accepted the engagement (still invited, or
-    // declined) signs nothing on it (UAT B133). Someone with no team row at
-    // all is not blocked here: engagement access is guarded upstream.
-    const membership = await tx.query<{ status: string }>(
-      "SELECT coalesce(status, 'accepted') AS status FROM team_member WHERE engagement_id = $1 AND user_id = $2",
-      [row.engagement_id, userId],
-    );
-    const teamStatus = membership.rows[0]?.status;
-    if (teamStatus === "invited" || teamStatus === "declined") {
-      throw new DocumentRuleError("accept-engagement-first");
     }
 
     const active = await tx.query<{ role: SignoffRole; user_id: string }>(
@@ -859,15 +861,10 @@ export async function signDocument(documentId: string, requested: SignoffRole): 
 
     if (role !== "preparer" && role !== "eqr") {
       // ISA 220 (Revised) ¶29: the work of the preparer is reviewed by someone
-      // else. Refuse the reviewer/partner signature to the preparer themselves.
+      // else. The preparer never signs as reviewer or partner on their own
+      // paper — there is no sole-practitioner exemption (F001).
       const preparer = active.rows.find((r) => r.role === "preparer");
-      if (
-        preparer &&
-        preparer.user_id === userId &&
-        (await hasOtherReviewer(tx, tenantId, userId))
-      ) {
-        throw new DocumentRuleError("self-review");
-      }
+      if (preparer && preparer.user_id === userId) throw new DocumentRuleError("self-review");
 
       // Notes hang on the document OR on its task (two stores, one paper):
       // either kind blocks the reviewer while open (UAT B18).
@@ -900,7 +897,7 @@ export async function signDocument(documentId: string, requested: SignoffRole): 
     // partner's own signature is recorded (UAT B20).
     // (The EQR's own sign-off does not lock the paper: the team still signs
     // its governance communications on C4.2, and the gate reads the "eqr" row.)
-    if (role === "partner" || (role === "reviewer" && !PARTNER_GATED.has(row.code))) {
+    if (role === "partner" || (role === "reviewer" && !partnerRequired)) {
       await tx.query("UPDATE document SET status = 'signed' WHERE id = $1", [documentId]);
     }
     return { engagementId: row.engagement_id, title: `${row.code} ${row.title}`, versionNo: row.current_version };

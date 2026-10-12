@@ -151,6 +151,7 @@ export default async function PhaseTasksPage(props: {
       reviewer,
       preparerSigned,
       reviewerSigned,
+      selfPrepared: preparerSigned && task.preparerUserId === session.user.id,
     };
   });
 
@@ -285,6 +286,7 @@ export default async function PhaseTasksPage(props: {
                     phaseSlug={slug}
                     signPreparerLabel={td.signAsPreparer}
                     signReviewerLabel={td.signAsReviewer}
+                    selfReviewLabel={t.document.errors["self-review"]}
                     canSign={canSign}
                     canReview={mayReview}
                   />

@@ -3,6 +3,10 @@ import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
 
 const TENANT = "abababab-abab-abab-abab-abababababab";
 const USER = "abababab-abab-abab-abab-ababababab01";
+// The section conclusion is prepared by a senior and reviewed by a manager
+// and by USER, the engagement partner: nobody reviews their own work (F001).
+const SENIOR = "abababab-abab-abab-abab-ababababab02";
+const MANAGER = "abababab-abab-abab-abab-ababababab03";
 
 vi.mock("@/auth", () => ({
   auth: vi.fn(async () => ({
@@ -10,6 +14,7 @@ vi.mock("@/auth", () => ({
   })),
 }));
 
+import { auth } from "@/auth";
 import { closePool } from "@/lib/db";
 import { createEngagement, listFileItems } from "@/lib/engagements";
 import {
@@ -39,7 +44,12 @@ let e110: string;
 
 async function removeFixture(): Promise<void> {
   await admin.query("DELETE FROM tenant WHERE id = $1", [TENANT]);
-  await admin.query("DELETE FROM app_user WHERE id = $1", [USER]);
+  await admin.query("DELETE FROM app_user WHERE id = ANY($1::uuid[])", [[USER, SENIOR, MANAGER]]);
+}
+
+/** Act as `id` with firm role `role` from here on. */
+function actAs(id: string, role: string): void {
+  vi.mocked(auth).mockResolvedValue({ user: { id, tenantId: TENANT, role, locale: "en" } } as never);
 }
 
 beforeAll(async () => {
@@ -59,6 +69,14 @@ beforeAll(async () => {
   e100 = items.find((i) => i.code === "E4.1")!.id;
   e110 = items.find((i) => i.code === "E4.2")!.id;
   await assignTeamMember(engagementId, USER, "partner");
+  for (const [id, email, role] of [
+    [SENIOR, "exec-senior@test.local", "senior"],
+    [MANAGER, "exec-manager@test.local", "manager"],
+  ]) {
+    await admin.query("INSERT INTO app_user (id, email, name, password_hash) VALUES ($1, $2, $2, 'x')", [id, email]);
+    await admin.query("INSERT INTO membership (user_id, tenant_id, role) VALUES ($1, $2, $3)", [id, TENANT, role]);
+    await assignTeamMember(engagementId, id, role as "senior" | "manager");
+  }
   const version = await createMaterialityVersion(engagementId, {
     benchmark: "revenue",
     benchmarkAmount: 1_000_000_000,
@@ -210,13 +228,20 @@ describe("section conclusion + review chain (4.11)", () => {
     await completeStep(revenueStep.id, "Cut-off tested; no exceptions.");
 
     // E4.1 carries the presumed significant revenue risk → partner required.
+    actAs(SENIOR, "senior");
     await saveSectionConclusion(e100, "Objectives achieved; revenue fairly stated.", true);
+    // the preparer never reviews their own conclusion (F001)
+    await expect(reviewSectionConclusion(e100, false)).rejects.toThrow("self-review");
     const conclusion = (await import("@/lib/execution")).getSectionConclusion;
     let state = await conclusion(e100);
     expect(state?.partnerRequired).toBe(true);
     expect(state?.reviewedByName).toBeNull();
 
+    actAs(MANAGER, "manager");
+    // the partner's review is the engagement partner's alone (F003)
+    await expect(reviewSectionConclusion(e100, true)).rejects.toThrow("forbidden");
     await reviewSectionConclusion(e100, false);
+    actAs(USER, "firm_admin");
     await reviewSectionConclusion(e100, true);
     state = await conclusion(e100);
     expect(state?.reviewedByName).not.toBeNull();

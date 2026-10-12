@@ -88,6 +88,25 @@ export default async function SettingsPage(props: {
         </Panel>
       ) : null}
 
+      {/* who may sign what, firm-wide (F002): firm administrators and partners */}
+      {atLeast(session.user.role as Role, "partner") ? (
+        <Panel className="mt-6 p-6">
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <PanelHeader
+              title={locale === "fr" ? "Règles de signature" : "Sign-off rules"}
+              hint={
+                locale === "fr"
+                  ? "rôle minimum du préparateur et du réviseur, signature de l'associé, par tâche"
+                  : "minimum preparer and reviewer role, partner sign-off, per task"
+              }
+            />
+            <Link href="/settings/signoff" data-testid="signoff-rules-link" className={btnPrimary}>
+              {locale === "fr" ? "Gérer" : "Manage"}
+            </Link>
+          </div>
+        </Panel>
+      ) : null}
+
       <Panel className="mt-6 p-6">
         <div className="flex flex-wrap items-center justify-between gap-3">
           <PanelHeader title={ts.entities} hint={ts.entitiesHint} />

@@ -12,6 +12,7 @@ vi.mock("@/auth", () => ({
 }));
 
 import { closePool } from "@/lib/db";
+import { auth } from "@/auth";
 import { generateDocument, signDocument } from "@/lib/documents";
 import { createEngagement, listFileItems } from "@/lib/engagements";
 import { carryForwardFromPriorYear, loadForm, saveForm } from "@/lib/forms";
@@ -42,9 +43,37 @@ async function removeFixture(): Promise<void> {
   await admin.query("DELETE FROM app_user WHERE id = ANY($1::uuid[])", [[USER, OTHER_USER]]);
 }
 
-async function signAsPartner(code: string): Promise<void> {
-  const documentId = await generateDocument(itemId(code), "en");
-  await signDocument(documentId, "preparer");
+/** Act as `id` with firm role `role` from here on. */
+function actAs(id: string, role: string): void {
+  vi.mocked(auth).mockResolvedValue({ user: { id, tenantId: TENANT, role, locale: "en" } } as never);
+}
+
+/** Seat a user on an engagement team, accepted (fixture shortcut). */
+async function seat(engagement: string, userId: string, teamRole: string): Promise<void> {
+  await admin.query(
+    `INSERT INTO team_member (tenant_id, engagement_id, user_id, team_role, status)
+     VALUES ($1, $2, $3, $4, 'accepted')
+     ON CONFLICT (engagement_id, user_id) DO UPDATE SET team_role = EXCLUDED.team_role, status = 'accepted'`,
+    [TENANT, engagement, userId, teamRole],
+  );
+}
+
+/**
+ * OTHER_USER (staff) prepares, USER (the engagement partner) signs as
+ * partner: the preparer never reviews their own paper (F001) and partner
+ * sign-offs are the designated partner's (F003).
+ */
+async function signAsPartner(code: string, engagement = engagementId): Promise<void> {
+  const documentId = await generateDocument(
+    engagement === engagementId ? itemId(code) : (await listFileItems(engagement)).find((i) => i.code === code)!.id,
+    "en",
+  );
+  actAs(OTHER_USER, "staff");
+  try {
+    await signDocument(documentId, "preparer");
+  } finally {
+    actAs(USER, "firm_admin");
+  }
   await signDocument(documentId, "partner");
 }
 
@@ -224,10 +253,30 @@ describe("acceptance gates → planning (2.2, 2.3, 2.4)", () => {
     await saveForm(engagementId, "P1.1", { ...checks, predecessor_ok: true, conclusion: "accept" });
     // UAT B17: a blank working paper carries nothing to attest to.
     const p11 = await generateDocument(itemId("P1.1"), "en");
+    // F002: only an accepted member of the team signs. F003: partner sign-offs
+    // need the designated engagement partner, and the acceptance gate needs
+    // exactly one. USER takes the seat; OTHER_USER, the preparer, joins the
+    // team and confirms independence like everyone else.
+    await expect(signAsPartner("P1.1")).rejects.toThrow("not-on-team-to-sign");
+    await seat(engagementId, OTHER_USER, "staff");
+    actAs(OTHER_USER, "staff");
     await expect(signDocument(p11, "preparer")).rejects.toThrow("paper-incomplete");
+    actAs(USER, "firm_admin");
     await completePaper(engagementId, "P1.1");
-    await signAsPartner("P1.1");
+    expect((await acceptanceGates(engagementId)).find((g) => g.key === "engagement_partner_designated")?.ok).toBe(false);
+    actAs(OTHER_USER, "staff");
+    await signDocument(p11, "preparer");
+    actAs(USER, "firm_admin");
+    await expect(signDocument(p11, "partner")).rejects.toThrow("not-on-team-to-sign");
+    await seat(engagementId, USER, "partner");
+    await signDocument(p11, "partner");
+    await launchCampaign(engagementId, [OTHER_USER]);
+    const second = (await listConfirmations(engagementId)).find((c) => c.userId === OTHER_USER)!;
+    actAs(OTHER_USER, "staff");
+    await submitConfirmation(second.token, {}, "Second");
+    actAs(USER, "firm_admin");
     const gates = await acceptanceGates(engagementId);
+    expect(gates.find((g) => g.key === "engagement_partner_designated")?.ok).toBe(true);
     expect(gates.every((g) => g.ok)).toBe(true);
     await advanceToPlanning(engagementId);
     const phase = await admin.query<{ phase: string }>("SELECT phase FROM engagement WHERE id = $1", [engagementId]);
@@ -302,7 +351,10 @@ describe("planning-close gates (2.9, 2.10, 2.13)", () => {
     await addCustomStep(itemId("E4.2"), "Substantive coverage for purchases.", ["C", "A"]);
     // UAT B17: a bespoke paper with unanswered fields cannot be handed off.
     const p22 = await generateDocument(itemId("P2.2"), "en");
+    // the preparer is OTHER_USER, an accepted member of the team (seated at acceptance)
+    actAs(OTHER_USER, "staff");
     await expect(signDocument(p22, "preparer")).rejects.toThrow("paper-incomplete");
+    actAs(USER, "firm_admin");
     for (const code of ["P2.2", "P5.2", "S3.1"]) {
       await completePaper(engagementId, code);
       await signAsPartner(code);
@@ -398,6 +450,8 @@ describe("P5.2 promote race (review fix)", () => {
 describe("letter/working-paper collision (review fix)", () => {
   it("letters under P1.1 neither hijack the working paper nor satisfy the partner gate", async () => {
     const fresh = await createEngagement({ clientId, fiscalYear: 2027, periodEnd: "2027-12-31" });
+    await seat(fresh, USER, "partner");
+    await seat(fresh, OTHER_USER, "staff");
     const letterId = await generateLetter(fresh, "engagement", "en");
 
     // The working paper is a NEW document, not the letter.
@@ -425,8 +479,7 @@ describe("letter/working-paper collision (review fix)", () => {
 
     // ...only signing the working paper does.
     await completePaper(fresh, "P1.1");
-    await signDocument(workpaperId, "preparer");
-    await signDocument(workpaperId, "partner");
+    await signAsPartner("P1.1", fresh);
     gates = await acceptanceGates(fresh);
     expect(gates.find((g) => g.key === "d31_partner_signed")?.ok).toBe(true);
   });

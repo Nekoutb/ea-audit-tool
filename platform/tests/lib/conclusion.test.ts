@@ -3,6 +3,9 @@ import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
 
 const TENANT = "7c7c7c7c-7c7c-4c7c-8c7c-7c7c7c7c7c7c";
 const USER = "7c7c7c7c-7c7c-4c7c-8c7c-7c7c7c7c7c01";
+// A senior on the team prepares; USER, the engagement partner, signs as
+// partner — never both on one paper (F001, F003).
+const PREPARER = "7c7c7c7c-7c7c-4c7c-8c7c-7c7c7c7c7c02";
 
 vi.mock("@/auth", () => ({
   auth: vi.fn(async () => ({
@@ -21,6 +24,7 @@ import {
   recordCompletion,
   rollforward,
 } from "@/lib/completion";
+import { auth } from "@/auth";
 import { closePool } from "@/lib/db";
 import { checkoutDocument, generateDocument, signDocument } from "@/lib/documents";
 import { createEngagement } from "@/lib/engagements";
@@ -46,7 +50,12 @@ async function removeFixture(): Promise<void> {
   } finally {
     await admin.query("ALTER TABLE completion_record ENABLE TRIGGER trg_manifest_immutable");
   }
-  await admin.query("DELETE FROM app_user WHERE id = $1", [USER]);
+  await admin.query("DELETE FROM app_user WHERE id = ANY($1::uuid[])", [[USER, PREPARER]]);
+}
+
+/** Act as `id` with firm role `role` from here on. */
+function actAs(id: string, role: string): void {
+  vi.mocked(auth).mockResolvedValue({ user: { id, tenantId: TENANT, role, locale: "en" } } as never);
 }
 
 /** Prefix-matching closings stub over a synthetic account map. */
@@ -77,6 +86,17 @@ beforeAll(async () => {
   );
   engagementId = await createEngagement({ clientId: client.rows[0].id, fiscalYear: 2025, periodEnd: "2025-12-31" });
   await admin.query("UPDATE engagement SET phase = 'execution' WHERE id = $1", [engagementId]);
+  await admin.query(
+    "INSERT INTO app_user (id, email, name, password_hash) VALUES ($1, 'concl-prep@test.local', 'Concl Preparer', 'x')",
+    [PREPARER],
+  );
+  await admin.query("INSERT INTO membership (user_id, tenant_id, role) VALUES ($1, $2, 'senior')", [PREPARER, TENANT]);
+  // USER is the designated engagement partner (F003); PREPARER a senior on the team
+  await admin.query(
+    `INSERT INTO team_member (tenant_id, engagement_id, user_id, team_role, status)
+     VALUES ($1, $2, $3, 'partner', 'accepted'), ($1, $2, $4, 'senior', 'accepted')`,
+    [TENANT, engagementId, USER, PREPARER],
+  );
   const version = await createMaterialityVersion(engagementId, {
     benchmark: "revenue", benchmarkAmount: 200_000_000, percentage: 1,
     justification: "Test.", performancePct: 75, trivialPct: 5,
@@ -258,7 +278,9 @@ describe("7.11/7.12 archive immutability + rollforward", () => {
         [engagementId, code],
       );
       const documentId = await generateDocument(item.rows[0].id, "en");
+      actAs(PREPARER, "senior");
       await signDocument(documentId, "preparer");
+      actAs(USER, "firm_admin");
       await signDocument(documentId, "partner");
     }
 

@@ -517,6 +517,9 @@ export default async function SectionPage(props: {
   const overdue = dueDate !== null && dueDate < new Date().toISOString().slice(0, 10) && taskInfo?.status !== "reviewed";
   const pSigned = Boolean(taskInfo?.preparerName);
   const rSigned = Boolean(taskInfo?.reviewerName);
+  // the reader signed this paper as preparer: they never review it (F001)
+  const selfPrepared = pSigned && !rSigned && taskInfo?.preparerUserId === session.user.id;
+  const selfReviewLabel = t.document.errors["self-review"];
   const chip = (on: boolean) =>
     `grid h-7 w-7 place-items-center rounded-full text-[12px] font-extrabold transition ${
       on ? "bg-emerald-600 text-white" : "bg-surface-2 text-muted hover:bg-line/70"
@@ -591,7 +594,11 @@ export default async function SectionPage(props: {
                     P
                   </button>
                 </form>
-                {rSigned || mayReviewHere ? (
+                {selfPrepared ? (
+                  <button type="button" disabled className={`${chip(false)} cursor-not-allowed opacity-50`} title={selfReviewLabel} aria-label={selfReviewLabel} aria-disabled="true" data-testid="chip-reviewer" data-signed="false" data-self-prepared="true">
+                    R
+                  </button>
+                ) : rSigned || mayReviewHere ? (
                   <form action={signOffReviewerAction}>
                     <input type="hidden" name="fileItemId" value={itemId} />
                     <input type="hidden" name="engagementId" value={id} />
@@ -823,7 +830,12 @@ export default async function SectionPage(props: {
               P
             </button>
           </form>
-          {rSigned || mayReviewHere ? (
+          {selfPrepared ? (
+            // the preparer never reviews their own paper: nothing to press (F001)
+            <button type="button" disabled className={`${chip(false)} cursor-not-allowed opacity-50`} title={selfReviewLabel} aria-label={selfReviewLabel} aria-disabled="true" data-testid="chip-reviewer" data-signed="false" data-self-prepared="true">
+              R
+            </button>
+          ) : rSigned || mayReviewHere ? (
             <form action={signOffReviewerAction}>
               <input type="hidden" name="fileItemId" value={itemId} />
               <input type="hidden" name="engagementId" value={id} />

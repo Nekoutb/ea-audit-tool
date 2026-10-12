@@ -15,7 +15,7 @@ import { addRisk, dismissPotentialRisk, linkRiskToIndex, linkRiskToStep, mapRisk
 import { canReview } from "@/lib/rbac";
 import { savePaper, StaleEditConflict } from "@/lib/working-papers";
 import { encodePaperDraft, paperDraftCookie } from "@/lib/paper-drafts";
-import { addPbcItem, assignTask, assignTasks, assignTeamMember, removeTeamMember, setBudgetLine, type TaskAssignmentRole, type TeamRole } from "@/lib/team";
+import { addPbcItem, assignTask, assignTasks, assignTeamMember, removeTeamMember, setBudgetLine, setPartnerDelegate, transferEngagementPartner, type TaskAssignmentRole, type TeamRole } from "@/lib/team";
 import { getLocale } from "@/lib/locale";
 
 /** Wrap a mutation: domain errors become ?error=<code> banners, not 500s. */
@@ -363,6 +363,24 @@ export async function assignTeamFromTeamPageAction(engagementId: string, formDat
 export async function removeTeamFromTeamPageAction(engagementId: string, userId: string): Promise<void> {
   const path = `/engagements/${engagementId}/team`;
   await guarded(path, () => removeTeamMember(engagementId, userId));
+}
+
+/** Hand the engagement partner seat to another firm partner (F003). */
+export async function transferEngagementPartnerAction(engagementId: string, formData: FormData): Promise<void> {
+  const path = `/engagements/${engagementId}/team`;
+  const newUserId = String(formData.get("newPartner") ?? "").trim();
+  const outgoingRole = String(formData.get("outgoingRole") ?? "").trim();
+  await guarded(path, async () => {
+    if (!newUserId) throw new Error("partner-role-requires-partner-rank");
+    await transferEngagementPartner(engagementId, newUserId, outgoingRole);
+  });
+}
+
+/** Set or clear the partner the engagement partner delegates sign-offs to (F003). */
+export async function setPartnerDelegateAction(engagementId: string, formData: FormData): Promise<void> {
+  const path = `/engagements/${engagementId}/team`;
+  const delegate = String(formData.get("delegate") ?? "").trim() || null;
+  await guarded(path, () => setPartnerDelegate(engagementId, delegate));
 }
 
 /**

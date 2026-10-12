@@ -503,6 +503,20 @@ export async function rebutRevenueFraudRisk(riskId: string, justification: strin
   const { tenantId, userId, role } = await requireWrite();
   if (!canPartnerSignoff(role)) throw new Error("rebut-partner-only");
   if (!justification.trim()) throw new Error("justification-required");
+  // the rebuttal is the engagement partner's judgement, or their delegate's (F003)
+  {
+    const { partnerTierRefusalTx } = await import("@/lib/signoff-policy");
+    const refusal = await withTenant(tenantId, async (tx) => {
+      const risk = await tx.query<{ engagement_id: string; presumed_type: string | null }>(
+        "SELECT engagement_id, presumed_type FROM risk WHERE id = $1",
+        [riskId],
+      );
+      // a risk that is not rebuttable is refused as such below
+      const row = risk.rows[0];
+      return row && row.presumed_type === "revenue_fraud" ? partnerTierRefusalTx(tx, row.engagement_id, userId) : null;
+    });
+    if (refusal) throw new Error(refusal);
+  }
   await withTenant(tenantId, async (tx) => {
     const updated = await tx.query(
       `UPDATE risk SET rebutted = true, rebuttal_justification = $2, rebuttal_approved_by = $3,
