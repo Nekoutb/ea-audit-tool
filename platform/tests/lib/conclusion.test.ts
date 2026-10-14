@@ -84,18 +84,19 @@ beforeAll(async () => {
     "INSERT INTO client (tenant_id, name, legal_form) VALUES ($1, 'Concl SA', 'SA') RETURNING id",
     [TENANT],
   );
-  engagementId = await createEngagement({ clientId: client.rows[0].id, fiscalYear: 2025, periodEnd: "2025-12-31" });
+  engagementId = await createEngagement({ clientId: client.rows[0].id, fiscalYear: 2025, periodEnd: "2025-12-31", partnerId: USER });
   await admin.query("UPDATE engagement SET phase = 'execution' WHERE id = $1", [engagementId]);
   await admin.query(
     "INSERT INTO app_user (id, email, name, password_hash) VALUES ($1, 'concl-prep@test.local', 'Concl Preparer', 'x')",
     [PREPARER],
   );
   await admin.query("INSERT INTO membership (user_id, tenant_id, role) VALUES ($1, $2, 'senior')", [PREPARER, TENANT]);
-  // USER is the designated engagement partner (F003); PREPARER a senior on the team
+  // USER is the designated engagement partner (F003), seated at creation;
+  // PREPARER a senior on the team
   await admin.query(
     `INSERT INTO team_member (tenant_id, engagement_id, user_id, team_role, status)
-     VALUES ($1, $2, $3, 'partner', 'accepted'), ($1, $2, $4, 'senior', 'accepted')`,
-    [TENANT, engagementId, USER, PREPARER],
+     VALUES ($1, $2, $3, 'senior', 'accepted')`,
+    [TENANT, engagementId, PREPARER],
   );
   const version = await createMaterialityVersion(engagementId, {
     benchmark: "revenue", benchmarkAmount: 200_000_000, percentage: 1,

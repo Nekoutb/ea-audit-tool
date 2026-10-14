@@ -67,7 +67,7 @@ beforeAll(async () => {
   );
   clientId = client.rows[0].id;
   as(ADMIN_A, "firm_admin");
-  engagementId = await createEngagement({ clientId, fiscalYear: 2025, periodEnd: "2025-12-31" });
+  engagementId = await createEngagement({ clientId, fiscalYear: 2025, periodEnd: "2025-12-31", partnerId: ADMIN_A });
   await assignTeamMember(engagementId, STAFF, "staff");
   const item = (await listFileItems(engagementId)).find((i) => i.code === "P1.1")!;
   documentId = await generateDocument(item.id, "en");
@@ -148,7 +148,7 @@ describe("B11 — the EQR does not sign team tiers", () => {
 describe("B24 — whoever opens the file is on its team", () => {
   it("adds a manager who creates an engagement to its team", async () => {
     as(MANAGER, "manager");
-    const created = await createEngagement({ clientId, fiscalYear: 2026, periodEnd: "2026-12-31" });
+    const created = await createEngagement({ clientId, fiscalYear: 2026, periodEnd: "2026-12-31", partnerId: ADMIN_A });
     const team = await listTeam(created);
     expect(team.some((m) => m.userId === MANAGER && m.teamRole === "manager")).toBe(true);
   });

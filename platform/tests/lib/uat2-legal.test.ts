@@ -69,7 +69,7 @@ beforeAll(async () => {
     "INSERT INTO client (tenant_id, name, legal_form) VALUES ($1, 'Juin SA', 'SA') RETURNING id",
     [TENANT],
   );
-  juneEngagement = await createEngagement({ clientId: client.rows[0].id, fiscalYear: 2026, periodEnd: "2026-06-30" });
+  juneEngagement = await createEngagement({ clientId: client.rows[0].id, fiscalYear: 2026, periodEnd: "2026-06-30", partnerId: USER });
 }, 30_000);
 
 afterAll(async () => {

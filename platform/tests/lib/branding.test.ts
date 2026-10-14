@@ -157,7 +157,7 @@ describe("letterhead block", () => {
       [TENANT],
     );
     const engagementId = await createEngagement({
-      clientId: client.rows[0].id, fiscalYear: 2025, periodEnd: "2025-12-31",
+      clientId: client.rows[0].id, fiscalYear: 2025, periodEnd: "2025-12-31", partnerId: USER,
     });
     const documentId = await generateLetter(engagementId, "engagement", "fr");
     const content = await admin.query<{ content: Buffer }>(

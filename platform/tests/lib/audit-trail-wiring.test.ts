@@ -39,7 +39,7 @@ beforeAll(async () => {
   await admin.query("INSERT INTO membership (user_id,tenant_id,role) VALUES ($1,$2,'firm_admin')", [USER, TENANT]);
   const client = await admin.query<{ id: string }>(
     "INSERT INTO client (tenant_id,name,legal_form) VALUES ($1,'Trail SA','SA') RETURNING id", [TENANT]);
-  engagementId = await createEngagement({ clientId: client.rows[0].id, fiscalYear: 2025, periodEnd: "2025-12-31" });
+  engagementId = await createEngagement({ clientId: client.rows[0].id, fiscalYear: 2025, periodEnd: "2025-12-31", partnerId: USER });
 }, 60_000);
 
 afterAll(async () => {

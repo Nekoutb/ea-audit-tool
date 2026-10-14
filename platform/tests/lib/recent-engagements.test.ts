@@ -55,7 +55,7 @@ beforeAll(async () => {
     "INSERT INTO client (tenant_id, name, legal_form) VALUES ($1, 'Recent SA', 'SA') RETURNING id",
     [TENANT],
   );
-  mine = await createEngagement({ clientId: client.rows[0].id, fiscalYear: 2025, periodEnd: "2025-12-31" });
+  mine = await createEngagement({ clientId: client.rows[0].id, fiscalYear: 2025, periodEnd: "2025-12-31", partnerId: ADMIN });
   // The senior sees it only through the team; the oversight roles see it anyway.
   await admin.query(
     "INSERT INTO team_member (tenant_id, engagement_id, user_id, team_role, status) VALUES ($1,$2,$3,'senior','accepted')",

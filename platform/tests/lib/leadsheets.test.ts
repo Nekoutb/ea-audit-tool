@@ -84,8 +84,8 @@ beforeAll(async () => {
     [TENANT],
   );
   clientId = client.rows[0].id;
-  priorEngagement = await createEngagement({ clientId, fiscalYear: 2024, periodEnd: "2024-12-31" });
-  currentEngagement = await createEngagement({ clientId, fiscalYear: 2025, periodEnd: "2025-12-31" });
+  priorEngagement = await createEngagement({ clientId, fiscalYear: 2024, periodEnd: "2024-12-31", partnerId: USER });
+  currentEngagement = await createEngagement({ clientId, fiscalYear: 2025, periodEnd: "2025-12-31", partnerId: USER });
   await seedTb(priorEngagement, PRIOR_TB, "2024-12-31");
   await seedTb(currentEngagement, CURRENT_TB, "2025-12-31");
   const item = await admin.query<{ id: string }>(

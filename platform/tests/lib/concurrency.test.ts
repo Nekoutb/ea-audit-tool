@@ -4,6 +4,8 @@ import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
 const TENANT = "c9c9c9c9-c9c9-4c9c-8c9c-c9c9c9c9c9c9";
 const ALICE = "c9c9c9c9-c9c9-4c9c-8c9c-c9c9c9c9c901";
 const BOB = "c9c9c9c9-c9c9-4c9c-8c9c-c9c9c9c9c902";
+// The engagement partner every file is now opened with (partner rank).
+const PARTNER = "c9c9c9c9-c9c9-4c9c-8c9c-c9c9c9c9c903";
 
 let actor = ALICE;
 
@@ -25,7 +27,7 @@ const CODE = "P3.1";
 
 async function removeFixture(): Promise<void> {
   await admin.query("DELETE FROM tenant WHERE id = $1", [TENANT]);
-  await admin.query("DELETE FROM app_user WHERE id = ANY($1)", [[ALICE, BOB]]);
+  await admin.query("DELETE FROM app_user WHERE id = ANY($1)", [[ALICE, BOB, PARTNER]]);
 }
 
 beforeAll(async () => {
@@ -36,12 +38,14 @@ beforeAll(async () => {
   for (const u of [ALICE, BOB]) {
     await admin.query("INSERT INTO membership (user_id, tenant_id, role) VALUES ($1, $2, 'manager')", [u, TENANT]);
   }
+  await admin.query("INSERT INTO app_user (id, email, name, password_hash) VALUES ($1,'partner@race.local','Pat','x')", [PARTNER]);
+  await admin.query("INSERT INTO membership (user_id, tenant_id, role) VALUES ($1, $2, 'partner')", [PARTNER, TENANT]);
   actor = ALICE;
   const client = await admin.query<{ id: string }>(
     "INSERT INTO client (tenant_id, name, legal_form) VALUES ($1, 'Race SA', 'SA') RETURNING id",
     [TENANT],
   );
-  engagementId = await createEngagement({ clientId: client.rows[0].id, fiscalYear: 2025, periodEnd: "2025-12-31" });
+  engagementId = await createEngagement({ clientId: client.rows[0].id, fiscalYear: 2025, periodEnd: "2025-12-31", partnerId: PARTNER });
 }, 40_000);
 
 afterAll(async () => {

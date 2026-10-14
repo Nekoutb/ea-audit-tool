@@ -76,13 +76,10 @@ beforeAll(async () => {
     "INSERT INTO client (tenant_id, name, legal_form) VALUES ($1, 'Legal SARL', 'SARL') RETURNING id",
     [TENANT],
   );
-  saEngagement = await createEngagement({ clientId: saClient, fiscalYear: 2025, periodEnd: "2025-12-31" });
-  sarlEngagement = await createEngagement({ clientId: sarl.rows[0].id, fiscalYear: 2025, periodEnd: "2025-12-31" });
+  // USER is seated as the engagement partner at creation.
+  saEngagement = await createEngagement({ clientId: saClient, fiscalYear: 2025, periodEnd: "2025-12-31", partnerId: USER });
+  sarlEngagement = await createEngagement({ clientId: sarl.rows[0].id, fiscalYear: 2025, periodEnd: "2025-12-31", partnerId: USER });
   await admin.query("UPDATE engagement SET agm_date = '2026-06-15' WHERE id = $1", [saEngagement]);
-  await admin.query(
-    "INSERT INTO team_member (tenant_id, engagement_id, user_id, team_role) VALUES ($1, $2, $3, 'partner')",
-    [TENANT, saEngagement, USER],
-  );
 }, 30_000);
 
 afterAll(async () => {

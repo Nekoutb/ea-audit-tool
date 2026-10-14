@@ -108,7 +108,11 @@ beforeAll(async () => {
     [TENANT],
   );
   clientId = client.rows[0].id;
-  engagementId = await createEngagement({ clientId, fiscalYear: 2025, periodEnd: "2025-12-31" });
+  engagementId = await createEngagement({ clientId, fiscalYear: 2025, periodEnd: "2025-12-31", partnerId: USER });
+  // Creation now seats the engagement partner; the acceptance walk-through
+  // below starts from an empty seat (a file opened before the partner became
+  // mandatory) and designates USER itself, so the seat is vacated here.
+  await admin.query("DELETE FROM team_member WHERE engagement_id = $1", [engagementId]);
   items = await listFileItems(engagementId);
 }, 30_000);
 
@@ -449,7 +453,7 @@ describe("P5.2 promote race (review fix)", () => {
 
 describe("letter/working-paper collision (review fix)", () => {
   it("letters under P1.1 neither hijack the working paper nor satisfy the partner gate", async () => {
-    const fresh = await createEngagement({ clientId, fiscalYear: 2027, periodEnd: "2027-12-31" });
+    const fresh = await createEngagement({ clientId, fiscalYear: 2027, periodEnd: "2027-12-31", partnerId: USER });
     await seat(fresh, USER, "partner");
     await seat(fresh, OTHER_USER, "staff");
     const letterId = await generateLetter(fresh, "engagement", "en");
@@ -491,7 +495,7 @@ describe("rollforward (2.11)", () => {
       "INSERT INTO related_party (tenant_id, engagement_id, name, relationship) VALUES ($1, $2, 'Holding SA', 'Parent')",
       [TENANT, engagementId],
     );
-    const nextYear = await createEngagement({ clientId, fiscalYear: 2026, periodEnd: "2026-12-31" });
+    const nextYear = await createEngagement({ clientId, fiscalYear: 2026, periodEnd: "2026-12-31", partnerId: USER });
     const copied = await carryForwardFromPriorYear(nextYear);
     expect(copied).toBeGreaterThan(0);
 

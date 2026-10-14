@@ -92,7 +92,7 @@ beforeAll(async () => {
     "INSERT INTO client (tenant_id, name, legal_form) VALUES ($1, 'Integrity SA', 'SA') RETURNING id",
     [TENANT],
   );
-  engagementId = await createEngagement({ clientId: client.rows[0].id, fiscalYear: 2025, periodEnd: "2025-12-31" });
+  engagementId = await createEngagement({ clientId: client.rows[0].id, fiscalYear: 2025, periodEnd: "2025-12-31", partnerId: USER });
   const items = await listFileItems(engagementId);
   const e4 = items.find((i) => i.code.startsWith("E4."))!;
   e4Code = e4.code;

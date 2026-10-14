@@ -86,22 +86,23 @@ beforeAll(async () => {
     "INSERT INTO client (tenant_id, name, legal_form) VALUES ($1, 'Fixture SA', 'SA') RETURNING id",
     [TENANT],
   );
-  engagementId = await createEngagement({
-    clientId: client.rows[0].id,
-    fiscalYear: 2025,
-    periodEnd: "2025-12-31",
-  });
   // Signing needs an accepted seat on the team (F002) and partner sign-offs a
-  // designated engagement partner (F003).
+  // designated engagement partner (F003): PARTNER is seated at creation.
   await admin.query(
     "INSERT INTO app_user (id, email, name, password_hash) VALUES ($1, 'docs-partner@test.local', 'Doc Partner', 'x')",
     [PARTNER],
   );
   await admin.query("INSERT INTO membership (user_id, tenant_id, role) VALUES ($1, $2, 'partner')", [PARTNER, TENANT]);
+  engagementId = await createEngagement({
+    clientId: client.rows[0].id,
+    fiscalYear: 2025,
+    periodEnd: "2025-12-31",
+    partnerId: PARTNER,
+  });
   await admin.query(
     `INSERT INTO team_member (tenant_id, engagement_id, user_id, team_role, status)
-     VALUES ($1, $2, $3, 'manager', 'accepted'), ($1, $2, $4, 'partner', 'accepted')`,
-    [TENANT, engagementId, USER, PARTNER],
+     VALUES ($1, $2, $3, 'manager', 'accepted')`,
+    [TENANT, engagementId, USER],
   );
 });
 

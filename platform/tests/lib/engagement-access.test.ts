@@ -45,10 +45,12 @@ beforeAll(async () => {
     "INSERT INTO client (tenant_id, name, legal_form) VALUES ($1, 'Access SA', 'SA') RETURNING id",
     [TENANT],
   );
-  assigned = await createEngagement({ clientId: client.rows[0].id, fiscalYear: 2025, periodEnd: "2025-12-31" });
-  unassigned = await createEngagement({ clientId: client.rows[0].id, fiscalYear: 2024, periodEnd: "2024-12-31" });
+  assigned = await createEngagement({ clientId: client.rows[0].id, fiscalYear: 2025, periodEnd: "2025-12-31", partnerId: PARTNER });
+  unassigned = await createEngagement({ clientId: client.rows[0].id, fiscalYear: 2024, periodEnd: "2024-12-31", partnerId: PARTNER });
   // Only the first gets a team; the second stands for the 528 of 531 live
-  // engagements that have none.
+  // engagements that have none (opened before the partner became mandatory),
+  // so the partner seated at creation is removed from it.
+  await admin.query("DELETE FROM team_member WHERE engagement_id = $1", [unassigned]);
   await admin.query(
     "INSERT INTO team_member (tenant_id, engagement_id, user_id, team_role, status) VALUES ($1,$2,$3,'senior','accepted')",
     [TENANT, assigned, ON_TEAM],

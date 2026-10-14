@@ -36,7 +36,7 @@ beforeAll(async () => {
     "INSERT INTO client (tenant_id, name, legal_form) VALUES ($1, 'ToC SA', 'SA') RETURNING id",
     [TENANT],
   );
-  engagementId = await createEngagement({ clientId: client.rows[0].id, fiscalYear: 2025, periodEnd: "2025-12-31" });
+  engagementId = await createEngagement({ clientId: client.rows[0].id, fiscalYear: 2025, periodEnd: "2025-12-31", partnerId: USER });
 
   const scot = await admin.query<{ id: string }>(
     "INSERT INTO scot (tenant_id, engagement_id, name, transaction_type, strategy) VALUES ($1, $2, 'Revenue', 'routine', 'controls') RETURNING id",

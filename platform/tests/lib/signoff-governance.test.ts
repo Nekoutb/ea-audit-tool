@@ -232,8 +232,12 @@ describe("sign-off governance against the database", () => {
       [TENANT],
     );
     as(ADMIN, "firm_admin");
-    engagementId = await createEngagement({ clientId: client.rows[0].id, fiscalYear: 2025, periodEnd: "2025-12-31" });
-    otherEngagementId = await createEngagement({ clientId: client.rows[0].id, fiscalYear: 2024, periodEnd: "2024-12-31" });
+    engagementId = await createEngagement({ clientId: client.rows[0].id, fiscalYear: 2025, periodEnd: "2025-12-31", partnerId: ADMIN });
+    otherEngagementId = await createEngagement({ clientId: client.rows[0].id, fiscalYear: 2024, periodEnd: "2024-12-31", partnerId: ADMIN });
+    // Creation now seats the engagement partner. These tests walk the seat
+    // from empty (a file opened before the partner became mandatory), and the
+    // administrator must stay off the team, so the seat is vacated here.
+    await admin.query("DELETE FROM team_member WHERE engagement_id = ANY($1::uuid[])", [[engagementId, otherEngagementId]]);
     // execution work, so the phase gates stay out of the way
     await admin.query("UPDATE engagement SET phase = 'execution' WHERE id = ANY($1::uuid[])", [[engagementId, otherEngagementId]]);
     for (const item of await listFileItems(engagementId)) itemIds[item.code] = item.id;

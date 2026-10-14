@@ -89,8 +89,8 @@ beforeAll(async () => {
   );
   clientId = client.rows[0].id;
   as(ADMIN, "firm_admin");
-  engA = await createEngagement({ clientId, fiscalYear: 2025, periodEnd: "2025-12-31" });
-  engB = await createEngagement({ clientId, fiscalYear: 2024, periodEnd: "2024-12-31" });
+  engA = await createEngagement({ clientId, fiscalYear: 2025, periodEnd: "2025-12-31", partnerId: ADMIN });
+  engB = await createEngagement({ clientId, fiscalYear: 2024, periodEnd: "2024-12-31", partnerId: ADMIN });
   await assignTeamMember(engA, STAFF, "staff");
   await assignTeamMember(engA, READER, "staff");
   await assignTeamMember(engA, EQR, "eqr_reviewer");

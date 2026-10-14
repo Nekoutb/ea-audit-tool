@@ -53,8 +53,8 @@ beforeAll(async () => {
     [TENANT],
   );
   clientId = client.rows[0].id;
-  priorEngagement = await createEngagement({ clientId, fiscalYear: 2024, periodEnd: "2024-12-31" });
-  engagementId = await createEngagement({ clientId, fiscalYear: 2025, periodEnd: "2025-12-31" });
+  priorEngagement = await createEngagement({ clientId, fiscalYear: 2024, periodEnd: "2024-12-31", partnerId: USER });
+  engagementId = await createEngagement({ clientId, fiscalYear: 2025, periodEnd: "2025-12-31", partnerId: USER });
 }, 30_000);
 
 afterAll(async () => {

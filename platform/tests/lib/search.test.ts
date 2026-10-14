@@ -43,10 +43,12 @@ beforeAll(async () => {
   as(PARTNER, "firm_admin");
   const client = await admin.query<{ id: string }>(
     "INSERT INTO client (tenant_id,name,legal_form) VALUES ($1,'Recherche SA','SA') RETURNING id", [TENANT]);
-  openEngagement = await createEngagement({ clientId: client.rows[0].id, fiscalYear: 2025, periodEnd: "2025-12-31" });
-  teamEngagement = await createEngagement({ clientId: client.rows[0].id, fiscalYear: 2024, periodEnd: "2024-12-31" });
+  openEngagement = await createEngagement({ clientId: client.rows[0].id, fiscalYear: 2025, periodEnd: "2025-12-31", partnerId: PARTNER });
+  teamEngagement = await createEngagement({ clientId: client.rows[0].id, fiscalYear: 2024, periodEnd: "2024-12-31", partnerId: PARTNER });
 
-  // Only the second has a team, so the first stands for an unassigned file.
+  // Only the second has a team, so the first stands for an unassigned file
+  // (one opened before the partner became mandatory): its seated partner goes.
+  await admin.query("DELETE FROM team_member WHERE engagement_id = $1", [openEngagement]);
   await admin.query(
     "INSERT INTO team_member (tenant_id,engagement_id,user_id,team_role,status) VALUES ($1,$2,$3,'senior','accepted')",
     [TENANT, teamEngagement, MEMBER],

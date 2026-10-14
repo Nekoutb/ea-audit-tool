@@ -80,7 +80,7 @@ beforeAll(async () => {
     [TENANT],
   );
   otherClientId = other.rows[0].id;
-  engagementId = await createEngagement({ clientId, fiscalYear: 2025, periodEnd: "2025-12-31" });
+  engagementId = await createEngagement({ clientId, fiscalYear: 2025, periodEnd: "2025-12-31", partnerId: FIRM_USER });
 }, 30_000);
 
 afterAll(async () => {

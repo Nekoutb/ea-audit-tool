@@ -54,6 +54,7 @@ beforeAll(async () => {
     clientId: client.rows[0].id,
     fiscalYear: 2025,
     periodEnd: "2025-12-31",
+    partnerId: USER,
   });
 }, 120_000);
 

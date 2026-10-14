@@ -101,7 +101,7 @@ async function item(engagementId: string, code: string): Promise<string | null> 
 
 async function engagement(complexity?: "non_complex"): Promise<string> {
   year += 1;
-  return createEngagement({ clientId, fiscalYear: year, periodEnd: `${year}-12-31`, ...(complexity ? { complexity } : {}) });
+  return createEngagement({ clientId, fiscalYear: year, periodEnd: `${year}-12-31`, partnerId: ADMIN, ...(complexity ? { complexity } : {}) });
 }
 
 beforeAll(async () => {
@@ -257,7 +257,8 @@ describe("B04 — a read-only observer does not block the independence gate", ()
     expect(team.find((m) => m.userId === READER)?.declaresIndependence).toBe(false);
     expect(team.find((m) => m.userId === MANAGER)?.declaresIndependence).toBe(true);
     await expect(launchCampaign(id, [READER])).rejects.toThrow("invalid-recipient");
-    await launchCampaign(id, [MANAGER]);
+    // ADMIN, the engagement partner seated at creation, declares like the manager
+    await launchCampaign(id, [MANAGER, ADMIN]);
     await admin.query(
       `UPDATE independence_confirmation SET status = 'completed'
         WHERE campaign_id IN (SELECT id FROM independence_campaign WHERE engagement_id = $1)`,
