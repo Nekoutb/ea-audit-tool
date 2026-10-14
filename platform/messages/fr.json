@@ -1348,6 +1348,7 @@
       "archived": "Ce dossier est archivé et immuable.",
       "invalid-year": "Le nouvel exercice doit être postérieur à l'exercice courant.",
       "invalid-engagement": "Vérifiez les champs de la mission : client, exercice et date de clôture sont requis.",
+      "engagement-partner-required": "Choisissez l'associé signataire : une mission ne peut pas être créée sans lui (un associé ou un administrateur du cabinet).",
       "duplicate-engagement": "Une mission existe déjà pour ce client et cet exercice. Ouvrez-la depuis la liste des missions, ou choisissez un autre exercice.",
       "duplicate-client": "Un client de ce nom existe déjà. Ouvrez la fiche existante, ou cochez « Créer quand même » s'il s'agit d'une entité distincte.",
       "ambiguous-client": "Deux fiches client portent ce nom. Fusionnez-les ou renommez-les dans le registre des entités avant d'ouvrir la mission.",

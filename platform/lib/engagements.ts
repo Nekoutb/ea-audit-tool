@@ -237,8 +237,12 @@ export async function createEngagement(input: {
   /** null = defer scoping: no file items until the nature-of-entity screen. */
   complexity?: EngagementComplexity | null;
   complexityAnswers?: ComplexityAnswers | null;
-  /** Optional engagement partner — becomes the default reviewer immediately. */
-  partnerId?: string | null;
+  /**
+   * The engagement partner, chosen before the file is opened (firm decision
+   * 2026-10-14): mandatory. Seated as the accepted engagement partner, so the
+   * acceptance gate's "engagement partner designated" is met from the start.
+   */
+  partnerId: string;
   durationMonths?: number | null;
   nature?: string | null;
   engagementPhase?: string | null;
@@ -251,6 +255,7 @@ export async function createEngagement(input: {
   const deferred = input.complexity === null;
   const complexity = input.complexity ?? "complex";
   const name = input.name?.trim().slice(0, 120) || null;
+  if (!input.partnerId) throw new Error("engagement-partner-required");
   return withTenant(tenantId, async (tx) => {
     const result = await tx.query<{ id: string }>(
       `INSERT INTO engagement (tenant_id, client_id, fiscal_year, period_end, name, complexity, complexity_answers,
@@ -288,23 +293,21 @@ export async function createEngagement(input: {
     if (!deferred && (input.firstYear || input.complexityAnswers?.firstAudit)) {
       await ensureTaskTx(tx, engagementId, "P1.2");
     }
-    // Assign the engagement partner (default reviewer) when chosen at creation.
-    // The seat is a firm partner's or firm administrator's (F003).
-    if (input.partnerId) {
-      const rank = await tx.query<{ role: string }>(
-        "SELECT role::text AS role FROM membership WHERE tenant_id = $1 AND user_id = $2",
-        [tenantId, input.partnerId],
-      );
-      if (!["partner", "firm_admin"].includes(rank.rows[0]?.role ?? "")) {
-        throw new Error("partner-role-requires-partner-rank");
-      }
-      await tx.query(
-        `INSERT INTO team_member (tenant_id, engagement_id, user_id, team_role)
-         VALUES ($1, $2, $3, 'partner')
-         ON CONFLICT (engagement_id, user_id) DO NOTHING`,
-        [tenantId, engagementId, input.partnerId],
-      );
+    // Seat the engagement partner chosen at creation (mandatory). The seat
+    // is a firm partner's or firm administrator's (F003).
+    const rank = await tx.query<{ role: string }>(
+      "SELECT role::text AS role FROM membership WHERE tenant_id = $1 AND user_id = $2",
+      [tenantId, input.partnerId],
+    );
+    if (!["partner", "firm_admin"].includes(rank.rows[0]?.role ?? "")) {
+      throw new Error("partner-role-requires-partner-rank");
     }
+    await tx.query(
+      `INSERT INTO team_member (tenant_id, engagement_id, user_id, team_role, status, responded_at)
+       VALUES ($1, $2, $3, 'partner', 'accepted', now())
+       ON CONFLICT (engagement_id, user_id) DO NOTHING`,
+      [tenantId, engagementId, input.partnerId],
+    );
     // The creator joins the team (UAT B24). Otherwise a manager who opened
     // the file and then staffed it was locked out the moment the first member
     // was added: from then on only assigned members can see it. Partners and

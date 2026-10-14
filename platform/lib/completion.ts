@@ -839,7 +839,18 @@ export async function rollforward(engagementId: string, newYear: number): Promis
     );
     if (!result.rows[0]) throw new CompletionError("not-found");
     if (newYear <= result.rows[0].fiscal_year) throw new CompletionError("invalid-year");
-    return result.rows[0];
+    // The engagement partner is mandatory on the new file: the prior year's
+    // accepted partner carries over while they still hold partner rank.
+    const partner = await tx.query<{ user_id: string }>(
+      `SELECT tm.user_id FROM team_member tm
+         JOIN membership m ON m.user_id = tm.user_id AND m.tenant_id = tm.tenant_id
+        WHERE tm.engagement_id = $1 AND tm.team_role = 'partner' AND tm.status = 'accepted'
+          AND m.role IN ('partner', 'firm_admin')
+        LIMIT 1`,
+      [engagementId],
+    );
+    if (!partner.rows[0]) throw new CompletionError("engagement-partner-required");
+    return { ...result.rows[0], partner_id: partner.rows[0].user_id };
   });
 
   const periodEnd = source.period_end.replace(String(source.fiscal_year), String(newYear));
@@ -847,6 +858,7 @@ export async function rollforward(engagementId: string, newYear: number): Promis
     clientId: source.client_id,
     fiscalYear: newYear,
     periodEnd,
+    partnerId: source.partner_id,
   });
   await carryForwardFromPriorYear(newEngagementId);
 

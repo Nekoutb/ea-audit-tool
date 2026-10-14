@@ -100,6 +100,14 @@ export async function createEngagementAction(formData: FormData): Promise<void> 
   if (!clientName || !Number.isInteger(fiscalYear) || !isIsoDate(periodEnd)) {
     redirect(`/new-engagement?error=invalid-engagement`);
   }
+  // The engagement partner is chosen before the file exists (mandatory): one
+  // of the firm's partners or administrators.
+  const partnerId = String(formData.get("partnerId") ?? "").trim();
+  const { listFirmUsers } = await import("@/lib/team");
+  const eligiblePartner = (await listFirmUsers()).some(
+    (u) => u.id === partnerId && (u.role === "partner" || u.role === "firm_admin"),
+  );
+  if (!eligiblePartner) redirect(`/new-engagement?error=engagement-partner-required`);
   const matches = (await listClients()).filter((c) => sameClientName(c.name, clientName));
   // Two rows carry this name: the register must be cleaned up before the
   // wizard can know which entity the engagement belongs to.
@@ -127,6 +135,7 @@ export async function createEngagementAction(formData: FormData): Promise<void> 
       complexity: null,
       complexityAnswers: null,
       nature,
+      partnerId,
     });
   } catch (error) {
     // One statutory audit per client per fiscal year (unique constraint).

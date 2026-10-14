@@ -1348,6 +1348,7 @@
       "archived": "This file is archived and immutable.",
       "invalid-year": "The new fiscal year must be after the current one.",
       "invalid-engagement": "Check the engagement fields: client, fiscal year and period end are required.",
+      "engagement-partner-required": "Choose the engagement partner: an engagement cannot be created without one (a partner or administrator of the firm).",
       "duplicate-engagement": "An engagement already exists for this client and fiscal year. Open it from the Engagements list, or choose a different fiscal year.",
       "duplicate-client": "A client with this name already exists. Open the existing record, or tick \"Create anyway\" if it is a different entity.",
       "ambiguous-client": "Two client records carry this name. Merge or rename them in the entity register before opening the engagement.",
