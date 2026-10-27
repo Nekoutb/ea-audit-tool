@@ -45,12 +45,22 @@ export const DEFAULT_FILE_INDEX: readonly FileIndexEntry[] = [
 
   { code: "C6.2", section: "B", titleEn: "Complete Documentation and Archive Engagement", titleFr: "Finaliser la documentation et archiver la mission", tier: "core" },
 
-  // C — Communication
+  // C — Communication. C5.1 was titled "Communications" while its paper
+  // recorded the opinion and the report; the firm split the two on 2026-10-27
+  // (F025): C5.1 is the report, C5.11 the ISA 260/265 communications, and
+  // 20261027000005 carries the split onto existing files.
   {
     code: "C5.1",
     section: "C",
-    titleEn: "Communications — Governance & Management (ISA 260/265)",
-    titleFr: "Communications — gouvernance & direction (ISA 260/265)",
+    titleEn: "Opinion and auditor's report (ISA 700–706)",
+    titleFr: "Opinion et rapport d'audit (ISA 700 à 706)",
+  },
+  {
+    code: "C5.11",
+    section: "C",
+    titleEn: "Communications with those charged with governance and management (ISA 260/265)",
+    titleFr: "Communications avec la gouvernance et la direction (ISA 260/265)",
+    tier: "core",
   },
 
   // D — Acceptance & Planning (no D2; no D5.3 — intentional gaps)
@@ -200,7 +210,8 @@ const SHORT_TITLES: Record<string, { en: string; fr: string }> = {
   "C3.1": { en: "Management Rep. Letters (ISA 580)", fr: "Lettres d'affirmation (ISA 580)" },
   "C6.1": { en: "Archive Checklist", fr: "Liste d'archivage" },
   "C6.2": { en: "Documentation & Archive", fr: "Documentation & archivage" },
-  "C5.1": { en: "Communications (ISA 260)", fr: "Communications (ISA 260)" },
+  "C5.1": { en: "Opinion & report (ISA 700–706)", fr: "Opinion & rapport (ISA 700 à 706)" },
+  "C5.11": { en: "Communications (ISA 260/265)", fr: "Communications (ISA 260/265)" },
   "S6.1": { en: "Audit Strategies Memorandum", fr: "Mémorandum de stratégie" },
   "P1.1": { en: "Client Acceptance / Continuance", fr: "Acceptation / maintien du client" },
   "P2.1": { en: "Independence & Ethics", fr: "Indépendance & éthique" },
@@ -324,7 +335,7 @@ export function shortTitle(
 const CORE_CODES = new Set([
   "C2.1",
   "C4.1", "C1.2", "C1.1", "C4.3", "C2.2", "C3.1", "C6.1",
-  "C5.1",
+  "C5.1", "C5.11",
   // Acceptance applies to every engagement whatever its complexity, so the
   // whole D3 family is core. P1.2 stays conditional (initial engagements only).
   "S6.1", "P1.1", "P2.1", "P1.3", "P1.2", "P1.4", "P1.5",

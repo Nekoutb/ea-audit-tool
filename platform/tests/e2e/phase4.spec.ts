@@ -103,7 +103,7 @@ test("Phase 4: a substantive procedure is performed, concluded and reviewed", as
 test("Phase 4: findings routing → C1.1 vs materiality → control tests → revise-approach", async ({ page }) => {
   test.fixme(
     true,
-    "The matter-arising router (finding-route / route-finding) and control-test recording (record-control) were removed from the working-paper section screen on 2026-09-21 at the user's request. Audit differences are raised through Tools → Summary of Audit Differences and a paper states its own key findings on page 1 of the wizard, but routing a matter to C1.1 or C5.1, recording a control test, and the revise-approach path that puts a dated risk on the register have no screen at all today.",
+    "The matter-arising router (finding-route / route-finding) and control-test recording (record-control) were removed from the working-paper section screen on 2026-09-21 at the user's request. Audit differences are raised through Tools → Summary of Audit Differences and a paper states its own key findings on page 1 of the wizard, but routing a matter to C1.1 or C5.11, recording a control test, and the revise-approach path that puts a dated risk on the register have no screen at all today.",
   );
   test.setTimeout(300_000);
   await login(page);
@@ -124,7 +124,7 @@ test("Phase 4: findings routing → C1.1 vs materiality → control tests → re
   await page.getByTestId("finding-amount").fill("8000000");
   await page.getByTestId("route-finding").click();
 
-  // Control deviation → deficiency → C5.1 (4.7).
+  // Control deviation → deficiency → C5.11 (4.7).
   await page.goto(e5Url);
   await page.getByTestId("control-description").fill("Three-way match control");
   await page.getByTestId("control-result").selectOption("deviation");
@@ -145,7 +145,7 @@ test("Phase 4: findings routing → C1.1 vs materiality → control tests → re
   await page.locator("[data-testid^=toggle-corrected-]").first().click();
   await expect(page.getByTestId("b5-verdict")).toContainText(/Within/i);
 
-  // C5.1 point present and clearable (4.9).
+  // C5.11 point present and clearable (4.9).
   await expect(page.getByTestId("c1-list")).toContainText("Three-way match");
   await page.locator("[data-testid^=clear-finding-]").first().click({ trial: true }).catch(() => {});
 

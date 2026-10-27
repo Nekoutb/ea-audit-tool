@@ -4,6 +4,7 @@ import { redirect } from "next/navigation";
 import { auth } from "@/auth";
 import { updateBrandingAction } from "@/app/actions/branding";
 import { setRetentionYearsAction } from "@/app/actions/retention";
+import { setSapThresholdsAction } from "@/app/actions/sap";
 import { setAllowedDomainsAction } from "@/app/actions/email-domains";
 import { AppNav } from "@/components/AppNav";
 import { ErrorBanner } from "@/components/GatesPanel";
@@ -15,6 +16,8 @@ import { getMessages } from "@/lib/i18n";
 import { getLocale } from "@/lib/locale";
 import { atLeast, canManageFirm, type Role } from "@/lib/rbac";
 import { RETENTION_MAX_YEARS, RETENTION_MIN_YEARS, retentionPolicy } from "@/lib/retention";
+import { sapThresholds } from "@/lib/sap";
+import { SAP_PCT_MAX, SAP_PCT_MIN } from "@/lib/sap-model";
 
 export const generateMetadata = localizedTitle("Settings", "Paramètres");
 
@@ -31,6 +34,7 @@ export default async function SettingsPage(props: {
   const ts = t.settings;
   const branding = await getBranding();
   const retention = await retentionPolicy();
+  const sap = await sapThresholds();
   const allowedDomains = isAdmin ? await getAllowedDomains() : [];
   const canSeeRetentionReport = atLeast(session.user.role as Role, "manager");
 
@@ -48,7 +52,7 @@ export default async function SettingsPage(props: {
           data-testid="branding-saved"
           className="mt-4 rounded-[var(--radius-atlas-sm)] border border-emerald-300 bg-emerald-50 px-4 py-3 text-sm text-emerald-800 dark:border-emerald-900 dark:bg-emerald-950/40 dark:text-emerald-300"
         >
-          {saved === "retention" ? ts.savedRetention : saved === "domains" ? ts.savedDomains : ts.saved}
+          {saved === "retention" ? ts.savedRetention : saved === "domains" ? ts.savedDomains : saved === "sap" ? ts.savedSap : ts.saved}
         </p>
       ) : null}
 
@@ -216,6 +220,39 @@ export default async function SettingsPage(props: {
         ) : (
           <p className="mt-4 text-sm text-muted" data-testid="retention-readonly">
             {locale === "fr" ? `Durée actuelle : ${retention.years} ans.` : `Current period: ${retention.years} years.`} {ts.adminOnly}
+          </p>
+        )}
+      </Panel>
+
+      {/* Substantive analytical procedures (F038): the acceptable difference as a
+          share of performance materiality, per CRA level */}
+      <Panel className="mt-6 p-6" data-testid="sap-thresholds-panel">
+        <PanelHeader title={ts.sapTitle} hint={ts.sapHint} />
+        {isAdmin ? (
+          <form action={setSapThresholdsAction} className="mt-4 flex flex-wrap items-end gap-3">
+            {(["low", "moderate", "high"] as const).map((level) => (
+              <label key={level} className={label}>
+                {ts.sapLevels[level]}
+                <input
+                  name={level}
+                  type="number"
+                  min={SAP_PCT_MIN}
+                  max={SAP_PCT_MAX}
+                  required
+                  defaultValue={sap[level]}
+                  className={`${input} w-28`}
+                  data-testid={`sap-threshold-${level}`}
+                />
+              </label>
+            ))}
+            <button type="submit" className={btnPrimary} data-testid="sap-thresholds-save">
+              {ts.sapSave}
+            </button>
+            <span className="basis-full text-xs text-muted">{ts.sapRule}</span>
+          </form>
+        ) : (
+          <p className="mt-4 text-sm text-muted" data-testid="sap-thresholds-readonly">
+            {ts.sapLevels.low} {sap.low} % · {ts.sapLevels.moderate} {sap.moderate} % · {ts.sapLevels.high} {sap.high} %. {ts.adminOnly}
           </p>
         )}
       </Panel>

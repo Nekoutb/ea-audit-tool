@@ -51,7 +51,17 @@
     "emailDomainsSave": "Enregistrer les domaines",
     "emailDomainsEmpty": "Aucun domaine n'est renseigné : une invitation à une équipe de mission peut actuellement être envoyée à n'importe quelle adresse. Renseignez les domaines du cabinet pour la restreindre.",
     "emailDomainsRule": "La correspondance est exacte et ne tient pas compte des majuscules : un sous-domaine (audit.eca.com) ne correspond pas à son domaine parent (eca.com) s'il n'est pas lui-même renseigné. Les contacts du portail client ne sont pas concernés.",
-    "savedDomains": "Domaines de messagerie autorisés enregistrés."
+    "savedDomains": "Domaines de messagerie autorisés enregistrés.",
+    "sapTitle": "Procédures analytiques substantives — seuils",
+    "sapHint": "l'écart acceptable entre l'attente et le montant comptabilisé, en part du seuil de planification par niveau d'évaluation combinée du risque (ISA 520 ¶5(d)) ; une procédure peut y déroger avec un motif écrit",
+    "sapLevels": {
+      "low": "ECR faible (et minimal) — % du PM",
+      "moderate": "ECR modéré — % du PM",
+      "high": "ECR élevé — % du PM"
+    },
+    "sapSave": "Enregistrer les seuils",
+    "sapRule": "S'applique aux procédures enregistrées à partir de maintenant ; une procédure enregistrée garde le pourcentage avec lequel elle a été évaluée. Faible ≥ modéré ≥ élevé.",
+    "savedSap": "Seuils des procédures analytiques substantives enregistrés."
   },
   "login": {
     "title": "Connexion",
@@ -799,7 +809,7 @@
     "letters": {
       "title": "Lettres",
       "engagement": "Générer la lettre de mission",
-      "planningTcwg": "Générer la communication de planification (C5.1)",
+      "planningTcwg": "Générer la communication de planification (P7.1 / C5.11)",
       "open": "Ouvrir"
     },
     "mandate": {
@@ -1082,7 +1092,8 @@
         "papers_signed": "Chaque papier de travail signé préparateur et réviseur",
         "review_approval": "Récapitulatif de revue & approbation conclu (C4.1)",
         "review_notes_cleared": "Notes de revue levées (papiers et tâches)",
-        "c62_checklist": "Liste C6.2 d'assemblage & archivage conclue"
+        "c62_checklist": "Liste C6.2 d'assemblage & archivage conclue",
+        "deficiencies_communicated": "Chaque déficience significative communiquée par écrit à la gouvernance — date et destinataire consignés en C5.11 (ISA 265 ¶9)"
       },
       "runFinalAnalytics": "Lancer la revue analytique finale",
       "runTieout": "Lancer la concordance des états financiers",
@@ -1102,8 +1113,8 @@
       "repLetters": "Lettres d'affirmation (C3.1 — double lettre OHADA)",
       "affirmation": "Générer la lettre d'affirmation (pré-arrêté)",
       "complementary": "Générer la lettre complémentaire (post-arrêté)",
-      "managementLetter": "Générer la lettre de recommandations finale (C5.1)",
-      "tcwgReport": "Générer le rapport à la gouvernance — achèvement (ISA 260/265, C5.1)",
+      "managementLetter": "Générer la lettre de recommandations finale (C5.11)",
+      "tcwgReport": "Générer le rapport à la gouvernance — achèvement (ISA 260/265, C5.11)",
       "opinionTitle": "Opinion et rapport (ISA 700/705/706/570)",
       "materialMisstatement": "Anomalie significative non corrigée",
       "pervasive": "Caractère diffus (pervasif)",
@@ -1216,7 +1227,7 @@
       "routeTo": "Router vers",
       "routes": {
         "b4": "C1.2 — question significative",
-        "c1": "C5.1 — lettre de recommandations",
+        "c1": "C5.11 — déficience / lettre de recommandations",
         "b5": "C1.1 — anomalie",
         "revise": "Réviser l'approche (nouveau risque)"
       },
@@ -1246,7 +1257,7 @@
       "decisions": {
         "extend": "Étendre les tests",
         "abandon": "Abandonner l'appui",
-        "deficiency": "Consigner une déficience (C5.1)"
+        "deficiency": "Consigner une déficience (C5.11)"
       },
       "record": "Enregistrer",
       "conclusionTitle": "Conclusion de section",
@@ -1264,7 +1275,7 @@
     "findings": {
       "title": "Constats",
       "b4": "C1.2 — Questions significatives",
-      "c1": "C5.1 — Points de la lettre de recommandations",
+      "c1": "C5.11 — Déficiences / points de la lettre de recommandations",
       "b5": "C1.1 — Récapitulatif des anomalies",
       "empty": "Néant.",
       "clear": "Lever",
@@ -1458,6 +1469,18 @@
       "report-requires-execution": "Le rapport ne peut être émis qu'une fois la phase d'exécution ouverte. Clôturez d'abord la planification.",
       "reviewed-before-period-end": "La date de revue des événements postérieurs doit être postérieure à la clôture : la revue couvre la période de la clôture à la date du rapport (ISA 560).",
       "event-date-before-previous": "Cette étape ne peut pas être datée avant l'étape précédente de la procédure.",
+      "invalid-severity-factor": "Choisir la probabilité et l'ampleur parmi les options proposées.",
+      "recipient-required": "Une communication écrite a un destinataire : indiquer qui l'a reçue.",
+      "related-finding-unknown": "Une déficience connexe doit être une autre déficience de ce dossier.",
+      "significant-deficiency-not-communicated": "Une déficience significative n'a pas été communiquée par écrit à la gouvernance : consigner la date et le destinataire en C5.11 (ISA 265 ¶9) avant d'archiver le dossier.",
+      "invalid-index": "Cet indice n'est pas un indice du dossier.",
+      "invalid-assertion": "Choisir une assertion (C, E, A, V ou P).",
+      "invalid-conclusion": "Conclure que l'assertion est étayée ou non étayée.",
+      "sap-expectation-required": "Décrire le modèle d'attente avant d'enregistrer : une procédure sans attente est une revue des variations, pas une procédure substantive (ISA 520 ¶5).",
+      "sap-expected-value-required": "Saisir la valeur attendue sous forme de nombre.",
+      "sap-threshold-out-of-range": "Le seuil est un pourcentage entier du seuil de planification, entre 1 et 100.",
+      "sap-threshold-order": "Un risque plus élevé ne peut pas porter un seuil plus large qu'un risque plus faible : faible ≥ modéré ≥ élevé.",
+      "sap-override-reason-required": "Un seuil différent de la valeur par défaut du cabinet exige un motif écrit.",
       "titres-task-missing": "La tâche C5.7 (registres des titres nominatifs) ne figure pas au dossier : l'attestation n'est proposée que si l'entité émet des titres nominatifs et que C5.7 figure au dossier.",
       "requires-firm-admin": "Seul l'administrateur du cabinet peut effectuer cette action.",
       "requires-senior": "Seul un senior ou un rang supérieur peut signer en tant que réviseur.",

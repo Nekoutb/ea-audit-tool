@@ -1,5 +1,5 @@
 // Letter generation (spec §4.3, §5.4): engagement letter (ISA 210 + OHADA
-// mandate wording, co-CAC variant) and the C5.1 planning communication to TCWG.
+// mandate wording, co-CAC variant) and the ISA 260/265 letters filed on C5.11.
 // Letters are stored as documents (kind='letter') under the relevant file item.
 
 import { Document, HeadingLevel, Packer, Paragraph, TextRun } from "docx";
@@ -24,12 +24,20 @@ const LETTER_CODES: Record<LetterKind, string> = {
   // The engagement letter is the P1.4 task (ISA 210), not P1.1 acceptance;
   // 20260925000010 moves the letters already generated under P1.1.
   engagement: "P1.4",
-  planning_tcwg: "C5.1",
+  // The governance and management letters belong to the ISA 260/265
+  // communications task C5.11, split from C5.1 (now the opinion and report)
+  // on 2026-10-27 (F025); 20261027000005 moves the letters already filed.
+  planning_tcwg: "C5.11",
   rep_affirmation: "C3.1",
   rep_complementary: "C3.1",
-  management_letter: "C5.1",
-  tcwg_completion: "C5.1",
+  management_letter: "C5.11",
+  tcwg_completion: "C5.11",
 };
+
+/** The task a letter kind is filed under (the planning communication prefers P7.1 when the file has it). */
+export function letterFileCode(kind: LetterKind): string {
+  return LETTER_CODES[kind];
+}
 
 /** The engagement's reporting framework, as the letter names it. */
 function frameworkLabel(raw: string | null): string {
@@ -57,7 +65,7 @@ interface LetterFields {
   address: string | null;
   registrationNumber: string | null;
   niu: string | null;
-  /** management_letter only: the C5.1 points to include. */
+  /** management_letter only: the C5.11 points to include. */
   c1Points?: string[];
   /** rep_affirmation / tcwg_completion: the uncorrected misstatements on the SAD (ISA 450 ¶14, ¶12) */
   uncorrected?: UncorrectedLine[];
@@ -385,7 +393,7 @@ async function buildLetter(
 
 /**
  * Generate a letter as a versioned document under its file item (engagement
- * letter → P1.4; TCWG letters → C5.1; representations → C3.1). Regenerating
+ * letter → P1.4; TCWG letters → C5.11; representations → C3.1). Regenerating
  * creates a new version.
  */
 export async function generateLetter(
@@ -421,20 +429,26 @@ export async function generateLetter(
     if (!row) throw new Error("not-found");
 
     // P7.1 asks for the planning communication to be filed against it: file it
-    // there when the task is on the file, else under C5.1 as before (UAT run 2 B56).
+    // there when the task is on the file, else under C5.11 (UAT run 2 B56).
     let code = LETTER_CODES[kind];
     if (kind === "planning_tcwg") {
       const p71 = await tx.query("SELECT 1 FROM file_item WHERE engagement_id = $1 AND code = 'P7.1'", [engagementId]);
       if ((p71.rowCount ?? 0) > 0) code = "P7.1";
     }
-    const item = await tx.query<{ id: string }>(
+    let item = await tx.query<{ id: string }>(
       "SELECT id FROM file_item WHERE engagement_id = $1 AND code = $2",
       [engagementId, code],
     );
+    // A file from before the split that the migration did not reach (it was
+    // archived then) still files its governance letters under C5.1.
+    if (!item.rows[0] && code === "C5.11") {
+      code = "C5.1";
+      item = await tx.query<{ id: string }>("SELECT id FROM file_item WHERE engagement_id = $1 AND code = $2", [engagementId, code]);
+    }
     if (!item.rows[0]) throw new Error("not-found");
     const fileItemId = item.rows[0].id;
 
-    // Management letter and the completion TCWG report pull the C5.1
+    // Management letter and the completion TCWG report pull the C5.11
     // control-deficiency points (spec §8.3).
     let c1Points: string[] | undefined;
     if (kind === "management_letter" || kind === "tcwg_completion") {

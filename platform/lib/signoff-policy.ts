@@ -45,7 +45,10 @@ export const PARTNER_GATED: ReadonlySet<string> = new Set(["P1.1", "P2.2", "P5.2
  *   Completion  C1.x-C4.x  senior  / manager (C4.2's own sign-off is the EQR's,
  *                          lib/eqr.ts; the team's P/R there attest its
  *                          governance communications)
- *   OHADA legal C5.x       manager / partner
+ *   Report, communications and OHADA legal
+ *               C5.x       manager / partner — C5.1 (opinion and report),
+ *                          C5.11 (ISA 260/265 communications, F025) and the
+ *                          statutory papers C5.2-C5.10 alike
  *   Archive     C6.x       manager / partner
  */
 const DEFAULT_MATRIX: readonly { match: (code: string) => boolean; minPreparer: LadderRole; minReviewer: LadderRole }[] = [

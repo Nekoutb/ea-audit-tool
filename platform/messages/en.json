@@ -51,7 +51,17 @@
     "emailDomainsSave": "Save the domains",
     "emailDomainsEmpty": "No domain is listed: an engagement-team invitation can currently be sent to any email address. List the firm's domains to restrict it.",
     "emailDomainsRule": "Matching is exact and ignores case: a subdomain (audit.eca.com) does not match its parent (eca.com) unless it is listed itself. Client portal contacts are not affected.",
-    "savedDomains": "Allowed email domains saved."
+    "savedDomains": "Allowed email domains saved.",
+    "sapTitle": "Substantive analytical procedures — thresholds",
+    "sapHint": "the acceptable difference between expectation and recorded amount, as a share of performance materiality per combined-risk level (ISA 520 ¶5(d)); a procedure may override it with a written reason",
+    "sapLevels": {
+      "low": "Low CRA (and minimal) — % of PM",
+      "moderate": "Moderate CRA — % of PM",
+      "high": "High CRA — % of PM"
+    },
+    "sapSave": "Save the thresholds",
+    "sapRule": "Applies to procedures saved from now on; a saved procedure keeps the percentage it was evaluated with. Low ≥ moderate ≥ high.",
+    "savedSap": "Substantive-analytics thresholds saved."
   },
   "login": {
     "title": "Sign in",
@@ -799,7 +809,7 @@
     "letters": {
       "title": "Letters",
       "engagement": "Generate engagement letter",
-      "planningTcwg": "Generate planning communication (C5.1)",
+      "planningTcwg": "Generate planning communication (P7.1 / C5.11)",
       "open": "Open"
     },
     "mandate": {
@@ -1082,7 +1092,8 @@
         "papers_signed": "Every working paper signed off as preparer and reviewer",
         "review_approval": "Review & approval summary concluded (C4.1)",
         "review_notes_cleared": "Review notes cleared (papers and tasks)",
-        "c62_checklist": "C6.2 assembly & archive checklist concluded"
+        "c62_checklist": "C6.2 assembly & archive checklist concluded",
+        "deficiencies_communicated": "Every significant deficiency communicated in writing to those charged with governance — date and recipient recorded on C5.11 (ISA 265 ¶9)"
       },
       "runFinalAnalytics": "Run final analytical review",
       "runTieout": "Run FS tie-out",
@@ -1102,8 +1113,8 @@
       "repLetters": "Representation letters (C3.1 — OHADA two-letter layering)",
       "affirmation": "Generate affirmation letter (pre-arrêté)",
       "complementary": "Generate complementary letter (post-arrêté)",
-      "managementLetter": "Generate final management letter (C5.1)",
-      "tcwgReport": "Generate governance report — completion (ISA 260/265, C5.1)",
+      "managementLetter": "Generate final management letter (C5.11)",
+      "tcwgReport": "Generate governance report — completion (ISA 260/265, C5.11)",
       "opinionTitle": "Opinion & report (ISA 700/705/706/570)",
       "materialMisstatement": "Uncorrected material misstatement",
       "pervasive": "Pervasive",
@@ -1216,7 +1227,7 @@
       "routeTo": "Route to",
       "routes": {
         "b4": "C1.2 — significant matter",
-        "c1": "C5.1 — management letter",
+        "c1": "C5.11 — deficiency / management letter",
         "b5": "C1.1 — misstatement",
         "revise": "Revise approach (new risk)"
       },
@@ -1246,7 +1257,7 @@
       "decisions": {
         "extend": "Extend testing",
         "abandon": "Abandon reliance",
-        "deficiency": "Record deficiency (C5.1)"
+        "deficiency": "Record deficiency (C5.11)"
       },
       "record": "Record",
       "conclusionTitle": "Section conclusion",
@@ -1264,7 +1275,7 @@
     "findings": {
       "title": "Findings",
       "b4": "C1.2 — Significant matters",
-      "c1": "C5.1 — Management letter points",
+      "c1": "C5.11 — Deficiencies / management letter points",
       "b5": "C1.1 — Summary of misstatements",
       "empty": "None.",
       "clear": "Clear",
@@ -1458,6 +1469,18 @@
       "report-requires-execution": "The report can be issued only once the execution phase is open. Close planning first.",
       "reviewed-before-period-end": "The subsequent-events review date must be after the period end: the review runs from the period end to the report date (ISA 560).",
       "event-date-before-previous": "This step cannot be dated before the previous step of the procedure.",
+      "invalid-severity-factor": "Choose the likelihood and the magnitude from the options offered.",
+      "recipient-required": "A written communication needs its recipient: name who received it.",
+      "related-finding-unknown": "A related deficiency must be another deficiency of this file.",
+      "significant-deficiency-not-communicated": "A significant deficiency has not been communicated in writing to those charged with governance: record the date and recipient on C5.11 (ISA 265 ¶9) before the file can be archived.",
+      "invalid-index": "That lead index is not one of the file's.",
+      "invalid-assertion": "Choose an assertion (C, E, A, V or P).",
+      "invalid-conclusion": "Conclude that the assertion is supported or not supported.",
+      "sap-expectation-required": "Describe the expectation model before saving: a procedure with no expectation is a variance review, not a substantive procedure (ISA 520 ¶5).",
+      "sap-expected-value-required": "Enter the expected value as a number.",
+      "sap-threshold-out-of-range": "The threshold is a whole percentage of performance materiality between 1 and 100.",
+      "sap-threshold-order": "A higher risk cannot carry a wider threshold than a lower one: low ≥ moderate ≥ high.",
+      "sap-override-reason-required": "A threshold other than the firm's default needs a written reason.",
       "titres-task-missing": "Task C5.7 (registers of registered securities) is not on this file: the attestation is available only where the entity issues registered securities and C5.7 is on the file.",
       "requires-firm-admin": "Only the firm administrator can do this.",
       "requires-senior": "Only a senior or above can sign as reviewer.",

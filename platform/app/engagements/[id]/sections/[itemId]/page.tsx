@@ -15,6 +15,9 @@ import { SignificantAccounts } from "@/components/SignificantAccounts";
 import { PlanningRas } from "@/components/PlanningRas";
 import { SrmMattersPanel } from "@/components/SrmMattersPanel";
 import { srmMatters } from "@/lib/summary-review-memo";
+import { DeficiencyEvaluationPanel } from "@/components/DeficiencyEvaluationPanel";
+import { listDeficiencies } from "@/lib/deficiencies";
+import { sapCountsByIndex } from "@/lib/sap";
 import { SECTION_A, SECTION_B, SECTION_C, SIGNATURE_ROLES, planningRas } from "@/lib/planning-ras";
 import { atLeast, isRole, canPartnerSignoff } from "@/lib/rbac";
 import { listTaskNotes } from "@/lib/task-notes";
@@ -322,6 +325,13 @@ export default async function SectionPage(props: {
   const ras = section.code === "P7.2" ? await planningRas(id) : null;
   // C1.2 — the significant matters the memo covers, read from the file (UAT B151)
   const srm = section.code === "C1.2" ? await srmMatters(id, isFr ? "fr" : "en").catch(() => null) : null;
+  // C5.11 — the ISA 265 deficiency evaluation grid, fed from the findings register (F037)
+  const deficiencies = section.code === "C5.11" ? await listDeficiencies(id) : null;
+  // E4.x — the substantive analytical procedures of the index (F038), counted on the header
+  const sapCounts =
+    isAccountTask && accountIndex
+      ? ((await sapCountsByIndex(id).catch((): Record<string, never> => ({})))[accountIndex] ?? null)
+      : null;
   // Appendix 1 rows: the engagement team by seniority, then three free rows
   // for specialists brought in from outside the core team.
   const rasTeam = ras
@@ -375,11 +385,12 @@ export default async function SectionPage(props: {
     "P1.1": ["P1.2", "P2.1"], "P2.1": ["P1.1", "P1.5"], "P1.2": ["P1.1", "E6.5"],
     "P1.5": ["P2.1", "C4.2"], "P6.1": ["C1.1", "S3.1"], "S4.1": ["E6.9"],
     "P5.1": ["E3.1", "E4.1"], "S4.2": ["E6.3", "C2.2"], "S4.3": ["E6.2"], "S4.4": ["E6.7"],
-    "S3.1": ["P5.1", "E1.1"], "C1.1": ["P6.1", "C1.2"], "C2.2": ["E6.6", "E6.3", "C5.1"],
+    "S3.1": ["P5.1", "E1.1"], "C1.1": ["P6.1", "C1.2"], "C2.2": ["E6.6", "E6.3", "C5.1"], "E6.3": ["S4.2", "C2.2", "C5.1", "C5.11"],
     "S1.1": ["P6.2", "S1.2"], "S1.2": ["S1.3", "E1.1"], "S1.3": ["S1.2", "E1.1"], "S1.4": ["E3.1", "C2.1"],
     "S2.1": ["S2.2", "E1.1"], "S2.2": ["E1.1", "S3.1"], "S5.1": ["P2.2"], "S5.2": ["P4.3"], "S5.3": ["E1.1"],
     "S6.1": ["P7.2", "P6.1", "S3.1"], "S6.2": ["P7.2", "S6.1"],
-    "C3.1": ["C1.1", "E6.9"], "C4.2": ["P1.5", "C5.1"], "C5.1": ["C1.1", "C2.2", "C4.2"],
+    "C3.1": ["C1.1", "E6.9"], "C4.2": ["P1.5", "C5.11"], "C5.1": ["C1.1", "C2.2", "C4.2", "C5.11"],
+    "C5.11": ["C1.2", "C1.1", "C4.2", "C5.1", "P7.1"],
     "C4.1": ["C4.3", "C6.1"], "C1.2": ["C1.1", "C1.3"], "C5.3": ["E6.2"], "C5.8": ["E4.9", "E6.3"],
     "E6.2": ["S4.3", "C5.3"], "E6.7": ["S4.4"],
   };
@@ -538,6 +549,16 @@ export default async function SectionPage(props: {
               <Chip tone={craTone(accountCra.replace("_sr", "") as CraLevel)}>
                 {(fr ? "ECR : " : "CRA: ") + todLabel(accountCra, fr ? "fr" : "en")}
               </Chip>
+            </Link>
+          ) : null}
+          {accountIndex ? (
+            <Link
+              href={`/engagements/${id}/tools/sap?index=${encodeURIComponent(accountIndex)}`}
+              className="rounded-full border border-emerald-600/40 bg-emerald-50 px-3 py-1 text-[11.5px] font-semibold text-emerald-800 transition hover:bg-emerald-100 dark:bg-emerald-950/40 dark:text-emerald-300 dark:hover:bg-emerald-950/70 print:hidden"
+              title={fr ? "Procédures analytiques substantives de cet indice (ISA 520)" : "Substantive analytical procedures of this index (ISA 520)"}
+              data-testid="wp-account-sap"
+            >
+              {fr ? "Analytiques substantives" : "Substantive analytics"}: {sapCounts ? `${sapCounts.total} · ${sapCounts.concluded} ${fr ? "conclue(s)" : "concluded"}${sapCounts.exceeding > 0 ? ` · ${sapCounts.exceeding} ${fr ? "au-dessus du seuil" : "above threshold"}` : ""}` : "0"}
             </Link>
           ) : null}
           {designItemId ? (
@@ -1160,6 +1181,8 @@ export default async function SectionPage(props: {
                 <CraBoard engagementId={id} view={craView} locale={isFr ? "fr" : "en"} />
               ) : dspV ? (
                 <DesignProceduresBoard engagementId={id} view={dspV} locale={isFr ? "fr" : "en"} />
+              ) : deficiencies ? (
+                <DeficiencyEvaluationPanel engagementId={id} fileItemId={itemId} rows={deficiencies} locale={isFr ? "fr" : "en"} readOnly={viewOnly} />
               ) : itApps ? (
                 <ItAppsBoard engagementId={id} view={itApps} locale={isFr ? "fr" : "en"} readOnly={section.code === "S2.5" || viewOnly} />
               ) : undefined
@@ -1184,6 +1207,8 @@ export default async function SectionPage(props: {
                           ? fr ? "Matrice d'évaluation combinée des risques" : "Combined risk assessment matrix"
                           : section.code === "S5.5"
                             ? fr ? "Conception des procédures substantives" : "Design substantive procedures"
+                            : section.code === "C5.11"
+                              ? fr ? "Évaluation des déficiences du contrôle interne (ISA 265)" : "Evaluation of the deficiencies in internal control (ISA 265)"
                             : section.code === "S2.3"
                               ? fr ? "Applications IT & stratégie par application" : "IT applications & the strategy per application"
                               : section.code === "S2.5"
@@ -1219,6 +1244,23 @@ export default async function SectionPage(props: {
                   <Link href={`/engagements/${id}/tools/sampling`} className="flex items-baseline gap-1.5 rounded-[var(--radius-atlas-xs)] px-1.5 py-1 text-[12.3px] font-semibold text-emerald-700 transition hover:bg-surface-2 dark:text-emerald-400" data-testid="linked-sampling-tool">
                     <span className="font-mono text-[10.5px] text-muted">TL</span>
                     <span className="min-w-0 flex-1 truncate">{fr ? "Outil d'échantillonnage — déterminer l'échantillon" : "Sampling tool — determine the sample"}</span>
+                  </Link>
+                </li>
+              ) : null}
+              {section.code === "S5.5" ? (
+                <li>
+                  {/* the ISA 520 substantive analytics designed here are built in their own tool (F038) */}
+                  <Link href={`/engagements/${id}/tools/sap`} className="flex items-baseline gap-1.5 rounded-[var(--radius-atlas-xs)] px-1.5 py-1 text-[12.3px] font-semibold text-emerald-700 transition hover:bg-surface-2 dark:text-emerald-400" data-testid="linked-sap-tool">
+                    <span className="font-mono text-[10.5px] text-muted">TL</span>
+                    <span className="min-w-0 flex-1 truncate">{fr ? "Procédures analytiques substantives — attente, seuil, écart (ISA 520)" : "Substantive analytical procedures — expectation, threshold, difference (ISA 520)"}</span>
+                  </Link>
+                </li>
+              ) : null}
+              {section.code === "C5.11" ? (
+                <li>
+                  <Link href={`/engagements/${id}/findings`} className="flex items-baseline gap-1.5 rounded-[var(--radius-atlas-xs)] px-1.5 py-1 text-[12.3px] font-semibold text-emerald-700 transition hover:bg-surface-2 dark:text-emerald-400" data-testid="linked-findings-register">
+                    <span className="font-mono text-[10.5px] text-muted">TL</span>
+                    <span className="min-w-0 flex-1 truncate">{fr ? "Registre des constats — consigner une déficience" : "Findings register — raise a deficiency"}</span>
                   </Link>
                 </li>
               ) : null}

@@ -122,9 +122,9 @@ describe("program-step execution + evidence (4.2/4.3)", () => {
 });
 
 describe("findings routing (4.4/4.5) — one destination each", () => {
-  it("routes to C1.2 and C5.1 with origin backlinks", async () => {
+  it("routes to C1.2 and C5.11 with origin backlinks", async () => {
     await routeFinding({ engagementId, fileItemId: e100, route: "b4", title: "Revenue cut-off issue" });
-    // UAT B21: a C5.1 control finding carries a severity, or it is refused.
+    // UAT B21: a C5.11 control finding carries a severity, or it is refused.
     await expect(
       routeFinding({ engagementId, fileItemId: e110, route: "c1", title: "Weak PO approval" }),
     ).rejects.toThrow("invalid-severity");
@@ -176,7 +176,7 @@ describe("control tests (4.7) — deviation forces a decision", () => {
     ).rejects.toThrow("deviation-decision-required");
   });
 
-  it("extend appends an extension step; deficiency routes to C5.1", async () => {
+  it("extend appends an extension step; deficiency routes to C5.11", async () => {
     const before = (await listProgramSteps(e110)).length;
     await recordControlTest({
       engagementId, fileItemId: e110, description: "3-way match", result: "deviation", deviationDecision: "extend",

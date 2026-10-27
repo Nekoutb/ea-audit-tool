@@ -208,7 +208,7 @@ export async function buildFsChecklistWorkbook(view: FsChecklistView): Promise<B
     ],
     [
       fr ? "Alimente · alimenté par" : "Feeds from · into",
-      "E6.10 · C2.1 · C1.1 (SAD)   →   C2.1 revue finale · C5.1 communication · opinion (ISA 700 / 705)",
+      "E6.10 · C2.1 · C1.1 (SAD)   →   C2.1 revue finale · C5.11 communication · C5.1 opinion (ISA 700 / 705)",
     ],
   ];
   for (const [k, v] of scope) {

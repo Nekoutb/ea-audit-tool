@@ -1278,8 +1278,8 @@ export const UAT_SECTIONS: UatSection[] = [
       [
         "p71-govern",
         "Report to those charged with governance",
-        ["Complete P7.1, then on the Acceptance page use 'Generate the planning communication (C5.1)'."],
-        "The document is generated with the firm's letterhead and filed under C5.1.",
+        ["Complete P7.1, then on the Acceptance page use 'Generate the planning communication (P7.1 / C5.11)'."],
+        "The document is generated with the firm's letterhead and filed under P7.1 (or C5.11 when the file has no P7.1).",
         "P7.1",
         "/engagements/:id/acceptance",
       ],

@@ -366,7 +366,7 @@ export interface AttentionItem {
 }
 
 /**
- * The "requires your attention" queue: open findings (routed C1.2/C5.1), uncorrected
+ * The "requires your attention" queue: open findings (routed C1.2/C5.11), uncorrected
  * misstatements (C1.1), unconcluded significant risks, unsigned working papers and
  * outstanding PBC items — most recent first.
  */

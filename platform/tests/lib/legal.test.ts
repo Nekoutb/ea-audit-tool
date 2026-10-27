@@ -178,7 +178,7 @@ describe("8.2/8.3 C5.3 conventions + rapport spécial", () => {
 });
 
 describe("8.4 C5.4 article 715 report", () => {
-  it("pulls C1.1 adjustments and C5.1 points from live engagement data", async () => {
+  it("pulls C1.1 adjustments and C5.11 deficiency points from live engagement data", async () => {
     await admin.query(
       `INSERT INTO misstatement (tenant_id, engagement_id, description, amount, mtype)
        VALUES ($1, $2, 'Provision clients sous-évaluée', 5000000, 'judgmental')`,

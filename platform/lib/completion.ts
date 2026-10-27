@@ -596,11 +596,17 @@ export async function archiveGates(engagementId: string): Promise<ArchiveGate[]>
             OR NOT EXISTS (SELECT 1 FROM control_test ct WHERE ct.scot_control_id = c.id))`,
       [engagementId],
     );
+    // ISA 265 ¶9 (F037): every significant deficiency is communicated in
+    // writing to those charged with governance before the file closes — the
+    // C5.11 grid records the date; without it the file stays open.
+    const { uncommunicatedSignificantDeficienciesTx } = await import("@/lib/deficiencies");
+    const uncommunicated = await uncommunicatedSignificantDeficienciesTx(tx, engagementId);
     const completionPending = completion.filter((g) => !g.ok).length;
     return [
       { key: "report_issued", ok: reportDate.rows[0]?.report_date != null, pending: reportDate.rows[0]?.report_date ? 0 : 1 },
       { key: "completion_gates", ok: completionPending === 0, pending: completionPending },
       { key: "controls_concluded", ok: openControls === 0, pending: openControls },
+      { key: "deficiencies_communicated", ok: uncommunicated === 0, pending: uncommunicated, codes: uncommunicated > 0 ? ["C5.11"] : [] },
       {
         key: "tasks_addressed",
         ok: untouched.length === 0,

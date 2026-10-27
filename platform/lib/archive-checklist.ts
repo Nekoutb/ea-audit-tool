@@ -79,6 +79,7 @@ const LABELS: Record<string, { en: string; fr: string }> = {
   partner_conclusion: { en: "Partner overall conclusion (C4.1)", fr: "Conclusion générale de l'associé (C4.1)" },
   completion_gates: { en: "Every completion gate green", fr: "Toutes les portes d'achèvement au vert" },
   controls_concluded: { en: "Every control selected for testing designed, tested and concluded", fr: "Chaque contrôle retenu pour test conçu, testé et conclu" },
+  deficiencies_communicated: { en: "Every significant deficiency communicated in writing to those charged with governance (C5.11, ISA 265 ¶9)", fr: "Chaque déficience significative communiquée par écrit à la gouvernance (C5.11, ISA 265 ¶9)" },
   eqr_complete: { en: "Engagement quality review complete where required (C4.2, ISQM 2 ¶25)", fr: "Revue de qualité de la mission achevée lorsqu'elle est requise (C4.2, ISQM 2 ¶25)" },
   c43_cleared: { en: "No point outstanding at the report date (C4.3)", fr: "Aucun point en suspens à la date du rapport (C4.3)" },
   tasks_addressed: { en: "Every applicable task performed, or marked not applicable with a reason", fr: "Chaque tâche applicable réalisée, ou marquée non applicable avec un motif" },
@@ -95,7 +96,7 @@ const GROUP_OF: Record<string, ChecklistGroup["key"]> = {
   final_analytical_review: "completion", fs_tieout_passed: "completion", disclosure_checklist: "completion",
   subsequent_events: "completion", rep_letters_generated: "completion", b4_cleared: "completion",
   partner_conclusion: "completion", completion_gates: "completion",
-  controls_concluded: "completion", eqr_complete: "review", c43_cleared: "completion",
+  controls_concluded: "completion", deficiencies_communicated: "completion", eqr_complete: "review", c43_cleared: "completion",
   tasks_addressed: "papers", papers_signed: "papers", reviews_complete: "papers",
   review_notes_cleared: "review", review_approval: "review",
   c62_checklist: "assembly",
@@ -261,6 +262,8 @@ async function itemise(
     // Single-destination gates: the item is the place itself.
     review_approval: [{ label: locale === "fr" ? "C4.1 — récapitulatif de revue et d'approbation" : "C4.1 — review and approval summary", href: link("C4.1", `${base}/groups/c4`), code: "C4.1" }],
     eqr_complete: [{ label: locale === "fr" ? "C4.2 — revue de qualité de la mission" : "C4.2 — engagement quality review", href: link("C4.2", `${base}/groups/c4`), code: "C4.2" }],
+    // the written communication is dated on the C5.11 grid (F037)
+    deficiencies_communicated: [{ label: locale === "fr" ? "C5.11 — évaluation des déficiences (ISA 265)" : "C5.11 — deficiency evaluation (ISA 265)", href: link("C5.11", `${base}/groups/c5`), code: "C5.11" }],
     // C4.3 stays red while any review note is open (UAT run 2 B81): name them.
     c43_cleared: [{ label: locale === "fr" ? "C4.3 — points en suspens" : "C4.3 — points outstanding", href: link("C4.3", `${base}/groups/c4`), code: "C4.3" }, ...noteItems],
     c62_checklist: [{ label: locale === "fr" ? "C6.2 — documentation et archivage" : "C6.2 — documentation and archive", href: link("C6.2", `${base}/groups/c6`), code: "C6.2" }],
@@ -283,6 +286,7 @@ const HREF_OF = (engagementId: string): Record<string, string> => {
     partner_conclusion: `${base}/conclusion`,
     completion_gates: `${base}/conclusion`,
     controls_concluded: `${base}/groups/e1`,
+    deficiencies_communicated: `${base}/groups/c5`,
     eqr_complete: `${base}/groups/c4`,
     c43_cleared: `${base}/groups/c4`,
     tasks_addressed: `${base}/tools/forms`,

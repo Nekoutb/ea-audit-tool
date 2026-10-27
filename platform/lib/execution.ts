@@ -1,6 +1,6 @@
 // Phase 4: execution/fieldwork. Program-step execution with conclusions and
 // evidence, findings routing (spec §8.3 — every matter arising goes to exactly
-// ONE of C1.2 / C1.1 / C5.1 / revise-approach with a backlink), misstatement
+// ONE of C1.2 / C1.1 / C5.11 / revise-approach with a backlink), misstatement
 // accumulation against materiality (ISA 450), control tests whose deviations
 // force a decision, the revise-approach loop (§8.4), and section conclusions
 // with the two-stage (+ partner on significant risk) review chain (§6.3).
@@ -186,7 +186,7 @@ export async function listEvidence(stepId: string): Promise<EvidenceInfo[]> {
 
 export type FindingRoute = "b4" | "c1" | "b5" | "revise";
 
-/** ISA 265 grading of a control deficiency routed to C5.1. */
+/** ISA 265 grading of a control deficiency routed to C5.11 (the final grade is set on the C5.11 evaluation grid, lib/deficiencies.ts). */
 export const FINDING_SEVERITIES = ["significant_deficiency", "deficiency", "observation"] as const;
 export type FindingSeverity = (typeof FINDING_SEVERITIES)[number];
 
@@ -197,7 +197,7 @@ export interface RouteFindingInput {
   route: FindingRoute;
   title: string;
   detail?: string;
-  /** b4/c1: the deficiency's grading — required for a C5.1 point (UAT B21) */
+  /** b4/c1: the deficiency's grading — required for a C5.11 point (UAT B21) */
   severity?: FindingSeverity;
   recommendation?: string;
   // b5 only:
@@ -440,7 +440,7 @@ export async function recordControlTest(input: {
 
     if (input.result === "deviation") {
       // extend / abandon → the affected program is flagged for extension by an
-      // auto-appended step; deficiency → routed to C5.1 (spec §6.2).
+      // auto-appended step; deficiency → routed to C5.11 (spec §6.2).
       if (input.deviationDecision === "extend" || input.deviationDecision === "abandon") {
         const next = await tx.query<{ v: number }>(
           "SELECT coalesce(max(seq), 0) + 10 AS v FROM program_step WHERE file_item_id = $1",

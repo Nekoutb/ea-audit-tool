@@ -81,7 +81,7 @@ export async function routeFindingAction(
 }
 
 /**
- * Raise a C1.2 matter or a C5.1 deficiency from the findings register, where
+ * Raise a C1.2 matter or a C5.11 deficiency from the findings register, where
  * the section is optional (UAT B21). Lands back on the register.
  */
 export async function raiseFindingAction(engagementId: string, formData: FormData): Promise<void> {
