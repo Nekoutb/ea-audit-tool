@@ -65,8 +65,6 @@ interface LetterFields {
   specificRepresentations?: string[];
   /** tcwg_completion: significant matters and open points from C1.2 */
   significantMatters?: string[];
-  /** tcwg_completion: the team's independence position */
-  independence?: { total: number; completed: number; exceptions: number; undisposed: number };
   /** planning_tcwg: what the file records at planning (ISA 260 ¶15-17, UAT run 2 B56) */
   planning?: {
     addressees: string;
@@ -95,43 +93,16 @@ export function mandateExpiryYear(type: "statutes" | "ago", startYear: number): 
   return startYear + mandateYears(type) - 1;
 }
 
-/** The governance report's independence paragraph, stated from the campaign's counts. */
-export function independenceStatement(
-  ind: { total: number; completed: number; exceptions: number; undisposed: number },
-  fr: boolean,
-): string {
-  if (ind.total === 0) {
-    return fr
-      ? "Aucune confirmation d'indépendance n'a été demandée à l'équipe à la date du présent rapport."
-      : "No independence confirmation has been requested from the team at the date of this report.";
-  }
-  const outstanding = Math.max(ind.total - ind.completed - ind.exceptions, 0);
-  const parts: string[] = [];
-  if (outstanding === 0) {
-    parts.push(
-      fr
-        ? `Chaque membre de l'équipe a confirmé son indépendance par écrit : ${ind.total} confirmation(s) demandée(s), ${ind.completed} sans exception, ${ind.exceptions} avec exception déclarée.`
-        : `Every team member confirmed independence in writing: ${ind.total} confirmation(s) requested, ${ind.completed} without exception, ${ind.exceptions} with an exception declared.`,
-    );
-  } else {
-    parts.push(
-      fr
-        ? `${ind.total} confirmation(s) d'indépendance demandée(s) : ${ind.completed} reçue(s) sans exception, ${ind.exceptions} avec exception déclarée, ${outstanding} non encore reçue(s).`
-        : `${ind.total} independence confirmation(s) requested: ${ind.completed} received without exception, ${ind.exceptions} with an exception declared, ${outstanding} not yet received.`,
-    );
-  }
-  if (ind.exceptions > 0) {
-    parts.push(
-      ind.undisposed > 0
-        ? fr
-          ? `${ind.undisposed} exception(s) sont en attente de la décision de l'associé. Les sauvegardes appliquées aux exceptions sont consignées en P2.1.`
-          : `${ind.undisposed} exception(s) await the partner's disposition. The safeguards applied to the exceptions are recorded on P2.1.`
-        : fr
-          ? "Les sauvegardes appliquées aux exceptions sont consignées en P2.1."
-          : "The safeguards applied to the exceptions are recorded on P2.1.",
-    );
-  }
-  return parts.join(" ");
+/**
+ * The governance report's independence paragraph. Since F008 the team's
+ * declarations are obtained outside the system and filed on P2.1, so the
+ * letter states where they are rather than counting in-app confirmations —
+ * and asserts nothing the file does not show (UAT run 2 B83).
+ */
+export function independenceStatement(fr: boolean): string {
+  return fr
+    ? "Les déclarations d'indépendance des membres de l'équipe ont été obtenues en dehors du système ; les déclarations signées sont classées en P2.1, signé par l'associé responsable. Les risques identifiés et les sauvegardes appliquées y sont consignés."
+    : "The engagement team's independence declarations were obtained outside the system; the signed declarations are filed on P2.1, which the engagement partner signs. Any threat identified and the safeguards applied are recorded there.";
 }
 
 function p(text: string, bold = false): Paragraph {
@@ -272,8 +243,8 @@ async function buildLetter(
       p(fr ? "Indépendance (ISA 260 ¶17)" : "Independence (ISA 260 ¶17)", true),
       p(
         fr
-          ? "Le cabinet et l'équipe se conforment aux règles d'éthique applicables en matière d'indépendance. Les confirmations d'indépendance de l'équipe sont consignées en P2.1."
-          : "The firm and the team comply with the applicable ethical requirements on independence. The team's independence confirmations are recorded on P2.1.",
+          ? "Le cabinet et l'équipe se conforment aux règles d'éthique applicables en matière d'indépendance. Les déclarations d'indépendance de l'équipe, obtenues en dehors du système, sont classées en P2.1."
+          : "The firm and the team comply with the applicable ethical requirements on independence. The team's independence declarations, obtained outside the system, are filed on P2.1.",
       ),
       p(fr ? "Le commissaire aux comptes." : "The statutory auditor.", true),
     );
@@ -355,7 +326,6 @@ async function buildLetter(
     // charged with governance, built from the file as it stands.
     const uncorrected = f.uncorrected ?? [];
     const total = uncorrected.reduce((s, m) => s + m.amount, 0);
-    const ind = f.independence ?? { total: 0, completed: 0, exceptions: 0, undisposed: 0 };
     children.push(
       new Paragraph({
         heading: HeadingLevel.TITLE,
@@ -388,9 +358,8 @@ async function buildLetter(
         ? (f.c1Points ?? []).map((point) => p(`• ${point}`))
         : [p(fr ? "Aucune déficience significative relevée." : "No significant deficiency identified.")]),
       p(fr ? "Indépendance (ISA 260 ¶17)" : "Independence (ISA 260 ¶17)", true),
-      // The statement follows the campaign as it stands: "every member
-      // confirmed" only when every requested confirmation is back (UAT run 2 B83).
-      p(independenceStatement(ind, fr)),
+      // where the declarations are, not a count of in-app confirmations (F008)
+      p(independenceStatement(fr)),
       p(fr ? "Le commissaire aux comptes." : "The statutory auditor.", true),
     );
   } else {
@@ -544,21 +513,6 @@ export async function generateLetter(
         ...(await paperAnswers("C1.2", ["p_collect", "p_conclusion", "p_judgements", "p_disagreements", "key_findings"])),
       ];
     }
-    let independence: LetterFields["independence"];
-    if (kind === "tcwg_completion") {
-      const ic = await tx.query<{ total: string; completed: string; exceptions: string; undisposed: string }>(
-        `SELECT count(*)::text AS total,
-                count(*) FILTER (WHERE ic.status = 'completed')::text AS completed,
-                count(*) FILTER (WHERE ic.status = 'exception')::text AS exceptions,
-                count(*) FILTER (WHERE ic.status = 'exception' AND ic.disposition IS NULL)::text AS undisposed
-           FROM independence_confirmation ic
-           JOIN independence_campaign c ON c.id = ic.campaign_id
-          WHERE c.engagement_id = $1`,
-        [engagementId],
-      );
-      const x = ic.rows[0];
-      independence = { total: Number(x.total), completed: Number(x.completed), exceptions: Number(x.exceptions), undisposed: Number(x.undisposed) };
-    }
     let planning: LetterFields["planning"];
     if (kind === "planning_tcwg") {
       const m = await tx.query<{ overall: string; performance: string; trivial: string }>(
@@ -635,7 +589,6 @@ export async function generateLetter(
         uncorrected,
         specificRepresentations,
         significantMatters,
-        independence,
         planning,
       },
       locale,

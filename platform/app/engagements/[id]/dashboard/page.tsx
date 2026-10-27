@@ -19,11 +19,8 @@ import {
   type PhaseTask,
   unassignedTaskCount,
 } from "@/lib/engagement-dashboard";
-import { respondEngagementAction } from "@/app/actions/team-independence";
-import { SubmitButton } from "@/components/SubmitButton";
 import { ErrorBanner } from "@/components/GatesPanel";
 import { getEngagement } from "@/lib/engagements";
-import { myTeamStatus } from "@/lib/team";
 import { getMessages } from "@/lib/i18n";
 import { getLocale } from "@/lib/locale";
 import { shortTitle } from "@/lib/file-index";
@@ -111,7 +108,6 @@ export default async function EngagementDashboardPage(props: {
   const engagement = await getEngagement(id);
   if (!engagement) notFound();
 
-  const myStatus = await myTeamStatus(id);
   const [tasks, attention, dash, stats, unassigned, feed] = await Promise.all([
     engagementTasks(id),
     engagementAttention(id, locale),
@@ -139,47 +135,7 @@ export default async function EngagementDashboardPage(props: {
       {/* a refused accept/decline says why (UAT B121) */}
       <ErrorBanner error={error} locale={locale} />
 
-      {myStatus === "invited" ? (
-        <div
-          className="flex flex-wrap items-center justify-between gap-3 rounded-[var(--radius-atlas)] border border-emerald-600/40 bg-emerald-50 px-5 py-3.5 dark:bg-emerald-950/30"
-          data-testid="engagement-invite-banner"
-        >
-          <p className="text-sm font-medium text-ink">
-            {fr
-              ? "Vous avez été ajouté à cette mission. L’acceptez-vous ?"
-              : "You have been added to this engagement. Do you accept it?"}
-          </p>
-          <span className="flex min-w-0 flex-wrap gap-2">
-            <form action={respondEngagementAction.bind(null, id, true)}>
-              <SubmitButton
-                className="rounded-[var(--radius-atlas-sm)] bg-emerald-700 px-4 py-1.5 text-sm font-semibold text-white hover:bg-emerald-800"
-                testId="accept-engagement"
-              >
-                {fr ? "Accepter" : "Accept"}
-              </SubmitButton>
-            </form>
-            <form action={respondEngagementAction.bind(null, id, false)} className="flex min-w-0 flex-wrap items-center gap-2">
-              {/* a decline says why, and the partner hears it (UAT B130) */}
-              <input
-                name="reason"
-                required
-                minLength={3}
-                pattern=".*\S.*\S.*\S.*"
-                title={fr ? "Un motif est requis." : "A reason is required."}
-                placeholder={fr ? "Motif du refus (obligatoire)" : "Reason for declining (required)"}
-                className="w-full min-w-0 rounded-[var(--radius-atlas-sm)] border border-line-strong bg-surface px-2.5 py-1.5 text-[13px] text-ink outline-none focus:border-emerald-600 sm:w-64"
-                data-testid="decline-reason"
-              />
-              <SubmitButton
-                className="rounded-[var(--radius-atlas-sm)] border border-line-strong px-4 py-1.5 text-sm font-semibold text-ink-soft hover:bg-surface-2"
-                testId="decline-engagement"
-              >
-                {fr ? "Refuser" : "Decline"}
-              </SubmitButton>
-            </form>
-          </span>
-        </div>
-      ) : null}
+      {/* F008: an invited member answers the invitation at /invitations/[id] and never reaches this page */}
 
       <div className="flex flex-wrap items-end justify-between gap-4">
         <div>

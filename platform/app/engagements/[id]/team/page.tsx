@@ -12,6 +12,7 @@ import { ErrorBanner } from "@/components/GatesPanel";
 import { NavLink } from "@/components/NavLink";
 import { SubmitButton } from "@/components/SubmitButton";
 import { Panel, PanelHeader, btnPrimary } from "@/components/ui/atlas";
+import { getAllowedDomains } from "@/lib/email-domains";
 import { initials } from "@/lib/engagement-dashboard";
 import { getEngagement } from "@/lib/engagements";
 import { getMessages } from "@/lib/i18n";
@@ -54,15 +55,19 @@ export default async function TeamPage(props: {
   const engagement = await getEngagement(id);
   if (!engagement) notFound();
 
-  const [team, firmUsers, openCounts, seat] = await Promise.all([
+  const [team, firmUsers, openCounts, seat, allowedDomains] = await Promise.all([
     listTeam(id),
     listFirmUsers(),
     openAssignedTaskCounts(id),
     engagementPartnerInfo(id),
+    // F070: named in the refusal when an address is outside them
+    getAllowedDomains(),
   ]);
   const fr = locale === "fr";
   // F003: the engagement partner seat. Firm partners and administrators may
   // hold it; the partner or a firm administrator hands it over or delegates.
+  // Only accepted team members reach this page (F008), so on a file the
+  // administrator is not staffed on, the engagement partner does it.
   const firmPartners = firmUsers.filter((u) => isRole(u.role) && atLeast(u.role, "partner"));
   const maySteerSeat =
     session.user.role === "firm_admin" || (seat.partnerId !== null && seat.partnerId === session.user.id);
@@ -124,7 +129,7 @@ export default async function TeamPage(props: {
         </p>
       </div>
 
-      <ErrorBanner error={error} locale={locale} />
+      <ErrorBanner error={error} locale={locale} vars={{ domains: allowedDomains.join(", ") }} />
 
       <Panel flush>
         <div className="border-b border-line px-5 py-3.5">

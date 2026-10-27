@@ -44,7 +44,14 @@
     "adminOnly": "Only a firm administrator can change branding.",
     "entities": "Entity records",
     "entitiesHint": "Master data of audited entities and their engagement history",
-    "entitiesLink": "Manage entities"
+    "entitiesLink": "Manage entities",
+    "emailDomains": "Allowed email domains",
+    "emailDomainsHint": "engagement-team invitations go only to these domains",
+    "emailDomainsLabel": "One domain per line (e.g. eca.com)",
+    "emailDomainsSave": "Save the domains",
+    "emailDomainsEmpty": "No domain is listed: an engagement-team invitation can currently be sent to any email address. List the firm's domains to restrict it.",
+    "emailDomainsRule": "Matching is exact and ignores case: a subdomain (audit.eca.com) does not match its parent (eca.com) unless it is listed itself. Client portal contacts are not affected.",
+    "savedDomains": "Allowed email domains saved."
   },
   "login": {
     "title": "Sign in",
@@ -139,7 +146,9 @@
         "cra_assessment": "Risk assessment (CRA)",
         "comment": "Comment",
         "time_entry": "Time entry",
-        "legal_hold": "Legal hold"
+        "legal_hold": "Legal hold",
+        "scot_control": "Control",
+        "tenant": "Firm"
       }
     },
     "recentEngagements": "Recent engagements",
@@ -201,8 +210,8 @@
       "empty": "Nothing waiting on you — open the register to pick up work.",
       "review": "{n} workpaper(s) awaiting review",
       "notes": "{n} open review note(s) on your tasks",
-      "independence": "Your independence confirmation is pending",
-      "acceptance": "Acceptance awaits partner sign-off"
+      "acceptance": "Acceptance awaits partner sign-off",
+      "invitation": "Engagement invitation awaiting your answer"
     },
     "myEngagements": {
       "title": "My engagements",
@@ -612,7 +621,6 @@
     "errors": {
       "not-found": "Document not found.",
       "signed-locked": "This working paper is signed and locked — reopen it (with a reason) before editing.",
-      "independence-open": "P2.1 cannot be signed off while an independence confirmation is outstanding or an exception awaits the partner's disposition.",
       "checked-out-by-other": "Another user has this document checked out.",
       "checked-out": "The document is checked out — check it in first.",
       "not-checked-out": "You must check the document out before checking in a new version.",
@@ -764,8 +772,6 @@
       "d31_form_complete": "P1.1 checklist complete and concluded \"accept\"",
       "d31_partner_signed": "Partner sign-off on P1.1",
       "engagement_partner_designated": "Exactly one engagement partner designated on the team, who has accepted the engagement",
-      "independence_complete": "All independence confirmations completed",
-      "independence_exceptions_disposed": "Independence exceptions dispositioned by a partner",
       "materiality_approved": "Materiality approved by a partner",
       "p22_partner_signed": "Partner sign-off on P2.2",
       "p52_partner_signed": "Partner sign-off on P5.2",
@@ -780,27 +786,15 @@
       "review_notes_cleared": "No open review note on this phase's working papers"
     },
     "independence": {
-      "title": "Independence confirmations",
-      "launch": "Launch campaign",
-      "selectRecipients": "Recipients",
+      "title": "Independence declarations",
+      "outside": "Independence declarations are obtained outside the system. Upload each team member's signed declaration to the P2.1 working paper as an attachment; the engagement partner signs P2.1.",
+      "history": "Confirmations recorded by the former in-app campaign (read-only)",
       "status": {
         "sent": "Sent",
         "opened": "Opened",
         "completed": "Completed",
         "exception": "Exception"
-      },
-      "remind": "Remind",
-      "reminders": "reminders",
-      "dispose": "Disposition",
-      "dispositionPlaceholder": "Threat-and-safeguard disposition (partner)",
-      "formTitle": "Independence confirmation",
-      "formIntro": "Answer each question. Any \"yes\" creates an exception requiring partner disposition.",
-      "yes": "Yes",
-      "no": "No",
-      "signature": "Electronic signature (type your full name)",
-      "submit": "Sign and submit",
-      "doneTitle": "Confirmation recorded",
-      "doneBody": "Thank you — your independence confirmation has been signed and archived."
+      }
     },
     "letters": {
       "title": "Letters",
@@ -1077,7 +1071,7 @@
         "b6_confirmations_closed": "No confirmations outstanding (C4.3)",
         "eqr_complete": "Engagement quality review complete where required — C4.2 answered and signed by the appointed quality reviewer, review complete, matters resolved (ISQM 2 ¶25)",
         "c43_cleared": "No point outstanding at the report date (C4.3)",
-        "partner_conclusion": "Partner overall conclusion + independence reconfirmation (C4.1)"
+        "partner_conclusion": "Partner overall conclusion (C4.1)"
       },
       "archiveGateNames": {
         "report_issued": "Report issued",
@@ -1105,7 +1099,6 @@
       "partnerConclusion": "Partner overall conclusion (C4.1)",
       "kamNone": "No key audit matter to report (ISA 701 ¶16)",
       "kamNoneReason": "Why there is no key audit matter — stated in the report",
-      "independenceReconfirmed": "Independence reconfirmed",
       "repLetters": "Representation letters (C3.1 — OHADA two-letter layering)",
       "affirmation": "Generate affirmation letter (pre-arrêté)",
       "complementary": "Generate complementary letter (post-arrêté)",
@@ -1349,7 +1342,6 @@
       "supplier-column-missing": "No supplier/name column recognised in the datasets.",
       "tieout-failed": "The FS tie-out has differences — resolve them before recording it.",
       "checklist-incomplete": "Confirm all applicable notes are completed.",
-      "independence-reconfirm-required": "Independence must be reconfirmed for the partner conclusion.",
       "already-issued": "The report has already been issued.",
       "no-report": "Issue the report before archiving.",
       "already-archived": "The file is already archived.",
@@ -1425,9 +1417,9 @@
       "text-too-long": "One of the text fields exceeds 160 characters.",
       "changed-elsewhere": "Someone else changed this paper while you had it open. Reload to see their version before saving again — your entry has not been stored.",
       "read-only-role": "Your role can view this file but not change it.",
-      "not-on-this-engagement": "You are not assigned to that engagement.",
+      "not-on-this-engagement": "Only accepted members of an engagement's team can open it.",
       "requires-manager": "Only a manager or above can see firm-wide figures.",
-      "team-manager-only": "Only a manager, partner or firm administrator on this engagement can change its team or issue independence confirmations.",
+      "team-manager-only": "Only a manager, partner or firm administrator on this engagement can change its team.",
       "partner-only-team-role": "Only a partner can give or take away the engagement partner role.",
       "already-on-team": "This person is already on the engagement team. To change their role, use the team assignment on the planning page.",
       "eqr-read-only": "The engagement quality reviewer reviews the team's work and raises notes, but does not change it. Record the review in C4.2.",
@@ -1439,7 +1431,6 @@
       "engagement-tenant-mismatch": "That engagement belongs to another firm.",
       "fait-partner-only": "Only a partner can open the C5.6 letter on a fait délictueux.",
       "acceptance-checks-failed": "P1.1 cannot conclude \"accept\" while a required acceptance check is answered \"no\" (integrity, competence, conflicts, AML, independence — and the predecessor contact for a new engagement).",
-      "invalid-recipient": "Independence confirmations go to firm staff only — a client contact or read-only account cannot be a recipient.",
       "accept-engagement-first": "Accept the engagement invitation on its dashboard before signing work on it.",
       "basis-required": "A modified opinion must state its basis (ISA 705 ¶20) — describe the matter that gives rise to the modification.",
       "kam-required": "For a listed entity the report either describes the key audit matters or states that there are none, with the reason (ISA 701 ¶16).",
@@ -1450,7 +1441,6 @@
       "timing-not-permitted": "That timing is not permitted for the assertion's combined risk assessment: only a minimal risk allows an interim of six months, a low risk one of three, and everything above must be tested at or near the period end.",
       "file-type": "This file type is refused: upload a PDF, Office document, image or CSV/text file.",
       "attach-required": "Choose the section the document is evidence for before accepting it.",
-      "independence-open": "P2.1 cannot be signed off while an independence confirmation is outstanding or an exception awaits the partner's disposition.",
       "invalid-grade": "Choose a grade from the team roles.",
       "invalid-event-date": "Enter the date of the event (YYYY-MM-DD), not later than today.",
       "task-not-in-scope": "This statutory task is not in the engagement's file index and has no template — add it from the file index first.",
@@ -1477,7 +1467,7 @@
       "duplicate-party": "This related party is already in the register.",
       "duplicate-estimate": "This estimate is already in the inventory.",
       "paper-incomplete": "The working paper is incomplete — answer every procedure, evaluation and conclusion (explaining each \"No\") before signing it off.",
-      "acceptance-open": "The engagement is still in acceptance: pass the acceptance gates (P1.1 partner sign-off, independence) before working on later phases.",
+      "acceptance-open": "The engagement is still in acceptance: pass the acceptance gates (P1.1 partner sign-off) before working on later phases.",
       "planning-open": "Planning is not closed yet: pass the planning gates before recording execution or conclusion work.",
       "execution-open": "Execution is not closed yet: issue the report before recording conclusion work.",
       "walkthrough-incomplete": "The walkthroughs are incomplete: every SCOT needs all its walkthrough answers on S1.3 before the paper is signed (see the SCOTs still marked \"To do\").",
@@ -1503,7 +1493,11 @@
       "reclassify-too-late": "The nature of the entity can no longer be reclassified once the file has left execution.",
       "itapp-strategy-missing": "Every relevant IT application needs an IT strategy before S2.3 is signed off — decide the strategy of each application still at \"— decide\".",
       "nature-not-permitted": "An analytics-led nature is not permitted for a significant risk: tests of details are required (ISA 330 ¶21).",
-      "eqr-not-assignable": "The engagement quality reviewer cannot be assigned engagement work (ISQM 2 ¶18-20)."
+      "eqr-not-assignable": "The engagement quality reviewer cannot be assigned engagement work (ISQM 2 ¶18-20).",
+      "email-domain-not-allowed": "This email address is not on one of the firm's allowed domains ({domains}). Engagement-team invitations go only to those domains; a firm administrator can change the list in Settings.",
+      "invalid-email-domain": "One of the entries is not a valid email domain (e.g. eca.com).",
+      "firm-admin-only": "Only a firm administrator can do this.",
+      "created-not-on-team": "The engagement was created and its engagement partner seated. Only accepted members of an engagement team open the file: the engagement partner staffs it from the Team page."
     }
   },
   "team": {
@@ -1524,5 +1518,38 @@
       "staff": "Staff",
       "eqr_reviewer": "Engagement Quality Reviewer"
     }
+  },
+  "auditLog": {
+    "title": "Audit log",
+    "hint": "every action recorded across the firm, with filters and CSV export",
+    "open": "Open the audit log",
+    "intro": "Every entry of the firm's activity log: all engagements and the firm-level actions, newest first. Working-paper answer changes carry their old and new value. Firm administrators only.",
+    "user": "User",
+    "engagement": "Engagement",
+    "from": "From",
+    "to": "To",
+    "entity": "Entity",
+    "action": "Action",
+    "all": "All",
+    "firmLevel": "Firm-level (no engagement)",
+    "apply": "Apply",
+    "reset": "Reset",
+    "exportCsv": "Export (CSV)",
+    "count": "{n} entries · page {page} of {pages}",
+    "at": "Date (UTC)",
+    "summary": "Summary",
+    "before": "Before",
+    "after": "After",
+    "beforeLabel": "Before:",
+    "afterLabel": "After:",
+    "empty": "No entry matches these filters.",
+    "previous": "Previous",
+    "next": "Next",
+    "historyTitle": "Answer history",
+    "historyHint": "every working-paper answer change, field by field, with the old and the new value",
+    "historyEmpty": "No answer has been changed since the history started.",
+    "changes": "{n} change(s)",
+    "unknownUser": "Not recorded",
+    "empty_value": "(empty)"
   }
 }

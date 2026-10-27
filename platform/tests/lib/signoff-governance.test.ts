@@ -239,9 +239,17 @@ describe("sign-off governance against the database", () => {
     engagementId = await createEngagement({ clientId: client.rows[0].id, fiscalYear: 2025, periodEnd: "2025-12-31", partnerId: ADMIN });
     otherEngagementId = await createEngagement({ clientId: client.rows[0].id, fiscalYear: 2024, periodEnd: "2024-12-31", partnerId: ADMIN });
     // Creation now seats the engagement partner. These tests walk the seat
-    // from empty (a file opened before the partner became mandatory), and the
-    // administrator must stay off the team, so the seat is vacated here.
+    // from empty (a file opened before the partner became mandatory), so the
+    // seat is vacated here. Since F008 only an accepted team member opens a
+    // file — the firm administrator included — so the administrator who
+    // staffs these files is seated on them, as director (not the partner).
     await admin.query("DELETE FROM team_member WHERE engagement_id = ANY($1::uuid[])", [[engagementId, otherEngagementId]]);
+    for (const id of [engagementId, otherEngagementId]) {
+      await admin.query(
+        "INSERT INTO team_member (tenant_id, engagement_id, user_id, team_role, status) VALUES ($1, $2, $3, 'director', 'accepted')",
+        [TENANT, id, ADMIN],
+      );
+    }
     // execution work, so the phase gates stay out of the way
     await admin.query("UPDATE engagement SET phase = 'execution' WHERE id = ANY($1::uuid[])", [[engagementId, otherEngagementId]]);
     for (const item of await listFileItems(engagementId)) itemIds[item.code] = item.id;
@@ -286,11 +294,12 @@ describe("sign-off governance against the database", () => {
   describe("F001/F002 — who signs what", () => {
     it("refuses a signer who is not an accepted member of the team", async () => {
       const doc = await docFor("E4.1");
-      // the firm administrator sees every file but is not on this team
-      await expect(signDocument(doc, "preparer")).rejects.toThrow("not-on-team-to-sign");
+      // F008: a member who has not accepted cannot even open the file
       await admin.query("UPDATE team_member SET status = 'invited' WHERE engagement_id = $1 AND user_id = $2", [engagementId, STAFF]);
       as(STAFF, "staff");
-      await expect(signDocument(doc, "preparer")).rejects.toThrow("accept-engagement-first");
+      await expect(signDocument(doc, "preparer")).rejects.toThrow("not-on-this-engagement");
+      await admin.query("UPDATE team_member SET status = 'declined' WHERE engagement_id = $1 AND user_id = $2", [engagementId, STAFF]);
+      await expect(signDocument(doc, "preparer")).rejects.toThrow("not-on-this-engagement");
       await admin.query("UPDATE team_member SET status = 'accepted' WHERE engagement_id = $1 AND user_id = $2", [engagementId, STAFF]);
       await expect(signDocument(doc, "preparer")).resolves.toBe("preparer");
     });

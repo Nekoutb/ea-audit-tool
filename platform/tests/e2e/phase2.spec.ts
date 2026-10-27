@@ -69,27 +69,11 @@ async function planningFile(page: Page, clientName: string): Promise<string> {
   await page.getByTestId("field-conclusion").selectOption("accept");
   await page.getByTestId("save-form").click();
 
-  // --- Independence: launch → my link → an exception → partner disposition ---
+  // --- Independence (F008): obtained outside the system, filed on P2.1 ---
   await page.goto(engagementUrl);
   await page.goto(`${engagementUrl}/acceptance`);
-  await page.getByTestId("campaign-recipients").selectOption({ label: "Alice Alpha" });
-  await page.getByTestId("launch-campaign").click();
-  await page.getByTestId("my-confirmation-link").click();
-  await page.waitForURL("**/independence/**");
-  await page.getByTestId("q-financial_interest-yes").check(); // exception path
-  // An exception answer requires the circumstances and safeguards (IESBA
-  // §120); the textarea appears the moment "yes" is chosen and is required.
-  await page
-    .getByTestId("q-financial_interest-note")
-    .fill("Holds a small shareholding in the client; divested before fieldwork.");
-  await page.getByTestId("signature-input").fill("Alice Alpha");
-  await page.getByTestId("submit-confirmation").click();
-  await expect(page.getByTestId("confirmation-done")).toBeVisible();
-
-  await page.goto(engagementUrl);
-  await page.goto(`${engagementUrl}/acceptance`);
-  await page.getByTestId("disposition-input").fill("Interest divested; safeguards applied.");
-  await page.getByTestId("dispose-exception").click();
+  await expect(page.getByTestId("independence-outside")).toBeVisible();
+  await expect(page.getByTestId("launch-campaign")).toHaveCount(0);
 
   // Blocked until P1.1 carries a partner sign-off.
   await page.getByTestId("advance-to-planning").click();

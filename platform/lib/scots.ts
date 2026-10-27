@@ -733,8 +733,6 @@ export async function updateControl(
     operatingEval?: "effective" | "not_effective" | "";
     tocPopulation?: number | null;
     tocGrid?: TocGrid;
-    /** a fresh random draw replaces the previous one and dates it */
-    tocSampleItems?: number[];
   },
 ): Promise<void> {
   const { tenantId, userId } = await requireWrite();
@@ -756,9 +754,7 @@ export async function updateControl(
          sample_note = coalesce($8, sample_note),
          operating_eval = CASE WHEN $9 = '' THEN NULL WHEN $9 IN ('effective','not_effective') THEN $9 ELSE operating_eval END,
          toc_population = coalesce($10, toc_population),
-         toc_grid = coalesce($11::jsonb, toc_grid),
-         toc_sample_items = coalesce($12::int[], toc_sample_items),
-         toc_sample_drawn_at = CASE WHEN $12::int[] IS NOT NULL THEN now() ELSE toc_sample_drawn_at END
+         toc_grid = coalesce($11::jsonb, toc_grid)
        WHERE id = $1`,
       [
         controlId,
@@ -772,7 +768,6 @@ export async function updateControl(
         patch.operatingEval ?? null,
         Number.isFinite(patch.tocPopulation as number) ? Math.max(0, Math.round(patch.tocPopulation as number)) : null,
         patch.tocGrid ? JSON.stringify(patch.tocGrid) : null,
-        Array.isArray(patch.tocSampleItems) ? patch.tocSampleItems.map((v) => Math.max(1, Math.round(Number(v)))).filter((v) => Number.isFinite(v)) : null,
       ],
     );
 
@@ -900,8 +895,163 @@ export async function updateControl(
   const codes: string[] = [];
   if (patch.selectedForTesting !== undefined) codes.push("S2.1");
   if (["testDesign", "designEval", "implemented", "sampleSize", "sampleNote"].some((k) => patch[k as keyof typeof patch] !== undefined)) codes.push("S2.2");
-  if (["operatingNotes", "operatingEval", "tocPopulation", "tocGrid", "tocSampleItems"].some((k) => patch[k as keyof typeof patch] !== undefined)) codes.push("E1.2");
+  if (["operatingNotes", "operatingEval", "tocPopulation", "tocGrid"].some((k) => patch[k as keyof typeof patch] !== undefined)) codes.push("E1.2");
   await voidStaleScotSignoffs(tenantId, userId, engagementId, codes);
+}
+
+/* ---------------------- tests-of-controls sample draws (F061) ---------------------- */
+
+export interface TocDraw {
+  id: string;
+  drawNo: number;
+  seed: string;
+  population: number;
+  sampleSize: number;
+  items: number[];
+  rule: string | null;
+  reason: string | null;
+  drawnBy: string | null;
+  drawnAt: string;
+}
+
+/** The redraw codes a caller may meet, in the order they are checked. */
+export type TocDrawRefusal =
+  | "toc-population-required"
+  | "toc-size-invalid"
+  | "redraw-reason-required"
+  | "redraw-after-testing-manager-only";
+
+/**
+ * Draw the occurrences to test for a control ON THE SERVER (F061): a random
+ * seed is generated and stored, the items are derived from it (seededRandom),
+ * and the draw is appended to toc_sample_draw — never replaced. The control
+ * keeps the current draw for the E1.2 board and the extract.
+ *
+ * The first draw needs no reason. Every later draw is a REDRAW: it needs a
+ * written reason, and once testing of the current sample has started (any
+ * result on the E1.2 grid) only a team member of manager rank or above
+ * (manager, senior manager, director, partner) may redraw — still with a
+ * reason. Earlier draws stay in the history.
+ */
+export async function drawTocSampleForControl(
+  engagementId: string,
+  controlId: string,
+  input: { population: number; sampleSize: number; rule?: string; reason?: string },
+): Promise<TocDraw> {
+  const { tenantId, userId } = await requireWrite();
+  const { requireEngagementAccess } = await import("@/lib/engagement-access");
+  await requireEngagementAccess(engagementId);
+  const population = Math.floor(Number(input.population));
+  const size = Math.floor(Number(input.sampleSize));
+  if (!Number.isFinite(population) || population < 1) throw new Error("toc-population-required");
+  if (!Number.isFinite(size) || size < 1) throw new Error("toc-size-invalid");
+  const reason = (input.reason ?? "").trim();
+  const { randomBytes } = await import("node:crypto");
+  const { seededRandom } = await import("@/lib/engines");
+  const { drawTocSample, seededRng, tocTestingStarted } = await import("@/lib/toc-sampling");
+  const { teamRank } = await import("@/lib/signoff-policy");
+  const draw = await withTenant(tenantId, async (tx) => {
+    const control = await tx.query<{ toc_grid: TocGrid | null; engagement_id: string }>(
+      `SELECT c.toc_grid, s.engagement_id
+         FROM scot_control c JOIN scot s ON s.id = c.scot_id
+        WHERE c.id = $1 FOR UPDATE OF c`,
+      [controlId],
+    );
+    const row = control.rows[0];
+    if (!row || row.engagement_id !== engagementId) throw new Error("not-found");
+    const previous = await tx.query<{ n: string }>(
+      "SELECT count(*)::text AS n FROM toc_sample_draw WHERE control_id = $1",
+      [controlId],
+    );
+    const drawNo = Number(previous.rows[0].n) + 1;
+    if (drawNo > 1) {
+      if (reason.length < 3) throw new Error("redraw-reason-required");
+      if (tocTestingStarted(row.toc_grid)) {
+        const member = await tx.query<{ team_role: string }>(
+          "SELECT team_role FROM team_member WHERE engagement_id = $1 AND user_id = $2 AND status = 'accepted'",
+          [engagementId, userId],
+        );
+        if (teamRank(member.rows[0]?.team_role) < teamRank("manager")) {
+          throw new Error("redraw-after-testing-manager-only");
+        }
+      }
+    }
+    const seed = randomBytes(16).toString("hex");
+    const items = drawTocSample(population, size, seededRng(seed, seededRandom));
+    const inserted = await tx.query<{ id: string; drawn_at: string }>(
+      `INSERT INTO toc_sample_draw
+         (tenant_id, engagement_id, control_id, draw_no, seed, population, sample_size, items, rule, reason, drawn_by)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
+       RETURNING id, to_char(drawn_at AT TIME ZONE 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS"Z"') AS drawn_at`,
+      [tenantId, engagementId, controlId, drawNo, seed, population, size, items, input.rule ?? null, reason || null, userId],
+    );
+    await tx.query(
+      `UPDATE scot_control
+          SET toc_population = $2, sample_size = $3, sample_note = coalesce($4, sample_note),
+              toc_sample_items = $5, toc_sample_drawn_at = now()
+        WHERE id = $1`,
+      [controlId, population, size, input.rule ?? null, items],
+    );
+    return {
+      id: inserted.rows[0].id,
+      drawNo,
+      seed,
+      population,
+      sampleSize: size,
+      items,
+      rule: input.rule ?? null,
+      reason: reason || null,
+      drawnBy: userId,
+      drawnAt: inserted.rows[0].drawn_at,
+    };
+  });
+  const { recordActivity } = await import("@/lib/activity");
+  await recordActivity({
+    engagementId,
+    entityType: "scot_control",
+    entityId: controlId,
+    action: draw.drawNo === 1 ? "toc_sample_drawn" : "toc_sample_redrawn",
+    summary:
+      draw.drawNo === 1
+        ? `Test-of-controls sample drawn: ${draw.items.length} of ${population}`
+        : `Test-of-controls sample redrawn (draw ${draw.drawNo}): ${draw.items.length} of ${population} — ${reason}`,
+    after: { drawNo: draw.drawNo, seed: draw.seed, items: draw.items },
+    meta: draw.reason ? { reason: draw.reason } : null,
+  });
+  // the selection (S2.2) and the results (E1.2) moved under any signature on them
+  await voidStaleScotSignoffs(tenantId, userId, engagementId, ["S2.2", "E1.2"]);
+  return draw;
+}
+
+/** Every draw on the engagement's controls, newest first per control, with the drawer's name. */
+export async function listTocDraws(
+  engagementId: string,
+): Promise<Map<string, (TocDraw & { drawnByName: string | null })[]>> {
+  const { tenantId } = await requireTenant();
+  return withTenant(tenantId, async (tx) => {
+    const r = await tx.query<{
+      id: string; control_id: string; draw_no: number; seed: string; population: number; sample_size: number;
+      items: number[]; rule: string | null; reason: string | null; drawn_by: string | null; drawn_at: string; who: string | null;
+    }>(
+      `SELECT d.id, d.control_id, d.draw_no, d.seed, d.population, d.sample_size, d.items, d.rule, d.reason, d.drawn_by,
+              to_char(d.drawn_at AT TIME ZONE 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS"Z"') AS drawn_at,
+              (SELECT coalesce(u.name, u.email) FROM app_user u WHERE u.id = d.drawn_by) AS who
+         FROM toc_sample_draw d
+        WHERE d.engagement_id = $1
+        ORDER BY d.control_id, d.draw_no DESC`,
+      [engagementId],
+    );
+    const out = new Map<string, (TocDraw & { drawnByName: string | null })[]>();
+    for (const d of r.rows) {
+      const list = out.get(d.control_id) ?? [];
+      list.push({
+        id: d.id, drawNo: d.draw_no, seed: d.seed, population: d.population, sampleSize: d.sample_size,
+        items: d.items, rule: d.rule, reason: d.reason, drawnBy: d.drawn_by, drawnAt: d.drawn_at, drawnByName: d.who,
+      });
+      out.set(d.control_id, list);
+    }
+    return out;
+  });
 }
 
 /**

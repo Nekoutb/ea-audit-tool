@@ -6,8 +6,6 @@ import { auth } from "@/auth";
 import { withTenant } from "@/lib/db";
 import { carryForwardFromPriorYear, FORM_DEFINITIONS, saveForm, type FormValues } from "@/lib/forms";
 import { advanceToPlanning, closePlanning, GateError, setSectionMaterial } from "@/lib/gates";
-import { disposeException, launchCampaign, sendReminder, submitConfirmation, type IndependenceAnswers } from "@/lib/independence";
-import { INDEPENDENCE_QUESTIONS } from "@/lib/independence";
 import { generateLetter, type LetterKind } from "@/lib/letters";
 import { approveMateriality, createMaterialityVersion, type Benchmark } from "@/lib/materiality";
 import { addCustomStep, generateProgram } from "@/lib/programs";
@@ -179,62 +177,6 @@ export async function addEstimateAction(engagementId: string, formData: FormData
       retroReview: String(formData.get("retro_review") ?? "") || null,
     });
   });
-}
-
-// ---- Independence (2.3/2.4) ----
-
-/** A same-engagement returnTo from the form, else the Acceptance page (UAT B118). */
-function independenceBack(engagementId: string, formData?: FormData): string {
-  const returnTo = String(formData?.get("returnTo") ?? "");
-  return returnTo.startsWith(`/engagements/${engagementId}/`) ? returnTo : `/engagements/${engagementId}/acceptance`;
-}
-
-export async function launchCampaignAction(engagementId: string, formData: FormData): Promise<void> {
-  const path = independenceBack(engagementId, formData);
-  const userIds = formData.getAll("userIds").map(String).filter(Boolean);
-  await guarded(path, async () => {
-    await launchCampaign(engagementId, userIds);
-  });
-}
-
-export async function submitConfirmationAction(token: string, formData: FormData): Promise<void> {
-  const answers: IndependenceAnswers = {};
-  const explanations: Record<string, string> = {};
-  for (const question of INDEPENDENCE_QUESTIONS) {
-    answers[question.key] = formData.get(question.key) === "yes";
-    const note = String(formData.get(`note_${question.key}`) ?? "").trim();
-    if (note) explanations[question.key] = note;
-  }
-  const signature = String(formData.get("signature") ?? "");
-  try {
-    await submitConfirmation(token, answers, signature, explanations);
-  } catch (error) {
-    if (error instanceof Error && /^[a-z0-9-]+$/.test(error.message)) {
-      redirect(`/independence/${token}?error=${error.message}`);
-    }
-    throw error;
-  }
-  redirect(`/independence/${token}?done=1`);
-}
-
-export async function disposeExceptionAction(
-  engagementId: string,
-  confirmationId: string,
-  formData: FormData,
-): Promise<void> {
-  const path = `/engagements/${engagementId}/acceptance`;
-  await guarded(path, () =>
-    disposeException(confirmationId, String(formData.get("disposition") ?? "")),
-  );
-}
-
-export async function sendReminderAction(
-  engagementId: string,
-  confirmationId: string,
-  formData?: FormData,
-): Promise<void> {
-  const path = independenceBack(engagementId, formData);
-  await guarded(path, () => sendReminder(confirmationId));
 }
 
 // ---- Letters & mandate (2.5/2.6) ----

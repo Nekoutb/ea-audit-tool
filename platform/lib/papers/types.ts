@@ -24,7 +24,6 @@ const AUTO_SOURCES: Record<string, [string, string]> = {
   materiality: ["the materiality tool — no approved materiality yet", "l'outil de seuil de signification — aucun seuil approuvé"],
   strategy: ["the risk strategy tool — nothing recorded yet", "l'outil de stratégie des risques — rien d'enregistré"],
   "je-selection": ["the journal-entry selection tool — no design recorded yet", "l'outil de sélection des écritures — aucune conception enregistrée"],
-  "independence inquiry": ["the independence campaign — nothing received yet", "la campagne d'indépendance — rien de reçu"],
   "engagement record": ["the engagement record", "la fiche de la mission"],
 };
 

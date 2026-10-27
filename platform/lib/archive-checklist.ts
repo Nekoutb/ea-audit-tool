@@ -76,7 +76,7 @@ const LABELS: Record<string, { en: string; fr: string }> = {
   subsequent_events: { en: "Subsequent events reviewed to the report date", fr: "Événements postérieurs revus jusqu'à la date du rapport" },
   rep_letters_generated: { en: "Both representation letters generated (C3.1)", fr: "Les deux lettres d'affirmation générées (C3.1)" },
   b4_cleared: { en: "Every significant matter in C1.2 cleared", fr: "Chaque point significatif de C1.2 levé" },
-  partner_conclusion: { en: "Partner overall conclusion and independence reconfirmation (C4.1)", fr: "Conclusion générale de l'associé et reconfirmation d'indépendance (C4.1)" },
+  partner_conclusion: { en: "Partner overall conclusion (C4.1)", fr: "Conclusion générale de l'associé (C4.1)" },
   completion_gates: { en: "Every completion gate green", fr: "Toutes les portes d'achèvement au vert" },
   controls_concluded: { en: "Every control selected for testing designed, tested and concluded", fr: "Chaque contrôle retenu pour test conçu, testé et conclu" },
   eqr_complete: { en: "Engagement quality review complete where required (C4.2, ISQM 2 ¶25)", fr: "Revue de qualité de la mission achevée lorsqu'elle est requise (C4.2, ISQM 2 ¶25)" },

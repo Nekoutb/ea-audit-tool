@@ -10,8 +10,6 @@ const PLANNING_GATE_KEYS = [
   "d31_form_complete",
   "d31_partner_signed",
   "engagement_partner_designated",
-  "independence_complete",
-  "independence_exceptions_disposed",
   "materiality_approved",
   "p22_partner_signed",
   "p52_partner_signed",

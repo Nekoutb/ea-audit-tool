@@ -5,7 +5,7 @@
 import { recordActivity } from "@/lib/activity";
 import { withTenant } from "@/lib/db";
 import { isPreparerOfNote } from "@/lib/documents";
-import { atLeast, type Role } from "@/lib/rbac";
+import { atLeast } from "@/lib/rbac";
 import { ForbiddenError, requireTenant, requireWrite } from "@/lib/tenant";
 import { createNotification } from "@/lib/notifications";
 
@@ -66,13 +66,13 @@ export async function addTaskNote(
   fileItemId: string,
   body: string,
 ): Promise<void> {
-  const { tenantId, userId, role } = await requireWrite();
+  const { tenantId, userId } = await requireWrite();
   const text = body.trim();
   if (!text) throw new Error("note-required");
   // The caller must see the engagement in the URL, and the task must belong to
   // it: a note raised through another engagement blocked this paper's sign-off
   // while its own team could not clear it (UAT run 3 B01).
-  await assertNoteReachable(engagementId, tenantId, userId, role);
+  await assertNoteReachable(engagementId, tenantId, userId);
   if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(fileItemId)) throw new Error("not-found");
   const target = await withTenant(tenantId, async (tx) => {
     // the task assignee receives the note; a task with no assignee keeps it unaddressed
@@ -130,10 +130,10 @@ export async function addTaskNote(
  * person whose work the note queries — decides whether the point is resolved.
  */
 export async function respondToTaskNote(engagementId: string, noteId: string, text: string): Promise<void> {
-  const { tenantId, userId, role } = await requireWrite();
+  const { tenantId, userId } = await requireWrite();
   const reply = text.trim();
   if (!reply) throw new Error("response-required");
-  await assertNoteReachable(engagementId, tenantId, userId, role);
+  await assertNoteReachable(engagementId, tenantId, userId);
   const note = await withTenant(tenantId, async (tx) => {
     const r = await tx.query<{ author_id: string; engagement_id: string | null; file_item_id: string | null; document_id: string | null; code: string | null; who: string }>(
       `SELECT rn.author_id, coalesce(rn.engagement_id, d.engagement_id) AS engagement_id,
@@ -188,9 +188,9 @@ export async function respondToTaskNote(engagementId: string, noteId: string, te
  * who can see that engagement: the note id alone once crossed files (UAT run 2
  * B03). The lookups below also require the note to belong to `engagementId`.
  */
-async function assertNoteReachable(engagementId: string, tenantId: string, userId: string, role: Role): Promise<void> {
+async function assertNoteReachable(engagementId: string, tenantId: string, userId: string): Promise<void> {
   const { visibleToUser } = await import("@/lib/engagement-access");
-  if (!(await visibleToUser(engagementId, tenantId, userId, role))) {
+  if (!(await visibleToUser(engagementId, tenantId, userId))) {
     throw new ForbiddenError("not-on-this-engagement");
   }
 }
@@ -198,7 +198,7 @@ async function assertNoteReachable(engagementId: string, tenantId: string, userI
 /** Answer and clear a note. */
 export async function clearTaskNote(engagementId: string, noteId: string, response: string): Promise<void> {
   const { tenantId, userId, role } = await requireWrite();
-  await assertNoteReachable(engagementId, tenantId, userId, role);
+  await assertNoteReachable(engagementId, tenantId, userId);
   const cleared = await withTenant(tenantId, async (tx) => {
     // Clearing a note is not bookkeeping: an open note blocks both the reviewer
     // and partner signature (signDocument) and the archive gate

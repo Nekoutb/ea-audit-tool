@@ -8,7 +8,7 @@ import { NextResponse } from "next/server";
 import { isPublic } from "@/lib/public-routes";
 import { auth } from "@/auth";
 import { canWrite, isRole } from "@/lib/rbac";
-import { visibleToUser } from "@/lib/engagement-access";
+import { invitationPending, visibleToUser } from "@/lib/engagement-access";
 
 /**
  * Routes that must stay reachable without a session. They still receive the
@@ -162,13 +162,16 @@ export const proxy = auth(async (req) => {
   if (engagementMatch && req.auth.user?.role !== "client_user") {
     const user = req.auth.user;
     const userRole = user?.role;
-    // Partners and firm admins short-circuit without a query.
+    // Only an accepted team member passes, whatever the firm role (F008).
     if (user?.tenantId && user.id && userRole && isRole(userRole)) {
-      const allowed = await visibleToUser(engagementMatch[1], user.tenantId, user.id, userRole)
+      const allowed = await visibleToUser(engagementMatch[1], user.tenantId, user.id)
         // A database problem must not silently open the door.
         .catch(() => false);
       if (!allowed) {
         if (isApi) return refuse("Forbidden", 403, nonce);
+        // An invited member sees the invitation and nothing else of the file.
+        const invited = await invitationPending(engagementMatch[1], user.tenantId, user.id).catch(() => false);
+        if (invited) return redirectTo(new URL(`/invitations/${engagementMatch[1]}`, req.nextUrl.origin), nonce);
         // Pages too (UAT B06): the layout's redirect() came after the page had
         // already started streaming, so a non-member's 307 still carried the
         // file's data in its body. Refusing here sends nothing but the

@@ -6,6 +6,10 @@
 //
 // The cases below run the query as BOTH sides of that branch, which is the gap
 // the previous tests left: they only ever exercised roles that keep the clause.
+//
+// F008: the clause now applies to every role (only accepted team members see a
+// file), so the statement always binds both parameters; the cases check that
+// an oversight role on the team sees it and one off the team does not.
 
 import pg from "pg";
 import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
@@ -24,10 +28,8 @@ vi.mock("@/auth", () => ({
 }));
 
 import { closePool } from "@/lib/db";
-import { hasPortfolioOversight } from "@/lib/engagement-access";
 import { recentEngagements } from "@/lib/engagement-dashboard";
 import { createEngagement } from "@/lib/engagements";
-import type { Role } from "@/lib/rbac";
 
 const admin = new pg.Pool({ connectionString: process.env.DATABASE_URL });
 const as = (id: string, role: string) => { actor = { id, role }; };
@@ -56,7 +58,8 @@ beforeAll(async () => {
     [TENANT],
   );
   mine = await createEngagement({ clientId: client.rows[0].id, fiscalYear: 2025, periodEnd: "2025-12-31", partnerId: ADMIN });
-  // The senior sees it only through the team; the oversight roles see it anyway.
+  // Everyone sees it only through the team (F008): ADMIN holds the partner
+  // seat; the senior is staffed; PARTNER is not on it.
   await admin.query(
     "INSERT INTO team_member (tenant_id, engagement_id, user_id, team_role, status) VALUES ($1,$2,$3,'senior','accepted')",
     [TENANT, mine, SENIOR],
@@ -70,20 +73,19 @@ afterAll(async () => {
 });
 
 describe("recentEngagements", () => {
-  // The regression itself: these two roles drop the visibility clause, so the
-  // statement has one placeholder and must be given one parameter.
-  it.each([
-    ["firm_admin", ADMIN],
-    ["partner", PARTNER],
-  ])("runs for %s, whose visibility clause is empty", async (role, id) => {
-    expect(hasPortfolioOversight(role as Role)).toBe(true);
-    as(id, role);
+  it("runs for a firm administrator on the team, and lists the file", async () => {
+    as(ADMIN, "firm_admin");
     const rows = await recentEngagements(6);
     expect(rows.map((r) => r.id)).toContain(mine);
   });
 
-  it("still filters for a role that keeps the visibility clause", async () => {
-    expect(hasPortfolioOversight("senior" as Role)).toBe(false);
+  it("runs for a partner off the team, and does not list the file (F008)", async () => {
+    as(PARTNER, "partner");
+    const rows = await recentEngagements(6);
+    expect(rows.map((r) => r.id)).not.toContain(mine);
+  });
+
+  it("lists it for a staffed senior", async () => {
     as(SENIOR, "senior");
     const rows = await recentEngagements(6);
     expect(rows.map((r) => r.id)).toContain(mine);

@@ -1,5 +1,7 @@
 // P2.2 job administration (spec §4.4): team assignment (with the EQR
-// independence rule), hours-by-grade budget, and the PBC request list.
+// independence-from-the-team rule), hours-by-grade budget, and the PBC
+// request list. Independence declarations themselves are obtained outside
+// the system since F008 (lib/independence.ts).
 
 import { randomBytes } from "node:crypto";
 import type { PoolClient } from "pg";
@@ -7,9 +9,9 @@ import { accountMail, appUrl } from "@/lib/account-mail";
 import { recordActivity } from "@/lib/activity";
 import { createInvite } from "@/lib/invites";
 import { sendEmail, platformSender } from "@/lib/email";
-import { independenceEligibleSql, launchCampaign } from "@/lib/independence";
 import { getLocale } from "@/lib/locale";
 import { createNotification } from "@/lib/notifications";
+import { assertEmailDomainAllowed } from "@/lib/email-domains";
 import { withTenant } from "@/lib/db";
 import { requireEngagementAccess } from "@/lib/engagement-access";
 import { assertMutable } from "@/lib/mutability";
@@ -55,12 +57,6 @@ export interface TeamMember {
   respondedAt: string | null;
   /** why the member declined, when they did (UAT B130) */
   declineReason: string | null;
-  /**
-   * Firm staff who declare independence. A client contact or read-only
-   * observer on the team neither receives a confirmation nor counts towards
-   * the acceptance gate (UAT run 3 B04).
-   */
-  declaresIndependence: boolean;
 }
 
 export async function listTeam(engagementId: string): Promise<TeamMember[]> {
@@ -75,13 +71,11 @@ export async function listTeam(engagementId: string): Promise<TeamMember[]> {
       status: "invited" | "accepted" | "declined";
       responded_at: string | null;
       decline_reason: string | null;
-      declares: boolean;
     }>(
       `SELECT tm.id, tm.user_id, coalesce(u.name, u.email) AS user_name, u.email, tm.team_role,
               coalesce(tm.status, 'accepted') AS status,
               to_char(tm.responded_at AT TIME ZONE 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS"Z"') AS responded_at,
-              tm.decline_reason,
-              ${independenceEligibleSql("tm.user_id", "tm.tenant_id")} AS declares
+              tm.decline_reason
          FROM team_member tm JOIN app_user u ON u.id = tm.user_id
         WHERE tm.engagement_id = $1 ORDER BY tm.created_at`,
       [engagementId],
@@ -95,7 +89,6 @@ export async function listTeam(engagementId: string): Promise<TeamMember[]> {
       status: r.status,
       respondedAt: r.responded_at,
       declineReason: r.decline_reason,
-      declaresIndependence: Boolean(r.declares),
     }));
   });
 }
@@ -103,7 +96,7 @@ export async function listTeam(engagementId: string): Promise<TeamMember[]> {
 /**
  * Firm users assignable to the engagement (same tenant via membership). Client
  * portal contacts hold a membership too, as role client_user, and used to be
- * offered as team members and independence recipients (UAT B91).
+ * offered as team members (UAT B91).
  */
 export async function listFirmUsers(): Promise<{ id: string; name: string; email: string; role: string }[]> {
   const { tenantId } = await requireTenant();
@@ -116,28 +109,6 @@ export async function listFirmUsers(): Promise<{ id: string; name: string; email
     );
     return result.rows;
   });
-}
-
-/**
- * A member joining after the independence campaign was issued is asked at
- * once (UAT B13): the gate now requires a confirmation from everyone on the
- * team, so a late joiner with no confirmation would silently block it — or,
- * before the gate was fixed, silently pass it. No campaign yet: nothing to do,
- * the launch will address the whole team.
- */
-async function askIndependenceIfCampaignOpen(engagementId: string, userId: string): Promise<void> {
-  const { tenantId } = await requireTenant();
-  const open = await withTenant(tenantId, (tx) =>
-    tx.query("SELECT 1 FROM independence_campaign WHERE engagement_id = $1 LIMIT 1", [engagementId]),
-  );
-  if ((open.rowCount ?? 0) === 0) return;
-  try {
-    await launchCampaign(engagementId, [userId]);
-  } catch (error) {
-    // The assignment stands; a confirmation that could not be issued shows
-    // up as "not asked" on the independence tool and on the gate.
-    console.warn("[team] independence confirmation not issued:", error instanceof Error ? error.message : error);
-  }
 }
 
 /**
@@ -171,6 +142,15 @@ async function firmRoleTx(tx: PoolClient, tenantId: string, userId: string): Pro
     [tenantId, userId],
   );
   return r.rows[0]?.role ?? null;
+}
+
+/**
+ * F070: a person joins an engagement team only from one of the firm's allowed
+ * email domains (lib/email-domains.ts) — whichever way they are put on it.
+ */
+async function assertMemberDomainTx(tx: PoolClient, tenantId: string, userId: string): Promise<void> {
+  const r = await tx.query<{ email: string }>("SELECT email FROM app_user WHERE id = $1", [userId]);
+  if (r.rows[0]) await assertEmailDomainAllowed(tenantId, r.rows[0].email);
 }
 
 /** Firm partners and firm administrators may hold the engagement partner seat (F003). */
@@ -311,6 +291,8 @@ export async function assignTeamMember(
       [tenantId, userId],
     );
     if ((member.rowCount ?? 0) === 0) throw new Error("not-a-firm-member");
+    // a new member comes from an allowed email domain (F070); re-roling a member does not re-check
+    if (!current) await assertMemberDomainTx(tx, tenantId, userId);
     if (teamRole === "eqr_reviewer" && current && current !== "eqr_reviewer") {
       throw new Error("eqr-on-team");
     }
@@ -335,7 +317,6 @@ export async function assignTeamMember(
       await ensureTaskTx(tx, engagementId, "C4.2");
     }
   });
-  await askIndependenceIfCampaignOpen(engagementId, userId);
 }
 
 export async function removeTeamMember(engagementId: string, userId: string): Promise<void> {
@@ -361,10 +342,9 @@ export async function removeTeamMember(engagementId: string, userId: string): Pr
       engagementId,
       userId,
     ]);
-    // Leaving the team ends the person's work on the file: their tasks go back
-    // to the unassigned pool rather than keeping a hidden grant (UAT run 2 B04):
-    // an assignee or preparer (owner) of a task can see the file without a
-    // team row (lib/engagement-access.ts), so both seats are vacated.
+    // Leaving the team ends the person's work on the file, and with it their
+    // access (only accepted team members open it — lib/engagement-access.ts):
+    // their tasks go back to the unassigned pool (UAT run 2 B04).
     const unassigned = await tx.query<{ id: string; code: string }>(
       `UPDATE file_item
           SET assignee_user_id = CASE WHEN assignee_user_id = $2 THEN NULL ELSE assignee_user_id END,
@@ -737,6 +717,9 @@ export async function addTeamMemberByEmail(
   await assertMutable(engagementId);
   const email = emailRaw.trim().toLowerCase();
   if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)) throw new Error("invalid-email");
+  // F070: only the firm's allowed email domains, checked before any account
+  // is provisioned or any invitation goes out (an empty list allows all)
+  await assertEmailDomainAllowed(tenantId, email);
 
   // Not a credential anybody receives: the row needs a hash, and the account is
   // opened by setting a password through the invitation. Random means there is
@@ -866,7 +849,8 @@ export async function addTeamMemberByEmail(
           inviteUrl: `${appUrl()}/invite/${await createInvite({
             userId,
             createdBy: inviterId,
-            nextPath: `/engagements/${engagementId}/dashboard`,
+            // an invited member sees only the invitation until they accept (F008)
+            nextPath: `/invitations/${engagementId}`,
           })}`,
         },
         locale,
@@ -877,12 +861,11 @@ export async function addTeamMemberByEmail(
     tenantId,
     userId,
     kind: "engagement-invite",
-    // bilingual, and it opens the dashboard where the answer is given (UAT B101)
+    // bilingual, and it opens the invitation where the answer is given (UAT B101, F008)
     title: `Added to ${engagementName} · Ajouté(e) à ${engagementName}`,
-    body: "Accept or decline the engagement from its dashboard. · Acceptez ou refusez la mission depuis son tableau de bord.",
-    href: `/engagements/${engagementId}/dashboard`,
+    body: "Accept or decline the engagement invitation. · Acceptez ou refusez l'invitation à la mission.",
+    href: `/invitations/${engagementId}`,
   });
-  await askIndependenceIfCampaignOpen(engagementId, userId);
 }
 
 /** The signed-in user's own membership status on the engagement, if any. */
@@ -896,6 +879,56 @@ export async function myTeamStatus(
       [engagementId, userId],
     );
     return r.rows[0]?.status ?? null;
+  });
+}
+
+/** What an invited member sees of the engagement before accepting it (F008). */
+export interface PendingInvitation {
+  engagementId: string;
+  engagementName: string;
+  clientName: string;
+  fiscalYear: number;
+  teamRole: TeamRole;
+  invitedAt: string | null;
+}
+
+/**
+ * The signed-in user's OPEN invitation to the engagement, or null. This is the
+ * only read of an engagement allowed without accepted membership: it returns
+ * the invitation's own facts (who, which file, which role), nothing of the
+ * file's content.
+ */
+export async function myInvitation(engagementId: string): Promise<PendingInvitation | null> {
+  const { tenantId, userId } = await requireTenant();
+  if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(engagementId)) return null;
+  return withTenant(tenantId, async (tx) => {
+    const r = await tx.query<{
+      engagement_name: string;
+      client_name: string;
+      fiscal_year: number;
+      team_role: TeamRole;
+      invited_at: string | null;
+    }>(
+      `SELECT coalesce(e.name, c.name) AS engagement_name, c.name AS client_name, e.fiscal_year,
+              tm.team_role,
+              to_char(tm.invited_at AT TIME ZONE 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS"Z"') AS invited_at
+         FROM team_member tm
+         JOIN engagement e ON e.id = tm.engagement_id
+         JOIN client c ON c.id = e.client_id
+        WHERE tm.engagement_id = $1 AND tm.user_id = $2 AND tm.status = 'invited'`,
+      [engagementId, userId],
+    );
+    const row = r.rows[0];
+    return row
+      ? {
+          engagementId,
+          engagementName: row.engagement_name,
+          clientName: row.client_name,
+          fiscalYear: row.fiscal_year,
+          teamRole: row.team_role,
+          invitedAt: row.invited_at,
+        }
+      : null;
   });
 }
 
@@ -992,8 +1025,10 @@ async function acceptedPartnersTx(tx: PoolClient, engagementId: string): Promise
 /**
  * Hand the engagement partner seat to another firm partner in one
  * transaction: the new user (added to the team if absent) becomes the
- * partner and the outgoing partner takes `outgoingRole`. A firm
- * administrator or the current engagement partner may do it.
+ * partner and the outgoing partner takes `outgoingRole`. The current
+ * engagement partner may do it, or a firm administrator who is an accepted
+ * member of the team: since F008 an administrator not staffed on the file
+ * cannot open it, so on such a file the hand-over is the partner's.
  */
 export async function transferEngagementPartner(
   engagementId: string,
@@ -1032,6 +1067,8 @@ export async function transferEngagementPartner(
     );
     // the quality reviewer stays outside the team (ISQM 2 para. 18)
     if (incoming.rows[0]?.team_role === "eqr_reviewer") throw new Error("eqr-on-team");
+    // a partner joining the team through the hand-over comes from an allowed domain too (F070)
+    if (incoming.rows.length === 0) await assertMemberDomainTx(tx, tenantId, newUserId);
     await tx.query("UPDATE team_member SET team_role = $3 WHERE engagement_id = $1 AND user_id = $2", [
       engagementId,
       outgoing,
@@ -1074,7 +1111,6 @@ export async function transferEngagementPartner(
     before: { partnerUserId: outcome.outgoing, incomingTeamRole: outcome.incomingWas },
     after: { partnerUserId: newUserId, outgoingTeamRole: outgoingRole },
   });
-  if (outcome.added) await askIndependenceIfCampaignOpen(engagementId, newUserId);
 }
 
 /**

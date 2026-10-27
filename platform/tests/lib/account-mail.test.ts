@@ -79,7 +79,7 @@ describe("accountMail", () => {
     // The link must land on the sign-in page. Pointing straight at the
     // engagement only ever worked for someone who already had a live session.
     expect(m.body).toContain(
-      "https://www.auditisa.com/login?email=bob%40firm.com&next=%2Fengagements%2Fabc-123%2Fdashboard",
+      "https://www.auditisa.com/login?email=bob%40firm.com&next=%2Finvitations%2Fabc-123",
     );
     expect(m.body).not.toMatch(/https:\/\/[^\s]*\/engagements\/abc-123\/dashboard(?![^\s]*next)/);
     expect(m.body).toContain("Firm: Elite Advisors");

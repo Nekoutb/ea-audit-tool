@@ -181,6 +181,11 @@ export async function createEngagementAction(formData: FormData): Promise<void> 
     });
   }
   revalidatePath("/engagements");
+  // F008: a partner or firm administrator who opened the file for another
+  // engagement partner is not on its team, so cannot open it: say so on the
+  // register rather than bounce them off a locked page.
+  const { canSeeEngagement } = await import("@/lib/engagement-access");
+  if (!(await canSeeEngagement(id).catch(() => false))) redirect("/engagements?error=created-not-on-team");
   redirect(`/engagements/${id}/nature`);
 }
 

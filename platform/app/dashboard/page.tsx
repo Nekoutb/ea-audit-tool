@@ -57,12 +57,11 @@ export default async function DashboardPage() {
     // the user's own tasks and the review notes addressed to them (UAT B93)
     myTasks().catch(() => []),
     myOpenTaskNotes().catch(() => []),
-    // what is waiting on this person — the pending independence confirmation
-    // above all (UAT B92: it used to reach them by email only)
+    // what is waiting on this person (UAT B92)
     portfolioActions().catch(() => []),
   ]);
   const TODO_LABELS: Record<string, { en: string; fr: string }> = {
-    independence: { en: "Complete your independence confirmation", fr: "Complétez votre confirmation d'indépendance" },
+    invitation: { en: "Engagement invitation awaiting your answer", fr: "Invitation à une mission en attente de votre réponse" },
     notes: { en: "Open review notes on your tasks", fr: "Notes de revue ouvertes sur vos tâches" },
     review: { en: "Papers awaiting review", fr: "Feuilles de travail en attente de revue" },
     acceptance: { en: "Acceptance awaiting partner sign-off", fr: "Acceptation en attente de la signature de l'associé" },

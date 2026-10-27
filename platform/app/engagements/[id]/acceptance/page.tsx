@@ -4,10 +4,7 @@ import { notFound, redirect } from "next/navigation";
 import { auth } from "@/auth";
 import {
   advanceToPlanningAction,
-  disposeExceptionAction,
   generateLetterAction,
-  launchCampaignAction,
-  sendReminderAction,
   setMandateAction,
 } from "@/app/actions/planning";
 import { AppNav } from "@/components/AppNav";
@@ -20,7 +17,6 @@ import { getMessages } from "@/lib/i18n";
 import { listConfirmations } from "@/lib/independence";
 import { listLetters, mandateExpiryYear } from "@/lib/letters";
 import { getLocale } from "@/lib/locale";
-import { listTeam } from "@/lib/team";
 import { withTenant } from "@/lib/db";
 import { requireTenant } from "@/lib/tenant";
 
@@ -57,20 +53,16 @@ export default async function AcceptancePage(props: {
   const engagement = await getEngagement(id);
   if (!engagement) notFound();
 
-  const [gates, confirmations, letters, team, mandate, prior] = await Promise.all([
+  const [gates, confirmations, letters, mandate, prior] = await Promise.all([
     acceptanceGates(id),
+    // read-only history of the retired in-app campaign (F008)
     listConfirmations(id),
     listLetters(id),
-    // The recipients are the engagement team, not every firm user (UAT B13/B91).
-    listTeam(id),
     getEngagement(id).then((e) => clientMandate(e!.clientId)),
     priorYearEngagement(id),
   ]);
   // The letters are filed on tasks; there are none until the entity is classified.
   const classified = Boolean(engagement.complexity);
-  const users = team
-    .filter((m) => m.status !== "declined" && m.declaresIndependence)
-    .map((m) => ({ id: m.userId, name: m.userName }));
   // A gate that fails after the phase has moved on means a gating paper was
   // reopened (UAT B99): say so, since the phase itself does not move back.
   const gateReopened = engagement.phase !== "acceptance" && gates.some((g) => !g.ok);
@@ -132,85 +124,29 @@ export default async function AcceptancePage(props: {
         <h2 className={heading}>
           {tp.independence.title}
         </h2>
-        {confirmations.length === 0 ? (
-          <form action={launchCampaignAction.bind(null, id)} className="mt-3 flex flex-wrap items-end gap-3">
-            <label className="flex flex-col gap-1 text-sm">
-              <span className="text-ink-soft">{tp.independence.selectRecipients}</span>
-              <select name="userIds" multiple size={Math.max(1, Math.min(4, users.length))} className={input} data-testid="campaign-recipients">
-                {users.map((user) => (
-                  <option key={user.id} value={user.id}>
-                    {user.name}
-                  </option>
-                ))}
-              </select>
-            </label>
-            <button type="submit" className={btnPrimary} data-testid="launch-campaign">
-              {tp.independence.launch}
-            </button>
-          </form>
-        ) : (
-          <ul className="mt-3 flex flex-col gap-2" data-testid="confirmations-list">
-            {confirmations.map((confirmation) => (
-              <li
-                key={confirmation.id}
-                className="flex flex-wrap items-center justify-between gap-3 rounded-[var(--radius-atlas)] border border-line bg-surface-2 px-4 py-2.5 text-sm"
-              >
-                <span className="font-medium text-ink">
-                  {confirmation.userName}
-                </span>
-                <span
-                  data-testid={`confirmation-status-${confirmation.userId}`}
-                  className={
-                    confirmation.status === "completed"
-                      ? "rounded-full bg-[var(--color-good-soft)] px-2 py-0.5 text-xs font-semibold text-good"
-                      : confirmation.status === "exception"
-                        ? "rounded-full bg-[var(--color-rose-soft)] px-2 py-0.5 text-xs font-semibold text-rose"
-                        : "rounded-full bg-[var(--color-warn-soft)] px-2 py-0.5 text-xs font-semibold text-warn"
-                  }
-                >
-                  {tp.independence.status[confirmation.status]}
-                  {confirmation.disposition ? " ✓" : ""}
-                </span>
-                <span className="flex items-center gap-2">
-                  {confirmation.userId === session.user.id &&
-                  (confirmation.status === "sent" || confirmation.status === "opened") ? (
-                    <Link
-                      href={`/independence/${confirmation.token}`}
-                      className={btn}
-                      data-testid="my-confirmation-link"
-                    >
-                      {tp.openForm}
-                    </Link>
-                  ) : null}
-                  {confirmation.status === "sent" || confirmation.status === "opened" ? (
-                    <form action={sendReminderAction.bind(null, id, confirmation.id)}>
-                      <button type="submit" className={btn}>
-                        {tp.independence.remind} ({confirmation.reminderCount})
-                      </button>
-                    </form>
-                  ) : null}
-                  {confirmation.status === "exception" && !confirmation.disposition ? (
-                    <form
-                      action={disposeExceptionAction.bind(null, id, confirmation.id)}
-                      className="flex items-center gap-2"
-                    >
-                      <input
-                        name="disposition"
-                        required
-                        placeholder={tp.independence.dispositionPlaceholder}
-                        className={input}
-                        data-testid="disposition-input"
-                      />
-                      <button type="submit" className={btn} data-testid="dispose-exception">
-                        {tp.independence.dispose}
-                      </button>
-                    </form>
-                  ) : null}
-                </span>
-              </li>
-            ))}
-          </ul>
-        )}
+        {/* F008: declarations are obtained outside the system and filed on P2.1 */}
+        <p className="mt-2 text-sm text-ink-soft" data-testid="independence-outside">
+          {tp.independence.outside}
+        </p>
+        {confirmations.length > 0 ? (
+          <>
+            <p className="mt-3 text-xs font-semibold uppercase tracking-[0.06em] text-muted">
+              {tp.independence.history}
+            </p>
+            <ul className="mt-1 flex flex-col gap-1" data-testid="confirmations-history">
+              {confirmations.map((confirmation) => (
+                <li key={confirmation.id} className="flex flex-wrap items-center justify-between gap-3 text-sm">
+                  <span className="text-ink">{confirmation.userName}</span>
+                  <span className="text-xs text-muted">
+                    {tp.independence.status[confirmation.status]}
+                    {confirmation.signedAt ? ` · ${confirmation.signedAt}` : ""}
+                    {confirmation.disposition ? ` · ${confirmation.disposition}` : ""}
+                  </span>
+                </li>
+              ))}
+            </ul>
+          </>
+        ) : null}
       </Panel>
 
       <Panel className={sectionClass}>

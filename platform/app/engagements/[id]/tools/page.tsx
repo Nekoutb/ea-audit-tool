@@ -14,7 +14,7 @@ export const generateMetadata = localizedTitle("Tools", "Outils");
 /**
  * The tools landing: eight compact section tiles fitting one screen. Each
  * opens its own screen (Data Analytics lists the analyzers; Materiality is the
- * ISA 320 tool alone; Independence Campaign holds the inquiry). Back goes to
+ * ISA 320 tool alone). Back goes to
  * the dashboard; each section's back returns here — one hierarchy, no tabs.
  */
 const TILES: {
@@ -38,7 +38,6 @@ const TILES: {
   { id: "sampling", nameEn: "Sampling", nameFr: "Échantillonnage", descEn: "MUS and attribute sampling — run from the cycle tasks, computed not typed", descFr: "Sondage MUS et par attributs — lancé depuis les tâches de cycle", feeds: ["E4.1", "E4.2", "E4.4"], href: (id) => `/engagements/${id}/tools/sampling` },
   { id: "je-selection", nameEn: "Journal-Entry Selection", nameFr: "Sélection des écritures comptables", descEn: "Risk-directed selection of the journal-entry line items to test, with the reason each was picked", descFr: "Sélection orientée par le risque des écritures à tester, avec le motif de chaque choix", feeds: ["E3.1"], href: (id) => `/engagements/${id}/tools/je-selection` },
   { id: "sample-papers", nameEn: "Sample Working Papers", nameFr: "Modèles de papiers de travail", descEn: "The methodology's blank papers — tests of controls, ITGC, journal entries and the test-of-details schedules", descFr: "Les modèles vierges de la méthodologie — tests des contrôles, ITGC, écritures comptables et feuilles de tests de détail", feeds: ["E1.1", "E1.2", "E3.1"], href: (id) => `/engagements/${id}/tools/sample-papers` },
-  { id: "independence", nameEn: "Independence Campaign", nameFr: "Campagne d'indépendance", descEn: "Issue the declaration to the whole team and manage the responses", descFr: "Adresser la déclaration à l'équipe et suivre les réponses", feeds: ["P2.1", "C4.2"], href: (id) => `/engagements/${id}/tools/independence` },
   { id: "pbc", nameEn: "PBC Requests", nameFr: "Demandes PBC", descEn: "Documents requested from the client: what is outstanding, for how long, and the reminders sent", descFr: "Documents demandés au client : ce qui est en attente, depuis combien de temps, et les relances envoyées", feeds: ["P2.2", "E1.1"], href: (id) => `/engagements/${id}/pbc` },
 ];
 

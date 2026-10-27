@@ -5,6 +5,7 @@ import { AppNav } from "@/components/AppNav";
 import { NavLink } from "@/components/NavLink";
 import { Panel, PanelHeader } from "@/components/ui/atlas";
 import { listActivity } from "@/lib/activity";
+import { answerHistory } from "@/lib/audit-log";
 import { initials } from "@/lib/engagement-dashboard";
 import { getEngagement } from "@/lib/engagements";
 import { getMessages } from "@/lib/i18n";
@@ -91,7 +92,9 @@ export default async function ActivityPage(props: { params: Promise<{ id: string
 
   const engagement = await getEngagement(id);
   if (!engagement) notFound();
-  const rows = await listActivity(id);
+  const [rows, history] = await Promise.all([listActivity(id), answerHistory(id)]);
+  const th = t.auditLog;
+  const shown = (v: string | null) => (v === null || v === "" ? th.empty_value : v.length > 400 ? `${v.slice(0, 400)}…` : v);
 
   return (
     <main className="flex min-h-screen w-full flex-col gap-4 px-6 py-8">
@@ -164,6 +167,55 @@ export default async function ActivityPage(props: { params: Promise<{ id: string
                 </li>
               ))}
             </ol>
+          )}
+        </div>
+      </Panel>
+
+      {/* F027: every working-paper answer change, field by field, with its old and new value */}
+      <Panel flush className="flex flex-col" data-testid="answer-history">
+        <div className="border-b border-line px-5 py-3.5">
+          <PanelHeader
+            title={th.historyTitle}
+            hint={th.historyHint}
+            right={<span className="text-xs font-semibold text-muted tnum">{history.length}</span>}
+          />
+        </div>
+        <div className="p-1.5">
+          {history.length === 0 ? (
+            <p className="px-4 py-6 text-center text-sm text-muted">{th.historyEmpty}</p>
+          ) : (
+            <ul className="flex flex-col">
+              {history.map((field) => (
+                <li key={`${field.code}|${field.field}`} className="border-b border-line px-4 py-2.5 last:border-b-0">
+                  <details>
+                    <summary className="cursor-pointer text-[13px] text-ink">
+                      <span className="font-mono text-[12px] font-semibold">{field.code.replace(/^wp:/, "")}</span>
+                      <span className="text-ink-soft"> · {field.field}</span>
+                      <span className="ml-2 text-[11.5px] text-muted">
+                        {th.changes.replace("{n}", String(field.changes.length))} · {field.changes[0]?.at}
+                      </span>
+                    </summary>
+                    <ol className="mt-2 flex flex-col gap-2">
+                      {field.changes.map((c, i) => (
+                        <li key={i} className="rounded-[var(--radius-atlas-sm)] border border-line bg-surface-2 px-3 py-2 text-[12px]">
+                          <p className="text-muted">
+                            <span className="font-semibold text-ink-soft">{c.userName ?? th.unknownUser}</span> · <span className="tnum">{c.at}</span>
+                          </p>
+                          <p className="mt-1 whitespace-pre-wrap break-words text-ink-soft">
+                            <span className="font-semibold text-muted">{th.beforeLabel} </span>
+                            {shown(c.before)}
+                          </p>
+                          <p className="mt-0.5 whitespace-pre-wrap break-words text-ink">
+                            <span className="font-semibold text-muted">{th.afterLabel} </span>
+                            {shown(c.after)}
+                          </p>
+                        </li>
+                      ))}
+                    </ol>
+                  </details>
+                </li>
+              ))}
+            </ul>
           )}
         </div>
       </Panel>

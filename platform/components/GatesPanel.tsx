@@ -63,6 +63,7 @@ export function ErrorBanner({
   locale,
   scope = "planning",
   details,
+  vars,
 }: {
   error?: string;
   failed?: string;
@@ -71,10 +72,15 @@ export function ErrorBanner({
   scope?: "planning" | "conclusion";
   /** per failed key, the tasks it names (e.g. "P3.2, C4.3") */
   details?: Record<string, string>;
+  /** values for {placeholders} in the message, e.g. {domains} (F070) */
+  vars?: Record<string, string>;
 }) {
   if (!error) return null;
   const t = getMessages(locale).planning;
-  const message = t.errors[error as keyof typeof t.errors] ?? error;
+  let message: string = t.errors[error as keyof typeof t.errors] ?? error;
+  for (const [k, v] of Object.entries(vars ?? {})) message = message.split(`{${k}}`).join(v);
+  // a screen that does not supply the value drops the bracketed placeholder
+  message = message.replace(/\s*\(\{[a-zA-Z]+\}\)/g, "");
   const failedKeys = (failed ?? "").split(",").filter(Boolean);
   return (
     <div

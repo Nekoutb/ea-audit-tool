@@ -9,6 +9,7 @@ import {
   deleteControl,
   deleteScot,
   deleteWcgw,
+  drawTocSampleForControl,
   linkScotIndex,
   musPreview,
   saveFscp,
@@ -85,6 +86,16 @@ export async function POST(request: Request, context: { params: Promise<{ id: st
       case "updateControl":
         await updateControl(String(body.controlId), body as never);
         break;
+      // F061: the server draws the sample from a stored seed and keeps every draw
+      case "drawTocSample": {
+        const draw = await drawTocSampleForControl(id, String(body.controlId), {
+          population: Number(body.population),
+          sampleSize: Number(body.sampleSize),
+          rule: body.rule ? String(body.rule) : undefined,
+          reason: body.reason ? String(body.reason) : undefined,
+        });
+        return NextResponse.json({ ok: true, draw });
+      }
       case "toggleLink":
         await toggleWcgwControl(String(body.wcgwId), String(body.controlId), Boolean(body.linked));
         break;

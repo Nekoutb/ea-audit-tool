@@ -103,10 +103,9 @@ export async function pointsForwardAction(engagementId: string, formData: FormDa
 
 export async function partnerConclusionAction(engagementId: string, formData: FormData): Promise<void> {
   await guarded(pagePath(engagementId), async () => {
-    if (formData.get("independenceReconfirmed") !== "on") throw new Error("independence-reconfirm-required");
+    // F008: independence is reconfirmed outside the system, not on this form
     await recordCompletion(engagementId, "partner_conclusion", {
       conclusion: String(formData.get("conclusion") ?? ""),
-      independenceReconfirmed: true,
     });
   });
 }

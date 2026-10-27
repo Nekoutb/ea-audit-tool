@@ -7,9 +7,13 @@
 //       follows the frequency table (manual daily 25 — or 60 when it is the
 //       only control covering an assertion — weekly 5, monthly/quarterly 2,
 //       annually 1; 50–250 occurrences → 10%, under 50 → 5, under 5 → all;
-//       automated → test of one), and "Generate" draws that many occurrence
-//       numbers at random — afresh every time — saved on the control and
-//       extracted to Excel, one tab per control.
+//       automated → test of one), and "Draw" has the SERVER draw that many
+//       occurrence numbers from a stored random seed (F061). Every draw is
+//       kept in an append-only history (seed, items, who, when, why); a
+//       redraw needs a written reason, and once testing of the sample has
+//       started only the team's manager rank and above may redraw. The
+//       current draw is saved on the control and extracted to Excel, one tab
+//       per control.
 //   2 — Sampling for TESTS OF DETAILS: every account of one side of the
 //       financial statements, as a workbook with one tab per lead index —
 //       the CRA from S3.1 and the key-item threshold set there, key items in
@@ -22,7 +26,7 @@ import { useRouter } from "next/navigation";
 import { recordTodResultAction } from "@/app/actions/engines";
 import type { TodResultRow } from "@/lib/engines";
 import { SubmitButton } from "@/components/SubmitButton";
-import { drawTocSample, normFreq, tocSuggested } from "@/lib/toc-sampling";
+import { normFreq, tocSuggested } from "@/lib/toc-sampling";
 import { freqLabel } from "@/lib/control-labels";
 
 export interface SamplingPurpose {
@@ -39,6 +43,21 @@ export interface SamplingPurpose {
   assertions: string[];
   /** covers at least one assertion no other selected control covers */
   sole: boolean;
+  /** a result is recorded on the E1.2 grid: a redraw is a manager-rank decision (F061) */
+  testingStarted: boolean;
+  /** every draw so far, newest first (F061) */
+  history: TocDrawEntry[];
+}
+
+/** One draw in a control's history, as the studio shows it. */
+export interface TocDrawEntry {
+  drawNo: number;
+  items: number[];
+  population: number;
+  seed: string;
+  reason: string | null;
+  drawnByName: string | null;
+  drawnAt: string;
 }
 
 const ASSURANCES = [
@@ -58,6 +77,7 @@ export function SamplingStudio({
   results = [],
   resultsError = null,
   resultsRecorded = false,
+  mayRedrawAfterTesting = false,
 }: {
   engagementId: string;
   purposes: SamplingPurpose[];
@@ -73,6 +93,8 @@ export function SamplingStudio({
   /** the ?error= code the results action redirected back with */
   resultsError?: string | null;
   resultsRecorded?: boolean;
+  /** the viewer holds manager rank or above on this team (F061) */
+  mayRedrawAfterTesting?: boolean;
 }) {
   const fr = locale === "fr";
   const router = useRouter();
@@ -86,6 +108,9 @@ export function SamplingStudio({
   );
   const [busy, setBusy] = useState<string | null>(null);
   const [tocExporting, setTocExporting] = useState(false);
+  // the written reason a redraw needs, per control (F061)
+  const [reasons, setReasons] = useState<Record<string, string>>({});
+  const [openHistory, setOpenHistory] = useState<string | null>(null);
 
   // one workbook per side of the statements
   const [side, setSide] = useState<"bs" | "is">("is");
@@ -123,6 +148,15 @@ export function SamplingStudio({
   const n = (x: number) => new Intl.NumberFormat("fr-FR").format(x);
   const input = "rounded-[var(--radius-atlas-sm)] border border-line-strong bg-surface px-2.5 py-1.5 text-[12.5px] text-ink outline-none focus:border-emerald-600";
 
+  const REFUSALS: Record<string, [string, string]> = {
+    "redraw-reason-required": ["A redraw needs a written reason.", "Un nouveau tirage exige un motif écrit."],
+    "redraw-after-testing-manager-only": [
+      "Testing of this sample has started: only a manager or above on the team may redraw it, with a reason.",
+      "Le test de cet échantillon a commencé : seul un manager ou plus de l'équipe peut refaire le tirage, avec un motif.",
+    ],
+    "toc-population-required": ["Enter the population before drawing.", "Saisir la population avant le tirage."],
+  };
+
   async function op(body: Record<string, unknown>) {
     setError(null);
     const r = await fetch(`/api/engagements/${engagementId}/scots`, {
@@ -130,7 +164,12 @@ export function SamplingStudio({
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(body),
     }).catch(() => null);
-    if (!r?.ok) { setError(fr ? "Échec de l'opération." : "Operation failed."); return null; }
+    if (!r?.ok) {
+      const code = r ? ((await r.json().catch(() => ({}))) as { error?: string }).error : undefined;
+      const known = code ? REFUSALS[code] : undefined;
+      setError(known ? known[fr ? 1 : 0] : fr ? "Échec de l'opération." : "Operation failed.");
+      return null;
+    }
     return r.json().catch(() => ({}));
   }
 
@@ -149,15 +188,23 @@ export function SamplingStudio({
     const pop = popOf(p);
     const suggestion = tocSuggested(p.controlType, p.frequency, pop, p.sole, fr);
     if (!suggestion || "needPopulation" in suggestion) return;
+    if (!pop) return;
+    // a redraw needs its written reason (F061); the server enforces it too
+    const redraw = Boolean(drawn[p.controlId]) || p.history.length > 0;
+    const reason = (reasons[p.controlId] ?? "").trim();
+    if (redraw && reason.length < 3) { setError(REFUSALS["redraw-reason-required"][fr ? 1 : 0]); return; }
     setDone(null); setBusy(p.controlId);
-    // the draw is random and afresh on every click; what was drawn is saved
-    // with the control so the Excel extract shows exactly these items
-    const items = pop && p.controlType !== "automated" ? drawTocSample(pop, suggestion.size) : pop ? drawTocSample(pop, 1) : [];
-    const note = `${fr ? "Test de contrôles" : "Test of controls"} — ${suggestion.rule}` + (pop ? ` · ${fr ? "population" : "population"} ${n(pop)}` : "");
-    const r = await op({ op: "updateControl", controlId: p.controlId, tocPopulation: pop, sampleSize: suggestion.size, sampleNote: note, tocSampleItems: items });
+    // the SERVER draws, from a seed it stores, and keeps every draw (F061)
+    const size = p.controlType === "automated" ? 1 : suggestion.size;
+    const note = `${fr ? "Test de contrôles" : "Test of controls"} — ${suggestion.rule}` + ` · ${fr ? "population" : "population"} ${n(pop)}`;
+    const r = (await op({ op: "drawTocSample", controlId: p.controlId, population: pop, sampleSize: size, rule: note, reason: redraw ? reason : undefined })) as
+      | { draw?: { items: number[]; drawnAt: string } }
+      | null;
     setBusy(null);
-    if (r) {
-      setDrawn((d) => ({ ...d, [p.controlId]: { items, at: new Date().toISOString() } }));
+    if (r?.draw) {
+      const items = r.draw.items;
+      setDrawn((d) => ({ ...d, [p.controlId]: { items, at: r.draw?.drawnAt ?? "" } }));
+      setReasons((s) => ({ ...s, [p.controlId]: "" }));
       setDone(`${fr ? "Échantillon de" : "Sample of"} ${items.length || suggestion.size} ${fr ? "tiré au hasard pour" : "drawn at random for"} « ${p.controlName} » — ${fr ? "listé pour test dans le papier E1.2 et dans l'extrait Excel" : "listed for testing in the E1.2 paper and in the Excel extract"}.`);
       router.refresh();
     }
@@ -197,8 +244,8 @@ export function SamplingStudio({
         <div className="flex flex-wrap items-start justify-between gap-2">
           <p className="max-w-[820px] text-[11.5px] text-muted">
             {fr
-              ? "Les contrôles sélectionnés pour test (S2.1) arrivent avec leurs attributs ; saisissez et enregistrez la population d'occurrences, la taille minimale suit la table des fréquences, et « Générer » tire au hasard les occurrences à tester — un nouveau tirage à chaque fois."
-              : "The controls selected for testing (S2.1) arrive with their attributes; enter and save the population of occurrences, the minimum size follows the frequency table, and Generate draws the occurrences to test at random — a fresh draw every time."}
+              ? "Les contrôles sélectionnés pour test (S2.1) arrivent avec leurs attributs ; saisissez et enregistrez la population d'occurrences, la taille minimale suit la table des fréquences, et « Tirer » fait tirer par le serveur, à partir d'une graine conservée, les occurrences à tester. Chaque tirage reste à l'historique ; un nouveau tirage exige un motif écrit et, une fois le test commencé, un manager ou plus de l'équipe."
+              : "The controls selected for testing (S2.1) arrive with their attributes; enter and save the population of occurrences, the minimum size follows the frequency table, and Draw has the server select the occurrences to test from a stored seed. Every draw stays in the history; a redraw needs a written reason and, once testing has started, a manager or above on the team."}
           </p>
           <button
             type="button"
@@ -239,6 +286,9 @@ export function SamplingStudio({
                 {purposes.map((p) => {
                   const pop = Number((populations[p.controlId] ?? "").replace(/[\s  ]/g, "")) || null;
                   const suggestion = tocSuggested(p.controlType, p.frequency, pop, p.sole, fr);
+                  const hasDraw = Boolean(drawn[p.controlId]) || p.history.length > 0;
+                  const lockedForMe = hasDraw && p.testingStarted && !mayRedrawAfterTesting;
+                  const slug = p.controlName.replace(/[^A-Za-z0-9]/g, "_").slice(0, 24);
                   return (
                     <tr key={p.controlId} data-testid={`toc-row-${p.controlName.replace(/[^A-Za-z0-9]/g, "_").slice(0, 24)}`}>
                       <td className={`${td} whitespace-normal`}>
@@ -290,20 +340,65 @@ export function SamplingStudio({
                       </td>
                       <td className={`${td} whitespace-normal`}>
                         <div className="flex flex-col gap-1">
+                          {hasDraw && !lockedForMe ? (
+                            <input
+                              value={reasons[p.controlId] ?? ""}
+                              onChange={(e) => setReasons((s) => ({ ...s, [p.controlId]: e.target.value }))}
+                              placeholder={fr ? "Motif du nouveau tirage (obligatoire)" : "Reason for the redraw (required)"}
+                              className="w-full min-w-0 rounded-[var(--radius-atlas-xs)] border border-line-strong bg-surface px-2 py-1 text-[11.5px] outline-none focus:border-emerald-600"
+                              data-testid={`toc-reason-${slug}`}
+                            />
+                          ) : null}
                           <button
                             type="button"
                             onClick={() => void generateSample(p)}
-                            disabled={busy === p.controlId || !suggestion || "needPopulation" in suggestion || !popOf(p)}
+                            disabled={
+                              busy === p.controlId || !suggestion || "needPopulation" in suggestion || !popOf(p) || lockedForMe ||
+                              (hasDraw && (reasons[p.controlId] ?? "").trim().length < 3)
+                            }
                             className="self-start rounded-[var(--radius-atlas-xs)] bg-emerald-700 px-2.5 py-1 text-[11.5px] font-semibold text-white hover:bg-emerald-800 disabled:opacity-40"
-                            title={fr ? "Tirer au hasard les occurrences à tester (nouveau tirage à chaque clic)" : "Draw the occurrences to test at random (a fresh draw every click)"}
-                            data-testid={`toc-generate-${p.controlName.replace(/[^A-Za-z0-9]/g, "_").slice(0, 24)}`}
+                            title={
+                              lockedForMe
+                                ? REFUSALS["redraw-after-testing-manager-only"][fr ? 1 : 0]
+                                : fr ? "Le serveur tire les occurrences à tester à partir d'une graine conservée" : "The server draws the occurrences to test from a stored seed"
+                            }
+                            data-testid={`toc-generate-${slug}`}
                           >
-                            {drawn[p.controlId] ? (fr ? "Régénérer" : "Regenerate") : fr ? "Générer" : "Generate"}
+                            {hasDraw ? (fr ? "Nouveau tirage" : "Redraw") : fr ? "Tirer" : "Draw"}
                           </button>
+                          {lockedForMe ? (
+                            <span className="text-[10.5px] leading-snug text-warn" data-testid={`toc-locked-${slug}`}>
+                              {REFUSALS["redraw-after-testing-manager-only"][fr ? 1 : 0]}
+                            </span>
+                          ) : null}
                           {drawn[p.controlId] ? (
                             <span className="text-[10.5px] leading-snug text-ink-soft tnum" data-testid={`toc-items-${p.controlName.replace(/[^A-Za-z0-9]/g, "_").slice(0, 24)}`}>
                               <b className="text-ink">{drawn[p.controlId].items.length}</b> {fr ? "sur" : "of"} {n(p.population ?? popOf(p) ?? 0)}: {drawn[p.controlId].items.join(", ")}
                             </span>
+                          ) : null}
+                          {p.history.length > 0 ? (
+                            <div className="text-[10.5px] leading-snug text-muted">
+                              <button
+                                type="button"
+                                onClick={() => setOpenHistory((h) => (h === p.controlId ? null : p.controlId))}
+                                className="font-semibold text-emerald-700 hover:underline dark:text-emerald-400"
+                                data-testid={`toc-history-toggle-${slug}`}
+                              >
+                                {fr ? `Historique des tirages (${p.history.length})` : `Draw history (${p.history.length})`}
+                              </button>
+                              {openHistory === p.controlId ? (
+                                <ol className="mt-1 flex flex-col gap-1" data-testid={`toc-history-${slug}`}>
+                                  {p.history.map((h) => (
+                                    <li key={h.drawNo} className="border-l-2 border-line pl-1.5">
+                                      <b className="text-ink-soft">#{h.drawNo}</b> · {h.drawnAt.replace("T", " ").replace("Z", " UTC")} · {h.drawnByName ?? "—"}
+                                      <span className="block tnum">{h.items.join(", ")} ({fr ? "sur" : "of"} {n(h.population)})</span>
+                                      {h.reason ? <span className="block italic">{fr ? "Motif : " : "Reason: "}{h.reason}</span> : null}
+                                      <span className="block font-mono text-[9.5px]">{fr ? "graine" : "seed"} {h.seed}</span>
+                                    </li>
+                                  ))}
+                                </ol>
+                              ) : null}
+                            </div>
                           ) : null}
                         </div>
                       </td>

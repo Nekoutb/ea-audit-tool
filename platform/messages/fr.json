@@ -44,7 +44,14 @@
     "adminOnly": "Seul un administrateur du cabinet peut modifier l'identité visuelle.",
     "entities": "Dossiers entités",
     "entitiesHint": "Données permanentes des entités auditées et historique des missions",
-    "entitiesLink": "Gérer les entités"
+    "entitiesLink": "Gérer les entités",
+    "emailDomains": "Domaines de messagerie autorisés",
+    "emailDomainsHint": "les invitations aux équipes de mission ne sont envoyées qu'à ces domaines",
+    "emailDomainsLabel": "Un domaine par ligne (ex. eca.com)",
+    "emailDomainsSave": "Enregistrer les domaines",
+    "emailDomainsEmpty": "Aucun domaine n'est renseigné : une invitation à une équipe de mission peut actuellement être envoyée à n'importe quelle adresse. Renseignez les domaines du cabinet pour la restreindre.",
+    "emailDomainsRule": "La correspondance est exacte et ne tient pas compte des majuscules : un sous-domaine (audit.eca.com) ne correspond pas à son domaine parent (eca.com) s'il n'est pas lui-même renseigné. Les contacts du portail client ne sont pas concernés.",
+    "savedDomains": "Domaines de messagerie autorisés enregistrés."
   },
   "login": {
     "title": "Connexion",
@@ -139,7 +146,9 @@
         "cra_assessment": "Évaluation des risques (CRA)",
         "comment": "Commentaire",
         "time_entry": "Saisie de temps",
-        "legal_hold": "Conservation légale"
+        "legal_hold": "Conservation légale",
+        "scot_control": "Contrôle",
+        "tenant": "Cabinet"
       }
     },
     "recentEngagements": "Missions récentes",
@@ -201,8 +210,8 @@
       "empty": "Rien en attente — ouvrez le registre pour reprendre le travail.",
       "review": "{n} papier(s) de travail en attente de revue",
       "notes": "{n} note(s) de revue ouverte(s) sur vos tâches",
-      "independence": "Votre confirmation d’indépendance est en attente",
-      "acceptance": "Acceptation en attente du visa associé"
+      "acceptance": "Acceptation en attente du visa associé",
+      "invitation": "Invitation à une mission en attente de votre réponse"
     },
     "myEngagements": {
       "title": "Mes missions",
@@ -612,7 +621,6 @@
     "errors": {
       "not-found": "Document introuvable.",
       "signed-locked": "Cette feuille de travail est signée et verrouillée — rouvrez-la (avec un motif) avant modification.",
-      "independence-open": "P2.1 ne peut pas être signée tant qu'une confirmation d'indépendance est en attente ou qu'une exception attend la décision de l'associé.",
       "checked-out-by-other": "Un autre utilisateur a réservé ce document.",
       "checked-out": "Le document est réservé — déposez d'abord la version en cours.",
       "not-checked-out": "Vous devez réserver le document avant de déposer une nouvelle version.",
@@ -764,8 +772,6 @@
       "d31_form_complete": "Liste P1.1 complète et conclusion « accepter »",
       "d31_partner_signed": "Signature de l'associé sur P1.1",
       "engagement_partner_designated": "Un seul associé responsable désigné dans l'équipe, et qui a accepté la mission",
-      "independence_complete": "Toutes les confirmations d'indépendance complétées",
-      "independence_exceptions_disposed": "Exceptions d'indépendance traitées par un associé",
       "materiality_approved": "Seuil de signification approuvé par un associé",
       "p22_partner_signed": "Signature de l'associé sur P2.2",
       "p52_partner_signed": "Signature de l'associé sur P5.2",
@@ -780,27 +786,15 @@
       "review_notes_cleared": "Aucune note de revue ouverte sur les feuilles de travail de cette phase"
     },
     "independence": {
-      "title": "Confirmations d'indépendance",
-      "launch": "Lancer la campagne",
-      "selectRecipients": "Destinataires",
+      "title": "Déclarations d'indépendance",
+      "outside": "Les déclarations d'indépendance sont obtenues en dehors du système. Chargez la déclaration signée de chaque membre de l'équipe sur le papier de travail P2.1 en pièce jointe ; l'associé responsable signe P2.1.",
+      "history": "Confirmations enregistrées par l'ancienne campagne dans l'application (lecture seule)",
       "status": {
         "sent": "Envoyée",
         "opened": "Ouverte",
         "completed": "Complétée",
         "exception": "Exception"
-      },
-      "remind": "Relancer",
-      "reminders": "relances",
-      "dispose": "Traiter",
-      "dispositionPlaceholder": "Traitement menace/sauvegarde (associé)",
-      "formTitle": "Confirmation d'indépendance",
-      "formIntro": "Répondez à chaque question. Tout « oui » crée une exception nécessitant le traitement d'un associé.",
-      "yes": "Oui",
-      "no": "Non",
-      "signature": "Signature électronique (saisissez votre nom complet)",
-      "submit": "Signer et soumettre",
-      "doneTitle": "Confirmation enregistrée",
-      "doneBody": "Merci — votre confirmation d'indépendance est signée et archivée."
+      }
     },
     "letters": {
       "title": "Lettres",
@@ -1077,7 +1071,7 @@
         "b6_confirmations_closed": "Aucune circularisation en attente (C4.3)",
         "eqr_complete": "Revue de qualité de la mission achevée lorsqu'elle est requise — C4.2 renseignée et signée par le réviseur qualité désigné, revue achevée, points résolus (ISQM 2 ¶25)",
         "c43_cleared": "Aucun point en suspens à la date du rapport (C4.3)",
-        "partner_conclusion": "Conclusion d'ensemble de l'associé + reconfirmation d'indépendance (C4.1)"
+        "partner_conclusion": "Conclusion d'ensemble de l'associé (C4.1)"
       },
       "archiveGateNames": {
         "report_issued": "Rapport émis",
@@ -1105,7 +1099,6 @@
       "partnerConclusion": "Conclusion d'ensemble de l'associé (C4.1)",
       "kamNone": "Aucun point clé de l'audit à communiquer (ISA 701 ¶16)",
       "kamNoneReason": "Motif de l'absence de point clé — mentionné dans le rapport",
-      "independenceReconfirmed": "Indépendance reconfirmée",
       "repLetters": "Lettres d'affirmation (C3.1 — double lettre OHADA)",
       "affirmation": "Générer la lettre d'affirmation (pré-arrêté)",
       "complementary": "Générer la lettre complémentaire (post-arrêté)",
@@ -1349,7 +1342,6 @@
       "supplier-column-missing": "Aucune colonne fournisseur/nom reconnue dans les fichiers.",
       "tieout-failed": "La concordance présente des écarts — résolvez-les avant validation.",
       "checklist-incomplete": "Confirmez que toutes les notes applicables sont complétées.",
-      "independence-reconfirm-required": "L'indépendance doit être reconfirmée pour la conclusion de l'associé.",
       "already-issued": "Le rapport a déjà été émis.",
       "no-report": "Émettez le rapport avant l'archivage.",
       "already-archived": "Le dossier est déjà archivé.",
@@ -1425,9 +1417,9 @@
       "text-too-long": "Un des champs texte dépasse 160 caractères.",
       "changed-elsewhere": "Une autre personne a modifié ce papier pendant que vous l'aviez ouvert. Rechargez pour voir sa version avant d'enregistrer — votre saisie n'a pas été conservée.",
       "read-only-role": "Votre rôle permet de consulter ce dossier mais pas de le modifier.",
-      "not-on-this-engagement": "Vous n'êtes pas affecté à cette mission.",
+      "not-on-this-engagement": "Seuls les membres de l'équipe de la mission ayant accepté l'invitation peuvent l'ouvrir.",
       "requires-manager": "Seuls un manager ou un rang supérieur peuvent voir les chiffres du cabinet.",
-      "team-manager-only": "Seul un manager, un associé ou l'administrateur du cabinet affecté à cette mission peut modifier son équipe ou lancer les confirmations d'indépendance.",
+      "team-manager-only": "Seul un manager, un associé ou l'administrateur du cabinet affecté à cette mission peut modifier son équipe.",
       "partner-only-team-role": "Seul un associé peut attribuer ou retirer le rôle d'associé de la mission.",
       "already-on-team": "Cette personne fait déjà partie de l'équipe de mission. Pour changer son rôle, utilisez l'affectation de l'équipe sur la page de planification.",
       "eqr-read-only": "Le réviseur qualité (EQR) revoit les travaux de l'équipe et émet des notes, mais ne les modifie pas. Consignez la revue en C4.2.",
@@ -1439,7 +1431,6 @@
       "engagement-tenant-mismatch": "Cette mission appartient à un autre cabinet.",
       "fait-partner-only": "Seul un associé peut ouvrir la lettre C5.6 relative à un fait délictueux.",
       "acceptance-checks-failed": "P1.1 ne peut pas conclure « accepter » tant qu'une vérification d'acceptation requise est répondue « non » (intégrité, compétence, conflits, LBC/FT, indépendance — et le contact du prédécesseur pour une nouvelle mission).",
-      "invalid-recipient": "Les confirmations d'indépendance s'adressent au personnel du cabinet uniquement — un contact client ou un compte en lecture seule ne peut pas être destinataire.",
       "accept-engagement-first": "Acceptez l'invitation à la mission depuis son tableau de bord avant de signer des travaux.",
       "basis-required": "Une opinion modifiée doit énoncer son fondement (ISA 705 ¶20) — décrivez le point qui motive la modification.",
       "kam-required": "Pour une entité cotée, le rapport décrit les points clés de l'audit ou indique qu'il n'y en a pas, avec le motif (ISA 701 ¶16).",
@@ -1450,7 +1441,6 @@
       "timing-not-permitted": "Ce calendrier n'est pas permis pour l'évaluation combinée du risque de l'assertion : seul un risque minimal autorise un intercalaire de six mois, un risque faible trois mois, et tout risque supérieur doit être testé à la clôture ou à proximité.",
       "file-type": "Ce type de fichier est refusé : téléversez un PDF, un document Office, une image ou un fichier CSV/texte.",
       "attach-required": "Choisissez la section dont le document est la pièce probante avant de l'accepter.",
-      "independence-open": "P2.1 ne peut pas être signée tant qu'une confirmation d'indépendance est en attente ou qu'une exception attend la décision de l'associé.",
       "invalid-grade": "Choisissez un grade parmi les rôles de l'équipe.",
       "invalid-event-date": "Saisissez la date de l'événement (AAAA-MM-JJ), au plus tard aujourd'hui.",
       "task-not-in-scope": "Cette tâche légale n'est pas dans l'index du dossier et n'a pas de modèle — ajoutez-la d'abord depuis l'index du dossier.",
@@ -1477,7 +1467,7 @@
       "duplicate-party": "Cette partie liée figure déjà au registre.",
       "duplicate-estimate": "Cette estimation figure déjà à l'inventaire.",
       "paper-incomplete": "La feuille de travail est incomplète — répondez à chaque procédure, évaluation et conclusion (en expliquant chaque « Non ») avant de la signer.",
-      "acceptance-open": "La mission est encore en acceptation : passez les contrôles d'acceptation (signature de l'associé sur P1.1, indépendance) avant de travailler sur les phases suivantes.",
+      "acceptance-open": "La mission est encore en acceptation : passez les contrôles d'acceptation (signature de l'associé sur P1.1) avant de travailler sur les phases suivantes.",
       "planning-open": "La planification n'est pas clôturée : passez les contrôles de planification avant d'enregistrer des travaux d'exécution ou de conclusion.",
       "execution-open": "L'exécution n'est pas clôturée : émettez le rapport avant d'enregistrer des travaux de conclusion.",
       "walkthrough-incomplete": "Les cheminements sont incomplets : chaque SCOT doit porter toutes les réponses de son cheminement en S1.3 avant la signature de la feuille (voir les SCOT encore « À faire »).",
@@ -1503,7 +1493,11 @@
       "reclassify-too-late": "La nature de l'entité ne peut plus être reclassée une fois le dossier sorti de la phase d'exécution.",
       "itapp-strategy-missing": "Chaque application informatique pertinente doit avoir une stratégie informatique avant la signature de S2.3 — décidez la stratégie des applications encore à « — décider ».",
       "nature-not-permitted": "Une nature à dominante analytique est interdite pour un risque important : des tests de détail sont requis (ISA 330 ¶21).",
-      "eqr-not-assignable": "Le réviseur qualité de la mission (EQR) ne peut pas se voir confier les travaux de la mission (ISQM 2 ¶18-20)."
+      "eqr-not-assignable": "Le réviseur qualité de la mission (EQR) ne peut pas se voir confier les travaux de la mission (ISQM 2 ¶18-20).",
+      "email-domain-not-allowed": "Cette adresse n'appartient à aucun des domaines autorisés du cabinet ({domains}). Les invitations aux équipes de mission ne sont envoyées qu'à ces domaines ; un administrateur du cabinet peut modifier la liste dans Paramètres.",
+      "invalid-email-domain": "Une des entrées n'est pas un domaine de messagerie valide (ex. eca.com).",
+      "firm-admin-only": "Seul un administrateur du cabinet peut effectuer cette action.",
+      "created-not-on-team": "La mission a été créée et son associé responsable désigné. Seuls les membres de l'équipe ayant accepté la mission ouvrent le dossier : l'associé responsable la staffe depuis la page Équipe."
     }
   },
   "team": {
@@ -1524,5 +1518,38 @@
       "staff": "Collaborateur",
       "eqr_reviewer": "Réviseur qualité (EQR)"
     }
+  },
+  "auditLog": {
+    "title": "Journal d'audit",
+    "hint": "toutes les actions enregistrées dans le cabinet, avec filtres et export CSV",
+    "open": "Ouvrir le journal d'audit",
+    "intro": "Toutes les entrées du journal d'activité du cabinet : toutes les missions et les actions au niveau du cabinet, des plus récentes aux plus anciennes. Les modifications de réponses des papiers de travail portent leur ancienne et leur nouvelle valeur. Réservé aux administrateurs du cabinet.",
+    "user": "Utilisateur",
+    "engagement": "Mission",
+    "from": "Du",
+    "to": "Au",
+    "entity": "Objet",
+    "action": "Action",
+    "all": "Tous",
+    "firmLevel": "Niveau cabinet (sans mission)",
+    "apply": "Appliquer",
+    "reset": "Réinitialiser",
+    "exportCsv": "Exporter (CSV)",
+    "count": "{n} entrées · page {page} sur {pages}",
+    "at": "Date (UTC)",
+    "summary": "Résumé",
+    "before": "Avant",
+    "after": "Après",
+    "beforeLabel": "Avant :",
+    "afterLabel": "Après :",
+    "empty": "Aucune entrée ne correspond à ces filtres.",
+    "previous": "Précédent",
+    "next": "Suivant",
+    "historyTitle": "Historique des réponses",
+    "historyHint": "chaque modification d'une réponse des papiers de travail, champ par champ, avec l'ancienne et la nouvelle valeur",
+    "historyEmpty": "Aucune réponse n'a été modifiée depuis le début de l'historique.",
+    "changes": "{n} modification(s)",
+    "unknownUser": "Non enregistré",
+    "empty_value": "(vide)"
   }
 }

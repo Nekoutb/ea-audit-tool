@@ -357,15 +357,6 @@ export default async function ConclusionPage(props: {
               className={`${input} mt-2 w-full`}
               data-testid="partner-conclusion-text"
             />
-            <label className="mt-2 flex items-center gap-2 text-xs text-ink-soft">
-              <input
-                type="checkbox"
-                name="independenceReconfirmed"
-                defaultChecked={partner !== null}
-                data-testid="independence-reconfirm"
-              />
-              {tc.independenceReconfirmed}
-            </label>
             <button type="submit" className={`${btn} mt-2`} data-testid="save-partner-conclusion">
               {tc.save}
             </button>

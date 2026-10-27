@@ -17,7 +17,7 @@ import { generateDocument, signDocument } from "@/lib/documents";
 import { createEngagement, listFileItems } from "@/lib/engagements";
 import { carryForwardFromPriorYear, loadForm, saveForm } from "@/lib/forms";
 import { acceptanceGates, advanceToPlanning, closePlanning, GateError, planningCloseGates, setSectionMaterial } from "@/lib/gates";
-import { disposeException, launchCampaign, listConfirmations, submitConfirmation } from "@/lib/independence";
+import { listConfirmations } from "@/lib/independence";
 import { generateLetter } from "@/lib/letters";
 import { approveMateriality, computeMateriality, createMaterialityVersion } from "@/lib/materiality";
 import { addCustomStep, generateProgram, listProgramSteps, sectionCoverage } from "@/lib/programs";
@@ -188,53 +188,35 @@ describe("form framework", () => {
 });
 
 describe("acceptance gates → planning (2.2, 2.3, 2.4)", () => {
-  it("starts blocked — including the independence gate with NO campaign (review fix)", async () => {
+  it("starts blocked, and no gate asks for independence confirmations (F008)", async () => {
     const gates = await acceptanceGates(engagementId);
     expect(gates.find((g) => g.key === "d31_form_complete")?.ok).toBe(false);
-    // Vacuous pass is not allowed: zero campaigns means NOT complete.
-    expect(gates.find((g) => g.key === "independence_complete")?.ok).toBe(false);
+    // Independence declarations are obtained outside the system and filed on
+    // P2.1: the in-app campaign is gone, and with it every independence gate.
+    expect(gates.some((g) => g.key.startsWith("independence"))).toBe(false);
     await expect(advanceToPlanning(engagementId)).rejects.toThrow(GateError);
   });
 
-  it("independence exception blocks acceptance until a partner disposes it", async () => {
-    await launchCampaign(engagementId, [USER]);
-    // Re-launch reuses the campaign — no duplicate outstanding confirmations
-    // that would block the gate forever (review fix).
-    await launchCampaign(engagementId, [USER]);
-    expect(await listConfirmations(engagementId)).toHaveLength(1);
-
-    let gates = await acceptanceGates(engagementId);
-    expect(gates.find((g) => g.key === "independence_complete")?.ok).toBe(false);
-
-    const confirmations = await listConfirmations(engagementId);
-    const mine = confirmations.find((c) => c.userId === USER)!;
-    // An exception without its explanation is refused outright (IESBA §120).
-    await expect(
-      submitConfirmation(mine.token, { financial_interest: true }, "Planner"),
-    ).rejects.toThrow("explanation-required");
-    const status = await submitConfirmation(mine.token, { financial_interest: true }, "Planner", {
-      financial_interest: "Holds 40 shares in the client through a family PEA; divestment initiated.",
-    });
-    expect(status).toBe("exception");
-    // The explanation is stored and readable by the reviewer.
-    const withNotes = (await listConfirmations(engagementId)).find((c) => c.userId === USER)!;
-    expect(withNotes.explanations?.financial_interest).toContain("40 shares");
-
-    // The signed confirmation is archived into P1.1 as an artifact (spec §4.2).
-    const archived = await admin.query<{ kind: string }>(
-      "SELECT kind FROM document WHERE engagement_id = $1 AND title LIKE 'Independence confirmation%'",
-      [engagementId],
+  it("an open confirmation left by the retired campaign blocks nothing, and stays readable (F008)", async () => {
+    // a campaign recorded before the change: one confirmation still "sent",
+    // one exception never dispositioned — both used to block acceptance
+    const campaign = await admin.query<{ id: string }>(
+      "INSERT INTO independence_campaign (tenant_id, engagement_id, created_by) VALUES ($1, $2, $3) RETURNING id",
+      [TENANT, engagementId, USER],
     );
-    expect(archived.rows).toHaveLength(1);
-    expect(archived.rows[0].kind).toBe("letter");
-
-    gates = await acceptanceGates(engagementId);
-    expect(gates.find((g) => g.key === "independence_complete")?.ok).toBe(true);
-    expect(gates.find((g) => g.key === "independence_exceptions_disposed")?.ok).toBe(false);
-
-    await disposeException(mine.id, "Interest divested before fieldwork; safeguards documented.");
-    gates = await acceptanceGates(engagementId);
-    expect(gates.find((g) => g.key === "independence_exceptions_disposed")?.ok).toBe(true);
+    await admin.query(
+      `INSERT INTO independence_confirmation (tenant_id, campaign_id, user_id, token, status)
+       VALUES ($1, $2, $3, 'f008-open-token', 'sent'), ($1, $2, $4, 'f008-exception-token', 'exception')`,
+      [TENANT, campaign.rows[0].id, USER, OTHER_USER],
+    );
+    const gates = await acceptanceGates(engagementId);
+    expect(gates.some((g) => g.key.startsWith("independence"))).toBe(false);
+    // the history is kept, read-only (no destructive migration)
+    actAs(OTHER_USER, "manager");
+    await seat(engagementId, OTHER_USER, "manager");
+    const history = await listConfirmations(engagementId);
+    expect(history.map((c) => c.status).sort()).toEqual(["exception", "sent"]);
+    actAs(USER, "firm_admin");
   });
 
   it("passes after P1.1 completion + partner sign-off, then advances", async () => {
@@ -256,30 +238,24 @@ describe("acceptance gates → planning (2.2, 2.3, 2.4)", () => {
       saveForm(engagementId, "P1.1", { ...checks, predecessor_ok: true, aml_ok: false, conclusion: "accept" }),
     ).rejects.toThrow("acceptance-checks-failed");
     await saveForm(engagementId, "P1.1", { ...checks, predecessor_ok: true, conclusion: "accept" });
+    // F008: only an accepted team member opens the file at all — a firm
+    // administrator who is not on the team cannot even generate the paper.
+    await expect(generateDocument(itemId("P1.1"), "en")).rejects.toThrow("not-on-this-engagement");
+    // OTHER_USER, the preparer, is on the team (seated above); USER is not yet.
+    actAs(OTHER_USER, "manager");
     // UAT B17: a blank working paper carries nothing to attest to.
     const p11 = await generateDocument(itemId("P1.1"), "en");
-    // F002: only an accepted member of the team signs. F003: partner sign-offs
-    // need the designated engagement partner, and the acceptance gate needs
-    // exactly one. USER takes the seat; OTHER_USER, the preparer, joins the
-    // team and confirms independence like everyone else.
-    await expect(signAsPartner("P1.1")).rejects.toThrow("not-on-team-to-sign");
-    await seat(engagementId, OTHER_USER, "manager");
     actAs(OTHER_USER, "manager");
     await expect(signDocument(p11, "preparer")).rejects.toThrow("paper-incomplete");
-    actAs(USER, "firm_admin");
     await completePaper(engagementId, "P1.1");
     expect((await acceptanceGates(engagementId)).find((g) => g.key === "engagement_partner_designated")?.ok).toBe(false);
-    actAs(OTHER_USER, "manager");
     await signDocument(p11, "preparer");
     actAs(USER, "firm_admin");
-    await expect(signDocument(p11, "partner")).rejects.toThrow("not-on-team-to-sign");
+    // not on the team: the paper is out of reach (F008), so nothing to sign
+    await expect(signDocument(p11, "partner")).rejects.toThrow("not-on-this-engagement");
     await seat(engagementId, USER, "partner");
     await signDocument(p11, "partner");
-    await launchCampaign(engagementId, [OTHER_USER]);
-    const second = (await listConfirmations(engagementId)).find((c) => c.userId === OTHER_USER)!;
-    actAs(OTHER_USER, "manager");
-    await submitConfirmation(second.token, {}, "Second");
-    actAs(USER, "firm_admin");
+    // the retired campaign's open confirmations (above) do not hold the gate
     const gates = await acceptanceGates(engagementId);
     expect(gates.find((g) => g.key === "engagement_partner_designated")?.ok).toBe(true);
     expect(gates.every((g) => g.ok)).toBe(true);

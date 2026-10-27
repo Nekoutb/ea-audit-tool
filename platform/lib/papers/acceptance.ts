@@ -191,7 +191,8 @@ const D3_2: PaperDef = {
   std: "IESBA Code Parts 1 and 4A · ISA 220 (Revised) ¶16–21 · ISQM 1 ¶29",
   ownsEn: "the independence conclusion, and the threats and safeguards log",
   ownsFr: "la conclusion d'indépendance et le registre des risques et sauvegardes",
-  tools: ["independence"],
+  // F008: no tool feeds this paper. The declarations are obtained outside the
+  // system, filed here as attachments, and the partner signs the paper.
   reqEn: [
     "We comply with relevant ethical requirements, including those on independence (ISA 220 (Revised) ¶16). The engagement partner obtains information from the firm and, where relevant, from network firms, and determines that the requirements applicable to the engagement have been fulfilled (ISA 220 (Revised) ¶21; ISQM 1 ¶29).",
     "The International Ethics Standards Board for Accountants (IESBA) Code applies a conceptual framework: identify threats to compliance with the fundamental principles, evaluate whether those threats are at an acceptable level, and address them by eliminating the circumstance, applying a safeguard, or declining the engagement (§120). Threats are classified under five categories: self-interest, self-review, advocacy, familiarity and intimidation.",
@@ -224,7 +225,7 @@ const D3_2: PaperDef = {
       introFr:
         "Mettre en œuvre chaque procédure et consigner le résultat, en nommant le registre consulté ou la personne ayant répondu, et la référence du dossier.",
       procs: [
-        { key: "declare", en: "Issue the independence declaration to every person assigned to the engagement, including the engagement partner and any auditor's expert. Record the date issued and the responses received.", fr: "Adresser la déclaration d'indépendance à toute personne affectée à la mission, y compris l'associé responsable et tout expert de l'auditeur. Consigner la date d'envoi et les réponses reçues.", srcEn: "Independence inquiry tool · team page", srcFr: "Outil d'enquête d'indépendance · page Équipe" },
+        { key: "declare", en: "Obtain, outside the system, the signed independence declaration of every person assigned to the engagement, including the engagement partner and any auditor's expert. File each signed declaration on this paper as an attachment and record the date it was obtained.", fr: "Obtenir, en dehors du système, la déclaration d'indépendance signée de toute personne affectée à la mission, y compris l'associé responsable et tout expert de l'auditeur. Classer chaque déclaration signée sur ce papier en pièce jointe et consigner la date d'obtention.", srcEn: "Signed declarations obtained outside the system · attachments to this paper · team page", srcFr: "Déclarations signées obtenues en dehors du système · pièces jointes de ce papier · page Équipe" },
         { key: "interests", en: "Search the firm's register of interests for financial interests in the entity or its related entities held by the firm, its partners, or their immediate family.", fr: "Consulter le registre des intérêts du cabinet à la recherche d'intérêts financiers dans l'entité ou ses entités liées détenus par le cabinet, ses associés ou les membres de leur famille proche.", srcEn: "Firm register of interests · partner declarations", srcFr: "Registre des intérêts du cabinet · déclarations des associés" },
         { key: "nas", en: "Identify every non-assurance service provided to the entity by the firm or a network firm in the current and prior period. Record the service, the fee and the period.", fr: "Recenser chaque service autre que d'assurance fourni à l'entité par le cabinet ou un cabinet du réseau sur l'exercice et l'exercice précédent. Consigner la prestation, les honoraires et la période.", srcEn: "Billing records · network firm confirmations · engagement register", srcFr: "Facturation · confirmations des cabinets du réseau · registre des missions" },
         { key: "fees", en: "Obtain the fee history for the entity over the last three periods and calculate the fees as a proportion of the office's and the firm's total fees.", fr: "Obtenir l'historique des honoraires de l'entité sur les trois derniers exercices et calculer leur part dans le total des honoraires du bureau et du cabinet.", srcEn: "Billing records · practice management system", srcFr: "Facturation · système de gestion du cabinet" },
@@ -239,11 +240,11 @@ const D3_2: PaperDef = {
       titleEn: "Part B — Team declarations",
       titleFr: "Partie B — Déclarations de l'équipe",
       introEn:
-        "Declarations are requested and collected by the independence inquiry on the Tools page. Issue the inquiry, then confirm that every member has responded before fieldwork begins.",
+        "Independence declarations are obtained outside the system. Each team member's signed declaration is uploaded to this paper as an attachment, and the engagement partner signs the paper once every declaration is filed and evaluated.",
       introFr:
-        "Les déclarations sont demandées et collectées par l'enquête d'indépendance (page Outils). Confirmer que chaque membre a répondu avant le début des travaux.",
+        "Les déclarations d'indépendance sont obtenues en dehors du système. La déclaration signée de chaque membre de l'équipe est chargée sur ce papier en pièce jointe, et l'associé responsable signe le papier une fois toutes les déclarations classées et évaluées.",
       fields: [
-        { key: "campaign", kind: "auto", labelEn: "Declarations received, outstanding and exceptions reported", labelFr: "Déclarations reçues, en attente et exceptions signalées", source: "independence inquiry" },
+        { key: "declarations_filed", kind: "input", labelEn: "Signed declarations filed as attachments: the members covered, the date each was obtained, and any exception declared", labelFr: "Déclarations signées classées en pièces jointes : les membres concernés, la date d'obtention de chacune et toute exception déclarée" },
         { key: "outstanding", kind: "input", labelEn: "Where a declaration is outstanding at the date of this paper, the reason and the action taken", labelFr: "Si une déclaration reste en attente à la date de ce document, le motif et les mesures prises" },
       ],
     },

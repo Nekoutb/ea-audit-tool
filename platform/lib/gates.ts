@@ -2,9 +2,10 @@
 // methodology says must, the tool BLOCKS with a clear explanation).
 //
 // acceptance → planning:  P1.1 form complete & concluded "accept", partner
-//                         sign-off on the P1.1 working paper, an independence
-//                         campaign launched with every confirmation completed
-//                         and exceptions disposed.
+//                         sign-off on the P1.1 working paper, an engagement
+//                         partner designated. Independence declarations are
+//                         obtained outside the system and filed on P2.1
+//                         (F008): no gate waits on an in-app confirmation.
 // planning → execution:   materiality approved; partner sign-offs on P2.2,
 //                         P5.2, S3.1; every significant risk linked to ≥1
 //                         program step (or validly rebutted with partner
@@ -193,38 +194,7 @@ async function acceptanceGatesTx(tx: PoolClient, engagementId: string): Promise<
   const signed = await approvalSigned(tx, engagementId, "P1.1");
   const partnerDesignated = await engagementPartnerDesignated(tx, engagementId);
 
-  const independence = await tx.query<{ total: string; open: string; undisposed: string }>(
-    `SELECT
-       count(*)::text AS total,
-       count(*) FILTER (WHERE ic.status IN ('sent', 'opened'))::text AS open,
-       count(*) FILTER (WHERE ic.status = 'exception' AND ic.disposition IS NULL)::text AS undisposed
-       FROM independence_confirmation ic
-       JOIN independence_campaign c ON c.id = ic.campaign_id
-      WHERE c.engagement_id = $1`,
-    [engagementId],
-  );
-  const indep = independence.rows[0];
-
-  // Every active team member (invited or accepted — a declined invitation is
-  // not on the team) must hold a completed or dispositioned confirmation: two
-  // confirmations out of twenty-two used to turn the gate green (UAT B13).
-  const { independenceEligibleSql } = await import("@/lib/independence");
-  const notAsked = await tx.query<{ n: string }>(
-    `SELECT count(*)::text AS n
-       FROM team_member tm
-      WHERE tm.engagement_id = $1
-        AND coalesce(tm.status, 'accepted') <> 'declined'
-        -- a client contact or read-only observer declares nothing (UAT run 3 B04)
-        AND ${independenceEligibleSql("tm.user_id", "tm.tenant_id")}
-        AND NOT EXISTS (
-          SELECT 1 FROM independence_confirmation ic
-            JOIN independence_campaign c ON c.id = ic.campaign_id
-           WHERE c.engagement_id = $1 AND ic.user_id = tm.user_id
-             AND (ic.status = 'completed' OR (ic.status = 'exception' AND ic.disposition IS NOT NULL))
-        )`,
-    [engagementId],
-  );
-  const membersMissing = Number(notAsked.rows[0].n);
+  // F008: no independence gate — declarations are obtained outside the system.
   const openNotes = await openReviewNotes(tx, engagementId, ["P1.%"]);
 
   return [
@@ -232,9 +202,6 @@ async function acceptanceGatesTx(tx: PoolClient, engagementId: string): Promise<
     { key: "d31_checks_passed", ok: formComplete && checksPassed },
     { key: "d31_partner_signed", ok: signed },
     { key: "engagement_partner_designated", ok: partnerDesignated, href: `/engagements/${engagementId}/team` },
-    // Not vacuous: a campaign must exist AND be fully completed, for everyone on the team.
-    { key: "independence_complete", ok: Number(indep.total) > 0 && Number(indep.open) === 0 && membersMissing === 0 },
-    { key: "independence_exceptions_disposed", ok: Number(indep.undisposed) === 0 },
     reviewNotesGate(engagementId, openNotes),
   ];
 }

@@ -46,9 +46,9 @@ beforeAll(async () => {
   openEngagement = await createEngagement({ clientId: client.rows[0].id, fiscalYear: 2025, periodEnd: "2025-12-31", partnerId: PARTNER });
   teamEngagement = await createEngagement({ clientId: client.rows[0].id, fiscalYear: 2024, periodEnd: "2024-12-31", partnerId: PARTNER });
 
-  // Only the second has a team, so the first stands for an unassigned file
-  // (one opened before the partner became mandatory): its seated partner goes.
-  await admin.query("DELETE FROM team_member WHERE engagement_id = $1", [openEngagement]);
+  // F008: only accepted team members see a file, so the firm administrator
+  // (PARTNER) searches as the engagement partner seated on both at creation;
+  // MEMBER is on the second only, OUTSIDER on neither.
   await admin.query(
     "INSERT INTO team_member (tenant_id,engagement_id,user_id,team_role,status) VALUES ($1,$2,$3,'senior','accepted')",
     [TENANT, teamEngagement, MEMBER],
@@ -157,7 +157,7 @@ describe("finding things", () => {
 });
 
 describe("search respects engagement visibility", () => {
-  it("shows a partner both engagements", async () => {
+  it("shows a member of both teams both engagements", async () => {
     as(PARTNER, "partner");
     const ids = new Set((await search("depreciation OR douteuses")).hits.map((h) => h.engagementId));
     expect(ids.has(openEngagement)).toBe(true);
@@ -178,10 +178,19 @@ describe("search respects engagement visibility", () => {
     expect(ids.has(teamEngagement)).toBe(true);
   });
 
-  it("still shows an unassigned engagement to the firm", async () => {
+  it("shows nothing of a file to someone not on its team, whatever the firm role (F008)", async () => {
     as(OUTSIDER, "senior");
-    const ids = new Set((await search("douteuses")).hits.map((h) => h.engagementId));
-    expect(ids.has(openEngagement)).toBe(true);
+    expect(new Set((await search("douteuses")).hits.map((h) => h.engagementId)).has(openEngagement)).toBe(false);
+    await admin.query("DELETE FROM team_member WHERE engagement_id = $1 AND user_id = $2", [teamEngagement, PARTNER]);
+    try {
+      as(PARTNER, "firm_admin");
+      expect(new Set((await search("Confidential")).hits.map((h) => h.engagementId)).has(teamEngagement)).toBe(false);
+    } finally {
+      await admin.query(
+        "INSERT INTO team_member (tenant_id,engagement_id,user_id,team_role,status) VALUES ($1,$2,$3,'partner','accepted')",
+        [TENANT, teamEngagement, PARTNER],
+      );
+    }
   });
 });
 

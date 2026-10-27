@@ -77,10 +77,10 @@ export interface AttachmentRow {
  * callers' not-found handling is unchanged.
  */
 async function guardEngagementOf(sql: string, id: string): Promise<void> {
-  const { tenantId, userId, role } = await requireTenant();
+  const { tenantId, userId } = await requireTenant();
   const r = await withTenant(tenantId, (tx) => tx.query<{ engagement_id: string }>(sql, [id]));
   const engagementId = r.rows[0]?.engagement_id;
-  if (engagementId && !(await visibleToUser(engagementId, tenantId, userId, role))) {
+  if (engagementId && !(await visibleToUser(engagementId, tenantId, userId))) {
     throw new ForbiddenError("not-on-this-engagement");
   }
 }

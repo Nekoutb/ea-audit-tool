@@ -4,7 +4,8 @@ import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from "vitest
 // Regressions for the high-severity findings of the THIRD DEV user-acceptance
 // run: B01 a review note raised on another engagement's task, B02 the team
 // completing the EQR gate itself, B03 a team-role EQR rewriting the team's
-// papers, B04 a read-only observer blocking the independence gate; and the
+// papers, B04 a read-only observer blocking the independence gate (retired with
+// the campaign, F008: no gate waits on independence any more); and the
 // partial fixes: concurrent edits of different fields, C5.8 contradicting the
 // equity monitor.
 
@@ -53,7 +54,6 @@ import { generateDocument, signDocument } from "@/lib/documents";
 import { createEngagement, listFileItems } from "@/lib/engagements";
 import { saveForm } from "@/lib/forms";
 import { acceptanceGates } from "@/lib/gates";
-import { launchCampaign } from "@/lib/independence";
 import { decodePaperDraft, encodePaperDraft } from "@/lib/paper-drafts";
 import { paperKeys, requiredKeys } from "@/lib/papers/types";
 import { addTaskNote } from "@/lib/task-notes";
@@ -256,24 +256,14 @@ describe("B02 — only the appointed quality reviewer completes the EQR gate", (
   });
 });
 
-describe("B04 — a read-only observer does not block the independence gate", () => {
-  it("counts only firm staff who declare independence", async () => {
+describe("B04 → F008 — no observer can block an independence gate: there is none", () => {
+  it("a read-only observer on the team leaves the acceptance gates without any independence line", async () => {
     const id = await engagement();
     await assignTeamMember(id, MANAGER, "manager");
     await assignTeamMember(id, READER, "staff");
-    const team = await listTeam(id);
-    expect(team.find((m) => m.userId === READER)?.declaresIndependence).toBe(false);
-    expect(team.find((m) => m.userId === MANAGER)?.declaresIndependence).toBe(true);
-    await expect(launchCampaign(id, [READER])).rejects.toThrow("invalid-recipient");
-    // ADMIN, the engagement partner seated at creation, declares like the manager
-    await launchCampaign(id, [MANAGER, ADMIN]);
-    await admin.query(
-      `UPDATE independence_confirmation SET status = 'completed'
-        WHERE campaign_id IN (SELECT id FROM independence_campaign WHERE engagement_id = $1)`,
-      [id],
-    );
-    const gate = (await acceptanceGates(id)).find((g) => g.key === "independence_complete");
-    expect(gate?.ok).toBe(true);
+    expect((await listTeam(id)).map((m) => m.userId)).toEqual(expect.arrayContaining([MANAGER, READER]));
+    const gates = await acceptanceGates(id);
+    expect(gates.some((g) => g.key.startsWith("independence"))).toBe(false);
   });
 });
 

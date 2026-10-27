@@ -294,7 +294,7 @@ export function accountMail(
       // The sign-in page carrying the engagement, never the engagement itself:
       // the old link worked only for someone who already had a live session.
       const dash = facts.engagementId
-        ? loginUrl(facts.email, `/engagements/${facts.engagementId}/dashboard`)
+        ? loginUrl(facts.email, `/invitations/${facts.engagementId}`)
         : signIn;
       return render(subject, {
         greeting,

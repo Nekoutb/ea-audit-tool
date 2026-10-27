@@ -17,21 +17,17 @@ describe("endSentence", () => {
 });
 
 describe("independenceStatement", () => {
-  it("says no confirmation was requested when the campaign is empty", () => {
-    const fr = independenceStatement({ total: 0, completed: 0, exceptions: 0, undisposed: 0 }, true);
-    expect(fr).toContain("Aucune confirmation d'indépendance n'a été demandée");
+  // F008: declarations are obtained outside the system and filed on P2.1;
+  // the letter says where they are and counts nothing (UAT run 2 B83 still
+  // holds: it never asserts that every member confirmed).
+  it("points to the declarations filed on P2.1, in both languages", () => {
+    const en = independenceStatement(false);
+    expect(en).toContain("obtained outside the system");
+    expect(en).toContain("P2.1");
+    expect(en).not.toContain("Every team member confirmed");
+    const fr = independenceStatement(true);
+    expect(fr).toContain("en dehors du système");
+    expect(fr).toContain("P2.1");
     expect(fr).not.toContain("Chaque membre");
-  });
-
-  it("states the outstanding confirmations instead of asserting all were given", () => {
-    const en = independenceStatement({ total: 4, completed: 2, exceptions: 1, undisposed: 1 }, false);
-    expect(en).toContain("1 not yet received");
-    expect(en).not.toContain("Every team member");
-    expect(en).toContain("await the partner's disposition");
-  });
-
-  it("asserts every member confirmed only when all are returned", () => {
-    const fr = independenceStatement({ total: 3, completed: 3, exceptions: 0, undisposed: 0 }, true);
-    expect(fr).toContain("Chaque membre de l'équipe a confirmé");
   });
 });

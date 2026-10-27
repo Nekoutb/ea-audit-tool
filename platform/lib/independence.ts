@@ -1,153 +1,29 @@
-// Independence confirmation campaigns (spec §4.2, IESBA Code). Each selected
-// staff member gets a unique tokenized link to a structured questionnaire; any
-// "yes" answer is an exception creating a threat-and-safeguard record that a
-// partner must disposition before the engagement can be accepted.
+// Independence confirmations — READ-ONLY since F008 (2026-10-27).
+//
+// The firm scrapped the in-app independence campaign: declarations are now
+// obtained outside the system, and the signed declarations are filed on the
+// P2.1 working paper as attachments, which the partner signs. Nothing here
+// issues, reminds, answers or dispositions a confirmation any more, and no
+// gate waits on one.
+//
+// The independence_campaign / independence_confirmation tables and the rows
+// already recorded in them are kept (no destructive migration): this module
+// only reads them, so a file that ran a campaign before the change still
+// shows what was received, as history.
 
-import { createHash, randomBytes } from "node:crypto";
-import { Document, HeadingLevel, Packer, Paragraph, TextRun } from "docx";
-import type { PoolClient } from "pg";
-import { recordActivity } from "@/lib/activity";
 import { withTenant } from "@/lib/db";
-import { DOCX_MIME } from "@/lib/documents";
-import { sendEmail } from "@/lib/email";
-import { tenantSender } from "@/lib/tenant-mail";
-import { createNotification } from "@/lib/notifications";
-import { requireEngagementAccess } from "@/lib/engagement-access";
-import { atLeast, canPartnerSignoff } from "@/lib/rbac";
-import { ForbiddenError, requireTenant, requireWrite } from "@/lib/tenant";
-
-export interface IndependenceQuestion {
-  key: string;
-  labelEn: string;
-  labelFr: string;
-}
-
-// IESBA-derived question set (spec §4.2). "Yes" to any = exception.
-export const INDEPENDENCE_QUESTIONS: readonly IndependenceQuestion[] = [
-  { key: "financial_interest", labelEn: "Do you (or close family) hold a financial interest in the client?", labelFr: "Détenez-vous (ou un proche) un intérêt financier chez le client ?" },
-  { key: "family_relationship", labelEn: "Do you have family or close personal relationships with client management?", labelFr: "Avez-vous des liens familiaux ou personnels étroits avec la direction du client ?" },
-  { key: "loans_guarantees", labelEn: "Do you have loans or guarantees to/from the client?", labelFr: "Avez-vous des prêts ou garanties avec le client ?" },
-  { key: "business_relationship", labelEn: "Do you have business relationships with the client?", labelFr: "Avez-vous des relations d'affaires avec le client ?" },
-  { key: "long_association", labelEn: "Have you served this client long enough to raise a familiarity threat (rotation)?", labelFr: "Votre ancienneté sur ce client crée-t-elle un risque de familiarité (rotation) ?" },
-  { key: "gifts_hospitality", labelEn: "Have you accepted gifts or hospitality from the client beyond trivial value?", labelFr: "Avez-vous accepté des cadeaux ou invitations du client au-delà d'une valeur négligeable ?" },
-] as const;
-
-export type IndependenceAnswers = Record<string, boolean>;
-/** Per-question account of circumstances and mitigating factors/safeguards,
- * required for every exception ("yes") answer. Keyed by question key. */
-export type IndependenceExplanations = Record<string, string>;
-
-export function hasException(answers: IndependenceAnswers): boolean {
-  return INDEPENDENCE_QUESTIONS.some((q) => answers[q.key] === true);
-}
+import { requireTenant } from "@/lib/tenant";
 
 export interface ConfirmationSummary {
   id: string;
   userId: string;
   userName: string;
-  token: string;
   status: "sent" | "opened" | "completed" | "exception";
-  reminderCount: number;
   signedAt: string | null;
   disposition: string | null;
-  /** the member's answers and their exception explanations, once signed */
-  answers: IndependenceAnswers | null;
-  explanations: IndependenceExplanations | null;
 }
 
-/**
- * SQL predicate: the user is firm staff who declares independence — not a
- * client contact, not a read-only observer. launchCampaign refuses the others
- * as recipients, so the acceptance gate must not wait for them either: a
- * read-only observer on the team made the gate impossible to pass (UAT run 3
- * B04). One definition, used by the campaign, the gate and the screens.
- */
-export function independenceEligibleSql(userCol: string, tenantCol: string): string {
-  return `EXISTS (SELECT 1 FROM membership m_ie
-                   WHERE m_ie.tenant_id = ${tenantCol} AND m_ie.user_id = ${userCol}
-                     AND m_ie.role NOT IN ('client_user', 'read_only'))`;
-}
-
-/**
- * Launch (or extend) the engagement's campaign — one confirmation per user.
- * Re-launching reuses the existing campaign and only adds missing recipients,
- * so double-submits cannot create duplicate outstanding confirmations that
- * would block the acceptance gate forever. [Adversarial-review fix]
- */
-export async function launchCampaign(
-  engagementId: string,
-  userIds: string[],
-): Promise<string> {
-  const { tenantId, userId, role } = await requireWrite();
-  // Issuing the team's independence confirmations is the engagement manager's
-  // job, not any team member's (UAT B02).
-  if (role === "eqr_reviewer" || !atLeast(role, "manager")) throw new ForbiddenError("team-manager-only");
-  await requireEngagementAccess(engagementId);
-  if (userIds.length === 0) throw new Error("no-recipients");
-  const sender = await tenantSender(tenantId);
-  return withTenant(tenantId, async (tx) => {
-    // A confirmation goes to firm staff only: a client contact or a read-only
-    // observer has no independence to declare on the file (UAT B91).
-    const ineligible = await tx.query(
-      `SELECT 1 FROM unnest($2::uuid[]) AS r(user_id)
-        WHERE NOT EXISTS (
-          SELECT 1 FROM membership m
-           WHERE m.tenant_id = $1 AND m.user_id = r.user_id
-             AND m.role NOT IN ('client_user', 'read_only')
-        )`,
-      [tenantId, userIds],
-    );
-    if ((ineligible.rowCount ?? 0) > 0) throw new Error("invalid-recipient");
-    const existing = await tx.query<{ id: string }>(
-      "SELECT id FROM independence_campaign WHERE engagement_id = $1 ORDER BY created_at LIMIT 1 FOR UPDATE",
-      [engagementId],
-    );
-    let campaignId = existing.rows[0]?.id;
-    if (!campaignId) {
-      const campaign = await tx.query<{ id: string }>(
-        "INSERT INTO independence_campaign (tenant_id, engagement_id, created_by) VALUES ($1, $2, $3) RETURNING id",
-        [tenantId, engagementId, userId],
-      );
-      campaignId = campaign.rows[0].id;
-    }
-    for (const recipient of userIds) {
-      const token = randomBytes(24).toString("hex");
-      const inserted = await tx.query<{ id: string }>(
-        `INSERT INTO independence_confirmation (tenant_id, campaign_id, user_id, token)
-         VALUES ($1, $2, $3, $4)
-         ON CONFLICT (campaign_id, user_id) DO NOTHING
-         RETURNING id`,
-        [tenantId, campaignId, recipient, token],
-      );
-      if (!inserted.rows[0]) continue; // already invited — no duplicate, no re-email
-      const email = await tx.query<{ email: string }>(
-        "SELECT email FROM app_user WHERE id = $1",
-        [recipient],
-      );
-      if (email.rows[0]) {
-        sendEmail({
-          ...sender,
-          to: email.rows[0].email,
-          subject: "Independence confirmation required",
-          body: `Complete your confirmation: /independence/${token}\n\nOr simply REPLY to this email with "I CONFIRM my independence" — your reply is logged in the engagement file with its timestamp.`,
-          tag: `IND-${token}`,
-        });
-      }
-      // In the app as well as by email (UAT B92): the bell and the dashboard
-      // carry the link to the form, so an undelivered email is not a dead end.
-      await createNotification({
-        tenantId,
-        userId: recipient,
-        kind: "independence-confirmation",
-        title: "Independence confirmation required · Confirmation d'indépendance requise",
-        body: "Complete your confirmation for this engagement. · Complétez votre confirmation pour cette mission.",
-        href: `/independence/${token}`,
-      });
-    }
-    return campaignId;
-  });
-}
-
+/** Confirmations recorded by the retired campaign, for display as history. */
 export async function listConfirmations(engagementId: string): Promise<ConfirmationSummary[]> {
   const { tenantId } = await requireTenant();
   return withTenant(tenantId, async (tx) => {
@@ -155,17 +31,12 @@ export async function listConfirmations(engagementId: string): Promise<Confirmat
       id: string;
       user_id: string;
       user_name: string;
-      token: string;
       status: ConfirmationSummary["status"];
-      reminder_count: number;
       signed_at: string | null;
       disposition: string | null;
-      answers: IndependenceAnswers | null;
-      explanations: IndependenceExplanations | null;
     }>(
-      `SELECT ic.id, ic.user_id, coalesce(u.name, u.email) AS user_name, ic.token, ic.status,
-              ic.reminder_count, to_char(ic.signed_at, 'YYYY-MM-DD HH24:MI') AS signed_at,
-              ic.disposition, ic.answers, ic.explanations
+      `SELECT ic.id, ic.user_id, coalesce(u.name, u.email) AS user_name, ic.status,
+              to_char(ic.signed_at, 'YYYY-MM-DD HH24:MI') AS signed_at, ic.disposition
          FROM independence_confirmation ic
          JOIN independence_campaign c ON c.id = ic.campaign_id
          JOIN app_user u ON u.id = ic.user_id
@@ -177,325 +48,9 @@ export async function listConfirmations(engagementId: string): Promise<Confirmat
       id: row.id,
       userId: row.user_id,
       userName: row.user_name,
-      token: row.token,
       status: row.status,
-      reminderCount: row.reminder_count,
       signedAt: row.signed_at,
       disposition: row.disposition,
-      answers: row.answers,
-      explanations: row.explanations,
     }));
   });
-}
-
-/** Resolve a confirmation by token for the signed-in user (link is personal). */
-export async function getMyConfirmation(token: string): Promise<{
-  id: string;
-  status: string;
-  answers: IndependenceAnswers | null;
-  /** which file the declaration is for (UAT B48) */
-  clientName: string;
-  engagementName: string;
-  fiscalYear: number;
-} | null> {
-  const { tenantId, userId } = await requireTenant();
-  return withTenant(tenantId, async (tx) => {
-    const result = await tx.query<{
-      id: string;
-      status: string;
-      answers: IndependenceAnswers | null;
-      user_id: string;
-      client_name: string;
-      engagement_name: string;
-      fiscal_year: number;
-    }>(
-      `SELECT ic.id, ic.status, ic.answers, ic.user_id, cl.name AS client_name,
-              coalesce(e.name, cl.name) AS engagement_name, e.fiscal_year
-         FROM independence_confirmation ic
-         JOIN independence_campaign c ON c.id = ic.campaign_id
-         JOIN engagement e ON e.id = c.engagement_id
-         JOIN client cl ON cl.id = e.client_id
-        WHERE ic.token = $1`,
-      [token],
-    );
-    const row = result.rows[0];
-    if (!row || row.user_id !== userId) return null;
-    if (row.status === "sent") {
-      await tx.query(
-        "UPDATE independence_confirmation SET status = 'opened' WHERE id = $1 AND status = 'sent'",
-        [row.id],
-      );
-    }
-    return {
-      id: row.id,
-      status: row.status,
-      answers: row.answers,
-      clientName: row.client_name,
-      engagementName: row.engagement_name,
-      fiscalYear: Number(row.fiscal_year),
-    };
-  });
-}
-
-async function confirmationArtifact(
-  answers: IndependenceAnswers,
-  signatureName: string,
-  status: string,
-  explanations: IndependenceExplanations = {},
-): Promise<Buffer> {
-  const children = [
-    new Paragraph({
-      heading: HeadingLevel.TITLE,
-      children: [new TextRun("Independence confirmation / Confirmation d'indépendance")],
-    }),
-    ...INDEPENDENCE_QUESTIONS.flatMap((question) => {
-      const out = [
-        new Paragraph({
-          children: [
-            new TextRun({ text: `${question.labelEn} — ` }),
-            new TextRun({ text: answers[question.key] ? "YES" : "NO", bold: true }),
-          ],
-        }),
-      ];
-      const note = explanations[question.key]?.trim();
-      if (note) {
-        out.push(
-          new Paragraph({
-            children: [new TextRun({ text: `Circumstances and mitigating factors: ${note}`, italics: true })],
-          }),
-        );
-      }
-      return out;
-    }),
-    new Paragraph({ children: [new TextRun({ text: `Status: ${status}`, bold: true })] }),
-    new Paragraph({
-      children: [
-        new TextRun({
-          text: `Electronically signed by ${signatureName} on ${new Date().toISOString().slice(0, 10)}`,
-          italics: true,
-        }),
-      ],
-    }),
-  ];
-  return Packer.toBuffer(new Document({ sections: [{ children }] }));
-}
-
-/**
- * Submit + e-sign a confirmation. Any "yes" → exception (partner disposition
- * required). The signed confirmation is archived into P1.1 as a Word artifact
- * (spec §4.2). [Adversarial-review fix]
- */
-export async function submitConfirmation(
-  token: string,
-  answers: IndependenceAnswers,
-  signatureName: string,
-  explanations: IndependenceExplanations = {},
-): Promise<"completed" | "exception"> {
-  const { tenantId, userId } = await requireTenant();
-  if (!signatureName.trim()) throw new Error("signature-required");
-  // Every exception must explain itself: circumstances + mitigating factors.
-  for (const q of INDEPENDENCE_QUESTIONS) {
-    if (answers[q.key] === true && !explanations[q.key]?.trim()) throw new Error("explanation-required");
-  }
-  const status = hasException(answers) ? "exception" : "completed";
-  let signedEngagementId: string | null = null;
-  await withTenant(tenantId, async (tx) => {
-    const updated = await tx.query<{ engagement_id: string }>(
-      `UPDATE independence_confirmation ic
-          SET answers = $2, signature_name = $3, signed_at = now(), status = $4,
-              explanations = $6
-         FROM independence_campaign c
-        WHERE ic.token = $1 AND ic.user_id = $5 AND ic.status IN ('sent', 'opened')
-          AND c.id = ic.campaign_id
-        RETURNING c.engagement_id`,
-      [token, JSON.stringify(answers), signatureName, status, userId, JSON.stringify(explanations)],
-    );
-    if (updated.rowCount === 0) throw new Error("not-found");
-
-    // Archive into P1.1 (kind='letter' so it never collides with the working paper).
-    const engagementId = updated.rows[0].engagement_id;
-    signedEngagementId = engagementId;
-    const item = await tx.query<{ id: string }>(
-      "SELECT id FROM file_item WHERE engagement_id = $1 AND code = 'P1.1'",
-      [engagementId],
-    );
-    if (item.rows[0]) {
-      const content = await confirmationArtifact(answers, signatureName, status, explanations);
-      const created = await tx.query<{ id: string }>(
-        `INSERT INTO document (tenant_id, engagement_id, file_item_id, title, language, kind, created_by, current_version)
-         VALUES ($1, $2, $3, $4, 'en', 'letter', $5, 1) RETURNING id`,
-        [tenantId, engagementId, item.rows[0].id, `Independence confirmation · Confirmation d'indépendance — ${signatureName}`, userId],
-      );
-      await tx.query(
-        `INSERT INTO document_version
-           (tenant_id, document_id, version_no, mime, byte_size, sha256, content, note, created_by)
-         VALUES ($1, $2, 1, $3, $4, $5, $6, 'independence:archived', $7)`,
-        [
-          tenantId,
-          created.rows[0].id,
-          DOCX_MIME,
-          content.length,
-          createHash("sha256").update(content).digest("hex"),
-          content,
-          userId,
-        ],
-      );
-    }
-  });
-  // A signed confirmation is acceptance evidence and belongs in the trail (UAT B62).
-  if (signedEngagementId) {
-    await recordActivity({
-      engagementId: signedEngagementId,
-      entityType: "independence_confirmation",
-      entityId: null,
-      action: "independence_confirmed",
-      summary: `Independence confirmation signed by ${signatureName.trim()} — ${status}`,
-      after: { status, exceptions: INDEPENDENCE_QUESTIONS.filter((q) => answers[q.key] === true).map((q) => q.key) },
-    });
-    // An exception needs the partner's disposition (threat and safeguard) and
-    // blocks the P2.1 sign-off until it has one: tell the engagement partners
-    // now rather than leaving it to be found on the acceptance page.
-    if (status === "exception") {
-      const exceptionEngagementName = await withTenant(tenantId, async (tx) => {
-        const r = await tx.query<{ name: string }>(
-          "SELECT coalesce(e.name, cl.name) AS name FROM engagement e JOIN client cl ON cl.id = e.client_id WHERE e.id = $1",
-          [signedEngagementId],
-        );
-        return r.rows[0]?.name ?? "";
-      });
-      const partners = await withTenant(tenantId, (tx) =>
-        tx.query<{ user_id: string }>(
-          "SELECT user_id FROM team_member WHERE engagement_id = $1 AND team_role = 'partner' AND user_id <> $2",
-          [signedEngagementId, userId],
-        ),
-      );
-      for (const partner of partners.rows) {
-        await createNotification({
-          tenantId,
-          userId: partner.user_id,
-          kind: "independence-exception",
-          title: `Independence exception · Exception d'indépendance : ${signatureName.trim()}`,
-          body: `${exceptionEngagementName}: a team member declared an independence threat — record the partner disposition before P2.1 is signed off. · ${exceptionEngagementName} : un membre de l'équipe a déclaré une menace à l'indépendance — consignez la disposition de l'associé avant la signature de P2.1.`,
-          href: `/engagements/${signedEngagementId}/acceptance`,
-        });
-      }
-    }
-  }
-  return status;
-}
-
-/**
- * True while any independence confirmation of the engagement is still
- * outstanding (sent/opened) or is an exception without a partner disposition
- * — the state in which the P2.1 conclusion cannot honestly be reviewed.
- */
-export async function independenceOpenTx(tx: PoolClient, engagementId: string): Promise<boolean> {
-  const r = await tx.query<{ n: string }>(
-    `SELECT count(*)::text AS n
-       FROM independence_confirmation ic
-       JOIN independence_campaign c ON c.id = ic.campaign_id
-      WHERE c.engagement_id = $1
-        AND (ic.status IN ('sent', 'opened') OR (ic.status = 'exception' AND ic.disposition IS NULL))`,
-    [engagementId],
-  );
-  return Number(r.rows[0]?.n ?? 0) > 0;
-}
-
-/** Partner disposition of an exception (threat-and-safeguard record). */
-export async function disposeException(confirmationId: string, disposition: string): Promise<void> {
-  const { tenantId, userId, role } = await requireTenant();
-  if (!canPartnerSignoff(role)) throw new Error("forbidden");
-  if (!disposition.trim()) throw new Error("disposition-required");
-  await withTenant(tenantId, async (tx) => {
-    await tx.query(
-      `UPDATE independence_confirmation
-          SET disposition = $2, disposition_by = $3, disposition_at = now()
-        WHERE id = $1 AND status = 'exception'`,
-      [confirmationId, disposition, userId],
-    );
-  });
-}
-
-/** Manual reminder (auto-cadence deferred until a scheduler exists — DECISIONS.md). */
-export async function sendReminder(confirmationId: string): Promise<void> {
-  const { tenantId } = await requireTenant();
-  const target: { userId: string; email: string; token: string; engagementName: string } | null = await withTenant(
-    tenantId,
-    async (tx) => {
-      const result = await tx.query<{ user_id: string; email: string; token: string; engagement_name: string }>(
-        `UPDATE independence_confirmation ic
-            SET reminder_count = reminder_count + 1, last_reminder_at = now()
-           FROM app_user u, independence_campaign c, engagement e, client cl
-          WHERE ic.id = $1 AND u.id = ic.user_id AND ic.status IN ('sent', 'opened')
-            AND c.id = ic.campaign_id AND e.id = c.engagement_id AND cl.id = e.client_id
-          RETURNING ic.user_id, u.email, ic.token, coalesce(e.name, cl.name) AS engagement_name`,
-        [confirmationId],
-      );
-      const row = result.rows[0];
-      return row ? { userId: row.user_id, email: row.email, token: row.token, engagementName: row.engagement_name } : null;
-    },
-  );
-  if (target) {
-    sendEmail({
-      ...(await tenantSender(tenantId)),
-      to: target.email,
-      subject: "Reminder: independence confirmation outstanding",
-      body: `Complete your confirmation: /independence/${target.token}\n\nOr simply REPLY to this email with "I CONFIRM my independence" — your reply is logged with its timestamp.`,
-      tag: `IND-${target.token}`,
-    });
-    // bilingual, naming the engagement and linking to the form (UAT B34)
-    await createNotification({
-      tenantId,
-      userId: target.userId,
-      kind: "independence-reminder",
-      title: "Independence confirmation outstanding · Confirmation d'indépendance en attente",
-      body: `${target.engagementName}: please complete your independence confirmation. · ${target.engagementName} : veuillez compléter votre confirmation d'indépendance.`,
-      href: `/independence/${target.token}`,
-    });
-  }
-}
-
-/**
- * The automatic 24-hour cadence: every confirmation still outstanding a day
- * after it was sent — and not reminded within the last day — gets an email and
- * an in-app notification. Idempotent per 24 hours; called when the campaign
- * status renders, so working the file keeps the reminders flowing without a
- * separate scheduler.
- */
-export async function sendDueReminders(engagementId: string): Promise<number> {
-  const { tenantId } = await requireTenant();
-  const due = await withTenant(tenantId, async (tx) => {
-    const r = await tx.query<{ user_id: string; email: string; token: string; engagement_name: string }>(
-      `UPDATE independence_confirmation ic
-          SET reminder_count = ic.reminder_count + 1, last_reminder_at = now()
-         FROM independence_campaign c, app_user u, engagement e, client cl
-        WHERE c.id = ic.campaign_id AND c.engagement_id = $1 AND u.id = ic.user_id
-          AND e.id = c.engagement_id AND cl.id = e.client_id
-          AND ic.status IN ('sent', 'opened')
-          AND ic.created_at < now() - interval '24 hours'
-          AND (ic.last_reminder_at IS NULL OR ic.last_reminder_at < now() - interval '24 hours')
-        RETURNING ic.user_id, u.email, ic.token, coalesce(e.name, cl.name) AS engagement_name`,
-      [engagementId],
-    );
-    return r.rows;
-  });
-  const sweepSender = await tenantSender(tenantId);
-  for (const row of due) {
-    sendEmail({
-      ...sweepSender,
-      to: row.email,
-      subject: "Reminder: independence confirmation outstanding",
-      body: `Your independence confirmation is still outstanding. Complete it: /independence/${row.token}\n\nOr simply REPLY to this email with "I CONFIRM my independence" — your reply is logged with its timestamp.`,
-      tag: `IND-${row.token}`,
-    });
-    await createNotification({
-      tenantId,
-      userId: row.user_id,
-      kind: "independence-reminder",
-      title: "Independence confirmation outstanding · Confirmation d'indépendance en attente",
-      body: `${row.engagement_name}: your confirmation is more than a day old. · ${row.engagement_name} : votre confirmation attend depuis plus d'un jour.`,
-      href: `/independence/${row.token}`,
-    });
-  }
-  return due.length;
 }

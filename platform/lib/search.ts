@@ -192,13 +192,13 @@ function prefixQuery(raw: string): string | null {
  * everything — a blank box should not page through the whole firm.
  */
 export async function search(rawQuery: string, locale: "en" | "fr" = "en"): Promise<SearchResults> {
-  const { tenantId, userId, role } = await requireTenant();
+  const { tenantId, userId } = await requireTenant();
   const query = rawQuery.trim();
   if (query.length < 2) return { query, hits: [], truncated: false };
 
   // websearch_to_tsquery understands quoted phrases, OR and -exclusions, and
   // never throws on punctuation the way to_tsquery does.
-  const visibility = visibilityClause(role, "e", 1);
+  const visibility = visibilityClause("e", 1);
   const sql = `
     -- $1 is cast here so it always has a known type: a partner needs no
     -- visibility predicate, and an unreferenced parameter leaves Postgres

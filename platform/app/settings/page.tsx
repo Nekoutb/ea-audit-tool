@@ -4,11 +4,13 @@ import { redirect } from "next/navigation";
 import { auth } from "@/auth";
 import { updateBrandingAction } from "@/app/actions/branding";
 import { setRetentionYearsAction } from "@/app/actions/retention";
+import { setAllowedDomainsAction } from "@/app/actions/email-domains";
 import { AppNav } from "@/components/AppNav";
 import { ErrorBanner } from "@/components/GatesPanel";
 import { LanguageSwitcher } from "@/components/LanguageSwitcher";
 import { Panel, PanelHeader, btnPrimary } from "@/components/ui/atlas";
 import { DEFAULT_ACCENT, getBranding } from "@/lib/branding";
+import { getAllowedDomains } from "@/lib/email-domains";
 import { getMessages } from "@/lib/i18n";
 import { getLocale } from "@/lib/locale";
 import { atLeast, canManageFirm, type Role } from "@/lib/rbac";
@@ -29,6 +31,7 @@ export default async function SettingsPage(props: {
   const ts = t.settings;
   const branding = await getBranding();
   const retention = await retentionPolicy();
+  const allowedDomains = isAdmin ? await getAllowedDomains() : [];
   const canSeeRetentionReport = atLeast(session.user.role as Role, "manager");
 
   const input =
@@ -45,7 +48,7 @@ export default async function SettingsPage(props: {
           data-testid="branding-saved"
           className="mt-4 rounded-[var(--radius-atlas-sm)] border border-emerald-300 bg-emerald-50 px-4 py-3 text-sm text-emerald-800 dark:border-emerald-900 dark:bg-emerald-950/40 dark:text-emerald-300"
         >
-          {saved === "retention" ? ts.savedRetention : ts.saved}
+          {saved === "retention" ? ts.savedRetention : saved === "domains" ? ts.savedDomains : ts.saved}
         </p>
       ) : null}
 
@@ -115,6 +118,47 @@ export default async function SettingsPage(props: {
           </Link>
         </div>
       </Panel>
+
+      {/* F027: the firm-wide audit log — the firm administrator's only */}
+      {isAdmin ? (
+        <Panel className="mt-6 p-6">
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <PanelHeader title={t.auditLog.title} hint={t.auditLog.hint} />
+            <Link href="/settings/audit-log" data-testid="audit-log-link" className={btnPrimary}>
+              {t.auditLog.open}
+            </Link>
+          </div>
+        </Panel>
+      ) : null}
+
+      {/* F070: the email domains an engagement-team invitation may go to */}
+      {isAdmin ? (
+        <Panel className="mt-6 p-6" data-testid="email-domains-panel">
+          <PanelHeader title={ts.emailDomains} hint={ts.emailDomainsHint} />
+          {allowedDomains.length === 0 ? (
+            <p className="mt-3 rounded-[var(--radius-atlas-sm)] border border-line-strong bg-[var(--color-warn-soft)] px-3 py-2 text-[12.5px] text-warn" data-testid="email-domains-empty">
+              {ts.emailDomainsEmpty}
+            </p>
+          ) : null}
+          <form action={setAllowedDomainsAction} className="mt-3 flex flex-wrap items-end gap-3">
+            <label className={label}>
+              {ts.emailDomainsLabel}
+              <textarea
+                name="domains"
+                rows={3}
+                defaultValue={allowedDomains.join("\n")}
+                placeholder="eca.com&#10;eca-cm.com"
+                className={`${input} w-72 font-mono text-[12.5px]`}
+                data-testid="email-domains-input"
+              />
+            </label>
+            <button type="submit" className={btnPrimary} data-testid="email-domains-save">
+              {ts.emailDomainsSave}
+            </button>
+          </form>
+          <p className="mt-2 text-[12px] text-muted">{ts.emailDomainsRule}</p>
+        </Panel>
+      ) : null}
 
       {/* /resources carries every employee's workload — firm management only */}
       {isAdmin ? (

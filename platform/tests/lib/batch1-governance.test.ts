@@ -231,8 +231,11 @@ async function removeFixture(): Promise<void> {
   await admin.query("DELETE FROM app_user WHERE lower(email) = 'unknown-eqr@batch1.local'");
 }
 
+// F008: only an accepted team member opens the file, so the engagement
+// partner (seated at creation) generates the papers and staffs the team; the
+// firm administrator who created the file is not on it.
 async function docFor(code: string): Promise<string> {
-  as(ADMIN, "firm_admin");
+  as(PARTNER, "partner");
   return generateDocument(itemIds[code], "en");
 }
 
@@ -290,12 +293,13 @@ describe("governance batch 1 against the database", () => {
     await seat(engagementId, MANAGER, "manager");
     await seat(engagementId, SENIOR, "senior");
     await seat(engagementId, STAFF, "staff");
+    as(PARTNER, "partner");
     // execution work, so the phase gates stay out of the way
     await admin.query("UPDATE engagement SET phase = 'execution' WHERE id = $1", [engagementId]);
     for (const item of await listFileItems(engagementId)) itemIds[item.code] = item.id;
   }, 120_000);
 
-  afterEach(() => as(ADMIN, "firm_admin"));
+  afterEach(() => as(PARTNER, "partner"));
 
   afterAll(async () => {
     await removeFixture();
@@ -429,7 +433,7 @@ describe("governance batch 1 against the database", () => {
            FROM team_member WHERE engagement_id = $1 AND user_id = $2`,
         [engagementId, EQRF],
       );
-      expect(row.rows[0]).toEqual({ team_role: "eqr_reviewer", declared: true, eqr_declared_by: ADMIN });
+      expect(row.rows[0]).toEqual({ team_role: "eqr_reviewer", declared: true, eqr_declared_by: PARTNER });
     });
   });
 });

@@ -73,7 +73,7 @@ export interface EngagementRegisterRow extends EngagementSummary {
 }
 
 export async function listEngagements(clientId?: string): Promise<EngagementRegisterRow[]> {
-  const { tenantId, userId, role } = await requireTenant();
+  const { tenantId, userId } = await requireTenant();
   return withTenant(tenantId, async (tx) => {
     const result = await tx.query<
       EngagementRow & {
@@ -109,7 +109,7 @@ export async function listEngagements(clientId?: string): Promise<EngagementRegi
                            AND (fi.owner_id = $2 OR fi.assignee_user_id = $2))) AS is_mine
          FROM engagement e
          JOIN client c ON c.id = e.client_id
-        WHERE ($1::uuid IS NULL OR e.client_id = $1)${visibilityClause(role, "e", 2)}
+        WHERE ($1::uuid IS NULL OR e.client_id = $1)${visibilityClause("e", 2)}
         ORDER BY e.fiscal_year DESC, c.name`,
       [clientId ?? null, userId],
     );
@@ -142,7 +142,7 @@ export interface MyTaskRow {
  * the ones assigned to them or owned by them, unsigned first (UAT B93).
  */
 export async function myTasks(limit = 40): Promise<MyTaskRow[]> {
-  const { tenantId, userId, role } = await requireTenant();
+  const { tenantId, userId } = await requireTenant();
   return withTenant(tenantId, async (tx) => {
     const result = await tx.query<{
       file_item_id: string; code: string; title_en: string; title_fr: string;
@@ -162,7 +162,7 @@ export async function myTasks(limit = 40): Promise<MyTaskRow[]> {
         -- the approver too, as the tasks page's filter=mine (UAT run 2 B72)
         WHERE (fi.assignee_user_id = $1 OR fi.owner_id = $1 OR fi.approver_user_id = $1)
           AND fi.conditional = false
-          AND e.phase <> 'archived'${visibilityClause(role, "e", 1)}
+          AND e.phase <> 'archived'${visibilityClause("e", 1)}
         ORDER BY (CASE WHEN EXISTS (SELECT 1 FROM document d WHERE d.file_item_id = fi.id AND d.status = 'signed') THEN 1 ELSE 0 END),
                  e.fiscal_year DESC, c.name, fi.sort_order
         LIMIT $2`,
@@ -310,8 +310,12 @@ export async function createEngagement(input: {
     );
     // The creator joins the team (UAT B24). Otherwise a manager who opened
     // the file and then staffed it was locked out the moment the first member
-    // was added: from then on only assigned members can see it. Partners and
-    // firm admins see every file anyway, and the EQR must stay independent.
+    // was added. A partner or firm administrator who opens a file for another
+    // engagement partner is NOT seated: since F008 only accepted team members
+    // open a file, with no exception for their rank, and seating them silently
+    // would make them a member (and, e.g., ineligible as EQR). The engagement
+    // partner, seated above, staffs the file; the creation action tells the
+    // creator so. The EQR must stay independent.
     const creatorRole = ({ manager: "manager", senior: "senior", staff: "staff" } as const)[
       role as "manager" | "senior" | "staff"
     ];

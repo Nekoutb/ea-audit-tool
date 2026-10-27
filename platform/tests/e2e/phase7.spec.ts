@@ -85,7 +85,7 @@ async function fileThroughAcceptance(
   await page.getByTestId("tb-upload").click();
   await expect(page.getByTestId("tb-import-status")).toContainText("valid");
 
-  // --- Acceptance: P1.1 form + independence campaign (clean) + advance ---
+  // --- Acceptance: P1.1 form + advance (independence is outside the system, F008) ---
   await page.goto(`${engagementUrl}/forms/P1.1`);
   await page.getByTestId("field-engagement_type").selectOption("new");
   for (const key of ["integrity_ok", "competence_ok", "conflicts_ok", "aml_ok", "independence_ok"]) {
@@ -96,13 +96,7 @@ async function fileThroughAcceptance(
   await page.getByTestId("save-form").click();
 
   await page.goto(`${engagementUrl}/acceptance`);
-  await page.getByTestId("campaign-recipients").selectOption({ label: "Alice Alpha" });
-  await page.getByTestId("launch-campaign").click();
-  await page.getByTestId("my-confirmation-link").click();
-  await page.waitForURL("**/independence/**");
-  await page.getByTestId("signature-input").fill("Alice Alpha"); // all answers default to "no"
-  await page.getByTestId("submit-confirmation").click();
-  await expect(page.getByTestId("confirmation-done")).toBeVisible();
+  await expect(page.getByTestId("independence-outside")).toBeVisible();
 
   await partnerSignCode(page, engagementUrl, "P1.1");
   await page.goto(`${engagementUrl}/acceptance`);
@@ -272,7 +266,6 @@ test("Phase 7: gates block → complete file → issue report → archive → ro
   await page.goto(`${engagementUrl}/conclusion`);
   await expect(page.getByTestId("points-forward")).toHaveValue(/Review the new IT system/);
   await page.getByTestId("partner-conclusion-text").fill("Sufficient appropriate evidence obtained; opinion unmodified.");
-  await page.getByTestId("independence-reconfirm").check();
   await page.getByTestId("save-partner-conclusion").click();
   await expect(page.getByTestId("gate-partner_conclusion")).toContainText("✓");
 

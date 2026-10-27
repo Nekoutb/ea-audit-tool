@@ -3,41 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { recordActivity } from "@/lib/activity";
-import { launchCampaign } from "@/lib/independence";
-import { addTeamMemberByEmail, listTeam, respondToEngagement, type TeamRole } from "@/lib/team";
-
-/** Launch (or extend) the independence campaign to the whole engagement team. */
-export async function launchIndependenceToTeamAction(
-  engagementId: string,
-  returnTo: string,
-): Promise<void> {
-  // firm staff only: a read-only observer or client contact declares nothing (UAT run 3 B04)
-  const team = (await listTeam(engagementId)).filter((m) => m.status !== "declined" && m.declaresIndependence);
-  const back = returnTo.startsWith(`/engagements/${engagementId}/`)
-    ? returnTo
-    : `/engagements/${engagementId}/dashboard`;
-  if (team.length === 0) redirect(`${back}?error=no-recipients`);
-  try {
-    await launchCampaign(
-      engagementId,
-      team.map((m) => m.userId),
-    );
-  } catch (error) {
-    if (error instanceof Error && /^[a-z0-9-]+$/.test(error.message)) {
-      redirect(`${back}?error=${encodeURIComponent(error.message)}`);
-    }
-    throw error;
-  }
-  await recordActivity({
-    engagementId,
-    entityType: "engagement",
-    entityId: engagementId,
-    action: "independence_campaign",
-    summary: `Independence campaign issued to ${team.length} team member(s)`,
-  });
-  revalidatePath(back);
-  redirect(back);
-}
+import { addTeamMemberByEmail, respondToEngagement, type TeamRole } from "@/lib/team";
 
 /** Team page: add a member by email; unknown emails provision the account. */
 export async function addTeamByEmailAction(
@@ -82,7 +48,7 @@ export async function respondEngagementAction(
     await respondToEngagement(engagementId, accept, reason);
   } catch (error) {
     if (error instanceof Error && /^[a-z0-9-]+$/.test(error.message)) {
-      redirect(`/engagements/${engagementId}/dashboard?error=${encodeURIComponent(error.message)}`);
+      redirect(`/invitations/${engagementId}?error=${encodeURIComponent(error.message)}`);
     }
     throw error;
   }

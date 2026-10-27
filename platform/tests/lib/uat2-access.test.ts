@@ -181,7 +181,8 @@ describe("B03 — review notes are answered and cleared through their own engage
 
 describe("B04 — leaving the team ends access", () => {
   it("vacates the member's task seats so the file closes to them", async () => {
-    await assignTeamMember(engA, MOVER, "staff");
+    // senior: P3.2 is prepared at senior level in the default matrix (F002)
+    await assignTeamMember(engA, MOVER, "senior");
     await assignTask(engA, itemA, MOVER);
     await admin.query("UPDATE file_item SET owner_id = $2 WHERE id = $1", [itemA, MOVER]);
     as(MOVER, "staff");

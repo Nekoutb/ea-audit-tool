@@ -7,7 +7,6 @@ import { auth } from "@/auth";
 import { reviewConclusionAction, routeFindingAction, saveConclusionAction } from "@/app/actions/execution";
 import { assignTaskAction, markNotApplicableAction, savePaperAction } from "@/app/actions/planning";
 import { AppNav } from "@/components/AppNav";
-import { launchIndependenceToTeamAction } from "@/app/actions/team-independence";
 import { PaperWizard } from "@/components/PaperWizard";
 import { PracticalTips, type TipEntry } from "@/components/PracticalTips";
 import { ReviewNotes } from "@/components/ReviewNotes";
@@ -61,7 +60,6 @@ import { listAttachments, listDeletedAttachments } from "@/lib/attachments";
 import { listItemDocuments, TEAM_REVIEW_ROLES } from "@/lib/documents";
 import { ensureDefaultWorkpaper, templateForCode } from "@/lib/wp-templates";
 import { effectiveDueDate, taskForItem, engagementTasks } from "@/lib/engagement-dashboard";
-import { INDEPENDENCE_QUESTIONS, listConfirmations, sendDueReminders } from "@/lib/independence";
 import { listTeam as listEngagementTeam } from "@/lib/team";
 import { EQR_OWN_PAPER, loadPaper, paperBaseDigests, paperFor, paperVersion } from "@/lib/working-papers";
 import { describeSelectionDesign, type RecordedSelectionDesign } from "@/lib/je-selection";
@@ -145,10 +143,6 @@ export default async function SectionPage(props: {
           .catch(() => null)
       : null;
   const attachments = await listAttachments(itemId);
-  // The Independence task (P2.1) embeds the campaign. Rendering it also runs
-  // the 24-hour reminder sweep — idempotent per day, so simply working the
-  // file keeps reminders flowing without a separate scheduler.
-  const isIndependenceTask = section.code === "P2.1";
   // The CRA cluster needs the width: no attachments/linked-tasks rail there.
   const wideBoard = section.code === "S3.1" || section.code === "S5.5";
   // Tool-filled values for the blue auto fields: P6.1 shows the approved
@@ -217,41 +211,6 @@ export default async function SectionPage(props: {
   }
   // E6.10 — the tie-out of the trial balance rides beside the paper (UAT B114)
   const tieout = section.code === "E6.10" ? await runFsTieout(id).catch(() => null) : null;
-  let campaign: Awaited<ReturnType<typeof listConfirmations>> = [];
-  let campaignTeam: Awaited<ReturnType<typeof listEngagementTeam>> = [];
-  if (isIndependenceTask) {
-    try {
-      await sendDueReminders(id);
-    } catch {
-      // reminders must never block the task page
-    }
-    [campaign, campaignTeam] = await Promise.all([listConfirmations(id), listEngagementTeam(id)]);
-    // Part B is filled from the campaign itself: counts, then each exception
-    // with its member, question and disposition (UAT B35).
-    if (campaign.length > 0) {
-      const frP21 = locale === "fr";
-      const received = campaign.filter((c) => c.status === "completed" || c.status === "exception").length;
-      const outstanding = campaign.filter((c) => c.status === "sent" || c.status === "opened").length;
-      const exceptions = campaign.filter((c) => c.status === "exception");
-      const questionOf = (key: string) => {
-        const q = INDEPENDENCE_QUESTIONS.find((question) => question.key === key);
-        return q ? (frP21 ? q.labelFr : q.labelEn) : key;
-      };
-      const lines = [
-        frP21
-          ? `${received} déclaration(s) reçue(s) sur ${campaign.length} · ${outstanding} en attente · ${exceptions.length} exception(s)`
-          : `${received} of ${campaign.length} declaration(s) received · ${outstanding} outstanding · ${exceptions.length} exception(s)`,
-        ...exceptions.map((c) => {
-          const questions = Object.keys(c.explanations ?? {}).map(questionOf).join(" ; ");
-          const disposition = c.disposition
-            ? `${frP21 ? "Disposition : " : "Disposition: "}${c.disposition}`
-            : frP21 ? "Disposition de l'associé en attente" : "Partner disposition pending";
-          return `${c.userName} — ${questions || "exception"} — ${disposition}`;
-        }),
-      ];
-      autoValues.campaign = lines.join("\n");
-    }
-  }
 
   // The fixed working-paper screen (non-execution tasks): sign-off state,
   // deadline, and the linked tasks resolved to their pages.
@@ -466,7 +425,6 @@ export default async function SectionPage(props: {
     "P6.2": { path: "tools/materiality", en: "Materiality tool", fr: "Outil de matérialité" },
     "C1.1": { path: "tools/sad", en: "SAD tool", fr: "Outil SAD" },
     "S3.1": { path: "risks", en: "Risk register", fr: "Registre des risques" },
-    "P1.1": { path: "tools/independence", en: "Independence tool", fr: "Outil d'indépendance" },
     // P3.2 rests on the analytical procedures run on the imported TB; S2.1/S2.2
     // (controls) pointed at unrelated TB/GL screens and are unlinked (UAT B60)
     "P3.2": { path: "analytics", en: "Analytical procedures", fr: "Procédures analytiques" },
@@ -1285,31 +1243,6 @@ export default async function SectionPage(props: {
                 ))
               )}
             </ul>
-            {isIndependenceTask ? (
-              <div className="mt-auto border-t border-line pt-2" data-testid="independence-campaign">
-                <h3 className="text-[11px] font-extrabold uppercase tracking-[0.07em] text-muted">
-                  {fr ? "Campagne d'indépendance" : "Independence campaign"}
-                </h3>
-                <ul className="mt-1 flex flex-col gap-0.5" data-testid="campaign-list">
-                  {campaign.map((c) => (
-                    <li key={c.id} className="flex items-center gap-2 text-[11.5px]" data-testid={`campaign-row-${c.userId}`}>
-                      <span className={`h-1.5 w-1.5 flex-shrink-0 rounded-full ${c.status === "completed" ? "bg-emerald-600" : c.status === "exception" ? "bg-[var(--color-rose)]" : "border border-line-strong"}`} aria-hidden />
-                      <span className="min-w-0 flex-1 truncate text-ink-soft">{c.userName}</span>
-                      <span className="flex-shrink-0 text-[10.5px] text-muted tnum">
-                        {c.signedAt ? `${fr ? "Répondu" : "Completed"} · ${c.signedAt}` : fr ? "En attente" : "Awaiting"}
-                      </span>
-                    </li>
-                  ))}
-                </ul>
-                {campaignTeam.some((m) => !campaign.some((c) => c.userId === m.userId)) || campaign.length === 0 ? (
-                  <form action={launchIndependenceToTeamAction.bind(null, id, `/engagements/${id}/sections/${itemId}`)} className="mt-1.5">
-                    <SubmitButton className="rounded-[var(--radius-atlas-sm)] bg-emerald-700 px-3 py-1 text-[11.5px] font-medium text-white hover:bg-emerald-800" testId="launch-campaign-team">
-                      {fr ? `Lancer à l'équipe (${campaignTeam.length})` : `Issue to the team (${campaignTeam.length})`}
-                    </SubmitButton>
-                  </form>
-                ) : null}
-              </div>
-            ) : null}
           </div>
         </section>
         )}

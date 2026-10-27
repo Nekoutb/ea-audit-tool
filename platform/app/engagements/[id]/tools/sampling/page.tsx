@@ -11,7 +11,10 @@ import { listTodResults } from "@/lib/engines";
 import { LEAD_INDEXES } from "@/lib/lead-classes";
 import { getLocale } from "@/lib/locale";
 import { approvedMateriality } from "@/lib/materiality";
-import { listScots } from "@/lib/scots";
+import { listScots, listTocDraws } from "@/lib/scots";
+import { teamRank } from "@/lib/signoff-policy";
+import { listTeam } from "@/lib/team";
+import { tocTestingStarted } from "@/lib/toc-sampling";
 
 export const generateMetadata = localizedTitle("Sampling", "Échantillonnage");
 
@@ -41,6 +44,10 @@ export default async function SamplingPage(props: {
     approvedMateriality(id),
     listTodResults(id),
   ]);
+  // F061: every draw is kept; after testing starts a redraw is the team's manager rank and above
+  const [draws, team] = await Promise.all([listTocDraws(id), listTeam(id)]);
+  const myTeamRole = team.find((m) => m.userId === session.user.id && m.status === "accepted")?.teamRole ?? null;
+  const mayRedrawAfterTesting = teamRank(myTeamRole) >= teamRank("manager");
   // the purpose list: every control selected for testing on S2.1, with the
   // attributes the frequency table needs — and whether it is the ONLY selected
   // control covering one of its assertions (larger minimum sample).
@@ -68,6 +75,16 @@ export default async function SamplingPage(props: {
     controlType: c.controlType,
     assertions,
     sole: assertions.some((a) => (assertionCounts.get(a) ?? 0) === 1),
+    testingStarted: tocTestingStarted(c.tocGrid),
+    history: (draws.get(c.id) ?? []).map((d) => ({
+      drawNo: d.drawNo,
+      items: d.items,
+      population: d.population,
+      seed: d.seed,
+      reason: d.reason,
+      drawnByName: d.drawnByName,
+      drawnAt: d.drawnAt,
+    })),
   }));
 
   return (
@@ -104,6 +121,7 @@ export default async function SamplingPage(props: {
             results={todResults}
             resultsError={error ?? null}
             resultsRecorded={recorded === "1"}
+            mayRedrawAfterTesting={mayRedrawAfterTesting}
           />
         </div>
       </Panel>

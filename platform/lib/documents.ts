@@ -129,8 +129,7 @@ export async function generateDocument(fileItemId: string, locale: Locale): Prom
     tx.query<{ engagement_id: string }>("SELECT engagement_id FROM file_item WHERE id = $1", [fileItemId]),
   );
   if (owner.rows[0]) {
-    const { role } = await requireTenant();
-    if (!(await visibleToUser(owner.rows[0].engagement_id, tenantId, userId, role))) {
+    if (!(await visibleToUser(owner.rows[0].engagement_id, tenantId, userId))) {
       throw new ForbiddenError("not-on-this-engagement");
     }
   }
@@ -314,7 +313,7 @@ export async function guardDocument(documentId: string): Promise<void> {
   );
   const row = result.rows[0];
   if (!row) return;
-  if (!(await visibleToUser(row.engagement_id, tenantId, userId, role))) {
+  if (!(await visibleToUser(row.engagement_id, tenantId, userId))) {
     throw new ForbiddenError("not-on-this-engagement");
   }
   if (row.fait && !canPartnerSignoff(role)) throw new ForbiddenError("fait-partner-only");
@@ -811,13 +810,9 @@ export async function signDocument(documentId: string, requested: SignoffRole): 
     }
     if (row.current_version === 0) throw new DocumentRuleError("no-version");
     if (row.checked_out_by) throw new DocumentRuleError("checked-out");
-    // P2.1 concludes on the team's independence: it cannot be reviewed or
-    // approved while a confirmation is outstanding or an exception has no
-    // partner disposition (IESBA Code, ISQM 1 ¶29).
-    if (row.code === "P2.1" && role !== "preparer") {
-      const { independenceOpenTx } = await import("@/lib/independence");
-      if (await independenceOpenTx(tx, row.engagement_id)) throw new DocumentRuleError("independence-open");
-    }
+    // P2.1 no longer waits on in-app independence confirmations (F008): the
+    // declarations are obtained outside the system, filed on P2.1 as
+    // attachments, and the partner's signature on the paper is the record.
 
     const active = await tx.query<{ role: SignoffRole; user_id: string }>(
       "SELECT role, user_id FROM signoff WHERE document_id = $1 AND voided_at IS NULL AND invalidated_at IS NULL",

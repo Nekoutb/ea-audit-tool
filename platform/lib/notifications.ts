@@ -60,6 +60,20 @@ function toNotification(row: NotificationRow): Notification {
   };
 }
 
+/**
+ * A notification that opens an engagement is shown only while the reader is an
+ * accepted member of that engagement's team (F008): a member who left, or a
+ * partner or administrator who is not staffed on the file, no longer sees what
+ * happened on it. Notifications with any other destination (the invitation
+ * itself, a firm page, none) are unaffected. Binds the user at $1.
+ */
+const ENGAGEMENT_NOTIFICATION_VISIBLE = `(
+  substring(href from '^/engagements/([0-9a-fA-F-]{36})') IS NULL
+  OR EXISTS (SELECT 1 FROM team_member tm
+              WHERE tm.engagement_id = substring(href from '^/engagements/([0-9a-fA-F-]{36})')::uuid
+                AND tm.user_id = $1 AND tm.status = 'accepted')
+)`;
+
 /** The signed-in user's notifications, newest first. */
 export async function listMyNotifications(limit = 50): Promise<Notification[]> {
   const { tenantId, userId } = await requireTenant();
@@ -68,7 +82,7 @@ export async function listMyNotifications(limit = 50): Promise<Notification[]> {
     const result = await client.query<NotificationRow>(
       `SELECT id, kind, title, body, href, read_at, created_at
          FROM notification
-        WHERE user_id = $1
+        WHERE user_id = $1 AND ${ENGAGEMENT_NOTIFICATION_VISIBLE}
         ORDER BY created_at DESC
         LIMIT $2`,
       [userId, capped],
@@ -82,7 +96,8 @@ export async function unreadCount(): Promise<number> {
   const { tenantId, userId } = await requireTenant();
   return withTenant(tenantId, async (client) => {
     const result = await client.query<{ n: string }>(
-      "SELECT count(*)::text AS n FROM notification WHERE user_id = $1 AND read_at IS NULL",
+      `SELECT count(*)::text AS n FROM notification
+        WHERE user_id = $1 AND read_at IS NULL AND ${ENGAGEMENT_NOTIFICATION_VISIBLE}`,
       [userId],
     );
     return Number(result.rows[0].n);

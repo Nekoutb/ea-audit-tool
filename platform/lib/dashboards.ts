@@ -101,10 +101,15 @@ export interface FirmDashboard {
 export async function firmDashboard(): Promise<FirmDashboard> {
   // Firm-wide rollup — see teamWorkload for why this is gated rather than
   // filtered.
-  const { tenantId } = await requireRole("manager");
+  // Every row naming an engagement is limited to the files the caller is an
+  // accepted team member of (F008): no firm role sees a file it is not on.
+  const { tenantId, userId } = await requireRole("manager");
+  const { visibilityClause } = await import("@/lib/engagement-access");
+  const visible = visibilityClause("e", 1);
   return withTenant(tenantId, async (tx) => {
     const byPhase = await tx.query<{ phase: string; count: string }>(
-      "SELECT phase, count(*)::text FROM engagement GROUP BY phase ORDER BY phase",
+      `SELECT e.phase, count(*)::text FROM engagement e WHERE true${visible} GROUP BY e.phase ORDER BY e.phase`,
+      [userId],
     );
     const deadlineHeat = await tx.query<{
       engagement_id: string; client_name: string; fiscal_year: number;
@@ -116,8 +121,9 @@ export async function firmDashboard(): Promise<FirmDashboard> {
          FROM statutory_deadline sd
          JOIN engagement e ON e.id = sd.engagement_id
          JOIN client c ON c.id = e.client_id
-        WHERE sd.done = false AND e.phase <> 'archived'
+        WHERE sd.done = false AND e.phase <> 'archived'${visible}
         ORDER BY sd.due_date LIMIT 15`,
+      [userId],
     );
     const workload = await tx.query<{ user_name: string; open_steps: string }>(
       `SELECT coalesce(u.name, u.email) AS user_name, count(ps.id)::text AS open_steps
@@ -140,8 +146,9 @@ export async function firmDashboard(): Promise<FirmDashboard> {
          FROM risk r
          JOIN engagement e ON e.id = r.engagement_id
          JOIN client c ON c.id = e.client_id
-        WHERE r.significant AND r.rebutted = false AND e.phase NOT IN ('archived')
+        WHERE r.significant AND r.rebutted = false AND e.phase NOT IN ('archived')${visible}
         ORDER BY c.name, e.fiscal_year DESC LIMIT 25`,
+      [userId],
     );
     const b5 = await tx.query<{
       engagement_id: string; client_name: string; fiscal_year: number;
@@ -154,8 +161,9 @@ export async function firmDashboard(): Promise<FirmDashboard> {
                 WHERE engagement_id = e.id AND status = 'approved'
                 ORDER BY version_no DESC LIMIT 1) AS materiality
          FROM engagement e JOIN client c ON c.id = e.client_id
-        WHERE e.phase NOT IN ('archived')
+        WHERE e.phase NOT IN ('archived')${visible}
         ORDER BY c.name LIMIT 25`,
+      [userId],
     );
     return {
       byPhase: byPhase.rows.map((row) => ({ phase: row.phase, count: Number(row.count) })),
@@ -186,7 +194,7 @@ export async function firmDashboard(): Promise<FirmDashboard> {
 
 /** One actionable row on My Audit Portfolio — always deep-links somewhere. */
 export interface PortfolioAction {
-  kind: "review" | "notes" | "independence" | "acceptance";
+  kind: "invitation" | "review" | "notes" | "acceptance";
   engagementId: string;
   label: string;
   count: number;
@@ -195,9 +203,12 @@ export interface PortfolioAction {
 
 /**
  * The personalised priority-action queue (IA audit, Part 5A §①): workpapers
- * awaiting review, open review notes on the user's own tasks, the user's
- * pending independence confirmation, and acceptances awaiting partner
- * sign-off. Reviewer-facing rows are for the caller to gate by role.
+ * awaiting review, open review notes on the user's own tasks, and
+ * acceptances awaiting partner sign-off — and, first, the engagement
+ * invitations waiting on the user's answer, which are the only way into a
+ * file they are not yet an accepted member of (F008). The pending
+ * independence confirmation left with the in-app campaign. Reviewer-facing
+ * rows are for the caller to gate by role.
  */
 export async function portfolioActions(): Promise<PortfolioAction[]> {
   const { tenantId, userId, role } = await requireTenant();
@@ -206,12 +217,22 @@ export async function portfolioActions(): Promise<PortfolioAction[]> {
   // (UAT run 2 B59).
   const { visibilityClause } = await import("@/lib/engagement-access");
   const { canPartnerSignoff, canReview } = await import("@/lib/rbac");
-  const visible = visibilityClause(role, "e", 1);
-  // the clause binds $1 only when it is not empty (partners see everything)
-  const visibleParams = visible ? [userId] : [];
+  // accepted team members only, whatever the firm role (F008); binds $1
+  const visible = visibilityClause("e", 1);
+  const visibleParams = [userId];
   const none = { rows: [] as never[] };
   return withTenant(tenantId, async (tx) => {
-    const [review, notes, independence, acceptance] = await Promise.all([
+    const [invitations, review, notes, acceptance] = await Promise.all([
+      tx.query<{ id: string; label: string }>(
+        `SELECT e.id, coalesce(e.name, c.name) AS label
+           FROM team_member tm
+           JOIN engagement e ON e.id = tm.engagement_id
+           JOIN client c ON c.id = e.client_id
+          WHERE tm.user_id = $1 AND tm.status = 'invited' AND e.phase <> 'archived'
+          ORDER BY tm.invited_at DESC NULLS LAST
+          LIMIT 6`,
+        [userId],
+      ),
       !canReview(role) ? none : tx.query<{ id: string; label: string; n: string }>(
         `SELECT e.id, coalesce(e.name, c.name) AS label, count(*)::text AS n
            FROM file_item fi
@@ -238,18 +259,8 @@ export async function portfolioActions(): Promise<PortfolioAction[]> {
            JOIN file_item fi ON fi.id = coalesce(rn.file_item_id, d.file_item_id)
            JOIN engagement e ON e.id = fi.engagement_id
            JOIN client c ON c.id = e.client_id
-          WHERE rn.status = 'open' AND fi.owner_id = $1 AND e.phase <> 'archived'
+          WHERE rn.status = 'open' AND fi.owner_id = $1 AND e.phase <> 'archived'${visible}
           GROUP BY e.id, label
-          LIMIT 6`,
-        [userId],
-      ),
-      tx.query<{ id: string; label: string; token: string }>(
-        `SELECT e.id, coalesce(e.name, c.name) AS label, ic.token
-           FROM independence_confirmation ic
-           JOIN independence_campaign cam ON cam.id = ic.campaign_id
-           JOIN engagement e ON e.id = cam.engagement_id
-           JOIN client c ON c.id = e.client_id
-          WHERE ic.user_id = $1 AND ic.status IN ('sent', 'opened')
           LIMIT 6`,
         [userId],
       ),
@@ -273,8 +284,8 @@ export async function portfolioActions(): Promise<PortfolioAction[]> {
       ),
     ]);
     const actions: PortfolioAction[] = [];
-    for (const row of independence.rows) {
-      actions.push({ kind: "independence", engagementId: row.id, label: row.label, count: 1, href: `/independence/${row.token}` });
+    for (const row of invitations.rows) {
+      actions.push({ kind: "invitation", engagementId: row.id, label: row.label, count: 1, href: `/invitations/${row.id}` });
     }
     for (const row of notes.rows) {
       actions.push({ kind: "notes", engagementId: row.id, label: row.label, count: Number(row.n), href: `/engagements/${row.id}/dashboard` });

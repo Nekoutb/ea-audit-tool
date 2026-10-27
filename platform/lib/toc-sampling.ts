@@ -52,9 +52,10 @@ export function tocSuggested(
 
 /**
  * The random selection: `size` distinct occurrence numbers from 1 to
- * `population`, ascending. Every call draws afresh — two generations never
- * mean to agree — and a population smaller than the size yields all of it.
- * `rng` is injectable so a test can hold the draw still.
+ * `population`, ascending; a population smaller than the size yields all of
+ * it. `rng` supplies the randomness: the server passes a generator derived
+ * from a stored seed (seededRng), so a draw can be reproduced from its seed
+ * (F061). The default is for tests and previews only.
  */
 export function drawTocSample(population: number, size: number, rng: () => number = Math.random): number[] {
   const n = Math.max(0, Math.floor(population));
@@ -72,6 +73,26 @@ export function drawTocSample(population: number, size: number, rng: () => numbe
     picked.set(i, vj);
   }
   return out.sort((a, b) => a - b);
+}
+
+/**
+ * A generator over [0, 1) derived from `seed` — the i-th call returns
+ * `random(seed, i)`. The server passes lib/engines.ts seededRandom, which is
+ * HMAC-based and stays out of this client-safe module.
+ */
+export function seededRng(seed: string, random: (seed: string, index: number) => number): () => number {
+  let i = 0;
+  return () => random(seed, i++);
+}
+
+/**
+ * Has testing of the drawn sample started? True once any row of the E1.2 grid
+ * carries a result for any attribute — the first item tested (F061): from then
+ * on a redraw is a manager-rank decision.
+ */
+export function tocTestingStarted(grid: { rows?: { results?: Record<string, string> }[] } | null | undefined): boolean {
+  if (!grid || !Array.isArray(grid.rows)) return false;
+  return grid.rows.some((r) => Object.values(r?.results ?? {}).some((v) => typeof v === "string" && v !== ""));
 }
 
 /** The size a 25-item plan extends to after a single deviation. */
