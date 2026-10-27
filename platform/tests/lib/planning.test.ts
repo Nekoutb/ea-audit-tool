@@ -59,8 +59,9 @@ async function seat(engagement: string, userId: string, teamRole: string): Promi
 }
 
 /**
- * OTHER_USER (staff) prepares, USER (the engagement partner) signs as
- * partner: the preparer never reviews their own paper (F001) and partner
+ * OTHER_USER (a manager: the acceptance papers are prepared at manager
+ * level in the default matrix, F002) prepares, USER (the engagement partner)
+ * signs as partner: the preparer never reviews their own paper (F001) and partner
  * sign-offs are the designated partner's (F003).
  */
 async function signAsPartner(code: string, engagement = engagementId): Promise<void> {
@@ -68,7 +69,7 @@ async function signAsPartner(code: string, engagement = engagementId): Promise<v
     engagement === engagementId ? itemId(code) : (await listFileItems(engagement)).find((i) => i.code === code)!.id,
     "en",
   );
-  actAs(OTHER_USER, "staff");
+  actAs(OTHER_USER, "manager");
   try {
     await signDocument(documentId, "preparer");
   } finally {
@@ -100,7 +101,7 @@ beforeAll(async () => {
     [USER, OTHER_USER],
   );
   await admin.query(
-    "INSERT INTO membership (user_id, tenant_id, role) VALUES ($1, $3, 'firm_admin'), ($2, $3, 'staff')",
+    "INSERT INTO membership (user_id, tenant_id, role) VALUES ($1, $3, 'firm_admin'), ($2, $3, 'manager')",
     [USER, OTHER_USER, TENANT],
   );
   const client = await admin.query<{ id: string }>(
@@ -262,13 +263,13 @@ describe("acceptance gates → planning (2.2, 2.3, 2.4)", () => {
     // exactly one. USER takes the seat; OTHER_USER, the preparer, joins the
     // team and confirms independence like everyone else.
     await expect(signAsPartner("P1.1")).rejects.toThrow("not-on-team-to-sign");
-    await seat(engagementId, OTHER_USER, "staff");
-    actAs(OTHER_USER, "staff");
+    await seat(engagementId, OTHER_USER, "manager");
+    actAs(OTHER_USER, "manager");
     await expect(signDocument(p11, "preparer")).rejects.toThrow("paper-incomplete");
     actAs(USER, "firm_admin");
     await completePaper(engagementId, "P1.1");
     expect((await acceptanceGates(engagementId)).find((g) => g.key === "engagement_partner_designated")?.ok).toBe(false);
-    actAs(OTHER_USER, "staff");
+    actAs(OTHER_USER, "manager");
     await signDocument(p11, "preparer");
     actAs(USER, "firm_admin");
     await expect(signDocument(p11, "partner")).rejects.toThrow("not-on-team-to-sign");
@@ -276,7 +277,7 @@ describe("acceptance gates → planning (2.2, 2.3, 2.4)", () => {
     await signDocument(p11, "partner");
     await launchCampaign(engagementId, [OTHER_USER]);
     const second = (await listConfirmations(engagementId)).find((c) => c.userId === OTHER_USER)!;
-    actAs(OTHER_USER, "staff");
+    actAs(OTHER_USER, "manager");
     await submitConfirmation(second.token, {}, "Second");
     actAs(USER, "firm_admin");
     const gates = await acceptanceGates(engagementId);
@@ -292,7 +293,7 @@ describe("acceptance gates → planning (2.2, 2.3, 2.4)", () => {
 
 describe("EQR independence (2.7)", () => {
   it("blocks assigning a team member as EQR", async () => {
-    await assignTeamMember(engagementId, OTHER_USER, "staff");
+    await assignTeamMember(engagementId, OTHER_USER, "manager");
     await expect(assignTeamMember(engagementId, OTHER_USER, "eqr_reviewer")).rejects.toThrow("eqr-on-team");
   });
 });
@@ -356,7 +357,7 @@ describe("planning-close gates (2.9, 2.10, 2.13)", () => {
     // UAT B17: a bespoke paper with unanswered fields cannot be handed off.
     const p22 = await generateDocument(itemId("P2.2"), "en");
     // the preparer is OTHER_USER, an accepted member of the team (seated at acceptance)
-    actAs(OTHER_USER, "staff");
+    actAs(OTHER_USER, "manager");
     await expect(signDocument(p22, "preparer")).rejects.toThrow("paper-incomplete");
     actAs(USER, "firm_admin");
     for (const code of ["P2.2", "P5.2", "S3.1"]) {
@@ -455,7 +456,7 @@ describe("letter/working-paper collision (review fix)", () => {
   it("letters under P1.1 neither hijack the working paper nor satisfy the partner gate", async () => {
     const fresh = await createEngagement({ clientId, fiscalYear: 2027, periodEnd: "2027-12-31", partnerId: USER });
     await seat(fresh, USER, "partner");
-    await seat(fresh, OTHER_USER, "staff");
+    await seat(fresh, OTHER_USER, "manager");
     const letterId = await generateLetter(fresh, "engagement", "en");
 
     // The working paper is a NEW document, not the letter.

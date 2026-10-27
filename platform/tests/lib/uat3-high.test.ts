@@ -129,7 +129,15 @@ beforeAll(async () => {
   engB = await engagement();
   await assignTeamMember(engA, MANAGER, "manager");
   await assignTeamMember(engA, STAFF, "staff");
-  await assignTeamMember(engA, SENIOR, "eqr_reviewer");
+  // A team-role EQR who is a senior by firm role (UAT run 3 B03). Since F005
+  // only a partner or a firm-role EQR may be appointed, so this is the seat as
+  // it stands on files staffed before the rule: written directly, and the
+  // guards below must still hold for it.
+  await admin.query(
+    `INSERT INTO team_member (tenant_id, engagement_id, user_id, team_role, status)
+     VALUES ($1, $2, $3, 'eqr_reviewer', 'accepted')`,
+    [FIRM, engA, SENIOR],
+  );
   await assignTeamMember(engB, MANAGER, "manager");
   await admin.query("UPDATE team_member SET status = 'accepted' WHERE engagement_id = ANY($1)", [[engA, engB]]);
   itemA = (await listFileItems(engA)).find((i) => i.code === "P3.2")!.id;
@@ -195,7 +203,7 @@ describe("B03 — the team-role EQR is read-only on the team's work", () => {
   it("puts C4.2 on the file when the EQR is added through the team page", async () => {
     const id = await engagement("non_complex");
     expect(await item(id, "C4.2")).toBeNull();
-    await addTeamMemberByEmail(id, "eqrf@uat3-high.local", "eqr_reviewer", "UAT3");
+    await addTeamMemberByEmail(id, "eqrf@uat3-high.local", "eqr_reviewer", "UAT3", undefined, { eqrDeclaration: true });
     expect(await item(id, "C4.2")).not.toBeNull();
   });
 });

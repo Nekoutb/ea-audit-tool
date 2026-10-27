@@ -93,7 +93,7 @@ beforeAll(async () => {
   engB = await createEngagement({ clientId, fiscalYear: 2024, periodEnd: "2024-12-31", partnerId: ADMIN });
   await assignTeamMember(engA, STAFF, "staff");
   await assignTeamMember(engA, READER, "staff");
-  await assignTeamMember(engA, EQR, "eqr_reviewer");
+  await assignTeamMember(engA, EQR, "eqr_reviewer", { eqrDeclaration: true });
   await assignTeamMember(engB, MANAGER, "manager");
   itemA = (await listFileItems(engA)).find((i) => i.code === "P3.2")!.id;
   itemB = (await listFileItems(engB)).find((i) => i.code === "P3.2")!.id;

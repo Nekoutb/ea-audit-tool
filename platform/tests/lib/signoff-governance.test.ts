@@ -56,6 +56,7 @@ import {
   transferEngagementPartner,
 } from "@/lib/team";
 import { DEFAULT_FILE_INDEX } from "@/lib/file-index";
+import { seedValidTb } from "./tool-output-fixtures";
 
 const as = (id: string, role: string) => {
   actor = { id, role };
@@ -74,17 +75,19 @@ describe("the ladder and the effective rule", () => {
     expect(teamRank(null)).toBe(-1);
   });
 
-  it("falls back to today's constants when the firm saved nothing", () => {
+  it("falls back to the default matrix when the firm saved nothing", () => {
     const policy = defaultPolicy();
     expect(policy.minReviewerRole).toBe("senior");
     expect(policy.allowSolePractitioner).toBe(false);
     expect(policy.requireDistinctPreparerApprover).toBe(true);
+    // the 2026-10-27 matrix (F002): every C5.x and C6.2 join the older eight
+    const c5 = DEFAULT_FILE_INDEX.map((e) => e.code).filter((c) => c.startsWith("C5."));
     expect([...DEFAULT_REQUIRE_PARTNER_ON].sort()).toEqual(
-      ["C1.1", "P1.1", "P2.2", "P5.2", "P7.2", "S3.1", "S6.1", "S6.2"].sort(),
+      ["C1.1", "P1.1", "P2.2", "P5.2", "P7.2", "S3.1", "S6.1", "S6.2", "C6.2", ...c5].sort(),
     );
     expect(effectiveTaskRule(policy, new Map(), "P1.1")).toEqual({
-      minPreparer: "staff",
-      minReviewer: "senior",
+      minPreparer: "manager",
+      minReviewer: "partner",
       partnerRequired: true,
     });
     expect(effectiveTaskRule(policy, new Map(), "E4.1").partnerRequired).toBe(false);
@@ -145,7 +148,8 @@ describe("the sign-off matrix workbook", () => {
     };
     const p11 = rowOf("P1.1");
     expect(ws.getRow(p11).getCell(8).value).toBe("Oui");
-    expect(ws.getRow(p11).getCell(7).value).toBe("Senior");
+    expect(ws.getRow(p11).getCell(6).value).toBe("Manager");
+    expect(ws.getRow(p11).getCell(7).value).toBe("Associé");
     // the firm's own columns
     const e41 = rowOf("E4.1");
     ws.getRow(e41).getCell(9).value = "Senior";
@@ -241,6 +245,9 @@ describe("sign-off governance against the database", () => {
     // execution work, so the phase gates stay out of the way
     await admin.query("UPDATE engagement SET phase = 'execution' WHERE id = ANY($1::uuid[])", [[engagementId, otherEngagementId]]);
     for (const item of await listFileItems(engagementId)) itemIds[item.code] = item.id;
+    // the E4 lead schedules are fed by the trial balance (F004)
+    await seedValidTb(admin, engagementId);
+    await seedValidTb(admin, otherEngagementId);
   }, 60_000);
 
   afterEach(() => as(ADMIN, "firm_admin"));

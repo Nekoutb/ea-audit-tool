@@ -339,6 +339,8 @@ export async function assignTeamAction(engagementId: string, formData: FormData)
       engagementId,
       String(formData.get("userId") ?? ""),
       String(formData.get("teamRole") ?? "staff") as TeamRole,
+      // the objectivity declaration ticked when appointing the EQR (F005)
+      { eqrDeclaration: formData.get("eqrDeclaration") === "on" },
     ),
   );
 }
@@ -356,6 +358,8 @@ export async function assignTeamFromTeamPageAction(engagementId: string, formDat
       engagementId,
       String(formData.get("userId") ?? ""),
       String(formData.get("teamRole") ?? "staff") as TeamRole,
+      // the objectivity declaration ticked when appointing the EQR (F005)
+      { eqrDeclaration: formData.get("eqrDeclaration") === "on" },
     ),
   );
 }

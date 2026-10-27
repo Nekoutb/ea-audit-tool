@@ -28,6 +28,8 @@ export interface PhaseRowData {
   reviewerSigned: boolean;
   /** the reader signed this task as preparer: their R is greyed out (F001) */
   selfPrepared?: boolean;
+  /** a tool-fed paper whose tool output is missing (F004): why P and R are greyed out */
+  toolMissing?: string | null;
 }
 
 const LINE_CLASS: Record<LineTone, string> = {
@@ -126,6 +128,20 @@ export function PhaseTaskRow({
         <div className="flex min-w-0 items-center gap-3">
           {row.preparerSigned ? (
             <span className="sobox p" aria-hidden>P</span>
+          ) : row.toolMissing && canSign ? (
+            // nothing to attest until the tool's output exists (F004)
+            <button
+              type="button"
+              disabled
+              onClick={stop}
+              className="sobox off"
+              title={row.toolMissing}
+              aria-label={`${signPreparerLabel} — ${row.toolMissing}`}
+              aria-disabled="true"
+              data-testid={`sign-preparer-tool-missing-${row.code}`}
+            >
+              P
+            </button>
           ) : !canSign ? (
             <span className="sobox off" aria-hidden>P</span>
           ) : (
@@ -147,6 +163,19 @@ export function PhaseTaskRow({
         <div className="flex min-w-0 items-center gap-3">
           {row.reviewerSigned ? (
             <span className="sobox r" aria-hidden>R</span>
+          ) : row.preparerSigned && row.toolMissing && canSign && canReview ? (
+            <button
+              type="button"
+              disabled
+              onClick={stop}
+              className="sobox off"
+              title={row.toolMissing}
+              aria-label={`${signReviewerLabel} — ${row.toolMissing}`}
+              aria-disabled="true"
+              data-testid={`sign-reviewer-tool-missing-${row.code}`}
+            >
+              R
+            </button>
           ) : row.preparerSigned && row.selfPrepared ? (
             // the preparer never reviews their own work, so there is nothing to press (F001)
             <button

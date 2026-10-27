@@ -90,12 +90,13 @@ beforeAll(async () => {
     "INSERT INTO app_user (id, email, name, password_hash) VALUES ($1, 'concl-prep@test.local', 'Concl Preparer', 'x')",
     [PREPARER],
   );
-  await admin.query("INSERT INTO membership (user_id, tenant_id, role) VALUES ($1, $2, 'senior')", [PREPARER, TENANT]);
+  await admin.query("INSERT INTO membership (user_id, tenant_id, role) VALUES ($1, $2, 'manager')", [PREPARER, TENANT]);
   // USER is the designated engagement partner (F003), seated at creation;
-  // PREPARER a senior on the team
+  // PREPARER a manager on the team (C6.x is prepared at manager level in the
+  // default matrix, F002)
   await admin.query(
     `INSERT INTO team_member (tenant_id, engagement_id, user_id, team_role, status)
-     VALUES ($1, $2, $3, 'senior', 'accepted')`,
+     VALUES ($1, $2, $3, 'manager', 'accepted')`,
     [TENANT, engagementId, PREPARER],
   );
   const version = await createMaterialityVersion(engagementId, {
@@ -279,7 +280,7 @@ describe("7.11/7.12 archive immutability + rollforward", () => {
         [engagementId, code],
       );
       const documentId = await generateDocument(item.rows[0].id, "en");
-      actAs(PREPARER, "senior");
+      actAs(PREPARER, "manager");
       await signDocument(documentId, "preparer");
       actAs(USER, "firm_admin");
       await signDocument(documentId, "partner");

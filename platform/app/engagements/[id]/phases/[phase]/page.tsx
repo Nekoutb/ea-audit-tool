@@ -18,6 +18,7 @@ import {
   type DashboardPhase,
 } from "@/lib/engagement-dashboard";
 import { getEngagement } from "@/lib/engagements";
+import { toolOutputsMissing } from "@/lib/tool-fed-papers";
 import { shortTitle } from "@/lib/file-index";
 import { getMessages } from "@/lib/i18n";
 import { getLocale } from "@/lib/locale";
@@ -100,6 +101,8 @@ export default async function PhaseTasksPage(props: {
   const sg = td.signoff;
   const reviewerIni = reviewerName ? initials(reviewerName) : "";
 
+  // tool-fed papers whose tool output is missing (F004): P and R greyed out with the reason
+  const toolMissing = await toolOutputsMissing(session.user.tenantId, id, tasks.map((task) => task.code));
   const rows: PhaseRowData[] = tasks.map((task) => {
     // Strategy tasks live on the working-paper screen — the legacy form and
     // document branches no longer apply to them.
@@ -152,6 +155,9 @@ export default async function PhaseTasksPage(props: {
       preparerSigned,
       reviewerSigned,
       selfPrepared: preparerSigned && task.preparerUserId === session.user.id,
+      toolMissing: toolMissing.has(task.code)
+        ? ((t.document.errors as Record<string, string>)[toolMissing.get(task.code)!] ?? toolMissing.get(task.code)!)
+        : null,
     };
   });
 

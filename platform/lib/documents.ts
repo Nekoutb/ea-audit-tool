@@ -802,6 +802,13 @@ export async function signDocument(documentId: string, requested: SignoffRole): 
         if (refusal) throw new DocumentRuleError(refusal);
       }
     }
+    // Tool-fed papers (F004): nothing to attest until the tool's output exists
+    // (lib/tool-fed-papers.ts) — refused for the preparer, reviewer and partner alike.
+    if (role !== "eqr") {
+      const { toolOutputMissingTx } = await import("@/lib/tool-fed-papers");
+      const missing = await toolOutputMissingTx(tx, row.engagement_id, row.code);
+      if (missing) throw new DocumentRuleError(missing);
+    }
     if (row.current_version === 0) throw new DocumentRuleError("no-version");
     if (row.checked_out_by) throw new DocumentRuleError("checked-out");
     // P2.1 concludes on the team's independence: it cannot be reviewed or

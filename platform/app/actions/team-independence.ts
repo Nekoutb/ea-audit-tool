@@ -50,7 +50,10 @@ export async function addTeamByEmailAction(
   const name = String(formData.get("memberName") ?? "");
   const back = `/engagements/${engagementId}/team`;
   try {
-    await addTeamMemberByEmail(engagementId, email, role, engagementName, name);
+    await addTeamMemberByEmail(engagementId, email, role, engagementName, name, {
+      // the objectivity declaration ticked when appointing the EQR (F005)
+      eqrDeclaration: formData.get("eqrDeclaration") === "on",
+    });
   } catch (error) {
     const raw = error instanceof Error ? error.message : "invalid-email";
     // the archive trigger's message maps to the banner the page knows (UAT B156)

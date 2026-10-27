@@ -24,6 +24,7 @@ import { phaseStillOpen } from "@/lib/gates";
 import { getMessages } from "@/lib/i18n";
 import { getLocale } from "@/lib/locale";
 import { canReview, canWrite } from "@/lib/rbac";
+import { toolOutputsMissing } from "@/lib/tool-fed-papers";
 import { GROUP_BY_ID, displayCode, groupTitle, sectionLabel } from "@/lib/task-groups";
 import { dspDesignGaps, dspDesignedIndexes } from "@/lib/design-procedures";
 import { indexesForTask } from "@/lib/psp";
@@ -108,6 +109,8 @@ export default async function GroupTasksPage(props: {
   const reviewerIni = reviewerName ? initials(reviewerName) : "";
   const returnTo = `/engagements/${id}/groups/${group}`;
 
+  // tool-fed papers whose tool output is missing (F004): P and R greyed out with the reason
+  const toolMissing = await toolOutputsMissing(session.user.tenantId, id, tasks.map((task) => task.code));
   const rows: PhaseRowData[] = tasks.map((task) => {
     // Every task opens its working-paper screen; the legacy /forms and hub
     // routes remain reachable for direct links but are no longer the way in.
@@ -157,6 +160,9 @@ export default async function GroupTasksPage(props: {
       preparerSigned,
       reviewerSigned,
       selfPrepared: preparerSigned && task.preparerUserId === session.user.id,
+      toolMissing: toolMissing.has(task.code)
+        ? ((t.document.errors as Record<string, string>)[toolMissing.get(task.code)!] ?? toolMissing.get(task.code)!)
+        : null,
     };
   });
 

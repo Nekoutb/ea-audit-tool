@@ -5,7 +5,7 @@
 //   staff < senior < manager < senior_manager < director < partner.
 // eqr_reviewer is outside it and keeps its own rules (lib/eqr.ts).
 //
-// No policy row means today's constants (below). The no-self-review rule is
+// No policy row means the default matrix (below). The no-self-review rule is
 // NOT part of the policy: allow_sole_practitioner is stored, shown as "not
 // permitted", and never read by any sign-off path.
 
@@ -30,12 +30,69 @@ export const PARTNER_ONLY_APPROVAL: ReadonlySet<string> = new Set(["P5.2", "P7.2
  */
 export const PARTNER_GATED: ReadonlySet<string> = new Set(["P1.1", "P2.2", "P5.2", "S3.1", "P7.2"]);
 
-/** Today's defaults, used when the firm has saved no policy. */
+/**
+ * The firm's default sign-off matrix (F002, decision of 2026-10-27): the
+ * minimum preparer and reviewer per task family, used wherever the firm has
+ * no per-task rule of its own. First match wins, so the named exceptions come
+ * before their family.
+ *
+ *   Acceptance  P1.x-P2.x  manager / partner
+ *   Planning    P3.x-P7.x  senior  / manager
+ *   Strategy    S1.x-S6.x  senior  / manager
+ *   Execution   E1.x-E6.x  staff   / senior, except E3.1 (fraud / journal
+ *                          entries), E6.3 (going concern) and E6.10 (FS
+ *                          tie-out): senior / manager
+ *   Completion  C1.x-C4.x  senior  / manager (C4.2's own sign-off is the EQR's,
+ *                          lib/eqr.ts; the team's P/R there attest its
+ *                          governance communications)
+ *   OHADA legal C5.x       manager / partner
+ *   Archive     C6.x       manager / partner
+ */
+const DEFAULT_MATRIX: readonly { match: (code: string) => boolean; minPreparer: LadderRole; minReviewer: LadderRole }[] = [
+  { match: (c) => c === "E3.1" || c === "E6.3" || c === "E6.10", minPreparer: "senior", minReviewer: "manager" },
+  { match: (c) => /^P[12]\./.test(c), minPreparer: "manager", minReviewer: "partner" },
+  { match: (c) => /^P[3-7]\./.test(c), minPreparer: "senior", minReviewer: "manager" },
+  { match: (c) => /^S[1-6]\./.test(c), minPreparer: "senior", minReviewer: "manager" },
+  { match: (c) => /^E[1-6]\./.test(c), minPreparer: "staff", minReviewer: "senior" },
+  { match: (c) => /^C[1-4]\./.test(c), minPreparer: "senior", minReviewer: "manager" },
+  { match: (c) => /^C[56]\./.test(c), minPreparer: "manager", minReviewer: "partner" },
+];
+
+/** The partner's own sign-off in the default matrix: P1.1, P2.2, P5.2, P7.2, S3.1, S6.1, S6.2, C1.1, every C5.x, C6.2. */
+const DEFAULT_PARTNER_SIGNOFF: readonly string[] = ["P1.1", "P2.2", "P5.2", "P7.2", "S3.1", "S6.1", "S6.2", "C1.1", "C6.2"];
+
+/** The matrix's partner sign-off, united with the two older operator sets (none is dropped). */
+function defaultPartnerSignoff(code: string): boolean {
+  return (
+    DEFAULT_PARTNER_SIGNOFF.includes(code) || /^C5\./.test(code) || PARTNER_GATED.has(code) || PARTNER_ONLY_APPROVAL.has(code)
+  );
+}
+
+/** The floor for any code outside the matrix (none in the default index today). */
 export const DEFAULT_MIN_PREPARER: LadderRole = "staff";
+/** The firm-wide reviewer floor when no policy is saved (the lowest reviewer of the matrix). */
 export const DEFAULT_MIN_REVIEWER: LadderRole = "senior";
+
+/** The default matrix's preparer / reviewer minimum for one task code. */
+export function defaultTaskMinimums(code: string): { minPreparer: LadderRole; minReviewer: LadderRole } {
+  const hit = DEFAULT_MATRIX.find((m) => m.match(code));
+  return hit
+    ? { minPreparer: hit.minPreparer, minReviewer: hit.minReviewer }
+    : { minPreparer: DEFAULT_MIN_PREPARER, minReviewer: DEFAULT_MIN_REVIEWER };
+}
+
+/**
+ * Every task of the default index that needs the partner's own sign-off by
+ * default: the matrix's list, united with the two older operator sets so no
+ * code that was partner-gated before loses it.
+ */
 export const DEFAULT_REQUIRE_PARTNER_ON: readonly string[] = [
-  ...new Set([...PARTNER_GATED, ...PARTNER_ONLY_APPROVAL]),
-].sort();
+  ...new Set([...DEFAULT_FILE_INDEX.map((e) => e.code).filter(defaultPartnerSignoff), ...PARTNER_GATED, ...PARTNER_ONLY_APPROVAL]),
+].sort((a, b) => a.localeCompare(b, undefined, { numeric: true }));
+
+function higher(a: LadderRole, b: LadderRole): LadderRole {
+  return teamRank(a) >= teamRank(b) ? a : b;
+}
 
 export function isLadderRole(value: unknown): value is LadderRole {
   return typeof value === "string" && (TEAM_LADDER as readonly string[]).includes(value);
@@ -143,17 +200,27 @@ export async function getTaskRulesTx(
   );
 }
 
-/** What applies to one task: its own rule where set, the firm policy otherwise. */
+/**
+ * What applies to one task: its own rule where set, otherwise the default
+ * matrix raised by the firm policy — the policy's minimum reviewer is a floor
+ * under every task, and its partner list adds to the matrix's (a per-task
+ * "No" is how a firm lifts a default partner sign-off). The reviewer minimum
+ * is never below the preparer minimum, whatever a stored rule says: the review
+ * is at least as senior as the work it reviews.
+ */
 export function effectiveTaskRule(
   policy: SignoffPolicy,
   rules: ReadonlyMap<string, TaskRule>,
   code: string,
 ): EffectiveTaskRule {
   const rule = rules.get(code);
+  const matrix = defaultTaskMinimums(code);
+  const minPreparer = rule?.minPreparer ?? matrix.minPreparer;
+  const minReviewer = rule?.minReviewer ?? higher(matrix.minReviewer, policy.minReviewerRole);
   return {
-    minPreparer: rule?.minPreparer ?? DEFAULT_MIN_PREPARER,
-    minReviewer: rule?.minReviewer ?? policy.minReviewerRole,
-    partnerRequired: rule?.partnerRequired ?? policy.requirePartnerOn.includes(code),
+    minPreparer,
+    minReviewer: higher(minReviewer, minPreparer),
+    partnerRequired: rule?.partnerRequired ?? (defaultPartnerSignoff(code) || policy.requirePartnerOn.includes(code)),
   };
 }
 

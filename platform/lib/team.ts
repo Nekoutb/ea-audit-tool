@@ -215,18 +215,83 @@ async function assertPartnerSeatTx(
   }
 }
 
+/** How an appointment of the engagement quality reviewer is made (F005). */
+export interface EqrAppointment {
+  /** the appointer ticked the objectivity declaration */
+  eqrDeclaration?: boolean;
+}
+
+/**
+ * Who may be appointed engagement quality reviewer (F005, ISQM 2 ¶18-20), in
+ * the order the refusals are raised:
+ *  - eqr-rank: a firm partner or a firm-role EQR reviewer. A firm
+ *    administrator ranks as a partner everywhere else (mayHoldPartnerSeat,
+ *    atLeast) and is accepted here on the same footing;
+ *  - eqr-on-team: not on this engagement's team in any other role, nor the
+ *    engagement partner's delegate (the role checks of the callers cover the
+ *    team row itself);
+ *  - eqr-cooling-off: not the accepted engagement partner of the same client
+ *    on any engagement whose period end falls within the two years before
+ *    this one's (inclusive) — the cooling-off of ISQM 2 ¶20;
+ *  - eqr-declaration-required: the objectivity declaration is ticked.
+ */
+async function assertEqrEligibleTx(
+  tx: PoolClient,
+  tenantId: string,
+  engagementId: string,
+  userId: string,
+  appointment: EqrAppointment | undefined,
+): Promise<void> {
+  const firmRole = await firmRoleTx(tx, tenantId, userId);
+  if (!(firmRole === "eqr_reviewer" || mayHoldPartnerSeat(firmRole))) throw new Error("eqr-rank");
+  const delegate = await tx.query("SELECT 1 FROM engagement WHERE id = $1 AND partner_delegate_user_id = $2", [
+    engagementId,
+    userId,
+  ]);
+  if ((delegate.rowCount ?? 0) > 0) throw new Error("eqr-on-team");
+  const cooling = await tx.query(
+    `SELECT 1
+       FROM engagement e
+       JOIN engagement prior ON prior.client_id = e.client_id AND prior.id <> e.id
+       JOIN team_member tm ON tm.engagement_id = prior.id
+      WHERE e.id = $1 AND tm.user_id = $2
+        AND tm.team_role = 'partner' AND coalesce(tm.status, 'accepted') = 'accepted'
+        AND prior.period_end <= e.period_end
+        AND prior.period_end >= (e.period_end - interval '2 years')::date
+      LIMIT 1`,
+    [engagementId, userId],
+  );
+  if ((cooling.rowCount ?? 0) > 0) throw new Error("eqr-cooling-off");
+  if (appointment?.eqrDeclaration !== true) throw new Error("eqr-declaration-required");
+}
+
+/** Record the objectivity declaration on the EQR's team row: who ticked it, and when. */
+async function recordEqrDeclarationTx(
+  tx: PoolClient,
+  engagementId: string,
+  userId: string,
+  declaredBy: string,
+): Promise<void> {
+  await tx.query(
+    "UPDATE team_member SET eqr_declared_at = now(), eqr_declared_by = $3 WHERE engagement_id = $1 AND user_id = $2",
+    [engagementId, userId, declaredBy],
+  );
+}
+
 /**
  * Assign a user to the team. EQR rule (spec §2): the EQR must be independent of
  * the engagement team — the system blocks assigning an EQR who already holds a
- * team role, and blocks giving a team role to the current EQR.
+ * team role, and blocks giving a team role to the current EQR. Appointing the
+ * EQR also applies the eligibility rules of F005 (assertEqrEligibleTx).
  */
 export async function assignTeamMember(
   engagementId: string,
   userId: string,
   teamRole: TeamRole,
+  appointment?: EqrAppointment,
 ): Promise<void> {
   assertTeamRole(teamRole);
-  const { tenantId, role } = await requireTeamManager(engagementId, teamRole);
+  const { tenantId, role, userId: actorId } = await requireTeamManager(engagementId, teamRole);
   // an archived file keeps the team it closed with (the trigger refuses the
   // write anyway; the typed error is the one the page can translate)
   await assertMutable(engagementId);
@@ -252,6 +317,9 @@ export async function assignTeamMember(
     if (teamRole !== "eqr_reviewer" && current === "eqr_reviewer") {
       throw new Error("eqr-on-team");
     }
+    // a new appointment of the quality reviewer (re-saving the seated EQR is not one)
+    const appointsEqr = teamRole === "eqr_reviewer" && current !== "eqr_reviewer";
+    if (appointsEqr) await assertEqrEligibleTx(tx, tenantId, engagementId, userId, appointment);
     await assertPartnerSeatTx(tx, tenantId, engagementId, userId, existing.rows[0], teamRole);
     await tx.query(
       `INSERT INTO team_member (tenant_id, engagement_id, user_id, team_role)
@@ -259,6 +327,7 @@ export async function assignTeamMember(
        ON CONFLICT (engagement_id, user_id) DO UPDATE SET team_role = EXCLUDED.team_role`,
       [tenantId, engagementId, userId, teamRole],
     );
+    if (appointsEqr) await recordEqrDeclarationTx(tx, engagementId, userId, actorId);
     // An appointed quality reviewer makes the EQR a completion gate, so the
     // file needs its C4.2 paper whatever the complexity tier (UAT run 2 B13).
     if (teamRole === "eqr_reviewer") {
@@ -659,6 +728,7 @@ export async function addTeamMemberByEmail(
    * — so the typed value wins whenever there is one.
    */
   displayNameRaw?: string,
+  appointment?: EqrAppointment,
 ): Promise<void> {
   assertTeamRole(teamRole);
   const { tenantId, userId: inviterId } = await requireTeamManager(engagementId, teamRole);
@@ -699,6 +769,9 @@ export async function addTeamMemberByEmail(
       ) {
         throw new Error("partner-role-requires-partner-rank");
       }
+      // the same for the quality reviewer (F005): an account provisioned here
+      // is staff, so it is refused before anything is created
+      if (teamRole === "eqr_reviewer" && !existing.rows[0]) throw new Error("eqr-rank");
       if (existing.rows[0])
         return {
           userId: existing.rows[0].id,
@@ -750,6 +823,7 @@ export async function addTeamMemberByEmail(
       if ((teamRole === "eqr_reviewer") !== (row.team_role === "eqr_reviewer")) throw new Error("eqr-on-team");
     }
     if (teamRole === "partner") await assertPartnerSeatTx(tx, tenantId, engagementId, userId, undefined, "partner");
+    if (teamRole === "eqr_reviewer") await assertEqrEligibleTx(tx, tenantId, engagementId, userId, appointment);
     await tx.query(
       `INSERT INTO team_member (tenant_id, engagement_id, user_id, team_role, status, invited_at)
        VALUES ($1, $2, $3, $4, 'invited', now())
@@ -757,6 +831,7 @@ export async function addTeamMemberByEmail(
        DO UPDATE SET team_role = EXCLUDED.team_role, status = 'invited', invited_at = now(), decline_reason = NULL`,
       [tenantId, engagementId, userId, teamRole],
     );
+    if (teamRole === "eqr_reviewer") await recordEqrDeclarationTx(tx, engagementId, userId, inviterId);
     // Appointing the quality reviewer from the team page puts C4.2 on the
     // file just as assignTeamMember does (UAT run 3 acpt.team-eqr).
     if (teamRole === "eqr_reviewer") {

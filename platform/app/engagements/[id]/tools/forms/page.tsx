@@ -4,6 +4,7 @@ import { notFound, redirect } from "next/navigation";
 import { auth } from "@/auth";
 import { assignFormsTasksAction } from "@/app/actions/planning";
 import { AppNav } from "@/components/AppNav";
+import { FormsAssignRow } from "@/components/FormsAssignRow";
 import { SubmitButton } from "@/components/SubmitButton";
 import { Panel } from "@/components/ui/atlas";
 import { DEFAULT_FILE_INDEX, shortTitle } from "@/lib/file-index";
@@ -34,6 +35,7 @@ export default async function FormsPage(props: {
   const { assigned, error } = await props.searchParams;
   const locale = await getLocale();
   const fr = locale === "fr";
+  const t = getMessages(locale);
   const engagement = await getEngagement(id);
   if (!engagement) notFound();
   // triggered conditional tasks (S6.1 → S5.1–S5.3, P4.2–P4.3) are in scope too
@@ -94,7 +96,7 @@ export default async function FormsPage(props: {
             : error === "eqr-not-assignable"
               ? fr ? "Le réviseur qualité (EQR) ne peut pas se voir confier les travaux de la mission." : "The engagement quality reviewer cannot be assigned engagement work."
               : // the firm sign-off rules (F002) and the other domain refusals
-                ((getMessages(locale).planning.errors as Record<string, string>)[error] ?? error)}
+                ((t.planning.errors as Record<string, string>)[error] ?? error)}
         </p>
       ) : null}
       {assigned ? (
@@ -139,7 +141,15 @@ export default async function FormsPage(props: {
               </div>
               <ul className="mt-1.5 flex flex-col" data-testid={`forms-${phase}`}>
                 {forms.map((form) => (
-                  <li key={form.code} className="flex items-center gap-1">
+                  <li
+                    key={form.code}
+                    className={`flex items-center gap-1 ${
+                      // one person on both sides of the task (F006): shown in red until corrected
+                      canAssign && form.preparerUserId !== null && form.preparerUserId === form.approverUserId
+                        ? "rounded-[var(--radius-atlas-xs)] bg-red-50/60 dark:bg-red-950/30"
+                        : ""
+                    }`}
+                  >
                     {form.href ? (
                       <Link
                         href={form.href}
@@ -156,39 +166,20 @@ export default async function FormsPage(props: {
                       </span>
                     )}
                     {canAssign && team.length > 0 && form.itemId ? (
-                      <span className="flex flex-shrink-0 items-center gap-1.5">
-                        {([
-                          ["preparer", form.preparerUserId, fr ? "P" : "P"],
-                          ["approver", form.approverUserId, fr ? "A" : "A"],
-                        ] as const).map(([role, current, tag]) => (
-                          <form
-                            key={role}
-                            action={assignFormsTasksAction.bind(null, id, [form.itemId as string])}
-                            className="flex items-center gap-1"
-                          >
-                            <input type="hidden" name="role" value={role} />
-                            <span
-                              className="text-[10px] font-extrabold text-muted"
-                              title={role === "preparer" ? (fr ? "Préparateur" : "Preparer") : fr ? "Approbateur" : "Approver"}
-                            >
-                              {tag}
-                            </span>
-                            <select
-                              name="assignee"
-                              defaultValue={current ?? ""}
-                              className={select}
-                              aria-label={`${role === "preparer" ? (fr ? "Préparateur" : "Preparer") : fr ? "Approbateur" : "Approver"} ${form.code}`}
-                              data-testid={`assign-${role}-${form.code}`}
-                            >
-                              <option value="">—</option>
-                              {team.map((member) => (
-                                <option key={member.userId} value={member.userId}>{member.userName}</option>
-                              ))}
-                            </select>
-                            <SubmitButton className={ok} testId={`assign-${role}-save-${form.code}`}>OK</SubmitButton>
-                          </form>
-                        ))}
-                      </span>
+                      <FormsAssignRow
+                        code={form.code}
+                        action={assignFormsTasksAction.bind(null, id, [form.itemId])}
+                        team={team.map((m) => ({ userId: m.userId, userName: m.userName }))}
+                        preparerUserId={form.preparerUserId}
+                        approverUserId={form.approverUserId}
+                        labels={{
+                          preparer: fr ? "Préparateur" : "Preparer",
+                          approver: fr ? "Approbateur" : "Approver",
+                          conflict: t.planning.errors["assignment-preparer-is-approver"],
+                        }}
+                        selectClass={select}
+                        okClass={ok}
+                      />
                     ) : null}
                   </li>
                 ))}

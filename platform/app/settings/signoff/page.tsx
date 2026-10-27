@@ -76,11 +76,15 @@ export default async function SignoffSettingsPage(props: {
       <Panel className="mt-6 p-6" data-testid="signoff-policy-panel">
         <PanelHeader
           title={fr ? "Politique par défaut" : "Policy defaults"}
-          hint={fr ? "s'applique à toute tâche sans règle propre" : "applies to every task without a rule of its own"}
+          hint={
+            fr
+              ? "relève la matrice par défaut pour toute tâche sans règle propre"
+              : "raises the default matrix for every task without a rule of its own"
+          }
         />
         <form action={saveSignoffPolicyAction} className="mt-4 flex flex-col gap-4">
           <label className="flex max-w-md flex-col gap-1 text-sm text-ink-soft">
-            {fr ? "Rôle minimum du réviseur" : "Minimum reviewer role"}
+            {fr ? "Rôle minimum du réviseur (plancher, toutes tâches)" : "Minimum reviewer role (floor, every task)"}
             <select name="minReviewerRole" defaultValue={policy.minReviewerRole} className={input} data-testid="policy-min-reviewer">
               {TEAM_LADDER.map((r) => (
                 <option key={r} value={r}>
@@ -90,7 +94,9 @@ export default async function SignoffSettingsPage(props: {
             </select>
           </label>
           <label className="flex max-w-3xl flex-col gap-1 text-sm text-ink-soft">
-            {fr ? "Tâches exigeant la signature de l'associé (codes)" : "Tasks requiring the partner's sign-off (codes)"}
+            {fr
+              ? "Tâches exigeant la signature de l'associé (codes, en plus de la matrice par défaut ; « Non » dans le tableau par tâche la lève)"
+              : "Tasks requiring the partner's sign-off (codes, in addition to the default matrix; \"No\" in the per-task table lifts one)"}
             <textarea
               name="requirePartnerOn"
               rows={2}

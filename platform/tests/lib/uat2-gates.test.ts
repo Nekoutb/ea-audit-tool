@@ -172,7 +172,7 @@ describe("B13 — the EQR paper follows the EQR, not the tier", () => {
   it("adds C4.2 when a quality reviewer joins a non-complex file", async () => {
     const id = await engagement("non_complex");
     expect(await item(id, "C4.2")).toBeNull();
-    await assignTeamMember(id, EQR, "eqr_reviewer");
+    await assignTeamMember(id, EQR, "eqr_reviewer", { eqrDeclaration: true });
     expect(await item(id, "C4.2")).toEqual(expect.objectContaining({ conditional: false }));
     expect((await completionGates(id)).find((g) => g.key === "eqr_complete")?.ok).toBe(false);
   });

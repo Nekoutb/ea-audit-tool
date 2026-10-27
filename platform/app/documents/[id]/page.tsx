@@ -27,6 +27,7 @@ import { getEngagement } from "@/lib/engagements";
 import { getMessages } from "@/lib/i18n";
 import { getLocale } from "@/lib/locale";
 import { atLeast, isRole } from "@/lib/rbac";
+import { toolOutputsMissing } from "@/lib/tool-fed-papers";
 
 export const generateMetadata = localizedTitle("Working paper", "Feuille de travail");
 
@@ -75,6 +76,14 @@ export default async function DocumentPage(props: {
   const selfPrepared = signoffs.some(
     (s) => s.role === "preparer" && !s.voidedAt && !s.invalidatedAt && s.userId === session.user.id,
   );
+  // a tool-fed paper with its tool output still missing (F004): every sign
+  // button is greyed out with the reason signDocument would give
+  const toolMissing = document.fileItemCode
+    ? ((await toolOutputsMissing(session.user.tenantId, document.engagementId, [document.fileItemCode])).get(
+        document.fileItemCode,
+      ) ?? null)
+    : null;
+  const toolMissingLabel = toolMissing ? (td.errors[toolMissing as keyof typeof td.errors] ?? toolMissing) : null;
   const canReopen =
     !archived && viewerRole !== null && atLeast(viewerRole, "manager") && (!partnerSigned || atLeast(viewerRole, "partner"));
 
@@ -254,6 +263,22 @@ export default async function DocumentPage(props: {
                   );
                 }
                 if (isSigned || archived) return null;
+                if (toolMissingLabel) {
+                  return (
+                    <button
+                      key={role}
+                      type="button"
+                      disabled
+                      aria-disabled="true"
+                      className={`${btn} cursor-not-allowed`}
+                      title={toolMissingLabel}
+                      aria-label={`${label} — ${toolMissingLabel}`}
+                      data-testid={`sign-${role}-tool-missing`}
+                    >
+                      {label}
+                    </button>
+                  );
+                }
                 if (role !== "preparer" && selfPrepared) {
                   return (
                     <button

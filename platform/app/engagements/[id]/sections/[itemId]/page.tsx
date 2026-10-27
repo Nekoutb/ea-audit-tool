@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { toolOutputsMissing } from "@/lib/tool-fed-papers";
 import { ArchiveChecklist } from "@/components/ArchiveChecklist";
 import { archiveChecklist } from "@/lib/archive-checklist";
 import { notFound, redirect } from "next/navigation";
@@ -520,6 +521,26 @@ export default async function SectionPage(props: {
   // the reader signed this paper as preparer: they never review it (F001)
   const selfPrepared = pSigned && !rSigned && taskInfo?.preparerUserId === session.user.id;
   const selfReviewLabel = t.document.errors["self-review"];
+  // a tool-fed paper whose tool output is missing (F004): P and R are greyed out with the reason
+  const toolMissingCode = (await toolOutputsMissing(session.user.tenantId, id, [section.code])).get(section.code) ?? null;
+  const toolMissingLabel = toolMissingCode
+    ? ((t.document.errors as Record<string, string>)[toolMissingCode] ?? toolMissingCode)
+    : null;
+  const toolMissingChip = (letter: "P" | "R") => (
+    <button
+      type="button"
+      disabled
+      className={`${chip(false)} cursor-not-allowed opacity-50`}
+      title={toolMissingLabel ?? ""}
+      aria-label={`${letter} — ${toolMissingLabel ?? ""}`}
+      aria-disabled="true"
+      data-testid={letter === "P" ? "chip-preparer" : "chip-reviewer"}
+      data-signed="false"
+      data-tool-missing="true"
+    >
+      {letter}
+    </button>
+  );
   const chip = (on: boolean) =>
     `grid h-7 w-7 place-items-center rounded-full text-[12px] font-extrabold transition ${
       on ? "bg-emerald-600 text-white" : "bg-surface-2 text-muted hover:bg-line/70"
@@ -586,7 +607,8 @@ export default async function SectionPage(props: {
               </>
             ) : (
               <>
-                <form action={signOffPreparerAction}>
+                {toolMissingLabel && !pSigned ? toolMissingChip("P") : (
+<form action={signOffPreparerAction}>
                   <input type="hidden" name="fileItemId" value={itemId} />
                   <input type="hidden" name="engagementId" value={id} />
                   <input type="hidden" name="returnTo" value={`/engagements/${id}/sections/${itemId}`} />
@@ -594,7 +616,8 @@ export default async function SectionPage(props: {
                     P
                   </button>
                 </form>
-                {selfPrepared ? (
+)}
+                {toolMissingLabel && !rSigned ? toolMissingChip("R") : selfPrepared ? (
                   <button type="button" disabled className={`${chip(false)} cursor-not-allowed opacity-50`} title={selfReviewLabel} aria-label={selfReviewLabel} aria-disabled="true" data-testid="chip-reviewer" data-signed="false" data-self-prepared="true">
                     R
                   </button>
@@ -822,7 +845,8 @@ export default async function SectionPage(props: {
             </>
           ) : (
           <>
-          <form action={signOffPreparerAction}>
+          {toolMissingLabel && !pSigned ? toolMissingChip("P") : (
+<form action={signOffPreparerAction}>
             <input type="hidden" name="fileItemId" value={itemId} />
             <input type="hidden" name="engagementId" value={id} />
             <input type="hidden" name="returnTo" value={`/engagements/${id}/sections/${itemId}`} />
@@ -830,7 +854,8 @@ export default async function SectionPage(props: {
               P
             </button>
           </form>
-          {selfPrepared ? (
+)}
+          {toolMissingLabel && !rSigned ? toolMissingChip("R") : selfPrepared ? (
             // the preparer never reviews their own paper: nothing to press (F001)
             <button type="button" disabled className={`${chip(false)} cursor-not-allowed opacity-50`} title={selfReviewLabel} aria-label={selfReviewLabel} aria-disabled="true" data-testid="chip-reviewer" data-signed="false" data-self-prepared="true">
               R

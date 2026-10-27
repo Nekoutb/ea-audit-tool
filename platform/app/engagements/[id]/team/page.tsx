@@ -368,6 +368,12 @@ export default async function TeamPage(props: {
                 ))}
               </select>
             </label>
+            <label className="flex w-full items-center gap-2 text-xs text-ink-soft">
+              <input type="checkbox" name="eqrDeclaration" data-testid="team-eqr-declaration" />
+              {locale === "fr"
+                ? "Désignation du réviseur qualité (EQR) : je déclare que la personne désignée est objective vis-à-vis de la mission (ISQM 2 ¶18-20)"
+                : "Appointing the engagement quality reviewer (EQR): I declare the appointee is objective towards this engagement (ISQM 2 ¶18-20)"}
+            </label>
             <SubmitButton className={btnPrimary} testId="team-add">
               {tt.add}
             </SubmitButton>

@@ -160,12 +160,18 @@ describe("document lifecycle", () => {
   });
 
   it("enforces preparer-first, blocks reviewer sign-off on open notes, then locks", async () => {
+    // P1.1 is reviewed by the partner in the default matrix (F002): it is the
+    // engagement partner who meets preparer-first
+    actAs(PARTNER, "partner");
     await expect(signDocument(documentId, "reviewer")).rejects.toThrow(/preparer-first/);
+    actAs(USER, "firm_admin");
     await answerPaper("P1.1");
     await signDocument(documentId, "preparer");
 
-    // the preparer never reviews their own paper, sole practice or not (F001)
-    await expect(signDocument(documentId, "reviewer")).rejects.toThrow(/self-review/);
+    // the manager who prepared it cannot review it either: P1.1 is reviewed by
+    // the partner (F002 matrix). The no-self-review rule itself (F001) is
+    // covered on papers a manager may review (signoff-governance, batch1-governance).
+    await expect(signDocument(documentId, "reviewer")).rejects.toThrow(/role-below-task-minimum-partner/);
 
     await addReviewNote(documentId, "Please tighten the conclusion.");
     // the reviewer is the engagement partner, an accepted member of the team
