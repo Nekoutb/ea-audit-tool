@@ -6,6 +6,7 @@ import { JOURNAL_ENTRY_PAPERS } from "@/lib/papers/journal-entries";
 import { FINANCIAL_STATEMENT_PAPERS } from "@/lib/papers/financial-statements";
 import { STATUTORY_525_PAPERS } from "@/lib/papers/statutory-525";
 import { paperKeys, requiredKeys, type PaperDef } from "@/lib/papers/types";
+import { resolvePaper } from "@/lib/standards-edition";
 
 // The registry is a plain object spread, so a paper can stop being reached
 // without anything failing to compile: a key that no longer matches a task code
@@ -51,7 +52,8 @@ describe("the execution paper registry", () => {
     expect(REGISTERED["E1.1"].std).toMatch(/ISA 315|ISA 330/);
     expect(REGISTERED["E1.1"].reqEn?.join(" ").toLowerCase()).toMatch(/\bit\b|information technology|itgc/);
 
-    expect(REGISTERED["E3.1"].std).toMatch(/ISA 240/);
+    // the anchor is edition-aware since F045: read it as an engagement would
+    expect(resolvePaper(REGISTERED["E3.1"], "current").std).toMatch(/ISA 240/);
 
     // The two papers added on 2026-09-21: the tie-out of the accounts and
     // notes, and the article 525 certification.

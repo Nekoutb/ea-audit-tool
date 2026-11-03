@@ -22,6 +22,7 @@ import { STATUTORY_525_PAPERS } from "@/lib/papers/statutory-525";
 import { CONCLUSION_PAPERS } from "@/lib/papers/conclusion";
 import { GAM_PAPERS } from "@/lib/papers/gam";
 import { paperKeys, requiredKeys, unansweredKeys, type PaperDef, type PaperField, conclKey, conclWhyKey, ynKey, ynWhyKey } from "@/lib/papers/types";
+import { resolvePaper, type StandardsEdition } from "@/lib/standards-edition";
 import { groupOfTask, type SectionKey } from "@/lib/task-groups";
 
 export type { PaperField, PaperDef, PaperSection, PaperProc, PaperItem } from "@/lib/papers/types";
@@ -57,7 +58,7 @@ const GROUP_DEFAULT: Record<string, { std: string; en: string; fr: string }> = {
   p2: { std: "IESBA Code · ISA 220 (Revised) ¶16–21", en: "the independence and resourcing record", fr: "le dossier indépendance et moyens" },
   p3: { std: "ISA 315 (Revised 2019) ¶19, ¶A56–A67", en: "the understanding of the business", fr: "la connaissance de l'activité" },
   p4: { std: "ISA 315 (Revised 2019) ¶21–27", en: "the entity-level control and IT conclusion", fr: "la conclusion contrôles de l'entité et informatique" },
-  p5: { std: "ISA 240 ¶17–27 · ISA 315 (Revised 2019) ¶17", en: "the fraud risk record and team discussion", fr: "le dossier risques de fraude et discussion d'équipe" },
+  p5: { std: "{{ISA240}} ¶17–27 · ISA 315 (Revised 2019) ¶17", en: "the fraud risk record and team discussion", fr: "le dossier risques de fraude et discussion d'équipe" },
   p6: { std: "ISA 320 · ISA 315 (Revised 2019) ¶28–29", en: "the materiality and scoping record", fr: "le seuil de signification et le périmètre" },
   p7: { std: "ISA 300 ¶7–12 · ISA 220 (Revised) ¶22–35 · ISQM 1", en: "the planning approval", fr: "l'approbation de la planification" },
   s1: { std: "ISA 315 (Revised 2019) ¶25–26, ¶A136–A150", en: "the transaction-flow understanding", fr: "la compréhension des flux de transactions" },
@@ -72,10 +73,10 @@ const GROUP_DEFAULT: Record<string, { std: string; en: string; fr: string }> = {
   // e5. What stayed behind in e6 is the records, the opening balances and the
   // reassessment, which is why neither anchor reads as it did before.
   e4: { std: "ISA 330 ¶18–23 · ISA 500 · ISA 520", en: "the evidence obtained on the account", fr: "les éléments probants du compte" },
-  e5: { std: "ISA 240 ¶32–33 · ISA 501 · ISA 540 · ISA 550 · ISA 560 · ISA 570 (Revised)", en: "the general audit procedure and what it found", fr: "la procédure générale d'audit et ses constats" },
+  e5: { std: "{{ISA240}} ¶32–33 · ISA 501 · ISA 540 · ISA 550 · ISA 560 · {{ISA570}}", en: "the general audit procedure and what it found", fr: "la procédure générale d'audit et ses constats" },
   e6: { std: "ISA 230 ¶8–11 · ISA 510 · ISA 710 · ISA 315 (Revised 2019) ¶37", en: "the statutory records, the opening balances and the reassessed risks", fr: "les registres légaux, les soldes d'ouverture et les risques réévalués" },
   c1: { std: "ISA 450 ¶10–15 · ISA 701", en: "the evaluation of audit differences", fr: "l'évaluation des écarts d'audit" },
-  c2: { std: "ISA 520 ¶6 · ISA 560 · ISA 570 (Revised)", en: "the final review conclusion", fr: "la conclusion de revue finale" },
+  c2: { std: "ISA 520 ¶6 · ISA 560 · {{ISA570}}", en: "the final review conclusion", fr: "la conclusion de revue finale" },
   c3: { std: "ISA 580 · ISA 505", en: "the representations obtained", fr: "les déclarations obtenues" },
   c4: { std: "ISA 700 ¶12–15 · ISA 220 (Revised) ¶29–35", en: "the review and approval record", fr: "le dossier de revue et d'approbation" },
   c5: { std: "ISA 260 (Revised) · ISA 265 · OHADA — Acte uniforme (sociétés commerciales)", en: "the communications and statutory record", fr: "le dossier communications et obligations légales" },
@@ -95,22 +96,36 @@ const ALL_PAPERS: Record<string, PaperDef> = {
   ...GAM_PAPERS,
 };
 
-/** The paper for a task: bespoke where defined, otherwise built from its group. */
-export function paperFor(code: string): PaperDef {
+/** The group-derived default papers, built once so resolvePaper's cache holds them too. */
+const GROUP_PAPERS = new Map<string, PaperDef>();
+
+/**
+ * The paper for a task: bespoke where defined, otherwise built from its group,
+ * with every ISA reference and wording rendered for the engagement's standards
+ * edition (F045). Callers that only count keys may leave the edition out: the
+ * keys are the same under both.
+ */
+export function paperFor(code: string, edition: StandardsEdition = "current"): PaperDef {
   const bespoke = ALL_PAPERS[code];
-  if (bespoke) return bespoke;
+  if (bespoke) return resolvePaper(bespoke, edition);
   const group = groupOfTask(code);
-  const d = (group && GROUP_DEFAULT[group.id]) ?? {
-    std: "ISA 230 ¶8–11",
-    en: "the work performed and the conclusion reached",
-    fr: "les travaux effectués et la conclusion",
-  };
-  return {
-    std: d.std,
-    ownsEn: d.en,
-    ownsFr: d.fr,
-    fields: [PROCEDURES, RESULTS, EXCEPTIONS, CONCLUSION],
-  };
+  const groupId = group?.id ?? "";
+  let def = GROUP_PAPERS.get(groupId);
+  if (!def) {
+    const d = (group && GROUP_DEFAULT[group.id]) ?? {
+      std: "ISA 230 ¶8–11",
+      en: "the work performed and the conclusion reached",
+      fr: "les travaux effectués et la conclusion",
+    };
+    def = {
+      std: d.std,
+      ownsEn: d.en,
+      ownsFr: d.fr,
+      fields: [PROCEDURES, RESULTS, EXCEPTIONS, CONCLUSION],
+    };
+    GROUP_PAPERS.set(groupId, def);
+  }
+  return resolvePaper(def, edition);
 }
 
 export function paperOwns(def: PaperDef, locale: "en" | "fr"): string {

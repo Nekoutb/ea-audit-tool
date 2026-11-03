@@ -139,6 +139,7 @@ export async function jeView(
   const settings = resolveSettings({ ...options.params, locale });
   const base = {
     locale,
+    standardsEdition: engagement.standardsEdition,
     clientName: engagement.clientName,
     fiscalYear: engagement.fiscalYear,
     periodEnd: engagement.periodEnd,

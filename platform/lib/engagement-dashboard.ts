@@ -12,6 +12,7 @@ import { riskTitle } from "@/lib/risks";
 import { fileItemHasAssignee } from "@/lib/team";
 import { requireTenant } from "@/lib/tenant";
 import { visibilityClause } from "@/lib/engagement-access";
+import { isStandardsEdition } from "@/lib/standards-edition";
 
 /**
  * Schema-tolerant due-date read (expand/contract deploy): the app ships before
@@ -475,6 +476,7 @@ interface RecentRow {
   phase: EngagementPhase;
   name: string | null;
   complexity: EngagementSummary["complexity"];
+  standards_edition?: string | null;
 }
 
 function toSummary(row: RecentRow): EngagementSummary {
@@ -487,6 +489,7 @@ function toSummary(row: RecentRow): EngagementSummary {
     phase: row.phase,
     name: row.name,
     complexity: row.complexity,
+    standardsEdition: isStandardsEdition(row.standards_edition) ? row.standards_edition : "current",
   };
 }
 
@@ -507,7 +510,7 @@ export async function recentEngagements(limit = 6): Promise<EngagementSummary[]>
     const params: (number | string)[] = [limit, userId];
     const result = await tx.query<RecentRow>(
       `SELECT e.id, e.client_id, c.name AS client_name, e.fiscal_year,
-              to_char(e.period_end, 'YYYY-MM-DD') AS period_end, e.phase, e.name, e.complexity
+              to_char(e.period_end, 'YYYY-MM-DD') AS period_end, e.phase, e.name, e.complexity, e.standards_edition
          FROM engagement e
          JOIN client c ON c.id = e.client_id
         WHERE e.phase <> 'archived'${visibility}

@@ -5,6 +5,7 @@ import { ErrorBanner, GatesPanel } from "@/components/GatesPanel";
 import { NavLink } from "@/components/NavLink";
 import { acceptanceGates, phaseStillOpen, planningCloseGates } from "@/lib/gates";
 import { canReview, canWrite, isRole } from "@/lib/rbac";
+import { roleMinimumRefusals } from "@/lib/signoff-policy";
 import { PhaseTaskRow, type PhaseRowData } from "@/components/PhaseTaskRow";
 import { Chip, Panel, PanelHeader } from "@/components/ui/atlas";
 import {
@@ -103,6 +104,10 @@ export default async function PhaseTasksPage(props: {
 
   // tool-fed papers whose tool output is missing (F004): P and R greyed out with the reason
   const toolMissing = await toolOutputsMissing(session.user.tenantId, id, tasks.map((task) => task.code));
+  // the reader's team role below a task's minimum (F002): P and R greyed out with the reason (D2)
+  const roleBelow = await roleMinimumRefusals(session.user.tenantId, id, session.user.id, tasks.map((task) => task.code));
+  const refusalLabel = (code: string | null | undefined) =>
+    code ? ((t.document.errors as Record<string, string>)[code] ?? code) : null;
   const rows: PhaseRowData[] = tasks.map((task) => {
     // Strategy tasks live on the working-paper screen — the legacy form and
     // document branches no longer apply to them.
@@ -158,6 +163,8 @@ export default async function PhaseTasksPage(props: {
       toolMissing: toolMissing.has(task.code)
         ? ((t.document.errors as Record<string, string>)[toolMissing.get(task.code)!] ?? toolMissing.get(task.code)!)
         : null,
+      preparerBelow: refusalLabel(roleBelow.get(task.code)?.preparer),
+      reviewerBelow: refusalLabel(roleBelow.get(task.code)?.reviewer),
     };
   });
 

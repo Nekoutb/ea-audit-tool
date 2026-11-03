@@ -32,6 +32,7 @@ export function WorkingPaper({
   locale,
   action,
   readOnly,
+  editionLabel,
 }: {
   code: string;
   def: PaperDef;
@@ -40,6 +41,8 @@ export function WorkingPaper({
   locale: Locale;
   action: (formData: FormData) => void;
   readOnly?: boolean;
+  /** "Standards edition: ISA in force" — the engagement's edition, under the anchor (F045) */
+  editionLabel?: string;
 }) {
   const fr = locale === "fr";
   const L = fr ? "fr" : "en";
@@ -55,6 +58,7 @@ export function WorkingPaper({
         right={<span className="font-mono text-[11px] text-muted">{code}</span>}
       />
       <p className="mt-2 text-xs text-muted">{def.std}</p>
+      {editionLabel ? <p className="mt-0.5 text-xs text-muted" data-testid="wp-edition">{editionLabel}</p> : null}
 
       <div className="mt-3 flex flex-wrap gap-x-5 gap-y-1 text-[11px] text-muted">
         <span className="flex items-center gap-1.5">

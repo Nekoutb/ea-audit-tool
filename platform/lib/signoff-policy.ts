@@ -233,6 +233,48 @@ export async function effectiveRuleTx(tx: PoolClient, tenantId: string, code: st
   return effectiveTaskRule(policy, rules, code);
 }
 
+/** Why the reader may not press P or R on a task, or null — the F002 role minimum, read before the click (D2). */
+export interface RoleMinimumRefusal {
+  preparer: string | null;
+  reviewer: string | null;
+}
+
+/**
+ * The refusal signDocument would raise for the reader's team role on each of
+ * the given tasks — belowMinimumCode(minPreparer) for P, belowMinimumCode(
+ * minReviewer) for R — so the screens grey the button out with the reason, as
+ * the F004 tool-fed gate does, instead of redirecting after the click (D2,
+ * DEV test run 2026-11-03). A reader who is not an accepted team member gets
+ * no refusal from here: the team gates speak for themselves. The server check
+ * in lib/documents.ts stays the authority.
+ */
+export async function roleMinimumRefusals(
+  tenantId: string,
+  engagementId: string,
+  userId: string,
+  codes: readonly string[],
+): Promise<Map<string, RoleMinimumRefusal>> {
+  const out = new Map<string, RoleMinimumRefusal>();
+  if (codes.length === 0) return out;
+  return withTenant(tenantId, async (tx) => {
+    const staffed = await tx.query<{ team_role: string }>(
+      `SELECT team_role FROM team_member
+        WHERE engagement_id = $1 AND user_id = $2 AND coalesce(status, 'accepted') = 'accepted'`,
+      [engagementId, userId],
+    );
+    const teamRole = staffed.rows[0]?.team_role ?? null;
+    if (teamRole === null || !isLadderRole(teamRole)) return out;
+    const [policy, rules] = await Promise.all([getPolicyTx(tx, tenantId), getTaskRulesTx(tx, tenantId, [...codes])]);
+    for (const code of codes) {
+      const rule = effectiveTaskRule(policy, rules, code);
+      const preparer = teamRank(teamRole) < teamRank(rule.minPreparer) ? belowMinimumCode(rule.minPreparer) : null;
+      const reviewer = teamRank(teamRole) < teamRank(rule.minReviewer) ? belowMinimumCode(rule.minReviewer) : null;
+      if (preparer || reviewer) out.set(code, { preparer, reviewer });
+    }
+    return out;
+  });
+}
+
 /* --------------------------- the engagement partner --------------------------- */
 
 export interface EngagementPartner {

@@ -2,15 +2,17 @@ import Link from "next/link";
 import { localizedTitle } from "@/lib/page-title";
 import { notFound, redirect } from "next/navigation";
 import { auth } from "@/auth";
-import { updatePeriodEndAction } from "@/app/actions/audit-file";
+import { updatePeriodEndAction, updateStandardsEditionAction } from "@/app/actions/audit-file";
 import { AppNav } from "@/components/AppNav";
 import { ErrorBanner } from "@/components/GatesPanel";
 import { SubmitButton } from "@/components/SubmitButton";
 import { Panel, btnPrimary } from "@/components/ui/atlas";
 import { getConclusionState } from "@/lib/completion";
-import { getEngagement } from "@/lib/engagements";
+import { getEngagement, standardsEditionOf } from "@/lib/engagements";
+import { getMessages } from "@/lib/i18n";
 import { getLocale } from "@/lib/locale";
-import { canReview, type Role } from "@/lib/rbac";
+import { atLeast, canReview, type Role } from "@/lib/rbac";
+import { STANDARDS_EDITIONS, editionLabel } from "@/lib/standards-edition";
 
 export const generateMetadata = localizedTitle("Engagement settings", "Paramètres de la mission");
 
@@ -35,6 +37,10 @@ export default async function EngagementSettingsPage(props: {
   const state = await getConclusionState(id);
   const periodEditable =
     (engagement.phase === "acceptance" || engagement.phase === "planning") && canReview(session.user.role as Role);
+  // the standards edition (F045): derived from the period, overridable by a manager or above with a reason
+  const se = getMessages(locale).standardsEdition;
+  const editionInfo = await standardsEditionOf(id);
+  const editionEditable = engagement.phase !== "archived" && atLeast(session.user.role as Role, "manager");
   const input =
     "rounded-[var(--radius-atlas-sm)] border border-line-strong bg-surface px-3 py-1.5 text-sm text-ink outline-none focus:border-emerald-600 focus:ring-2 focus:ring-emerald-600/20";
 
@@ -59,7 +65,7 @@ export default async function EngagementSettingsPage(props: {
       <ErrorBanner error={error} locale={locale} />
       {saved ? (
         <p className="mt-4 text-sm font-semibold text-emerald-700 dark:text-emerald-400" data-testid="engsettings-saved">
-          {fr ? "Date de clôture enregistrée." : "Period end saved."}
+          {saved === "edition" ? se.saved : fr ? "Date de clôture enregistrée." : "Period end saved."}
         </p>
       ) : null}
 
@@ -93,6 +99,49 @@ export default async function EngagementSettingsPage(props: {
           </form>
         ) : null}
       </Panel>
+
+      {editionInfo ? (
+        <Panel className="mt-4" data-testid="engsettings-edition">
+          <h2 className="text-sm font-semibold text-ink">{se.label}</h2>
+          <p className="mt-1 text-xs text-muted">
+            <span className="font-semibold text-ink" data-testid="engsettings-edition-value">{editionLabel(editionInfo.edition, locale)}</span>
+            {" · "}
+            {editionInfo.overridden ? se.overridden : se.derived}
+            {" · "}
+            {fr ? "début d'exercice" : "period start"} <span className="tnum">{editionInfo.periodStart}</span>
+            {editionInfo.overridden ? (
+              <>
+                {" · "}
+                {se.derived}: {editionLabel(editionInfo.derived, locale)}
+              </>
+            ) : null}
+          </p>
+          <p className="mt-1 max-w-3xl text-xs text-muted">{se.hint}</p>
+          {editionEditable ? (
+            <form action={updateStandardsEditionAction.bind(null, id)} className="mt-3 flex flex-wrap items-end gap-3">
+              <label className="flex flex-col gap-1 text-sm">
+                <span className="text-ink-soft">{se.change}</span>
+                <select name="standardsEdition" defaultValue={editionInfo.edition} required className={input} data-testid="engsettings-edition-select">
+                  {STANDARDS_EDITIONS.map((e) => (
+                    <option key={e} value={e}>
+                      {editionLabel(e, locale)}
+                    </option>
+                  ))}
+                </select>
+              </label>
+              <label className="flex min-w-[18rem] flex-1 flex-col gap-1 text-sm">
+                <span className="text-ink-soft">{se.reason}</span>
+                <input name="reason" type="text" required maxLength={500} className={input} data-testid="engsettings-edition-reason" />
+              </label>
+              <SubmitButton className={btnPrimary} testId="engsettings-edition-save">
+                {se.save}
+              </SubmitButton>
+            </form>
+          ) : (
+            <p className="mt-2 text-xs text-muted">{se.managerOnly}</p>
+          )}
+        </Panel>
+      ) : null}
 
       <Panel className="mt-4">
         <ul className="divide-y divide-line" data-testid="engsettings-list">

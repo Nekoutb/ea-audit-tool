@@ -867,7 +867,7 @@
       "amount": "Benchmark amount (FCFA)",
       "percentage": "Percentage (%)",
       "range": "Firm guidance",
-      "justification": "Justification",
+      "justification": "Justification of the benchmark, percentage and qualitative factors (ISA 320 ¶14)",
       "performancePct": "Tolerable error — TE (% of overall, 60–85)",
       "performanceJustification": "Justification of the TE percentage",
       "trivialPct": "Clearly trivial threshold — SAD (% of overall, 0.5–10)",
@@ -1574,5 +1574,18 @@
     "changes": "{n} change(s)",
     "unknownUser": "Not recorded",
     "empty_value": "(empty)"
+  },
+  "standardsEdition": {
+    "label": "Standards edition",
+    "current": "ISA in force",
+    "revised_2026": "Revised ISAs (periods beginning on or after 15/12/2026)",
+    "hint": "Derived from the first day of the period: a period beginning on or after 15 December 2026 is audited under ISA 240 (Revised) and ISA 570 (Revised 2024); earlier periods under the editions in force. A manager or above may override it, with a reason.",
+    "derived": "Derived from the period",
+    "overridden": "Set by hand",
+    "change": "Change the edition",
+    "reason": "Reason for the change (recorded in the activity log)",
+    "save": "Save",
+    "saved": "Standards edition saved.",
+    "managerOnly": "Managers and above may change the edition."
   }
 }

@@ -8,6 +8,7 @@ import { atLeast, canPartnerSignoff, canReview, type Role } from "@/lib/rbac";
 import { applyOverride } from "@/lib/template-overrides";
 import { templateFor } from "@/lib/templates";
 import { ForbiddenError, requireRole, requireTenant, requireWrite } from "@/lib/tenant";
+import { editionLabel, isStandardsEdition } from "@/lib/standards-edition";
 import { hasBespokePaper, paperContentHashTx, paperFor, paperMissing } from "@/lib/working-papers";
 import { visibleToUser } from "@/lib/engagement-access";
 import { logReopen, logSignOff, logSignOffVoided, logVersionRestored, recordActivity } from "@/lib/activity";
@@ -143,6 +144,7 @@ export async function generateDocument(fileItemId: string, locale: Locale): Prom
       client_name: string;
       fiscal_year: number;
       period_end: string;
+      standards_edition: string | null;
       archived_at: string | null;
       user_name: string | null;
       user_email: string;
@@ -150,6 +152,7 @@ export async function generateDocument(fileItemId: string, locale: Locale): Prom
       `SELECT fi.id, fi.engagement_id, fi.code, fi.title_en, fi.title_fr,
               c.name AS client_name, e.fiscal_year,
               to_char(e.period_end, 'YYYY-MM-DD') AS period_end,
+              e.standards_edition,
               e.archived_at::text AS archived_at,
               u.name AS user_name, u.email AS user_email
          FROM file_item fi
@@ -187,6 +190,8 @@ export async function generateDocument(fileItemId: string, locale: Locale): Prom
         clientName: row.client_name,
         fiscalYear: row.fiscal_year,
         periodEnd: row.period_end,
+        // the edition of the ISAs the paper is written under, in the identity block (F045)
+        standardsEdition: editionLabel(isStandardsEdition(row.standards_edition) ? row.standards_edition : "current", locale),
         preparedBy: row.user_name ?? row.user_email,
         extraRows: row.code === "S6.1" ? await strategyMemoRows(tx, row.engagement_id, locale) : undefined,
       },

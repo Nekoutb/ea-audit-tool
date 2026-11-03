@@ -37,6 +37,7 @@
 // database; lib/je-export.ts supplies the view.
 
 import ExcelJS from "exceljs";
+import { editionLabel, isaRef, type StandardsEdition } from "@/lib/standards-edition";
 
 /* ============================== the view ============================== */
 
@@ -132,6 +133,8 @@ export interface JeView {
   clientName: string;
   fiscalYear: number;
   periodEnd: string;
+  /** the ISA edition the cover cites (F045); the editions in force when absent */
+  standardsEdition?: StandardsEdition;
   preparer: string | null;
   reviewer: string | null;
   partner: string | null;
@@ -312,6 +315,8 @@ export async function buildJeWorkbook(view: JeView): Promise<Buffer> {
 
   const fr = view.locale === "fr";
   const T = (en: string, frText: string): string => (fr ? frText : en);
+  // the ISA 240 paragraphs the cover cites follow the engagement's standards edition (F045)
+  const edition: StandardsEdition = view.standardsEdition ?? "current";
 
   const PAPER = T("E3.1 Journal entries and other adjustments", "E3.1 Écritures comptables et autres ajustements");
 
@@ -455,8 +460,9 @@ export async function buildJeWorkbook(view: JeView): Promise<Buffer> {
   coverRow(
     cover,
     T("Standards", "Normes"),
-    "ISA 240 ¶31–34 · ISA 240 ¶29(c) · ISA 315 (Revised 2019) ¶26 · IAM 321",
+    `${isaRef(edition, "ISA240.std.E31", view.locale)} · ISA 315 (Revised 2019) ¶26 · IAM 321`,
   );
+  coverRow(cover, T("Standards edition", "Édition des normes"), editionLabel(edition, view.locale));
   coverRow(
     cover,
     T("Feeds from · into", "Alimenté par · alimente"),
@@ -515,8 +521,8 @@ export async function buildJeWorkbook(view: JeView): Promise<Buffer> {
   sectionBand(
     cover,
     T(
-      "Unpredictability — record which lever was used and how (ISA 240 ¶29(c))",
-      "Imprévisibilité — consigner quel levier a été actionné et comment (ISA 240 ¶29 c))",
+      `Unpredictability — record which lever was used and how (${isaRef(edition, "ISA240.unpredictability", "en")})`,
+      `Imprévisibilité — consigner quel levier a été actionné et comment (${isaRef(edition, "ISA240.unpredictability", "fr")})`,
     ),
     6,
   );
@@ -1293,8 +1299,8 @@ export async function buildJeWorkbook(view: JeView): Promise<Buffer> {
   exceptions.addRow([]);
   const excNote = exceptions.addRow([
     T(
-      "A misstatement found here is considered for what it may indicate about fraud and for what it means elsewhere in the audit — in particular the reliability of management's representations (ISA 240 ¶35–36). Where the identified risk of override is not fully answered by the procedures performed, the additional procedures are designed, performed and cross-referenced on the Cover.",
-      "Une anomalie relevée ici est appréciée au regard de ce qu'elle peut révéler d'une fraude et de ses incidences ailleurs dans l'audit — en particulier la fiabilité des déclarations de la direction (ISA 240 ¶35-36). Lorsque le risque de contournement identifié n'est pas entièrement couvert par les procédures mises en œuvre, les procédures complémentaires sont conçues, réalisées et référencées sur la page de garde.",
+      `A misstatement found here is considered for what it may indicate about fraud and for what it means elsewhere in the audit — in particular the reliability of management's representations (${isaRef(edition, "ISA240.evaluate", "en")}). Where the identified risk of override is not fully answered by the procedures performed, the additional procedures are designed, performed and cross-referenced on the Cover.`,
+      `Une anomalie relevée ici est appréciée au regard de ce qu'elle peut révéler d'une fraude et de ses incidences ailleurs dans l'audit — en particulier la fiabilité des déclarations de la direction (${isaRef(edition, "ISA240.evaluate", "fr")}). Lorsque le risque de contournement identifié n'est pas entièrement couvert par les procédures mises en œuvre, les procédures complémentaires sont conçues, réalisées et référencées sur la page de garde.`,
     ),
   ]);
   exceptions.mergeCells(excNote.number, 1, excNote.number, EXC_SPAN);

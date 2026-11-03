@@ -20,8 +20,9 @@ import {
   signDocument,
   type SignoffRole,
 } from "@/lib/documents";
-import { applyComplexity, createEngagement } from "@/lib/engagements";
+import { applyComplexity, createEngagement, setStandardsEdition } from "@/lib/engagements";
 import { getLocale } from "@/lib/locale";
+import { isStandardsEdition } from "@/lib/standards-edition";
 import { ForbiddenError } from "@/lib/tenant";
 
 function docPath(documentId: string): string {
@@ -200,6 +201,29 @@ function isIsoDate(value: string): boolean {
  * (a wrong date discovered later is a new engagement, not an edit). The name
  * is regenerated from the firm's convention so it never states a stale date.
  */
+/**
+ * Override the engagement's standards edition (F045): a manager or above, with
+ * a reason the activity log keeps. lib/engagements.ts setStandardsEdition does
+ * the checks and the logging; this maps its refusals to the settings banner.
+ */
+export async function updateStandardsEditionAction(engagementId: string, formData: FormData): Promise<void> {
+  const path = `/engagements/${engagementId}/settings`;
+  const edition = String(formData.get("standardsEdition") ?? "").trim();
+  const reason = String(formData.get("reason") ?? "").trim();
+  if (!isStandardsEdition(edition)) redirect(`${path}?error=invalid-engagement`);
+  if (!reason) redirect(`${path}?error=justification-required`);
+  try {
+    await setStandardsEdition(engagementId, edition, reason);
+  } catch (error) {
+    if (error instanceof Error && ["forbidden", "not-found", "archived", "reason-required"].includes(error.message)) {
+      redirect(`${path}?error=${error.message === "reason-required" ? "justification-required" : error.message}`);
+    }
+    throw error;
+  }
+  revalidatePath(path);
+  redirect(`${path}?saved=edition`);
+}
+
 export async function updatePeriodEndAction(engagementId: string, formData: FormData): Promise<void> {
   const path = `/engagements/${engagementId}/settings`;
   const periodEnd = String(formData.get("periodEnd") ?? "").trim();

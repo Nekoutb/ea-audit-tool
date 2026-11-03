@@ -24,6 +24,7 @@ import { phaseStillOpen } from "@/lib/gates";
 import { getMessages } from "@/lib/i18n";
 import { getLocale } from "@/lib/locale";
 import { canReview, canWrite } from "@/lib/rbac";
+import { roleMinimumRefusals } from "@/lib/signoff-policy";
 import { toolOutputsMissing } from "@/lib/tool-fed-papers";
 import { GROUP_BY_ID, displayCode, groupTitle, sectionLabel } from "@/lib/task-groups";
 import { dspDesignGaps, dspDesignedIndexes } from "@/lib/design-procedures";
@@ -111,6 +112,10 @@ export default async function GroupTasksPage(props: {
 
   // tool-fed papers whose tool output is missing (F004): P and R greyed out with the reason
   const toolMissing = await toolOutputsMissing(session.user.tenantId, id, tasks.map((task) => task.code));
+  // the reader's team role below a task's minimum (F002): P and R greyed out with the reason (D2)
+  const roleBelow = await roleMinimumRefusals(session.user.tenantId, id, session.user.id, tasks.map((task) => task.code));
+  const refusalLabel = (code: string | null | undefined) =>
+    code ? ((t.document.errors as Record<string, string>)[code] ?? code) : null;
   const rows: PhaseRowData[] = tasks.map((task) => {
     // Every task opens its working-paper screen; the legacy /forms and hub
     // routes remain reachable for direct links but are no longer the way in.
@@ -163,6 +168,8 @@ export default async function GroupTasksPage(props: {
       toolMissing: toolMissing.has(task.code)
         ? ((t.document.errors as Record<string, string>)[toolMissing.get(task.code)!] ?? toolMissing.get(task.code)!)
         : null,
+      preparerBelow: refusalLabel(roleBelow.get(task.code)?.preparer),
+      reviewerBelow: refusalLabel(roleBelow.get(task.code)?.reviewer),
     };
   });
 

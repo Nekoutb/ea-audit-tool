@@ -23,6 +23,8 @@ export interface WorkpaperMergeFields {
   clientName: string;
   fiscalYear: number;
   periodEnd: string;
+  /** "ISA in force" / "Revised ISAs (…)" — the engagement's standards edition (F045) */
+  standardsEdition?: string;
   preparedBy: string;
   /** Extra file facts merged under the identity block (e.g. the S6.1 strategy figures). */
   extraRows?: { label: string; value: string }[];
@@ -33,6 +35,7 @@ const LABELS: Record<Locale, Record<string, string>> = {
     client: "Client",
     periodEnd: "Period end",
     fiscalYear: "Fiscal year",
+    standardsEdition: "Standards edition",
     preparedBy: "Prepared by",
     purpose: "Purpose",
     checklist: "Requirements / actions",
@@ -50,6 +53,7 @@ const LABELS: Record<Locale, Record<string, string>> = {
     client: "Client",
     periodEnd: "Date de clôture",
     fiscalYear: "Exercice",
+    standardsEdition: "Édition des normes",
     preparedBy: "Préparé par",
     purpose: "Objet",
     checklist: "Diligences / actions",
@@ -170,6 +174,7 @@ export async function generateWorkpaperDocx(
               metaRow(t.client, fields.clientName),
               metaRow(t.fiscalYear, String(fields.fiscalYear)),
               metaRow(t.periodEnd, fields.periodEnd),
+              ...(fields.standardsEdition ? [metaRow(t.standardsEdition, fields.standardsEdition)] : []),
               metaRow(t.preparedBy, fields.preparedBy),
               ...(fields.extraRows ?? []).map((r) => metaRow(r.label, r.value)),
             ],

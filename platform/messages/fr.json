@@ -867,7 +867,7 @@
       "amount": "Montant de référence (FCFA)",
       "percentage": "Pourcentage (%)",
       "range": "Fourchette cabinet",
-      "justification": "Justification",
+      "justification": "Justification de la base, du pourcentage et des facteurs qualitatifs (ISA 320 ¶14)",
       "performancePct": "Seuil de travail — TE (% du seuil global, 60–85)",
       "performanceJustification": "Justification du pourcentage de TE",
       "trivialPct": "Seuil des anomalies manifestement négligeables — SAD (% du seuil global, 0,5–10)",
@@ -1574,5 +1574,18 @@
     "changes": "{n} modification(s)",
     "unknownUser": "Non enregistré",
     "empty_value": "(vide)"
+  },
+  "standardsEdition": {
+    "label": "Édition des normes",
+    "current": "ISA en vigueur",
+    "revised_2026": "ISA révisées (périodes ouvertes à partir du 15/12/2026)",
+    "hint": "Déduite du premier jour de l'exercice : un exercice ouvert à partir du 15 décembre 2026 est audité selon l'ISA 240 révisée et l'ISA 570 révisée 2024 ; les exercices antérieurs selon les éditions en vigueur. Un manager ou au-dessus peut la modifier, avec un motif.",
+    "derived": "Déduite de l'exercice",
+    "overridden": "Fixée manuellement",
+    "change": "Modifier l'édition",
+    "reason": "Motif du changement (consigné dans le journal d'activité)",
+    "save": "Enregistrer",
+    "saved": "Édition des normes enregistrée.",
+    "managerOnly": "Seuls les managers et au-dessus peuvent modifier l'édition."
   }
 }

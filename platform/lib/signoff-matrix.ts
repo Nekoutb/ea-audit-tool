@@ -96,10 +96,17 @@ const HEADERS: Record<MatrixLocale, string[]> = {
 
 const PHASE_ORDER = ["acceptance", "planning", "execution", "conclusion"];
 
-/** The 117 tasks of the default index, in phase order then index order. */
+/**
+ * The 117 tasks of the default index, in phase order then by code (P1.1, P1.2,
+ * P1.3, … then S…). The index order put S6.1 at the head of the acceptance
+ * phase (D5, DEV test run 2026-11-03); the page and the Excel matrix both
+ * read this list, so one sort serves both.
+ */
 export function matrixTasks() {
   return DEFAULT_FILE_INDEX.map((entry, index) => ({ entry, index, phase: phaseOfTask(entry.section, entry.code) })).sort(
-    (a, b) => PHASE_ORDER.indexOf(a.phase) - PHASE_ORDER.indexOf(b.phase) || a.index - b.index,
+    (a, b) =>
+      PHASE_ORDER.indexOf(a.phase) - PHASE_ORDER.indexOf(b.phase) ||
+      a.entry.code.localeCompare(b.entry.code, undefined, { numeric: true }),
   );
 }
 

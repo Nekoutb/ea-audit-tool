@@ -47,6 +47,7 @@ import type { PaperDef, PaperItem, PaperProc } from "@/lib/papers/types";
 import { sapCountsByIndex, sapThresholds, sapView, saveSap, setSapThresholds } from "@/lib/sap";
 import { DEFAULT_SAP_THRESHOLDS, evaluateSap, thresholdPctFor } from "@/lib/sap-model";
 import { DEFAULT_REQUIRE_PARTNER_ON, defaultPolicy, effectiveTaskRule } from "@/lib/signoff-policy";
+import { resolvePaper } from "@/lib/standards-edition";
 import { groupOfTask } from "@/lib/task-groups";
 import { toolOutputsFor } from "@/lib/tool-fed-papers";
 import en from "@/messages/en.json";
@@ -149,9 +150,11 @@ describe("F025 — C5.1 is the report, C5.11 the communications", () => {
 /* ------------------------------ F035 — going concern ------------------------------ */
 
 describe("F035 — going concern (ISA 570 Revised 2024)", () => {
-  const e63 = EXECUTION_PAPERS["E6.3"];
-  const s42 = STRATEGY_PAPERS["S4.2"];
-  const c51 = CONCLUSION_PAPERS["C5.1"];
+  // Since F045 the papers carry {{tokens}} and read differently per standards
+  // edition; the F035 wording is the one of the revised edition.
+  const e63 = resolvePaper(EXECUTION_PAPERS["E6.3"], "revised_2026");
+  const s42 = resolvePaper(STRATEGY_PAPERS["S4.2"], "revised_2026");
+  const c51 = resolvePaper(CONCLUSION_PAPERS["C5.1"], "revised_2026");
 
   it("E6.3 carries the close-call procedure and item (¶20)", () => {
     const closeCall = procs(e63).find((p) => p.key === "close_call")!;

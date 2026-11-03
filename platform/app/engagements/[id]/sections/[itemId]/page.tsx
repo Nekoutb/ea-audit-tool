@@ -64,6 +64,8 @@ import { listItemDocuments, TEAM_REVIEW_ROLES } from "@/lib/documents";
 import { ensureDefaultWorkpaper, templateForCode } from "@/lib/wp-templates";
 import { effectiveDueDate, taskForItem, engagementTasks } from "@/lib/engagement-dashboard";
 import { listTeam as listEngagementTeam } from "@/lib/team";
+import { roleMinimumRefusals } from "@/lib/signoff-policy";
+import { editionLine } from "@/lib/standards-edition";
 import { EQR_OWN_PAPER, loadPaper, paperBaseDigests, paperFor, paperVersion } from "@/lib/working-papers";
 import { describeSelectionDesign, type RecordedSelectionDesign } from "@/lib/je-selection";
 import { benchmarkLabel } from "@/lib/materiality-model";
@@ -122,7 +124,9 @@ export default async function SectionPage(props: {
   if (!engagement || !section || section.engagement_id !== id) notFound();
 
   const group = groupOfTask(section.code);
-  const paperDef = paperFor(section.code);
+  // the paper cites the paragraph numbers and wording of the engagement's standards edition (F045)
+  const paperDef = paperFor(section.code, engagement.standardsEdition);
+  const editionLabel = editionLine(engagement.standardsEdition, locale);
   // version BEFORE values: a save in between then refuses (safe), never overwrites
   const paperBaseVersion = await paperVersion(id, section.code);
   const paperValues = await loadPaper(id, section.code);
@@ -370,7 +374,7 @@ export default async function SectionPage(props: {
   const lockedKeys = !isC42
     ? undefined
     : eqr.appointed
-      ? [...paperKeys(paperFor(section.code))].filter((k) => !EQR_C42_KEYS.includes(k))
+      ? [...paperKeys(paperDef)].filter((k) => !EQR_C42_KEYS.includes(k))
       : eqr.required
         ? [...EQR_C42_KEYS]
         : undefined;
@@ -495,6 +499,28 @@ export default async function SectionPage(props: {
   const toolMissingLabel = toolMissingCode
     ? ((t.document.errors as Record<string, string>)[toolMissingCode] ?? toolMissingCode)
     : null;
+  // the reader's team role is below the task's minimum (F002): P and R are greyed
+  // out with the reason, as the F004 gate does, instead of a refusal after the click (D2)
+  const roleBelow = (await roleMinimumRefusals(session.user.tenantId, id, session.user.id, [section.code])).get(section.code);
+  const refusalLabel = (code: string | null | undefined) =>
+    code ? ((t.document.errors as Record<string, string>)[code] ?? code) : null;
+  const roleBelowP = refusalLabel(roleBelow?.preparer);
+  const roleBelowR = refusalLabel(roleBelow?.reviewer);
+  const roleBelowChip = (letter: "P" | "R", why: string) => (
+    <button
+      type="button"
+      disabled
+      className={`${chip(false)} cursor-not-allowed opacity-50`}
+      title={why}
+      aria-label={`${letter} — ${why}`}
+      aria-disabled="true"
+      data-testid={letter === "P" ? "chip-preparer" : "chip-reviewer"}
+      data-signed="false"
+      data-role-below="true"
+    >
+      {letter}
+    </button>
+  );
   const toolMissingChip = (letter: "P" | "R") => (
     <button
       type="button"
@@ -544,6 +570,7 @@ export default async function SectionPage(props: {
           >
             {section.code} — {locale === "fr" ? section.title_fr : section.title_en}
           </h1>
+          <span className="text-[11px] text-muted" data-testid="wp-edition-header">{editionLabel}</span>
           {accountCra ? (
             <Link href={`/engagements/${id}/cra`} title={fr ? "Évaluation combinée des risques (S3.1)" : "Combined risk assessment (S3.1)"} data-testid="wp-account-cra">
               <Chip tone={craTone(accountCra.replace("_sr", "") as CraLevel)}>
@@ -586,7 +613,7 @@ export default async function SectionPage(props: {
               </>
             ) : (
               <>
-                {toolMissingLabel && !pSigned ? toolMissingChip("P") : (
+                {toolMissingLabel && !pSigned ? toolMissingChip("P") : roleBelowP && !pSigned ? roleBelowChip("P", roleBelowP) : (
 <form action={signOffPreparerAction}>
                   <input type="hidden" name="fileItemId" value={itemId} />
                   <input type="hidden" name="engagementId" value={id} />
@@ -596,7 +623,7 @@ export default async function SectionPage(props: {
                   </button>
                 </form>
 )}
-                {toolMissingLabel && !rSigned ? toolMissingChip("R") : selfPrepared ? (
+                {toolMissingLabel && !rSigned ? toolMissingChip("R") : roleBelowR && !rSigned ? roleBelowChip("R", roleBelowR) : selfPrepared ? (
                   <button type="button" disabled className={`${chip(false)} cursor-not-allowed opacity-50`} title={selfReviewLabel} aria-label={selfReviewLabel} aria-disabled="true" data-testid="chip-reviewer" data-signed="false" data-self-prepared="true">
                     R
                   </button>
@@ -812,6 +839,7 @@ export default async function SectionPage(props: {
         <span className="hidden max-w-[220px] truncate text-[12px] text-muted lg:block">
           {engagement.name ?? engagement.clientName}
         </span>
+        <span className="text-[11px] text-muted" data-testid="wp-edition-header">{editionLabel}</span>
         <span className="flex items-center gap-1.5 text-[12px] text-muted tnum">
           {fr ? "Échéance" : "Deadline"}: {dueDate ?? "—"}
           <Chip tone={overdue ? "rose" : "good"}>{overdue ? (fr ? "En retard" : "Overdue") : fr ? "Dans les temps" : "On track"}</Chip>
@@ -824,7 +852,7 @@ export default async function SectionPage(props: {
             </>
           ) : (
           <>
-          {toolMissingLabel && !pSigned ? toolMissingChip("P") : (
+          {toolMissingLabel && !pSigned ? toolMissingChip("P") : roleBelowP && !pSigned ? roleBelowChip("P", roleBelowP) : (
 <form action={signOffPreparerAction}>
             <input type="hidden" name="fileItemId" value={itemId} />
             <input type="hidden" name="engagementId" value={id} />
@@ -834,7 +862,7 @@ export default async function SectionPage(props: {
             </button>
           </form>
 )}
-          {toolMissingLabel && !rSigned ? toolMissingChip("R") : selfPrepared ? (
+          {toolMissingLabel && !rSigned ? toolMissingChip("R") : roleBelowR && !rSigned ? roleBelowChip("R", roleBelowR) : selfPrepared ? (
             // the preparer never reviews their own paper: nothing to press (F001)
             <button type="button" disabled className={`${chip(false)} cursor-not-allowed opacity-50`} title={selfReviewLabel} aria-label={selfReviewLabel} aria-disabled="true" data-testid="chip-reviewer" data-signed="false" data-self-prepared="true">
               R
@@ -999,6 +1027,7 @@ export default async function SectionPage(props: {
         <section className="flex min-h-0 flex-col overflow-hidden rounded-[var(--radius-atlas)] border border-glass-border bg-surface px-4 py-3 shadow-atlas-sm backdrop-blur-xl xl:max-h-[50%]" data-testid="wp-guidance">
           <h2 className="text-[11px] font-extrabold uppercase tracking-[0.07em] text-muted">{fr ? "Orientations" : "Guidance"}</h2>
           <p className="mt-1 text-[10.5px] font-semibold text-emerald-700 dark:text-emerald-400">{paperDef.std}</p>
+          <p className="text-[10.5px] text-muted">{editionLabel}</p>
           <ul className="mt-2 flex min-h-0 flex-col gap-1.5 overflow-y-auto">
             {req.slice(0, 4).map((g, i) => (
               <li key={i} className="flex gap-1.5 text-[11.8px] leading-snug text-ink-soft">
@@ -1151,6 +1180,7 @@ export default async function SectionPage(props: {
             lockedKeys={lockedKeys}
             autoValues={autoValues}
             locale={fr ? "fr" : "en"}
+            editionLabel={editionLabel}
             action={savePaperAction.bind(null, id, itemId, section.code)}
             // page 1 of the wizard shows the sign-off state read-only (F039)
             signoffs={{

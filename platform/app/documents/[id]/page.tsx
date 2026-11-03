@@ -27,6 +27,7 @@ import { getEngagement } from "@/lib/engagements";
 import { getMessages } from "@/lib/i18n";
 import { getLocale } from "@/lib/locale";
 import { atLeast, isRole } from "@/lib/rbac";
+import { roleMinimumRefusals } from "@/lib/signoff-policy";
 import { toolOutputsMissing } from "@/lib/tool-fed-papers";
 
 export const generateMetadata = localizedTitle("Working paper", "Feuille de travail");
@@ -84,6 +85,19 @@ export default async function DocumentPage(props: {
       ) ?? null)
     : null;
   const toolMissingLabel = toolMissing ? (td.errors[toolMissing as keyof typeof td.errors] ?? toolMissing) : null;
+  // the reader's team role is below the task's minimum (F002): the button is
+  // greyed out with the reason instead of refusing after the click (D2)
+  const roleBelow = document.fileItemCode
+    ? (await roleMinimumRefusals(session.user.tenantId, document.engagementId, session.user.id, [document.fileItemCode])).get(
+        document.fileItemCode,
+      )
+    : undefined;
+  const refusalLabel = (code: string | null | undefined) =>
+    code ? ((td.errors as Record<string, string>)[code] ?? code) : null;
+  const roleBelowBy: Record<string, string | null> = {
+    preparer: refusalLabel(roleBelow?.preparer),
+    reviewer: refusalLabel(roleBelow?.reviewer),
+  };
   const canReopen =
     !archived && viewerRole !== null && atLeast(viewerRole, "manager") && (!partnerSigned || atLeast(viewerRole, "partner"));
 
@@ -274,6 +288,23 @@ export default async function DocumentPage(props: {
                       title={toolMissingLabel}
                       aria-label={`${label} — ${toolMissingLabel}`}
                       data-testid={`sign-${role}-tool-missing`}
+                    >
+                      {label}
+                    </button>
+                  );
+                }
+                const below = roleBelowBy[role] ?? null;
+                if (below) {
+                  return (
+                    <button
+                      key={role}
+                      type="button"
+                      disabled
+                      aria-disabled="true"
+                      className={`${btn} cursor-not-allowed`}
+                      title={below}
+                      aria-label={`${label} — ${below}`}
+                      data-testid={`sign-${role}-role-below`}
                     >
                       {label}
                     </button>

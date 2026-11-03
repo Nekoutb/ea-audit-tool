@@ -6,6 +6,9 @@ import { itemsForComplexity, type Section } from "@/lib/file-index";
 import { seedPresumedRisks } from "@/lib/risks";
 import { requireTenant, requireWrite } from "@/lib/tenant";
 import { visibilityClause } from "@/lib/engagement-access";
+import { recordActivity } from "@/lib/activity";
+import { atLeast, type Role } from "@/lib/rbac";
+import { editionForPeriod, isStandardsEdition, periodStartOf, type StandardsEdition } from "@/lib/standards-edition";
 
 export type EngagementPhase = "acceptance" | "planning" | "execution" | "conclusion" | "archived";
 
@@ -19,6 +22,8 @@ export interface EngagementSummary {
   /** User-defined engagement name (naming convention); null on legacy rows. */
   name: string | null;
   complexity: EngagementComplexity;
+  /** the ISA edition the papers cite (F045): derived from the period start, or set by hand */
+  standardsEdition: StandardsEdition;
 }
 
 export interface FileItem {
@@ -44,6 +49,7 @@ interface EngagementRow {
   phase: EngagementPhase;
   name: string | null;
   complexity: EngagementComplexity;
+  standards_edition: string | null;
 }
 
 function toSummary(row: EngagementRow): EngagementSummary {
@@ -56,6 +62,7 @@ function toSummary(row: EngagementRow): EngagementSummary {
     phase: row.phase,
     name: row.name,
     complexity: row.complexity,
+    standardsEdition: isStandardsEdition(row.standards_edition) ? row.standards_edition : "current",
   };
 }
 
@@ -87,7 +94,7 @@ export async function listEngagements(clientId?: string): Promise<EngagementRegi
       }
     >(
       `SELECT e.id, e.client_id, c.name AS client_name, e.fiscal_year,
-              to_char(e.period_end, 'YYYY-MM-DD') AS period_end, e.phase, e.name, e.complexity,
+              to_char(e.period_end, 'YYYY-MM-DD') AS period_end, e.phase, e.name, e.complexity, e.standards_edition,
               (SELECT coalesce(u.name, u.email) FROM team_member tm
                  JOIN app_user u ON u.id = tm.user_id
                 WHERE tm.engagement_id = e.id AND tm.team_role = 'partner'
@@ -185,13 +192,72 @@ export async function getEngagement(id: string): Promise<EngagementSummary | nul
   return withTenant(tenantId, async (tx) => {
     const result = await tx.query<EngagementRow>(
       `SELECT e.id, e.client_id, c.name AS client_name, e.fiscal_year,
-              to_char(e.period_end, 'YYYY-MM-DD') AS period_end, e.phase, e.name, e.complexity
+              to_char(e.period_end, 'YYYY-MM-DD') AS period_end, e.phase, e.name, e.complexity, e.standards_edition
          FROM engagement e
          JOIN client c ON c.id = e.client_id
         WHERE e.id = $1`,
       [id],
     );
     return result.rows[0] ? toSummary(result.rows[0]) : null;
+  });
+}
+
+/**
+ * The standards edition and how it was reached (F045): the stored value, the
+ * value the period alone would give, and whether somebody overrode it. The
+ * settings page shows all three; the papers read only the stored value.
+ */
+export async function standardsEditionOf(
+  engagementId: string,
+): Promise<{ edition: StandardsEdition; derived: StandardsEdition; periodStart: string; overridden: boolean } | null> {
+  const { tenantId } = await requireTenant();
+  return withTenant(tenantId, async (tx) => {
+    const r = await tx.query<{ period_end: string; duration_months: number | null; standards_edition: string | null }>(
+      "SELECT to_char(period_end, 'YYYY-MM-DD') AS period_end, duration_months, standards_edition FROM engagement WHERE id = $1",
+      [engagementId],
+    );
+    const row = r.rows[0];
+    if (!row) return null;
+    const derived = editionForPeriod(row.period_end, row.duration_months);
+    const edition = isStandardsEdition(row.standards_edition) ? row.standards_edition : derived;
+    return { edition, derived, periodStart: periodStartOf(row.period_end, row.duration_months), overridden: edition !== derived };
+  });
+}
+
+/**
+ * Override the standards edition (F045): a manager or above, with a reason,
+ * and the change goes to the activity log with both values. Refused on an
+ * archived file like every other write.
+ */
+export async function setStandardsEdition(engagementId: string, edition: StandardsEdition, reason: string): Promise<void> {
+  const { tenantId, role } = await requireWrite();
+  if (!atLeast(role as Role, "manager")) throw new Error("forbidden");
+  if (!isStandardsEdition(edition)) throw new Error("invalid-standards-edition");
+  const why = reason.trim().slice(0, 500);
+  if (!why) throw new Error("reason-required");
+  const before = await withTenant(tenantId, async (tx) => {
+    const r = await tx.query<{ standards_edition: string | null; archived_at: string | null }>(
+      "SELECT standards_edition, archived_at::text AS archived_at FROM engagement WHERE id = $1 FOR UPDATE",
+      [engagementId],
+    );
+    const row = r.rows[0];
+    if (!row) throw new Error("not-found");
+    if (row.archived_at) throw new Error("archived");
+    if (row.standards_edition !== edition) {
+      await tx.query("UPDATE engagement SET standards_edition = $2 WHERE id = $1", [engagementId, edition]);
+    }
+    return row.standards_edition;
+  });
+  if (before === edition) return;
+  await recordActivity({
+    engagementId,
+    entityType: "engagement",
+    entityId: engagementId,
+    action: "standards_edition_changed",
+    summary: `Standards edition changed from ${before ?? "—"} to ${edition}: ${why}`,
+    meta: { reason: why },
+    before,
+    after: edition,
   });
 }
 
@@ -259,8 +325,8 @@ export async function createEngagement(input: {
   return withTenant(tenantId, async (tx) => {
     const result = await tx.query<{ id: string }>(
       `INSERT INTO engagement (tenant_id, client_id, fiscal_year, period_end, name, complexity, complexity_answers,
-                               duration_months, nature, engagement_phase, framework, first_year)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
+                               duration_months, nature, engagement_phase, framework, first_year, standards_edition)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)
        RETURNING id`,
       [
         tenantId,
@@ -275,6 +341,9 @@ export async function createEngagement(input: {
         input.engagementPhase ?? null,
         input.framework ?? null,
         input.firstYear ?? null,
+        // F045: the ISA edition follows the first day of the period — a period
+        // beginning on or after 15 December 2026 applies the revised standards
+        editionForPeriod(input.periodEnd, input.durationMonths),
       ],
     );
     const engagementId = result.rows[0].id;

@@ -139,7 +139,10 @@ export function PaperWizard({
   baseDigests,
   lockedKeys,
   signoffs,
+  editionLabel,
 }: {
+  /** "Standards edition: ISA in force" — the engagement's edition, printed on page 1 (F045) */
+  editionLabel?: string;
   /** fields shown but not editable by this user (C4.2: the reviewer's part vs the team's, UAT run 3 B02) */
   lockedKeys?: string[];
   /** paperVersion() at load time, posted back so a concurrent save is refused, not overwritten */
@@ -486,8 +489,11 @@ export function PaperWizard({
   );
   const statusBlock = (
     <div className="rounded-[var(--radius-atlas-sm)] border border-line bg-surface-2 px-3 py-2" data-testid="wp-status">
-      <p className="text-[10.5px] font-extrabold uppercase tracking-[0.07em] text-muted">
-        {fr ? "État de la feuille" : "Paper status"}
+      <p className="flex flex-wrap items-baseline justify-between gap-x-3 text-[10.5px] font-extrabold uppercase tracking-[0.07em] text-muted">
+        <span>{fr ? "État de la feuille" : "Paper status"}</span>
+        {editionLabel ? (
+          <span className="normal-case tracking-normal font-semibold" data-testid="wp-edition">{editionLabel}</span>
+        ) : null}
       </p>
       {concl.length > 0 ? (
         <ul className="mt-1 flex flex-col gap-1">

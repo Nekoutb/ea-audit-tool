@@ -67,7 +67,8 @@ export default async function SapPage(props: {
           {fr ? "Procédures analytiques substantives (ISA 520)" : "Substantive analytical procedures (ISA 520)"}
         </h1>
         <span className="ml-auto text-[12px] text-muted" data-testid="sap-context">
-          {fr ? "PM" : "PM"}: {num(view.performanceMateriality)} · {fr ? "seuils" : "thresholds"} {view.thresholds.low} / {view.thresholds.moderate} / {view.thresholds.high} % ({fr ? "ECR faible / modéré / élevé" : "low / moderate / high CRA"})
+          {/* F033 vocabulary (D4): the figure is the seuil de travail, never "PM" */}
+          {fr ? "Seuil de travail (performance materiality)" : "Performance materiality"}: {num(view.performanceMateriality)} · {fr ? "seuils" : "thresholds"} {view.thresholds.low} / {view.thresholds.moderate} / {view.thresholds.high} % ({fr ? "ECR faible / modéré / élevé" : "low / moderate / high CRA"})
           {view.hasTb ? "" : fr ? " · aucune balance valide — montants comptabilisés saisis à la main" : " · no valid TB — recorded amounts typed by hand"}
         </span>
       </div>
@@ -136,7 +137,7 @@ export default async function SapPage(props: {
                       {fr ? "ECR" : "CRA"}: {level ? craLevelLabel(level, fr ? "fr" : "en") : fr ? "non évaluée" : "not assessed"}
                     </Chip>
                     <span className="text-[11.5px] text-muted">
-                      {fr ? "seuil par défaut" : "default threshold"} {defaultPct} % {fr ? "du PM" : "of PM"}
+                      {fr ? "seuil par défaut" : "default threshold"} {defaultPct} % {fr ? "du seuil de travail" : "of performance materiality"}
                     </span>
                     {ev ? (
                       <span className="ml-auto flex items-center gap-2 text-[12px]" data-testid={`sap-${assertion}-evaluation`}>
@@ -189,7 +190,7 @@ export default async function SapPage(props: {
                         </div>
                       )}
                       <label className={label}>
-                        {fr ? "Seuil dérogatoire (% du PM, vide = défaut du cabinet)" : "Threshold override (% of PM, blank = firm default)"}
+                        {fr ? "Seuil dérogatoire (% du seuil de travail, vide = défaut du cabinet)" : "Threshold override (% of performance materiality, blank = firm default)"}
                         <input name="thresholdOverridePct" type="number" min={SAP_PCT_MIN} max={SAP_PCT_MAX} step="1" defaultValue={p?.thresholdOverridePct ?? ""} className={`${input} tnum`} data-testid={`sap-${assertion}-override`} />
                       </label>
                       <label className={label}>

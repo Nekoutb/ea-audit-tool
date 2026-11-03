@@ -30,6 +30,10 @@ export interface PhaseRowData {
   selfPrepared?: boolean;
   /** a tool-fed paper whose tool output is missing (F004): why P and R are greyed out */
   toolMissing?: string | null;
+  /** the reader's team role is below the task's preparer minimum (F002, D2): why P is greyed out */
+  preparerBelow?: string | null;
+  /** the reader's team role is below the task's reviewer minimum (F002, D2): why R is greyed out */
+  reviewerBelow?: string | null;
 }
 
 const LINE_CLASS: Record<LineTone, string> = {
@@ -142,6 +146,21 @@ export function PhaseTaskRow({
             >
               P
             </button>
+          ) : row.preparerBelow && canSign ? (
+            // below the task's minimum role: greyed out with the reason, like the
+            // F004 gate, instead of a refusal after the click (D2)
+            <button
+              type="button"
+              disabled
+              onClick={stop}
+              className="sobox off"
+              title={row.preparerBelow}
+              aria-label={`${signPreparerLabel} — ${row.preparerBelow}`}
+              aria-disabled="true"
+              data-testid={`sign-preparer-role-below-${row.code}`}
+            >
+              P
+            </button>
           ) : !canSign ? (
             <span className="sobox off" aria-hidden>P</span>
           ) : (
@@ -173,6 +192,19 @@ export function PhaseTaskRow({
               aria-label={`${signReviewerLabel} — ${row.toolMissing}`}
               aria-disabled="true"
               data-testid={`sign-reviewer-tool-missing-${row.code}`}
+            >
+              R
+            </button>
+          ) : row.preparerSigned && row.reviewerBelow && canSign && canReview ? (
+            <button
+              type="button"
+              disabled
+              onClick={stop}
+              className="sobox off"
+              title={row.reviewerBelow}
+              aria-label={`${signReviewerLabel} — ${row.reviewerBelow}`}
+              aria-disabled="true"
+              data-testid={`sign-reviewer-role-below-${row.code}`}
             >
               R
             </button>
