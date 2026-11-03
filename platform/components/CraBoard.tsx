@@ -11,19 +11,14 @@ import { useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import type { CraAccountRow, CraBoardView, CraCell } from "@/lib/cra";
+import { ASSERTIONS, assertionLabel } from "@/lib/assertions";
 import { crBasisLabel, craOf, craTone, toTod, todLabel, type CraCr, type CraIr } from "@/lib/cra-model";
 import { LEAD_INDEX_BY_CODE } from "@/lib/lead-classes";
+import { AssertionLegend } from "@/components/AssertionLegend";
 import { Chip } from "@/components/ui/atlas";
 
-const ASSERTION_LABELS: Record<string, { en: string; fr: string }> = {
-  C: { en: "Completeness", fr: "Exhaustivité" },
-  E: { en: "Existence / occurrence", fr: "Existence / réalité" },
-  A: { en: "Accuracy / cut-off", fr: "Exactitude / séparation" },
-  V: { en: "Valuation", fr: "Évaluation" },
-  P: { en: "Presentation / disclosure", fr: "Présentation / information" },
-};
-
-const ORDER = ["C", "E", "A", "V", "P"];
+// the six assertions in display order, RO last (lib/assertions.ts, F041)
+const ORDER: readonly string[] = ASSERTIONS;
 
 /** Priority order inside a row: significant risks, then fraud, then risk-linked, then the rest. */
 function priorityCells(row: CraAccountRow): CraCell[] {
@@ -187,6 +182,16 @@ export function CraBoard({
             ? "RI faible + appui = Minimal · RI faible sans appui = Modéré · RI élevé + appui = Faible · RI élevé sans appui = Élevé · un risque important/fraude superpose des diligences particulières (+SR)"
             : "Lower IH + rely = Minimal · Lower IH + not rely = Moderate · Higher IH + rely = Low · Higher IH + not rely = High · a significant/fraud risk overlays special audit considerations (+SR)"}
         </span>
+        {/* relevant cells still without an IR or CR — RO included (F041) */}
+        <span data-testid="cra-to-assess" data-count={view.toAssess.length}>
+          {view.toAssess.length > 0 ? (
+            <Chip tone="warn">
+              {fr ? `${view.toAssess.length} cellule(s) à évaluer` : `${view.toAssess.length} cell(s) to assess`}
+            </Chip>
+          ) : (
+            <Chip tone="good">{fr ? "Matrice complète" : "Matrix complete"}</Chip>
+          )}
+        </span>
         <span data-testid="cra-itgc">
           {view.itgcState === "support" ? (
             <Chip tone="good">{fr ? "ITGC : appui possible (S2.5)" : "ITGCs support reliance (S2.5)"}</Chip>
@@ -207,6 +212,8 @@ export function CraBoard({
           </Link>
         </span>
       </div>
+
+      <AssertionLegend locale={locale} />
 
       {error ? <p className="text-[12px] font-semibold text-rose">{error}</p> : null}
 
@@ -266,11 +273,8 @@ export function CraBoard({
                       </td>
                     ) : null}
                     <td className="px-2 py-1.5">
-                      <span
-                        className="cursor-help text-[12.5px] font-bold text-ink"
-                        title={fr ? ASSERTION_LABELS[cell.assertion].fr : ASSERTION_LABELS[cell.assertion].en}
-                      >
-                        {cell.assertion}
+                      <span className="text-[12.5px] font-bold text-ink" data-testid={`cra-assertion-${row.indexCode}-${cell.assertion}`}>
+                        {assertionLabel(cell.assertion, fr ? "fr" : "en")}
                       </span>
                       {cell.significant ? <span className="ml-1.5"><Chip tone="rose">{fr ? "Risque important" : "Significant risk"}</Chip></span> : null}
                       {cell.fraud ? <span className="ml-1"><Chip tone="rose">{fr ? "Fraude" : "Fraud"}</Chip></span> : null}

@@ -3,6 +3,7 @@
 // it, and its significance. Anything above tolerable error is significant by
 // default; overriding that either way needs a written justification.
 
+import { ASSERTIONS } from "@/lib/assertions";
 import { withTenant } from "@/lib/db";
 import { requireTenant, requireWrite } from "@/lib/tenant";
 import { LEAD_INDEXES, leadIndexFor } from "@/lib/lead-classes";
@@ -236,7 +237,8 @@ export async function specificThresholds(engagementId: string): Promise<Map<stri
   });
 }
 
-const ASSERTION_CODES = new Set(["C", "E", "A", "V", "P"]);
+// the six platform assertions, RO included (F041)
+const ASSERTION_CODES = new Set<string>(ASSERTIONS);
 
 /**
  * Persist one index's significance decision, its justification, the relevant

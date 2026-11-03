@@ -10,6 +10,7 @@ import { useState } from "react";
 import type { SignificantAccountsView } from "@/lib/significant-accounts";
 import { LEAD_INDEX_BY_CODE } from "@/lib/lead-classes";
 import { GRID_CELL, GRID_COMMENT_INPUT, GRID_HEAD, GRID_NUM } from "@/components/ui/grid";
+import { ASSERTIONS, assertionLabel } from "@/lib/assertions";
 
 type Unit = "fcfa" | "k" | "m";
 
@@ -24,8 +25,8 @@ const COLS = [
   { width: undefined }, // justification
 ];
 
-/** the assertion set used across the tool: Completeness, Existence, Accuracy, Valuation, Presentation */
-const ASSERTION_CODES = ["C", "E", "A", "V", "P"] as const;
+/** the assertion set used across the tool (lib/assertions.ts): C, E, A, V, P and, since F041, RO */
+const ASSERTION_CODES = ASSERTIONS;
 
 export function SignificantAccounts({
   engagementId,
@@ -225,7 +226,7 @@ export function SignificantAccounts({
                             data-active={String(active)}
                             data-from-risk={String(fromRisk)}
                             title={
-                              ({ C: fr ? "Exhaustivité" : "Completeness", E: fr ? "Existence" : "Existence", A: fr ? "Exactitude" : "Accuracy", V: fr ? "Valorisation" : "Valuation", P: fr ? "Présentation" : "Presentation" }[code] ?? code) +
+                              assertionLabel(code, fr ? "fr" : "en") +
                               (fromRisk ? (fr ? " — issue d'un risque lié (console des risques)" : " — derived from a linked risk (Risk Console)") : "")
                             }
                             onClick={() => {

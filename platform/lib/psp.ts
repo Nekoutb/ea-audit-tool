@@ -6,6 +6,7 @@
 // in the paper — use source 'custom'. Per-step results save under
 // form_response code 'psp:<task code>'.
 
+import { cleanAssertions } from "@/lib/assertions";
 import { withTenant } from "@/lib/db";
 import { requireTenant, requireWrite } from "@/lib/tenant";
 import { INDEX_SECTION } from "@/lib/lead-classes";
@@ -204,9 +205,7 @@ async function dspOspList(
     const en = typeof o.en === "string" ? o.en.trim() : "";
     const fr = typeof o.fr === "string" ? o.fr.trim() : "";
     if (!en && !fr) continue;
-    const assertions = Array.isArray(o.assertions)
-      ? o.assertions.filter((a): a is string => typeof a === "string" && "CEAVP".includes(a))
-      : [];
+    const assertions: string[] = cleanAssertions(o.assertions);
     out.push({ en, fr, assertions });
   }
   return out;
@@ -342,7 +341,7 @@ export async function addOtherPsp(
     const inserted = await tx.query<{ id: string }>(
       `INSERT INTO program_step (tenant_id, engagement_id, file_item_id, seq, description, assertions, source)
        VALUES ($1, $2, $3, $4, $5, $6, 'custom') RETURNING id`,
-      [tenantId, engagementId, fileItemId, next.rows[0].v, `OSP-${next.rows[0].n} — ${description.trim()}`, assertions.filter((a) => "CEAVP".includes(a))],
+      [tenantId, engagementId, fileItemId, next.rows[0].v, `OSP-${next.rows[0].n} — ${description.trim()}`, cleanAssertions(assertions)],
     );
     await linkSectionRisks(tx, tenantId, fileItemId, inserted.rows[0].id);
   });

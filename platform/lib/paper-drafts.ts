@@ -6,7 +6,7 @@
  * banner, so nothing typed is lost and the user merges by hand.
  */
 
-import { procKey, ynKey, ynWhyKey, type PaperDef } from "@/lib/papers/types";
+import { procKey, procNaKey, procWhyKey, ynKey, ynWhyKey, type PaperDef } from "@/lib/papers/types";
 
 /** Cookie name for one task's held-back fields. */
 export function paperDraftCookie(itemId: string): string {
@@ -56,7 +56,11 @@ export function paperFieldLabel(def: PaperDef, key: string, fr: boolean): string
     if (s.kind === "fields") {
       for (const f of s.fields) if (f.key === key) return fr ? f.labelFr : f.labelEn;
     } else if (s.kind === "proc") {
-      for (const p of s.procs) if (procKey(p.key) === key) return fr ? p.fr : p.en;
+      for (const p of s.procs) {
+        if (procKey(p.key) === key) return fr ? p.fr : p.en;
+        if (procNaKey(p.key) === key) return `${fr ? p.fr : p.en} — ${fr ? "S.O." : "N/A"}`;
+        if (procWhyKey(p.key) === key) return `${fr ? p.fr : p.en} — ${fr ? "motif de la non-application" : "reason not applicable"}`;
+      }
     } else {
       for (const it of s.items) {
         if (ynKey(it.key) === key) return fr ? it.fr : it.en;

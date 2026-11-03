@@ -57,6 +57,23 @@ export function worstTod(values: CraTod[]): CraTod | null {
   return values.reduce((a, b) => (TOD_RANK[b] > TOD_RANK[a] ? b : a));
 }
 
+/**
+ * The relevant cells nobody has assessed yet — no inherent risk OR no control
+ * risk recorded. The matrix is complete when the list is empty; the RO column
+ * added by F041 lands here on every engagement assessed before it existed.
+ */
+export function cellsToAssess<T extends { assertion: string; relevant: boolean; ir: unknown; cr: unknown }>(
+  rows: { indexCode: string; cells: T[] }[],
+): { indexCode: string; assertion: string }[] {
+  const out: { indexCode: string; assertion: string }[] = [];
+  for (const row of rows) {
+    for (const c of row.cells) {
+      if (c.relevant && (c.ir === null || c.cr === null)) out.push({ indexCode: row.indexCode, assertion: c.assertion });
+    }
+  }
+  return out;
+}
+
 export function craLevelLabel(level: CraLevel, locale: "en" | "fr"): string {
   const en: Record<CraLevel, string> = { minimal: "Minimal", low: "Low", moderate: "Moderate", high: "High" };
   const fr: Record<CraLevel, string> = { minimal: "Minimal", low: "Faible", moderate: "Modéré", high: "Élevé" };

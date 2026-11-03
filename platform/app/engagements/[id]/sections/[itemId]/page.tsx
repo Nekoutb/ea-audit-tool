@@ -1152,6 +1152,12 @@ export default async function SectionPage(props: {
             autoValues={autoValues}
             locale={fr ? "fr" : "en"}
             action={savePaperAction.bind(null, id, itemId, section.code)}
+            // page 1 of the wizard shows the sign-off state read-only (F039)
+            signoffs={{
+              preparer: taskInfo?.preparerName ? { name: taskInfo.preparerName, at: taskInfo.preparerAt ?? "" } : null,
+              reviewer: taskInfo?.reviewerName ? { name: taskInfo.reviewerName, at: taskInfo.reviewerAt ?? "" } : null,
+              ...(showEqrChip ? { eqr: eqr.signoff } : {}),
+            }}
             embed={
               // The structured work owns the whole first page. On S1.2,
               // S1.3, S2.1 and S2.2 it IS the paper (embedOnly).

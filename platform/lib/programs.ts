@@ -8,6 +8,7 @@ import {
   type ProcedureTier,
 } from "@/lib/procedure-library";
 import { PROGRAM_LIBRARY, SIGNIFICANT_RISK_EXTENSIONS } from "@/lib/program-library";
+import { cleanAssertions } from "@/lib/assertions";
 import type { Assertion } from "@/lib/risks";
 import { requireTenant, requireWrite } from "@/lib/tenant";
 
@@ -215,9 +216,7 @@ export async function sectionCoverage(fileItemId: string): Promise<CoverageRow[]
       riskDescription: row.description,
       significant: row.significant,
       assertions: row.assertions,
-      coveredAssertions: (row.covered ?? []).filter((a): a is Assertion =>
-        ["C", "E", "A", "V", "P"].includes(a),
-      ),
+      coveredAssertions: cleanAssertions(row.covered ?? []),
       linkedSteps: Number(row.linked_steps),
     }));
   });

@@ -15,6 +15,8 @@ import { usePathname } from "next/navigation";
 import { NATURE_OPTIONS, TIMING_OPTIONS, craLevelOf, timingAllowed, type OspProcedure } from "@/lib/design-procedures-model";
 import type { DspRow, DspView } from "@/lib/design-procedures";
 import { craTone, thresholdSuggestion, timingSuggestion, todLabel, worstTod } from "@/lib/cra-model";
+import { assertionLabel } from "@/lib/assertions";
+import { AssertionLegend } from "@/components/AssertionLegend";
 import { Chip } from "@/components/ui/atlas";
 import { LEAD_INDEX_BY_CODE } from "@/lib/lead-classes";
 
@@ -213,6 +215,8 @@ export function DesignProceduresBoard({
         </span>
       </div>
 
+      <AssertionLegend locale={locale} />
+
       {error ? <p className="text-[12px] font-semibold text-rose">{error}</p> : null}
 
       {(() => {
@@ -315,7 +319,9 @@ export function DesignProceduresBoard({
                         return (
                           <tr key={c.assertion} className="border-t border-line align-top">
                             <td className="px-1.5 py-1.5">
-                              <span className="text-[12.5px] font-bold text-ink">{c.assertion}</span>
+                              <span className="text-[12.5px] font-bold text-ink" data-testid={`dsp-assertion-${row.indexCode}-${c.assertion}`}>
+                                {assertionLabel(c.assertion, fr ? "fr" : "en")}
+                              </span>
                               {c.significant ? <span className="ml-1"><Chip tone="rose">SR</Chip></span> : null}
                             </td>
                             <td className="px-1.5 py-1.5">
@@ -540,7 +546,7 @@ export function DesignProceduresBoard({
                                     })}
                                     data-testid={`dsp-osp-${row.indexCode}-${osp.id}-assert-${c.assertion}`}
                                   />
-                                  {c.assertion}
+                                  {assertionLabel(c.assertion, fr ? "fr" : "en")}
                                 </label>
                               );
                             })}

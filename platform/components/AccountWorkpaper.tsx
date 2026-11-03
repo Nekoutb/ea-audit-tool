@@ -14,15 +14,10 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { amountOr } from "@/lib/amount";
 import type { PspStep } from "@/lib/psp";
+import { ASSERTIONS, assertionLabel, assertionName } from "@/lib/assertions";
 
-const ASSERTION_CODES = ["C", "E", "A", "V", "P"] as const;
-const ASSERTION_LABELS: Record<string, { en: string; fr: string }> = {
-  C: { en: "completeness", fr: "exhaustivité" },
-  E: { en: "existence", fr: "existence" },
-  A: { en: "accuracy", fr: "exactitude" },
-  V: { en: "valuation", fr: "évaluation" },
-  P: { en: "presentation", fr: "présentation" },
-};
+// the six platform assertions, RO included (F041); labels come from lib/assertions.ts
+const ASSERTION_CODES = ASSERTIONS;
 
 export function AccountWorkpaper({
   engagementId,
@@ -120,8 +115,7 @@ export function AccountWorkpaper({
     const t = fullOf(s).split(/[;:(]/)[0].trim().replace(/\.$/, "");
     return t.length > 72 ? `${t.slice(0, 69)}…` : t;
   };
-  const assertionsLine = (s: PspStep) =>
-    s.assertions.map((a) => ASSERTION_LABELS[a] ? (fr ? ASSERTION_LABELS[a].fr : ASSERTION_LABELS[a].en) : a).join(", ");
+  const assertionsLine = (s: PspStep) => s.assertions.map((a) => assertionName(a, fr ? "fr" : "en")).join(", ");
 
   const saveField = (stepId: string, field: string, value: string, current: string) => {
     if (value !== current) void op({ op: "saveResult", taskCode, stepId, field, value });
@@ -392,7 +386,8 @@ export function AccountWorkpaper({
               key={a}
               type="button"
               onClick={() => setOtherA((s) => (s.includes(a) ? s.filter((x) => x !== a) : [...s, a]))}
-              className={`h-[18px] w-[18px] rounded-[3px] text-[9.5px] font-bold ${otherA.includes(a) ? "bg-emerald-700 text-white" : "border border-line text-muted"}`}
+              title={assertionLabel(a, fr ? "fr" : "en")}
+              className={`h-[18px] min-w-[18px] rounded-[3px] px-0.5 text-[9.5px] font-bold ${otherA.includes(a) ? "bg-emerald-700 text-white" : "border border-line text-muted"}`}
             >{a}</button>
           ))}
           <button

@@ -4,6 +4,7 @@
 // are DERIVED from linked control_test rows at read time (cra.ts precedent) so
 // they can never diverge from the deviation side-effects in lib/execution.ts.
 
+import { cleanAssertions as cleanPlatformAssertions } from "@/lib/assertions";
 import { CR_DEFICIENT_BASIS as CR_DEFICIENT_BASIS_TEXT } from "@/lib/cra-model";
 import { withTenant } from "@/lib/db";
 import { requireRole, requireTenant, requireWrite } from "@/lib/tenant";
@@ -464,9 +465,8 @@ export async function todPreview(
 const TYPES: TransactionType[] = ["routine", "non_routine", "estimation"];
 const STRATEGIES: ScotStrategy[] = ["controls", "substantive"];
 const CONTROL_TYPES: ControlType[] = ["manual", "it_dependent", "automated"];
-const ASSERTION_CODES = new Set(["C", "E", "A", "V", "P"]);
-const cleanAssertions = (a: unknown): string[] =>
-  Array.isArray(a) ? a.map(String).filter((x) => ASSERTION_CODES.has(x)) : [];
+// a WCGW may carry any of the six platform assertions, RO included (F041)
+const cleanAssertions = (a: unknown): string[] => cleanPlatformAssertions(a);
 
 /**
  * The SCOT Studio writes land on papers that may already be signed: the

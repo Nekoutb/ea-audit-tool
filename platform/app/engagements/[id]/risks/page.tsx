@@ -14,6 +14,7 @@ import {
   updateRiskAction,
 } from "@/app/actions/planning";
 import { AppNav } from "@/components/AppNav";
+import { AssertionLegend } from "@/components/AssertionLegend";
 import { DropdownChecklist } from "@/components/DropdownChecklist";
 import { ErrorBanner } from "@/components/GatesPanel";
 import { Panel, PanelHeader } from "@/components/ui/atlas";
@@ -21,8 +22,9 @@ import { getEngagement, listFileItems } from "@/lib/engagements";
 import { getMessages } from "@/lib/i18n";
 import { canPartnerSignoff } from "@/lib/rbac";
 import { getLocale } from "@/lib/locale";
+import { ASSERTIONS, assertionLabel, assertionLabels } from "@/lib/assertions";
 import { LEAD_INDEXES, leadIndexLabel } from "@/lib/lead-classes";
-import { ASSERTIONS, inherentRating, listPotentialRisks, listRisks, ratingLabel, riskTitle, type Risk } from "@/lib/risks";
+import { inherentRating, listPotentialRisks, listRisks, ratingLabel, riskTitle, type Risk } from "@/lib/risks";
 import { significantAccounts } from "@/lib/significant-accounts";
 
 export const generateMetadata = localizedTitle("Risk console", "Console des risques");
@@ -122,6 +124,8 @@ export default async function RisksPage(props: {
     "rounded-[var(--radius-atlas-sm)] border border-line-strong bg-surface px-2 py-1 text-sm text-ink outline-none focus:border-emerald-600 focus:ring-2 focus:ring-emerald-600/20";
   const btn =
     "rounded-[var(--radius-atlas-sm)] border border-line-strong bg-surface px-2.5 py-1 text-xs font-medium text-ink-soft hover:bg-surface-2";
+  // every assertion option spelled out: "C — Completeness" (F041)
+  const assertionOptions = ASSERTIONS.map((assertion) => ({ value: assertion, label: assertionLabel(assertion, locale) }));
   const chip = (n: number, okEn: string, okFr: string, badEn: string, badFr: string, testid: string) => (
     <span
       className={`rounded-full px-2 py-0.5 text-[11px] font-semibold ${
@@ -158,6 +162,7 @@ export default async function RisksPage(props: {
         <span className="ml-auto"><Spectrum risks={risks} fr={fr} /></span>
       </div>
       <ErrorBanner error={error} locale={locale} />
+      <AssertionLegend locale={locale} className="mt-3" />
 
       <div className="mt-4 flex flex-col gap-6 lg:flex-row lg:items-start">
         {/* ------------------------------------------- Lane 1 — Add a risk */}
@@ -232,7 +237,7 @@ export default async function RisksPage(props: {
                 <DropdownChecklist
                   label={fr ? "Assertions" : "Assertions"}
                   name="linkAssertions"
-                  options={ASSERTIONS.map((assertion) => ({ value: assertion, label: assertion }))}
+                  options={assertionOptions}
                   testIdPrefix="add-risk-assert"
                 />
               </span>
@@ -373,7 +378,7 @@ export default async function RisksPage(props: {
                 </div>
                 {risk.sections.length > 0 ? (
                   <p className="mt-1 text-xs text-muted">
-                    {risk.sections.map((section) => `${section.code} [${section.assertions.join("")}]`).join(" · ")}
+                    {risk.sections.map((section) => `${section.code} [${assertionLabels(section.assertions, locale) || "—"}]`).join(" · ")}
                   </p>
                 ) : null}
                 {risk.fsNote ? <p className="mt-1 text-xs italic text-muted">{risk.fsNote}</p> : null}
@@ -384,7 +389,9 @@ export default async function RisksPage(props: {
                     {risk.indexLinks.map((link) => (
                       <span key={link.indexCode} className="inline-flex items-center gap-1 rounded-full border border-amber-500/60 bg-[var(--color-warn-soft)] px-2 py-0.5 text-[11px] font-semibold text-ink">
                         <span className="font-mono">{link.indexCode}</span>
-                        <span className="text-muted">[{link.assertions.join("") || "—"}]</span>
+                        <span className="text-muted" data-testid={`risk-link-assertions-${risk.presumedType ?? risk.id}-${link.indexCode}`}>
+                          [{assertionLabels(link.assertions, locale) || "—"}]
+                        </span>
                         <form action={unlinkRiskIndexAction.bind(null, id, risk.id, link.indexCode)}>
                           <button type="submit" className="text-muted hover:text-rose" title={fr ? "Délier" : "Unlink"}>×</button>
                         </form>
@@ -405,7 +412,7 @@ export default async function RisksPage(props: {
                         <DropdownChecklist
                           label={fr ? "Assertions" : "Assertions"}
                           name="linkAssertions"
-                          options={ASSERTIONS.map((assertion) => ({ value: assertion, label: assertion }))}
+                          options={assertionOptions}
                           testIdPrefix={`link-assert-${risk.presumedType ?? risk.id}`}
                         />
                         <button type="submit" className={btn} data-testid={`link-save-${risk.presumedType ?? risk.id}`}>
@@ -523,7 +530,7 @@ export default async function RisksPage(props: {
                       <DropdownChecklist
                         label={fr ? "Assertions" : "Assertions"}
                         name="assertions"
-                        options={ASSERTIONS.map((assertion) => ({ value: assertion, label: assertion }))}
+                        options={assertionOptions}
                         testIdPrefix={`map-assert-${risk.presumedType ?? risk.id}`}
                       />
                       <button type="submit" className={btn}>

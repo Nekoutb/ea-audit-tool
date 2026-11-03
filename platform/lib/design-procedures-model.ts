@@ -10,6 +10,7 @@
 //
 // So the pieces both sides need live here, where nothing touches the database.
 
+import { ASSERTIONS as PLATFORM_ASSERTIONS } from "@/lib/assertions";
 import type { CraLevel, CraTod } from "@/lib/cra-model";
 
 /**
@@ -53,7 +54,7 @@ export interface OspProcedure {
   id: string;
   en: string;
   fr: string;
-  /** the assertions this procedure answers, a subset of C,E,A,V,P */
+  /** the assertions this procedure answers, a subset of C,E,A,V,P,RO */
   assertions: string[];
   nature: string;
   timing: string;
@@ -65,4 +66,5 @@ export const OSP_MAX = 20;
 export const OSP_TEXT_MAX = 800;
 export const OSP_EXTENT_MAX = 400;
 export const OSP_ID = /^[A-Za-z0-9_-]{1,40}$/;
-export const ASSERTIONS = ["C", "E", "A", "V", "P"];
+/** The design set is the platform's six assertions (lib/assertions.ts), RO included (F041). */
+export const ASSERTIONS: string[] = [...PLATFORM_ASSERTIONS];

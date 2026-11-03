@@ -158,21 +158,31 @@ export function libraryForSection(sectionCode: string, tier: ProcedureTier): Pro
 
 /**
  * Roll the §02 canonical codes up to the platform's stored display set
- * (C/E/A/V/P) for the program_step.assertions column — §02's combined-view
- * rule: E subsumes occurrence and rights & obligations; AVA maps to V;
- * cutoff rides with accuracy; classification with presentation.
+ * (C/E/A/V/P/RO) for the program_step.assertions column — §02's combined-view
+ * rule, with the sixth assertion the firm added on 2026-10-27 (F041):
+ *
+ *   O   occurrence                         → E  (existence / occurrence)
+ *   C   completeness                       → C
+ *   A   accuracy                           → A  (accuracy / cut-off)
+ *   CO  cut-off                            → A  (cut-off rides with accuracy)
+ *   CL  classification                     → P  (classification with presentation)
+ *   E   existence                          → E
+ *   RO  rights and obligations             → RO (no longer folded into E)
+ *   AVA accuracy, valuation and allocation → V
+ *   P   presentation                       → P
  */
-const LEGACY_OF: Record<CanonicalAssertion, Assertion> = {
+export const PLATFORM_OF_CANONICAL: Record<CanonicalAssertion, Assertion> = {
   O: "E",
   C: "C",
   A: "A",
   CO: "A",
   CL: "P",
   E: "E",
-  RO: "E",
+  RO: "RO",
   AVA: "V",
   P: "P",
 };
+const LEGACY_OF = PLATFORM_OF_CANONICAL;
 
 export function toLegacyAssertions(codes: CanonicalAssertion[]): Assertion[] {
   return [...new Set(codes.map((code) => LEGACY_OF[code]))];

@@ -18,8 +18,10 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import type { Scot, ScotStudioView } from "@/lib/scots";
 import { CONTROL_FREQUENCIES, freqLabel, objectiveLabel, typeShort } from "@/lib/control-labels";
+import { ASSERTIONS, assertionLabel } from "@/lib/assertions";
 
-const ASSERTION_CODES = ["C", "E", "A", "V", "P"] as const;
+// the six platform assertions, RO included (F041), each button titled with its full label
+const ASSERTION_CODES = ASSERTIONS;
 const slug = (s: string) => s.replace(/[^A-Za-z0-9]/g, "_");
 
 // The S1.2 group renders INSIDE the PaperWizard's <form>, so no <form>
@@ -72,7 +74,8 @@ function ScotFooter({
               key={a}
               type="button"
               onClick={() => setAssertions((s) => (s.includes(a) ? s.filter((x) => x !== a) : [...s, a]))}
-              className={`h-[18px] w-[18px] rounded-[3px] text-[9.5px] font-bold ${assertions.includes(a) ? "bg-emerald-700 text-white" : "border border-line text-muted"}`}
+              title={assertionLabel(a, fr ? "fr" : "en")}
+              className={`h-[18px] min-w-[18px] rounded-[3px] px-0.5 text-[9.5px] font-bold ${assertions.includes(a) ? "bg-emerald-700 text-white" : "border border-line text-muted"}`}
             >{a}</button>
           ))}
         </div>

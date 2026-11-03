@@ -51,7 +51,11 @@ export interface PaperItem {
   key: string;
   en: string;
   fr: string;
-  /** offer a Not-applicable option as well as Yes/No */
+  /**
+   * Kept for the papers that set it: since F040 (2026-10-27) every item offers
+   * Not-applicable, and an N/A must carry its reason. The flag no longer
+   * changes anything on screen.
+   */
   na?: boolean;
   /** practical considerations for answering this factor */
   tipEn?: string;
@@ -85,10 +89,17 @@ export interface PaperDef {
 
 /* ---- storage keys, kept stable so saved answers survive edits ---- */
 export const procKey = (k: string) => `p_${k}`;
+/** "na" when the procedure was marked not applicable (F040), else empty */
+export const procNaKey = (k: string) => `p_${k}_na`;
+/** the reason a procedure is not applicable */
+export const procWhyKey = (k: string) => `p_${k}_x`;
 export const ynKey = (k: string) => `q_${k}`;
 export const ynWhyKey = (k: string) => `q_${k}_x`;
 export const conclKey = (i: number) => `c_${i}`;
 export const conclWhyKey = (i: number) => `c_${i}_x`;
+
+/** The stored value that marks a procedure or a factor not applicable. */
+export const NA = "na";
 
 /** Every key a paper can persist — used to validate what may be saved. */
 export function paperKeys(def: PaperDef): Set<string> {
@@ -99,7 +110,12 @@ export function paperKeys(def: PaperDef): Set<string> {
   });
   (def.sections ?? []).forEach((s) => {
     if (s.kind === "fields") s.fields.forEach((f) => (f.kind === "input" || f.kind === "select") && keys.add(f.key));
-    if (s.kind === "proc") s.procs.forEach((p) => keys.add(procKey(p.key)));
+    if (s.kind === "proc")
+      s.procs.forEach((p) => {
+        keys.add(procKey(p.key));
+        keys.add(procNaKey(p.key));
+        keys.add(procWhyKey(p.key));
+      });
     if (s.kind === "yn")
       s.items.forEach((i) => {
         keys.add(ynKey(i.key));
@@ -124,4 +140,35 @@ export function requiredKeys(def: PaperDef): string[] {
   });
   (def.conclEn ?? []).forEach((_, i) => out.push(conclKey(i)));
   return out;
+}
+
+/**
+ * Whether one required key carries an answer. Text and selects: non-blank.
+ * A Yes/No factor: yes, no, or N/A WITH its reason — an N/A nobody explained
+ * is not an answer (F040). A procedure: its result, or N/A with its reason.
+ */
+export function keyAnswered(def: PaperDef, key: string, values: Record<string, string>): boolean {
+  const v = (k: string) => (values[k] ?? "").trim();
+  if (key.startsWith("q_")) {
+    const a = v(key);
+    if (a === NA) return v(`${key}_x`).length > 0;
+    return a.length > 0;
+  }
+  if (key.startsWith("p_") && isProcKey(def, key)) {
+    if (v(`${key}_na`) === NA) return v(`${key}_x`).length > 0;
+    return v(key).length > 0;
+  }
+  return v(key).length > 0;
+}
+
+function isProcKey(def: PaperDef, key: string): boolean {
+  for (const s of def.sections ?? []) {
+    if (s.kind === "proc" && s.procs.some((p) => procKey(p.key) === key)) return true;
+  }
+  return false;
+}
+
+/** The required keys still without an answer, in paper order. */
+export function unansweredKeys(def: PaperDef, values: Record<string, string>): string[] {
+  return requiredKeys(def).filter((k) => !keyAnswered(def, k, values));
 }

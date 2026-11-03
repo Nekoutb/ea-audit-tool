@@ -4,14 +4,17 @@
 
 import type { PoolClient } from "pg";
 import { recordActivity } from "@/lib/activity";
+import { cleanAssertions, type Assertion } from "@/lib/assertions";
 import { withTenant } from "@/lib/db";
 import { canPartnerSignoff } from "@/lib/rbac";
 import { requireTenant, requireWrite } from "@/lib/tenant";
 
 export type RiskRating = "low" | "medium" | "high";
 export type RiskStatus = "identified" | "response_planned" | "response_executed" | "concluded";
-export const ASSERTIONS = ["C", "E", "A", "V", "P"] as const;
-export type Assertion = (typeof ASSERTIONS)[number];
+// The six assertions (C/E/A/V/P/RO) live in lib/assertions.ts so the client
+// boards can read them without pulling in the pool; re-exported here for the
+// modules that always imported them from the register.
+export { ASSERTIONS, type Assertion } from "@/lib/assertions";
 
 export interface PotentialRisk {
   id: string;
@@ -242,7 +245,7 @@ export async function addRisk(engagementId: string, input: AddRiskInput): Promis
     );
     const id = risk.rows[0].id;
     if (input.index && input.level !== "fs" && /^[A-Z0-9]{1,6}$/.test(input.index)) {
-      const assertions = (input.assertions ?? []).filter((a): a is Assertion => (ASSERTIONS as readonly string[]).includes(a));
+      const assertions = cleanAssertions(input.assertions ?? []);
       await tx.query(
         `INSERT INTO risk_lead_index (tenant_id, risk_id, index_code, assertions)
          VALUES ($1, $2, $3, $4) ON CONFLICT (risk_id, index_code) DO NOTHING`,
@@ -459,7 +462,7 @@ export async function linkRiskToIndex(
 ): Promise<void> {
   const { tenantId } = await requireWrite();
   if (!/^[A-Z0-9]{1,4}$/.test(indexCode)) throw new Error("invalid-index");
-  const clean = assertions.filter((a) => ["C", "E", "A", "V", "P"].includes(a));
+  const clean = cleanAssertions(assertions);
   await withTenant(tenantId, async (tx) => {
     await tx.query(
       `INSERT INTO risk_lead_index (tenant_id, risk_id, index_code, assertions)

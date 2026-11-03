@@ -21,7 +21,7 @@ import { FINANCIAL_STATEMENT_PAPERS } from "@/lib/papers/financial-statements";
 import { STATUTORY_525_PAPERS } from "@/lib/papers/statutory-525";
 import { CONCLUSION_PAPERS } from "@/lib/papers/conclusion";
 import { GAM_PAPERS } from "@/lib/papers/gam";
-import { paperKeys, requiredKeys, type PaperDef, type PaperField, conclKey, conclWhyKey, ynKey, ynWhyKey } from "@/lib/papers/types";
+import { paperKeys, requiredKeys, unansweredKeys, type PaperDef, type PaperField, conclKey, conclWhyKey, ynKey, ynWhyKey } from "@/lib/papers/types";
 import { groupOfTask, type SectionKey } from "@/lib/task-groups";
 
 export type { PaperField, PaperDef, PaperSection, PaperProc, PaperItem } from "@/lib/papers/types";
@@ -120,15 +120,18 @@ export function fieldLabelOf(f: PaperField, locale: "en" | "fr"): string {
   return locale === "fr" ? f.labelFr : f.labelEn;
 }
 
-/** A paper is complete when every input field carries text. */
+/**
+ * A paper is complete when every required field carries an answer — an N/A
+ * counts only with its reason (F040, lib/papers/types.ts keyAnswered).
+ */
 export function paperComplete(def: PaperDef, values: Record<string, string>): boolean {
-  return requiredKeys(def).every((k) => (values[k] ?? "").trim().length > 0);
+  return unansweredKeys(def, values).length === 0;
 }
 
 /** Answered fields over required fields, for the progress count. */
 export function paperProgress(def: PaperDef, values: Record<string, string>): { done: number; total: number } {
-  const keys = requiredKeys(def);
-  return { done: keys.filter((k) => (values[k] ?? "").trim().length > 0).length, total: keys.length };
+  const total = requiredKeys(def).length;
+  return { done: total - unansweredKeys(def, values).length, total };
 }
 
 /** True when the task carries a bespoke paper definition (not the group-derived default). */
@@ -139,11 +142,12 @@ export function hasBespokePaper(code: string): boolean {
 /**
  * What still stops a paper being signed (UAT B17): every required field, every
  * Yes/No factor and every conclusion statement must carry an answer, and a
- * "No" must carry its explanation. An explicit N/A is an answer.
+ * "No" must carry its explanation. An N/A is an answer only with its reason
+ * (F040): one without is listed as unanswered, like an empty item.
  */
 export function paperMissing(def: PaperDef, values: Record<string, string>): string[] {
   const v = (k: string) => (values[k] ?? "").trim();
-  const missing = requiredKeys(def).filter((k) => v(k).length === 0);
+  const missing = unansweredKeys(def, values);
   for (const s of def.sections ?? []) {
     if (s.kind !== "yn") continue;
     for (const item of s.items) {

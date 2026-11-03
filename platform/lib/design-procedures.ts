@@ -44,7 +44,8 @@ export type DspField = (typeof DSP_FIELDS)[number];
  * wrote for the account, each one carrying the same parameters a library
  * procedure carries.
  */
-const FIELD_KEY = /^(?:[CEAVP]_)?(nature|timing|extent|osp)$|^sel_[CEAVP]$|^osp_list$/;
+// the per-assertion keys carry one of the six codes (RO included, F041)
+const FIELD_KEY = /^(?:(?:RO|[CEAVP])_)?(nature|timing|extent|osp)$|^sel_(?:RO|[CEAVP])$|^osp_list$/;
 
 
 /**
@@ -293,7 +294,7 @@ export async function saveDsp(engagementId: string, indexCode: string, field: st
   // what the assertion's CRA permits — a drop-down the browser constrains is
   // not a control until the server refuses what it barred (UAT B75). Blank
   // clears the design and is always allowed.
-  const design = /^(?:([CEAVP])_)?(nature|timing)$/.exec(field);
+  const design = /^(?:(RO|[CEAVP])_)?(nature|timing)$/.exec(field);
   if (design && value !== "") {
     const [, assertion, kind] = design;
     if (kind === "nature" && !NATURE_VALUES.includes(value)) throw new Error("invalid-value");

@@ -9,6 +9,7 @@
 
 import type { PoolClient } from "pg";
 import { recordActivity } from "@/lib/activity";
+import { ASSERTIONS, isAssertion } from "@/lib/assertions";
 import { withTenant } from "@/lib/db";
 import { requireTenant, requireWrite } from "@/lib/tenant";
 import { significantAccounts } from "@/lib/significant-accounts";
@@ -16,6 +17,7 @@ import { listScots } from "@/lib/scots";
 import { loadPaper } from "@/lib/working-papers";
 import { INDEX_SECTION, LEAD_INDEX_BY_CODE } from "@/lib/lead-classes";
 import {
+  cellsToAssess,
   craOf,
   toTod,
   worstTod,
@@ -24,7 +26,8 @@ import {
   type CraTod,
 } from "@/lib/cra-model";
 
-const ASSERTIONS = ["C", "E", "A", "V", "P"] as const;
+// The six assertions of lib/assertions.ts: C, E, A, V, P and — since F041
+// (2026-10-27) — RO, rights and obligations. One cell per code on every row.
 
 export interface CraCell {
   assertion: string;
@@ -85,6 +88,8 @@ export interface CraBoardView {
   glAvailable: boolean;
   /** planning closed or materiality approved: changing a recorded IR/CR needs a reason */
   reassessmentNeedsReason: boolean;
+  /** relevant cells with no recorded IR or CR yet — the matrix is complete when empty (RO included, F041) */
+  toAssess: { indexCode: string; assertion: string }[];
 }
 
 /**
@@ -227,6 +232,10 @@ export async function craBoard(engagementId: string): Promise<CraBoardView> {
     const usedFallback = explicit.size === 0;
     const defaultRelevant = new Set(explicit);
     if (usedFallback) ["C", "E", "A", "V"].forEach((a) => defaultRelevant.add(a));
+    // RO sits on every row until the preparer assesses it or marks it not
+    // relevant (F041): an engagement assessed before the sixth assertion
+    // existed shows the column empty, to be assessed, not silently absent.
+    defaultRelevant.add("RO");
     const cells: CraCell[] = ASSERTIONS.map((assertion) => {
       const s = savedByKey.get(`${indexCode}|${assertion}`);
       const risk = risks.get(assertion);
@@ -237,7 +246,7 @@ export async function craBoard(engagementId: string): Promise<CraBoardView> {
       return {
         assertion,
         relevant: s ? s.relevant : defaultRelevant.has(assertion),
-        relevantDefaulted: !s && usedFallback && defaultRelevant.has(assertion),
+        relevantDefaulted: !s && !explicit.has(assertion) && defaultRelevant.has(assertion),
         ir: s?.ir ?? null,
         irBasis: s?.ir_basis ?? "",
         cr: s?.cr ?? null,
@@ -273,7 +282,14 @@ export async function craBoard(engagementId: string): Promise<CraBoardView> {
     ...extraIndexes.map((i) => buildRow(i, LEAD_INDEX_BY_CODE[i]?.labelEn ?? i, 0, [], [])),
   ];
 
-  return { rows, te: sig?.tolerableError ?? null, itgcState, glAvailable: sig?.glAvailable ?? false, reassessmentNeedsReason: locked };
+  return {
+    rows,
+    te: sig?.tolerableError ?? null,
+    itgcState,
+    glAvailable: sig?.glAvailable ?? false,
+    reassessmentNeedsReason: locked,
+    toAssess: cellsToAssess(rows),
+  };
 }
 
 /** The effective (recorded, else suggested) sampling-tool value of one cell. */
@@ -284,7 +300,15 @@ function cellTod(cell: CraCell): CraTod {
 }
 
 export function rowWorstTod(row: CraAccountRow): CraTod | null {
-  return worstTod(row.cells.filter((c) => c.relevant).map(cellTod));
+  // An RO cell that is on the board only by default and still unassessed is
+  // "to be assessed", not an assessment: it stays out of the roll-up so the
+  // sampling of a file planned before F041 does not move until someone
+  // records it (the board reports it as incomplete meanwhile).
+  return worstTod(row.cells.filter((c) => c.relevant && !unassessedDefaultRo(c)).map(cellTod));
+}
+
+function unassessedDefaultRo(c: CraCell): boolean {
+  return c.assertion === "RO" && c.relevantDefaulted && c.ir === null && c.cr === null;
 }
 
 /**
@@ -328,7 +352,7 @@ export async function saveCraCell(
   assertion: string,
   patch: { relevant?: boolean; ir?: CraIr | ""; irBasis?: string; cr?: CraCr | ""; crBasis?: string; reason?: string },
 ): Promise<void> {
-  if (!(ASSERTIONS as readonly string[]).includes(assertion)) throw new Error("invalid-assertion");
+  if (!isAssertion(assertion)) throw new Error("invalid-assertion");
   if (!/^[A-Z][A-Z0-9]{0,2}$/.test(indexCode)) throw new Error("invalid-index");
   const { tenantId, userId } = await requireWrite();
   // Relying on controls with none selected for this assertion, or with ITGCs

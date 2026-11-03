@@ -2,10 +2,13 @@ import { SubmitButton } from "@/components/SubmitButton";
 import { Panel, PanelHeader } from "@/components/ui/atlas";
 import type { Locale } from "@/lib/i18n";
 import {
+  NA,
   autoFieldEmpty,
   conclKey,
   conclWhyKey,
   procKey,
+  procNaKey,
+  procWhyKey,
   ynKey,
   ynWhyKey,
   type PaperDef,
@@ -17,7 +20,9 @@ import { paperProgress } from "@/lib/working-papers";
  * The working paper inside every task. Blue fields hold what a tool produced;
  * amber fields hold the judgement the preparer records. Rich papers add the
  * standards narrative, numbered procedures with their expected sources, and
- * Yes/No factor checklists whose "No" opens an explanation box underneath.
+ * Yes/No/N-A factor checklists whose "No" or "N/A" opens an explanation box
+ * underneath (F040: every item and every procedure may be marked not
+ * applicable, with the reason). The conclusion comes last (F039).
  */
 export function WorkingPaper({
   code,
@@ -116,14 +121,15 @@ export function WorkingPaper({
                         {p[`src${fr ? "Fr" : "En"}`]}
                       </p>
                     </div>
-                    <textarea
+                    <Procedure
                       name={procKey(p.key)}
-                      rows={2}
-                      defaultValue={values[procKey(p.key)] ?? ""}
+                      naName={procNaKey(p.key)}
+                      whyName={procWhyKey(p.key)}
+                      value={values[procKey(p.key)] ?? ""}
+                      na={values[procNaKey(p.key)] === NA}
+                      why={values[procWhyKey(p.key)] ?? ""}
+                      fr={fr}
                       readOnly={readOnly}
-                      data-testid={`wp-${procKey(p.key)}`}
-                      placeholder={fr ? "Résultat et référence du dossier" : "Result and working-paper reference"}
-                      className={AMBER}
                     />
                   </li>
                 ))}
@@ -137,7 +143,7 @@ export function WorkingPaper({
                     key={it.key}
                     n={i + 1}
                     label={it[L]}
-                    na={it.na}
+                    na
                     name={ynKey(it.key)}
                     whyName={ynWhyKey(it.key)}
                     value={values[ynKey(it.key)] ?? ""}
@@ -237,9 +243,78 @@ function FieldRow({
 }
 
 /**
- * A Yes/No factor. The explanation box is always in the DOM so the answer
- * survives a save; CSS reveals it only when "No" is the selected answer, which
- * keeps the reason next to the question it belongs to.
+ * A numbered procedure: its result, or — ticked N/A (F040) — the reason it
+ * does not apply. Both boxes stay in the DOM so a save keeps whichever was
+ * written; the hidden "" before the checkbox clears the flag when unticked
+ * (the action keeps the last value posted under a name).
+ */
+function Procedure({
+  name,
+  naName,
+  whyName,
+  value,
+  na,
+  why,
+  fr,
+  readOnly,
+}: {
+  name: string;
+  naName: string;
+  whyName: string;
+  value: string;
+  na: boolean;
+  why: string;
+  fr: boolean;
+  readOnly?: boolean;
+}) {
+  return (
+    <div className="flex flex-col gap-1.5">
+      <label className="flex items-center gap-1.5 self-end text-xs text-ink-soft">
+        <input type="hidden" name={naName} value="" />
+        <input
+          type="checkbox"
+          name={naName}
+          value={NA}
+          defaultChecked={na}
+          disabled={readOnly}
+          data-testid={`wp-${naName}`}
+          className="h-3.5 w-3.5 accent-emerald-700"
+        />
+        {fr ? "S.O." : "N/A"}
+      </label>
+      <textarea
+        name={name}
+        rows={2}
+        defaultValue={value}
+        readOnly={readOnly}
+        data-testid={`wp-${name}`}
+        placeholder={fr ? "Résultat et référence du dossier" : "Result and working-paper reference"}
+        className={AMBER}
+      />
+      <div>
+        <label htmlFor={`wp-${whyName}`} className="mb-1 block text-[11px] text-muted">
+          {fr ? "Motif de la non-application (obligatoire si S.O.)" : "Reason not applicable (required when N/A)"}
+        </label>
+        <textarea
+          id={`wp-${whyName}`}
+          name={whyName}
+          rows={1}
+          defaultValue={why}
+          readOnly={readOnly}
+          data-testid={`wp-${whyName}`}
+          placeholder={fr ? "Pourquoi cette procédure ne s'applique pas à la mission" : "Why this procedure does not apply to the engagement"}
+          className={`${AMBER} text-[12.5px]`}
+        />
+      </div>
+    </div>
+  );
+}
+
+/**
+ * A Yes/No factor, with N/A on every item since F040. The explanation box is
+ * always in the DOM so the answer survives a save; it holds the reason for a
+ * "No" (how it was resolved) or for an "N/A" (why it does not apply), next to
+ * the question it belongs to.
  */
 function YesNo({
   n,
@@ -265,7 +340,7 @@ function YesNo({
   const opts: { v: string; l: string }[] = [
     { v: "yes", l: fr ? "Oui" : "Yes" },
     { v: "no", l: fr ? "Non" : "No" },
-    ...(na ? [{ v: "na", l: fr ? "S.O." : "N/A" }] : []),
+    ...(na ? [{ v: NA, l: fr ? "S.O." : "N/A" }] : []),
   ];
   return (
     <div className="rounded-[var(--radius-atlas-sm)] border border-line px-3 py-2">
@@ -293,7 +368,9 @@ function YesNo({
       </div>
       <div className="mt-2">
         <label htmlFor={`wp-${whyName}`} className="mb-1 block text-[11px] text-muted">
-          {fr ? "Expliquer une réponse « Non »" : "Explain a “No” answer"}
+          {na
+            ? fr ? "Expliquer une réponse « Non » ; motif de la non-application si « S.O. »" : "Explain a “No” answer; reason not applicable when “N/A”"
+            : fr ? "Expliquer une réponse « Non »" : "Explain a “No” answer"}
         </label>
         <textarea
           id={`wp-${whyName}`}
