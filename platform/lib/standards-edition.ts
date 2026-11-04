@@ -102,9 +102,14 @@ const REFS = {
     current: ["ISA 240 ¶12–27, ¶31–33, ¶40–43", "ISA 240 ¶12–27, ¶31–33, ¶40–43"],
     revised_2026: ["ISA 240 (Revised) ¶12–27, ¶31–33, ¶40–43", "ISA 240 révisée ¶12–27, ¶31–33, ¶40–43"], // to verify
   },
+  // F032 (firm decision 2026-10-27): the journal-entry paper is anchored on
+  // ¶31–33 — ¶31 the risk, ¶32 the required procedures, ¶33 the other
+  // procedures the auditor may need — and cites the sub-paragraphs of ¶32 for
+  // each procedure: (a)(i) inquiry, (a)(ii) period-end entries, (a)(iii)
+  // entries throughout the period, (b) estimates, (c) unusual transactions.
   "ISA240.std.E31": {
-    current: ["ISA 240 ¶31–34, ¶36–37 · ISA 240 ¶29(c)", "ISA 240 ¶31–34, ¶36–37 · ISA 240 ¶29 c)"],
-    revised_2026: ["ISA 240 (Revised) ¶31–34, ¶36–37 · ISA 240 (Revised) ¶29(c)", "ISA 240 révisée ¶31–34, ¶36–37 · ISA 240 révisée ¶29 c)"], // to verify
+    current: ["ISA 240 ¶31–33", "ISA 240 ¶31–33"],
+    revised_2026: ["ISA 240 (Revised) ¶31–33", "ISA 240 révisée ¶31–33"], // to verify
   },
   /* ---- ISA 240 — requirements ---- */
   "ISA240.records": { current: ["ISA 240 ¶13", "ISA 240 ¶13"], revised_2026: ["ISA 240 (Revised) ¶13", "ISA 240 révisée ¶13"] }, // to verify
@@ -115,9 +120,13 @@ const REFS = {
   "ISA240.override": { current: ["ISA 240 ¶31", "ISA 240 ¶31"], revised_2026: ["ISA 240 (Revised) ¶31", "ISA 240 révisée ¶31"] }, // to verify
   "ISA240.overrideResponses": { current: ["ISA 240 ¶31–33", "ISA 240 ¶31–33"], revised_2026: ["ISA 240 (Revised) ¶31–33", "ISA 240 révisée ¶31–33"] }, // to verify
   "ISA240.jeTesting": { current: ["ISA 240 ¶32", "ISA 240 ¶32"], revised_2026: ["ISA 240 (Revised) ¶32", "ISA 240 révisée ¶32"] }, // to verify
-  "ISA240.jeInquiry": { current: ["ISA 240 ¶33(a)", "ISA 240 ¶33 a)"], revised_2026: ["ISA 240 (Revised) ¶33(a)", "ISA 240 révisée ¶33 a)"] }, // to verify
-  "ISA240.jeCriteria": { current: ["ISA 240 ¶33(b)", "ISA 240 ¶33 b)"], revised_2026: ["ISA 240 (Revised) ¶33(b)", "ISA 240 révisée ¶33 b)"] }, // to verify
-  "ISA240.unusual": { current: ["ISA 240 ¶33(c)", "ISA 240 ¶33 c)"], revised_2026: ["ISA 240 (Revised) ¶33(c)", "ISA 240 révisée ¶33 c)"] }, // to verify
+  "ISA240.jeCriteria": { current: ["ISA 240 ¶32(a)", "ISA 240 ¶32 a)"], revised_2026: ["ISA 240 (Revised) ¶32(a)", "ISA 240 révisée ¶32 a)"] }, // to verify
+  "ISA240.jeInquiry": { current: ["ISA 240 ¶32(a)(i)", "ISA 240 ¶32 a) i)"], revised_2026: ["ISA 240 (Revised) ¶32(a)(i)", "ISA 240 révisée ¶32 a) i)"] }, // to verify
+  "ISA240.jePeriodEnd": { current: ["ISA 240 ¶32(a)(ii)", "ISA 240 ¶32 a) ii)"], revised_2026: ["ISA 240 (Revised) ¶32(a)(ii)", "ISA 240 révisée ¶32 a) ii)"] }, // to verify
+  "ISA240.jeThroughout": { current: ["ISA 240 ¶32(a)(iii)", "ISA 240 ¶32 a) iii)"], revised_2026: ["ISA 240 (Revised) ¶32(a)(iii)", "ISA 240 révisée ¶32 a) iii)"] }, // to verify
+  "ISA240.jeEstimates": { current: ["ISA 240 ¶32(b)", "ISA 240 ¶32 b)"], revised_2026: ["ISA 240 (Revised) ¶32(b)", "ISA 240 révisée ¶32 b)"] }, // to verify
+  "ISA240.unusual": { current: ["ISA 240 ¶32(c)", "ISA 240 ¶32 c)"], revised_2026: ["ISA 240 (Revised) ¶32(c)", "ISA 240 révisée ¶32 c)"] }, // to verify
+  "ISA240.otherProcedures": { current: ["ISA 240 ¶33", "ISA 240 ¶33"], revised_2026: ["ISA 240 (Revised) ¶33", "ISA 240 révisée ¶33"] }, // to verify
   "ISA240.evaluate": { current: ["ISA 240 ¶35–36", "ISA 240 ¶35-36"], revised_2026: ["ISA 240 (Revised) ¶35–36", "ISA 240 révisée ¶35-36"] }, // to verify
   "ISA240.representations": { current: ["ISA 240 ¶39", "ISA 240 ¶39"], revised_2026: ["ISA 240 (Revised) ¶39", "ISA 240 révisée ¶39"] }, // to verify
   "ISA240.commMgmt": { current: ["ISA 240 ¶40", "ISA 240 ¶40"], revised_2026: ["ISA 240 (Revised) ¶40", "ISA 240 révisée ¶40"] }, // to verify

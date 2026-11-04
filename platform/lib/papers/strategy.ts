@@ -568,8 +568,8 @@ const D4_9: PaperDef = {
 /* ---------------------------------------------------------------- P6.1 --- */
 const D5_1: PaperDef = {
   std: "ISA 320 ¶10–14 · ISA 450 ¶5",
-  ownsEn: "materiality, performance materiality and the clearly trivial threshold",
-  ownsFr: "le seuil de signification, le seuil de travail et le seuil négligeable",
+  ownsEn: "overall materiality, performance materiality and the clearly trivial threshold",
+  ownsFr: "le seuil de signification global, le seuil de travail et le seuil des anomalies manifestement négligeables",
   tools: ["materiality"],
   reqEn: [
     "Materiality for the financial statements as a whole is determined when the overall strategy is established, using a benchmark and a percentage applied to it, supported by professional judgement about the users of the financial statements (ISA 320 ¶10).",
@@ -606,14 +606,14 @@ const D5_1: PaperDef = {
           "Stay inside the range the tool shows for the basis (PBT 5–10%, revenue and assets 0.5–2%, equity 1–5%, expenses 0.5–2%). Go to the low end when users are sensitive — a first-year audit, listed or regulated entity, covenant pressure, known misstatement history; the high end suits a stable, owner-managed entity with a clean record. Record the reason in the justification box, not just the number.",
           "Rester dans la fourchette affichée pour la base (RAI 5–10 %, CA et actif 0,5–2 %, capitaux propres 1–5 %, charges 0,5–2 %). Choisir le bas de fourchette quand les utilisateurs sont sensibles — premier mandat, entité réglementée, pression des covenants, antécédents d'anomalies ; le haut convient à une entité stable, familiale, au dossier propre. Consigner le motif dans la justification, pas seulement le chiffre."),
         P("pm", "Set performance materiality, taking account of the assessed risks, the misstatements found in prior periods, and the number and size of misstatements expected.", "Fixer le seuil de travail en tenant compte des risques évalués, des anomalies des exercices antérieurs et du nombre et de la taille des anomalies attendues.", "Prior year C1.1 · S3.1 · firm policy", "C1.1 de l'exercice précédent · S3.1 · politique du cabinet",
-          "Open last year's Summary of Audit Differences (C1.1): many or large misstatements push performance materiality toward 60% of PM; a clean prior file with low assessed risks supports 75%. Performance materiality is the buffer that keeps undetected misstatements from breaching materiality in aggregate — the riskier the file, the bigger the buffer, so the lower the percentage.",
+          "Open last year's Summary of Audit Differences (C1.1): many or large misstatements push performance materiality toward 60% of overall materiality; a clean prior file with low assessed risks supports 75%. Performance materiality is the buffer that keeps undetected misstatements from breaching materiality in aggregate — the riskier the file, the bigger the buffer, so the lower the percentage.",
           "Ouvrir le récapitulatif des écarts de l'exercice précédent (C1.1) : des anomalies nombreuses ou importantes poussent le seuil de travail vers 60 % du seuil global ; un dossier antérieur propre avec des risques faibles justifie 75 %. Le seuil de travail est la marge qui empêche les anomalies non détectées de dépasser le seuil en cumul — plus le dossier est risqué, plus la marge doit être grande, donc plus le pourcentage baisse."),
         P("specific", "Determine whether a class of transactions, balance or disclosure exists for which a lower amount would influence users, and set a specific materiality for it.", "Déterminer s'il existe un flux, un solde ou une note pour lequel un montant plus faible influencerait les utilisateurs, et fixer un seuil spécifique.", "ISA 320 ¶10 · statutes · loan covenants", "ISA 320 ¶10 · statuts · covenants bancaires",
           "Scan the loan agreements for covenant ratios (a small error in EBITDA can flip a covenant), the statutes for regulated thresholds, and the notes for sensitive disclosures — related-party transactions and management remuneration are the classic cases where users care about amounts far below overall materiality.",
           "Balayer les contrats de prêt pour les ratios de covenant (une petite erreur d'EBITDA peut faire basculer un covenant), les statuts pour les seuils réglementés, et l'annexe pour les informations sensibles — conventions avec les parties liées et rémunération des dirigeants sont les cas classiques où les utilisateurs s'intéressent à des montants bien inférieurs au seuil global."),
-        P("trivial", "Set the clearly trivial threshold below which misstatements need not be accumulated.", "Fixer le seuil négligeable en deçà duquel les anomalies ne sont pas cumulées.", "ISA 450 ¶5 · firm policy", "ISA 450 ¶5 · politique du cabinet",
-          "Set it at 3–5% of overall materiality (the tool defaults to 5%). Below this line misstatements are not even accumulated in C1.1 — so if the entity's users are unusually sensitive, or you expect many small errors that could add up, choose the lower end.",
-          "Le fixer à 3–5 % du seuil global (l'outil propose 5 %). Sous cette ligne, les anomalies ne sont même pas cumulées en C1.1 — si les utilisateurs sont particulièrement sensibles, ou si de nombreuses petites erreurs risquent de s'additionner, retenir le bas de fourchette."),
+        P("trivial", "Set the clearly trivial threshold below which misstatements need not be accumulated.", "Fixer le seuil des anomalies manifestement négligeables en deçà duquel les anomalies ne sont pas cumulées.", "ISA 450 ¶5 · firm policy", "ISA 450 ¶5 · politique du cabinet",
+          "Set the clearly trivial threshold at 3–5% of overall materiality — the firm's range: the tool defaults to 5% and refuses a new value outside it. Below this line misstatements are not even accumulated in C1.1 — so if the entity's users are unusually sensitive, or you expect many small errors that could add up, choose the lower end. The SAD nominal amount is the same figure under its older name.",
+          "Fixer le seuil des anomalies manifestement négligeables à 3–5 % du seuil de signification global — la fourchette du cabinet : l'outil propose 5 % et refuse toute nouvelle valeur hors fourchette. Sous cette ligne, les anomalies ne sont même pas cumulées en C1.1 — si les utilisateurs sont particulièrement sensibles, ou si de nombreuses petites erreurs risquent de s'additionner, retenir le bas de fourchette. Le « SAD nominal » est ce même montant sous son ancien nom."),
       ],
     },
     {
@@ -1506,11 +1506,11 @@ const S5_4: PaperDef = {
   ownsFr: "la conception du test des écritures : critères, seuils et règles qui orientent la sélection",
   reqEn: [
     "Irrespective of the assessed risks of management override, the auditor designs and performs procedures to test the appropriateness of journal entries recorded in the general ledger and other adjustments made in the preparation of the financial statements (ISA 240 ¶32(a)). The selection is directed by the characteristics of fraudulent entries — unusual accounts, unrelated or seldom-used accounts, individuals who do not normally make entries, period-end postings, round amounts, missing descriptions (ISA 240 ¶A43).",
-    "The criteria are decided and recorded before the entries are tested, so the sample answers the risk rather than the other way round. Entries made at the end of the reporting period are tested in every case; testing throughout the period is a decision to record (ISA 240 ¶32(a)(ii)).",
+    "The criteria are decided and recorded before the entries are tested, so the sample answers the risk rather than the other way round. Entries made at the end of the reporting period are tested in every case ({{ISA240.jePeriodEnd}}); testing throughout the period is a decision to record ({{ISA240.jeThroughout}}).",
   ],
   reqFr: [
     "Indépendamment de l'évaluation des risques de contournement des contrôles par la direction, l'auditeur conçoit et met en œuvre des procédures pour tester le bien-fondé des écritures enregistrées dans le grand livre et des autres ajustements faits lors de la préparation des états financiers (ISA 240 ¶32(a)). La sélection est orientée par les caractéristiques des écritures frauduleuses — comptes inhabituels, comptes sans lien ou rarement mouvementés, auteurs qui ne passent pas d'écritures d'ordinaire, écritures de fin de période, montants ronds, libellés absents (ISA 240 ¶A43).",
-    "Les critères sont arrêtés et consignés avant le test des écritures, de sorte que l'échantillon réponde au risque et non l'inverse. Les écritures de fin de période sont testées dans tous les cas ; le test des écritures de la période est une décision à consigner (ISA 240 ¶32(a)(ii)).",
+    "Les critères sont arrêtés et consignés avant le test des écritures, de sorte que l'échantillon réponde au risque et non l'inverse. Les écritures de fin de période sont testées dans tous les cas ({{ISA240.jePeriodEnd}}) ; le test des écritures de la période est une décision à consigner ({{ISA240.jeThroughout}}).",
   ],
   conclEn: [
     "The selection criteria recorded above respond to the fraud risk factors identified on this engagement and were fixed before the entries were tested.",
@@ -1528,7 +1528,7 @@ const S5_4: PaperDef = {
       fields: [
         { key: "je_design", kind: "auto", source: "je-selection", labelEn: "From the tool: criteria, thresholds, rules and the size of the selection", labelFr: "Depuis l'outil : critères, seuils, règles et taille de la sélection" },
         { key: "rationale", kind: "input", labelEn: "Why these criteria: the fraud risk factors of the engagement each one answers", labelFr: "Pourquoi ces critères : les facteurs de risque de fraude de la mission auxquels chacun répond" },
-        { key: "timing", kind: "input", labelEn: "Timing: period-end entries tested in every case; whether entries throughout the period are tested, and why", labelFr: "Calendrier : écritures de fin de période testées dans tous les cas ; test des écritures de la période, et pourquoi" },
+        { key: "timing", kind: "input", labelEn: "Timing: period-end entries tested in every case ({{ISA240.jePeriodEnd}}); whether entries throughout the period are tested, and why ({{ISA240.jeThroughout}})", labelFr: "Calendrier : écritures de fin de période testées dans tous les cas ({{ISA240.jePeriodEnd}}) ; test des écritures de la période, et pourquoi ({{ISA240.jeThroughout}})" },
       ],
     },
   ],

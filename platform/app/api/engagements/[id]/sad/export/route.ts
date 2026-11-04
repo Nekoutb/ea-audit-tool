@@ -8,7 +8,7 @@ import { SAD_COLUMN_COUNT, captionColumn, type SadCfRow, type SadDiscRow, type S
 
 /**
  * The SAD as the firm's own workbook: one TAB per schedule, each laid out
- * like the template it replicates — the entity/PM/TE band, the six-caption
+ * like the template it replicates — the entity/materiality band, the six-caption
  * Debit/(Credit) grid with its section bands, totals, financial-statement
  * amounts and effect-% rows, the tax/turnaround cascade, the conclusion
  * analysis and the qualitative factors, then the reclassification, cash-flow
@@ -68,8 +68,8 @@ export async function GET(request: Request, context: { params: Promise<{ id: str
         fr ? "Devise :" : "Currency:", view.currency ?? "XAF",
       ]);
       const r2 = ws.addRow([
-        "PM:", mat?.overall ?? "", "TE:", mat?.performance ?? "",
-        fr ? "Nominal :" : "Nominal:", mat?.trivial ?? "",
+        fr ? "Seuil global :" : "Overall materiality:", mat?.overall ?? "", fr ? "Seuil de travail :" : "Performance materiality:", mat?.performance ?? "",
+        fr ? "Manifestement négligeable :" : "Clearly trivial:", mat?.trivial ?? "",
       ]);
       for (const r of [r1, r2]) {
         [1, 3, 5].forEach((c) => { r.getCell(c).font = { bold: true }; fill(r.getCell(c), HDR); });
@@ -230,8 +230,8 @@ export async function GET(request: Request, context: { params: Promise<{ id: str
     ]);
     pctRow.eachCell((cell, c) => { box(cell); if (c > 1) cell.numFmt = PCT; });
     for (const [label, value] of [
-      [fr ? "Seuil de signification (PM)" : "Planning materiality", mat?.overall ?? null],
-      [fr ? "Seuil des anomalies non corrigées (UMT = PM − TE)" : "Uncorrected Misstatements Threshold (UMT = PM − TE)", threshold],
+      [fr ? "Seuil de signification global" : "Overall materiality", mat?.overall ?? null],
+      [fr ? "Seuil des anomalies non corrigées (seuil global − seuil de travail)" : "Uncorrected misstatements threshold (overall − performance materiality)", threshold],
     ] as [string, number | null][]) {
       const r = wsK.addRow([label, value]);
       r.getCell(2).numFmt = MONEY;

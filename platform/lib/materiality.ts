@@ -226,8 +226,8 @@ export async function createMaterialityVersion(
   ) {
     throw new Error("invalid-materiality");
   }
-  // A TE away from the firm's default share of PM is a judgement the file
-  // must carry in writing (ISA 320 ¶11, UAT B42).
+  // A performance materiality away from the firm's default share of overall
+  // materiality is a judgement the file must carry in writing (ISA 320 ¶11, UAT B42).
   if (input.performancePct !== PERFORMANCE_PCT_RANGE.default && !input.performanceJustification?.trim()) {
     throw new Error("performance-justification-required");
   }

@@ -3,19 +3,24 @@
 
 /**
  * The firm's ranges for the two derived thresholds, as a percentage of overall
- * materiality: tolerable error (TE, "performance materiality") and the clearly
- * trivial SAD nominal amount. ONE definition — the server validation, the
- * form inputs and the on-screen hint all read it, so they cannot disagree.
+ * materiality [seuil de signification global]: performance materiality [seuil
+ * de travail] and the clearly trivial threshold [seuil des anomalies
+ * manifestement négligeables — the SAD nominal amount of the older papers].
+ * ONE definition — the server validation, the form inputs and the on-screen
+ * hint all read it, so they cannot disagree. F033 (firm decision 2026-10-27)
+ * narrowed the clearly trivial range to 3–5%: only NEW versions are
+ * constrained, a stored value outside the range keeps displaying.
  */
 export const PERFORMANCE_PCT_RANGE = { min: 60, max: 85, default: 75 } as const;
-export const TRIVIAL_PCT_RANGE = { min: 0.5, max: 10, default: 5 } as const;
+export const TRIVIAL_PCT_RANGE = { min: 3, max: 5, default: 5 } as const;
 
 /**
  * Uncorrected Misstatements Threshold: the margin performance materiality
- * leaves below overall materiality, UMT = PM − TE. Uncorrected misstatements
- * accumulated on the SAD are measured against this, never against TE itself —
- * TE is the tolerance the procedures consume, not the room left over. Returns
- * null when the engagement has no materiality set.
+ * leaves below overall materiality, UMT = overall − performance. Uncorrected
+ * misstatements accumulated on the SAD are measured against this, never
+ * against performance materiality itself — that is the tolerance the
+ * procedures consume, not the room left over. Returns null when the
+ * engagement has no materiality set.
  */
 export function uncorrectedMisstatementThreshold(
   mat: { overall: number; performance: number } | null | undefined,

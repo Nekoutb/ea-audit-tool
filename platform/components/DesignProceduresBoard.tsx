@@ -600,7 +600,7 @@ export function DesignProceduresBoard({
                               {fr ? "Étendue" : "Extent"}
                               <input
                                 defaultValue={osp.extent}
-                                placeholder={ospLevel ? thresholdSuggestion(ospLevel, fr ? "fr" : "en") : (fr ? "ex. 100 % des éléments > SAD nominal…" : "e.g. 100% of items > SAD Nominal…")}
+                                placeholder={ospLevel ? thresholdSuggestion(ospLevel, fr ? "fr" : "en") : (fr ? "ex. 100 % des éléments > seuil des anomalies manifestement négligeables…" : "e.g. 100% of items > clearly trivial threshold…")}
                                 onBlur={(e) => { if (e.target.value !== osp.extent) patchOsp(row.indexCode, osp.id, { extent: e.target.value }); }}
                                 className={select}
                                 data-testid={`dsp-osp-${row.indexCode}-${osp.id}-extent`}

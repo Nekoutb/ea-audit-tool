@@ -2,7 +2,9 @@
 
 // The candidate materiality bases derived from the ingested trial balance.
 // "Use" fills the benchmark, amount and suggested percentage into the version
-// form below, so PM is computed from the file rather than typed from memory.
+// form below, so overall materiality is computed from the file rather than
+// typed from memory. One vocabulary (F033): overall materiality, performance
+// materiality, clearly trivial threshold.
 
 import { PERFORMANCE_PCT_RANGE, TRIVIAL_PCT_RANGE } from "@/lib/materiality-model";
 
@@ -80,8 +82,8 @@ export function MaterialityBasis({
       {/* the hint quotes the ranges the server enforces — one constant, never a second copy */}
       <p className="mt-1.5 text-[11px] text-muted" data-testid="materiality-ranges-hint">
         {fr
-          ? `PM = base × % · TE (seuil de travail) = ${PERFORMANCE_PCT_RANGE.min}–${PERFORMANCE_PCT_RANGE.max} % de PM · Seuil SAD = ${String(TRIVIAL_PCT_RANGE.min).replace(".", ",")}–${TRIVIAL_PCT_RANGE.max} % de PM.`
-          : `PM = basis × % · TE (tolerable error) = ${PERFORMANCE_PCT_RANGE.min}–${PERFORMANCE_PCT_RANGE.max}% of PM · SAD nominal = ${TRIVIAL_PCT_RANGE.min}–${TRIVIAL_PCT_RANGE.max}% of PM.`}
+          ? `Seuil de signification global = base × % · Seuil de travail = ${PERFORMANCE_PCT_RANGE.min}–${PERFORMANCE_PCT_RANGE.max} % du seuil global · Seuil des anomalies manifestement négligeables (SAD nominal) = ${String(TRIVIAL_PCT_RANGE.min).replace(".", ",")}–${TRIVIAL_PCT_RANGE.max} % du seuil global.`
+          : `Overall materiality = basis × % · Performance materiality = ${PERFORMANCE_PCT_RANGE.min}–${PERFORMANCE_PCT_RANGE.max}% of overall · Clearly trivial threshold (SAD nominal) = ${TRIVIAL_PCT_RANGE.min}–${TRIVIAL_PCT_RANGE.max}% of overall.`}
       </p>
     </div>
   );

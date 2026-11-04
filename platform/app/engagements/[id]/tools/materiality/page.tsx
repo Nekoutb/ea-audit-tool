@@ -144,9 +144,9 @@ export default async function MaterialityPage(props: {
               <span className="text-muted">
                 {fr ? "Base" : "Basis"}: <b className="text-ink">{tp.materiality.benchmarks[approved.benchmark]}</b> · {approved.percentage}%
               </span>
-              <span className="text-muted">PM: <b className="text-ink tnum">{formatFCFA(approved.overall)}</b></span>
-              <span className="text-muted">TE: <b className="text-ink tnum">{formatFCFA(approved.performance)}</b></span>
-              <span className="text-muted">SAD: <b className="text-ink tnum">{formatFCFA(approved.trivial)}</b></span>
+              <span className="text-muted">{fr ? "Seuil global" : "Overall"}: <b className="text-ink tnum">{formatFCFA(approved.overall)}</b></span>
+              <span className="text-muted">{fr ? "Seuil de travail" : "Performance"}: <b className="text-ink tnum">{formatFCFA(approved.performance)}</b></span>
+              <span className="text-muted">{fr ? "Manifestement négligeable" : "Clearly trivial"}: <b className="text-ink tnum">{formatFCFA(approved.trivial)}</b></span>
               <span className="text-muted">{approved.approvedByName ? `${fr ? "Approuvé par" : "Approved by"} ${approved.approvedByName}` : ""}</span>
             </div>
             <p className="mt-1 text-[12px] text-muted">
@@ -191,9 +191,9 @@ export default async function MaterialityPage(props: {
                 <span className="tnum">({latest.percentage}% {fr ? "de la base" : "of basis"})</span>
               </span>
               <span className="text-muted">
-                <b className="text-ink">{fr ? "Seuil de travail (TE)" : "Tolerable Error"}</b>:{" "}
+                <b className="text-ink">{fr ? "Seuil de travail" : "Performance materiality"}</b>:{" "}
                 <span className="font-semibold text-ink tnum">{formatFCFA(latest.performance)}</span>{" "}
-                <span className="tnum">({latest.performancePct}% {fr ? "de PM" : "of PM"} · {latest.benchmarkAmount > 0 ? ((latest.performance / latest.benchmarkAmount) * 100).toFixed(2) : "—"}% {fr ? "de la base" : "of basis"})</span>
+                <span className="tnum">({latest.performancePct}% {fr ? "du seuil global" : "of overall"} · {latest.benchmarkAmount > 0 ? ((latest.performance / latest.benchmarkAmount) * 100).toFixed(2) : "—"}% {fr ? "de la base" : "of basis"})</span>
                 {latest.performanceJustification ? (
                   <span className="block text-[12px] italic" data-testid="materiality-te-justification-shown">
                     {fr ? "Justification : " : "Justification: "}
@@ -202,9 +202,9 @@ export default async function MaterialityPage(props: {
                 ) : null}
               </span>
               <span className="text-muted">
-                <b className="text-ink">{fr ? "SAD nominal" : "SAD Nominal"}</b>:{" "}
+                <b className="text-ink">{fr ? "Seuil des anomalies manifestement négligeables (SAD nominal)" : "Clearly trivial threshold (SAD nominal)"}</b>:{" "}
                 <span className="font-semibold text-ink tnum">{formatFCFA(latest.trivial)}</span>{" "}
-                <span className="tnum">({latest.trivialPct}% {fr ? "de PM" : "of PM"} · {latest.benchmarkAmount > 0 ? ((latest.trivial / latest.benchmarkAmount) * 100).toFixed(2) : "—"}% {fr ? "de la base" : "of basis"})</span>
+                <span className="tnum">({latest.trivialPct}% {fr ? "du seuil global" : "of overall"} · {latest.benchmarkAmount > 0 ? ((latest.trivial / latest.benchmarkAmount) * 100).toFixed(2) : "—"}% {fr ? "de la base" : "of basis"})</span>
               </span>
               <span data-testid="materiality-status">
                 {latest.status === "approved" ? (
@@ -242,9 +242,9 @@ export default async function MaterialityPage(props: {
                   <th className="px-3 py-2">v</th>
                   <th className="px-3 py-2">{fr ? "Base" : "Basis"}</th>
                   <th className="px-3 py-2 text-right">%</th>
-                  <th className="px-3 py-2 text-right">PM</th>
-                  <th className="px-3 py-2 text-right">TE</th>
-                  <th className="px-3 py-2 text-right">SAD</th>
+                  <th className="px-3 py-2 text-right">{fr ? "Seuil global" : "Overall"}</th>
+                  <th className="px-3 py-2 text-right">{fr ? "Seuil de travail" : "Performance"}</th>
+                  <th className="px-3 py-2 text-right">{fr ? "Négligeable" : "Clearly trivial"}</th>
                   <th className="px-3 py-2">{fr ? "Statut" : "Status"}</th>
                 </tr>
               </thead>

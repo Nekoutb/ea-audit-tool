@@ -84,7 +84,7 @@ export function SamplingStudio({
   /** the S2.2 design screen — clicking a control's description returns there */
   s22Href?: string;
   locale: "en" | "fr";
-  /** tolerable error (TE), the yardstick the projection is read against */
+  /** performance materiality, the yardstick the projection is read against */
   te?: number | null;
   /** the lead indexes a result can be recorded for */
   indexes?: { code: string; label: string }[];
@@ -416,8 +416,8 @@ export function SamplingStudio({
         <p className={sectionTitle}>{fr ? "2 · Échantillonnage — tests de détail" : "2 · Sampling for tests of details"}</p>
         <p className="text-[11.5px] text-muted">
           {fr
-            ? "Choisissez le bilan ou le compte de résultat : chaque indice de ce côté reçoit un onglet avec ses éléments clés (≥ seuil fixé sur S3.1, TE à défaut) et son échantillon représentatif dimensionné par la CRA de S3.1 — colonnes de test à remplir."
-            : "Choose the balance sheet or the income statement: every lead index of that side gets a tab with its key items (≥ the threshold set on S3.1, TE by default) and its representative sample sized by the S3.1 CRA — with the columns the tester fills."}
+            ? "Choisissez le bilan ou le compte de résultat : chaque indice de ce côté reçoit un onglet avec ses éléments clés (≥ seuil fixé sur S3.1, seuil de travail à défaut) et son échantillon représentatif dimensionné par la CRA de S3.1 — colonnes de test à remplir."
+            : "Choose the balance sheet or the income statement: every lead index of that side gets a tab with its key items (≥ the threshold set on S3.1, performance materiality by default) and its representative sample sized by the S3.1 CRA — with the columns the tester fills."}
         </p>
         <div className="flex flex-wrap items-end gap-2.5">
           <div className="flex flex-col gap-0.5 text-[11px] text-muted">
@@ -514,7 +514,7 @@ export function SamplingStudio({
                   <th className={th}>{fr ? "Extrapolée" : "Projected"}</th>
                   <th className={th}>{fr ? "Éléments clés (avérée)" : "Key items (factual)"}</th>
                   <th className={th}>{fr ? "Probable totale" : "Total likely"}</th>
-                  <th className={th}>{te !== null ? `vs TE ${n(te)}` : "vs TE"}</th>
+                  <th className={th}>{te !== null ? `${fr ? "vs seuil de travail" : "vs performance materiality"} ${n(te)}` : fr ? "vs seuil de travail" : "vs performance materiality"}</th>
                   <th className={th}>{fr ? "Enregistré" : "Recorded"}</th>
                 </tr>
               </thead>
@@ -532,7 +532,7 @@ export function SamplingStudio({
                       <td className={`${td} tnum`}>{n(r.keyMisstatement)}</td>
                       <td className={`${td} tnum font-semibold`}>{n(total)}</td>
                       <td className={`${td} ${exceeds ? "font-bold text-rose" : "text-emerald-700 dark:text-emerald-400"}`}>
-                        {te === null ? "—" : exceeds ? (fr ? "Dépasse TE" : "Exceeds TE") : fr ? "Sous TE" : "Within TE"}
+                        {te === null ? "—" : exceeds ? (fr ? "Dépasse le seuil de travail" : "Exceeds performance materiality") : fr ? "Sous le seuil de travail" : "Within performance materiality"}
                         {r.raisedToB5 ? <span className="ml-1 text-[10px] text-muted">· C1.1</span> : null}
                       </td>
                       <td className={`${td} text-muted tnum`}>{r.createdAt}</td>

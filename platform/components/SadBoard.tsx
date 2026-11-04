@@ -437,9 +437,9 @@ export function SadBoard({
       { key: "cum-is", label: fr ? "Effet cumulé des anomalies non corrigées sur le résultat" : "Cumulative income-statement effect of uncorrected misstatements", value: n(cumIS) },
       { key: "ibt", label: fr ? "Résultat avant impôt de l'exercice (balance)" : "Current-year income before tax (TB)", value: ibt !== null ? n(ibt) : "—" },
       { key: "is-pct", label: fr ? "Anomalies en % du résultat" : "Misstatements as % of income", value: isPct !== null ? pct1(isPct) : "—" },
-      { key: "pm", label: fr ? "Seuil de signification (PM)" : "Overall materiality (PM)", value: mat ? n(mat.overall) : "—" },
-      { key: "te", label: fr ? "Seuil de travail (TE) — estimation des anomalies non détectées" : "Performance materiality (TE) — estimate for undetected misstatements", value: mat ? n(mat.performance) : "—" },
-      { key: "umt", label: fr ? "Marge pour anomalies non corrigées (UMT = PM − TE)" : "Margin for uncorrected misstatements (UMT = PM − TE)", value: umt !== null ? n(umt) : "—" },
+      { key: "pm", label: fr ? "Seuil de signification global" : "Overall materiality", value: mat ? n(mat.overall) : "—" },
+      { key: "te", label: fr ? "Seuil de travail — estimation des anomalies non détectées" : "Performance materiality — estimate for undetected misstatements", value: mat ? n(mat.performance) : "—" },
+      { key: "umt", label: fr ? "Marge pour anomalies non corrigées (seuil global − seuil de travail)" : "Margin for uncorrected misstatements (overall − performance materiality)", value: umt !== null ? n(umt) : "—" },
     ];
     return (
       <div className="flex flex-col gap-4">
@@ -482,7 +482,7 @@ export function SadBoard({
                 {fr ? "Seuil de travail" : "Performance"}: {n(mat.performance)}
               </span>
               <span className="text-ink-soft">
-                {fr ? "Seuil SAD" : "SAD nominal"}: {n(mat.trivial)}
+                {fr ? "Seuil des anomalies manifestement négligeables" : "Clearly trivial threshold"}: {n(mat.trivial)}
               </span>
             </>
           ) : (
@@ -772,11 +772,11 @@ export function SadBoard({
                 <p className="text-[13px] font-semibold text-ink tnum">{n(mat.overall)}</p>
               </div>
               <div>
-                <p className={label}>{fr ? "Seuil de travail (TE)" : "Performance materiality (TE)"}</p>
+                <p className={label}>{fr ? "Seuil de travail" : "Performance materiality"}</p>
                 <p className="text-[13px] font-semibold text-ink tnum">{n(mat.performance)}</p>
               </div>
               <div>
-                <p className={label}>{fr ? "Seuil SAD" : "SAD nominal amount"}</p>
+                <p className={label}>{fr ? "Seuil des anomalies manifestement négligeables (SAD nominal)" : "Clearly trivial threshold (SAD nominal)"}</p>
                 <p className="text-[13px] font-semibold text-ink tnum">{n(mat.trivial)}</p>
               </div>
             </>

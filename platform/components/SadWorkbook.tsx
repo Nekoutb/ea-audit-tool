@@ -171,9 +171,9 @@ export function SadWorkbook({
         <span><b>{fr ? "Entité :" : "Entity:"}</b> {view.entityName}</span>
         <span><b>{fr ? "Clôture :" : "Period ended:"}</b> {view.periodEnd}</span>
         <span><b>{fr ? "Devise :" : "Currency:"}</b> {view.currency ?? "XAF"}</span>
-        <span><b>PM:</b> <span className="tnum">{mat ? n(mat.overall) : "—"}</span></span>
-        <span><b>TE:</b> <span className="tnum">{mat ? n(mat.performance) : "—"}</span></span>
-        <span><b>{fr ? "Nominal :" : "Nominal:"}</b> <span className="tnum">{mat ? n(mat.trivial) : "—"}</span></span>
+        <span><b>{fr ? "Seuil global :" : "Overall materiality:"}</b> <span className="tnum">{mat ? n(mat.overall) : "—"}</span></span>
+        <span><b>{fr ? "Seuil de travail :" : "Performance materiality:"}</b> <span className="tnum">{mat ? n(mat.performance) : "—"}</span></span>
+        <span><b>{fr ? "Manifestement négligeable :" : "Clearly trivial:"}</b> <span className="tnum">{mat ? n(mat.trivial) : "—"}</span></span>
       </div>
     </div>
   );
@@ -483,7 +483,7 @@ export function SadWorkbook({
                     <td className={tdNum}>{iat ? pctf(cumulative / iat) : "—"}</td>
                   </tr>
                   <tr><td className={td}>{fr ? "Seuil de signification (PM)" : "Planning materiality"}</td><td className={tdNum} colSpan={4}>{mat ? n(mat.overall) : "—"}</td></tr>
-                  <tr><td className={td}>{fr ? "Seuil des anomalies non corrigées (UMT = PM − TE)" : "Uncorrected Misstatements Threshold (UMT = PM − TE)"}</td><td className={tdNum} colSpan={4}>{threshold !== null ? n(threshold) : "—"}</td></tr>
+                  <tr><td className={td}>{fr ? "Seuil des anomalies non corrigées (seuil global − seuil de travail)" : "Uncorrected misstatements threshold (overall − performance materiality)"}</td><td className={tdNum} colSpan={4}>{threshold !== null ? n(threshold) : "—"}</td></tr>
                   <tr>
                     <td className={td} style={{ background: HDR }}><b>{fr ? "Les anomalies non corrigées dépassent-elles le seuil ?" : "Do uncorrected misstatements exceed the threshold?"}</b></td>
                     {[cumIS, cumIS + turnF + turnJ, afterTaxIS, cumulative].map((v, i) => (

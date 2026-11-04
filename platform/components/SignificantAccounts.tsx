@@ -99,12 +99,12 @@ export function SignificantAccounts({
     <div className="flex flex-col gap-1.5" data-testid="sig-accounts">
       <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
         <span className="text-[11px] text-muted">
-          {fr ? "Erreur tolérable" : "Tolerable error"}:{" "}
+          {fr ? "Seuil de travail" : "Performance materiality"}:{" "}
           <b className="text-ink tnum">
             {view.tolerableError !== null ? fmt(view.tolerableError) : fr ? "non approuvée" : "not approved yet"}
           </b>
           {view.tolerableError !== null && view.tolerableErrorPct !== null ? (
-            <span className="tnum"> ({view.tolerableErrorPct}% {fr ? "de PM" : "of PM"})</span>
+            <span className="tnum"> ({view.tolerableErrorPct}% {fr ? "du seuil global" : "of overall materiality"})</span>
           ) : null}
         </span>
         {view.sadThreshold !== null ? (
