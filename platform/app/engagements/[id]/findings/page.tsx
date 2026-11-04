@@ -130,9 +130,15 @@ export default async function FindingsPage(props: {
           </span>
           <span
             data-testid="b5-verdict"
-            className={b5.exceedsMateriality ? "font-semibold text-rose" : "text-emerald-700 dark:text-emerald-400"}
+            className={
+              b5.exceedsMateriality === null
+                ? "text-muted"
+                : b5.exceedsMateriality
+                  ? "font-semibold text-rose"
+                  : "text-emerald-700 dark:text-emerald-400"
+            }
           >
-            {b5.exceedsMateriality ? tf.exceeds : tf.within}
+            {b5.exceedsMateriality === null ? tf.notEvaluable : b5.exceedsMateriality ? tf.exceeds : tf.within}
           </span>
           {b5.trivialThreshold !== null ? (
             <span className="text-muted tnum" data-testid="b5-trivial-threshold">

@@ -8,6 +8,7 @@
 // before tax, and the tab meta (qualitative factors, conclusion text, manual
 // cash-flow and disclosure rows).
 
+import { bilanTotals, incomeFromTb } from "@/lib/fs-captions";
 import type { PoolClient } from "pg";
 import { withTenant } from "@/lib/db";
 import { requireTenant, requireWrite } from "@/lib/tenant";
@@ -48,8 +49,10 @@ const META_NUMERIC = ["turnaround_factual", "turnaround_judgmental", "income_aft
 interface FsAmounts {
   /** one total per grid column (credit-positive for liabilities/equity, col 5 = 7 minus 6 net) */
   columns: number[];
-  /** classes 7 minus 6 net */
+  /** classes 7 and 8 (without 89) less class 6 (F019) */
   incomeBeforeTax: number;
+  /** the same, after account 89 */
+  netResultAfterTax: number;
 }
 
 async function fsCaptionAmountsTx(tx: PoolClient, engagementId: string): Promise<FsAmounts | null> {
@@ -64,21 +67,22 @@ async function fsCaptionAmountsTx(tx: PoolClient, engagementId: string): Promise
   );
   if (rows.rows.length === 0) return null;
   const columns = new Array<number>(SAD_COLUMN_COUNT).fill(0);
-  let cl6 = 0;
-  let cl7 = 0;
-  for (const row of rows.rows) {
-    const closing = Number(row.closing);
-    const col = captionColumn(suggestCaption(row.account_code));
-    // assets debit-positive; liabilities, equity and the income statement
-    // credit-positive (so column 5 is exactly classes 7 minus 6 net)
-    columns[col] += col <= 1 ? closing : -closing;
-    const d1 = row.account_code[0];
-    if (d1 === "6") cl6 += closing;
-    else if (d1 === "7") cl7 += closing;
+  const balances = rows.rows.map((row) => ({ account: row.account_code, value: Number(row.closing) }));
+  // the balance-sheet columns come from the one SYSCOHADA bilan (F013);
+  // the rest stay credit-positive by caption
+  for (const { account, value } of balances) {
+    if (/^[2345]/.test(account)) continue;
+    columns[captionColumn(suggestCaption(account))] -= value;
   }
+  const bilan = bilanTotals(balances);
+  columns[captionColumn("current_asset")] = bilan.currentAssets;
+  columns[captionColumn("non_current_asset")] = bilan.fixedAssets;
+  columns[captionColumn("current_liability")] = bilan.currentLiabilities;
+  const income = incomeFromTb(balances);
   return {
     columns: columns.map((x) => Math.round(x)),
-    incomeBeforeTax: Math.round(-(cl6 + cl7)),
+    incomeBeforeTax: Math.round(income.beforeTax),
+    netResultAfterTax: Math.round(income.netResult),
   };
 }
 
@@ -274,6 +278,7 @@ export async function sadViewTx(tx: PoolClient, engagementId: string): Promise<S
       currency: eng.rows[0]?.currency ?? "XAF",
       fsCaptions: fs ? fs.columns : null,
       incomeBeforeTax: fs ? fs.incomeBeforeTax : null,
+      netResultAfterTax: fs ? fs.netResultAfterTax : null,
       meta,
     };
   })();

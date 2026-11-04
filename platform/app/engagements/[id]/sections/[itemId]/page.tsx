@@ -41,6 +41,7 @@ import { TocBoard } from "@/components/TocBoard";
 import { FscpForm } from "@/components/FscpForm";
 import { EstimatesRegister, RelatedPartyRegister } from "@/components/PlanningRegisters";
 import { TriggerPanel } from "@/components/TriggerPanel";
+import { signedByNonAssignee } from "@/lib/signoff-matrix";
 import { FORM_DEFINITIONS, loadForm } from "@/lib/forms";
 import { listRisks } from "@/lib/risks";
 import { CraBoard } from "@/components/CraBoard";
@@ -1074,7 +1075,7 @@ export default async function SectionPage(props: {
             </Fold>
           ) : null}
           {triggerDef ? (
-            <TriggerPanel engagementId={id} definition={triggerDef} values={triggerValues} returnTo={`/engagements/${id}/sections/${itemId}`} locale={isFr ? "fr" : "en"} />
+            <TriggerPanel definition={triggerDef} values={triggerValues} locale={isFr ? "fr" : "en"} readOnly={viewOnly} />
           ) : null}
           {relatedParties ? (
             <div className="mb-2 min-h-0 max-h-[45%] overflow-auto" data-testid="wp-related-parties">
@@ -1195,10 +1196,23 @@ export default async function SectionPage(props: {
             locale={fr ? "fr" : "en"}
             editionLabel={editionLabel}
             action={savePaperAction.bind(null, id, itemId, section.code)}
+            startDirty={Boolean(heldBack)}
             // page 1 of the wizard shows the sign-off state read-only (F039)
             signoffs={{
-              preparer: taskInfo?.preparerName ? { name: taskInfo.preparerName, at: taskInfo.preparerAt ?? "" } : null,
-              reviewer: taskInfo?.reviewerName ? { name: taskInfo.reviewerName, at: taskInfo.reviewerAt ?? "" } : null,
+              preparer: taskInfo?.preparerName
+                ? {
+                    name: taskInfo.preparerName,
+                    at: taskInfo.preparerAt ?? "",
+                    nonAssignee: signedByNonAssignee(taskInfo.preparerName, [taskInfo.ownerName, taskInfo.assigneeName]),
+                  }
+                : null,
+              reviewer: taskInfo?.reviewerName
+                ? {
+                    name: taskInfo.reviewerName,
+                    at: taskInfo.reviewerAt ?? "",
+                    nonAssignee: signedByNonAssignee(taskInfo.reviewerName, [taskInfo.approverName]),
+                  }
+                : null,
               ...(showEqrChip ? { eqr: eqr.signoff } : {}),
             }}
             embed={

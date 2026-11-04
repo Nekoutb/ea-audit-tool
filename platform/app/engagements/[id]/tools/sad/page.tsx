@@ -3,6 +3,8 @@ import { localizedTitle } from "@/lib/page-title";
 import { notFound, redirect } from "next/navigation";
 import { auth } from "@/auth";
 import { AppNav } from "@/components/AppNav";
+import { assetBasisLabel } from "@/lib/fs-captions";
+import { currentTbVersion } from "@/lib/materiality";
 import { SadWorkbook } from "@/components/SadWorkbook";
 import { getEngagement } from "@/lib/engagements";
 import { getLocale } from "@/lib/locale";
@@ -25,6 +27,7 @@ export default async function SadPage(props: { params: Promise<{ id: string }> }
   const engagement = await getEngagement(id);
   if (!engagement) notFound();
   const view = await sadView(id);
+  const tbVersion = await currentTbVersion(id);
 
   return (
     <main className="min-h-screen w-full px-6 py-6">
@@ -48,6 +51,11 @@ export default async function SadPage(props: { params: Promise<{ id: string }> }
               ? "Alimenté par les conclusions des procédures substantives · évalué en C1.1 · joint à la lettre d'affirmation (C3.1)"
               : "Fed by the substantive-procedure conclusions · evaluated in C1.1 · attached to the representation letter (C3.1)"}
           </p>
+          {view.fsCaptions ? (
+            <p className="text-[11px] text-muted" data-testid="sad-asset-basis">
+              {assetBasisLabel(locale, tbVersion)}: <span className="tnum">{new Intl.NumberFormat("fr-FR").format(view.fsCaptions[0] + view.fsCaptions[1])}</span>
+            </p>
+          ) : null}
         </div>
         <a
           href={`/api/engagements/${id}/sad/export?locale=${locale}`}

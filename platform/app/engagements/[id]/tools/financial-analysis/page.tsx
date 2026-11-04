@@ -3,6 +3,8 @@ import { localizedTitle } from "@/lib/page-title";
 import { notFound, redirect } from "next/navigation";
 import { auth } from "@/auth";
 import { AppNav } from "@/components/AppNav";
+import { assetBasisLabel } from "@/lib/fs-captions";
+import { currentTbVersion } from "@/lib/materiality";
 import { FinAnalysisGrid } from "@/components/FinAnalysisGrid";
 import { apComments } from "@/lib/analytical-procedures";
 import { getEngagement } from "@/lib/engagements";
@@ -21,7 +23,7 @@ export default async function FinancialAnalysisPage(props: { params: Promise<{ i
   const fr = locale === "fr";
   const engagement = await getEngagement(id);
   if (!engagement) notFound();
-  const [analysis, comments] = await Promise.all([financialAnalysis(id), apComments(id)]);
+  const [analysis, comments, tbVersion] = await Promise.all([financialAnalysis(id), apComments(id), currentTbVersion(id)]);
 
   return (
     <main className="min-h-screen w-full px-6 py-3">
@@ -42,6 +44,10 @@ export default async function FinancialAnalysisPage(props: { params: Promise<{ i
         {analysis ? (
           <span className="ml-auto text-[11px] text-muted">
             {fr ? "Bases : balance pré-audit — clôture / ouverture" : "Basis: pre-audit trial balance — closing / opening"}
+            {" · "}
+            <span data-testid="finanalysis-asset-basis">
+              {assetBasisLabel(locale, tbVersion)}: <span className="tnum">{new Intl.NumberFormat("fr-FR").format(analysis.totalAssets)}</span>
+            </span>
           </span>
         ) : null}
       </div>

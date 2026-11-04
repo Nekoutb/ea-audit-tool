@@ -4,13 +4,15 @@ import { useEffect } from "react";
 
 /**
  * Warns before the page is left with unsaved typing. Any input, textarea or
- * select edited under the guard marks the page dirty; a form submit clears the
- * flag (the server action navigates afterwards). Rendered once per page —
+ * select edited under the guard marks its form dirty; submitting that form
+ * clears it (the server action navigates afterwards), while saving another form
+ * on the page leaves it dirty (F020). Rendered once per page —
  * it listens on the document, so it covers every form on the page without
  * wiring each one (UAT B105).
  */
 export function UnsavedGuard({ message }: { message: string }) {
   useEffect(() => {
+    const dirtyForms = new Set<HTMLFormElement | null>();
     let dirty = false;
     // In-app navigation never fires beforeunload (UAT run 2 B90): a link click
     // and the browser's Back button are intercepted here while dirty. Back is
@@ -22,6 +24,7 @@ export function UnsavedGuard({ message }: { message: string }) {
       if (!target) return;
       if (target instanceof HTMLInputElement || target instanceof HTMLTextAreaElement || target instanceof HTMLSelectElement) {
         if (target instanceof HTMLInputElement && (target.type === "search" || target.type === "file")) return;
+        dirtyForms.add(target.form);
         dirty = true;
         if (!sentinel) {
           sentinel = true;
@@ -29,8 +32,9 @@ export function UnsavedGuard({ message }: { message: string }) {
         }
       }
     };
-    const onSubmit = () => {
-      dirty = false;
+    const onSubmit = (event: Event) => {
+      dirtyForms.delete(event.target as HTMLFormElement);
+      dirty = dirtyForms.size > 0;
     };
     const onClick = (event: MouseEvent) => {
       if (!dirty || event.defaultPrevented || event.button !== 0) return;
@@ -42,6 +46,7 @@ export function UnsavedGuard({ message }: { message: string }) {
       // a jump within the page loses nothing
       if (url.pathname === window.location.pathname && url.search === window.location.search && url.hash) return;
       if (window.confirm(message)) {
+        dirtyForms.clear();
         dirty = false;
         return;
       }
@@ -55,6 +60,7 @@ export function UnsavedGuard({ message }: { message: string }) {
         return;
       }
       if (window.confirm(message)) {
+        dirtyForms.clear();
         dirty = false;
         sentinel = false;
         window.history.back();

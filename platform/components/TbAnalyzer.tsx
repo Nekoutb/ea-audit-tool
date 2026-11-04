@@ -61,6 +61,20 @@ const VARIANT_PAIR: Partial<Record<TbColumn, TbColumn>> = {
 
 const fmt = (n: number) => new Intl.NumberFormat("fr-FR").format(n);
 
+/** Accepted layouts and the template, shown before a file is chosen (F016). */
+function TbFormatHelp({ fr }: { fr: boolean }) {
+  return (
+    <p className="text-[12px] text-muted" data-testid="tb-format-help">
+      {fr
+        ? "Colonnes acceptées : compte, libellé, débit/crédit d'ouverture (ou un solde d'ouverture), mouvements débit/crédit, débit/crédit de clôture (ou un solde de clôture). Intitulés français ou anglais. "
+        : "Accepted columns: account, label, opening debit/credit (or one opening balance), movements debit/credit, closing debit/credit (or one closing balance). French or English headings. "}
+      <a href="/templates/balance-generale-modele.csv" download className="font-semibold text-emerald-700 underline dark:text-emerald-400" data-testid="tb-template">
+        {fr ? "Télécharger le modèle" : "Download the template"}
+      </a>
+    </p>
+  );
+}
+
 export function TbAnalyzer({
   engagementId,
   locale,
@@ -209,6 +223,8 @@ export function TbAnalyzer({
 
       {lastSummary && !preview ? <TbValidationReasons summary={lastSummary} locale={locale} testId="tb-import-reasons" /> : null}
 
+      <TbFormatHelp fr={fr} />
+
       {preview ? (
         <div className="flex flex-col gap-4 rounded-[var(--radius-atlas)] border border-line bg-surface-2/50 p-4" data-testid="tb-confirm">
           {/* step 1 — the detected columns, editable */}
@@ -313,6 +329,13 @@ export function TbAnalyzer({
                 </tbody>
               </table>
             </div>
+            {timing !== "prior_year" && !mapping.opening && !mapping.openingDebit && !mapping.openingCredit ? (
+              <p className="mt-2 rounded-[var(--radius-atlas-sm)] bg-[var(--color-warn-soft)] px-2 py-1 text-[12px] text-warn" data-testid="tb-no-opening">
+                {fr
+                  ? "Aucune colonne d'ouverture : sans balance de l'exercice précédent, les comparatifs seront à 0."
+                  : "No opening column: without a prior-year trial balance, comparatives will read 0."}
+              </p>
+            ) : null}
             {preview.mappingError ? (
               <p className="mt-2 text-[12px] text-rose">
                 {messages.errors[preview.mappingError as keyof typeof messages.errors] ?? preview.mappingError}

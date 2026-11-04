@@ -1,3 +1,5 @@
+import { visibleE4 } from "@/lib/design-procedures";
+import { GROUP_BY_ID } from "@/lib/task-groups";
 import { notFound, redirect } from "next/navigation";
 import { localizedTitle } from "@/lib/page-title";
 import { auth } from "@/auth";
@@ -18,25 +20,25 @@ export const generateMetadata = localizedTitle("My Tasks", "Mes tâches");
 // Page-local labels (the framework doc's "My Tasks" queue is not in messages/*.json yet).
 const LABELS = {
   en: {
-    title: "My Tasks",
+    title: "Tasks",
     all: "All",
     review: "For my review",
     todo: "To-dos",
     mine: "Assigned to me",
     unassigned: "Unassigned",
     preparer: "Preparer",
-    hideCompleted: "Hide completed",
+    hideCompleted: "Open",
     due: "Due",
   },
   fr: {
-    title: "Mes tâches",
+    title: "Tâches",
     all: "Toutes",
     review: "Pour ma revue",
     todo: "À faire",
     mine: "Assignées à moi",
     unassigned: "Non assignées",
     preparer: "Préparateur",
-    hideCompleted: "Masquer les terminées",
+    hideCompleted: "Ouvertes",
     due: "Échéance",
   },
 } as const;
@@ -110,7 +112,7 @@ async function openNoteCounts(engagementId: string): Promise<Map<string, number>
 }
 
 /**
- * "My Tasks" — the engagement-wide work queue (EY-Canvas-style task list):
+ * "Tasks" — the engagement-wide work queue, showing the reader's own by default (EY-Canvas-style task list):
  * every task in one dense list with count chips, review-note badges and a
  * status dot, each row linking straight to where the work happens.
  */
@@ -131,17 +133,23 @@ export default async function MyTasksPage(props: {
   const engagement = await getEngagement(id);
   if (!engagement) notFound();
 
-  const [tasks, noteCounts] = await Promise.all([engagementTasks(id), openNoteCounts(id)]);
+  const [allTasks, noteCounts] = await Promise.all([engagementTasks(id), openNoteCounts(id)]);
+  // E4 lists what was designed in S5.5, as its group page does (F010)
+  const e4 = await visibleE4(id, allTasks);
+  const e4Members = new Set(GROUP_BY_ID.e4?.members ?? []);
+  const tasks = allTasks.filter((task) => !e4Members.has(task.code) || e4.visible.has(task.code));
 
   const filter: Filter =
     rawFilter === "review" || rawFilter === "todo" || rawFilter === "mine" || rawFilter === "unassigned" || rawFilter === "open"
       ? rawFilter
-      : "all";
+      : rawFilter === "all"
+        ? "all"
+        : "mine"; // the default is the reader's own (F021); ?filter=all shows the whole file
   const visible = applyFilter(tasks, filter, session.user.id);
 
   const base = `/engagements/${id}/tasks`;
   const chips: { key: Filter; label: string; count: number; href: string; testId?: string }[] = [
-    { key: "all", label: L.all, count: tasks.length, href: base },
+    { key: "all", label: L.all, count: tasks.length, href: `${base}?filter=all` },
     {
       key: "review",
       label: L.review,
@@ -173,7 +181,7 @@ export default async function MyTasksPage(props: {
       label: L.hideCompleted,
       count: tasks.filter((task) => task.status !== "reviewed").length,
       // Toggle: clicking again while active returns to the unfiltered list.
-      href: filter === "open" ? base : `${base}?filter=open`,
+      href: filter === "open" ? `${base}?filter=all` : `${base}?filter=open`,
     },
   ];
 
@@ -198,6 +206,13 @@ export default async function MyTasksPage(props: {
           {t.dashboard.backToDashboard}
         </NavLink>
         <h1 className="mt-2 text-2xl font-bold tracking-[-0.02em] text-ink">{L.title}</h1>
+        {e4.total > e4.designed ? (
+          <p className="mt-1 text-[12px] text-muted" data-testid="tasks-e4-designed">
+            {locale === "fr"
+              ? `Procédures de substance : ${e4.designed} sur ${e4.total} conçues (S5.5).`
+              : `Substantive procedures: ${e4.designed} of ${e4.total} designed (S5.5).`}
+          </p>
+        ) : null}
         <p className="mt-1 text-[13px] text-ink-soft">
           {engagement.clientName}
           <span className="px-2 text-line-strong">·</span>

@@ -8,6 +8,7 @@
 
 import { useRef, useState } from "react";
 import type { RatioGroup, RatioRow } from "@/lib/financial-analysis";
+import { RATIO_FORMULAS, relativeVariance } from "@/lib/ratio-formulas";
 import { GRID_CELL, GRID_COMMENT_INPUT, GRID_HEAD, GRID_NUM } from "@/components/ui/grid";
 
 type Unit = "fcfa" | "k" | "m";
@@ -121,8 +122,7 @@ export function FinAnalysisGrid({
   const variance = (row: RatioRow) => {
     if (row.current === null || row.prior === null) return { amount: null as number | null, pct: null as number | null };
     const amount = Math.round((row.current - row.prior) * 100) / 100;
-    const pct = row.prior !== 0 ? Math.round(((row.current - row.prior) / Math.abs(row.prior)) * 1000) / 10 : null;
-    return { amount, pct };
+    return { amount, pct: relativeVariance(row.unit, row.current, row.prior) };
   };
 
   const unitBtn = (value: Unit, label: string) => (
@@ -184,7 +184,7 @@ export function FinAnalysisGrid({
                     const v = variance(row);
                     return (
                       <tr key={row.key} data-testid={`ratio-${row.key}`}>
-                        <td className={`${GRID_CELL} overflow-hidden text-ellipsis`} title={row.note ?? (locale === "fr" ? row.labelFr : row.label)}>
+                        <td className={`${GRID_CELL} overflow-hidden text-ellipsis`} title={[locale === "fr" ? row.labelFr : row.label, RATIO_FORMULAS[row.key]?.[locale], locale === "fr" ? row.noteFr : row.note].filter(Boolean).join(" · ")}>
                           {locale === "fr" ? row.labelFr : row.label}
                         </td>
                         <td className={GRID_NUM}>{fmtValue(row, row.current, unit, locale)}</td>

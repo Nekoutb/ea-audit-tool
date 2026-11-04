@@ -7,6 +7,7 @@
 // ledger (current year only). Sign convention: balances are debit-positive,
 // so credit-natured aggregates (equity, liabilities, revenue) are negated.
 
+import { bilanTotals, incomeFromTb } from "@/lib/fs-captions";
 import { withTenant } from "@/lib/db";
 import { requireTenant } from "@/lib/tenant";
 import { amountOr } from "@/lib/amount";
@@ -22,9 +23,12 @@ export interface RatioRow {
   current: number | null;
   prior: number | null;
   note?: string;
+  noteFr?: string;
 }
 
 export interface FinancialAnalysis {
+  /** Total actif net of the current TB (F013) */
+  totalAssets: number;
   rows: RatioRow[];
   glAvailable: boolean;
   periodEnd: string;
@@ -46,6 +50,8 @@ interface Balances {
   financeCosts: number;
   depreciation: number;
   pbt: number;
+  /** the year's result after account 89 (F064) */
+  netResult: number;
   ebitda: number;
 }
 
@@ -67,8 +73,8 @@ function aggregate(rows: Row[], overrideOf: (account: string) => string | null =
   };
   const inventory = sum(bucket((r) => r.account.startsWith("3"), (c) => c === "F"));
   const cash = sum(bucket((r) => r.account.startsWith("5") && !r.account.startsWith("59"), (c) => c === "C"));
-  const class4Debit = sum((r) => r.account.startsWith("4") && r.value > 0);
-  const class4Credit = -sum((r) => r.account.startsWith("4") && r.value < 0);
+  const bilan = bilanTotals(rows);
+  const income = incomeFromTb(rows);
   const revenue = -sum((r) => r.account.startsWith("7"));
   const expenses = sum((r) => r.account.startsWith("6"));
   const cogs = sum(bucket((r) => r.account.startsWith("60"), (c) => c.startsWith("VA")));
@@ -79,22 +85,24 @@ function aggregate(rows: Row[], overrideOf: (account: string) => string | null =
   // account: equity then includes that result, or the balance sheet does not
   // balance and every equity ratio is misstated.
   const hasResultAccount = rows.some((r) => r.account.startsWith("13") && r.value !== 0);
+  const netResult = income.netResult;
   return {
     inventory,
     receivables: sum(bucket((r) => r.account.startsWith("41"), (c) => c === "E")),
     cash,
-    currentAssets: inventory + class4Debit + Math.max(cash, 0),
-    currentLiabilities: class4Credit + Math.max(-cash, 0),
+    currentAssets: bilan.currentAssets,
+    currentLiabilities: bilan.currentLiabilities,
     payables: -sum((r) => r.value < 0 && bucket((x) => x.account.startsWith("40"), (c) => c === "N")(r)),
-    equity: -sum((r) => /^1[0-5]/.test(r.account)) + (hasResultAccount ? 0 : pbt),
+    equity: -sum((r) => /^1[0-5]/.test(r.account)) + (hasResultAccount ? 0 : netResult),
     financialDebt: -sum((r) => /^1[6-8]/.test(r.account)),
-    totalAssets: sum((r) => r.account.startsWith("2")) + inventory + class4Debit + Math.max(cash, 0),
+    totalAssets: bilan.totalAssets,
     revenue,
     expenses,
     cogs,
     financeCosts,
     depreciation,
     pbt,
+    netResult,
     ebitda: pbt + financeCosts + depreciation,
   };
 }
@@ -122,9 +130,9 @@ function ratioSet(b: Balances): Record<string, number | null> {
     dte: div(b.financialDebt, b.equity),
     equity_ratio: pct(b.equity, b.totalAssets),
     int_cover: noPl ? null : div(b.pbt + b.financeCosts, b.financeCosts),
-    roa: noPl ? null : pct(b.pbt, b.totalAssets),
-    roe: noPl ? null : pct(b.pbt, b.equity),
-    roce: noPl ? null : pct(b.pbt + b.financeCosts, b.equity + b.financialDebt),
+    roa: noPl ? null : pct(b.netResult, b.totalAssets),
+    roe: noPl ? null : pct(b.netResult, b.equity),
+    roce: noPl ? null : pct(b.netResult + b.financeCosts, b.equity + b.financialDebt),
   };
 }
 
@@ -146,9 +154,9 @@ const DEFS: { key: string; label: string; labelFr: string; group: RatioGroup; un
   { key: "dte", label: "Debt to equity", labelFr: "Dettes financières / capitaux propres", group: "Leverage", unit: "x" },
   { key: "equity_ratio", label: "Equity ratio", labelFr: "Ratio d'autonomie financière", group: "Leverage", unit: "%" },
   { key: "int_cover", label: "Interest cover", labelFr: "Couverture des charges financières", group: "Leverage", unit: "x" },
-  { key: "roa", label: "Return on assets", labelFr: "Rentabilité de l'actif", group: "Investment", unit: "%" },
-  { key: "roe", label: "Return on equity", labelFr: "Rentabilité des capitaux propres", group: "Investment", unit: "%" },
-  { key: "roce", label: "Return on capital employed", labelFr: "Rentabilité des capitaux engagés", group: "Investment", unit: "%" },
+  { key: "roa", label: "Return on assets (after tax)", labelFr: "Rentabilité de l'actif (après impôt)", group: "Investment", unit: "%" },
+  { key: "roe", label: "Return on equity (after tax)", labelFr: "Rentabilité des capitaux propres (après impôt)", group: "Investment", unit: "%" },
+  { key: "roce", label: "Return on capital employed (after tax)", labelFr: "Rentabilité des capitaux engagés (après impôt)", group: "Investment", unit: "%" },
 ];
 
 /** The commentary keys the financial-analysis grid saves under index "FA". */
@@ -254,7 +262,12 @@ export async function financialAnalysis(engagementId: string): Promise<Financial
         purchases3m = purchases;
       }
     }
-    const glNote = "Requires the General Ledger (last 3 months) — upload it in the GL Analyzer · Nécessite le grand livre (3 derniers mois) — à importer dans l'analyseur de grand livre";
+    // Why a DSO/DPO cell is blank (F064): the current year needs this year's
+    // ledger, and the prior year's would need last year's, which is not imported.
+    const glNote = "Requires the General Ledger (last 3 months): upload it in the GL Analyzer.";
+    const glNoteFr = "Nécessite le grand livre (3 derniers mois) : à importer dans l'analyseur de grand livre.";
+    const priorNote = "Prior year: blank because the prior-year General Ledger is not imported.";
+    const priorNoteFr = "Exercice précédent : vide car le grand livre N-1 n'est pas importé.";
     cur.dso = sales3m !== null && sales3m > 0 ? Math.round((currentB.receivables / sales3m) * 90) : null;
     cur.dpo = purchases3m !== null && purchases3m > 0 ? Math.round((currentB.payables / purchases3m) * 90) : null;
     pri.dso = null;
@@ -264,9 +277,10 @@ export async function financialAnalysis(engagementId: string): Promise<Financial
       ...def,
       current: cur[def.key] ?? null,
       prior: pri[def.key] ?? null,
-      note: (def.key === "dso" || def.key === "dpo") && sales3m === null ? glNote : undefined,
+      note: def.key === "dso" || def.key === "dpo" ? `${sales3m === null ? `${glNote} ` : ""}${priorNote}` : undefined,
+      noteFr: def.key === "dso" || def.key === "dpo" ? `${sales3m === null ? `${glNoteFr} ` : ""}${priorNoteFr}` : undefined,
     }));
 
-    return { rows, glAvailable: sales3m !== null, periodEnd };
+    return { rows, glAvailable: sales3m !== null, periodEnd, totalAssets: Math.round(currentB.totalAssets) };
   });
 }

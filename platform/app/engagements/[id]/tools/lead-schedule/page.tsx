@@ -4,7 +4,7 @@ import { notFound, redirect } from "next/navigation";
 import { auth } from "@/auth";
 import { AppNav } from "@/components/AppNav";
 import { ApSchedules } from "@/components/ApSchedules";
-import { apComments, apLeadSchedules } from "@/lib/analytical-procedures";
+import { apComments, apLeadChecks, apLeadSchedules } from "@/lib/analytical-procedures";
 import { getEngagement } from "@/lib/engagements";
 import { getLocale } from "@/lib/locale";
 
@@ -25,6 +25,7 @@ export default async function LeadSchedulePage(props: { params: Promise<{ id: st
   const engagement = await getEngagement(id);
   if (!engagement) notFound();
   const [schedules, comments] = await Promise.all([apLeadSchedules(id), apComments(id)]);
+  const checks = await apLeadChecks(id);
 
   return (
     <main className="min-h-screen w-full px-6 py-6">
@@ -73,6 +74,7 @@ export default async function LeadSchedulePage(props: { params: Promise<{ id: st
             comments={comments}
             locale={fr ? "fr" : "en"}
             showOverall={false}
+            checks={checks}
           />
         </div>
       )}

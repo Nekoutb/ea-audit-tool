@@ -180,3 +180,10 @@ function isProcKey(def: PaperDef, key: string): boolean {
 export function unansweredKeys(def: PaperDef, values: Record<string, string>): string[] {
   return requiredKeys(def).filter((k) => !keyAnswered(def, k, values));
 }
+
+/** The paper's form element, for controls that sit outside it in the layout (F020). */
+export function paperFormId(code: string): string {
+  return `paper-form-${code}`;
+}
+/** Scoping-trigger selects submitted with the paper carry this prefix (F020). */
+export const TRIGGER_FIELD_PREFIX = "__trigger_";

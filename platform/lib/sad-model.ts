@@ -149,8 +149,10 @@ export interface SadView {
    * for liabilities/equity, column 5 = classes 7 minus 6 net). Null = no TB.
    */
   fsCaptions: number[] | null;
-  /** current-year income before tax (TB classes 7 minus 6); null = no TB */
+  /** current-year income before tax (TB classes 7 and 8 without 89, less 6); null = no TB */
   incomeBeforeTax: number | null;
+  /** current-year result after account 89: the default for income after tax (F019); null = no TB */
+  netResultAfterTax: number | null;
   /** code='sad' meta values: q_*, qx_*, concl_text, cf_rows, disc_rows */
   meta: Record<string, string>;
 }

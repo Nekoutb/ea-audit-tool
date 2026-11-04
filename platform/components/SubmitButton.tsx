@@ -32,12 +32,14 @@ export function SubmitButton({
   testId,
   name,
   value,
+  disabled = false,
 }: {
   className?: string;
   children: ReactNode;
   testId?: string;
   name?: string;
   value?: string;
+  disabled?: boolean;
 }) {
   const { pending } = useFormStatus();
   return (
@@ -45,7 +47,7 @@ export function SubmitButton({
       type="submit"
       name={name}
       value={value}
-      disabled={pending}
+      disabled={pending || disabled}
       aria-busy={pending || undefined}
       className={`${className ?? ""} inline-flex items-center gap-2 disabled:cursor-progress disabled:opacity-60`}
       data-testid={testId}

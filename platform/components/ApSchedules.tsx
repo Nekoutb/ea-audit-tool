@@ -8,7 +8,7 @@
 
 import Link from "next/link";
 import { useRef, useState } from "react";
-import type { ApLeadSchedule } from "@/lib/analytical-procedures";
+import type { ApLeadChecks, ApLeadSchedule } from "@/lib/analytical-procedures";
 import { accountClassLabel, accountTypeLabel, leadIndexLabel } from "@/lib/lead-classes";
 
 type Unit = "fcfa" | "k" | "m";
@@ -100,18 +100,52 @@ function CommentCell({
   );
 }
 
+/** Contrôles (F018): what ties, what does not, and what the schedule left out. */
+function ChecksStrip({ engagementId, checks, fr }: { engagementId: string; checks: ApLeadChecks; fr: boolean }) {
+  const f = (n: number) => new Intl.NumberFormat("fr-FR").format(n);
+  const item = (ok: boolean, label: string, testId: string) => (
+    <span className={ok ? "text-emerald-700 dark:text-emerald-400" : "font-semibold text-rose"} data-testid={testId} data-ok={String(ok)}>
+      {ok ? "✓" : "✗"} {label}
+    </span>
+  );
+  return (
+    <div className="flex flex-wrap items-center gap-x-4 gap-y-1 rounded-[var(--radius-atlas-sm)] border border-line bg-surface-2 px-3 py-2 text-[12px]" data-testid="ap-checks">
+      <b className="text-ink">{fr ? "Contrôles" : "Checks"}</b>
+      {item(checks.tbDifference === 0, fr ? `Balance équilibrée${checks.tbDifference ? ` (écart ${f(checks.tbDifference)})` : ""}` : `TB balanced${checks.tbDifference ? ` (difference ${f(checks.tbDifference)})` : ""}`, "ap-check-tb")}
+      {item(checks.bilanDifference === 0, fr ? `Actif = passif${checks.bilanDifference ? ` (écart ${f(checks.bilanDifference)})` : ""}` : `Assets = liabilities${checks.bilanDifference ? ` (difference ${f(checks.bilanDifference)})` : ""}`, "ap-check-bilan")}
+      {checks.unmapped.length > 0 ? (
+        <a href={`/engagements/${engagementId}/data`} className="font-semibold text-warn underline" data-testid="ap-check-unmapped" title={checks.unmapped.map((u) => u.account).join(", ")}>
+          {fr
+            ? `${checks.unmapped.length} compte(s) sans indice (total ${f(checks.unmappedTotal)})`
+            : `${checks.unmapped.length} account(s) with no index (total ${f(checks.unmappedTotal)})`}
+        </a>
+      ) : (
+        item(true, fr ? "Tous les comptes ont un indice" : "Every account has an index", "ap-check-unmapped")
+      )}
+      {checks.emptyIndexes.length > 0 ? (
+        <span className="text-muted" data-testid="ap-check-empty" title={checks.emptyIndexes.map((i) => `${i.code} ${fr ? i.fr : i.en}`).join(" · ")}>
+          {fr ? `${checks.emptyIndexes.length} indice(s) sans solde : ` : `${checks.emptyIndexes.length} index(es) with no balance: `}
+          {checks.emptyIndexes.map((i) => i.code).join(", ")}
+        </span>
+      ) : null}
+    </div>
+  );
+}
+
 export function ApSchedules({
   engagementId,
   schedules,
   comments,
   locale,
   showOverall = true,
+  checks = null,
 }: {
   engagementId: string;
   schedules: ApLeadSchedule[];
   comments: Record<string, string>;
   locale: "en" | "fr";
   showOverall?: boolean;
+  checks?: ApLeadChecks | null;
 }) {
   const fr = locale === "fr";
   const [unit, setUnit] = useState<Unit>("fcfa");
@@ -148,6 +182,7 @@ export function ApSchedules({
 
   return (
     <div className="flex flex-col gap-2" data-testid="ap-schedules">
+      {checks ? <ChecksStrip engagementId={engagementId} checks={checks} fr={fr} /> : null}
       <div className="flex items-center gap-1.5 self-end" data-testid="ap-units">
         <span className="text-[11px] uppercase tracking-wide text-muted">{fr ? "Unités" : "Units"}</span>
         {unitBtn("fcfa", "FCFA")}

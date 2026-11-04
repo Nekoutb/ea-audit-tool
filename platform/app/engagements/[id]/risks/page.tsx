@@ -126,16 +126,35 @@ export default async function RisksPage(props: {
     "rounded-[var(--radius-atlas-sm)] border border-line-strong bg-surface px-2.5 py-1 text-xs font-medium text-ink-soft hover:bg-surface-2";
   // every assertion option spelled out: "C — Completeness" (F041)
   const assertionOptions = ASSERTIONS.map((assertion) => ({ value: assertion, label: assertionLabel(assertion, locale) }));
-  const chip = (n: number, okEn: string, okFr: string, badEn: string, badFr: string, testid: string) => (
-    <span
-      className={`rounded-full px-2 py-0.5 text-[11px] font-semibold ${
-        n > 0 ? "bg-[var(--color-warn-soft)] text-warn" : "bg-emerald-50 text-emerald-800 dark:bg-emerald-950/40 dark:text-emerald-300"
-      }`}
-      data-testid={testid}
-    >
-      {n > 0 ? `${n} ${fr ? badFr : badEn}` : fr ? okFr : okEn}
-    </span>
-  );
+  // A check on nothing has not passed (F014): with an empty population the chip
+  // is neutral, not green. population undefined = the risks themselves.
+  const significantRows = (sigView?.rows ?? []).filter((row) => row.status === "significant").length;
+  const chip = (n: number, okEn: string, okFr: string, badEn: string, badFr: string, testid: string, population?: number) => {
+    const notAssessable = population === 0;
+    return (
+      <span
+        className={`rounded-full px-2 py-0.5 text-[11px] font-semibold ${
+          notAssessable
+            ? "bg-surface-2 text-muted"
+            : n > 0
+              ? "bg-[var(--color-warn-soft)] text-warn"
+              : "bg-emerald-50 text-emerald-800 dark:bg-emerald-950/40 dark:text-emerald-300"
+        }`}
+        data-testid={testid}
+        data-state={notAssessable ? "not-assessable" : n > 0 ? "open" : "ok"}
+      >
+        {notAssessable
+          ? fr
+            ? `${okFr} : pas encore évaluable (aucun compte significatif)`
+            : `${okEn}: not assessable yet (no significant account)`
+          : n > 0
+            ? `${n} ${fr ? badFr : badEn}`
+            : fr
+              ? okFr
+              : okEn}
+      </span>
+    );
+  };
 
   return (
     <main className="min-h-screen w-full px-6 py-8">
@@ -156,8 +175,8 @@ export default async function RisksPage(props: {
         <span className="flex flex-wrap items-center gap-1.5" data-testid="risk-coverage">
           {chip(unlinked, "All risks linked", "Tous les risques reliés", "risk(s) not linked to an index", "risque(s) non relié(s) à un indice", "cov-unlinked")}
           {chip(unresponded, "Responses planned", "Réponses planifiées", "significant risk(s) without a planned response", "risque(s) important(s) sans réponse", "cov-unresponded")}
-          {chip(sigOrphans, "Significance grounded", "Significativité fondée", "significant index(es) with no risk and no justification", "indice(s) significatif(s) sans risque ni justification", "cov-orphans")}
-          {chip(scotUncovered, "SCOTs cover significant accounts", "Les SCOT couvrent les comptes significatifs", "significant account(s) without a SCOT", "compte(s) significatif(s) sans SCOT", "cov-noscot")}
+          {chip(sigOrphans, "Significance grounded", "Significativité fondée", "significant index(es) with no risk and no justification", "indice(s) significatif(s) sans risque ni justification", "cov-orphans", significantRows)}
+          {chip(scotUncovered, "SCOTs cover significant accounts", "Les SCOT couvrent les comptes significatifs", "significant account(s) without a SCOT", "compte(s) significatif(s) sans SCOT", "cov-noscot", significantRows)}
         </span>
         <span className="ml-auto"><Spectrum risks={risks} fr={fr} /></span>
       </div>

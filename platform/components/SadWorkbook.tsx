@@ -89,10 +89,11 @@ export function SadWorkbook({
   const [open, setOpen] = useState<Record<string, boolean>>({ uncorrected: true });
   const [detail, setDetail] = useState<string | null>(null);
 
-  const n = (x: number) =>
-    x < 0
-      ? `(${new Intl.NumberFormat("fr-FR").format(Math.round(Math.abs(x)))})`
-      : new Intl.NumberFormat("fr-FR").format(Math.round(x));
+  // rounding can leave -0 (a tax effect of nothing); it must not print as "-0" (F019)
+  const n = (x: number) => {
+    const v = Math.round(x) + 0;
+    return v < 0 ? `(${new Intl.NumberFormat("fr-FR").format(-v)})` : new Intl.NumberFormat("fr-FR").format(v);
+  };
   const pctf = (x: number) =>
     `${new Intl.NumberFormat("fr-FR", { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(x * 100)}%`;
 
@@ -144,7 +145,8 @@ export function SadWorkbook({
   const turnF = amountOr(meta.turnaround_factual ?? "", 0);
   const turnJ = amountOr(meta.turnaround_judgmental ?? "", 0);
   const cumulative = afterTaxIS + (turnF + turnJ) * (1 - rate);
-  const iat = amountOr(meta.income_after_tax ?? "", 0) || null;
+  // from the TB (after account 89) unless the preparer overrides it (F019)
+  const iat = amountOr(meta.income_after_tax ?? "", 0) || view.netResultAfterTax;
   const threshold = uncorrectedMisstatementThreshold(mat);
 
   // ---- shared cell styles ----------------------------------------------------
@@ -174,6 +176,12 @@ export function SadWorkbook({
         <span><b>{fr ? "Seuil global :" : "Overall materiality:"}</b> <span className="tnum">{mat ? n(mat.overall) : "—"}</span></span>
         <span><b>{fr ? "Seuil de travail :" : "Performance materiality:"}</b> <span className="tnum">{mat ? n(mat.performance) : "—"}</span></span>
         <span><b>{fr ? "Manifestement négligeable :" : "Clearly trivial:"}</b> <span className="tnum">{mat ? n(mat.trivial) : "—"}</span></span>
+        <span><b>{fr ? "Seuil des anomalies non corrigées :" : "Uncorrected misstatement threshold:"}</b> <span className="tnum">{threshold !== null ? n(threshold) : "—"}</span></span>
+        {mat ? null : (
+          <span className="italic" data-testid="sad-materiality-note">
+            {fr ? "Seuils non approuvés (P6.1)" : "Materiality not approved (P6.1)"}
+          </span>
+        )}
       </div>
     </div>
   );
@@ -425,7 +433,16 @@ export function SadWorkbook({
                 <tr><td className={td}>{fr ? "Résultat de l'exercice avant impôt" : "Current year income before tax"}</td><td className={tdNum}>{ibt !== null ? n(ibt) : "—"}</td></tr>
                 <tr>
                   <td className={td}>{fr ? "Résultat de l'exercice après impôt" : "Current year income after tax"}</td>
-                  <td className={tdNum}>{metaNum("income_after_tax")}</td>
+                  <td className={tdNum} title={fr ? "Issu de la balance (après le compte 89) ; saisir un montant pour le remplacer" : "From the trial balance (after account 89); type an amount to override it"}>
+                    <input
+                      defaultValue={meta.income_after_tax ?? ""}
+                      placeholder={view.netResultAfterTax !== null ? n(view.netResultAfterTax) : ""}
+                      onBlur={(e) => { if (e.target.value !== (meta.income_after_tax ?? "")) saveMeta("income_after_tax", e.target.value); }}
+                      className={`${inputCell} text-right placeholder:text-black`}
+                      style={{ background: YEL }}
+                      data-testid="sad-income-after-tax"
+                    />
+                  </td>
                 </tr>
               </tbody>
             </table>

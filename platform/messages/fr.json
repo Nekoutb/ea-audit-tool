@@ -364,9 +364,9 @@
     "subtitle": "Comment les données entrent et sortent de la plateforme.",
     "importsTitle": "Imports",
     "imports": [
-      "Balance générale : CSV (SYSCOHADA compte;libellé;débit;crédit) via l'espace Données, avec validation et versionnage",
+      "Balance générale : CSV ou Excel via l'espace Données, avec validation et versionnage. Colonnes : compte, libellé, puis débit/crédit d'ouverture (ou un solde d'ouverture), mouvements débit/crédit, débit/crédit de clôture (ou un solde de clôture). Les intitulés français et anglais sont reconnus (compte, intitulé, à nouveau débit, solde débit…). Un modèle est disponible dans l'espace Données.",
       "Grands livres auxiliaires (clients, fournisseurs, immobilisations, stocks…) : CSV/Excel via l'espace Données",
-      "Documents clients : demandes PBC via le portail client"
+      "Documents du client : demandes PBC via le portail client"
     ],
     "exportsTitle": "Exports",
     "exports": [
@@ -1309,7 +1309,8 @@
         "deficiency": "Déficience",
         "observation": "Observation"
       },
-      "recommendation": "Recommandation"
+      "recommendation": "Recommandation",
+      "notEvaluable": "Non évaluable : seuils non approuvés (P6.1)"
     },
     "errors": {
       "gates": "Bloqué — les contrôles suivants ne sont pas satisfaits :",

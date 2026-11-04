@@ -1,0 +1,5 @@
+compte;libelle;debit_ouverture;credit_ouverture;mouvement_debit;mouvement_credit;solde_debit;solde_credit
+101000;Capital social;0;1000000;0;0;0;1000000
+521000;Banque;1000000;0;500000;200000;1300000;0
+701000;Ventes de marchandises;0;0;0;500000;0;500000
+601000;Achats de marchandises;0;0;200000;0;200000;0

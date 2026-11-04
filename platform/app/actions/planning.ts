@@ -12,6 +12,7 @@ import { addCustomStep, generateProgram } from "@/lib/programs";
 import { addRisk, dismissPotentialRisk, linkRiskToIndex, linkRiskToStep, mapRiskToSection, promotePotentialRisk, raisePotentialRisk, rebutRevenueFraudRisk, unlinkRiskFromIndex, updateRisk, type Assertion, type RiskRating, type RiskStatus } from "@/lib/risks";
 import { canReview } from "@/lib/rbac";
 import { savePaper, StaleEditConflict } from "@/lib/working-papers";
+import { TRIGGER_FIELD_PREFIX } from "@/lib/papers/types";
 import { encodePaperDraft, paperDraftCookie } from "@/lib/paper-drafts";
 import { addPbcItem, assignTask, assignTasks, assignTeamMember, removeTeamMember, setBudgetLine, setPartnerDelegate, transferEngagementPartner, type TaskAssignmentRole, type TeamRole } from "@/lib/team";
 import { getLocale } from "@/lib/locale";
@@ -583,6 +584,18 @@ export async function savePaperAction(
     baseDigests = undefined;
   }
   delete values.__baseDigests;
+  // the scoping triggers shown beside S6.1 and S4.2 are saved by the same button
+  // (F020), under the legacy form keys the planning screens read
+  const triggers: FormValues = {};
+  let hasTriggers = false;
+  for (const key of Object.keys(values)) {
+    if (!key.startsWith(TRIGGER_FIELD_PREFIX)) continue;
+    if (values[key] === "yes" || values[key] === "no") {
+      triggers[key.slice(TRIGGER_FIELD_PREFIX.length)] = values[key] === "yes";
+      hasTriggers = true;
+    }
+    delete values[key];
+  }
   const path = `/engagements/${engagementId}/sections/${itemId}`;
   await guarded(path, async () => {
     const { cookies } = await import("next/headers");
@@ -590,6 +603,7 @@ export async function savePaperAction(
     const cookieName = paperDraftCookie(itemId);
     try {
       await savePaper(engagementId, code, values, baseVersion, baseDigests);
+      if (hasTriggers) await saveForm(engagementId, code, triggers);
     } catch (error) {
       if (error instanceof StaleEditConflict) {
         jar.set(cookieName, encodePaperDraft(error.drafts).value, {

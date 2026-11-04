@@ -3,6 +3,7 @@
 // them. Firm-default percentage ranges shown as guidance: PBT 5–10 %, revenue
 // 0.5–2 %, total assets 0.5–2 %.
 
+import { bilanTotals } from "@/lib/fs-captions";
 import { withTenant } from "@/lib/db";
 import { createNotification } from "@/lib/notifications";
 import { canPartnerSignoff } from "@/lib/rbac";
@@ -149,7 +150,7 @@ export async function tbBenchmarkAmounts(
       [engagementId],
     );
     if (r.rows.length === 0) return null;
-    let cl6 = 0, cl7 = 0, equity = 0, assets = 0;
+    let cl6 = 0, cl7 = 0, equity = 0;
     for (const row of r.rows) {
       const closing = Number(row.closing);
       const c1 = row.account_code[0];
@@ -157,8 +158,8 @@ export async function tbBenchmarkAmounts(
       if (c1 === "6") cl6 += closing;
       else if (c1 === "7") cl7 += closing;
       if (["10", "11", "12", "13", "14", "15"].includes(c2)) equity += closing;
-      if (["2", "3", "4", "5"].includes(c1) && closing > 0) assets += closing;
     }
+    const assets = bilanTotals(r.rows.map((row) => ({ account: row.account_code, value: Number(row.closing) }))).totalAssets;
     const revenue = Math.round(-cl7);
     const expenses = Math.round(cl6);
     return {
@@ -168,6 +169,18 @@ export async function tbBenchmarkAmounts(
       equity: Math.max(0, Math.round(-equity)),
       total_assets: Math.round(assets),
     };
+  });
+}
+
+/** The current trial-balance version, for the basis label beside a figure (F013). */
+export async function currentTbVersion(engagementId: string): Promise<number | null> {
+  const { tenantId } = await requireTenant();
+  return withTenant(tenantId, async (tx) => {
+    const r = await tx.query<{ v: number | null }>(
+      "SELECT current_version_no AS v FROM trial_balance WHERE engagement_id = $1",
+      [engagementId],
+    );
+    return r.rows[0]?.v ?? null;
   });
 }
 

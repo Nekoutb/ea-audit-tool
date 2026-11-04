@@ -3,6 +3,7 @@ import { localizedTitle } from "@/lib/page-title";
 import { notFound, redirect } from "next/navigation";
 import { auth } from "@/auth";
 import { AppNav } from "@/components/AppNav";
+import { visibleE4 } from "@/lib/design-procedures";
 import { SectionStage, type StageSection } from "@/components/SectionStage";
 import { TilesToggle } from "@/components/TilesToggle";
 import { engagementDashboard } from "@/lib/dashboards";
@@ -58,17 +59,25 @@ function buildSections(
   tasks: PhaseTask[],
   engagementId: string,
   locale: "en" | "fr",
+  e4: { visible: ReadonlySet<string>; designed: number; total: number },
 ): (StageSection & { done: number; total: number })[] {
   const byCode = new Map(tasks.map((t) => [t.code, t]));
   return SECTION_ORDER.map((key) => {
     const groups = groupsOfSection(key).map((g) => {
-      const members = g.members.map((code) => byCode.get(code)).filter((t): t is PhaseTask => Boolean(t));
+      // E4 counts what was designed in S5.5, as its group page does (F010)
+      const members = g.members
+        .filter((code) => g.id !== "e4" || e4.visible.has(code))
+        .map((code) => byCode.get(code))
+        .filter((t): t is PhaseTask => Boolean(t));
       // a task marked not applicable with a reason is complete: an archived
       // file whose every task is performed or validly N/A reads 100 % (UAT run2-B157, run3-B15)
       const done = members.filter((t) => t.status === "reviewed" || Boolean(t.naReason)).length;
       return {
         id: g.id,
-        title: groupTitle(g, locale),
+        title:
+          g.id === "e4"
+            ? `${groupTitle(g, locale)} (${locale === "fr" ? `${e4.designed} sur ${e4.total} conçus` : `${e4.designed} of ${e4.total} designed`})`
+            : groupTitle(g, locale),
         href: `/engagements/${engagementId}/groups/${g.id}`,
         done,
         total: members.length,
@@ -121,7 +130,8 @@ export default async function EngagementDashboardPage(props: {
   // nature-of-entity screen must conclude before any task exists.
   if (tasks.length === 0) redirect(`/engagements/${id}/nature`);
 
-  const sections = buildSections(tasks, id, locale);
+  const e4 = await visibleE4(id, tasks);
+  const sections = buildSections(tasks, id, locale, e4);
   const doneTasks = sections.reduce((sum, s) => sum + s.done, 0);
   const totalTasks = sections.reduce((sum, s) => sum + s.total, 0);
   const overall = totalTasks > 0 ? Math.round((doneTasks / totalTasks) * 100) : 0;

@@ -12,7 +12,8 @@ import { Chip, Panel, PanelHeader } from "@/components/ui/atlas";
 import { getEngagement } from "@/lib/engagements";
 import { formatFCFA, getMessages } from "@/lib/i18n";
 import { getLocale } from "@/lib/locale";
-import { BENCHMARKS, BENCHMARK_RANGES, PERFORMANCE_PCT_RANGE, TRIVIAL_PCT_RANGE, listMaterialityVersions, materialityDeviations, tbBenchmarkAmounts } from "@/lib/materiality";
+import { assetBasisLabel } from "@/lib/fs-captions";
+import { BENCHMARKS, BENCHMARK_RANGES, PERFORMANCE_PCT_RANGE, TRIVIAL_PCT_RANGE, currentTbVersion, listMaterialityVersions, materialityDeviations, tbBenchmarkAmounts } from "@/lib/materiality";
 import { canPartnerSignoff } from "@/lib/rbac";
 
 export const generateMetadata = localizedTitle("Materiality", "Seuil de signification");
@@ -39,7 +40,7 @@ export default async function MaterialityPage(props: {
 
   const engagement = await getEngagement(id);
   if (!engagement) notFound();
-  const [versions, tbBases] = await Promise.all([listMaterialityVersions(id), tbBenchmarkAmounts(id)]);
+  const [versions, tbBases, tbVersion] = await Promise.all([listMaterialityVersions(id), tbBenchmarkAmounts(id), currentTbVersion(id)]);
   const latest = versions[0] ?? null;
   // The version in force stays visible while a draft revision exists (UAT B49):
   // the SAD and P6.1 still run on it, and the tool used to show only the draft.
@@ -75,6 +76,11 @@ export default async function MaterialityPage(props: {
         <PanelHeader title={tp.materiality.title} />
         {tbBases ? (
           <MaterialityBasis locale={locale} bases={tbBases} />
+        ) : null}
+        {tbBases ? (
+          <span className="text-[11px] text-muted" data-testid="materiality-asset-basis">
+            {assetBasisLabel(locale, tbVersion)}: <span className="tnum">{new Intl.NumberFormat("fr-FR").format(tbBases.total_assets)}</span>
+          </span>
         ) : (
           <p className="mt-3 text-[12.5px] text-muted" data-testid="materiality-no-tb">
             {fr

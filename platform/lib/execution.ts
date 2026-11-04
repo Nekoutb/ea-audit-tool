@@ -325,7 +325,8 @@ export interface B5Evaluation {
   trivialCount: number;
   finalMateriality: number | null;
   trivialThreshold: number | null;
-  exceedsMateriality: boolean;
+  /** null: not evaluable, materiality is not approved (F015) */
+  exceedsMateriality: boolean | null;
 }
 
 export async function evaluateB5(engagementId: string): Promise<B5Evaluation> {
@@ -387,8 +388,7 @@ export async function evaluateB5(engagementId: string): Promise<B5Evaluation> {
       trivialCount: items.filter((item) => item.trivial).length,
       finalMateriality,
       trivialThreshold: materiality.rows[0] ? Number(materiality.rows[0].trivial) : null,
-      exceedsMateriality:
-        finalMateriality !== null && Math.abs(uncorrectedTotal) > finalMateriality,
+      exceedsMateriality: finalMateriality === null ? null : Math.abs(uncorrectedTotal) > finalMateriality,
     };
   });
 }

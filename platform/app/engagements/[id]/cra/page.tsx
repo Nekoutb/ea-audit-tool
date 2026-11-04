@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
 import { localizedTitle } from "@/lib/page-title";
 import { auth } from "@/auth";
@@ -6,6 +7,8 @@ import { CraBoard } from "@/components/CraBoard";
 import { NavLink } from "@/components/NavLink";
 import { Chip, Panel, PanelHeader } from "@/components/ui/atlas";
 import { craBoard } from "@/lib/cra";
+import { currentTbVersion } from "@/lib/materiality";
+import { listRisks } from "@/lib/risks";
 import { listScots } from "@/lib/scots";
 import { getEngagement } from "@/lib/engagements";
 import { getMessages } from "@/lib/i18n";
@@ -37,6 +40,13 @@ export default async function CraPage(props: { params: Promise<{ id: string }> }
 
   const [view, scots] = await Promise.all([craBoard(id), listScots(id)]);
   const significantCount = view.rows.filter((row) => row.cells.some((c) => c.relevant && c.significant)).length;
+  // register significant risks with no row on this board (F014): 0/0 is not a result
+  const registerRisks = await listRisks(id);
+  const boardIndexes = new Set(view.rows.map((row) => row.indexCode));
+  const offBoard = registerRisks.filter(
+    (r) => !r.rebutted && r.significant && (r.indexLinks.length === 0 || !r.indexLinks.some((link) => boardIndexes.has(link.indexCode))),
+  );
+  const hasTb = (await currentTbVersion(id)) !== null;
 
   return (
     <main className="flex min-h-screen w-full flex-col gap-4 px-6 py-8">
@@ -65,12 +75,30 @@ export default async function CraPage(props: { params: Promise<{ id: string }> }
         </div>
         <div className="text-right">
           <div className="text-[10.5px] font-bold uppercase tracking-[0.08em] text-muted">{l.significant}</div>
-          <div className="text-[28px] font-extrabold leading-tight tracking-[-0.03em] text-rose tnum">
-            {significantCount}
-            <span className="text-muted">/{view.rows.length}</span>
-          </div>
+          {view.rows.length > 0 ? (
+            <div className="text-[28px] font-extrabold leading-tight tracking-[-0.03em] text-rose tnum">
+              {significantCount}
+              <span className="text-muted">/{view.rows.length}</span>
+            </div>
+          ) : (
+            <div className="text-[13px] font-semibold text-muted" data-testid="cra-no-result">
+              {fr ? "Pas encore évaluable" : "Not assessable yet"}
+            </div>
+          )}
         </div>
       </div>
+
+      {offBoard.length > 0 ? (
+        <p className="rounded-[var(--radius-atlas-sm)] border border-line bg-[var(--color-warn-soft)] px-3 py-2 text-[12.5px] text-warn" data-testid="cra-off-board">
+          {fr
+            ? `${offBoard.length} risque(s) important(s) du registre ne figure(nt) pas sur ce tableau : `
+            : `${offBoard.length} significant risk(s) on the register are not on this board: `}
+          {offBoard.map((r) => r.description).join(" ; ")}.{" "}
+          <Link href={`/engagements/${id}/risks`} className="font-semibold underline">
+            {fr ? "Les relier dans la console des risques ou en P6.2" : "Link them in the Risk Console or P6.2"}
+          </Link>
+        </p>
+      ) : null}
 
       <Panel flush className="flex flex-col">
         <div className="border-b border-line px-5 py-3.5">
@@ -80,7 +108,7 @@ export default async function CraPage(props: { params: Promise<{ id: string }> }
           />
         </div>
         <div className="px-4 py-3">
-          <CraBoard engagementId={id} view={view} locale={locale} />
+          <CraBoard engagementId={id} view={view} locale={locale} hasTb={hasTb} />
         </div>
       </Panel>
 

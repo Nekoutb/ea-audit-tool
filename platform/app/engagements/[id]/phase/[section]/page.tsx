@@ -4,6 +4,7 @@ import { notFound, redirect } from "next/navigation";
 import { auth } from "@/auth";
 import { AppNav } from "@/components/AppNav";
 import { Chip, Panel, PanelHeader } from "@/components/ui/atlas";
+import { visibleE4 } from "@/lib/design-procedures";
 import { engagementTasks, type PhaseTask, type PhaseTaskStatus } from "@/lib/engagement-dashboard";
 import { getEngagement } from "@/lib/engagements";
 import { shortTitle } from "@/lib/file-index";
@@ -58,6 +59,7 @@ export default async function PhasePage(props: {
     engagementTasks(id, true),
   ]);
   const byCode = new Map(tasks.map((x) => [x.code, x]));
+  const e4 = await visibleE4(id, tasks);
   const groups = groupsOfSection(key);
   const ordered: { task: PhaseTask; group: string }[] = [];
   for (const g of groups) {
@@ -227,7 +229,10 @@ export default async function PhasePage(props: {
         <PanelHeader title={locale === "fr" ? "Groupes" : "Groups"} />
         <div className="mt-3 grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
           {groups.map((g) => {
-            const members = g.members.map((c) => byCode.get(c)).filter((x): x is PhaseTask => Boolean(x));
+            const members = g.members
+              .filter((c) => g.id !== "e4" || e4.visible.has(c))
+              .map((c) => byCode.get(c))
+              .filter((x): x is PhaseTask => Boolean(x));
             const gd = members.filter((m) => m.status === "reviewed").length;
             return (
               <Link
@@ -239,6 +244,11 @@ export default async function PhasePage(props: {
                 <span className="min-w-0 flex-1 truncate text-sm text-ink">{groupTitle(g, locale)}</span>
                 <span className="font-mono text-[11px] text-muted tnum">
                   {gd}/{members.length}
+                  {g.id === "e4" ? (
+                    <span className="ml-1 font-normal text-muted" data-testid="phase-e4-designed">
+                      {locale === "fr" ? `(${e4.designed} sur ${e4.total} conçus)` : `(${e4.designed} of ${e4.total} designed)`}
+                    </span>
+                  ) : null}
                 </span>
               </Link>
             );

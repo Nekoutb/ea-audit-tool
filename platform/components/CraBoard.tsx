@@ -57,10 +57,13 @@ export function CraBoard({
   engagementId,
   view,
   locale,
+  hasTb = true,
 }: {
   engagementId: string;
   view: CraBoardView;
   locale: "en" | "fr";
+  /** a trial balance is imported: the empty state names only what is really missing (F068) */
+  hasTb?: boolean;
 }) {
   const fr = locale === "fr";
   const pathname = usePathname();
@@ -161,13 +164,28 @@ export function CraBoard({
   if (rows.length === 0) {
     return (
       <div className="px-3 py-6 text-center text-[12.5px] text-muted" data-testid="cra-empty">
-        {view.glAvailable
-          ? fr
-            ? "Aucun compte significatif retenu en P6.2 — arrêter d'abord les comptes significatifs."
-            : "No account is marked significant in P6.2 yet — settle the significant accounts first."
-          : fr
-            ? "Importer la balance et le grand livre, puis arrêter les comptes significatifs (P6.2)."
-            : "Upload the trial balance and general ledger, then settle the significant accounts (P6.2)."}
+        <p>{fr ? "Le tableau s'ouvrira quand ces prérequis seront remplis :" : "The board opens once these prerequisites are met:"}</p>
+        <ul className="mt-1 flex flex-col gap-0.5">
+          {!hasTb ? (
+            <li data-testid="cra-missing-tb">
+              <a href={`/engagements/${engagementId}/data`} className="font-semibold text-emerald-700 underline dark:text-emerald-400">
+                {fr ? "Importer la balance" : "Import the trial balance"}
+              </a>
+            </li>
+          ) : null}
+          {!view.glAvailable ? (
+            <li data-testid="cra-missing-gl">
+              <a href={`/engagements/${engagementId}/tools/gl-console`} className="font-semibold text-emerald-700 underline dark:text-emerald-400">
+                {fr ? "Importer le grand livre" : "Import the general ledger"}
+              </a>
+            </li>
+          ) : null}
+          <li data-testid="cra-missing-p62">
+            <a href={`/engagements/${engagementId}/risks`} className="font-semibold text-emerald-700 underline dark:text-emerald-400">
+              {fr ? "Arrêter les comptes significatifs (P6.2)" : "Settle the significant accounts (P6.2)"}
+            </a>
+          </li>
+        </ul>
       </div>
     );
   }

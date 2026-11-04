@@ -422,6 +422,8 @@ async function signOffFromList(
     if (isArchivedError(error)) redirect(`${back}?error=archived`);
     throw error;
   }
+  // a sign-off by someone other than the assigned person is allowed, and says so (F021)
+  const nonAssignee = await signerIsNonAssignee(fileItemId, recorded);
   await recordActivity({
     engagementId,
     entityType: "file_item",
@@ -429,11 +431,29 @@ async function signOffFromList(
     // derived from the role actually recorded, so the trail cannot drift from it
     action: `${recorded}_signoff`,
     // the task code travels with the entry (UAT B62: list sign-offs named no task)
-    summary: `${code ? `${code} ` : ""}signed off as ${recorded}`,
+    summary: `${code ? `${code} ` : ""}signed off as ${recorded}${nonAssignee ? " (signed by non-assignee)" : ""}`,
+    meta: nonAssignee ? { nonAssignee: true } : undefined,
     after: { code, role: recorded },
   });
   revalidatePath(back);
   redirect(back);
+}
+
+async function signerIsNonAssignee(fileItemId: string, role: string): Promise<boolean> {
+  if (role !== "preparer" && role !== "reviewer") return false;
+  const { requireTenant } = await import("@/lib/tenant");
+  const { withTenant } = await import("@/lib/db");
+  const { signedByNonAssignee } = await import("@/lib/signoff-matrix");
+  const { tenantId, userId } = await requireTenant();
+  return withTenant(tenantId, async (tx) => {
+    const r = await tx.query<{ owner_id: string | null; assignee_user_id: string | null; approver_user_id: string | null }>(
+      "SELECT owner_id, assignee_user_id, approver_user_id FROM file_item WHERE id = $1",
+      [fileItemId],
+    );
+    const row = r.rows[0];
+    if (!row) return false;
+    return signedByNonAssignee(userId, role === "preparer" ? [row.owner_id, row.assignee_user_id] : [row.approver_user_id]);
+  });
 }
 
 /** Set / clear a task's due date (per-task deadlines). */

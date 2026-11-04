@@ -364,7 +364,7 @@
     "subtitle": "How data flows in and out of the platform.",
     "importsTitle": "Imports",
     "imports": [
-      "Trial balance: CSV (SYSCOHADA account;label;debit;credit) via the Data workspace, with validation and versioning",
+      "Trial balance: CSV or Excel via the Data workspace, with validation and versioning. Columns: account, label, then opening debit/credit (or one opening balance), movements debit/credit, closing debit/credit (or one closing balance). French and English headings are recognised (compte, intitulé, à nouveau débit, solde débit…). A template is available in the Data workspace.",
       "Sub-ledgers (AR, AP, fixed assets, inventory…): CSV/Excel via the Data workspace",
       "Client documents: PBC requests through the client portal"
     ],
@@ -1309,7 +1309,8 @@
         "deficiency": "Deficiency",
         "observation": "Observation"
       },
-      "recommendation": "Recommendation"
+      "recommendation": "Recommendation",
+      "notEvaluable": "Not evaluable: materiality not approved (P6.1)"
     },
     "errors": {
       "gates": "Blocked — the following gates are not satisfied:",

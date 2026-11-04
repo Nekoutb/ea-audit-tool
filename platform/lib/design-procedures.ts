@@ -4,11 +4,12 @@
 // procedures. The recorded design is what E4 executes and what the sampling
 // tool sizes.
 
+import { GROUP_BY_ID } from "@/lib/task-groups";
 import { withTenant } from "@/lib/db";
 import { requireTenant, requireWrite } from "@/lib/tenant";
 import { craBoard, rowWorstTod, type CraAccountRow } from "@/lib/cra";
 import { craOf, toTod, type CraTod } from "@/lib/cra-model";
-import { pspFor } from "@/lib/psp";
+import { indexesForTask, pspFor } from "@/lib/psp";
 import { INDEX_SECTION } from "@/lib/lead-classes";
 import {
   ASSERTIONS,
@@ -369,6 +370,38 @@ export async function saveDsp(engagementId: string, indexCode: string, field: st
 }
 
 /** Index codes with at least one procedure — library or custom — in the S5.5 design. */
+/**
+ * Which E4 members a list shows (F010): the accounts whose procedures were
+ * designed in S5.5, the members with no lead index (leases, the TFT tie-out),
+ * and any paper that already holds work. Pure, so the dashboard, the group page,
+ * the phase page and the task list cannot disagree on a count.
+ */
+export function visibleE4Codes(
+  members: readonly string[],
+  statusOf: (code: string) => string | undefined,
+  designedIndexes: ReadonlySet<string>,
+): string[] {
+  return members.filter((code) => {
+    const indexes = indexesForTask(code);
+    const status = statusOf(code);
+    const holdsWork = status !== undefined && status !== "not_started";
+    return indexes.length === 0 || holdsWork || indexes.some((idx) => designedIndexes.has(idx));
+  });
+}
+
+/** The E4 members to show on this engagement, and how many of the group that is. */
+export async function visibleE4(
+  engagementId: string,
+  tasks: readonly { code: string; status: string }[],
+): Promise<{ visible: Set<string>; designed: number; total: number }> {
+  const members = GROUP_BY_ID.e4?.members ?? [];
+  const designed = await dspDesignedIndexes(engagementId);
+  const byCode = new Map(tasks.map((task) => [task.code, task.status]));
+  const present = members.filter((code) => byCode.has(code));
+  const visible = visibleE4Codes(present, (code) => byCode.get(code), designed);
+  return { visible: new Set(visible), designed: visible.length, total: present.length };
+}
+
 export async function dspDesignedIndexes(engagementId: string): Promise<Set<string>> {
   const { tenantId } = await requireTenant();
   return withTenant(tenantId, async (tx) => {

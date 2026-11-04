@@ -1,6 +1,6 @@
 "use client";
 
-import { useLayoutEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { RichText } from "@/components/RichText";
 import { useCompactView } from "@/lib/use-auto-size";
 import { SubmitButton } from "@/components/SubmitButton";
@@ -10,6 +10,7 @@ import {
   autoFieldEmpty,
   conclKey,
   conclWhyKey,
+  paperFormId,
   procKey,
   procNaKey,
   procWhyKey,
@@ -122,6 +123,8 @@ function Amber({
 export interface PaperSignature {
   name: string;
   at: string;
+  /** signed by someone other than the person it was assigned to (F021) */
+  nonAssignee?: boolean;
 }
 
 export function PaperWizard({
@@ -139,6 +142,7 @@ export function PaperWizard({
   baseDigests,
   lockedKeys,
   signoffs,
+  startDirty = false,
   editionLabel,
 }: {
   /** "Standards edition: ISA in force" — the engagement's edition, printed on page 1 (F045) */
@@ -163,6 +167,8 @@ export function PaperWizard({
   embedOnly?: boolean;
   /** the paper's sign-off state, shown read-only on page 1 (F039) */
   signoffs?: { preparer: PaperSignature | null; reviewer: PaperSignature | null; eqr?: PaperSignature | null };
+  /** the form holds text a refused save kept: it is unsaved however it compares (F017) */
+  startDirty?: boolean;
 }) {
   const fr = locale === "fr";
   const locked = new Set(lockedKeys ?? []);
@@ -211,6 +217,52 @@ export function PaperWizard({
   const total = soloEmbed ? 1 : conclPage + 1;
   const lastPage = total - 1;
   const [step, setStep] = useState(0);
+
+  // The saved/unsaved indicator (F017): the form's content against what was last
+  // saved, read a beat after any interaction so client-managed hidden fields and
+  // selects outside the form (the scoping triggers) are counted too.
+  const formRef = useRef<HTMLFormElement | null>(null);
+  const baselineRef = useRef<string | null>(null);
+  const [dirty, setDirty] = useState(false);
+  const [savedAt, setSavedAt] = useState<string | null>(null);
+  const snapshot = () => {
+    const form = formRef.current;
+    if (!form) return "";
+    const data = new URLSearchParams();
+    new FormData(form).forEach((value, key) => {
+      if (typeof value === "string" && !key.startsWith("__base")) data.append(key, value);
+    });
+    return data.toString();
+  };
+  useEffect(() => {
+    let timer: ReturnType<typeof setTimeout> | undefined;
+    const check = () => {
+      if (timer) clearTimeout(timer);
+      timer = setTimeout(() => {
+        if (baselineRef.current !== null) setDirty(snapshot() !== baselineRef.current);
+      }, 60);
+    };
+    const settle = setTimeout(() => {
+      baselineRef.current = snapshot();
+    }, 150);
+    document.addEventListener("input", check, true);
+    document.addEventListener("change", check, true);
+    document.addEventListener("click", check, true);
+    return () => {
+      clearTimeout(settle);
+      if (timer) clearTimeout(timer);
+      document.removeEventListener("input", check, true);
+      document.removeEventListener("change", check, true);
+      document.removeEventListener("click", check, true);
+    };
+  }, []);
+  const onSubmitPaper = () => {
+    baselineRef.current = snapshot();
+    setDirty(false);
+    setSavedAt(
+      `${new Intl.DateTimeFormat("en-GB", { timeZone: "Africa/Douala", hour: "2-digit", minute: "2-digit", hourCycle: "h23" }).format(new Date())} WAT`,
+    );
+  };
   // Compact view folds long answers to two lines until clicked; the default
   // shows every answer in full (lib/use-auto-size.ts).
   const [compact, setCompact] = useCompactView();
@@ -481,7 +533,14 @@ export function PaperWizard({
     <span className="flex items-center gap-1.5 text-[12px]" data-testid={testId} data-signed={String(Boolean(s))}>
       <span className="text-muted">{label}</span>
       {s ? (
-        <span className="font-semibold text-ink">{s.name} · {s.at}</span>
+        <span className="font-semibold text-ink">
+          {s.name} · {s.at}
+          {s.nonAssignee ? (
+            <span className="ml-1.5 rounded-full bg-[var(--color-warn-soft)] px-1.5 py-0.5 text-[10.5px] font-semibold text-warn" data-testid={`${testId}-non-assignee`}>
+              {fr ? "signé par un non-assigné" : "signed by non-assignee"}
+            </span>
+          ) : null}
+        </span>
       ) : (
         <span className="text-muted">{fr ? "non signé" : "not signed"}</span>
       )}
@@ -529,7 +588,14 @@ export function PaperWizard({
   );
 
   return (
-    <form action={action} data-testid={`wp-form-${code}`} className="flex h-full min-h-0 flex-col">
+    <form
+      ref={formRef}
+      id={paperFormId(code)}
+      action={action}
+      onSubmit={onSubmitPaper}
+      data-testid={`wp-form-${code}`}
+      className="flex h-full min-h-0 flex-col"
+    >
       {baseVersion !== undefined ? <input type="hidden" name="__baseVersion" value={baseVersion} /> : null}
       {baseDigests !== undefined ? <input type="hidden" name="__baseDigests" value={baseDigests} /> : null}
       <UnsavedGuard message={fr ? "Des modifications non enregistrées seront perdues." : "Unsaved changes will be lost."} />
@@ -624,9 +690,17 @@ export function PaperWizard({
       </div>
 
       {readOnly || soloEmbed ? null : (
-        <div className="mt-auto flex justify-end border-t border-line pt-2">
+        <div className="mt-auto flex items-center justify-end gap-3 border-t border-line pt-2">
+          <span className="text-[11.5px] text-muted" data-testid="wp-save-state" data-dirty={String(dirty || startDirty)}>
+            {dirty || startDirty
+              ? fr ? "Modifications non enregistrées" : "Unsaved changes"
+              : savedAt
+                ? fr ? `Enregistré à ${savedAt}` : `Saved at ${savedAt}`
+                : fr ? "Aucune modification" : "No changes"}
+          </span>
           <SubmitButton
             testId={`wp-save-${code}`}
+            disabled={!dirty && !startDirty}
             className="rounded-[var(--radius-atlas-sm)] bg-emerald-700 px-4 py-1.5 text-sm font-medium text-white hover:bg-emerald-800"
           >
             {fr ? "Enregistrer la feuille" : "Save paper"}

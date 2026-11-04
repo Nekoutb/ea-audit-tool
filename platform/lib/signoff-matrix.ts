@@ -304,3 +304,14 @@ export async function parseSignoffMatrix(content: ArrayBuffer | Buffer, locale: 
   if (rules.length === 0 && errors.length === 0) errors.push({ row: 0, message: msg("empty", locale) });
   return { rules, errors };
 }
+
+/**
+ * Any eligible team member may sign a paper, but one signed by someone other
+ * than the person it was assigned to says so, in the trail and on the paper
+ * (F021). True only when someone is assigned and the signer is not among them.
+ */
+export function signedByNonAssignee(signer: string | null | undefined, assigned: readonly (string | null | undefined)[]): boolean {
+  const people = assigned.filter((a): a is string => Boolean(a));
+  if (!signer || people.length === 0) return false;
+  return !people.includes(signer);
+}

@@ -27,8 +27,7 @@ import { canReview, canWrite } from "@/lib/rbac";
 import { roleMinimumRefusals } from "@/lib/signoff-policy";
 import { toolOutputsMissing } from "@/lib/tool-fed-papers";
 import { GROUP_BY_ID, displayCode, groupTitle, sectionLabel } from "@/lib/task-groups";
-import { dspDesignGaps, dspDesignedIndexes } from "@/lib/design-procedures";
-import { indexesForTask } from "@/lib/psp";
+import { dspDesignGaps, dspDesignedIndexes, visibleE4Codes } from "@/lib/design-procedures";
 
 export async function generateMetadata(props: { params: Promise<{ group: string }> }) {
   const { group } = await props.params;
@@ -90,14 +89,7 @@ export default async function GroupTasksPage(props: {
   const designedIndexes = group === "e4" ? await dspDesignedIndexes(id) : null;
   const designGaps = group === "e4" ? await dspDesignGaps(id).catch(() => []) : [];
   const memberCodes = designedIndexes
-    ? g.members.filter((code) => {
-        const indexes = indexesForTask(code);
-        // an account nobody designed for still shows once it holds work —
-        // procedures done, files attached, a conclusion, a signature — so the
-        // C6.1 "fix" link never lands on a paper the list hides
-        const holdsWork = byCode.has(code) && byCode.get(code)?.status !== "not_started";
-        return indexes.length === 0 || holdsWork || indexes.some((idx) => designedIndexes.has(idx));
-      })
+    ? visibleE4Codes(g.members, (code) => byCode.get(code)?.status, designedIndexes)
     : g.members;
   const tasks = memberCodes.map((code) => byCode.get(code)).filter((task): task is PhaseTask => Boolean(task));
   const reviewedCount = tasks.filter((task) => task.status === "reviewed").length;
@@ -229,7 +221,17 @@ export default async function GroupTasksPage(props: {
 
       <Panel flush className="flex flex-col">
         <div className="flex flex-wrap items-center justify-between gap-3 border-b border-line px-5 py-3.5">
-          <PanelHeader title={td.taskList} right={<span className="text-xs font-semibold text-muted tnum">{tasks.length}</span>} />
+          <PanelHeader
+            title={td.taskList}
+            hint={
+              designedIndexes
+                ? locale === "fr"
+                  ? `${tasks.length} sur ${g.members.filter((code) => byCode.has(code)).length} conçus (S5.5)`
+                  : `${tasks.length} of ${g.members.filter((code) => byCode.has(code)).length} designed (S5.5)`
+                : undefined
+            }
+            right={<span className="text-xs font-semibold text-muted tnum">{tasks.length}</span>}
+          />
           {missing.length > 0 && canReview(session.user.role) ? (
             <form action={instantiateGroupTasksAction}>
               <input type="hidden" name="engagementId" value={id} />

@@ -4,6 +4,7 @@
 // commentary, stored per account and per schedule total in form_response
 // under the code "ap:<index>".
 
+import { bilanTotals } from "@/lib/fs-captions";
 import { withTenant } from "@/lib/db";
 import { RATIO_KEYS } from "@/lib/financial-analysis";
 import { requireTenant, requireWrite } from "@/lib/tenant";
@@ -40,6 +41,80 @@ const pct = (movement: number, prior: number): number | null =>
   prior !== 0 ? Math.round((movement / Math.abs(prior)) * 1000) / 10 : null;
 
 /** The account-level lead schedules from the current (pre-audit) TB. */
+/** The Lead Schedule's checks strip (F018). */
+export interface ApLeadChecks {
+  tbRows: number;
+  /** sum of closing balances: 0 when the TB balances */
+  tbDifference: number;
+  totalAssets: number;
+  totalLiabilitiesAndEquity: number;
+  /** total assets less liabilities, equity and result */
+  bilanDifference: number;
+  unmapped: { account: string; closing: number }[];
+  unmappedTotal: number;
+  /** lead indexes holding no balance on this TB */
+  emptyIndexes: { code: string; en: string; fr: string }[];
+}
+
+/** Pure: the checks from closing balances and the index each account maps to. */
+export function computeLeadChecks(
+  rows: readonly { account: string; closing: number }[],
+  indexOf: (account: string) => string | null,
+  indexes: readonly { code: string; titleEn: string; titleFr: string }[],
+): ApLeadChecks {
+  const bilan = bilanTotals(rows.map((r) => ({ account: r.account, value: r.closing })));
+  const present = new Set<string>();
+  const unmapped: { account: string; closing: number }[] = [];
+  for (const row of rows) {
+    const index = indexOf(row.account);
+    if (index) present.add(index);
+    else unmapped.push({ account: row.account, closing: Math.round(row.closing) });
+  }
+  return {
+    tbRows: rows.length,
+    tbDifference: Math.round(rows.reduce((sum, r) => sum + r.closing, 0)),
+    totalAssets: Math.round(bilan.totalAssets),
+    totalLiabilitiesAndEquity: Math.round(bilan.totalLiabilitiesAndEquity),
+    bilanDifference: Math.round(bilan.totalAssets - bilan.totalLiabilitiesAndEquity),
+    unmapped,
+    unmappedTotal: unmapped.reduce((sum, u) => sum + u.closing, 0),
+    emptyIndexes: indexes.filter((def) => !present.has(def.code)).map((def) => ({ code: def.code, en: def.titleEn, fr: def.titleFr })),
+  };
+}
+
+/** The current TB's checks, or null when there is no TB. */
+export async function apLeadChecks(engagementId: string): Promise<ApLeadChecks | null> {
+  const { tenantId } = await requireTenant();
+  return withTenant(tenantId, async (tx) => {
+    const rows = await tx.query<{ account_code: string; closing: string }>(
+      `SELECT r.account_code, (r.opening_debit - r.opening_credit + r.debit - r.credit)::text AS closing
+         FROM trial_balance tb
+         JOIN trial_balance_version v ON v.trial_balance_id = tb.id AND v.version_no = tb.current_version_no
+         JOIN trial_balance_row r ON r.version_id = v.id
+        WHERE tb.engagement_id = $1`,
+      [engagementId],
+    );
+    if (rows.rows.length === 0) return null;
+    const over = await tx.query<{ account_prefix: string; index_code: string }>(
+      `SELECT o.account_prefix, o.index_code FROM client_lead_index_override o
+         JOIN engagement e ON e.client_id = o.client_id WHERE e.id = $1`,
+      [engagementId],
+    );
+    const overrides = over.rows
+      .map((r) => [r.account_prefix, r.index_code] as [string, string])
+      .sort((a, b) => b[0].length - a[0].length);
+    const indexOf = (account: string): string | null => {
+      for (const [prefix, code] of overrides) if (account.startsWith(prefix)) return code;
+      return leadIndexFor(account);
+    };
+    return computeLeadChecks(
+      rows.rows.map((r) => ({ account: r.account_code, closing: Number(r.closing) })),
+      indexOf,
+      LEAD_INDEXES.map((def) => ({ code: def.code, titleEn: def.labelEn, titleFr: def.labelFr })),
+    );
+  });
+}
+
 export async function apLeadSchedules(engagementId: string): Promise<ApLeadSchedule[]> {
   const { tenantId } = await requireTenant();
   return withTenant(tenantId, async (tx) => {
