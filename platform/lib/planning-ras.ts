@@ -8,6 +8,7 @@
 // Answers and signatures persist in form_response under the paper code
 // "wp:P7.2", like every other working paper.
 
+import { fmtDateTime } from "@/lib/format-date";
 import type { PoolClient } from "pg";
 import { withTenant } from "@/lib/db";
 import { atLeast, type Role } from "@/lib/rbac";
@@ -322,9 +323,7 @@ export async function signRas(
       [userId],
     );
     // the firm's zone with its label, as every other signature (UAT B110)
-    const stamp =
-      new Intl.DateTimeFormat("sv-SE", { timeZone: "Africa/Douala", dateStyle: "short", timeStyle: "short" }).format(new Date()) +
-      " WAT";
+    const stamp = fmtDateTime(new Date());
     await tx.query(
       `INSERT INTO form_response (tenant_id, engagement_id, code, field_key, value, updated_by)
        VALUES ($1, $2, $3, $4, to_jsonb($5::text), $6)

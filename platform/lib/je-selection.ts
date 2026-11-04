@@ -32,6 +32,7 @@
 // analytic unavailable for exactly this reason; inventing a timestamp would be
 // worse than not offering the test.
 
+import { fmtDateTime } from "@/lib/format-date";
 import type { PoolClient } from "pg";
 import { withTenant } from "@/lib/db";
 import { TOLERANCE } from "@/lib/gl-line";
@@ -1743,11 +1744,7 @@ export function describeSelectionDesign(d: RecordedSelectionDesign, locale: Loca
     const at = new Date(d.recordedAt);
     when = Number.isNaN(at.getTime())
       ? d.recordedAt
-      : new Intl.DateTimeFormat(fr ? "fr-FR" : "en-GB", {
-          dateStyle: "medium",
-          timeStyle: "short",
-          timeZone: "Africa/Douala",
-        }).format(at) + " WAT";
+      : fmtDateTime(at);
   }
   const criteriaText = criteria.join(" · ") || "—";
   const joined = d.userRulesMode === "all" && rules.length > 1

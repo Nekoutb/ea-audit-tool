@@ -134,7 +134,7 @@ export async function eqrStanding(engagementId: string): Promise<EqrStanding> {
   const { eqrRequiredTx } = await import("@/lib/completion");
   return withTenant(tenantId, async (tx) => {
     const signed = await tx.query<{ name: string; at: string }>(
-      `SELECT coalesce(u.name, u.email) AS name, to_char(s.signed_at, 'DD Mon YYYY HH24:MI') AS at
+      `SELECT coalesce(u.name, u.email) AS name, to_char(s.signed_at AT TIME ZONE 'Africa/Douala', 'DD/MM/YYYY HH24:MI') || ' WAT' AS at
          FROM signoff s
          JOIN document d ON d.id = s.document_id
          JOIN file_item fi ON fi.id = d.file_item_id

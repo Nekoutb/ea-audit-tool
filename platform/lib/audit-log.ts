@@ -121,7 +121,7 @@ const SELECT = `
   SELECT a.id, a.user_id, a.engagement_id, a.entity_type, a.entity_id, a.action, a.summary,
          coalesce(a.outcome, 'success') AS outcome, a.acting_role,
          a.before_value::text AS before_value, a.after_value::text AS after_value,
-         to_char(a.created_at AT TIME ZONE 'UTC', 'YYYY-MM-DD HH24:MI:SS') || ' UTC' AS at,
+         to_char(a.created_at AT TIME ZONE 'Africa/Douala', 'DD/MM/YYYY HH24:MI:SS') || ' WAT' AS at,
          (SELECT coalesce(u.name, u.email) FROM app_user u WHERE u.id = a.user_id) AS user_name,
          (SELECT coalesce(e.name, c.name) FROM engagement e JOIN client c ON c.id = e.client_id
            WHERE e.id = a.engagement_id) AS engagement_name
@@ -281,7 +281,7 @@ export async function answerHistory(engagementId: string, limit = 2000): Promise
       after_value: string | null;
     }>(
       `SELECT a.meta->>'code' AS code, a.meta->>'field' AS field,
-              to_char(a.created_at AT TIME ZONE 'UTC', 'YYYY-MM-DD HH24:MI:SS') || ' UTC' AS at,
+              to_char(a.created_at AT TIME ZONE 'Africa/Douala', 'DD/MM/YYYY HH24:MI:SS') || ' WAT' AS at,
               (SELECT coalesce(u.name, u.email) FROM app_user u WHERE u.id = a.user_id) AS user_name,
               a.before_value::text AS before_value, a.after_value::text AS after_value
          FROM activity_log a

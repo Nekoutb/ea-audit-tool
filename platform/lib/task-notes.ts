@@ -36,8 +36,8 @@ export async function listTaskNotes(fileItemId: string): Promise<TaskNote[]> {
       `SELECT n.id, n.body, n.response, n.status,
               coalesce(a.name, a.email) AS author_name,
               coalesce(u.name, u.email) AS assignee_name,
-              to_char(n.created_at AT TIME ZONE 'Africa/Douala', 'YYYY-MM-DD HH24:MI') || ' WAT' AS created_at,
-              to_char(n.cleared_at AT TIME ZONE 'Africa/Douala', 'YYYY-MM-DD HH24:MI') || ' WAT' AS cleared_at
+              to_char(n.created_at AT TIME ZONE 'Africa/Douala', 'DD/MM/YYYY HH24:MI') || ' WAT' AS created_at,
+              to_char(n.cleared_at AT TIME ZONE 'Africa/Douala', 'DD/MM/YYYY HH24:MI') || ' WAT' AS cleared_at
          FROM review_note n
          JOIN app_user a ON a.id = n.author_id
          LEFT JOIN app_user u ON u.id = n.assignee_id
@@ -150,7 +150,7 @@ export async function respondToTaskNote(engagementId: string, noteId: string, te
     if (!row) throw new Error("not-found");
     await tx.query(
       `UPDATE review_note
-          SET response = coalesce(response || E'\n', '') || '[' || $3 || ' · ' || to_char(now() AT TIME ZONE 'Africa/Douala', 'YYYY-MM-DD HH24:MI') || ' WAT' || '] ' || $2
+          SET response = coalesce(response || E'\n', '') || '[' || $3 || ' · ' || to_char(now() AT TIME ZONE 'Africa/Douala', 'DD/MM/YYYY HH24:MI') || ' WAT' || '] ' || $2
         WHERE id = $1 AND status = 'open'`,
       [noteId, reply, row.who],
     );
@@ -229,7 +229,7 @@ export async function clearTaskNote(engagementId: string, noteId: string, respon
               response = CASE WHEN $2::text IS NULL THEN response
                               ELSE coalesce(response || E'\n', '') || '['
                                    || (SELECT coalesce(name, email) FROM app_user WHERE id = $3)
-                                   || ' · ' || to_char(now() AT TIME ZONE 'Africa/Douala', 'YYYY-MM-DD HH24:MI') || ' WAT' || '] ' || $2 END,
+                                   || ' · ' || to_char(now() AT TIME ZONE 'Africa/Douala', 'DD/MM/YYYY HH24:MI') || ' WAT' || '] ' || $2 END,
               cleared_at = now(), cleared_by = $3
         WHERE id = $1 AND status = 'open'`,
       [noteId, response.trim() || null, userId],
@@ -279,7 +279,7 @@ export async function myOpenTaskNotes(limit = 12): Promise<MyTaskNote[]> {
       `SELECT n.id, n.body, fi.code, fi.title_en, coalesce(fi.title_fr, fi.title_en) AS title_fr, n.engagement_id, n.file_item_id,
               coalesce(e.name, c.name) AS engagement_name,
               coalesce(a.name, a.email) AS author_name,
-              to_char(n.created_at AT TIME ZONE 'Africa/Douala', 'YYYY-MM-DD HH24:MI') || ' WAT' AS created_at
+              to_char(n.created_at AT TIME ZONE 'Africa/Douala', 'DD/MM/YYYY HH24:MI') || ' WAT' AS created_at
          FROM review_note n
          JOIN file_item fi ON fi.id = n.file_item_id
          JOIN engagement e ON e.id = n.engagement_id
@@ -352,8 +352,8 @@ export async function noteRegister(engagementId: string): Promise<NoteRegisterRo
               coalesce(u.name, u.email) AS owner_name,
               coalesce(a.name, a.email) AS author_name,
               n.author_id, n.assignee_id, n.body, n.response, n.status,
-              to_char(n.created_at AT TIME ZONE 'Africa/Douala', 'YYYY-MM-DD HH24:MI') || ' WAT' AS created_at,
-              to_char(n.cleared_at AT TIME ZONE 'Africa/Douala', 'YYYY-MM-DD HH24:MI') || ' WAT' AS cleared_at,
+              to_char(n.created_at AT TIME ZONE 'Africa/Douala', 'DD/MM/YYYY HH24:MI') || ' WAT' AS created_at,
+              to_char(n.cleared_at AT TIME ZONE 'Africa/Douala', 'DD/MM/YYYY HH24:MI') || ' WAT' AS cleared_at,
               coalesce(cb.name, cb.email) AS cleared_by_name,
               round(extract(epoch FROM (n.cleared_at - n.created_at)) / 3600, 1)::text AS hours
          FROM review_note n

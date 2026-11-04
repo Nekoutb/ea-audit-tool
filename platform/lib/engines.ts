@@ -3,6 +3,7 @@
 // working-paper output indexed under the section. Exceptions route into the
 // findings system; projected misstatements land in C1.1 automatically.
 
+import { fmtDateTime } from "@/lib/format-date";
 import { createHash, createHmac } from "node:crypto";
 import ExcelJS from "exceljs";
 import type { PoolClient } from "pg";
@@ -133,7 +134,7 @@ async function storeRun(
     const doc = await tx.query<{ id: string }>(
       `INSERT INTO document (tenant_id, engagement_id, file_item_id, title, language, kind, created_by, current_version)
        VALUES ($1, $2, $3, $4, 'en', 'engine_output', $5, 1) RETURNING id`,
-      [tenantId, input.engagementId, input.fileItemId, `${input.sheetTitle} — ${new Date().toISOString().slice(0, 16)}`, userId],
+      [tenantId, input.engagementId, input.fileItemId, `${input.sheetTitle} — ${fmtDateTime(new Date())}`, userId],
     );
     documentId = doc.rows[0].id;
     await tx.query(
@@ -480,7 +481,7 @@ export async function listTodResults(engagementId: string): Promise<TodResultRow
   const { tenantId } = await requireTenant();
   return withTenant(tenantId, async (tx) => {
     const r = await tx.query<{ id: string; result_summary: Record<string, unknown>; created_at: string }>(
-      `SELECT id, result_summary, to_char(created_at, 'YYYY-MM-DD HH24:MI') AS created_at
+      `SELECT id, result_summary, to_char(created_at AT TIME ZONE 'Africa/Douala', 'DD/MM/YYYY HH24:MI') || ' WAT' AS created_at
          FROM automation_run
         WHERE engagement_id = $1 AND engine = 'sampling' AND result_summary->>'method' = 'tod-mus'
         ORDER BY created_at DESC`,
@@ -550,7 +551,7 @@ export async function latestReconRun(datasetId: string): Promise<RunInfo | null>
   const { tenantId } = await requireTenant();
   return withTenant(tenantId, async (tx) => {
     const r = await tx.query<{ id: string; engine: Engine; result_summary: Record<string, unknown>; output_document_id: string | null; created_at: string }>(
-      `SELECT id, engine, result_summary, output_document_id, to_char(created_at, 'YYYY-MM-DD HH24:MI') AS created_at
+      `SELECT id, engine, result_summary, output_document_id, to_char(created_at AT TIME ZONE 'Africa/Douala', 'DD/MM/YYYY HH24:MI') || ' WAT' AS created_at
          FROM automation_run WHERE dataset_id = $1 AND engine LIKE 'recon_%'
         ORDER BY created_at DESC LIMIT 1`,
       [datasetId],
@@ -833,7 +834,7 @@ export async function listRuns(fileItemId: string): Promise<RunInfo[]> {
       created_at: string;
     }>(
       `SELECT id, engine, result_summary, output_document_id,
-              to_char(created_at, 'YYYY-MM-DD HH24:MI') AS created_at
+              to_char(created_at AT TIME ZONE 'Africa/Douala', 'DD/MM/YYYY HH24:MI') || ' WAT' AS created_at
          FROM automation_run WHERE file_item_id = $1 ORDER BY created_at DESC`,
       [fileItemId],
     );

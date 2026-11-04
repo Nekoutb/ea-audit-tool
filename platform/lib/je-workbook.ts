@@ -460,7 +460,7 @@ export async function buildJeWorkbook(view: JeView): Promise<Buffer> {
   coverRow(
     cover,
     T("Standards", "Normes"),
-    `${isaRef(edition, "ISA240.std.E31", view.locale)} · ISA 315 (Revised 2019) ¶26 · IAM 321`,
+    `${isaRef(edition, "ISA240.std.E31", view.locale)} · ISA 315 (Revised 2019) ¶26`,
   );
   coverRow(cover, T("Standards edition", "Édition des normes"), editionLabel(edition, view.locale));
   coverRow(
@@ -476,8 +476,8 @@ export async function buildJeWorkbook(view: JeView): Promise<Buffer> {
     cover,
     T("Method", "Méthode"),
     T(
-      "The selection is directed by risk. A random sample of a fixed number of entries — twenty-five, for instance — is not appropriate for journal entry testing (IAM 321.03), and testing the entries identified by inquiry alone is not appropriate either. Every item on the Selection tab was returned by a stated criterion and carries the reason it was picked.",
-      "La sélection est orientée par le risque. Une sélection aléatoire d'un nombre fixe d'écritures — vingt-cinq, par exemple — n'est pas appropriée pour le test des écritures (IAM 321.03), et tester par le seul entretien les écritures identifiées ne l'est pas davantage. Chaque élément de l'onglet Sélection provient d'un critère énoncé et porte le motif de sa sélection.",
+      "The selection is directed by risk. A random sample of a fixed number of entries — twenty-five, for instance — is not appropriate for journal entry testing (ISA 240, section on journal entries), and testing the entries identified by inquiry alone is not appropriate either. Every item on the Selection tab was returned by a stated criterion and carries the reason it was picked.",
+      "La sélection est orientée par le risque. Une sélection aléatoire d'un nombre fixe d'écritures — vingt-cinq, par exemple — n'est pas appropriée pour le test des écritures (ISA 240, section sur les écritures), et tester par le seul entretien les écritures identifiées ne l'est pas davantage. Chaque élément de l'onglet Sélection provient d'un critère énoncé et porte le motif de sa sélection.",
     ),
     56,
   );

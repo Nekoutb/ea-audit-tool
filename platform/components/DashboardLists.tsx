@@ -1,3 +1,4 @@
+import { fmtDate as formatDate } from "@/lib/format-date";
 import Link from "next/link";
 import { Panel, PanelHeader } from "@/components/ui/atlas";
 import type { ActivityRow } from "@/lib/activity";
@@ -42,7 +43,7 @@ const STATUS: Record<PhaseTaskStatus, { en: string; fr: string; cls: string }> =
 function fmtDate(iso: string, fr: boolean): string {
   const d = new Date(iso + "T00:00:00Z");
   if (!Number.isFinite(d.getTime())) return iso;
-  return d.toLocaleDateString(fr ? "fr-FR" : "en-GB", { day: "2-digit", month: "short", year: "numeric", timeZone: "UTC" });
+  return formatDate(d);
 }
 
 function daysBetween(a: string, b: string): number {

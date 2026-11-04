@@ -172,7 +172,7 @@ describe("F045 — the papers read per edition", () => {
     const e31c = resolvePaper(RAW["E3.1"], "current");
     const e31r = resolvePaper(RAW["E3.1"], "revised_2026");
     // F032: the paper is anchored on ¶31–33 and cites the sub-paragraphs of ¶32
-    expect(e31c.std).toBe("ISA 240 ¶31–33 · ISA 240 ¶29(c) · ISA 315 (Revised 2019) ¶26 · IAM 321");
+    expect(e31c.std).toBe("ISA 240 ¶31–33 · ISA 240 ¶29(c) · ISA 315 (Revised 2019) ¶26");
     expect(e31r.std).toMatch(/^ISA 240 \(Revised\) ¶31–33/);
     expect(procs(e31c).find((p) => p.key === "estimates")!.en).toMatch(/because ISA 240 ¶32\(b\) treats it/);
     expect(procs(e31r).find((p) => p.key === "estimates")!.fr).toMatch(/l'ISA 240 révisée ¶32 b\)/);

@@ -8,6 +8,7 @@
 // The sheet area is deliberately a light "paper": it looks the same in dark
 // mode, exactly like the document it replicates.
 
+import { fmtDate } from "@/lib/format-date";
 import { useState } from "react";
 import { amountOr } from "@/lib/amount";
 import { uncorrectedMisstatementThreshold } from "@/lib/materiality-model";
@@ -171,7 +172,7 @@ export function SadWorkbook({
       <div className="flex flex-wrap items-baseline gap-x-4 gap-y-0.5 text-[11px] text-black">
         <b className="text-[12.5px]">{title}</b>
         <span><b>{fr ? "Entité :" : "Entity:"}</b> {view.entityName}</span>
-        <span><b>{fr ? "Clôture :" : "Period ended:"}</b> {view.periodEnd}</span>
+        <span><b>{fr ? "Clôture :" : "Period ended:"}</b> {fmtDate(view.periodEnd)}</span>
         <span><b>{fr ? "Devise :" : "Currency:"}</b> {view.currency ?? "XAF"}</span>
         <span><b>{fr ? "Seuil global :" : "Overall materiality:"}</b> <span className="tnum">{mat ? n(mat.overall) : "—"}</span></span>
         <span><b>{fr ? "Seuil de travail :" : "Performance materiality:"}</b> <span className="tnum">{mat ? n(mat.performance) : "—"}</span></span>

@@ -264,7 +264,7 @@ export function DesignProceduresBoard({
                   {fr
                     ? "procédures substantives primaires retenues — seules les procédures retenues sont générées dans le papier E4"
                     : "primary substantive procedures selected — only selected procedures are generated in the E4 paper"}
-                  {rowOsps.length > 0 ? (fr ? ` · ${rowOsps.length} OSP conçue(s)` : ` · ${rowOsps.length} custom procedure(s)`) : null}
+                  {rowOsps.length > 0 ? (fr ? ` · ${rowOsps.length} autre(s) procédure(s) conçue(s)` : ` · ${rowOsps.length} custom procedure(s)`) : null}
                   {" · "}
                   {row.generated > 0
                     ? fr ? `${row.done}/${row.generated} exécutées dans le papier` : `${row.done}/${row.generated} executed in the workpaper`
@@ -454,7 +454,7 @@ export function DesignProceduresBoard({
                 <div data-testid={`dsp-osp-list-${row.indexCode}`}>
                   <div className="flex items-center justify-between gap-2">
                     <p className={label}>
-                      {fr ? "Autres procédures substantives (OSP)" : "Other substantive procedures (OSPs)"}
+                      {fr ? "Autres procédures de substance" : "Other substantive procedures"}
                       {row.ospRequired ? <span className="ml-1.5 font-bold normal-case text-amber-700 dark:text-amber-400">{fr ? "— requises" : "— required"}</span> : null}
                     </p>
                     <button
@@ -493,7 +493,7 @@ export function DesignProceduresBoard({
                         <div key={osp.id} className="flex flex-col gap-1.5 rounded-[var(--radius-atlas-sm)] border border-line bg-surface-2 p-2" data-testid={`dsp-osp-${row.indexCode}-${osp.id}`}>
                           <div className="flex items-center justify-between gap-2">
                             <span className="text-[10.5px] font-extrabold uppercase tracking-[0.07em] text-muted">
-                              {fr ? `OSP ${i + 1}` : `OSP ${i + 1}`}
+                              {fr ? `Autre procédure ${i + 1}` : `Other procedure ${i + 1}`}
                             </span>
                             <button
                               type="button"

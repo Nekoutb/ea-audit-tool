@@ -5,7 +5,7 @@ import { auth } from "@/auth";
 import { AppNav } from "@/components/AppNav";
 import { Chip, Panel, PanelHeader } from "@/components/ui/atlas";
 import { visibleE4 } from "@/lib/design-procedures";
-import { engagementTasks, type PhaseTask, type PhaseTaskStatus } from "@/lib/engagement-dashboard";
+import { conditionalTriggerText, engagementTasks, type PhaseTask, type PhaseTaskStatus } from "@/lib/engagement-dashboard";
 import { getEngagement } from "@/lib/engagements";
 import { shortTitle } from "@/lib/file-index";
 import { getLocale } from "@/lib/locale";
@@ -197,6 +197,11 @@ export default async function PhasePage(props: {
             {locale === "fr"
               ? "Ces feuilles ne sont pas comptées dans la phase. Ouvrez-les lorsque les faits de la mission l’exigent."
               : "These papers are not counted in the phase. Open one when the facts of the engagement call for it."}
+            {key === "execution"
+              ? locale === "fr"
+                ? " Le groupe E3 a été fusionné dans le groupe E5 (E3.1 y figure sous son code d'origine)."
+                : " Group E3 was merged into group E5 (E3.1 sits there under its original code)."
+              : ""}
           </p>
           <ul className="mt-3 divide-y divide-line" data-testid="phase-optional">
             {optional.map((task) => (
@@ -214,6 +219,12 @@ export default async function PhasePage(props: {
                     <span className="block truncate font-mono text-[11px] text-muted">
                       {displayCode(task.code)} · {paperFor(task.code, engagement.standardsEdition, engagement.clientLegalForm).std}
                     </span>
+                    {conditionalTriggerText(task.code, locale) ? (
+                      <span className="block text-[11.5px] text-muted" data-testid={`phase-trigger-${task.code}`}>
+                        {locale === "fr" ? "Activée par : " : "Activated by: "}
+                        {conditionalTriggerText(task.code, locale)}
+                      </span>
+                    ) : null}
                   </span>
                   <Chip tone="muted">{locale === "fr" ? "Conditionnel" : "Conditional"}</Chip>
                   <span className="flex-shrink-0 text-muted" aria-hidden>›</span>

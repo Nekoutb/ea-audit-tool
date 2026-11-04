@@ -1,3 +1,5 @@
+import { fmtDateTime } from "@/lib/format-date";
+import { fmtDate } from "@/lib/format-date";
 import Link from "next/link";
 import { localizedTitle } from "@/lib/page-title";
 import { notFound, redirect } from "next/navigation";
@@ -45,8 +47,8 @@ export default async function LeadSchedulePage(props: { params: Promise<{ id: st
         </h1>
         {/* the printout identifies the file it belongs to (UAT B91) */}
         <p className="hidden basis-full text-[11px] print:block" data-testid="leadschedule-print-header">
-          {engagement.clientName} · {fr ? "Clôture" : "Period end"} {engagement.periodEnd} ·{" "}
-          {fr ? "Imprimé le" : "Printed"} {new Intl.DateTimeFormat(fr ? "fr-FR" : "en-GB", { timeZone: "Africa/Douala", dateStyle: "short", timeStyle: "short" }).format(new Date())}{" "}
+          {engagement.clientName} · {fr ? "Clôture" : "Period end"} {fmtDate(engagement.periodEnd)} ·{" "}
+          {fr ? "Imprimé le" : "Printed"} {fmtDateTime(new Date())}{" "}
           {fr ? "par" : "by"} {session.user.name ?? session.user.email ?? ""}
         </p>
         {schedules.length > 0 ? (

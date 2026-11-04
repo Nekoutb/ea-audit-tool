@@ -36,7 +36,7 @@ export async function listConfirmations(engagementId: string): Promise<Confirmat
       disposition: string | null;
     }>(
       `SELECT ic.id, ic.user_id, coalesce(u.name, u.email) AS user_name, ic.status,
-              to_char(ic.signed_at, 'YYYY-MM-DD HH24:MI') AS signed_at, ic.disposition
+              to_char(ic.signed_at AT TIME ZONE 'Africa/Douala', 'DD/MM/YYYY HH24:MI') || ' WAT' AS signed_at, ic.disposition
          FROM independence_confirmation ic
          JOIN independence_campaign c ON c.id = ic.campaign_id
          JOIN app_user u ON u.id = ic.user_id

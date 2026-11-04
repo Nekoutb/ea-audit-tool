@@ -376,7 +376,7 @@ export async function listItemDocuments(
   const { tenantId } = await requireTenant();
   return withTenant(tenantId, async (tx) => {
     const result = await tx.query<{ id: string; title: string; kind: string; current_version: number; created_at: string }>(
-      `SELECT d.id, d.title, d.kind, d.current_version, to_char(d.created_at, 'DD Mon YYYY') AS created_at
+      `SELECT d.id, d.title, d.kind, d.current_version, to_char(d.created_at AT TIME ZONE 'Africa/Douala', 'DD/MM/YYYY') AS created_at
          FROM document d
         WHERE d.file_item_id = $1 AND d.current_version > 0
           AND NOT (d.kind = 'workpaper' AND d.title NOT LIKE 'PBC — %')
@@ -401,7 +401,7 @@ export async function listVersions(documentId: string): Promise<VersionInfo[]> {
     }>(
       `SELECT v.version_no, v.byte_size, v.sha256, v.note,
               coalesce(u.name, u.email) AS created_by_name,
-              to_char(v.created_at AT TIME ZONE 'Africa/Douala', 'YYYY-MM-DD HH24:MI') || ' WAT' AS created_at
+              to_char(v.created_at AT TIME ZONE 'Africa/Douala', 'DD/MM/YYYY HH24:MI') || ' WAT' AS created_at
          FROM document_version v
          LEFT JOIN app_user u ON u.id = v.created_by
         WHERE v.document_id = $1
@@ -570,9 +570,9 @@ export async function listSignoffs(documentId: string): Promise<SignoffInfo[]> {
       invalidated_reason: string | null;
     }>(
       `SELECT s.id, s.role, s.version_no, s.user_id, coalesce(u.name, u.email) AS user_name,
-              to_char(s.signed_at AT TIME ZONE $2, 'YYYY-MM-DD HH24:MI') || ' ' || $3 AS signed_at,
-              to_char(s.voided_at AT TIME ZONE $2, 'YYYY-MM-DD HH24:MI') || ' ' || $3 AS voided_at, s.void_reason,
-              to_char(s.invalidated_at AT TIME ZONE $2, 'YYYY-MM-DD HH24:MI') || ' ' || $3 AS invalidated_at,
+              to_char(s.signed_at AT TIME ZONE $2, 'DD/MM/YYYY HH24:MI') || ' ' || $3 AS signed_at,
+              to_char(s.voided_at AT TIME ZONE $2, 'DD/MM/YYYY HH24:MI') || ' ' || $3 AS voided_at, s.void_reason,
+              to_char(s.invalidated_at AT TIME ZONE $2, 'DD/MM/YYYY HH24:MI') || ' ' || $3 AS invalidated_at,
               s.invalidated_reason
          FROM signoff s
          JOIN app_user u ON u.id = s.user_id
@@ -1073,7 +1073,7 @@ export async function listReviewNotes(documentId: string): Promise<ReviewNoteInf
       created_at: string;
     }>(
       `SELECT n.id, coalesce(u.name, u.email) AS author_name, n.body, n.response, n.status,
-              to_char(n.created_at AT TIME ZONE 'Africa/Douala', 'YYYY-MM-DD HH24:MI') || ' WAT' AS created_at
+              to_char(n.created_at AT TIME ZONE 'Africa/Douala', 'DD/MM/YYYY HH24:MI') || ' WAT' AS created_at
          FROM review_note n
          JOIN app_user u ON u.id = n.author_id
         WHERE n.document_id = $1

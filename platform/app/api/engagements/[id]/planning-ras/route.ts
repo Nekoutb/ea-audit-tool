@@ -1,3 +1,4 @@
+import { fmtDateTime } from "@/lib/format-date";
 import { NextResponse } from "next/server";
 import { saveFailed } from "@/lib/api-errors";
 import { auth } from "@/auth";
@@ -32,7 +33,7 @@ export async function POST(request: Request, context: { params: Promise<{ id: st
         ok: true,
         signature: {
           name: session?.user?.name ?? session?.user?.email ?? "—",
-          signedAt: new Date().toISOString().slice(0, 16).replace("T", " "),
+          signedAt: fmtDateTime(new Date()),
         },
       });
     }

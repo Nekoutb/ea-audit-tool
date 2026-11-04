@@ -1,3 +1,4 @@
+import { fmtDate } from "@/lib/format-date";
 import Link from "next/link";
 import { localizedTitle } from "@/lib/page-title";
 import { notFound, redirect } from "next/navigation";
@@ -121,12 +122,12 @@ export default async function ConclusionPage(props: {
           data-testid="archived-banner"
           className="mt-4 rounded-[var(--radius-atlas-sm)] border border-[var(--color-warn)]/40 bg-[var(--color-warn-soft)] px-4 py-3 text-sm text-warn"
         >
-          {tc.archived} — {state.archivedAt}
+          {tc.archived} — {fmtDate(state.archivedAt)}
           {state.retentionUntil ? (
             <>
               {" · "}
               {locale === "fr" ? "Conservation jusqu'au" : "Retain until"}{" "}
-              <span className="tnum" data-testid="retention-until">{state.retentionUntil}</span>
+              <span className="tnum" data-testid="retention-until">{fmtDate(state.retentionUntil)}</span>
             </>
           ) : null}
         </p>
@@ -372,7 +373,7 @@ export default async function ConclusionPage(props: {
         {state.reportDate ? (
           <div className="mt-3 text-sm text-ink-soft" data-testid="report-issued">
             <p>
-              {tc.issued}: <strong>{state.opinion}</strong> — <span className="tnum">{state.reportDate}</span>
+              {tc.issued}: <strong>{state.opinion}</strong> — <span className="tnum">{fmtDate(state.reportDate)}</span>
             </p>
             <p className="mt-1">
               {tc.assembly}: <strong data-testid="assembly-deadline" className="tnum">{assemblyDeadline(state.reportDate)}</strong>

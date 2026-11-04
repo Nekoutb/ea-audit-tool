@@ -1,5 +1,6 @@
 "use client";
 
+import { fmtDateTime } from "@/lib/format-date";
 import { useEffect, useRef, useState } from "react";
 import { Panel, PanelHeader } from "@/components/ui/atlas";
 import type { AttachmentRow } from "@/lib/attachments";
@@ -349,7 +350,7 @@ export function TaskAttachments({
     stopWatch(row.name);
     setRows((list) => list.filter((r) => r.name !== row.name));
     // it moves to the recoverable list, dated now
-    setDeleted((list) => [{ ...row, uploadedBy: fr ? "moi" : "me", uploadedAt: new Intl.DateTimeFormat("sv-SE", { timeZone: "Africa/Douala", dateStyle: "short", timeStyle: "short" }).format(new Date()) + " WAT" }, ...list.filter((r) => r.name !== row.name)]);
+    setDeleted((list) => [{ ...row, uploadedBy: fr ? "moi" : "me", uploadedAt: fmtDateTime(new Date()) }, ...list.filter((r) => r.name !== row.name)]);
   }
 
   /** Undo a delete inside the recovery window: the file returns to the task. */

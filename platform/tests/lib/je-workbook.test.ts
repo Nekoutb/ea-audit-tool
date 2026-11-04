@@ -192,7 +192,7 @@ describe("buildJeWorkbook", () => {
     const cover = textOf(wb, "Cover");
     expect(cover).toContain("The selection is directed by risk");
     expect(cover).toContain("is not appropriate for journal entry testing");
-    expect(cover).toContain("IAM 321.03");
+    expect(cover).toContain("ISA 240");
     // and the criteria tab refuses the other half of the same mistake
     expect(textOf(wb, "Criteria")).toContain("never because a number of items had to be reached");
   });

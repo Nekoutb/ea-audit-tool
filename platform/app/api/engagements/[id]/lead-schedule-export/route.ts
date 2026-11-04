@@ -1,3 +1,4 @@
+import { fmtDateTime } from "@/lib/format-date";
 import ExcelJS from "exceljs";
 import { NextResponse } from "next/server";
 import { apComments, apLeadSchedules } from "@/lib/analytical-procedures";
@@ -33,7 +34,7 @@ export async function GET(_request: Request, context: { params: Promise<{ id: st
     intro.addRow([fr ? "Mission" : "Engagement", engagement.name ?? engagement.clientName]);
     intro.addRow([fr ? "Client" : "Client", engagement.clientName]);
     intro.addRow([fr ? "Date de clôture" : "Period end", engagement.periodEnd]);
-    intro.addRow([fr ? "Généré le" : "Generated", new Date().toISOString().slice(0, 16).replace("T", " ")]);
+    intro.addRow([fr ? "Généré le" : "Generated", fmtDateTime(new Date())]);
     intro.addRow([]);
     intro.addRow([
       fr ? "Contenu" : "Contents",

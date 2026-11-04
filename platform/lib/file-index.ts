@@ -41,7 +41,7 @@ export const DEFAULT_FILE_INDEX: readonly FileIndexEntry[] = [
   { code: "C1.2", section: "B", titleEn: "Summary Review Memorandum", titleFr: "Mémorandum récapitulatif de revue" },
   { code: "C1.1", section: "B", titleEn: "Summary of Audit Differences", titleFr: "Récapitulatif des écarts d'audit" },
   { code: "C4.3", section: "B", titleEn: "Points Outstanding", titleFr: "Points en suspens" },
-  { code: "C2.2", section: "B", titleEn: "Subsequent Events Review (ISA 560)", titleFr: "Revue des événements postérieurs (ISA 560)" },
+  { code: "C2.2", section: "B", titleEn: "Subsequent events and going concern — completion (ISA 560 / ISA 570)", titleFr: "Événements postérieurs et continuité d'exploitation — achèvement (ISA 560 / ISA 570)" },
   { code: "C3.1", section: "B", titleEn: "Management Representation Letter(s) (ISA 580)", titleFr: "Lettre(s) d'affirmation de la direction (ISA 580)" },
   { code: "C6.1", section: "B", titleEn: "Archive Checklist — Gates and Open Items", titleFr: "Liste de contrôle d'archivage — portes et points ouverts" },
 
@@ -211,7 +211,7 @@ const SHORT_TITLES: Record<string, { en: string; fr: string }> = {
   "C1.2": { en: "Summary Review Memorandum", fr: "Mémorandum récapitulatif" },
   "C1.1": { en: "Summary of Audit Differences", fr: "Écarts d'audit" },
   "C4.3": { en: "Points Outstanding", fr: "Points en suspens" },
-  "C2.2": { en: "Subsequent Events (ISA 560)", fr: "Événements postérieurs (ISA 560)" },
+  "C2.2": { en: "Subsequent events, going concern", fr: "Événements postérieurs, continuité" },
   "C3.1": { en: "Management Rep. Letters (ISA 580)", fr: "Lettres d'affirmation (ISA 580)" },
   "C6.1": { en: "Archive Checklist", fr: "Liste d'archivage" },
   "C6.2": { en: "Documentation & Archive", fr: "Documentation & archivage" },

@@ -6,6 +6,8 @@ export const FIRM_TIME_ZONE = "Africa/Douala";
 export const FIRM_ZONE_LABEL = "WAT";
 
 const ISO_DATE = /^(\d{4})-(\d{2})-(\d{2})$/;
+// the database layer already formats timestamps this way; JS would read it as MM/DD
+const ALREADY_FORMATTED = /^\d{2}\/\d{2}\/\d{4}/;
 
 function pad(n: number): string {
   return String(n).padStart(2, "0");
@@ -17,6 +19,7 @@ export function fmtDate(value: string | Date | null | undefined, empty = "—"):
   if (typeof value === "string") {
     const bare = ISO_DATE.exec(value.trim());
     if (bare) return `${bare[3]}/${bare[2]}/${bare[1]}`;
+    if (ALREADY_FORMATTED.test(value)) return value;
   }
   const date = value instanceof Date ? value : new Date(value);
   if (Number.isNaN(date.getTime())) return typeof value === "string" ? value : empty;
@@ -27,6 +30,7 @@ export function fmtDate(value: string | Date | null | undefined, empty = "—"):
 /** An instant as "DD/MM/YYYY HH:mm WAT", always in the firm's time zone. */
 export function fmtDateTime(value: string | Date | null | undefined, empty = "—"): string {
   if (value === null || value === undefined || value === "") return empty;
+  if (typeof value === "string" && ALREADY_FORMATTED.test(value)) return value;
   const date = value instanceof Date ? value : new Date(value);
   if (Number.isNaN(date.getTime())) return typeof value === "string" ? value : empty;
   const f = new Intl.DateTimeFormat("en-GB", {

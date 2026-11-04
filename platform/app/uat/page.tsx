@@ -1,3 +1,4 @@
+import { fmtDateTime } from "@/lib/format-date";
 import { notFound, redirect } from "next/navigation";
 import { localizedTitle } from "@/lib/page-title";
 import { auth } from "@/auth";
@@ -275,7 +276,7 @@ export default async function UatPage(props: {
                         <span className="text-xs text-muted">
                           {fr ? "Dernière réponse " : "Last answered "}
                           {/* firm time, labelled — not the server's UTC (UAT B165) */}
-                          {new Date(result.updatedAt).toLocaleString(fr ? "fr-FR" : "en-GB", { timeZone: "Africa/Douala", timeZoneName: "short" })}
+                          {fmtDateTime(result.updatedAt)}
                         </span>
                       ) : null}
                     </div>

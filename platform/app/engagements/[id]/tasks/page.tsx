@@ -1,3 +1,4 @@
+import { fmtDate } from "@/lib/format-date";
 import { visibleE4 } from "@/lib/design-procedures";
 import { GROUP_BY_ID } from "@/lib/task-groups";
 import { notFound, redirect } from "next/navigation";
@@ -42,15 +43,6 @@ const LABELS = {
     due: "Échéance",
   },
 } as const;
-
-const MONTHS: Record<"en" | "fr", string[]> = {
-  en: ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"],
-  fr: ["janv.", "févr.", "mars", "avr.", "mai", "juin", "juil.", "août", "sept.", "oct.", "nov.", "déc."],
-};
-function fmtDate(iso: string, locale: "en" | "fr"): string {
-  const [y, m, d] = iso.split("-").map(Number);
-  return `${d} ${MONTHS[locale][m - 1]} ${y}`;
-}
 
 /** Status dot per work-queue row (reviewed → filled emerald, not started → grey ring). */
 const DOT_CLASS: Record<PhaseTaskStatus, string> = {
@@ -279,7 +271,7 @@ export default async function MyTasksPage(props: {
                     </span>
                   ) : null}
                   <span className="w-[120px] flex-shrink-0 text-right text-[12px] text-muted tnum">
-                    {task.dueDate ? `${L.due} ${fmtDate(task.dueDate, locale)}` : "—"}
+                    {task.dueDate ? `${L.due} ${fmtDate(task.dueDate)}` : "—"}
                   </span>
                   <span
                     title={t.dashboard.rowStatus[task.status]}

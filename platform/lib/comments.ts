@@ -120,7 +120,7 @@ export async function listComments(engagementId: string): Promise<CommentRow[]> 
     }>(
       `SELECT c.id, c.parent_id, c.user_id,
               (SELECT coalesce(name, email) FROM app_user WHERE id = c.user_id) AS author_name,
-              c.body, to_char(c.created_at, 'DD Mon YYYY HH24:MI') AS at
+              c.body, to_char(c.created_at AT TIME ZONE 'Africa/Douala', 'DD/MM/YYYY HH24:MI') || ' WAT' AS at
          FROM comment c
         WHERE c.engagement_id = $1
         ORDER BY c.created_at`,

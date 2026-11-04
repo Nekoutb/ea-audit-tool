@@ -1,3 +1,4 @@
+import { fmtDate } from "@/lib/format-date";
 import Link from "next/link";
 import { localizedTitle } from "@/lib/page-title";
 import { notFound, redirect } from "next/navigation";
@@ -157,7 +158,7 @@ export default async function EngagementDashboardPage(props: {
             <span className="px-2 text-line-strong">·</span>
             {t.engagements.fiscalYear} {engagement.fiscalYear}
             <span className="px-2 text-line-strong">·</span>
-            {t.engagements.periodEnd}: {engagement.periodEnd}
+            {t.engagements.periodEnd}: {fmtDate(engagement.periodEnd)}
             <span className="px-2 text-line-strong">·</span>
             <Link
               href={`/clients/${engagement.clientId}`}

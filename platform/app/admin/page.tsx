@@ -1,3 +1,4 @@
+import { fmtDate } from "@/lib/format-date";
 import { redirect } from "next/navigation";
 import { localizedTitle } from "@/lib/page-title";
 import { auth } from "@/auth";
@@ -224,7 +225,7 @@ export default async function AdminPage(props: { searchParams: Promise<{ error?:
                   <td className={`${td} tnum`}>{f.users}</td>
                   <td className={`${td} tnum`}>{f.clients}</td>
                   <td className={`${td} tnum`}>{f.engagements}</td>
-                  <td className={`${td} text-muted tnum`}>{f.createdAt}</td>
+                  <td className={`${td} text-muted tnum`}>{fmtDate(f.createdAt)}</td>
                   <td className={td}>
                     {f.protected ? (
                       <span className="text-[11px] font-semibold text-muted" data-testid={`protected-${f.slug}`}>
@@ -293,7 +294,7 @@ export default async function AdminPage(props: { searchParams: Promise<{ error?:
                     ) : null}
                   </td>
                   <td className={`${td} font-mono text-[11.5px] text-ink-soft`}>{a.email}</td>
-                  <td className={`${td} text-muted tnum`}>{a.createdAt}</td>
+                  <td className={`${td} text-muted tnum`}>{fmtDate(a.createdAt)}</td>
                   <td className={td}>
                     {a.self ? (
                       <span className="text-[11px] text-muted">—</span>

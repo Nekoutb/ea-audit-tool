@@ -149,7 +149,7 @@ export async function craBoard(engagementId: string): Promise<CraBoardView> {
     }>(
       `SELECT h.index_code, h.assertion, h.ir, h.ir_basis, h.cr, h.cr_basis, h.new_ir, h.new_cr, h.reason,
               (SELECT coalesce(u.name, u.email) FROM app_user u WHERE u.id = h.changed_by) AS by,
-              to_char(h.changed_at, 'YYYY-MM-DD HH24:MI') AS at
+              to_char(h.changed_at AT TIME ZONE 'Africa/Douala', 'DD/MM/YYYY HH24:MI') || ' WAT' AS at
          FROM cra_assessment_history h
         WHERE h.engagement_id = $1
         ORDER BY h.changed_at`,

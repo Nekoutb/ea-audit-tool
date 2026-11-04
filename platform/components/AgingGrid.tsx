@@ -4,6 +4,7 @@
 // other grid in the tool, collapsible, with a units switch that never moves a
 // column.
 
+import { fmtDate } from "@/lib/format-date";
 import { useState } from "react";
 import type { AgingResult } from "@/lib/aging";
 import { GRID_CELL, GRID_HEAD, GRID_NUM } from "@/components/ui/grid";
@@ -70,7 +71,7 @@ export function AgingGrid({
           {aging.rows.length} {fr ? "comptes" : "accounts"} · {aging.transactionCount} {fr ? "transactions" : "transactions"}
           {aging.undated > 0 ? ` · ${aging.undated} ${fr ? "sans date" : "undated"}` : ""}
           {" · "}
-          {fr ? "au" : "as at"} {aging.periodEnd}
+          {fr ? "au" : "as at"} {fmtDate(aging.periodEnd)}
         </span>
         <span className="ml-auto flex items-center gap-1.5">{unitBtn("fcfa", "FCFA")}{unitBtn("k", "'000")}{unitBtn("m", "Millions")}</span>
       </div>

@@ -376,7 +376,7 @@ export async function listDatasets(engagementId: string): Promise<DatasetSummary
       created_at: string;
     }>(
       `SELECT id, kind, timing, name, source_filename, row_count, total_amount::text,
-              amount_column, to_char(created_at, 'YYYY-MM-DD HH24:MI') AS created_at
+              amount_column, to_char(created_at AT TIME ZONE 'Africa/Douala', 'DD/MM/YYYY HH24:MI') || ' WAT' AS created_at
          FROM sub_ledger_dataset
         WHERE engagement_id = $1
         ORDER BY created_at DESC`,

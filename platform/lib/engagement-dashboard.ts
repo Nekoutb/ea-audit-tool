@@ -257,8 +257,8 @@ export async function phaseTasks(engagementId: string, phase: DashboardPhase): P
               ${assignee.name} AS assignee_name,
               fi.approver_user_id,
               (SELECT coalesce(name, email) FROM app_user WHERE id = fi.approver_user_id) AS approver_name,
-              ps.signer AS preparer_name, ps.signer_id AS preparer_user_id, to_char(ps.signed_at, 'DD Mon YYYY') AS preparer_at,
-              rs.signer AS reviewer_name, to_char(rs.signed_at, 'DD Mon YYYY') AS reviewer_at,
+              ps.signer AS preparer_name, ps.signer_id AS preparer_user_id, to_char(ps.signed_at AT TIME ZONE 'Africa/Douala', 'DD/MM/YYYY') AS preparer_at,
+              rs.signer AS reviewer_name, to_char(rs.signed_at AT TIME ZONE 'Africa/Douala', 'DD/MM/YYYY') AS reviewer_at,
               ${HAS_WORK} AS has_work,
               nullif(btrim(coalesce(fi.na_reason, '')), '') AS na_reason
          FROM file_item fi
@@ -585,6 +585,27 @@ export const CONDITIONAL_TRIGGERS: Record<string, string> = {
   "S5.3": "has_internal_audit",
 };
 
+/** What activates a conditional task, stated exactly (F031). */
+const TRIGGER_TEXT: Record<string, { en: string; fr: string }> = {
+  "P1.2": { en: "First-year audit (nature-of-entity screen)", fr: "Première année d'audit (écran de nature de l'entité)" },
+  "P4.2": { en: "S6.1: assess the control environment = Yes", fr: "S6.1 : évaluer l'environnement de contrôle = Oui" },
+  "P4.3": { en: "S6.1: assess the IT environment = Yes", fr: "S6.1 : évaluer l'environnement informatique = Oui" },
+  "S5.1": { en: "S6.1: use of an expert = Yes", fr: "S6.1 : recours à un expert = Oui" },
+  "S5.2": { en: "S6.1: service organisation = Yes", fr: "S6.1 : société de services = Oui" },
+  "S5.3": { en: "S6.1: internal audit function = Yes", fr: "S6.1 : fonction d'audit interne = Oui" },
+};
+const RETIRED_P_AND_L = /^E5\.[1-5]$/;
+
+/** The reason a conditional task is not counted, or null when none is known. */
+export function conditionalTriggerText(code: string, locale: "en" | "fr"): string | null {
+  const text = TRIGGER_TEXT[code];
+  if (text) return text[locale];
+  if (RETIRED_P_AND_L.test(code)) {
+    return locale === "fr" ? "Charges et produits traités dans les indices E4" : "Income statement accounts are covered by the E4 indexes";
+  }
+  return null;
+}
+
 /**
  * The tasks in scope: every non-conditional task, plus the conditional ones
  * whose S6.1 trigger is answered yes or which already hold a working paper
@@ -649,8 +670,8 @@ async function loadTasks(engagementId: string, scope: TaskScope): Promise<PhaseT
               ${assignee.name} AS assignee_name,
               fi.approver_user_id,
               (SELECT coalesce(name, email) FROM app_user WHERE id = fi.approver_user_id) AS approver_name,
-              ps.signer AS preparer_name, ps.signer_id AS preparer_user_id, to_char(ps.signed_at, 'DD Mon YYYY') AS preparer_at,
-              rs.signer AS reviewer_name, to_char(rs.signed_at, 'DD Mon YYYY') AS reviewer_at,
+              ps.signer AS preparer_name, ps.signer_id AS preparer_user_id, to_char(ps.signed_at AT TIME ZONE 'Africa/Douala', 'DD/MM/YYYY') AS preparer_at,
+              rs.signer AS reviewer_name, to_char(rs.signed_at AT TIME ZONE 'Africa/Douala', 'DD/MM/YYYY') AS reviewer_at,
               ${HAS_WORK} AS has_work,
               nullif(btrim(coalesce(fi.na_reason, '')), '') AS na_reason
          FROM file_item fi
@@ -821,8 +842,8 @@ export async function taskForItem(engagementId: string, code: string): Promise<P
               ${assignee.name} AS assignee_name,
               fi.approver_user_id,
               (SELECT coalesce(name, email) FROM app_user WHERE id = fi.approver_user_id) AS approver_name,
-              ps.signer AS preparer_name, ps.signer_id AS preparer_user_id, to_char(ps.signed_at, 'DD Mon YYYY') AS preparer_at,
-              rs.signer AS reviewer_name, to_char(rs.signed_at, 'DD Mon YYYY') AS reviewer_at,
+              ps.signer AS preparer_name, ps.signer_id AS preparer_user_id, to_char(ps.signed_at AT TIME ZONE 'Africa/Douala', 'DD/MM/YYYY') AS preparer_at,
+              rs.signer AS reviewer_name, to_char(rs.signed_at AT TIME ZONE 'Africa/Douala', 'DD/MM/YYYY') AS reviewer_at,
               ${HAS_WORK} AS has_work,
               nullif(btrim(coalesce(fi.na_reason, '')), '') AS na_reason
          FROM file_item fi

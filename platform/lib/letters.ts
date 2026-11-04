@@ -2,6 +2,7 @@
 // mandate wording, co-CAC variant) and the ISA 260/265 letters filed on C5.11.
 // Letters are stored as documents (kind='letter') under the relevant file item.
 
+import { fmtDate } from "@/lib/format-date";
 import { Document, HeadingLevel, Packer, Paragraph, TextRun } from "docx";
 import { recordActivity } from "@/lib/activity";
 import { type Branding, letterheadFooter, letterheadParagraphs, loadBranding } from "@/lib/branding";
@@ -147,14 +148,14 @@ async function buildLetter(
     children.push(
       p(
         fr
-          ? `Exercice ${f.fiscalYear} — clôture au ${f.periodEnd} — référentiel comptable applicable : ${framework}.`
-          : `Fiscal year ${f.fiscalYear} — period end ${f.periodEnd} — applicable financial reporting framework: ${framework}.`,
+          ? `Exercice ${f.fiscalYear} — clôture au ${fmtDate(f.periodEnd)} — référentiel comptable applicable : ${framework}.`
+          : `Fiscal year ${f.fiscalYear} — period end ${fmtDate(f.periodEnd)} — applicable financial reporting framework: ${framework}.`,
       ),
       p(fr ? "Objectif et étendue de l'audit" : "Objective and scope of the audit", true),
       p(
         fr
-          ? `Notre mission a pour objectif d'exprimer une opinion sur les états financiers de l'exercice clos le ${f.periodEnd}, établis conformément au référentiel ${framework}. Nous effectuerons l'audit selon les Normes internationales d'audit (ISA) et les obligations du commissaire aux comptes prévues par l'AUSCGIE. Ces normes requièrent que nous nous conformions aux règles d'éthique, planifiions et réalisions l'audit afin d'obtenir une assurance raisonnable que les états financiers ne comportent pas d'anomalies significatives. En raison des limites inhérentes à l'audit et au contrôle interne, le risque qu'une anomalie significative ne soit pas détectée ne peut être éliminé (ISA 210 ¶10(a)).`
-          : `The objective of our engagement is to express an opinion on the financial statements for the year ended ${f.periodEnd}, prepared in accordance with ${framework}. We will conduct the audit in accordance with International Standards on Auditing (ISA) and the statutory-auditor obligations of the AUSCGIE. Those standards require that we comply with ethical requirements and plan and perform the audit to obtain reasonable assurance that the financial statements are free from material misstatement. Because of the inherent limitations of an audit and of internal control, an unavoidable risk remains that some material misstatements are not detected (ISA 210 ¶10(a)).`,
+          ? `Notre mission a pour objectif d'exprimer une opinion sur les états financiers de l'exercice clos le ${fmtDate(f.periodEnd)}, établis conformément au référentiel ${framework}. Nous effectuerons l'audit selon les Normes internationales d'audit (ISA) et les obligations du commissaire aux comptes prévues par l'AUSCGIE. Ces normes requièrent que nous nous conformions aux règles d'éthique, planifiions et réalisions l'audit afin d'obtenir une assurance raisonnable que les états financiers ne comportent pas d'anomalies significatives. En raison des limites inhérentes à l'audit et au contrôle interne, le risque qu'une anomalie significative ne soit pas détectée ne peut être éliminé (ISA 210 ¶10(a)).`
+          : `The objective of our engagement is to express an opinion on the financial statements for the year ended ${fmtDate(f.periodEnd)}, prepared in accordance with ${framework}. We will conduct the audit in accordance with International Standards on Auditing (ISA) and the statutory-auditor obligations of the AUSCGIE. Those standards require that we comply with ethical requirements and plan and perform the audit to obtain reasonable assurance that the financial statements are free from material misstatement. Because of the inherent limitations of an audit and of internal control, an unavoidable risk remains that some material misstatements are not detected (ISA 210 ¶10(a)).`,
       ),
       p(fr ? "Responsabilités de l'auditeur" : "The auditor's responsibilities", true),
       p(
@@ -215,7 +216,7 @@ async function buildLetter(
           ),
         ],
       }),
-      p(`${f.clientName} — ${fr ? "exercice clos le" : "year ended"} ${f.periodEnd}`),
+      p(`${f.clientName} — ${fr ? "exercice clos le" : "year ended"} ${fmtDate(f.periodEnd)}`),
     );
     // ISA 260 ¶15-17: scope and timing, significant risks, materiality, the
     // team and independence, drawn from the file (UAT run 2 B56).
@@ -225,8 +226,8 @@ async function buildLetter(
       p(fr ? "Étendue et calendrier prévus de l'audit (ISA 260 ¶15)" : "Planned scope and timing of the audit (ISA 260 ¶15)", true),
       p(
         fr
-          ? `Nous effectuons l'audit des états financiers de l'exercice clos le ${f.periodEnd}, établis selon le référentiel ${frameworkLabel(f.framework)}, conformément aux Normes internationales d'audit (ISA) et aux dispositions de l'AUSCGIE. L'approche est fondée sur l'évaluation des risques d'anomalies significatives.`
-          : `We audit the financial statements for the year ended ${f.periodEnd}, prepared under ${frameworkLabel(f.framework)}, in accordance with International Standards on Auditing (ISA) and the AUSCGIE. The approach is based on the assessment of the risks of material misstatement.`,
+          ? `Nous effectuons l'audit des états financiers de l'exercice clos le ${fmtDate(f.periodEnd)}, établis selon le référentiel ${frameworkLabel(f.framework)}, conformément aux Normes internationales d'audit (ISA) et aux dispositions de l'AUSCGIE. L'approche est fondée sur l'évaluation des risques d'anomalies significatives.`
+          : `We audit the financial statements for the year ended ${fmtDate(f.periodEnd)}, prepared under ${frameworkLabel(f.framework)}, in accordance with International Standards on Auditing (ISA) and the AUSCGIE. The approach is based on the assessment of the risks of material misstatement.`,
       ),
     );
     if (pl?.scope) children.push(p(endSentence(pl.scope)));
@@ -265,7 +266,7 @@ async function buildLetter(
         heading: HeadingLevel.TITLE,
         children: [new TextRun(fr ? "Lettre d'affirmation (avant arrêté des comptes)" : "Affirmation letter (before the board's arrêté)")],
       }),
-      p(`${f.clientName} — ${f.fiscalYear} (${f.periodEnd})`),
+      p(`${f.clientName} — ${f.fiscalYear} (${fmtDate(f.periodEnd)})`),
       // ISA 580 ¶10–11: the responsibility acknowledgements, never qualified by
       // knowledge and belief.
       p(fr ? "Responsabilités de la direction (ISA 580 ¶10–11)" : "Management's responsibilities (ISA 580 ¶10–11)", true),
@@ -322,7 +323,7 @@ async function buildLetter(
         heading: HeadingLevel.TITLE,
         children: [new TextRun(fr ? "Lettre d'affirmation complémentaire (après arrêté des comptes)" : "Complementary representation letter (after the board's arrêté)")],
       }),
-      p(`${f.clientName} — ${f.fiscalYear} (${f.periodEnd})`),
+      p(`${f.clientName} — ${f.fiscalYear} (${fmtDate(f.periodEnd)})`),
       p(
         fr
           ? "À la suite de l'arrêté des comptes par le conseil, nous confirmons que les déclarations de la lettre d'affirmation initiale demeurent valables et qu'aucun événement postérieur significatif n'est intervenu depuis, autre que ceux portés à votre connaissance."
@@ -346,7 +347,7 @@ async function buildLetter(
           ),
         ],
       }),
-      p(`${f.clientName} — ${f.fiscalYear} (${f.periodEnd})`),
+      p(`${f.clientName} — ${f.fiscalYear} (${fmtDate(f.periodEnd)})`),
       p(fr ? "Constats significatifs (ISA 260 ¶16, C1.2)" : "Significant findings from the audit (ISA 260 ¶16, C1.2)", true),
       ...((f.significantMatters ?? []).length > 0
         ? (f.significantMatters ?? []).map((m) => p(`• ${m}`))

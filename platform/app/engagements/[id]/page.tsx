@@ -1,3 +1,4 @@
+import { fmtDate } from "@/lib/format-date";
 import Link from "next/link";
 import { localizedTitle } from "@/lib/page-title";
 import { notFound, redirect } from "next/navigation";
@@ -35,7 +36,7 @@ export default async function EngagementFilePage(props: { params: Promise<{ id: 
         </h1>
         <span className="text-sm text-muted tnum">
           {t.engagements.phase}: {t.engagements.stages[engagement.phase]} ·{" "}
-          {t.engagements.periodEnd}: {engagement.periodEnd}
+          {t.engagements.periodEnd}: {fmtDate(engagement.periodEnd)}
         </span>
       </div>
 
@@ -67,7 +68,7 @@ export default async function EngagementFilePage(props: { params: Promise<{ id: 
         <Panel className="p-3">
           <p className="text-[10.5px] font-bold uppercase tracking-[0.07em] text-muted">{td.deadlines}</p>
           <p className="mt-1.5 text-xs text-ink-soft tnum">
-            {dash.nextDeadlines.map((deadline) => `${deadline.key} ${deadline.dueDate}`).join(" · ") || "—"}
+            {dash.nextDeadlines.map((deadline) => `${deadline.key} ${fmtDate(deadline.dueDate)}`).join(" · ") || "—"}
           </p>
           <a
             href={`/api/engagements/${id}/export`}

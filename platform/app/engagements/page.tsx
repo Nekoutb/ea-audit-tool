@@ -1,3 +1,4 @@
+import { fmtDate } from "@/lib/format-date";
 import Link from "next/link";
 import { localizedTitle } from "@/lib/page-title";
 import { redirect } from "next/navigation";
@@ -69,7 +70,7 @@ export default async function EngagementsPage(props: {
       ? {
           // the retention date is part of an archived file's identity (ISA 230 ¶15)
           label: e.retentionUntil
-            ? `${te.status.archived} · ${locale === "fr" ? "conservation jusqu'au" : "retain until"} ${e.retentionUntil}`
+            ? `${te.status.archived} · ${locale === "fr" ? "conservation jusqu'au" : "retain until"} ${fmtDate(e.retentionUntil)}`
             : te.status.archived,
           tone: "muted" as const,
         }

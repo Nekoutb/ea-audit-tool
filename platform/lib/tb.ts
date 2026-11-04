@@ -491,7 +491,7 @@ export async function listTbVersions(engagementId: string): Promise<TbVersionSum
     }>(
       `SELECT v.id, v.version_no, v.version_kind, v.validation_status, v.row_count,
               v.total_debit::text, v.total_credit::text, tb.current_version_no,
-              to_char(v.created_at, 'YYYY-MM-DD HH24:MI') AS created_at, v.validation_summary,
+              to_char(v.created_at AT TIME ZONE 'Africa/Douala', 'DD/MM/YYYY HH24:MI') || ' WAT' AS created_at, v.validation_summary,
               v.timing, v.source_filename, (v.superseded_at IS NOT NULL) AS superseded
          FROM trial_balance_version v
          JOIN trial_balance tb ON tb.id = v.trial_balance_id
@@ -539,7 +539,7 @@ export async function listTbTimings(engagementId: string): Promise<TbTimingSlot[
       validation_summary: TbValidationSummary | Record<string, never>;
     }>(
       `SELECT v.timing, v.source_filename, v.row_count, v.validation_status,
-              to_char(v.created_at, 'YYYY-MM-DD HH24:MI') AS created_at, v.validation_summary
+              to_char(v.created_at AT TIME ZONE 'Africa/Douala', 'DD/MM/YYYY HH24:MI') || ' WAT' AS created_at, v.validation_summary
          FROM trial_balance_version v
          JOIN trial_balance tb ON tb.id = v.trial_balance_id
         WHERE tb.engagement_id = $1 AND v.superseded_at IS NULL

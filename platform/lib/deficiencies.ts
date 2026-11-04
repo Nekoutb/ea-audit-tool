@@ -106,7 +106,7 @@ export async function listDeficiencies(engagementId: string): Promise<Deficiency
               d.related_finding_ids, d.aggregation_note, d.grade,
               to_char(d.communicated_on, 'YYYY-MM-DD') AS communicated_on, d.recipient,
               (SELECT coalesce(u.name, u.email) FROM app_user u WHERE u.id = d.updated_by) AS updated_by_name,
-              to_char(d.updated_at, 'YYYY-MM-DD HH24:MI') AS updated_at
+              to_char(d.updated_at AT TIME ZONE 'Africa/Douala', 'DD/MM/YYYY HH24:MI') || ' WAT' AS updated_at
          FROM finding f
          LEFT JOIN file_item fi ON fi.id = f.file_item_id
          LEFT JOIN deficiency_evaluation d ON d.finding_id = f.id

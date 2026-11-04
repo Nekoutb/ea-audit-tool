@@ -201,7 +201,7 @@ const SELECT_PROCEDURE = `
          p.performance_materiality::text, p.actual_value::text, p.actual_source,
          p.investigation, p.corroboration, p.conclusion,
          (SELECT coalesce(u.name, u.email) FROM app_user u WHERE u.id = p.updated_by) AS updated_by_name,
-         to_char(p.updated_at, 'YYYY-MM-DD HH24:MI') AS updated_at
+         to_char(p.updated_at AT TIME ZONE 'Africa/Douala', 'DD/MM/YYYY HH24:MI') || ' WAT' AS updated_at
     FROM substantive_analytical_procedure p`;
 
 /** Every lead index of the file with its procedures — the tool's screen. */

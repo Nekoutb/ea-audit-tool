@@ -1,3 +1,4 @@
+import { fmtDate } from "@/lib/format-date";
 import { notFound, redirect } from "next/navigation";
 import { localizedTitle } from "@/lib/page-title";
 import { auth } from "@/auth";
@@ -130,7 +131,7 @@ export default async function LegalPage(props: {
           <button type="submit" className={btn} data-testid="save-legal-dates">
             {tl.saveDates}
           </button>
-          <span className="text-xs text-muted">{tl.periodEndLabel}: {dates.periodEnd}</span>
+          <span className="text-xs text-muted">{tl.periodEndLabel}: {fmtDate(dates.periodEnd)}</span>
         </form>
         {deadlines.length > 0 || pendingKeys.length > 0 ? (
           <div className="mt-3 overflow-x-auto rounded-[var(--radius-atlas)] border border-line">
@@ -148,7 +149,7 @@ export default async function LegalPage(props: {
                 {deadlines.map((deadline) => (
                   <tr key={deadline.key} className="border-t border-line first:border-t-0 hover:bg-surface-2">
                     <td className="px-3 py-2 text-ink">{deadlineName(deadline.key)}</td>
-                    <td className="w-28 px-3 py-2 font-mono text-xs tnum">{deadline.dueDate}</td>
+                    <td className="w-28 px-3 py-2 font-mono text-xs tnum">{fmtDate(deadline.dueDate)}</td>
                     <td className="w-28 px-3 py-2 text-xs">
                       {deadline.done ? (
                         "✓"

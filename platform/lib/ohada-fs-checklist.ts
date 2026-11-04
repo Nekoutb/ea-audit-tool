@@ -9,9 +9,9 @@
 // here. Where the Act prescribes a table, the row says so, because a note that
 // carries the right figures in the wrong shape is still a presentation finding.
 //
-// The handbook is explicit that the review of the notes must be formalised in a
-// disclosure checklist [questionnaire de contrôle de l'annexe] rather than left
-// to a reading; this is that checklist for OHADA reporters.
+// The review of the notes is formalised in a disclosure checklist [questionnaire
+// de contrôle de l'annexe] rather than left to a reading; this is that checklist
+// for OHADA reporters (E6.10.1).
 
 export interface FsChecklistRow {
   /** stable reference shown on the paper, e.g. "N-12.3" */

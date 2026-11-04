@@ -1,3 +1,4 @@
+import { fmtDate } from "@/lib/format-date";
 import { notFound, redirect } from "next/navigation";
 import { localizedTitle } from "@/lib/page-title";
 import { auth } from "@/auth";
@@ -90,7 +91,7 @@ export default async function PbcPage(props: {
                     <td className="w-28 px-3 py-2 text-xs text-ink-soft" data-testid={`pbc-status-${item.title}`}>
                       {t.portal.statuses[item.status]}
                     </td>
-                    <td className="px-3 py-2 text-xs text-muted tnum">{item.createdAt}</td>
+                    <td className="px-3 py-2 text-xs text-muted tnum">{fmtDate(item.createdAt)}</td>
                     <td className="px-3 py-2 text-xs text-muted tnum">{item.uploadedAt ?? "—"}</td>
                     <td className="px-3 py-2 text-xs tnum" data-testid={`pbc-age-${item.title}`}>
                       {item.status === "requested" ? (

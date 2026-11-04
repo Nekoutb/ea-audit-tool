@@ -1,5 +1,6 @@
 "use client";
 
+import { fmtDate } from "@/lib/format-date";
 import { useRouter } from "next/navigation";
 import type { KeyboardEvent, MouseEvent } from "react";
 import { rollforwardFromRegisterAction } from "@/app/actions/conclusion";
@@ -106,7 +107,7 @@ export function RegisterRow({ row }: { row: RegisterRowData }) {
           {row.status.label}
         </span>
       </td>
-      <td className="border-t border-line px-4 py-3.5 text-[12px] text-muted tnum">{row.lastActivity}</td>
+      <td className="border-t border-line px-4 py-3.5 text-[12px] text-muted tnum">{fmtDate(row.lastActivity)}</td>
       <td className="border-t border-line px-4 py-3.5 text-right">
         {row.rollForward ? (
           <form action={rollforwardFromRegisterAction} onClick={stop} className="inline-block">

@@ -325,7 +325,7 @@ export async function listActivity(engagementId: string, limit = 200): Promise<A
               -- to the second and with its zone: two entries a few seconds
               -- apart must read as such, and a reader must know which clock
               -- (UAT B156)
-              to_char(a.created_at AT TIME ZONE 'UTC', 'YYYY-MM-DD HH24:MI:SS') || ' UTC' AS at
+              to_char(a.created_at AT TIME ZONE 'Africa/Douala', 'DD/MM/YYYY HH24:MI:SS') || ' WAT' AS at
          FROM activity_log a
         WHERE a.engagement_id = $1
         ORDER BY a.created_at DESC
