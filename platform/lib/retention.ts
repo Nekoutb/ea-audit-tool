@@ -1,6 +1,7 @@
 import { pool, withTenant } from "@/lib/db";
 import { recordActivity } from "@/lib/activity";
 import { ForbiddenError, requireRole, requireTenant } from "@/lib/tenant";
+import { requireEngagementRead, requireEngagementWrite } from "@/lib/engagement-access";
 
 /**
  * How long a closed audit file is kept, and how to stop it going anywhere while
@@ -149,6 +150,7 @@ export async function activeHold(engagementId: string): Promise<LegalHold | null
 
 /** Every hold ever placed, newest first — released ones are history, not noise. */
 export async function listHolds(engagementId: string): Promise<LegalHold[]> {
+  await requireEngagementRead(engagementId);
   const { tenantId } = await requireTenant();
   return withTenant(tenantId, async (tx) => {
     const rows = await tx.query<{
@@ -189,6 +191,7 @@ export async function listHolds(engagementId: string): Promise<LegalHold[]> {
  * late. Placing one wrongly costs nothing but disk.
  */
 export async function placeLegalHold(engagementId: string, reason: string): Promise<string> {
+  await requireEngagementWrite(engagementId);
   const { tenantId, userId } = await requireRole("manager");
   const text = reason.trim();
   if (!text) throw new RetentionError("reason-required");
@@ -225,6 +228,7 @@ export async function placeLegalHold(engagementId: string, reason: string): Prom
  * platform's super-admin flag.
  */
 export async function releaseLegalHold(engagementId: string, reason: string): Promise<void> {
+  await requireEngagementWrite(engagementId);
   const { tenantId, userId } = await requireRole("partner");
   const text = reason.trim();
   if (!text) throw new RetentionError("reason-required");

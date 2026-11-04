@@ -15,6 +15,7 @@ import { belowMinimumCode, effectiveRuleTx, partnerTierRefusalTx, teamRank } fro
 import { requireTenant, requireWrite } from "@/lib/tenant";
 import { invalidateStaleSignoffs, reportInvalidatedSignoffs, voidStaleSignoffsOfItem } from "@/lib/working-papers";
 import { logMisstatementChange } from "@/lib/activity";
+import { requireChildRead, requireChildWrite, requireEngagementRead, requireEngagementWrite } from "@/lib/engagement-access";
 
 /**
  * A step's status and conclusion are part of what its task's sign-offs attest
@@ -59,6 +60,8 @@ export async function completeStep(
   conclusion: string,
   engagementId?: string,
 ): Promise<void> {
+  await requireChildWrite("program_step", stepId);
+  if (engagementId) await requireEngagementWrite(engagementId);
   const { tenantId, userId } = await requireWrite();
   if (!conclusion.trim()) throw new ExecutionError("conclusion-required");
   await withTenant(tenantId, async (tx) => {
@@ -85,6 +88,8 @@ export async function completeStep(
  * are cleared, so a completed step can never show a stale attribution.
  */
 export async function uncompleteStep(stepId: string, engagementId?: string): Promise<void> {
+  await requireChildWrite("program_step", stepId);
+  if (engagementId) await requireEngagementWrite(engagementId);
   const { tenantId } = await requireWrite();
   await withTenant(tenantId, async (tx) => {
     const updated = await tx.query(
@@ -100,6 +105,7 @@ export async function uncompleteStep(stepId: string, engagementId?: string): Pro
 }
 
 export async function markStepNa(stepId: string, rationale: string): Promise<void> {
+  await requireChildWrite("program_step", stepId);
   const { tenantId, userId } = await requireWrite();
   if (!rationale.trim()) throw new ExecutionError("rationale-required");
   await withTenant(tenantId, async (tx) => {
@@ -126,6 +132,7 @@ export async function addEvidenceFile(
   mime: string,
   content: Buffer,
 ): Promise<void> {
+  await requireChildWrite("program_step", stepId);
   const { tenantId, userId } = await requireWrite();
   await withTenant(tenantId, async (tx) => {
     const step = await tx.query<{ engagement_id: string }>(
@@ -147,6 +154,9 @@ export async function linkEvidence(
   targetId: string,
   title: string,
 ): Promise<void> {
+  // Both ends: the evidence must not write to, or point at, a file the user is not on.
+  await requireChildWrite("program_step", stepId);
+  await requireChildWrite(kind === "dataset" ? "sub_ledger_dataset" : "document", targetId);
   const { tenantId, userId } = await requireWrite();
   await withTenant(tenantId, async (tx) => {
     const step = await tx.query<{ engagement_id: string }>(
@@ -172,6 +182,7 @@ export async function linkEvidence(
 }
 
 export async function listEvidence(stepId: string): Promise<EvidenceInfo[]> {
+  await requireChildRead("program_step", stepId);
   const { tenantId } = await requireTenant();
   return withTenant(tenantId, async (tx) => {
     const result = await tx.query<EvidenceInfo>(
@@ -215,6 +226,9 @@ export interface RouteResult {
 }
 
 export async function routeFinding(input: RouteFindingInput): Promise<RouteResult> {
+  await requireEngagementWrite(input.engagementId);
+  if (input.fileItemId) await requireChildWrite("file_item", input.fileItemId);
+  if (input.programStepId) await requireChildWrite("program_step", input.programStepId);
   const { tenantId, userId } = await requireWrite();
   if (!input.title.trim()) throw new ExecutionError("title-required");
 
@@ -294,6 +308,7 @@ export async function routeFinding(input: RouteFindingInput): Promise<RouteResul
 
 /** Partner re-approval of a mid-audit risk addition (spec §8.4). */
 export async function approveRiskAddition(riskId: string): Promise<void> {
+  await requireChildWrite("risk", riskId);
   const { tenantId, userId, role } = await requireWrite();
   if (!canPartnerSignoff(role)) throw new ExecutionError("forbidden");
   await withTenant(tenantId, async (tx) => {
@@ -330,6 +345,7 @@ export interface B5Evaluation {
 }
 
 export async function evaluateB5(engagementId: string): Promise<B5Evaluation> {
+  await requireEngagementRead(engagementId);
   const { tenantId } = await requireTenant();
   return withTenant(tenantId, async (tx) => {
     const rows = await tx.query<{
@@ -394,6 +410,7 @@ export async function evaluateB5(engagementId: string): Promise<B5Evaluation> {
 }
 
 export async function setMisstatementCorrected(id: string, corrected: boolean): Promise<void> {
+  await requireChildWrite("misstatement", id);
   const { tenantId } = await requireWrite();
   const engagementId = await withTenant(tenantId, async (tx) => {
     const row = await tx.query<{ engagement_id: string; corrected: boolean }>(
@@ -424,6 +441,9 @@ export async function recordControlTest(input: {
   /** links the test to a SCOT Studio control — its operating conclusion derives from these rows */
   scotControlId?: string;
 }): Promise<void> {
+  await requireEngagementWrite(input.engagementId);
+  if (input.fileItemId) await requireChildWrite("file_item", input.fileItemId);
+  if (input.scotControlId) await requireChildWrite("scot_control", input.scotControlId);
   const { tenantId, userId } = await requireWrite();
   if (!input.description.trim()) throw new ExecutionError("description-required");
   if (input.result === "deviation" && !input.deviationDecision) {
@@ -480,6 +500,7 @@ export async function recordControlTest(input: {
 export async function listControlTests(fileItemId: string): Promise<
   { id: string; description: string; result: string; deviationDecision: string | null }[]
 > {
+  await requireChildRead("file_item", fileItemId);
   const { tenantId } = await requireTenant();
   return withTenant(tenantId, async (tx) => {
     const result = await tx.query<{
@@ -515,6 +536,7 @@ export interface FindingInfo {
 }
 
 export async function listFindings(engagementId: string): Promise<FindingInfo[]> {
+  await requireEngagementRead(engagementId);
   const { tenantId } = await requireTenant();
   return withTenant(tenantId, async (tx) => {
     const result = await tx.query<{
@@ -550,6 +572,7 @@ export async function listFindings(engagementId: string): Promise<FindingInfo[]>
 }
 
 export async function clearFinding(id: string, response: string): Promise<void> {
+  await requireChildWrite("finding", id);
   const { tenantId, userId } = await requireWrite();
   if (!response.trim()) throw new ExecutionError("response-required");
   await withTenant(tenantId, async (tx) => {
@@ -575,6 +598,7 @@ export interface SectionConclusionInfo {
 }
 
 export async function getSectionConclusion(fileItemId: string): Promise<SectionConclusionInfo | null> {
+  await requireChildRead("file_item", fileItemId);
   const { tenantId } = await requireTenant();
   return withTenant(tenantId, async (tx) => {
     const result = await tx.query<{
@@ -654,6 +678,7 @@ export async function saveSectionConclusion(
   objectivesAchieved: boolean,
   noProceduresRationale?: string,
 ): Promise<void> {
+  await requireChildWrite("file_item", fileItemId);
   const { tenantId, userId } = await requireWrite();
   if (!conclusion.trim()) throw new ExecutionError("conclusion-required");
   const rationale = noProceduresRationale?.trim() || null;
@@ -693,6 +718,7 @@ export async function saveSectionConclusion(
 }
 
 export async function reviewSectionConclusion(fileItemId: string, asPartner: boolean): Promise<void> {
+  await requireChildWrite("file_item", fileItemId);
   const { tenantId, userId, role } = await requireWrite();
   if (asPartner && !canPartnerSignoff(role)) throw new ExecutionError("forbidden");
   if (!asPartner && !canReview(role)) throw new ExecutionError("forbidden");

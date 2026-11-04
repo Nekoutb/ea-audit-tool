@@ -5,6 +5,7 @@
 import { withTenant } from "@/lib/db";
 import type { Locale } from "@/lib/i18n";
 import { requireTenant, requireWrite } from "@/lib/tenant";
+import { requireEngagementRead, requireEngagementWrite } from "@/lib/engagement-access";
 
 export type FieldType = "boolean" | "text" | "select" | "number" | "date";
 
@@ -180,6 +181,7 @@ export async function loadForm(engagementId: string, code: string): Promise<{
   /** Baseline for optimistic concurrency — hand it back to saveForm. */
   revision: string;
 }> {
+  await requireEngagementRead(engagementId);
   const { tenantId } = await requireTenant();
   return withTenant(tenantId, async (tx) => {
     const result = await tx.query<{ field_key: string; value: unknown; carried_forward: boolean }>(
@@ -211,6 +213,7 @@ export async function saveForm(
   /** The revision loadForm returned. Omit to save unconditionally. */
   baseRevision?: string,
 ): Promise<void> {
+  await requireEngagementWrite(engagementId);
   const { tenantId, userId, role } = await requireWrite();
   // The EQR reads the team's forms but does not rewrite them (UAT run 2 B18).
   // ... whether they hold the firm role or the team role on it (UAT run 3 B03)
@@ -381,6 +384,18 @@ export function fieldLabel(field: FormField, locale: Locale): string {
  * client's most recent other engagement, flagged carried_forward until edited.
  */
 export async function carryForwardFromPriorYear(engagementId: string): Promise<number> {
+  await requireEngagementWrite(engagementId);
+  return carryForwardOnCreation(engagementId);
+}
+
+/**
+ * The same carry-forward for a file this request has just created. A partner or
+ * administrator who opens a file for another engagement partner is not seated on
+ * it (F008), yet the prior year still has to reach it. Not reachable from an
+ * action with a caller-chosen id: only createEngagementAction and rollforward
+ * call it, with the id createEngagement returned.
+ */
+export async function carryForwardOnCreation(engagementId: string): Promise<number> {
   const { tenantId, userId } = await requireWrite();
   return withTenant(tenantId, async (tx) => {
     const prior = await tx.query<{ id: string }>(

@@ -19,6 +19,7 @@ import { addDaysIso, addMonthsClamped, fileUnderCode, LegalError } from "@/lib/l
 import { organName } from "@/lib/legal-forms";
 import { periodEndFr } from "@/lib/report";
 import { requireTenant, requireWrite } from "@/lib/tenant";
+import { requireChildWrite, requireEngagementRead, requireEngagementWrite } from "@/lib/engagement-access";
 
 export type AlerteVariant = "sa" | "non_sa";
 
@@ -160,6 +161,7 @@ const PARTNER_NAME_SQL = `(SELECT coalesce(u.name, u.email) FROM team_member tm 
 
 /** Start the alerte: variant derives from the client's legal form. */
 export async function startAlerte(engagementId: string, note: string, eventDate?: string): Promise<string> {
+  await requireEngagementWrite(engagementId);
   const { tenantId, userId } = await requireWrite(); // read_only may view the legal file, not change it (UAT B10)
   const today = eventDateOrToday(eventDate);
   return withTenant(tenantId, async (tx) => {
@@ -214,6 +216,7 @@ export async function advanceAlerte(
   note: string,
   options: { satisfactory?: boolean; eventDate?: string } = {},
 ): Promise<void> {
+  await requireChildWrite("alerte", alerteId);
   const { tenantId, userId } = await requireWrite(); // read_only may view the legal file, not change it (UAT B10)
   const today = eventDateOrToday(options.eventDate);
   await withTenant(tenantId, async (tx) => {
@@ -283,6 +286,7 @@ export async function advanceAlerte(
 
 /** Resume a discontinued alerte — allowed within 6 months (art. 156). */
 export async function resumeAlerte(alerteId: string, note: string): Promise<void> {
+  await requireChildWrite("alerte", alerteId);
   const { tenantId, userId } = await requireWrite(); // read_only may view the legal file, not change it (UAT B10)
   await withTenant(tenantId, async (tx) => {
     const current = await tx.query<{ variant: AlerteVariant; discontinued_at: string | null }>(
@@ -308,6 +312,7 @@ export async function resumeAlerte(alerteId: string, note: string): Promise<void
 }
 
 export async function getAlerte(engagementId: string): Promise<AlerteState | null> {
+  await requireEngagementRead(engagementId);
   const { tenantId } = await requireTenant();
   return withTenant(tenantId, async (tx) => {
     const result = await tx.query<{
@@ -347,6 +352,7 @@ export async function getAlerte(engagementId: string): Promise<AlerteState | nul
 
 /** E6.3/report linkage: an alerte still open means going-concern doubt. */
 export async function activeAlerte(engagementId: string): Promise<boolean> {
+  await requireEngagementRead(engagementId);
   const { tenantId } = await requireTenant();
   return withTenant(tenantId, async (tx) => {
     const result = await tx.query(

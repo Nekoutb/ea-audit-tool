@@ -76,9 +76,17 @@ const ENGAGEMENT_NOTIFICATION_VISIBLE = `(
 
 /**
  * The independence campaign is gone (F008) but its notifications remain in the
- * table as history: the bell neither lists nor counts them.
+ * table as history: the bell neither lists nor counts them. The campaign wrote
+ * three kinds (confirmation, reminder, exception) and its titles changed over
+ * time, so the kinds are matched by prefix and the titles too, in both languages.
  */
-const RETIRED_KINDS = "kind <> 'independence-confirmation'";
+const RETIRED_KINDS = `NOT (
+  kind LIKE 'independence%'
+  OR title ILIKE 'independence confirmation%'
+  OR title ILIKE 'independence exception%'
+  OR title ILIKE 'confirmation d''indépendance%'
+  OR title ILIKE 'exception d''indépendance%'
+)`;
 
 /** The signed-in user's notifications, newest first. */
 export async function listMyNotifications(limit = 50): Promise<Notification[]> {

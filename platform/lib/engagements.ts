@@ -6,7 +6,7 @@ import { itemsForComplexity, natureHasAuditProgramme, type Section } from "@/lib
 import type { LegalForm } from "@/lib/legal-forms";
 import { seedPresumedRisks } from "@/lib/risks";
 import { requireTenant, requireWrite } from "@/lib/tenant";
-import { visibilityClause } from "@/lib/engagement-access";
+import { requireEngagementRead, requireEngagementWrite, visibilityClause } from "@/lib/engagement-access";
 import { recordActivity } from "@/lib/activity";
 import { FRAMEWORKS } from "@/lib/clients";
 import { atLeast, type Role } from "@/lib/rbac";
@@ -205,6 +205,7 @@ export async function myTasks(limit = 40): Promise<MyTaskRow[]> {
 }
 
 export async function getEngagement(id: string): Promise<EngagementSummary | null> {
+  await requireEngagementRead(id);
   const { tenantId } = await requireTenant();
   return withTenant(tenantId, async (tx) => {
     const result = await tx.query<EngagementRow>(
@@ -227,6 +228,7 @@ export async function getEngagement(id: string): Promise<EngagementSummary | nul
 export async function standardsEditionOf(
   engagementId: string,
 ): Promise<{ edition: StandardsEdition; derived: StandardsEdition; periodStart: string; overridden: boolean } | null> {
+  await requireEngagementRead(engagementId);
   const { tenantId } = await requireTenant();
   return withTenant(tenantId, async (tx) => {
     const r = await tx.query<{ period_end: string; duration_months: number | null; standards_edition: string | null }>(
@@ -247,6 +249,7 @@ export async function standardsEditionOf(
  * archived file like every other write.
  */
 export async function setStandardsEdition(engagementId: string, edition: StandardsEdition, reason: string): Promise<void> {
+  await requireEngagementWrite(engagementId);
   const { tenantId, role } = await requireWrite();
   if (!atLeast(role as Role, "manager")) throw new Error("forbidden");
   if (!isStandardsEdition(edition)) throw new Error("invalid-standards-edition");
@@ -301,6 +304,7 @@ export async function setEngagementSetup(
   engagementId: string,
   input: { framework: string; plannedAgmDate: string | null },
 ): Promise<void> {
+  await requireEngagementWrite(engagementId);
   const { tenantId, role } = await requireWrite();
   if (!atLeast(role as Role, "manager")) throw new Error("forbidden");
   const before = await withTenant(tenantId, async (tx) => {
@@ -338,6 +342,7 @@ export async function setEngagementSetup(
 export async function engagementSetupOf(
   engagementId: string,
 ): Promise<{ framework: string | null; plannedAgmDate: string | null; nature: string | null } | null> {
+  await requireEngagementRead(engagementId);
   const { tenantId } = await requireTenant();
   return withTenant(tenantId, async (tx) => {
     const r = await tx.query<{ framework: string | null; planned: string | null; nature: string | null }>(
@@ -503,6 +508,7 @@ export async function applyComplexity(
   complexity: EngagementComplexity,
   answers: ComplexityAnswers,
 ): Promise<void> {
+  await requireEngagementWrite(engagementId);
   const { tenantId } = await requireWrite();
   await withTenant(tenantId, async (tx) => {
     await tx.query(
@@ -543,6 +549,7 @@ export async function applyComplexity(
 
 /** The engagement's file index with each item's (single) document, if any. */
 export async function listFileItems(engagementId: string): Promise<FileItem[]> {
+  await requireEngagementRead(engagementId);
   const { tenantId } = await requireTenant();
   return withTenant(tenantId, async (tx) => {
     const result = await tx.query<{

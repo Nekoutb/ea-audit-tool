@@ -66,6 +66,12 @@ beforeAll(async () => {
   const client = await admin.query<{ id: string }>(
     "INSERT INTO client (tenant_id,name,legal_form) VALUES ($1,'Hold SA','SA') RETURNING id", [TENANT]);
   engagementId = await createEngagement({ clientId: client.rows[0].id, fiscalYear: 2025, periodEnd: "2025-12-31", partnerId: PARTNER });
+  for (const [id, teamRole] of [[MANAGER, "manager"], [STAFF, "staff"]]) {
+    await admin.query(
+      "INSERT INTO team_member (tenant_id, engagement_id, user_id, team_role, status) VALUES ($1, $2, $3, $4, 'accepted')",
+      [TENANT, engagementId, id, teamRole],
+    );
+  }
 }, 60_000);
 
 afterEach(async () => {

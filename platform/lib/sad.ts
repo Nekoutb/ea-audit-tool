@@ -27,6 +27,7 @@ import {
 
 import { amountOr, parseAmount } from "@/lib/amount";
 import { getLocale } from "@/lib/locale";
+import { requireEngagementRead, requireEngagementWrite } from "@/lib/engagement-access";
 export type { SadCaption, SadEntry, SadView } from "@/lib/sad-model";
 
 /** Shared parser: this stripped the decimal comma and inflated FCFA figures. */
@@ -92,6 +93,7 @@ async function fsCaptionAmountsTx(tx: PoolClient, engagementId: string): Promise
  * columns; the income-statement column is classes 7 minus 6 net. Null = no TB.
  */
 export async function fsCaptionAmounts(engagementId: string): Promise<number[] | null> {
+  await requireEngagementRead(engagementId);
   const { tenantId } = await requireTenant();
   return withTenant(tenantId, async (tx) => {
     const fs = await fsCaptionAmountsTx(tx, engagementId);
@@ -100,6 +102,7 @@ export async function fsCaptionAmounts(engagementId: string): Promise<number[] |
 }
 
 export async function sadView(engagementId: string): Promise<SadView> {
+  await requireEngagementRead(engagementId);
   const { tenantId } = await requireTenant();
   return withTenant(tenantId, (tx) => sadViewTx(tx, engagementId));
 }
@@ -286,6 +289,7 @@ export async function sadViewTx(tx: PoolClient, engagementId: string): Promise<S
 
 /** Persist one SAD field (caption override, type, corrected flag, rationale) for a step. */
 export async function saveSad(engagementId: string, stepId: string, field: string, value: string): Promise<void> {
+  await requireEngagementWrite(engagementId);
   if (!["drcap", "crcap", "mtype", "corrected", "rationale"].includes(field)) throw new Error("invalid-field");
   if (!/^[0-9a-f-]{36}$/.test(stepId)) throw new Error("invalid-step");
   if ((field === "drcap" || field === "crcap") && !(SAD_CAPTIONS as readonly string[]).includes(value)) throw new Error("invalid-caption");
@@ -311,6 +315,7 @@ export async function saveSad(engagementId: string, stepId: string, field: strin
  * row arrays of the cash-flow and disclosure tabs (cf_rows / disc_rows, JSON).
  */
 export async function saveSadMeta(engagementId: string, key: string, value: string): Promise<void> {
+  await requireEngagementWrite(engagementId);
   const factor = key.match(/^(q|qx)_([a-z_]+)$/);
   const template = key.match(/^tq_[1-5](c?)$/);
   if (["concl_text", "cf_rows", "disc_rows"].includes(key)) {
@@ -355,6 +360,7 @@ export async function saveSadMeta(engagementId: string, key: string, value: stri
  * adjustment was cleared, are left for the auditor to decide on the SAD.
  */
 export async function postSadEntryIfPosted(engagementId: string, stepId: string): Promise<void> {
+  await requireEngagementRead(engagementId);
   const { tenantId } = await requireTenant();
   const onRegister = await withTenant(tenantId, async (tx) =>
     (await tx.query("SELECT 1 FROM misstatement WHERE engagement_id = $1 AND program_step_id = $2", [engagementId, stepId])).rows.length > 0,
@@ -371,6 +377,7 @@ export async function postSadEntryIfPosted(engagementId: string, stepId: string)
  * adjustment's magnitude; the caption pair travels in the accounts text.
  */
 export async function postSadEntry(engagementId: string, stepId: string): Promise<void> {
+  await requireEngagementWrite(engagementId);
   if (!/^[0-9a-f-]{36}$/.test(stepId)) throw new Error("invalid-step");
   const { tenantId, userId } = await requireWrite();
   const view = await sadView(engagementId);

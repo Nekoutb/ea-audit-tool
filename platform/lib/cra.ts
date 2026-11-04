@@ -25,6 +25,7 @@ import {
   type CraIr,
   type CraTod,
 } from "@/lib/cra-model";
+import { requireEngagementRead, requireEngagementWrite } from "@/lib/engagement-access";
 
 // The six assertions of lib/assertions.ts: C, E, A, V, P and — since F041
 // (2026-10-27) — RO, rights and obligations. One cell per code on every row.
@@ -108,6 +109,7 @@ async function assessmentLockedTx(tx: PoolClient, engagementId: string): Promise
 }
 
 export async function craBoard(engagementId: string): Promise<CraBoardView> {
+  await requireEngagementRead(engagementId);
   const { tenantId } = await requireTenant();
 
   const [sig, scots, s25] = await Promise.all([
@@ -316,6 +318,7 @@ function unassessedDefaultRo(c: CraCell): boolean {
  * CRA per lead index, in the sampling tool's vocabulary.
  */
 export async function craRollupByIndex(engagementId: string): Promise<Record<string, CraTod>> {
+  await requireEngagementRead(engagementId);
   const view = await craBoard(engagementId);
   const out: Record<string, CraTod> = {};
   for (const row of view.rows) {
@@ -328,6 +331,7 @@ export async function craRollupByIndex(engagementId: string): Promise<Record<str
 /** Persist one cell of the matrix. */
 /** The key-item threshold of one account, set on S3.1; null clears it so TE applies again. */
 export async function saveIndexThreshold(engagementId: string, indexCode: string, threshold: number | null): Promise<void> {
+  await requireEngagementWrite(engagementId);
   if (!/^[A-Z][A-Z0-9]{0,2}$/.test(indexCode)) throw new Error("invalid-index");
   if (threshold !== null && !(Number.isFinite(threshold) && threshold > 0)) throw new Error("invalid-threshold");
   const { tenantId, userId } = await requireWrite();
@@ -352,6 +356,7 @@ export async function saveCraCell(
   assertion: string,
   patch: { relevant?: boolean; ir?: CraIr | ""; irBasis?: string; cr?: CraCr | ""; crBasis?: string; reason?: string },
 ): Promise<void> {
+  await requireEngagementWrite(engagementId);
   if (!isAssertion(assertion)) throw new Error("invalid-assertion");
   if (!/^[A-Z][A-Z0-9]{0,2}$/.test(indexCode)) throw new Error("invalid-index");
   const { tenantId, userId } = await requireWrite();

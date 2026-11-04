@@ -50,6 +50,10 @@ beforeAll(async () => {
     [TENANT, client.rows[0].id],
   );
   engagementId = eng.rows[0].id;
+  await admin.query(
+    "INSERT INTO team_member (tenant_id, engagement_id, user_id, team_role, status) VALUES ($1, $2, $3, 'partner', 'accepted')",
+    [TENANT, engagementId, USER],
+  );
 }, 60_000);
 
 afterAll(async () => {

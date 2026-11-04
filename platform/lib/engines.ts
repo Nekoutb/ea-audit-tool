@@ -13,6 +13,7 @@ import { routeFinding } from "@/lib/execution";
 import { INDEX_SECTION } from "@/lib/lead-classes";
 import { CONFIDENCE_FACTORS, musPlan, type ConfidenceLevel } from "@/lib/sampling-params";
 import { requireTenant, requireWrite } from "@/lib/tenant";
+import { requireChildRead, requireChildWrite, requireEngagementRead, requireEngagementWrite } from "@/lib/engagement-access";
 
 const XLSX_MIME = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet";
 
@@ -193,6 +194,8 @@ export async function runSampling(input: {
   overrideSize?: number;
   overrideRationale?: string;
 }): Promise<SamplingResult> {
+  await requireChildWrite("file_item", input.fileItemId);
+  if (input.datasetId) await requireChildWrite("sub_ledger_dataset", input.datasetId);
   const { tenantId, userId } = await requireWrite();
   if (input.sampleSize < 1) throw new EngineError("invalid-sample-size");
   if (!input.seed.trim()) throw new EngineError("seed-required");
@@ -331,6 +334,7 @@ export async function evaluateSampling(
   /** language of the C1.1 finding title: the recorder's UI language (UAT B137) */
   locale: "en" | "fr" = "en",
 ): Promise<{ projected: number; raisedToB5: boolean }> {
+  await requireChildWrite("automation_run", runId);
   const { tenantId } = await requireWrite();
   const context = await withTenant(tenantId, async (tx) => {
     const run = await tx.query<{
@@ -412,6 +416,7 @@ export interface TodResultRow {
  * The run is the reproducible record: inputs, who, when, and the outcome.
  */
 export async function recordTodResult(input: TodResultInput): Promise<{ runId: string; projected: number; raisedToB5: boolean }> {
+  await requireEngagementWrite(input.engagementId);
   const { tenantId, userId } = await requireWrite();
   const indexCode = input.indexCode.trim().toUpperCase();
   if (!/^[A-Z][A-Z0-9]{0,2}$/.test(indexCode)) throw new EngineError("invalid-index");
@@ -478,6 +483,7 @@ export async function recordTodResult(input: TodResultInput): Promise<{ runId: s
 
 /** Every ToD result recorded on the engagement, newest first. */
 export async function listTodResults(engagementId: string): Promise<TodResultRow[]> {
+  await requireEngagementRead(engagementId);
   const { tenantId } = await requireTenant();
   return withTenant(tenantId, async (tx) => {
     const r = await tx.query<{ id: string; result_summary: Record<string, unknown>; created_at: string }>(
@@ -535,6 +541,7 @@ export interface ReconResult {
 export async function reconPreview(
   datasetId: string,
 ): Promise<{ kind: string; datasetTotal: number; tbTotal: number; difference: number; prefixes: string[] } | null> {
+  await requireChildRead("sub_ledger_dataset", datasetId);
   const { tenantId } = await requireTenant();
   return withTenant(tenantId, async (tx) => {
     const dataset = await loadDataset(tx, datasetId);
@@ -548,6 +555,7 @@ export async function reconPreview(
 
 /** The last reconciliation recorded against a dataset, or null. */
 export async function latestReconRun(datasetId: string): Promise<RunInfo | null> {
+  await requireChildRead("sub_ledger_dataset", datasetId);
   const { tenantId } = await requireTenant();
   return withTenant(tenantId, async (tx) => {
     const r = await tx.query<{ id: string; engine: Engine; result_summary: Record<string, unknown>; output_document_id: string | null; created_at: string }>(
@@ -569,6 +577,8 @@ export async function runReconciliation(input: {
   staleDays?: number;
   periodEnd?: string;
 }): Promise<ReconResult> {
+  await requireChildWrite("file_item", input.fileItemId);
+  if (input.datasetId) await requireChildWrite("sub_ledger_dataset", input.datasetId);
   const { tenantId, userId } = await requireWrite();
   const outcome = await withTenant(tenantId, async (tx) => {
     const dataset = await loadDataset(tx, input.datasetId);
@@ -644,6 +654,9 @@ export async function runSupplierRecon(input: {
   statementsDatasetId: string;
   ledgerDatasetId: string;
 }): Promise<{ runId: string; documentId: string; suppliersCompared: number; differences: number }> {
+  await requireChildWrite("file_item", input.fileItemId);
+  if (input.statementsDatasetId) await requireChildWrite("sub_ledger_dataset", input.statementsDatasetId);
+  if (input.ledgerDatasetId) await requireChildWrite("sub_ledger_dataset", input.ledgerDatasetId);
   const { tenantId, userId } = await requireWrite();
   return withTenant(tenantId, async (tx) => {
     const statements = await loadDataset(tx, input.statementsDatasetId);
@@ -704,6 +717,8 @@ export async function runJeTesting(input: {
   periodEnd: string;
   largeThreshold?: number;
 }): Promise<{ runId: string; documentId: string; scored: number; flagged: number }> {
+  await requireChildWrite("file_item", input.fileItemId);
+  if (input.datasetId) await requireChildWrite("sub_ledger_dataset", input.datasetId);
   const { tenantId, userId } = await requireWrite();
   return withTenant(tenantId, async (tx) => {
     const dataset = await loadDataset(tx, input.datasetId);
@@ -757,6 +772,7 @@ export async function runSubstantiveAnalytic(input: {
   tolerance: number;
   basis: string;
 }): Promise<{ runId: string; actual: number; variance: number; raisedToB5: boolean }> {
+  await requireChildWrite("file_item", input.fileItemId);
   const { tenantId, userId } = await requireWrite();
   if (!(input.tolerance > 0)) throw new EngineError("tolerance-required");
   const outcome = await withTenant(tenantId, async (tx) => {
@@ -824,6 +840,7 @@ export interface RunInfo {
 }
 
 export async function listRuns(fileItemId: string): Promise<RunInfo[]> {
+  await requireChildRead("file_item", fileItemId);
   const { tenantId } = await requireTenant();
   return withTenant(tenantId, async (tx) => {
     const result = await tx.query<{

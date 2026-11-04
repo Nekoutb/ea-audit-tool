@@ -9,8 +9,8 @@ import { applyOverride } from "@/lib/template-overrides";
 import { templateFor } from "@/lib/templates";
 import { ForbiddenError, requireRole, requireTenant, requireWrite } from "@/lib/tenant";
 import { editionLabel, isStandardsEdition } from "@/lib/standards-edition";
-import { hasBespokePaper, paperContentHashTx, paperFor, paperMissing } from "@/lib/working-papers";
-import { visibleToUser } from "@/lib/engagement-access";
+import { hasBespokePaper, paperContentHashTx, paperFor, paperMissing, paperMissingParts } from "@/lib/working-papers";
+import { requireChildRead, requireChildWrite, visibleToUser } from "@/lib/engagement-access";
 import { logReopen, logSignOff, logSignOffVoided, logVersionRestored, recordActivity } from "@/lib/activity";
 import { loadBranding } from "@/lib/branding";
 import { phaseOfTask } from "@/lib/engagement-dashboard";
@@ -84,9 +84,22 @@ export interface ReviewNoteInfo {
 
 /** Domain-rule violation surfaced to the UI in plain language (never a bare 500). */
 export class DocumentRuleError extends Error {
-  constructor(public readonly code: string) {
+  constructor(
+    public readonly code: string,
+    /** the parts of the paper the refusal is about, per language */
+    public readonly parts?: { en: string[]; fr: string[] },
+  ) {
     super(code);
     this.name = "DocumentRuleError";
+  }
+
+  /**
+   * The value for a page's ?error= : the code, then the parts for the reader
+   * after a colon ("paper-incomplete:Part G, Conclusion"). The banners split it.
+   */
+  banner(locale: string): string {
+    const names = this.parts?.[locale === "fr" ? "fr" : "en"] ?? [];
+    return names.length > 0 ? `${this.code}:${names.join(", ")}` : this.code;
   }
 }
 
@@ -125,15 +138,8 @@ async function insertVersion(
  * creates the document row and renders version 1 from merge fields.
  */
 export async function generateDocument(fileItemId: string, locale: Locale): Promise<string> {
+  await requireChildWrite("file_item", fileItemId);
   const { tenantId, userId } = await requireWrite();
-  const owner = await withTenant(tenantId, (tx) =>
-    tx.query<{ engagement_id: string }>("SELECT engagement_id FROM file_item WHERE id = $1", [fileItemId]),
-  );
-  if (owner.rows[0]) {
-    if (!(await visibleToUser(owner.rows[0].engagement_id, tenantId, userId))) {
-      throw new ForbiddenError("not-on-this-engagement");
-    }
-  }
   return withTenant(tenantId, async (tx) => {
     const item = await tx.query<{
       id: string;
@@ -373,6 +379,7 @@ export async function getDocument(documentId: string): Promise<DocumentDetail | 
 export async function listItemDocuments(
   fileItemId: string,
 ): Promise<{ id: string; title: string; kind: string; currentVersion: number; createdAt: string }[]> {
+  await requireChildRead("file_item", fileItemId);
   const { tenantId } = await requireTenant();
   return withTenant(tenantId, async (tx) => {
     const result = await tx.query<{ id: string; title: string; kind: string; current_version: number; created_at: string }>(
@@ -843,7 +850,8 @@ export async function signDocument(documentId: string, requested: SignoffRole): 
         "SELECT c.legal_form FROM engagement e JOIN client c ON c.id = e.client_id WHERE e.id = $1",
         [row.engagement_id],
       );
-      if (paperMissing(paperFor(row.code, "current", form.rows[0]?.legal_form), values).length > 0) throw new DocumentRuleError("paper-incomplete");
+      const paper = paperFor(row.code, "current", form.rows[0]?.legal_form);
+      if (paperMissing(paper, values).length > 0) throw new DocumentRuleError("paper-incomplete", paperMissingParts(paper, values));
     }
     if (row.kind === "workpaper" && EMBED_ONLY_PAPERS.has(row.code)) {
       const gap = await embeddedWorkGap(tx, row.engagement_id, row.code);
@@ -1183,6 +1191,7 @@ export async function isPreparerOfNote(
 }
 
 export async function clearReviewNote(noteId: string, response: string): Promise<void> {
+  await requireChildWrite("review_note", noteId);
   const { tenantId, userId, role } = await requireWrite();
   if (!response.trim()) throw new DocumentRuleError("response-required");
   const noteDoc = await withTenant(tenantId, (tx) =>

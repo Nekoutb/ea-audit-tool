@@ -16,6 +16,7 @@ import { letterheadFooter, letterheadParagraphs, loadBranding } from "@/lib/bran
 import { withTenant } from "@/lib/db";
 import { DOCX_MIME } from "@/lib/documents";
 import { requireWrite } from "@/lib/tenant";
+import { requireEngagementWrite } from "@/lib/engagement-access";
 
 export type OpinionType = "unmodified" | "qualified" | "adverse" | "disclaimer";
 
@@ -129,6 +130,7 @@ export async function generateAuditReport(input: {
   kamNoneReason?: string;
   reportDate: string;
 }): Promise<string> {
+  await requireEngagementWrite(input.engagementId);
   const { tenantId, userId } = await requireWrite();
   return withTenant(tenantId, async (tx) => {
     const info = await tx.query<{

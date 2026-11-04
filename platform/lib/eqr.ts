@@ -2,6 +2,7 @@ import type { PoolClient } from "pg";
 import { withTenant } from "@/lib/db";
 import type { Role } from "@/lib/rbac";
 import { ForbiddenError } from "@/lib/tenant";
+import { requireEngagementRead } from "@/lib/engagement-access";
 
 /**
  * Who is the engagement quality reviewer, for the rules that keep the EQR
@@ -129,6 +130,7 @@ export interface EqrStanding {
 
 /** The signed-in user's standing towards the quality review, for the task page. */
 export async function eqrStanding(engagementId: string): Promise<EqrStanding> {
+  await requireEngagementRead(engagementId);
   const { requireTenant } = await import("@/lib/tenant");
   const { tenantId, userId, role } = await requireTenant();
   const { eqrRequiredTx } = await import("@/lib/completion");

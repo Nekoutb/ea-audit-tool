@@ -139,31 +139,106 @@ export function localizedSummary(summary: string, locale: string): string {
   return summary;
 }
 
+type Bilingual = [RegExp, (g: string[]) => { en?: string; fr?: string }];
+
 /**
- * Notification titles are stored as written, some in English alone; those are
- * shown in the reader's language (F086). A title already written in both
- * languages, or unknown, is shown as stored.
+ * Notification titles as they were stored over the years: some in English only,
+ * some in French only, some as "English · French". The row is rendered in the
+ * reader's language and never rewritten (F086, D2). Anything unrecognised is
+ * shown as stored, so a person's own words are never altered.
  */
-export function localizedNotificationTitle(title: string, locale: string): string {
-  if (locale !== "fr") return title;
-  const rules: [RegExp, (g: string[]) => string][] = [
-    [/^Sign-off voided: (.+)$/, (g) => `Signature annulée : ${g[1]}`],
-    [/^(\S+) reopened after (\S+) closed$/, (g) => `${g[1]} rouverte après la clôture de la phase ${g[2]}`],
-    [/^Review note on a document$/, () => "Note de revue sur un document"],
-    [/^Review note on (\S+)$/, (g) => `Note de revue sur ${g[1]}`],
-    [/^You were mentioned in a discussion$/, () => "Vous avez été mentionné(e) dans une discussion"],
-    [/^New reply to your comment$/, () => "Nouvelle réponse à votre commentaire"],
-    [/^Risk added during execution — approval required$/, () => "Risque ajouté en cours d'exécution — approbation requise"],
-    [/^Section (\S+) assigned to you$/, (g) => `Section ${g[1]} qui vous est assignée`],
-    [/^Materiality revised$/, () => "Seuil de signification révisé"],
-    [/^Reminder — PBC: (.+)$/, (g) => `Relance — demande au client (PBC) : ${g[1]}`],
-    [/^PBC uploaded: (.+)$/, (g) => `Document déposé (PBC) : ${g[1]}`],
-    [/^PBC: (.+)$/, (g) => `Demande au client (PBC) : ${g[1]}`],
-    [/^SCOT assigned: (.+)$/, (g) => `SCOT assignée : ${g[1]}`],
-  ];
-  for (const [re, fr] of rules) {
-    const hit = re.exec(title);
-    if (hit) return fr([...hit]);
+const NOTIFICATION_TITLES: Bilingual[] = [
+  // stored in both languages
+  [/^Task assigned · Tâche assignée : (.+)$/, (g) => ({ en: `Task assigned: ${g[1]}`, fr: `Tâche assignée : ${g[1]}` })],
+  [/^(\d+ task\(s\) assigned to you as \w+) · (\d+ tâche\(s\) .+)$/, (g) => ({ en: g[1], fr: g[2] })],
+  [/^Added to (.+) · Ajouté\(e\) à (.+)$/, (g) => ({ en: `Added to ${g[1]}`, fr: `Ajouté(e) à ${g[2]}` })],
+  [/^Engagement archived · Mission archivée$/, () => ({ en: "Engagement archived", fr: "Mission archivée" })],
+  [/^(Review note on .+) · (Note de revue sur .+)$/, (g) => ({ en: g[1], fr: g[2] })],
+  [/^(Reply to your review note on .+) · (Réponse à votre note de revue sur .+)$/, (g) => ({ en: g[1], fr: g[2] })],
+  [/^(.+ declined the engagement) · (.+ a refusé la mission)$/, (g) => ({ en: g[1], fr: g[2] })],
+  // stored in French only
+  [/^Capitaux propres < ½ capital social$/, () => ({ en: "Equity below half of share capital" })],
+  // stored in English only
+  [/^Task assigned: (.+)$/, (g) => ({ fr: `Tâche assignée : ${g[1]}` })],
+  [/^(\d+) task\(s\) assigned to you as (preparer|reviewer|assignee)$/, (g) => ({
+    fr: `${g[1]} tâche(s) qui vous sont assignée(s) comme ${{ preparer: "préparateur", reviewer: "réviseur", assignee: "responsable" }[g[2]]}`,
+  })],
+  [/^Added to (.+)$/, (g) => ({ fr: `Ajouté(e) à ${g[1]}` })],
+  [/^Statutory deadline overdue: (.+)$/, (g) => ({ fr: `Échéance légale dépassée : ${g[1]}` })],
+  [/^Test notification$/, () => ({ fr: "Notification de test" })],
+  [/^Sign-off voided: (.+)$/, (g) => ({ fr: `Signature annulée : ${g[1]}` })],
+  [/^(\S+) reopened after (\S+) closed$/, (g) => ({ fr: `${g[1]} rouverte après la clôture de la phase ${g[2]}` })],
+  [/^Review note on a document$/, () => ({ fr: "Note de revue sur un document" })],
+  [/^Review note on (\S+)$/, (g) => ({ fr: `Note de revue sur ${g[1]}` })],
+  [/^You were mentioned in a discussion$/, () => ({ fr: "Vous avez été mentionné(e) dans une discussion" })],
+  [/^New reply to your comment$/, () => ({ fr: "Nouvelle réponse à votre commentaire" })],
+  [/^Risk added during execution — approval required$/, () => ({ fr: "Risque ajouté en cours d'exécution — approbation requise" })],
+  [/^Section (\S+) assigned to you$/, (g) => ({ fr: `Section ${g[1]} qui vous est assignée` })],
+  [/^Materiality revised$/, () => ({ fr: "Seuil de signification révisé" })],
+  [/^Reminder — PBC: (.+)$/, (g) => ({ fr: `Relance — demande au client (PBC) : ${g[1]}` })],
+  [/^PBC uploaded: (.+)$/, (g) => ({ fr: `Document déposé (PBC) : ${g[1]}` })],
+  [/^PBC: (.+)$/, (g) => ({ fr: `Demande au client (PBC) : ${g[1]}` })],
+  [/^SCOT assigned: (.+)$/, (g) => ({ fr: `SCOT assignée : ${g[1]}` })],
+];
+
+/** The notification's fixed sentences. A comment, a reason or a client's note is the person's own and stays as written. */
+const NOTIFICATION_BODIES: Bilingual[] = [
+  [/^Accept or decline the engagement from its dashboard\.(?: · .+)?$/, () => ({
+    en: "Accept or decline the engagement invitation.",
+    fr: "Acceptez ou refusez l'invitation à la mission.",
+  })],
+  [/^(Accept or decline the engagement invitation\.) · (.+)$/, (g) => ({ en: g[1], fr: g[2] })],
+  [/^You have been added to the engagement "(.+)" as (.+)\. Sign in and accept or decline it from the engagement dashboard: \S+$/, (g) => ({
+    en: `You have been added to the engagement "${g[1]}" as ${g[2]}. Accept or decline the invitation.`,
+    fr: `Vous avez été ajouté(e) à la mission « ${g[1]} ». Acceptez ou refusez l'invitation.`,
+  })],
+  [/^(The file is now frozen: .+) · (Le dossier est figé : .+)$/, (g) => ({ en: g[1], fr: g[2] })],
+  [/^(Paper content changed after sign-off) — contenu de la feuille modifié après la signature$/, (g) => ({
+    en: g[1],
+    fr: "Contenu de la feuille modifié après la signature",
+  })],
+  [/^Capitaux propres (.+) FCFA vs ½ capital (.+) FCFA — procédure statutaire d'AGE déclenchée \((\S+)\)\.$/, (g) => ({
+    en: `Equity ${g[1]} FCFA against half of share capital ${g[2]} FCFA — statutory EGM procedure raised (${g[3]}).`,
+  })],
+  [/^Equity (\S+) vs half capital (\S+) — statutory EGM workflow raised \((\S+)\)\.$/, (g) => ({
+    fr: `Capitaux propres ${g[1]} contre ½ capital ${g[2]} — procédure statutaire d'AGE déclenchée (${g[3]}).`,
+  })],
+  [/^The lead schedule is ready — open the section to work it\.$/, () => ({ fr: "La feuille de synthèse est prête — ouvrez la section pour la traiter." })],
+  [/^(?:Lead schedule ready: |Open the lead schedule under )\S+?\.?$/, () => ({
+    en: "The lead schedule is ready — open the section to work it.",
+    fr: "La feuille de synthèse est prête — ouvrez la section pour la traiter.",
+  })],
+  [/^Open the SCOT register on task S1\.1 to see the class of transactions you now own\.$/, () => ({
+    fr: "Ouvrez le registre des SCOT sur la tâche S1.1 pour voir la catégorie d'opérations qui vous est confiée.",
+  })],
+  [/^Due (\S+) — open the statutory calendar to clear it\.$/, (g) => ({ fr: `Échéance au ${g[1]} — ouvrez le calendrier légal pour la lever.` })],
+  [/^Due (\S+) — engagement (\S+)\.$/, (g) => ({ fr: `Échéance au ${g[1]} — mission ${g[2]}.` })],
+  [/^Version (\d+) created — items computed under the prior figure need review and the new version needs approval\.$/, (g) => ({
+    fr: `Version ${g[1]} créée — les éléments calculés sur le chiffre précédent sont à revoir et la nouvelle version est à approuver.`,
+  })],
+  [/^A document has been requested — please upload it on the portal\.$/, () => ({ fr: "Un document est demandé — veuillez le déposer sur le portail." })],
+  [/^This document is still outstanding — please upload it on the portal\.$/, () => ({ fr: "Ce document est toujours attendu — veuillez le déposer sur le portail." })],
+  [/^This is a test of the in-app notification service\.$/, () => ({ fr: "Ceci est un test du service de notification de l'application." })],
+];
+
+function pickLanguage(rules: Bilingual[], text: string, locale: string): string {
+  const lang = locale === "fr" ? "fr" : "en";
+  for (const [re, render] of rules) {
+    const hit = re.exec(text);
+    if (hit) return render([...hit])[lang] ?? text;
   }
-  return title;
+  return text;
+}
+
+export function localizedNotificationTitle(title: string, locale: string): string {
+  return pickLanguage(NOTIFICATION_TITLES, title, locale);
+}
+
+export function localizedNotificationBody(kind: string, body: string, locale: string): string {
+  // the task's own titles, stored as "English · French"
+  if (kind === "task_assigned") {
+    const at = body.indexOf(" · ");
+    if (at > 0) return locale === "fr" ? body.slice(at + 3) : body.slice(0, at);
+  }
+  return pickLanguage(NOTIFICATION_BODIES, body, locale);
 }

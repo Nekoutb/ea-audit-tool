@@ -111,10 +111,11 @@ beforeAll(async () => {
   clientId = client.rows[0].id;
   engagementId = await createEngagement({ clientId, fiscalYear: 2025, periodEnd: "2025-12-31", partnerId: USER });
   // Creation now seats the engagement partner; the acceptance walk-through
-  // below starts from an empty seat (a file opened before the partner became
-  // mandatory) and designates USER itself, so the seat is vacated here.
-  await admin.query("DELETE FROM team_member WHERE engagement_id = $1", [engagementId]);
+  // below starts from an empty partner seat (a file opened before the partner
+  // became mandatory) and designates USER itself. USER stays on the team, as a
+  // manager, since only an accepted member can act on the file (F008).
   items = await listFileItems(engagementId);
+  await admin.query("UPDATE team_member SET team_role = 'manager' WHERE engagement_id = $1", [engagementId]);
 }, 30_000);
 
 afterAll(async () => {
@@ -240,6 +241,7 @@ describe("acceptance gates → planning (2.2, 2.3, 2.4)", () => {
     await saveForm(engagementId, "P1.1", { ...checks, predecessor_ok: true, conclusion: "accept" });
     // F008: only an accepted team member opens the file at all — a firm
     // administrator who is not on the team cannot even generate the paper.
+    await admin.query("DELETE FROM team_member WHERE engagement_id = $1 AND user_id = $2", [engagementId, USER]);
     await expect(generateDocument(itemId("P1.1"), "en")).rejects.toThrow("not-on-this-engagement");
     // OTHER_USER, the preparer, is on the team (seated above); USER is not yet.
     actAs(OTHER_USER, "manager");

@@ -13,11 +13,11 @@
 
 import { logAttachment, recordActivity } from "@/lib/activity";
 import { withTenant } from "@/lib/db";
-import { visibleToUser } from "@/lib/engagement-access";
+import { requireChildRead } from "@/lib/engagement-access";
 import { assertNotEqrWriteOnItem } from "@/lib/eqr";
 import { assertMutable } from "@/lib/mutability";
 import { atLeast, type Role } from "@/lib/rbac";
-import { ForbiddenError, requireTenant } from "@/lib/tenant";
+import { requireTenant } from "@/lib/tenant";
 
 /**
  * The task's evidence files are part of what its sign-offs attest (UAT run 2
@@ -76,18 +76,8 @@ export interface AttachmentRow {
  * visibility rule as the engagement pages. Unknown ids fall through so the
  * callers' not-found handling is unchanged.
  */
-async function guardEngagementOf(sql: string, id: string): Promise<void> {
-  const { tenantId, userId } = await requireTenant();
-  const r = await withTenant(tenantId, (tx) => tx.query<{ engagement_id: string }>(sql, [id]));
-  const engagementId = r.rows[0]?.engagement_id;
-  if (engagementId && !(await visibleToUser(engagementId, tenantId, userId))) {
-    throw new ForbiddenError("not-on-this-engagement");
-  }
-}
-const guardFileItem = (fileItemId: string) =>
-  guardEngagementOf("SELECT engagement_id FROM file_item WHERE id = $1", fileItemId);
-const guardAttachment = (attachmentId: string) =>
-  guardEngagementOf("SELECT engagement_id FROM task_attachment WHERE id = $1", attachmentId);
+const guardFileItem = (fileItemId: string) => requireChildRead("file_item", fileItemId);
+const guardAttachment = (attachmentId: string) => requireChildRead("task_attachment", attachmentId);
 
 /**
  * Latest live version of each filename on the task, newest upload first, each

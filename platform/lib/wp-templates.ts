@@ -21,7 +21,7 @@ import { readFile } from "node:fs/promises";
 import path from "node:path";
 import { withTenant } from "@/lib/db";
 import { ArchivedError, assertMutable } from "@/lib/mutability";
-import { visibleToUser } from "@/lib/engagement-access";
+import { requireChildRead, requireEngagementRead, visibleToUser } from "@/lib/engagement-access";
 import { ForbiddenError, requireTenant, requireWrite } from "@/lib/tenant";
 import { DEFAULT_FILE_INDEX } from "@/lib/file-index";
 import { blankFsChecklistTemplate, buildFsChecklistWorkbook } from "@/lib/fs-checklist-workbook";
@@ -297,6 +297,8 @@ export async function ensureDefaultWorkpaper(
   fileItemId: string,
   taskCode: string,
 ): Promise<void> {
+  await requireEngagementRead(engagementId);
+  await requireChildRead("file_item", fileItemId);
   const template = templateForCode(taskCode);
   if (!template) return;
   try {

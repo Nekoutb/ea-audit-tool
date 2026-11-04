@@ -29,6 +29,7 @@ import {
   type SapThresholds,
 } from "@/lib/sap-model";
 import { requireRole, requireTenant, requireWrite } from "@/lib/tenant";
+import { requireEngagementRead, requireEngagementWrite } from "@/lib/engagement-access";
 
 export class SapError extends Error {
   constructor(public readonly code: string) {
@@ -206,6 +207,7 @@ const SELECT_PROCEDURE = `
 
 /** Every lead index of the file with its procedures — the tool's screen. */
 export async function sapView(engagementId: string): Promise<SapView> {
+  await requireEngagementRead(engagementId);
   const { tenantId } = await requireTenant();
   // the TB closing per index, as the lead schedules present it
   const schedules = await apLeadSchedules(engagementId);
@@ -254,6 +256,7 @@ export async function sapView(engagementId: string): Promise<SapView> {
 
 /** Procedures per index — the count the E4 paper shows: how many, how many concluded. */
 export async function sapCountsByIndex(engagementId: string): Promise<Record<string, { total: number; concluded: number; exceeding: number }>> {
+  await requireEngagementRead(engagementId);
   const { tenantId } = await requireTenant();
   return withTenant(tenantId, async (tx) => {
     const rows = await tx.query<Parameters<typeof toProcedure>[0]>(`${SELECT_PROCEDURE} WHERE p.engagement_id = $1`, [engagementId]);
@@ -298,6 +301,7 @@ export interface SapInput {
  * one, else from the amount typed.
  */
 export async function saveSap(input: SapInput): Promise<void> {
+  await requireEngagementWrite(input.engagementId);
   const { tenantId, userId } = await requireWrite();
   if (!LEAD_INDEX_BY_CODE[input.indexCode]) throw new SapError("invalid-index");
   if (!isSapAssertion(input.assertion)) throw new SapError("invalid-assertion");

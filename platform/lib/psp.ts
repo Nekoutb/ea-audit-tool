@@ -10,6 +10,7 @@ import { cleanAssertions } from "@/lib/assertions";
 import { withTenant } from "@/lib/db";
 import { requireTenant, requireWrite } from "@/lib/tenant";
 import { INDEX_SECTION } from "@/lib/lead-classes";
+import { requireChildWrite, requireEngagementRead, requireEngagementWrite } from "@/lib/engagement-access";
 
 interface PspDef {
   en: string;
@@ -239,6 +240,8 @@ export async function generatePsp(
   taskCode: string,
   presentIndexes: string[],
 ): Promise<number> {
+  await requireEngagementWrite(engagementId);
+  await requireChildWrite("file_item", fileItemId);
   const { tenantId } = await requireWrite();
   const indexes = indexesForTask(taskCode).filter((i) => presentIndexes.includes(i));
   if (indexes.length === 0) return 0;
@@ -331,6 +334,8 @@ export async function addOtherPsp(
   description: string,
   assertions: string[],
 ): Promise<void> {
+  await requireEngagementWrite(engagementId);
+  await requireChildWrite("file_item", fileItemId);
   const { tenantId } = await requireWrite();
   if (!description.trim()) throw new Error("description-required");
   await withTenant(tenantId, async (tx) => {
@@ -365,6 +370,7 @@ export async function savePspResult(
   value: string,
   field = "r",
 ): Promise<void> {
+  await requireEngagementWrite(engagementId);
   const { tenantId, userId } = await requireWrite();
   if (!/^[0-9a-f-]{36}$/.test(stepId)) throw new Error("invalid-step");
   if (!PSP_FIELDS.has(field)) throw new Error("invalid-field");
@@ -404,6 +410,7 @@ export async function savePspResult(
 }
 
 export async function pspResults(engagementId: string, taskCode: string): Promise<Record<string, string>> {
+  await requireEngagementRead(engagementId);
   const { tenantId } = await requireTenant();
   return withTenant(tenantId, async (tx) => {
     const r = await tx.query<{ field_key: string; value: string }>(

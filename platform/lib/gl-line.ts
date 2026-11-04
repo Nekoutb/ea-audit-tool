@@ -19,6 +19,7 @@ import { jeIdentity, jeKeyColumns, jeNumberLooksLikeJournalCode } from "@/lib/da
 import { withTenant } from "@/lib/db";
 import { requireTenant } from "@/lib/tenant";
 import { parseAmount } from "@/lib/amount";
+import { requireChildRead, requireEngagementRead } from "@/lib/engagement-access";
 
 type Tx = PoolClient;
 
@@ -238,6 +239,8 @@ const INSERT_SQL = `
  * unnest INSERT, then released.
  */
 export async function buildProjection(engagementId: string, datasetId: string): Promise<BuildResult> {
+  await requireEngagementRead(engagementId);
+  if (datasetId) await requireChildRead("sub_ledger_dataset", datasetId);
   const { tenantId } = await requireTenant();
   return withTenant(tenantId, async (tx) => {
     const dataset = await glDataset(tx, engagementId, datasetId);
@@ -399,6 +402,8 @@ export async function validatePopulation(
   engagementId: string,
   datasetId: string,
 ): Promise<ValidationResult> {
+  await requireEngagementRead(engagementId);
+  if (datasetId) await requireChildRead("sub_ledger_dataset", datasetId);
   const { tenantId } = await requireTenant();
   return withTenant(tenantId, async (tx) => {
     const dataset = await glDataset(tx, engagementId, datasetId);

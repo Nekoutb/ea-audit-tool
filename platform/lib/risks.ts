@@ -8,6 +8,7 @@ import { cleanAssertions, type Assertion } from "@/lib/assertions";
 import { withTenant } from "@/lib/db";
 import { canPartnerSignoff } from "@/lib/rbac";
 import { requireTenant, requireWrite } from "@/lib/tenant";
+import { requireChildRead, requireChildWrite, requireEngagementRead, requireEngagementWrite } from "@/lib/engagement-access";
 
 export type RiskRating = "low" | "medium" | "high";
 export type RiskStatus = "identified" | "response_planned" | "response_executed" | "concluded";
@@ -181,6 +182,7 @@ export async function raisePotentialRisk(
   description: string,
   sourceCode: string,
 ): Promise<void> {
+  await requireEngagementWrite(engagementId);
   const { tenantId, userId } = await requireWrite();
   if (!description.trim()) throw new Error("description-required");
   await withTenant(tenantId, async (tx) => {
@@ -219,6 +221,7 @@ export interface AddRiskInput {
  * approve the addition, as a risk added during execution does.
  */
 export async function addRisk(engagementId: string, input: AddRiskInput): Promise<string> {
+  await requireEngagementWrite(engagementId);
   const description = input.description.trim();
   if (description.length < 3) throw new Error("risk-description-required");
   const rating = (v: RiskRating | undefined): RiskRating => (v === "low" || v === "high" ? v : "medium");
@@ -257,6 +260,7 @@ export async function addRisk(engagementId: string, input: AddRiskInput): Promis
 }
 
 export async function listPotentialRisks(engagementId: string): Promise<PotentialRisk[]> {
+  await requireEngagementRead(engagementId);
   const { tenantId } = await requireTenant();
   return withTenant(tenantId, async (tx) => {
     const result = await tx.query<{
@@ -288,6 +292,7 @@ export async function listPotentialRisks(engagementId: string): Promise<Potentia
 
 /** P5.2 decision: dismiss with documented rationale, or promote into S3.1. */
 export async function dismissPotentialRisk(id: string, rationale: string): Promise<void> {
+  await requireChildWrite("potential_risk", id);
   const { tenantId, userId } = await requireWrite();
   if (!rationale.trim()) throw new Error("rationale-required");
   await withTenant(tenantId, async (tx) => {
@@ -301,6 +306,7 @@ export async function dismissPotentialRisk(id: string, rationale: string): Promi
 }
 
 export async function promotePotentialRisk(id: string): Promise<string> {
+  await requireChildWrite("potential_risk", id);
   const { tenantId, userId } = await requireWrite();
   return withTenant(tenantId, async (tx) => {
     // Guarded single-statement transition: a concurrent promote of the same
@@ -324,6 +330,7 @@ export async function promotePotentialRisk(id: string): Promise<string> {
 }
 
 export async function listRisks(engagementId: string): Promise<Risk[]> {
+  await requireEngagementRead(engagementId);
   const { tenantId } = await requireTenant();
   return withTenant(tenantId, async (tx) => {
     const result = await tx.query<{
@@ -407,6 +414,7 @@ export async function updateRisk(
     fsNote?: string;
   },
 ): Promise<void> {
+  await requireChildWrite("risk", riskId);
   const { tenantId } = await requireWrite();
   await withTenant(tenantId, async (tx) => {
     const current = await tx.query<{ presumed_type: string | null }>(
@@ -460,6 +468,7 @@ export async function linkRiskToIndex(
   indexCode: string,
   assertions: string[],
 ): Promise<void> {
+  await requireChildWrite("risk", riskId);
   const { tenantId } = await requireWrite();
   if (!/^[A-Z0-9]{1,4}$/.test(indexCode)) throw new Error("invalid-index");
   const clean = cleanAssertions(assertions);
@@ -474,6 +483,7 @@ export async function linkRiskToIndex(
 }
 
 export async function unlinkRiskFromIndex(riskId: string, indexCode: string): Promise<void> {
+  await requireChildWrite("risk", riskId);
   const { tenantId } = await requireWrite();
   await withTenant(tenantId, async (tx) => {
     await tx.query("DELETE FROM risk_lead_index WHERE risk_id = $1 AND index_code = $2", [riskId, indexCode]);
@@ -484,6 +494,7 @@ export async function unlinkRiskFromIndex(riskId: string, indexCode: string): Pr
 export async function riskDerivedAssertions(
   engagementId: string,
 ): Promise<Map<string, Set<string>>> {
+  await requireEngagementRead(engagementId);
   const { tenantId } = await requireTenant();
   return withTenant(tenantId, async (tx) => {
     const r = await tx.query<{ index_code: string; assertions: string[] }>(
@@ -503,6 +514,7 @@ export async function riskDerivedAssertions(
 }
 /** Rebut the presumed revenue-fraud risk — requires justification + partner. */
 export async function rebutRevenueFraudRisk(riskId: string, justification: string): Promise<void> {
+  await requireChildWrite("risk", riskId);
   const { tenantId, userId, role } = await requireWrite();
   if (!canPartnerSignoff(role)) throw new Error("rebut-partner-only");
   if (!justification.trim()) throw new Error("justification-required");
@@ -550,6 +562,8 @@ export async function mapRiskToSection(
   fileItemId: string,
   assertions: Assertion[],
 ): Promise<void> {
+  await requireChildWrite("risk", riskId);
+  await requireChildWrite("file_item", fileItemId);
   const { tenantId } = await requireWrite();
   await withTenant(tenantId, async (tx) => {
     await tx.query(
@@ -563,6 +577,8 @@ export async function mapRiskToSection(
 
 /** Link a planned response: risk ↔ program step (both directions queryable). */
 export async function linkRiskToStep(riskId: string, programStepId: string): Promise<void> {
+  await requireChildWrite("risk", riskId);
+  await requireChildWrite("program_step", programStepId);
   const { tenantId } = await requireWrite();
   await withTenant(tenantId, async (tx) => {
     await tx.query(
@@ -581,6 +597,7 @@ export async function linkRiskToStep(riskId: string, programStepId: string): Pro
 export async function risksForSection(fileItemId: string): Promise<
   { id: string; description: string; rating: RiskRating; significant: boolean; assertions: Assertion[] }[]
 > {
+  await requireChildRead("file_item", fileItemId);
   const { tenantId } = await requireTenant();
   return withTenant(tenantId, async (tx) => {
     const result = await tx.query<{

@@ -11,6 +11,7 @@ import { PROGRAM_LIBRARY, SIGNIFICANT_RISK_EXTENSIONS } from "@/lib/program-libr
 import { cleanAssertions } from "@/lib/assertions";
 import type { Assertion } from "@/lib/risks";
 import { requireTenant, requireWrite } from "@/lib/tenant";
+import { requireChildRead, requireChildWrite } from "@/lib/engagement-access";
 
 export interface ProgramStep {
   id: string;
@@ -23,6 +24,7 @@ export interface ProgramStep {
 }
 
 export async function listProgramSteps(fileItemId: string): Promise<ProgramStep[]> {
+  await requireChildRead("file_item", fileItemId);
   const { tenantId } = await requireTenant();
   return withTenant(tenantId, async (tx) => {
     const result = await tx.query<{
@@ -59,6 +61,7 @@ export async function listProgramSteps(fileItemId: string): Promise<ProgramStep[
  * appended and auto-linked to that risk. Idempotent (no-op if steps exist).
  */
 export async function generateProgram(fileItemId: string, locale: "en" | "fr"): Promise<number> {
+  await requireChildWrite("file_item", fileItemId);
   const { tenantId, userId } = await requireWrite();
   void userId;
   return withTenant(tenantId, async (tx) => {
@@ -156,6 +159,7 @@ export async function addCustomStep(
   description: string,
   assertions: Assertion[],
 ): Promise<void> {
+  await requireChildWrite("file_item", fileItemId);
   const { tenantId } = await requireWrite();
   if (!description.trim()) throw new Error("description-required");
   await withTenant(tenantId, async (tx) => {
@@ -187,6 +191,7 @@ export interface CoverageRow {
 }
 
 export async function sectionCoverage(fileItemId: string): Promise<CoverageRow[]> {
+  await requireChildRead("file_item", fileItemId);
   const { tenantId } = await requireTenant();
   return withTenant(tenantId, async (tx) => {
     const result = await tx.query<{

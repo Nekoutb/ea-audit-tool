@@ -14,6 +14,7 @@ import { canReview } from "@/lib/rbac";
 import { requireTenant, requirePortalUser, ForbiddenError, requireWrite } from "@/lib/tenant";
 import { checkUpload } from "@/lib/upload-safety";
 import { sendInvitation } from "@/lib/users";
+import { requireChildWrite, requireEngagementRead, requireEngagementWrite } from "@/lib/engagement-access";
 
 export class PbcError extends Error {
   constructor(public readonly code: string) {
@@ -45,6 +46,7 @@ const MAX_PBC_BYTES = 25 * 1024 * 1024;
 
 /** Firm side: raise a PBC request and notify the client's portal users. */
 export async function addPbcItem(engagementId: string, title: string, note: string): Promise<string> {
+  await requireEngagementWrite(engagementId);
   const { tenantId } = await requireWrite();
   if (!title.trim()) throw new PbcError("fields-required");
   const { itemId, portalUsers } = await withTenant(tenantId, async (tx) => {
@@ -86,6 +88,7 @@ export async function addPbcItem(engagementId: string, title: string, note: stri
 
 /** Firm side: full list for an engagement. */
 export async function listPbcItems(engagementId: string): Promise<PbcItem[]> {
+  await requireEngagementRead(engagementId);
   const { tenantId } = await requireTenant();
   return withTenant(tenantId, (tx) => queryItems(tx, "fi.engagement_id = $1", [engagementId]));
 }
@@ -134,6 +137,7 @@ async function queryItems(tx: PoolClient, where: string, params: unknown[]): Pro
  * item records when and how often it was chased.
  */
 export async function chasePbc(itemId: string): Promise<void> {
+  await requireChildWrite("pbc_item", itemId);
   const { tenantId } = await requireWrite();
   const { title, note, portalUsers, engagementId } = await withTenant(tenantId, async (tx) => {
     // A reminder nobody can receive is not a chase (UAT run 2 B76): with no
@@ -290,6 +294,8 @@ async function filePbcAsDocument(
  * file — no link, no download, no task carrying it.
  */
 export async function acceptPbc(itemId: string, attachFileItemId?: string): Promise<string | null> {
+  await requireChildWrite("pbc_item", itemId);
+  if (attachFileItemId) await requireChildWrite("file_item", attachFileItemId);
   const { tenantId, userId, role } = await requireWrite();
   if (!canReview(role)) throw new PbcError("forbidden");
   if (!attachFileItemId) throw new PbcError("attach-required");
@@ -343,6 +349,8 @@ async function logPbcFiled(
  * became mandatory — its bytes are still on the row, so it can be filed now.
  */
 export async function attachAcceptedPbc(itemId: string, attachFileItemId: string): Promise<string> {
+  await requireChildWrite("pbc_item", itemId);
+  if (attachFileItemId) await requireChildWrite("file_item", attachFileItemId);
   const { tenantId, userId, role } = await requireWrite();
   if (!canReview(role)) throw new PbcError("forbidden");
   if (!attachFileItemId) throw new PbcError("attach-required");

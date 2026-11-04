@@ -9,6 +9,7 @@ import { withTenant } from "@/lib/db";
 import { RATIO_KEYS } from "@/lib/financial-analysis";
 import { requireTenant, requireWrite } from "@/lib/tenant";
 import { LEAD_INDEXES, leadIndexFor, leadScheduleAlerts, type LeadIndexDef, type LeadScheduleAlert } from "@/lib/lead-classes";
+import { requireEngagementRead, requireEngagementWrite } from "@/lib/engagement-access";
 
 export interface ApAccountRow {
   account: string;
@@ -84,6 +85,7 @@ export function computeLeadChecks(
 
 /** The current TB's checks, or null when there is no TB. */
 export async function apLeadChecks(engagementId: string): Promise<ApLeadChecks | null> {
+  await requireEngagementRead(engagementId);
   const { tenantId } = await requireTenant();
   return withTenant(tenantId, async (tx) => {
     const rows = await tx.query<{ account_code: string; closing: string }>(
@@ -116,6 +118,7 @@ export async function apLeadChecks(engagementId: string): Promise<ApLeadChecks |
 }
 
 export async function apLeadSchedules(engagementId: string): Promise<ApLeadSchedule[]> {
+  await requireEngagementRead(engagementId);
   const { tenantId } = await requireTenant();
   return withTenant(tenantId, async (tx) => {
     const meta = await tx.query<{ client_id: string }>(
@@ -214,6 +217,7 @@ export async function apLeadSchedules(engagementId: string): Promise<ApLeadSched
 
 /** Saved commentary, keyed "<index>|<account>" ("total" for the schedule row). */
 export async function apComments(engagementId: string): Promise<Record<string, string>> {
+  await requireEngagementRead(engagementId);
   const { tenantId } = await requireTenant();
   return withTenant(tenantId, async (tx) => {
     const r = await tx.query<{ code: string; field_key: string; value: string }>(
@@ -234,6 +238,7 @@ export async function saveApComments(
   index: string,
   entries: { key: string; value: string }[],
 ): Promise<void> {
+  await requireEngagementWrite(engagementId);
   const { tenantId, userId } = await requireWrite();
   if (!/^[A-Z0-9]{1,4}$/.test(index)) throw new Error("invalid-index");
   // The financial-analysis grid saves under "FA" with the ratio keys (dso, roe…);

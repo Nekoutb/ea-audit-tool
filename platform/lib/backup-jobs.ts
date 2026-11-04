@@ -4,6 +4,7 @@
 
 import { withTenant } from "@/lib/db";
 import { requireTenant } from "@/lib/tenant";
+import { requireEngagementRead } from "@/lib/engagement-access";
 
 export type BackupKind = "engagement-archive" | "engagement-rolling" | "tenant-full";
 
@@ -53,6 +54,7 @@ export async function enqueueBackup(input: {
 
 /** What has been copied off the box for this engagement, newest first. */
 export async function backupsFor(engagementId: string): Promise<BackupJob[]> {
+  await requireEngagementRead(engagementId);
   const { tenantId } = await requireTenant();
   return withTenant(tenantId, async (tx) => {
     const { rows } = await tx.query<{

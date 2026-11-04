@@ -15,7 +15,7 @@ import { generateLetter, type LetterKind } from "@/lib/letters";
 import { withTenant } from "@/lib/db";
 import { getLocale } from "@/lib/locale";
 import { decideOpinion, generateAuditReport } from "@/lib/report";
-import { requireTenant } from "@/lib/tenant";
+import { requireEngagementWrite } from "@/lib/engagement-access";
 
 async function guarded(path: string, fn: () => Promise<string | void>): Promise<never> {
   let target = path;
@@ -77,7 +77,7 @@ export async function subsequentEventsAction(engagementId: string, formData: For
     if (!reviewedTo) throw new Error("fields-required");
     // ISA 560: the review runs from the period end to the report date, so a
     // "reviewed to" date on or before the period end reviews nothing (UAT run 2 B79).
-    const { tenantId } = await requireTenant();
+    const { tenantId } = await requireEngagementWrite(engagementId);
     const periodEnd = await withTenant(tenantId, async (tx) => {
       const r = await tx.query<{ period_end: string | null }>(
         "SELECT to_char(period_end, 'YYYY-MM-DD') AS period_end FROM engagement WHERE id = $1",
@@ -140,7 +140,7 @@ export async function issueReportAction(engagementId: string, formData: FormData
     const kamText = String(formData.get("kamText") ?? "").trim();
     const kamNoneReason = String(formData.get("kamNoneReason") ?? "").trim();
     const kamNone = formData.get("kamNone") === "on";
-    const { tenantId } = await requireTenant();
+    const { tenantId } = await requireEngagementWrite(engagementId);
     const listed = await withTenant(tenantId, async (tx) => {
       const r = await tx.query<{ listed: boolean }>(
         "SELECT c.listed FROM engagement e JOIN client c ON c.id = e.client_id WHERE e.id = $1",

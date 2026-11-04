@@ -39,6 +39,7 @@ import { TOLERANCE } from "@/lib/gl-line";
 import { LEAD_INDEX_BY_CODE, leadIndexFor } from "@/lib/lead-classes";
 import { assertMutable } from "@/lib/mutability";
 import { requireTenant, requireWrite } from "@/lib/tenant";
+import { requireChildRead, requireChildWrite, requireEngagementRead, requireEngagementWrite } from "@/lib/engagement-access";
 
 type Tx = PoolClient;
 export type Locale = "en" | "fr";
@@ -1151,6 +1152,8 @@ export async function runSelection(
   datasetId: string,
   request: SelectionRequest = {},
 ): Promise<SelectionResult> {
+  await requireEngagementRead(engagementId);
+  if (datasetId) await requireChildRead("sub_ledger_dataset", datasetId);
   const params = request.params ?? {};
   const locale: Locale = params.locale === "fr" ? "fr" : "en";
   const settings = resolveSettings(params);
@@ -1586,7 +1589,11 @@ export async function addFirmHoliday(input: FirmHolidayInput): Promise<string> {
   const labelFr = String(input.labelFr ?? "").trim().slice(0, 120);
   if (!labelEn || !labelFr) throw new Error("label-required");
   const engagementId = input.engagementId ?? null;
-  if (engagementId) await assertMutable(engagementId);
+  // A firm-wide date is a firm setting; one tied to a file follows that file's team.
+  if (engagementId) {
+    await requireEngagementWrite(engagementId);
+    await assertMutable(engagementId);
+  }
 
   const { tenantId, userId } = await requireWrite();
   return withTenant(tenantId, async (tx) => {
@@ -1603,7 +1610,11 @@ export async function addFirmHoliday(input: FirmHolidayInput): Promise<string> {
 
 /** Remove one of the firm's own dates. The seeded national calendar is not writable from here. */
 export async function removeFirmHoliday(id: string, engagementId?: string | null): Promise<void> {
-  if (engagementId) await assertMutable(engagementId);
+  await requireChildWrite("firm_holiday", id);
+  if (engagementId) {
+    await requireEngagementWrite(engagementId);
+    await assertMutable(engagementId);
+  }
   const { tenantId } = await requireWrite();
   await withTenant(tenantId, async (tx) => {
     await tx.query("DELETE FROM firm_holiday WHERE id = $1", [id]);
@@ -1615,6 +1626,7 @@ export async function listHolidays(
   engagementId: string,
   country = "CM",
 ): Promise<{ date: string; labelEn: string; labelFr: string; origin: "national" | "firm" }[]> {
+  await requireEngagementRead(engagementId);
   const code = /^[A-Za-z]{2}$/.test(country) ? country.toUpperCase() : "CM";
   const { tenantId } = await requireTenant();
   return withTenant(tenantId, async (tx) => {
@@ -1640,6 +1652,8 @@ export async function recordSelectionDesign(
   engagementId: string,
   design: { datasetId: string; criteria: string[]; params: SelectionParams; userRules: UserRule[]; userRulesMode?: "any" | "all"; selectedLines: number; populationLines: number },
 ): Promise<void> {
+  await requireEngagementWrite(engagementId);
+  if (design.datasetId) await requireChildWrite("sub_ledger_dataset", design.datasetId);
   if (design.populationLines === 0 || design.selectedLines === 0) throw new Error("je-design-empty");
   await assertMutable(engagementId);
   const { tenantId, userId } = await requireWrite();

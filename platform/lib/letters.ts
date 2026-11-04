@@ -12,6 +12,7 @@ import type { Locale } from "@/lib/i18n";
 import { legalFormLabel } from "@/lib/legal-forms";
 import { requireTenant, requireWrite } from "@/lib/tenant";
 import { createHash } from "node:crypto";
+import { requireEngagementRead, requireEngagementWrite } from "@/lib/engagement-access";
 
 export type LetterKind =
   | "engagement"
@@ -403,6 +404,7 @@ export async function generateLetter(
   kind: LetterKind,
   locale: Locale,
 ): Promise<string> {
+  await requireEngagementWrite(engagementId);
   const { tenantId, userId } = await requireWrite();
   return withTenant(tenantId, async (tx) => {
     const info = await tx.query<{
@@ -661,6 +663,7 @@ export async function generateLetter(
 export async function listLetters(
   engagementId: string,
 ): Promise<{ id: string; title: string; currentVersion: number }[]> {
+  await requireEngagementRead(engagementId);
   const { tenantId } = await requireTenant();
   return withTenant(tenantId, async (tx) => {
     const result = await tx.query<{ id: string; title: string; current_version: number }>(

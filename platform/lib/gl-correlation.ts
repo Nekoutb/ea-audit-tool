@@ -21,6 +21,7 @@ import type { PoolClient } from "pg";
 import { withTenant } from "@/lib/db";
 import { pearson } from "@/lib/gl-analytics";
 import { requireTenant } from "@/lib/tenant";
+import { requireChildRead, requireEngagementRead } from "@/lib/engagement-access";
 
 type Tx = PoolClient;
 
@@ -84,6 +85,8 @@ export async function accountsFor(
   datasetId: string,
   search?: string,
 ): Promise<AccountList> {
+  await requireEngagementRead(engagementId);
+  if (datasetId) await requireChildRead("sub_ledger_dataset", datasetId);
   const { tenantId } = await requireTenant();
   // % and _ are LIKE wildcards; a user typing them means the literal character
   const term = String(search ?? "").trim().slice(0, 60).replace(/([%_\\])/g, "\\$1");
@@ -189,6 +192,8 @@ export async function entryAnalysis(
   limit: CounterpartLimit = 20,
   period: EntryPeriod = "month",
 ): Promise<EntryAnalysis> {
+  await requireEngagementRead(engagementId);
+  if (datasetId) await requireChildRead("sub_ledger_dataset", datasetId);
   const selected = cleanAccounts(accounts, 25);
   const safeMode: EntryMode = mode === "all" ? "all" : "any";
   const safePeriod: EntryPeriod = period === "weekday" ? "weekday" : "month";
@@ -325,6 +330,8 @@ export async function twoAccountCorrelation(
   a: string,
   b: string,
 ): Promise<TwoAccountCorrelation> {
+  await requireEngagementRead(engagementId);
+  if (datasetId) await requireChildRead("sub_ledger_dataset", datasetId);
   const accountA = String(a ?? "").trim();
   const accountB = String(b ?? "").trim();
   if (!ACCOUNT_RE.test(accountA) || !ACCOUNT_RE.test(accountB)) throw new Error("invalid-accounts");
@@ -332,13 +339,14 @@ export async function twoAccountCorrelation(
 
   const { tenantId } = await requireTenant();
   return withTenant(tenantId, async (tx) => {
+    // the entries touching both accounts ("both" itself is a reserved word in PostgreSQL)
     const cte = `
-      WITH both AS (
+      WITH shared AS (
         SELECT je_number FROM gl_line
          WHERE dataset_id = $1 AND engagement_id = $2 AND account IN ($3, $4)
          GROUP BY je_number HAVING count(DISTINCT account) = 2),
       lines AS (
-        SELECT l.* FROM gl_line l JOIN both ON both.je_number = l.je_number
+        SELECT l.* FROM gl_line l JOIN shared ON shared.je_number = l.je_number
          WHERE l.dataset_id = $1 AND l.engagement_id = $2 AND l.account IN ($3, $4))`;
     const params = [datasetId, engagementId, accountA, accountB];
 
@@ -351,7 +359,7 @@ export async function twoAccountCorrelation(
       params,
     );
     const count = await tx.query<{ n: number }>(
-      `${cte} SELECT (SELECT count(*)::int FROM both) AS n`,
+      `${cte} SELECT (SELECT count(*)::int FROM shared) AS n`,
       params,
     );
 
@@ -469,6 +477,8 @@ export async function drillDown(
   datasetId: string,
   filter: DrillFilter,
 ): Promise<DrillResult> {
+  await requireEngagementRead(engagementId);
+  if (datasetId) await requireChildRead("sub_ledger_dataset", datasetId);
   const limit = Math.min(DRILL_CAP, Math.max(1, Math.floor(Number(filter.limit ?? 100)) || 100));
   const offset = Math.max(0, Math.floor(Number(filter.offset ?? 0)) || 0);
 

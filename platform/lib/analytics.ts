@@ -7,6 +7,7 @@
 
 import { withTenant } from "@/lib/db";
 import { requireTenant } from "@/lib/tenant";
+import { requireEngagementRead } from "@/lib/engagement-access";
 
 export interface VarianceLine {
   sectionCode: string;
@@ -83,6 +84,7 @@ function computeRatios(rows: BalanceRow[]): Map<string, number | null> {
  * movement exceeds performance materiality (spec §8.2: analytics read PM live).
  */
 export async function analyticalReview(engagementId: string): Promise<AnalyticalReview> {
+  await requireEngagementRead(engagementId);
   const { tenantId } = await requireTenant();
   return withTenant(tenantId, async (tx) => {
     const current = await closingsByEngagement(tx, engagementId);

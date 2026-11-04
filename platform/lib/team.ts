@@ -13,7 +13,7 @@ import { getLocale } from "@/lib/locale";
 import { createNotification } from "@/lib/notifications";
 import { assertEmailDomainAllowed } from "@/lib/email-domains";
 import { withTenant } from "@/lib/db";
-import { requireEngagementAccess } from "@/lib/engagement-access";
+import { requireChildRead, requireChildWrite, requireEngagementAccess, requireEngagementRead, requireEngagementWrite } from "@/lib/engagement-access";
 import { assertMutable } from "@/lib/mutability";
 import { atLeast, isRole } from "@/lib/rbac";
 import {
@@ -60,6 +60,7 @@ export interface TeamMember {
 }
 
 export async function listTeam(engagementId: string): Promise<TeamMember[]> {
+  await requireEngagementRead(engagementId);
   const { tenantId } = await requireTenant();
   return withTenant(tenantId, async (tx) => {
     const result = await tx.query<{
@@ -399,6 +400,7 @@ export async function fileItemHasAssignee(tx: PoolClient): Promise<boolean> {
 export async function getTaskAssignee(
   itemId: string,
 ): Promise<{ userId: string; name: string } | null> {
+  await requireChildRead("file_item", itemId);
   const { tenantId } = await requireTenant();
   return withTenant(tenantId, async (tx) => {
     if (!(await fileItemHasAssignee(tx))) return null;
@@ -422,6 +424,8 @@ export async function assignTask(
   itemId: string,
   userIdOrNull: string | null,
 ): Promise<void> {
+  await requireEngagementWrite(engagementId);
+  await requireChildWrite("file_item", itemId);
   const { tenantId, userId: actorId, role: actorRole } = await requireWrite();
   // staffing the team's work is not the independent reviewer's call (UAT run 2 B18),
   // whether EQR by firm role or by team role (UAT run 3 B03)
@@ -529,6 +533,7 @@ export async function assignTasks(
   userIdOrNull: string | null,
   role: TaskAssignmentRole = "assignee",
 ): Promise<number> {
+  await requireEngagementWrite(engagementId);
   if (itemIds.length === 0) return 0;
   const { tenantId, userId: actorId, role: actorRole } = await requireWrite();
   const { assertNotEqrWrite } = await import("@/lib/eqr");
@@ -582,6 +587,7 @@ export async function assignTasks(
  * engagement, in one query: user_id → count.
  */
 export async function openAssignedTaskCounts(engagementId: string): Promise<Map<string, number>> {
+  await requireEngagementRead(engagementId);
   const { tenantId } = await requireTenant();
   return withTenant(tenantId, async (tx) => {
     if (!(await fileItemHasAssignee(tx))) return new Map();
@@ -608,6 +614,7 @@ export interface BudgetLine {
 }
 
 export async function listBudget(engagementId: string): Promise<BudgetLine[]> {
+  await requireEngagementRead(engagementId);
   const { tenantId } = await requireTenant();
   return withTenant(tenantId, async (tx) => {
     const result = await tx.query<{ grade: string; hours: string }>(
@@ -623,6 +630,7 @@ export async function setBudgetLine(
   grade: string,
   hours: number,
 ): Promise<void> {
+  await requireEngagementWrite(engagementId);
   const { tenantId } = await requireWrite();
   if (!grade.trim() || !(hours >= 0)) throw new Error("invalid-budget");
   // Actual hours are attributed to the logger's team role, so a budget line
@@ -645,6 +653,7 @@ export interface PbcItem {
 }
 
 export async function listPbc(engagementId: string): Promise<PbcItem[]> {
+  await requireEngagementRead(engagementId);
   const { tenantId } = await requireTenant();
   return withTenant(tenantId, async (tx) => {
     const result = await tx.query<PbcItem>(
@@ -656,6 +665,7 @@ export async function listPbc(engagementId: string): Promise<PbcItem[]> {
 }
 
 export async function addPbcItem(engagementId: string, title: string): Promise<void> {
+  await requireEngagementWrite(engagementId);
   // A read-only or portal account raises no request (UAT B09).
   const { tenantId } = await requireWrite();
   await requireEngagementAccess(engagementId);
@@ -988,6 +998,7 @@ export interface EngagementPartnerInfo {
 
 /** Who holds the partner seat on the engagement, and who signs for them. */
 export async function engagementPartnerInfo(engagementId: string): Promise<EngagementPartnerInfo> {
+  await requireEngagementRead(engagementId);
   const { tenantId } = await requireTenant();
   return withTenant(tenantId, async (tx) => {
     const partner = await tx.query<{ user_id: string; name: string; status: "invited" | "accepted" }>(
@@ -1036,6 +1047,7 @@ export async function transferEngagementPartner(
   newUserId: string,
   outgoingRole: string,
 ): Promise<void> {
+  await requireEngagementWrite(engagementId);
   const { tenantId, userId: actorId, role: actorRole } = await requireWrite();
   await requireEngagementAccess(engagementId);
   await assertMutable(engagementId);
@@ -1120,6 +1132,7 @@ export async function transferEngagementPartner(
  * administrator decides.
  */
 export async function setPartnerDelegate(engagementId: string, delegateUserId: string | null): Promise<void> {
+  await requireEngagementWrite(engagementId);
   const { tenantId, userId: actorId, role: actorRole } = await requireWrite();
   await requireEngagementAccess(engagementId);
   await assertMutable(engagementId);

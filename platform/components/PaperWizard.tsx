@@ -222,18 +222,22 @@ export function PaperWizard({
 
   // Part tabs over the pager (F084): a paper reads "A · B · Conclusion", with a
   // tick on the parts already answered, rather than "1/3" and no list of parts.
+  // The answers as they stand on screen, not as last saved: the inputs are
+  // uncontrolled, so the ticks follow an input event (see the form's onInput).
+  const [typed, setTyped] = useState<Record<string, string>>({});
   const partTabs = useMemo(() => {
+    const live: Record<string, string> = { ...values, ...typed };
     const isAnswered = (it: StepItem): boolean => {
       // the same reading as the paper's completeness (lib/papers/types.ts keyAnswered,
       // lib/working-papers.ts paperMissing): an N/A or a "No" nobody explained is no tick (F040)
       if (it.kind === "proc") {
-        return values[procNaKey(it.key)] === NA ? Boolean(values[procWhyKey(it.key)]?.trim()) : Boolean(values[procKey(it.key)]?.trim());
+        return live[procNaKey(it.key)] === NA ? Boolean(live[procWhyKey(it.key)]?.trim()) : Boolean(live[procKey(it.key)]?.trim());
       }
       if (it.kind === "yn") {
-        const answer = values[ynKey(it.key)];
-        return answer === NA || answer === "no" ? Boolean(values[ynWhyKey(it.key)]?.trim()) : Boolean(answer);
+        const answer = live[ynKey(it.key)];
+        return answer === NA || answer === "no" ? Boolean(live[ynWhyKey(it.key)]?.trim()) : Boolean(answer);
       }
-      return it.field.kind === "auto" || Boolean(values[it.field.key]);
+      return it.field.kind === "auto" || Boolean(live[it.field.key]);
     };
     const tabs: { label: string; title: string; page: number; done: boolean }[] = [];
     steps.forEach((pageItems, pageIndex) => {
@@ -254,11 +258,11 @@ export function PaperWizard({
         page: conclPage,
         done:
           conclusions.length > 0 &&
-          conclusions.every((_, i) => Boolean(values[conclKey(i)]) && (values[conclKey(i)] !== "no" || Boolean(values[conclWhyKey(i)]?.trim()))),
+          conclusions.every((_, i) => Boolean(live[conclKey(i)]) && (live[conclKey(i)] !== "no" || Boolean(live[conclWhyKey(i)]?.trim()))),
       });
     }
     return tabs;
-  }, [steps, conclPage, values, def, fr]);
+  }, [steps, conclPage, values, typed, def, fr]);
 
   // The saved/unsaved indicator (F017): the form's content against what was last
   // saved, read a beat after any interaction so client-managed hidden fields and
@@ -282,6 +286,14 @@ export function PaperWizard({
       if (timer) clearTimeout(timer);
       timer = setTimeout(() => {
         if (baselineRef.current !== null) setDirty(snapshot() !== baselineRef.current);
+        const form = formRef.current;
+        if (!form) return;
+        // the last value posted under a name wins, as in the action (the N/A box's hidden "")
+        const now: Record<string, string> = {};
+        new FormData(form).forEach((value, key) => {
+          if (typeof value === "string") now[key] = value;
+        });
+        setTyped(now);
       }, 60);
     };
     const settle = setTimeout(() => {

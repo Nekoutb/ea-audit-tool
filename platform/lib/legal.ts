@@ -19,6 +19,7 @@ import { createNotification } from "@/lib/notifications";
 import { canPartnerSignoff } from "@/lib/rbac";
 import { periodEndFr } from "@/lib/report";
 import { requireTenant, requireWrite } from "@/lib/tenant";
+import { requireEngagementRead, requireEngagementWrite } from "@/lib/engagement-access";
 
 export class LegalError extends Error {
   constructor(public readonly code: string) {
@@ -209,6 +210,7 @@ function signatureBlock(e: EngagementLegalRow, firmName: string, dateIso: string
  * by key so regeneration follows date changes without losing done-marks.
  */
 export async function generateDeadlines(engagementId: string): Promise<DeadlineInfo[]> {
+  await requireEngagementWrite(engagementId);
   const { tenantId } = await requireWrite(); // read_only may view the legal file, not change it (UAT B10)
   await withTenant(tenantId, async (tx) => {
     const e = await loadLegalContext(tx, engagementId);
@@ -278,6 +280,7 @@ export interface LegalDates {
 
 /** The dates the C5.2 calendar is derived from (AGM-relative rows need the AGM date). */
 export async function legalDates(engagementId: string): Promise<LegalDates> {
+  await requireEngagementRead(engagementId);
   const { tenantId } = await requireTenant();
   return withTenant(tenantId, async (tx) => {
     const e = await loadLegalContext(tx, engagementId);
@@ -296,6 +299,7 @@ export async function setLegalDates(
   engagementId: string,
   input: { agmDate?: string | null; reportDate?: string | null; boardDate?: string | null },
 ): Promise<void> {
+  await requireEngagementWrite(engagementId);
   const { tenantId } = await requireWrite();
   const agmDate = input.agmDate?.trim() || null;
   const reportDate = input.reportDate?.trim() || null;
@@ -325,6 +329,7 @@ export async function setLegalDates(
 }
 
 export async function listDeadlines(engagementId: string): Promise<DeadlineInfo[]> {
+  await requireEngagementRead(engagementId);
   const { tenantId } = await requireTenant();
   return withTenant(tenantId, async (tx) => {
     const result = await tx.query<{ key: string; due_date: string; basis: string; done: boolean; days_left: number }>(
@@ -340,6 +345,7 @@ export async function listDeadlines(engagementId: string): Promise<DeadlineInfo[
 }
 
 export async function markDeadlineDone(engagementId: string, key: string): Promise<void> {
+  await requireEngagementWrite(engagementId);
   const { tenantId } = await requireWrite(); // read_only may view the legal file, not change it (UAT B10)
   await withTenant(tenantId, async (tx) => {
     await tx.query(
@@ -351,6 +357,7 @@ export async function markDeadlineDone(engagementId: string, key: string): Promi
 
 /** Escalation: overdue undone deadlines notify every engagement partner. */
 export async function escalateOverdue(engagementId: string): Promise<number> {
+  await requireEngagementWrite(engagementId);
   const { tenantId } = await requireWrite(); // read_only may view the legal file, not change it (UAT B10)
   const href = `/engagements/${engagementId}/legal`;
   const { overdue, partners, notified } = await withTenant(tenantId, async (tx) => {
@@ -430,6 +437,7 @@ export async function addConvention(
     notifiedAt?: string;
   },
 ): Promise<string> {
+  await requireEngagementWrite(engagementId);
   const { tenantId, userId } = await requireWrite(); // read_only may view the legal file, not change it (UAT B10)
   if (!input.parties.trim() || !input.interested.trim() || !input.nature.trim()) {
     throw new LegalError("fields-required");
@@ -454,6 +462,7 @@ export async function addConvention(
 export async function listConventions(
   engagementId: string,
 ): Promise<{ legalForm: string; conventions: ConventionInfo[] }> {
+  await requireEngagementRead(engagementId);
   const { tenantId } = await requireTenant();
   return withTenant(tenantId, async (tx) => {
     const e = await loadLegalContext(tx, engagementId);
@@ -491,6 +500,7 @@ const CAPACITY_FR: Record<ConventionCapacity, string> = {
 
 /** 8.3: build the rapport spécial from the register (arts. 353/440/442 — à valider); the organs follow the legal form (F052). */
 export async function generateRapportSpecial(engagementId: string): Promise<string> {
+  await requireEngagementWrite(engagementId);
   const { tenantId, userId } = await requireWrite(); // read_only may view the legal file, not change it (UAT B10)
   return withTenant(tenantId, async (tx) => {
     const e = await loadLegalContext(tx, engagementId);
@@ -573,6 +583,7 @@ export async function generateRapportSpecial(engagementId: string): Promise<stri
 // ---- C5.4: article 715 report to the board (spec §12.3) ----
 
 export async function generateArticle715Report(engagementId: string): Promise<string> {
+  await requireEngagementWrite(engagementId);
   const { tenantId, userId } = await requireWrite(); // read_only may view the legal file, not change it (UAT B10)
   return withTenant(tenantId, async (tx) => {
     const e = await loadLegalContext(tx, engagementId);
@@ -685,6 +696,7 @@ export interface FaitInfo {
 
 /** Partner-only: reveal to the ministère public (art. 716) + confidential log. */
 export async function revealFait(engagementId: string, description: string): Promise<string> {
+  await requireEngagementWrite(engagementId);
   const { tenantId, userId, role } = await requireWrite(); // read_only may view the legal file, not change it (UAT B10)
   if (!canPartnerSignoff(role)) throw new LegalError("forbidden");
   if (!description.trim()) throw new LegalError("fields-required");
@@ -719,6 +731,7 @@ export async function revealFait(engagementId: string, description: string): Pro
 
 /** Partner-only read (strict access control per spec §12.5.6). */
 export async function listFaits(engagementId: string): Promise<FaitInfo[]> {
+  await requireEngagementRead(engagementId);
   const { tenantId, role } = await requireTenant();
   if (!canPartnerSignoff(role)) throw new LegalError("forbidden");
   return withTenant(tenantId, async (tx) => {
@@ -741,6 +754,7 @@ export async function generateIrregularitiesLetter(
   target: "ag" | "board",
   points: string,
 ): Promise<string> {
+  await requireEngagementWrite(engagementId);
   const { tenantId, userId } = await requireWrite(); // read_only may view the legal file, not change it (UAT B10)
   if (!points.trim()) throw new LegalError("fields-required");
   return withTenant(tenantId, async (tx) => {
@@ -784,6 +798,7 @@ export interface TitresAttestationInput {
 
 /** Whether C5.7 is on the file — /legal offers the attestation only then (UAT run 3 B25). */
 export async function hasTitresTask(engagementId: string): Promise<boolean> {
+  await requireEngagementRead(engagementId);
   const { tenantId } = await requireTenant();
   return withTenant(tenantId, async (tx) => {
     const r = await tx.query("SELECT 1 FROM file_item WHERE engagement_id = $1 AND code = 'C5.7'", [engagementId]);
@@ -799,6 +814,7 @@ export async function generateTitresAttestation(
   engagementId: string,
   input: TitresAttestationInput = {},
 ): Promise<string> {
+  await requireEngagementWrite(engagementId);
   const { tenantId, userId } = await requireWrite(); // read_only may view the legal file, not change it (UAT B10)
   const inspectionDate = String(input.inspectionDate ?? "").trim();
   if (!/^\d{4}-\d{2}-\d{2}$/.test(inspectionDate) || Number.isNaN(Date.parse(`${inspectionDate}T00:00:00Z`))) {
@@ -941,6 +957,7 @@ export function equityConclusionOf(
 
 /** Read-only view of the C5.8 figures for the page (no deadline, no notification). */
 export async function equityStatus(engagementId: string): Promise<EquityCheck> {
+  await requireEngagementRead(engagementId);
   const { tenantId } = await requireTenant();
   return withTenant(tenantId, (tx) => computeEquity(tx, engagementId));
 }
@@ -953,6 +970,7 @@ export async function equityStatus(engagementId: string): Promise<EquityCheck> {
  * the open EGM row (UAT B100).
  */
 export async function equityCheck(engagementId: string): Promise<EquityCheck> {
+  await requireEngagementWrite(engagementId);
   const { tenantId } = await requireWrite();
   const check = await withTenant(tenantId, async (tx) => {
     const e = await loadLegalContext(tx, engagementId);
@@ -1000,6 +1018,7 @@ export async function equityCheck(engagementId: string): Promise<EquityCheck> {
 
 /** Client share capital used by the C5.8 monitor. */
 export async function setShareCapital(engagementId: string, amount: number): Promise<void> {
+  await requireEngagementWrite(engagementId);
   const { tenantId } = await requireWrite(); // read_only may view the legal file, not change it (UAT B10)
   if (!Number.isFinite(amount) || amount <= 0) throw new LegalError("invalid-amount");
   await withTenant(tenantId, async (tx) => {

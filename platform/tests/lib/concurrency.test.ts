@@ -46,6 +46,10 @@ beforeAll(async () => {
     [TENANT],
   );
   engagementId = await createEngagement({ clientId: client.rows[0].id, fiscalYear: 2025, periodEnd: "2025-12-31", partnerId: PARTNER });
+  await admin.query(
+    "INSERT INTO team_member (tenant_id, engagement_id, user_id, team_role, status) VALUES ($1, $2, $3, 'manager', 'accepted') ON CONFLICT DO NOTHING",
+    [TENANT, engagementId, BOB],
+  );
 }, 40_000);
 
 afterAll(async () => {

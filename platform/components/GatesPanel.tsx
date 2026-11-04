@@ -77,7 +77,12 @@ export function ErrorBanner({
 }) {
   if (!error) return null;
   const t = getMessages(locale).planning;
-  let message: string = t.errors[error as keyof typeof t.errors] ?? error;
+  // "paper-incomplete:Part G, Conclusion": the code, then what it is about
+  const separator = error.indexOf(":");
+  const code = separator > 0 ? error.slice(0, separator) : error;
+  const about = separator > 0 ? error.slice(separator + 1) : "";
+  let message: string = t.errors[code as keyof typeof t.errors] ?? code;
+  if (about) message = `${message} ${locale === "fr" ? "Réponses manquantes :" : "Missing answers:"} ${about}.`;
   for (const [k, v] of Object.entries(vars ?? {})) message = message.split(`{${k}}`).join(v);
   // a screen that does not supply the value drops the bracketed placeholder
   message = message.replace(/\s*\(\{[a-zA-Z]+\}\)/g, "");

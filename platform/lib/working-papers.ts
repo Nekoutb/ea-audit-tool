@@ -21,10 +21,11 @@ import { FINANCIAL_STATEMENT_PAPERS } from "@/lib/papers/financial-statements";
 import { STATUTORY_525_PAPERS } from "@/lib/papers/statutory-525";
 import { CONCLUSION_PAPERS } from "@/lib/papers/conclusion";
 import { GAM_PAPERS } from "@/lib/papers/gam";
-import { paperKeys, procKey, requiredKeys, unansweredKeys, type PaperDef, type PaperField, conclKey, conclWhyKey, ynKey, ynWhyKey } from "@/lib/papers/types";
+import { paperKeys, procKey, procWhyKey, requiredKeys, unansweredKeys, type PaperDef, type PaperField, conclKey, conclWhyKey, ynKey, ynWhyKey } from "@/lib/papers/types";
 import { LEGAL_FORMS, resolveLegalFormPaper } from "@/lib/legal-forms";
 import { resolvePaper, type StandardsEdition } from "@/lib/standards-edition";
 import { groupOfTask, type SectionKey } from "@/lib/task-groups";
+import { requireChildWrite, requireEngagementRead, requireEngagementWrite } from "@/lib/engagement-access";
 
 export type { PaperField, PaperDef, PaperSection, PaperProc, PaperItem } from "@/lib/papers/types";
 
@@ -190,6 +191,38 @@ export function paperMissing(def: PaperDef, values: Record<string, string>): str
     if (v(conclKey(i)) === "no" && v(conclWhyKey(i)).length === 0) missing.push(conclWhyKey(i));
   });
   return missing;
+}
+
+/**
+ * The parts of the paper holding what paperMissing lists, in paper order and in
+ * both languages ("Part G", "Partie G", "Conclusion"), so a refused sign-off can
+ * name them rather than say the paper is incomplete somewhere (D, UAT re-test).
+ */
+export function paperMissingParts(def: PaperDef, values: Record<string, string>): { en: string[]; fr: string[] } {
+  const missing = new Set(paperMissing(def, values));
+  const parts = { en: [] as string[], fr: [] as string[] };
+  const short = (title: string) => title.split(" — ")[0].trim();
+  for (const s of def.sections ?? []) {
+    const keys =
+      s.kind === "proc"
+        ? s.procs.flatMap((p) => [procKey(p.key), procWhyKey(p.key)])
+        : s.kind === "yn"
+          ? s.items.flatMap((i) => [ynKey(i.key), ynWhyKey(i.key)])
+          : s.fields.map((f) => f.key);
+    if (keys.some((k) => missing.has(k))) {
+      parts.en.push(short(s.titleEn));
+      parts.fr.push(short(s.titleFr));
+    }
+  }
+  if ((def.fields ?? []).some((f) => missing.has(f.key))) {
+    parts.en.push("Fields");
+    parts.fr.push("Champs");
+  }
+  if ((def.conclEn ?? []).some((_, i) => missing.has(conclKey(i)) || missing.has(conclWhyKey(i)))) {
+    parts.en.push("Conclusion");
+    parts.fr.push("Conclusion");
+  }
+  return parts;
 }
 
 /**
@@ -452,6 +485,7 @@ async function structuredContentDigest(tx: PoolClient, engagementId: string, cod
 
 /** Same hash, on its own connection (for callers outside a transaction). */
 export async function paperContentHash(engagementId: string, code: string): Promise<string> {
+  await requireEngagementRead(engagementId);
   const { tenantId } = await requireTenant();
   return withTenant(tenantId, (tx) => paperContentHashTx(tx, engagementId, code));
 }
@@ -530,6 +564,7 @@ export async function invalidateStaleSignoffs(
  * trail entry and warn the signers. Same pattern as the SCOT Studio writers.
  */
 export async function voidStaleSignoffsOfItem(fileItemId: string): Promise<void> {
+  await requireChildWrite("file_item", fileItemId);
   const { tenantId, userId } = await requireWrite();
   const found = await withTenant(tenantId, async (tx) => {
     const item = await tx.query<{ engagement_id: string; code: string }>(
@@ -547,6 +582,7 @@ export async function loadPaper(
   engagementId: string,
   code: string,
 ): Promise<Record<string, string>> {
+  await requireEngagementRead(engagementId);
   const { tenantId } = await requireTenant();
   return withTenant(tenantId, async (tx) => {
     const r = await tx.query<{ field_key: string; value: unknown }>(
@@ -577,6 +613,7 @@ async function paperVersionTx(tx: PoolClient, engagementId: string, code: string
 }
 
 export async function paperVersion(engagementId: string, code: string): Promise<string> {
+  await requireEngagementRead(engagementId);
   const { tenantId } = await requireTenant();
   return withTenant(tenantId, (tx) => paperVersionTx(tx, engagementId, code));
 }
@@ -732,6 +769,7 @@ export async function savePaper(
    */
   baseDigests?: Record<string, string>,
 ): Promise<void> {
+  await requireEngagementWrite(engagementId);
   const { assertMutable } = await import("@/lib/mutability");
   await assertMutable(engagementId);
   const { tenantId, userId, role } = await requireWrite();

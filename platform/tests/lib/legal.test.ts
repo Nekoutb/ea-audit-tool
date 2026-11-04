@@ -265,9 +265,12 @@ describe("8.6 C5.6 faits délictueux (partner-only)", () => {
   });
 
   it("refuses non-partner access", async () => {
-    vi.mocked(auth).mockResolvedValueOnce({
-      user: { id: USER, tenantId: TENANT, role: "senior", locale: "en" },
-    } as never);
+    // the membership check and the function each read the session once
+    for (let i = 0; i < 2; i++) {
+      vi.mocked(auth).mockResolvedValueOnce({
+        user: { id: USER, tenantId: TENANT, role: "senior", locale: "en" },
+      } as never);
+    }
     await expect(listFaits(saEngagement)).rejects.toThrow("forbidden");
   });
 });

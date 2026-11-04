@@ -13,6 +13,7 @@
 
 import { withTenant } from "@/lib/db";
 import { requireTenant } from "@/lib/tenant";
+import { requireEngagementRead } from "@/lib/engagement-access";
 
 export interface ConfirmationSummary {
   id: string;
@@ -25,6 +26,7 @@ export interface ConfirmationSummary {
 
 /** Confirmations recorded by the retired campaign, for display as history. */
 export async function listConfirmations(engagementId: string): Promise<ConfirmationSummary[]> {
+  await requireEngagementRead(engagementId);
   const { tenantId } = await requireTenant();
   return withTenant(tenantId, async (tx) => {
     const result = await tx.query<{

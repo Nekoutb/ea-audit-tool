@@ -58,6 +58,13 @@ beforeAll(async () => {
   engagementId = await createEngagement({ clientId: client.rows[0].id, fiscalYear: 2025, periodEnd: "2025-12-31", partnerId: PARTNER });
   fileItemId = (await listFileItems(engagementId)).find((i) => i.code === "E4.1")!.id;
   await assignTeamMember(engagementId, PARTNER, "partner");
+  // only an accepted member acts on a file, whatever the rank (F008, D1)
+  for (const [id, teamRole] of [[STAFFER, "staff"], [EQR, "eqr_reviewer"]]) {
+    await admin.query(
+      "INSERT INTO team_member (tenant_id, engagement_id, user_id, team_role, status) VALUES ($1, $2, $3, $4, 'accepted')",
+      [TENANT, engagementId, id, teamRole],
+    );
+  }
 }, 40_000);
 
 // A leaked identity would run later assertions as the wrong role and hide
@@ -100,15 +107,6 @@ describe("recordCompletion — writing the key IS passing the gate", () => {
 
 describe("clearTaskNote — the reviewer decides a point is resolved", () => {
   // a note is cleared through an engagement the caller can see (UAT run 2 B03)
-  beforeAll(async () => {
-    await admin.query(
-      "INSERT INTO team_member (tenant_id, engagement_id, user_id, team_role, status) VALUES ($1, $2, $3, 'staff', 'accepted')",
-      [TENANT, engagementId, STAFFER],
-    );
-  });
-  afterAll(async () => {
-    await admin.query("DELETE FROM team_member WHERE engagement_id = $1 AND user_id = $2", [engagementId, STAFFER]);
-  });
 
   async function openNote(authorId: string): Promise<string> {
     const r = await admin.query<{ id: string }>(
@@ -187,16 +185,13 @@ describe("signRas — ISQM 2 §19 is an identity rule, not a rank", () => {
   });
 
   it("refuses a quality reviewer who is on the engagement team", async () => {
-    await admin.query(
-      "INSERT INTO team_member (tenant_id, engagement_id, user_id, team_role) VALUES ($1, $2, $3, 'manager')",
-      [TENANT, engagementId, EQR],
-    );
+    await admin.query("UPDATE team_member SET team_role = 'manager' WHERE engagement_id = $1 AND user_id = $2", [engagementId, EQR]);
     as(EQR, "eqr_reviewer");
     await expect(signRas(engagementId, "eqr")).rejects.toThrow("eqr-cannot-be-on-the-team");
-    await admin.query("DELETE FROM team_member WHERE engagement_id = $1 AND user_id = $2", [engagementId, EQR]);
+    await admin.query("UPDATE team_member SET team_role = 'eqr_reviewer' WHERE engagement_id = $1 AND user_id = $2", [engagementId, EQR]);
   });
 
-  it("admits an off-team quality reviewer", async () => {
+  it("admits the quality reviewer seated as such", async () => {
     as(EQR, "eqr_reviewer");
     await expect(signRas(engagementId, "eqr")).resolves.toBeUndefined();
   });

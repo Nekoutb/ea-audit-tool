@@ -93,6 +93,7 @@ export interface ScotStudioView {
 }
 
 export async function listScots(engagementId: string): Promise<Scot[]> {
+  await requireEngagementRead(engagementId);
   const { tenantId } = await requireTenant();
   return withTenant(tenantId, async (tx) => {
     const rows = await tx.query<{
@@ -170,6 +171,7 @@ export async function listScots(engagementId: string): Promise<Scot[]> {
  * legitimately creates a transient violation the auditor must resolve.
  */
 export async function scotStudio(engagementId: string): Promise<ScotStudioView> {
+  await requireEngagementRead(engagementId);
   const scots = await listScots(engagementId);
   // the same significance basis P6.2 and the Risk Console use — defaults from
   // TE and risk linkage included, not just explicitly recorded decisions
@@ -244,6 +246,7 @@ const WT_KEY = /^[a-z_]{1,40}$/;
 export async function walkthroughValues(
   engagementId: string,
 ): Promise<Record<string, Record<string, string>>> {
+  await requireEngagementRead(engagementId);
   const { tenantId } = await requireTenant();
   return withTenant(tenantId, async (tx) => {
     const r = await tx.query<{ code: string; field_key: string; value: string }>(
@@ -267,6 +270,8 @@ export async function saveWalkthrough(
   key: string,
   value: string,
 ): Promise<void> {
+  await requireEngagementWrite(engagementId);
+  await requireChildWrite("scot", scotId);
   const { tenantId, userId } = await requireWrite();
   if (!WT_KEY.test(key)) throw new Error("invalid-key");
   await withTenant(tenantId, async (tx) => {
@@ -298,6 +303,7 @@ export async function saveWalkthrough(
 // structured answers live in form_response under the fixed code 'fscp'.
 
 export async function fscpValues(engagementId: string): Promise<Record<string, string>> {
+  await requireEngagementRead(engagementId);
   const { tenantId } = await requireTenant();
   return withTenant(tenantId, async (tx) => {
     const r = await tx.query<{ field_key: string; value: string }>(
@@ -309,6 +315,7 @@ export async function fscpValues(engagementId: string): Promise<Record<string, s
 }
 
 export async function saveFscp(engagementId: string, key: string, value: string): Promise<void> {
+  await requireEngagementWrite(engagementId);
   const { tenantId, userId } = await requireWrite();
   if (!WT_KEY.test(key)) throw new Error("invalid-key");
   await withTenant(tenantId, async (tx) => {
@@ -335,6 +342,7 @@ export async function saveFscp(engagementId: string, key: string, value: string)
 export type { TodAssurance, TodCra } from "@/lib/tod-plan";
 import { planTod, type GlLine, type TodAssurance, type TodCra } from "@/lib/tod-plan";
 import { jeIdentity, jeKeyColumns } from "@/lib/dataset-mapping";
+import { requireChildWrite, requireEngagementRead, requireEngagementWrite } from "@/lib/engagement-access";
 
 async function glLines(
   tx: { query: <T>(sql: string, params?: unknown[]) => Promise<{ rows: T[] }> },
@@ -377,6 +385,7 @@ async function glLines(
 export async function listGlAccounts(
   engagementId: string,
 ): Promise<{ prefix: string; label: string; total: number; lines: number }[]> {
+  await requireEngagementRead(engagementId);
   const { tenantId } = await requireTenant();
   return withTenant(tenantId, async (tx) => {
     const lines = await glLines(tx, engagementId, "");
@@ -428,6 +437,7 @@ export async function todPreview(
     }
   | { ok: false; error: "no-gl" | "no-mapping" | "empty-population" | "no-materiality" }
 > {
+  await requireEngagementRead(engagementId);
   const { tenantId } = await requireTenant();
   const { approvedMateriality } = await import("@/lib/materiality");
   const m = await approvedMateriality(engagementId);
@@ -509,6 +519,7 @@ export async function scotIdsBelongTo(
   engagementId: string,
   ids: { scotIds?: string[]; wcgwIds?: string[]; controlIds?: string[] },
 ): Promise<boolean> {
+  await requireEngagementRead(engagementId);
   const all = [...(ids.scotIds ?? []), ...(ids.wcgwIds ?? []), ...(ids.controlIds ?? [])];
   if (all.some((id) => !UUID_RE.test(id))) return false;
   const { tenantId } = await requireTenant();
@@ -524,6 +535,7 @@ export async function createScot(
   engagementId: string,
   input: { name: string; transactionType: string; strategy: string; applications?: string; description?: string },
 ): Promise<string> {
+  await requireEngagementWrite(engagementId);
   const { tenantId, userId } = await requireWrite();
   const name = input.name.trim();
   if (!name) throw new Error("name-required");
@@ -548,6 +560,7 @@ export async function updateScot(
   scotId: string,
   patch: { name?: string; transactionType?: string; strategy?: string; applications?: string; description?: string },
 ): Promise<void> {
+  await requireChildWrite("scot", scotId);
   const { tenantId, userId } = await requireWrite();
   const engagementId = await withTenant(tenantId, async (tx) => {
     await tx.query(
@@ -566,6 +579,7 @@ export async function updateScot(
 }
 
 export async function deleteScot(scotId: string): Promise<void> {
+  await requireChildWrite("scot", scotId);
   const { tenantId, userId } = await requireRole("senior");
   const engagementId = await withTenant(tenantId, async (tx) => {
     const owner = await engagementOfScot(tx, scotId);
@@ -578,6 +592,7 @@ export async function deleteScot(scotId: string): Promise<void> {
 
 /** Assign a SCOT; the assignee is notified (outside the tx — house rule). */
 export async function assignScot(scotId: string, userIdOrNull: string | null): Promise<void> {
+  await requireChildWrite("scot", scotId);
   const { tenantId } = await requireWrite();
   const notify = await withTenant(tenantId, async (tx) => {
     const r = await tx.query<{ name: string; engagement_id: string; changed: boolean }>(
@@ -614,6 +629,7 @@ export async function assignScot(scotId: string, userIdOrNull: string | null): P
 }
 
 export async function linkScotIndex(scotId: string, indexCode: string, assertions: unknown): Promise<void> {
+  await requireChildWrite("scot", scotId);
   const { tenantId, userId } = await requireWrite();
   if (!/^[A-Z0-9]{1,4}$/.test(indexCode)) throw new Error("invalid-index");
   const engagementId = await withTenant(tenantId, async (tx) => {
@@ -629,6 +645,7 @@ export async function linkScotIndex(scotId: string, indexCode: string, assertion
 }
 
 export async function unlinkScotIndex(scotId: string, indexCode: string): Promise<void> {
+  await requireChildWrite("scot", scotId);
   const { tenantId, userId } = await requireRole("senior");
   const engagementId = await withTenant(tenantId, async (tx) => {
     await tx.query("DELETE FROM scot_index WHERE scot_id = $1 AND index_code = $2", [scotId, indexCode]);
@@ -638,6 +655,7 @@ export async function unlinkScotIndex(scotId: string, indexCode: string): Promis
 }
 
 export async function addWcgw(scotId: string, description: string, assertions: unknown): Promise<string> {
+  await requireChildWrite("scot", scotId);
   const { tenantId } = await requireWrite();
   if (!description.trim()) throw new Error("description-required");
   // A "what could go wrong" is a risk to an assertion; with none it answers
@@ -658,6 +676,7 @@ export async function addWcgw(scotId: string, description: string, assertions: u
 }
 
 export async function deleteWcgw(wcgwId: string): Promise<void> {
+  await requireChildWrite("wcgw", wcgwId);
   const { tenantId, userId } = await requireRole("senior");
   const { engagementId, deselected } = await withTenant(tenantId, async (tx) => {
     const owner = await engagementOfWcgw(tx, wcgwId);
@@ -693,6 +712,7 @@ export async function addControl(
   scotId: string,
   input: { name: string; owner?: string; controlType?: string; frequency?: string; objective?: string; wcgwIds?: string[] },
 ): Promise<string> {
+  await requireChildWrite("scot", scotId);
   const { tenantId } = await requireWrite();
   if (!input.name.trim()) throw new Error("name-required");
   const type = CONTROL_TYPES.includes(input.controlType as ControlType) ? input.controlType : "manual";
@@ -735,6 +755,7 @@ export async function updateControl(
     tocGrid?: TocGrid;
   },
 ): Promise<void> {
+  await requireChildWrite("scot_control", controlId);
   const { tenantId, userId } = await requireWrite();
   const engagementId = await withTenant(tenantId, async (tx) => {
     // Only a control that addresses at least one WCGW can be selected for
@@ -938,6 +959,8 @@ export async function drawTocSampleForControl(
   controlId: string,
   input: { population: number; sampleSize: number; rule?: string; reason?: string },
 ): Promise<TocDraw> {
+  await requireEngagementWrite(engagementId);
+  await requireChildWrite("scot_control", controlId);
   const { tenantId, userId } = await requireWrite();
   const { requireEngagementAccess } = await import("@/lib/engagement-access");
   await requireEngagementAccess(engagementId);
@@ -1027,6 +1050,7 @@ export async function drawTocSampleForControl(
 export async function listTocDraws(
   engagementId: string,
 ): Promise<Map<string, (TocDraw & { drawnByName: string | null })[]>> {
+  await requireEngagementRead(engagementId);
   const { tenantId } = await requireTenant();
   return withTenant(tenantId, async (tx) => {
     const r = await tx.query<{
@@ -1068,6 +1092,7 @@ export async function musPreview(
   | { ok: true; populationValue: number; populationCount: number; interval: number; topStratum: number; sampleSize: number }
   | { ok: false; error: "no-gl" | "no-mapping" | "empty-population" }
 > {
+  await requireEngagementRead(engagementId);
   const { tenantId } = await requireTenant();
   const { approvedMateriality } = await import("@/lib/materiality");
   const m = await approvedMateriality(engagementId);
@@ -1110,6 +1135,8 @@ export async function musPreview(
 }
 
 export async function toggleWcgwControl(wcgwId: string, controlId: string, linked: boolean): Promise<void> {
+  await requireChildWrite("wcgw", wcgwId);
+  await requireChildWrite("scot_control", controlId);
   const { tenantId, userId } = await requireRole("senior");
   let deselected = 0;
   const engagementId = await withTenant(tenantId, async (tx) => {
@@ -1129,6 +1156,7 @@ export async function toggleWcgwControl(wcgwId: string, controlId: string, linke
 }
 
 export async function deleteControl(controlId: string): Promise<void> {
+  await requireChildWrite("scot_control", controlId);
   const { tenantId, userId } = await requireRole("senior");
   const engagementId = await withTenant(tenantId, async (tx) => {
     const owner = await engagementOfControl(tx, controlId);

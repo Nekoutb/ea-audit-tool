@@ -407,7 +407,7 @@ describe("the trail and the bell in French (F086)", () => {
   it("translates a stored English notification title", () => {
     expect(localizedNotificationTitle("Sign-off voided: Lettre", "fr")).toBe("Signature annulée : Lettre");
     expect(localizedNotificationTitle("Sign-off voided: Letter", "en")).toBe("Sign-off voided: Letter");
-    expect(localizedNotificationTitle("Task assigned · Tâche assignée : E1", "fr")).toBe("Task assigned · Tâche assignée : E1");
+    expect(localizedNotificationTitle("Task assigned · Tâche assignée : E1", "fr")).toBe("Tâche assignée : E1");
   });
 
   it("names an answer by its label, not its storage key", () => {

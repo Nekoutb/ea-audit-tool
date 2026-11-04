@@ -19,6 +19,7 @@ import { archiveGates, completionGates, type ArchiveGate } from "@/lib/completio
 import { withTenant } from "@/lib/db";
 import { requireTenant } from "@/lib/tenant";
 import type { GateResult } from "@/lib/gates";
+import { requireEngagementRead } from "@/lib/engagement-access";
 
 export interface ChecklistItem {
   /** what the reader sees: "E4.2 — Trade payables" or a risk description */
@@ -304,6 +305,7 @@ const HREF_OF = (engagementId: string): Record<string, string> => {
  * itself calls; the items come from the same questions asked for their answers.
  */
 export async function archiveChecklist(engagementId: string, locale: "en" | "fr"): Promise<ArchiveChecklist> {
+  await requireEngagementRead(engagementId);
   const { tenantId } = await requireTenant();
   const [completion, archive] = await Promise.all([completionGates(engagementId), archiveGates(engagementId)]);
 

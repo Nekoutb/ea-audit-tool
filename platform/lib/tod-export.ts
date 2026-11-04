@@ -17,6 +17,7 @@ import { specificThresholds } from "@/lib/significant-accounts";
 import { requireTenant } from "@/lib/tenant";
 import { planTod, stableStartFraction, TOD_ASSURANCES, type GlLine, type TodAssurance, type TodCra } from "@/lib/tod-plan";
 import { buildTodWorkbook, type FsSide, type TodIndexSheet, type TodSideView } from "@/lib/tod-workbook";
+import { requireEngagementRead } from "@/lib/engagement-access";
 
 /** Which indexes belong to which side of the statements. */
 export function indexesOfSide(side: FsSide): typeof LEAD_INDEXES[number][] {
@@ -39,6 +40,7 @@ export interface TodExportOptions {
 }
 
 export async function todSideView(engagementId: string, options: TodExportOptions): Promise<TodSideView | "no-materiality" | "no-gl" | "no-mapping" | null> {
+  await requireEngagementRead(engagementId);
   const engagement = await getEngagement(engagementId);
   if (!engagement) return null;
   const materiality = await approvedMateriality(engagementId);

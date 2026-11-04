@@ -6,6 +6,7 @@
 import { withTenant } from "@/lib/db";
 import { requireTenant } from "@/lib/tenant";
 import { amountOr } from "@/lib/amount";
+import { requireEngagementRead } from "@/lib/engagement-access";
 
 export interface AgingRow {
   party: string;
@@ -57,6 +58,7 @@ export async function agingFor(
   engagementId: string,
   kind: "ar_open_items" | "ap_open_items",
 ): Promise<AgingResult | null> {
+  await requireEngagementRead(engagementId);
   const { tenantId } = await requireTenant();
   return withTenant(tenantId, async (tx) => {
     const meta = await tx.query<{ period_end: string }>(

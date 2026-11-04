@@ -4,6 +4,7 @@ import { craBoard } from "@/lib/cra";
 import { withTenant } from "@/lib/db";
 import { listScots } from "@/lib/scots";
 import { requireTenant } from "@/lib/tenant";
+import { requireEngagementRead } from "@/lib/engagement-access";
 
 export interface ToolPrerequisite {
   key: "controls" | "cra" | "gl";
@@ -13,6 +14,7 @@ export interface ToolPrerequisite {
 }
 
 export async function toolPrerequisites(engagementId: string, locale: "en" | "fr"): Promise<ToolPrerequisite[]> {
+  await requireEngagementRead(engagementId);
   const fr = locale === "fr";
   const { tenantId } = await requireTenant();
   const [scots, cra, codes, gl] = await Promise.all([

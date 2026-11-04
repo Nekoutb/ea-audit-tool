@@ -9,12 +9,14 @@ import { withTenant } from "@/lib/db";
 import { requireTenant, requireWrite } from "@/lib/tenant";
 import { listScots } from "@/lib/scots";
 import { IT_STRATEGIES, newAppKey as slug, type ItAppRow, type ItAppsView, type ItStrategy } from "@/lib/itgc-model";
+import { requireEngagementRead, requireEngagementWrite } from "@/lib/engagement-access";
 
 export type { ItAppRow, ItAppsView, ItStrategy } from "@/lib/itgc-model";
 
 const CODE = "itapps";
 
 export async function itAppsView(engagementId: string): Promise<ItAppsView> {
+  await requireEngagementRead(engagementId);
   const { tenantId } = await requireTenant();
   const scots = await listScots(engagementId).catch(() => []);
 
@@ -92,6 +94,7 @@ export async function saveItApp(
   key: string,
   patch: { name?: string; layers?: string; strategy?: string; itgcNote?: string; removed?: boolean },
 ): Promise<void> {
+  await requireEngagementWrite(engagementId);
   if (!/^[a-z0-9-]{1,40}$/.test(key)) throw new Error("invalid-key");
   if (patch.strategy && !(IT_STRATEGIES as readonly string[]).includes(patch.strategy)) throw new Error("invalid-strategy");
   const { tenantId, userId } = await requireWrite();

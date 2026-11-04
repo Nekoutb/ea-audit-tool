@@ -14,6 +14,7 @@ import { LEAD_INDEXES, SUB_INDEX_BY_CODE, leadIndexFor, subIndexFor, subIndexLab
 import { parseTabularFile, sourceRowOf, type ParsedTable } from "@/lib/subledgers";
 import { requireTenant, requireWrite } from "@/lib/tenant";
 import { amountOr, parseAmount as parseAmountOrNull } from "@/lib/amount";
+import { requireChildWrite, requireEngagementRead, requireEngagementWrite } from "@/lib/engagement-access";
 
 export type TbColumn =
   | "account"
@@ -353,6 +354,7 @@ export async function importTrialBalance(
   timing: TbTiming = "pre_audit",
   headerRow = true,
 ): Promise<TbImportResult> {
+  await requireEngagementWrite(engagementId);
   const { tenantId, userId } = await requireWrite();
   const table = await parseTabularFile(filename, buffer, headerRow);
   const mapping = mappingOverride ?? inferTbMapping(table.headers);
@@ -472,6 +474,7 @@ export interface TbVersionSummary {
 }
 
 export async function listTbVersions(engagementId: string): Promise<TbVersionSummary[]> {
+  await requireEngagementRead(engagementId);
   const { tenantId } = await requireTenant();
   return withTenant(tenantId, async (tx) => {
     const result = await tx.query<{
@@ -528,6 +531,7 @@ export interface TbTimingSlot {
 
 /** The TB slots (Pre-audit / Post-audit / Prior year) — at most one each. */
 export async function listTbTimings(engagementId: string): Promise<TbTimingSlot[]> {
+  await requireEngagementRead(engagementId);
   const { tenantId } = await requireTenant();
   return withTenant(tenantId, async (tx) => {
     const result = await tx.query<{
@@ -592,6 +596,7 @@ export interface LeadScheduleView {
  * overrides re-home whole account classes.
  */
 export async function leadSchedules(engagementId: string): Promise<LeadScheduleView[]> {
+  await requireEngagementRead(engagementId);
   const { tenantId } = await requireTenant();
   return withTenant(tenantId, async (tx) => {
     const meta = await tx.query<{ client_id: string }>(
@@ -706,6 +711,7 @@ export async function createJournal(
   description: string,
   lines: JournalLineInput[],
 ): Promise<string> {
+  await requireEngagementWrite(engagementId);
   const { tenantId, userId } = await requireWrite();
   if (!description.trim()) throw new TbError("description-required");
   if (lines.length < 2) throw new TbError("journal-lines-required");
@@ -743,6 +749,7 @@ export async function createJournal(
 }
 
 export async function listJournals(engagementId: string): Promise<JournalSummary[]> {
+  await requireEngagementRead(engagementId);
   const { tenantId } = await requireTenant();
   return withTenant(tenantId, async (tx) => {
     const result = await tx.query<{
@@ -784,6 +791,7 @@ export async function postJournal(
   journalId: string,
   kind: "adjusted" | "final",
 ): Promise<number> {
+  await requireChildWrite("adjusting_journal", journalId);
   const { tenantId, userId } = await requireWrite();
   return withTenant(tenantId, async (tx) => {
     const journal = await tx.query<{ id: string; trial_balance_id: string; status: string }>(
@@ -893,6 +901,7 @@ export async function diffTbVersions(
   versionA: number,
   versionB: number,
 ): Promise<TbDiffLine[]> {
+  await requireEngagementRead(engagementId);
   const { tenantId } = await requireTenant();
   return withTenant(tenantId, async (tx) => {
     const result = await tx.query<{ account: string; a: string | null; b: string | null }>(
@@ -1047,6 +1056,7 @@ export async function previewTrialBalance(
   mappingOverride?: TbMapping,
   headerRow = true,
 ): Promise<TbPreview> {
+  await requireEngagementRead(engagementId);
   const { tenantId } = await requireTenant();
   const table = await parseTabularFile(filename, buffer, headerRow);
   let mapping: TbMapping = mappingOverride ?? {};

@@ -14,6 +14,7 @@ import { withTenant } from "@/lib/db";
 import { atLeast, type Role } from "@/lib/rbac";
 import { ForbiddenError, requireTenant, requireRole, requireWrite } from "@/lib/tenant";
 import { engagementTasksWithActiveConditionals } from "@/lib/engagement-dashboard";
+import { requireEngagementRead, requireEngagementWrite } from "@/lib/engagement-access";
 
 export interface RasItem {
   key: string;
@@ -105,6 +106,7 @@ const CODE = "wp:P7.2";
 const ALL_ITEMS = [...SECTION_A, ...SECTION_B, ...SECTION_C];
 
 export async function planningRas(engagementId: string): Promise<PlanningRasView> {
+  await requireEngagementRead(engagementId);
   const { tenantId } = await requireTenant();
   return withTenant(tenantId, async (tx) => {
     const saved = await tx.query<{ field_key: string; value: string }>(
@@ -197,6 +199,7 @@ export async function saveRasAnswer(
   key: string,
   value: string,
 ): Promise<void> {
+  await requireEngagementWrite(engagementId);
   const { tenantId, userId, role } = await requireWrite();
   if (!/^([abc]\d{1,2}(_x)?|ap_[A-Za-z0-9-]{1,40}_(name|role|grade|client|hours|skills))$/.test(key)) throw new Error("invalid-key");
   const floor = SECTION_FLOOR[key[0]];
@@ -294,6 +297,7 @@ export async function signRas(
   role: SignatureRole,
   clear = false,
 ): Promise<void> {
+  await requireEngagementWrite(engagementId);
   // The floor was enforced in the route handler only, so any second caller — a
   // server action, a future batch path — bypassed it silently. It belongs here;
   // the route's copy stays as defence in depth.

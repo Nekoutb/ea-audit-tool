@@ -40,6 +40,7 @@ import {
   type JeView,
 } from "@/lib/je-workbook";
 import { requireTenant } from "@/lib/tenant";
+import { requireEngagementRead } from "@/lib/engagement-access";
 
 export interface JeExportOptions {
   locale?: "en" | "fr";
@@ -92,6 +93,7 @@ export async function jeView(
   engagementId: string,
   options: JeExportOptions = {},
 ): Promise<JeView | null> {
+  await requireEngagementRead(engagementId);
   const { tenantId } = await requireTenant();
   const engagement = await getEngagement(engagementId);
   if (!engagement) return null;

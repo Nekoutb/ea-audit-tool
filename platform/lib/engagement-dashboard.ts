@@ -12,7 +12,7 @@ import {
 import { riskTitle } from "@/lib/risks";
 import { fileItemHasAssignee } from "@/lib/team";
 import { requireTenant } from "@/lib/tenant";
-import { visibilityClause } from "@/lib/engagement-access";
+import { requireEngagementRead, visibilityClause } from "@/lib/engagement-access";
 import { isLegalForm } from "@/lib/legal-forms";
 import { isStandardsEdition } from "@/lib/standards-edition";
 
@@ -102,6 +102,7 @@ export async function engagementPhaseProgress(
   engagementId: string,
   phase: EngagementPhase,
 ): Promise<PhaseProgress[]> {
+  await requireEngagementRead(engagementId);
   const { tenantId } = await requireTenant();
   const rows = await withTenant(tenantId, async (tx) => {
     const result = await tx.query<{ bucket: string; total: string; done_signed: string }>(
@@ -223,6 +224,7 @@ export function initials(name: string): string {
  * state for the sign-off columns. Same bucket mapping as the gauges.
  */
 export async function phaseTasks(engagementId: string, phase: DashboardPhase): Promise<PhaseTask[]> {
+  await requireEngagementRead(engagementId);
   const { tenantId } = await requireTenant();
   return withTenant(tenantId, async (tx) => {
     const dueDate = await dueDateExpr(tx);
@@ -315,6 +317,7 @@ export async function phaseTasks(engagementId: string, phase: DashboardPhase): P
 
 /** The engagement's default reviewer = its partner team member, if any. */
 export async function engagementReviewer(engagementId: string): Promise<string | null> {
+  await requireEngagementRead(engagementId);
   const { tenantId } = await requireTenant();
   return withTenant(tenantId, async (tx) => {
     const r = await tx.query<{ name: string }>(
@@ -377,6 +380,7 @@ export async function engagementAttention(
   engagementId: string,
   locale: "en" | "fr",
 ): Promise<AttentionItem[]> {
+  await requireEngagementRead(engagementId);
   const { tenantId } = await requireTenant();
   return withTenant(tenantId, async (tx) => {
     const findings = await tx.query<{ route: string; title: string; code: string | null; age: number }>(
@@ -540,6 +544,14 @@ export async function mostRecentEngagement(): Promise<EngagementSummary | null> 
 export async function priorYearEngagement(
   engagementId: string,
 ): Promise<{ id: string; fiscalYear: number; name: string | null; phase: EngagementPhase } | null> {
+  await requireEngagementRead(engagementId);
+  return priorYearOnCreation(engagementId);
+}
+
+/** The lookup alone, for a file this request has just created (see lib/forms.ts carryForwardOnCreation). */
+export async function priorYearOnCreation(
+  engagementId: string,
+): Promise<{ id: string; fiscalYear: number; name: string | null; phase: EngagementPhase } | null> {
   const { tenantId } = await requireTenant();
   return withTenant(tenantId, async (tx) => {
     const r = await tx.query<{ id: string; fiscal_year: number; name: string | null; phase: EngagementPhase }>(
@@ -570,6 +582,7 @@ export async function engagementTasks(
   engagementId: string,
   conditional = false,
 ): Promise<PhaseTask[]> {
+  await requireEngagementRead(engagementId);
   return loadTasks(engagementId, conditional ? "conditional" : "base");
 }
 
@@ -588,6 +601,7 @@ export const CONDITIONAL_TRIGGERS: Record<string, string> = {
 
 /** The file item of a task code on this engagement, when it exists. */
 export async function fileItemIdOf(engagementId: string, code: string): Promise<string | null> {
+  await requireEngagementRead(engagementId);
   const { tenantId } = await requireTenant();
   return withTenant(tenantId, async (tx) => {
     const r = await tx.query<{ id: string }>("SELECT id FROM file_item WHERE engagement_id = $1 AND code = $2", [engagementId, code]);
@@ -623,6 +637,7 @@ export function conditionalTriggerText(code: string, locale: "en" | "fr"): strin
  * group pages and read "absent" on P7.2).
  */
 export async function engagementTasksWithActiveConditionals(engagementId: string): Promise<PhaseTask[]> {
+  await requireEngagementRead(engagementId);
   return loadTasks(engagementId, "active");
 }
 
@@ -807,6 +822,7 @@ async function statsScoped(engagementId: string | null): Promise<DashboardStats>
 export async function dashboardStats(
   engagementId: string,
 ): Promise<{ my: DashboardStats; all: DashboardStats }> {
+  await requireEngagementRead(engagementId);
   const [my, all] = await Promise.all([statsScoped(engagementId), statsScoped(null)]);
   return { my, all };
 }
@@ -817,6 +833,7 @@ export async function dashboardStats(
  * they are excluded from roll-ups until instantiated as applicable).
  */
 export async function taskForItem(engagementId: string, code: string): Promise<PhaseTask | null> {
+  await requireEngagementRead(engagementId);
   const { tenantId } = await requireTenant();
   return withTenant(tenantId, async (tx) => {
     const dueDate = await dueDateExpr(tx);
@@ -913,6 +930,7 @@ export async function taskForItem(engagementId: string, code: string): Promise<P
  * forever on any group holding a conditional member.
  */
 export async function existingTaskCodes(engagementId: string): Promise<Set<string>> {
+  await requireEngagementRead(engagementId);
   const { tenantId } = await requireTenant();
   return withTenant(tenantId, async (tx) => {
     const r = await tx.query<{ code: string }>(
@@ -929,6 +947,7 @@ export async function existingTaskCodes(engagementId: string): Promise<Set<strin
  * work should never hide until a deadline finds it.
  */
 export async function unassignedTaskCount(engagementId: string): Promise<number> {
+  await requireEngagementRead(engagementId);
   const { tenantId } = await requireTenant();
   return withTenant(tenantId, async (tx) => {
     const r = await tx.query<{ n: string }>(

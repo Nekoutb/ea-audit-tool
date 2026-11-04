@@ -18,6 +18,7 @@ import { withTenant } from "@/lib/db";
 import { FINDING_SEVERITIES, type FindingSeverity } from "@/lib/execution";
 import { assertMutable } from "@/lib/mutability";
 import { requireTenant, requireWrite } from "@/lib/tenant";
+import { requireChildWrite, requireEngagementRead, requireEngagementWrite } from "@/lib/engagement-access";
 
 export const LIKELIHOODS = ["remote", "reasonably_possible", "probable"] as const;
 export type Likelihood = (typeof LIKELIHOODS)[number];
@@ -77,6 +78,7 @@ export interface DeficiencyEvaluation {
 
 /** The deficiencies of the file with their evaluations, significant first, then by date raised. */
 export async function listDeficiencies(engagementId: string): Promise<DeficiencyRow[]> {
+  await requireEngagementRead(engagementId);
   const { tenantId } = await requireTenant();
   return withTenant(tenantId, async (tx) => {
     const r = await tx.query<{
@@ -171,6 +173,8 @@ const isSeverity = (v: unknown): v is FindingSeverity => (FINDING_SEVERITIES as 
  * 'c1' findings of the same file.
  */
 export async function saveDeficiencyEvaluation(input: DeficiencyEvaluationInput): Promise<void> {
+  await requireEngagementWrite(input.engagementId);
+  await requireChildWrite("finding", input.findingId);
   const { tenantId, userId } = await requireWrite();
   if (!isSeverity(input.grade)) throw new DeficiencyError("invalid-severity");
   const likelihood = input.likelihood ? (isLikelihood(input.likelihood) ? input.likelihood : null) : null;
@@ -254,6 +258,7 @@ export async function uncommunicatedSignificantDeficienciesTx(tx: PoolClient, en
 
 /** The significant deficiencies not yet communicated in writing (ISA 265 ¶9), for the /conclusion list (D6). */
 export async function uncommunicatedSignificantDeficiencies(engagementId: string): Promise<number> {
+  await requireEngagementRead(engagementId);
   const { tenantId } = await requireTenant();
   return withTenant(tenantId, (tx) => uncommunicatedSignificantDeficienciesTx(tx, engagementId));
 }

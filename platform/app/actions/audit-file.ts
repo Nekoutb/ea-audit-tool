@@ -24,6 +24,7 @@ import { applyComplexity, createEngagement, setEngagementSetup, setStandardsEdit
 import { getLocale } from "@/lib/locale";
 import { isStandardsEdition } from "@/lib/standards-edition";
 import { ForbiddenError } from "@/lib/tenant";
+import { requireChildWrite, requireEngagementWrite } from "@/lib/engagement-access";
 
 function docPath(documentId: string): string {
   return `/documents/${documentId}`;
@@ -39,7 +40,7 @@ async function run(documentId: string, fn: () => Promise<void>): Promise<never> 
     await fn();
   } catch (error) {
     if (error instanceof DocumentRuleError) {
-      redirect(`${docPath(documentId)}?error=${encodeURIComponent(error.code)}`);
+      redirect(`${docPath(documentId)}?error=${encodeURIComponent(error.banner(await getLocale()))}`);
     }
     // Rank refusals (requires-manager, cannot-void-more-senior-signoff …) are
     // domain rules too, not faults: a banner, never the global error page.
@@ -51,6 +52,16 @@ async function run(documentId: string, fn: () => Promise<void>): Promise<never> 
   }
   revalidatePath(docPath(documentId));
   redirect(docPath(documentId));
+}
+
+/** The caller's context for an action with its own SQL: a banner, not a 500, when refused. */
+async function writerOf(engagementId: string, back: string) {
+  try {
+    return await requireEngagementWrite(engagementId);
+  } catch (error) {
+    if (error instanceof ForbiddenError) redirect(`${back}?error=${encodeURIComponent(error.message)}`);
+    throw error;
+  }
 }
 
 /** Case- and whitespace-insensitive client name match. */
@@ -157,12 +168,12 @@ export async function createEngagementAction(formData: FormData): Promise<void> 
   // A second (or later) year for the same client is a continuance, not a
   // first-year acceptance: P1.1 opens as "continuing", the file is not a first
   // audit, and the rolling-forward papers are carried from the prior year.
-  const { priorYearEngagement } = await import("@/lib/engagement-dashboard");
-  const prior = await priorYearEngagement(id);
+  const { priorYearOnCreation } = await import("@/lib/engagement-dashboard");
+  const prior = await priorYearOnCreation(id);
   if (prior) {
     const { requireTenant } = await import("@/lib/tenant");
     const { withTenant } = await import("@/lib/db");
-    const { carryForwardFromPriorYear } = await import("@/lib/forms");
+    const { carryForwardOnCreation } = await import("@/lib/forms");
     const { tenantId, userId } = await requireTenant();
     await withTenant(tenantId, async (tx) => {
       await tx.query("UPDATE engagement SET first_year = false WHERE id = $1", [id]);
@@ -173,7 +184,7 @@ export async function createEngagementAction(formData: FormData): Promise<void> 
         [tenantId, id, userId],
       );
     });
-    const carried = await carryForwardFromPriorYear(id).catch(() => 0);
+    const carried = await carryForwardOnCreation(id).catch(() => 0);
     await recordActivity({
       engagementId: id,
       entityType: "engagement",
@@ -249,10 +260,9 @@ export async function updatePeriodEndAction(engagementId: string, formData: Form
   const path = `/engagements/${engagementId}/settings`;
   const periodEnd = String(formData.get("periodEnd") ?? "").trim();
   if (!isIsoDate(periodEnd)) redirect(`${path}?error=invalid-engagement`);
-  const { requireTenant } = await import("@/lib/tenant");
   const { withTenant } = await import("@/lib/db");
   const { canReview } = await import("@/lib/rbac");
-  const { tenantId, role } = await requireTenant();
+  const { tenantId, role } = await writerOf(engagementId, path);
   if (!canReview(role)) redirect(`${path}?error=forbidden`);
   const naming = (await getBranding()).engagementNaming;
   const namingLocale = await getLocale();
@@ -324,9 +334,8 @@ export async function classifyEntityAction(engagementId: string, formData: FormD
   // execution it is refused (UAT run 2 B77).
   const back = `/engagements/${engagementId}/nature`;
   const reason = String(formData.get("reason") ?? "").trim();
-  const { requireTenant } = await import("@/lib/tenant");
   const { withTenant } = await import("@/lib/db");
-  const { tenantId } = await requireTenant();
+  const { tenantId } = await writerOf(engagementId, back);
   const prior = await withTenant(tenantId, async (tx) => {
     const r = await tx.query<{ phase: string; complexity: string | null; propagated: boolean }>(
       `SELECT e.phase, e.complexity,
@@ -399,31 +408,32 @@ async function signOffFromList(
   let recorded: SignoffRole = role;
   let code = "";
   try {
-    const { requireTenant } = await import("@/lib/tenant");
     const { withTenant } = await import("@/lib/db");
-    const { tenantId } = await requireTenant();
+    // The id in the form is the one the trail below is written against, so the
+    // task must belong to it: the check on the task alone would let a member of
+    // one file sign there and log the sign-off on another (D1).
+    const { tenantId } = await requireEngagementWrite(engagementId);
     const item = await withTenant(tenantId, async (tx) => {
       const r = await tx.query<{ code: string; section: string; phase: string }>(
-        "SELECT fi.code, fi.section, e.phase FROM file_item fi JOIN engagement e ON e.id = fi.engagement_id WHERE fi.id = $1",
-        [fileItemId],
+        "SELECT fi.code, fi.section, e.phase FROM file_item fi JOIN engagement e ON e.id = fi.engagement_id WHERE fi.id = $1 AND fi.engagement_id = $2",
+        [fileItemId, engagementId],
       );
       return r.rows[0] ?? null;
     });
-    code = item?.code ?? "";
+    if (!item) throw new ForbiddenError("not-found");
+    code = item.code;
     // The phase gate is checked BEFORE the paper is generated: a refused
     // sign-off must leave no "working paper generated" behind (UAT run2-B142).
     // signDocument repeats the check under its lock.
-    if (item) {
-      const { phaseOfTask } = await import("@/lib/engagement-dashboard");
-      const { phaseStillOpen } = await import("@/lib/gates");
-      const stillOpen = phaseStillOpen(phaseOfTask(item.section, item.code), item.phase, item.code);
-      if (stillOpen) throw new DocumentRuleError(stillOpen);
-    }
+    const { phaseOfTask } = await import("@/lib/engagement-dashboard");
+    const { phaseStillOpen } = await import("@/lib/gates");
+    const stillOpen = phaseStillOpen(phaseOfTask(item.section, item.code), item.phase, item.code);
+    if (stillOpen) throw new DocumentRuleError(stillOpen);
     const documentId = await generateDocument(fileItemId, locale); // get-or-create
     recorded = await signDocument(documentId, role);
   } catch (error) {
     if (error instanceof DocumentRuleError) {
-      redirect(`${back}?error=${encodeURIComponent(error.code)}`);
+      redirect(`${back}?error=${encodeURIComponent(error.banner(locale))}`);
     }
     // a read-only account or someone off the team: a banner, not a 500 (UAT run 2 B37)
     if (error instanceof ForbiddenError) redirect(`${back}?error=${encodeURIComponent(error.message)}`);
@@ -467,26 +477,36 @@ async function signerIsNonAssignee(fileItemId: string, role: string): Promise<bo
 /** Set / clear a task's due date (per-task deadlines). */
 export async function setDueDateAction(formData: FormData): Promise<void> {
   const fileItemId = String(formData.get("fileItemId") ?? "");
-  const engagementId = String(formData.get("engagementId") ?? "");
   const returnTo = String(formData.get("returnTo") ?? "");
   const date = String(formData.get("dueDate") ?? "");
   const back = returnTo.startsWith("/engagements/") ? returnTo : "/engagements";
   if (!fileItemId || (date && !/^\d{4}-\d{2}-\d{2}$/.test(date))) redirect(back);
-  const { requireTenant } = await import("@/lib/tenant");
   const { withTenant } = await import("@/lib/db");
-  const { canWrite } = await import("@/lib/rbac");
-  const { tenantId, role } = await requireTenant();
-  // a read-only account changes nothing (UAT run 2 B01)
-  if (!canWrite(role)) redirect(`${back}${back.includes("?") ? "&" : "?"}error=read-only-role`);
+  const banner = (code: string): string => `${back}${back.includes("?") ? "&" : "?"}error=${encodeURIComponent(code)}`;
+  // a read-only account or someone off that file's team changes nothing (UAT run 2 B01, D1)
+  let tenantId = "";
   try {
-    await withTenant(tenantId, async (tx) => {
-      await tx.query("UPDATE file_item SET due_date = $2 WHERE id = $1", [fileItemId, date || null]);
+    ({ tenantId } = await requireChildWrite("file_item", fileItemId));
+  } catch (error) {
+    if (error instanceof ForbiddenError) redirect(banner(error.message));
+    throw error;
+  }
+  // the trail goes on the task's own engagement, never on an id from the form
+  let engagementId: string | null = null;
+  try {
+    engagementId = await withTenant(tenantId, async (tx) => {
+      const r = await tx.query<{ engagement_id: string }>(
+        "UPDATE file_item SET due_date = $2 WHERE id = $1 RETURNING engagement_id",
+        [fileItemId, date || null],
+      );
+      return r.rows[0]?.engagement_id ?? null;
     });
   } catch (error) {
     // 42703 = column doesn't exist yet (migration pending) — no-op until it runs.
     if ((error as { code?: string }).code === "42703") redirect(back);
     throw error;
   }
+  if (!engagementId) redirect(back);
   await recordActivity({
     engagementId,
     entityType: "file_item",
@@ -509,12 +529,11 @@ export async function instantiateGroupTasksAction(formData: FormData): Promise<v
   const back = `/engagements/${engagementId}/groups/${groupId}`;
   const { GROUP_BY_ID } = await import("@/lib/task-groups");
   const { itemsForComplexity } = await import("@/lib/file-index");
-  const { requireTenant } = await import("@/lib/tenant");
   const { withTenant } = await import("@/lib/db");
   const { canReview } = await import("@/lib/rbac");
   const group = GROUP_BY_ID[groupId];
   if (!engagementId || !group) redirect("/engagements");
-  const { tenantId, role } = await requireTenant();
+  const { tenantId, role } = await writerOf(engagementId, back);
   if (!canReview(role)) redirect(back);
   await withTenant(tenantId, async (tx) => {
     // Only the items the entity's classification scopes in: adding a group

@@ -23,6 +23,7 @@ import {
   timingAllowed,
   type OspProcedure,
 } from "@/lib/design-procedures-model";
+import { requireEngagementRead, requireEngagementWrite } from "@/lib/engagement-access";
 
 // Re-exported so the server side of S5.5 still has one module to import from.
 export {
@@ -153,6 +154,7 @@ function readOspList(values: Record<string, string>): OspProcedure[] {
 }
 
 export async function dspView(engagementId: string): Promise<DspView> {
+  await requireEngagementRead(engagementId);
   const { tenantId } = await requireTenant();
   const board = await craBoard(engagementId);
 
@@ -227,6 +229,7 @@ export async function dspView(engagementId: string): Promise<DspView> {
 
 /** The S5.5 file item of an engagement — the E4 papers link back to the design. */
 export async function s55ItemId(engagementId: string): Promise<string | null> {
+  await requireEngagementRead(engagementId);
   const { tenantId } = await requireTenant();
   return withTenant(tenantId, async (tx) => {
     const r = await tx.query<{ id: string }>(
@@ -261,6 +264,7 @@ function keyKind(fieldKey: string): { indexCode: string; kind: "sel" | "osp_list
  * design that is already there.
  */
 export async function dspHasSelection(engagementId: string, indexCode: string): Promise<boolean> {
+  await requireEngagementRead(engagementId);
   const { tenantId } = await requireTenant();
   return withTenant(tenantId, async (tx) => {
     const r = await tx.query<{ field_key: string; value: unknown }>(
@@ -277,6 +281,7 @@ export async function dspHasSelection(engagementId: string, indexCode: string): 
 
 /** Persist one design field — account-level (`osp_list`) or per-assertion (`E_nature`). */
 export async function saveDsp(engagementId: string, indexCode: string, field: string, value: string): Promise<void> {
+  await requireEngagementWrite(engagementId);
   if (!FIELD_KEY.test(field)) throw new Error("invalid-field");
   if (!/^[A-Z][A-Z0-9]{0,2}$/.test(indexCode)) throw new Error("invalid-index");
   if (field.startsWith("sel_")) {
@@ -394,6 +399,7 @@ export async function visibleE4(
   engagementId: string,
   tasks: readonly { code: string; status: string }[],
 ): Promise<{ visible: Set<string>; designed: number; total: number }> {
+  await requireEngagementRead(engagementId);
   const members = GROUP_BY_ID.e4?.members ?? [];
   const designed = await dspDesignedIndexes(engagementId);
   const byCode = new Map(tasks.map((task) => [task.code, task.status]));
@@ -403,6 +409,7 @@ export async function visibleE4(
 }
 
 export async function dspDesignedIndexes(engagementId: string): Promise<Set<string>> {
+  await requireEngagementRead(engagementId);
   const { tenantId } = await requireTenant();
   return withTenant(tenantId, async (tx) => {
     const r = await tx.query<{ field_key: string; value: unknown }>(
@@ -432,6 +439,7 @@ export async function dspDesignedIndexes(engagementId: string): Promise<Set<stri
  * Shown on the S5.5 board and the E4 group page alike.
  */
 export async function dspDesignGaps(engagementId: string): Promise<string[]> {
+  await requireEngagementRead(engagementId);
   const view = await dspView(engagementId);
   return view.rows.filter((row) => row.cells.length > 0 && !rowIsDesigned(row)).map((row) => row.indexCode);
 }

@@ -11,6 +11,7 @@ import { bilanTotals, incomeFromTb } from "@/lib/fs-captions";
 import { withTenant } from "@/lib/db";
 import { requireTenant } from "@/lib/tenant";
 import { amountOr } from "@/lib/amount";
+import { requireEngagementRead } from "@/lib/engagement-access";
 
 export type RatioGroup = "Liquidity" | "Activity" | "Profitability" | "Leverage" | "Investment";
 
@@ -163,6 +164,7 @@ const DEFS: { key: string; label: string; labelFr: string; group: RatioGroup; un
 export const RATIO_KEYS: readonly string[] = DEFS.map((def) => def.key);
 
 export async function financialAnalysis(engagementId: string): Promise<FinancialAnalysis | null> {
+  await requireEngagementRead(engagementId);
   const { tenantId } = await requireTenant();
   return withTenant(tenantId, async (tx) => {
     const meta = await tx.query<{ period_end: string; client_id: string }>(

@@ -11,6 +11,7 @@ import { requireTenant, requireWrite } from "@/lib/tenant";
 import { recordActivity, logMaterialityChange } from "@/lib/activity";
 
 import { PERFORMANCE_PCT_RANGE, TRIVIAL_PCT_RANGE } from "@/lib/materiality-model";
+import { requireEngagementRead, requireEngagementWrite } from "@/lib/engagement-access";
 
 export { uncorrectedMisstatementThreshold, PERFORMANCE_PCT_RANGE, TRIVIAL_PCT_RANGE } from "@/lib/materiality-model";
 
@@ -137,6 +138,7 @@ const SELECT_VERSION = `
 export async function tbBenchmarkAmounts(
   engagementId: string,
 ): Promise<Record<Benchmark, number> | null> {
+  await requireEngagementRead(engagementId);
   const { tenantId } = await requireTenant();
   return withTenant(tenantId, async (tx) => {
     const r = await tx.query<{ account_code: string; closing: string }>(
@@ -174,6 +176,7 @@ export async function tbBenchmarkAmounts(
 
 /** The current trial-balance version, for the basis label beside a figure (F013). */
 export async function currentTbVersion(engagementId: string): Promise<number | null> {
+  await requireEngagementRead(engagementId);
   const { tenantId } = await requireTenant();
   return withTenant(tenantId, async (tx) => {
     const r = await tx.query<{ v: number | null }>(
@@ -186,6 +189,7 @@ export async function currentTbVersion(engagementId: string): Promise<number | n
 
 /** The latest PARTNER-APPROVED thresholds — what the working papers may cite. */
 export async function approvedMateriality(engagementId: string): Promise<MaterialityVersion | null> {
+  await requireEngagementRead(engagementId);
   const { tenantId } = await requireTenant();
   return withTenant(tenantId, async (tx) => {
     const result = await tx.query(
@@ -197,6 +201,7 @@ export async function approvedMateriality(engagementId: string): Promise<Materia
 }
 
 export async function currentMateriality(engagementId: string): Promise<MaterialityVersion | null> {
+  await requireEngagementRead(engagementId);
   const { tenantId } = await requireTenant();
   return withTenant(tenantId, async (tx) => {
     const result = await tx.query(
@@ -208,6 +213,7 @@ export async function currentMateriality(engagementId: string): Promise<Material
 }
 
 export async function listMaterialityVersions(engagementId: string): Promise<MaterialityVersion[]> {
+  await requireEngagementRead(engagementId);
   const { tenantId } = await requireTenant();
   return withTenant(tenantId, async (tx) => {
     const result = await tx.query(
@@ -227,6 +233,7 @@ export async function createMaterialityVersion(
   engagementId: string,
   input: MaterialityInput,
 ): Promise<number> {
+  await requireEngagementWrite(engagementId);
   const { tenantId, userId } = await requireWrite();
   if (!input.justification.trim()) throw new Error("justification-required");
   // Validate ranges HERE so bad input becomes a friendly banner, never a DB
@@ -332,6 +339,7 @@ export async function createMaterialityVersion(
  * be simultaneously approved. [Adversarial-review fix]
  */
 export async function approveMateriality(engagementId: string, versionNo: number): Promise<void> {
+  await requireEngagementWrite(engagementId);
   const { tenantId, userId, role } = await requireWrite();
   // Named refusal (UAT B129): the banner says who may approve, not "no rights".
   if (!canPartnerSignoff(role)) throw new Error("requires-partner");
@@ -382,6 +390,7 @@ export async function approveMateriality(engagementId: string, versionNo: number
 export async function reflagMisstatements(
   engagementId: string,
 ): Promise<{ nowReportable: number; nowTrivial: number }> {
+  await requireEngagementWrite(engagementId);
   const { tenantId } = await requireWrite();
   const approved = await approvedMateriality(engagementId);
   if (!approved) return { nowReportable: 0, nowTrivial: 0 };

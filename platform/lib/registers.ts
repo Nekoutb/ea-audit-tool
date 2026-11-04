@@ -7,6 +7,7 @@ import { recordActivity } from "@/lib/activity";
 import { withTenant } from "@/lib/db";
 import { assertMutable } from "@/lib/mutability";
 import { requireTenant, requireWrite } from "@/lib/tenant";
+import { requireEngagementRead, requireEngagementWrite } from "@/lib/engagement-access";
 
 export interface RelatedPartyRow {
   id: string;
@@ -24,6 +25,7 @@ export interface EstimateRow {
 }
 
 export async function listRelatedParties(engagementId: string): Promise<RelatedPartyRow[]> {
+  await requireEngagementRead(engagementId);
   const { tenantId } = await requireTenant();
   return withTenant(tenantId, async (tx) => {
     const r = await tx.query<RelatedPartyRow>(
@@ -35,6 +37,7 @@ export async function listRelatedParties(engagementId: string): Promise<RelatedP
 }
 
 export async function listEstimates(engagementId: string): Promise<EstimateRow[]> {
+  await requireEngagementRead(engagementId);
   const { tenantId } = await requireTenant();
   return withTenant(tenantId, async (tx) => {
     const r = await tx.query<EstimateRow>(
@@ -96,6 +99,7 @@ export async function addRelatedParty(
   engagementId: string,
   input: { name: string; relationship: string; notes: string | null },
 ): Promise<void> {
+  await requireEngagementWrite(engagementId);
   const name = input.name.trim();
   const relationship = input.relationship.trim();
   if (!name || !relationship) throw new Error("fields-required");
@@ -122,6 +126,7 @@ export async function addRelatedParty(
 
 /** Remove a wrong line: soft, logged, and it voids the sign-offs over the register. */
 export async function removeRelatedParty(engagementId: string, id: string): Promise<void> {
+  await requireEngagementWrite(engagementId);
   await writeRegister(
     "party",
     engagementId,
@@ -139,6 +144,7 @@ export async function removeRelatedParty(engagementId: string, id: string): Prom
 }
 
 export async function removeEstimate(engagementId: string, id: string): Promise<void> {
+  await requireEngagementWrite(engagementId);
   await writeRegister(
     "estimate",
     engagementId,
@@ -159,6 +165,7 @@ export async function addEstimate(
   engagementId: string,
   input: { nature: string; method: string | null; assumptions: string | null; uncertainty: string | null; retroReview: string | null },
 ): Promise<void> {
+  await requireEngagementWrite(engagementId);
   const nature = input.nature.trim();
   if (!nature) throw new Error("fields-required");
   await writeRegister(

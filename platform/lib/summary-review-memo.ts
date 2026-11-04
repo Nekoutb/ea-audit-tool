@@ -9,6 +9,7 @@ import { withTenant } from "@/lib/db";
 import { requireTenant } from "@/lib/tenant";
 import { riskTitle } from "@/lib/risks";
 import { loadPaper } from "@/lib/working-papers";
+import { requireEngagementRead } from "@/lib/engagement-access";
 
 export interface SrmMatters {
   /** description in the reader's language (presumed ISA 240 risks are translated) */
@@ -23,6 +24,7 @@ export interface SrmMatters {
 const C13_ORDER = ["p_identify", "p_consult", "p_information", "p_conclusion", "p_implement", "p_external"];
 
 export async function srmMatters(engagementId: string, locale: "en" | "fr" = "en"): Promise<SrmMatters> {
+  await requireEngagementRead(engagementId);
   const { tenantId } = await requireTenant();
   // C1.3 holds ONE consultation record across its procedure answers — the
   // matter, who was consulted, the information, the conclusion, its

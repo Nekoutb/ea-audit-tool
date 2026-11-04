@@ -10,6 +10,7 @@ import { LEAD_INDEXES, leadIndexFor } from "@/lib/lead-classes";
 import { approvedMateriality } from "@/lib/materiality";
 import { riskDerivedAssertions } from "@/lib/risks";
 import { amountOr } from "@/lib/amount";
+import { requireEngagementRead, requireEngagementWrite } from "@/lib/engagement-access";
 
 export interface SignificantAccountRow {
   index: string;
@@ -58,6 +59,7 @@ export interface SignificantAccountsView {
 const KEY = (index: string) => `sa_${index}`;
 
 export async function significantAccounts(engagementId: string): Promise<SignificantAccountsView | null> {
+  await requireEngagementRead(engagementId);
   const { tenantId } = await requireTenant();
   const materiality = await approvedMateriality(engagementId);
   const tolerableError = materiality?.performance ?? null;
@@ -220,6 +222,7 @@ export async function significantAccounts(engagementId: string): Promise<Signifi
 
 /** The specific (lower) materiality amounts recorded per lead index. */
 export async function specificThresholds(engagementId: string): Promise<Map<string, number>> {
+  await requireEngagementRead(engagementId);
   const { tenantId } = await requireTenant();
   return withTenant(tenantId, async (tx) => {
     const r = await tx.query<{ field_key: string; value: string }>(
@@ -253,6 +256,7 @@ export async function saveSignificance(
   assertions?: string[],
   specificTe?: string,
 ): Promise<void> {
+  await requireEngagementWrite(engagementId);
   const { tenantId, userId } = await requireWrite();
   if (!/^[A-Z0-9]{1,4}$/.test(index)) throw new Error("invalid-index");
   const assertionValue =

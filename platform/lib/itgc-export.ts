@@ -29,6 +29,7 @@ import {
 } from "@/lib/itgc-workbook";
 import { requireTenant } from "@/lib/tenant";
 import { loadPaper } from "@/lib/working-papers";
+import { requireEngagementRead } from "@/lib/engagement-access";
 
 /** The S2.3 strategy in the words the workbook prints. */
 const STRATEGY_LABEL: Record<ItStrategy, string> = {
@@ -49,6 +50,7 @@ const DOMAIN_STATES: readonly DomainState[] = ["effective", "reliable", "ineffec
 const PROCESS_STATES: readonly ProcessState[] = ["support", "not_support"];
 
 export async function itgcView(engagementId: string): Promise<ItgcView | null> {
+  await requireEngagementRead(engagementId);
   const { tenantId } = await requireTenant();
   const engagement = await getEngagement(engagementId);
   if (!engagement) return null;

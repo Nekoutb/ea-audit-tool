@@ -7,8 +7,10 @@ import { listScots } from "@/lib/scots";
 import { requireTenant } from "@/lib/tenant";
 import { buildTocSampleWorkbook, type TocSampleView } from "@/lib/toc-sample-workbook";
 import { tocSuggested } from "@/lib/toc-sampling";
+import { requireEngagementRead } from "@/lib/engagement-access";
 
 export async function tocSampleView(engagementId: string, locale: "en" | "fr"): Promise<TocSampleView | null> {
+  await requireEngagementRead(engagementId);
   const engagement = await getEngagement(engagementId);
   if (!engagement) return null;
   const fr = locale === "fr";

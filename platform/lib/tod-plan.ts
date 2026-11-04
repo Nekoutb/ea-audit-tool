@@ -16,6 +16,19 @@ export type TodCra = "minimal" | "low" | "low_sr" | "moderate" | "high" | "high_
 export type TodAssurance = "little" | "some" | "corroborative" | "persuasive";
 
 export const TOD_CRAS: readonly TodCra[] = ["minimal", "low", "low_sr", "moderate", "high", "high_sr"];
+
+/** The combined assessment as a reader sees it, not its stored key. */
+export function todCraLabel(cra: TodCra, locale: "en" | "fr"): string {
+  const labels: Record<TodCra, [en: string, fr: string]> = {
+    minimal: ["Minimal", "Minimal"],
+    low: ["Low", "Faible"],
+    low_sr: ["Low (significant risk)", "Faible (risque significatif)"],
+    moderate: ["Moderate", "Modéré"],
+    high: ["High", "Élevé"],
+    high_sr: ["High (significant risk)", "Élevé (risque significatif)"],
+  };
+  return labels[cra][locale === "fr" ? 1 : 0];
+}
 export const TOD_ASSURANCES: readonly TodAssurance[] = ["little", "some", "corroborative", "persuasive"];
 
 /** Key-item coverage columns of the audit-risk table (percent of population value). */

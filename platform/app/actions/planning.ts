@@ -106,8 +106,8 @@ export async function saveFormAction(
     } catch (error) {
       // The paper's own inputs live on its working-paper screen, not on this
       // form: send the preparer there to complete them (UAT B30).
-      if (error instanceof Error && error.message === "paper-incomplete" && itemId) {
-        redirect(`/engagements/${engagementId}/sections/${itemId}?error=paper-incomplete`);
+      if (error instanceof DocumentRuleError && error.code === "paper-incomplete" && itemId) {
+        redirect(`/engagements/${engagementId}/sections/${itemId}?error=${encodeURIComponent(error.banner(await getLocale()))}`);
       }
       if (error instanceof DocumentRuleError || (error instanceof Error && /^[a-z0-9-]+$/.test(error.message))) {
         redirect(`${path}?error=${encodeURIComponent((error as Error).message)}`);
@@ -218,10 +218,10 @@ export async function markNotApplicableAction(
   const reason = String(formData.get("naReason") ?? "").trim().slice(0, 500);
   const clear = formData.get("clear") === "1";
   await guarded(path, async () => {
-    const { requireTenant } = await import("@/lib/tenant");
+    const { requireEngagementWrite } = await import("@/lib/engagement-access");
     const { assertMutable } = await import("@/lib/mutability");
     const { recordActivity } = await import("@/lib/activity");
-    const { tenantId, userId, role } = await requireTenant();
+    const { tenantId, userId, role } = await requireEngagementWrite(engagementId);
     if (!canReview(role)) throw new Error("forbidden");
     // scoping the team's work in or out is not the independent reviewer's call (UAT run 2 B18)
     // ... firm-role or team-role EQR alike (UAT run 3 B03)
@@ -261,14 +261,15 @@ export async function setMandateAction(
     if (!["statutes", "ago"].includes(type) || !Number.isInteger(startYear)) {
       throw new Error("fields-required");
     }
-    const { requireWrite } = await import("@/lib/tenant");
-    const { tenantId } = await requireWrite();
+    const { requireEngagementWrite } = await import("@/lib/engagement-access");
+    const { tenantId } = await requireEngagementWrite(engagementId);
     await withTenant(tenantId, async (tx) => {
-      await tx.query("UPDATE client SET mandate_type = $2, mandate_start_year = $3 WHERE id = $1", [
-        clientId,
-        type,
-        startYear,
-      ]);
+      // only the client this file is for: the id in the form proves nothing on its own
+      await tx.query(
+        `UPDATE client SET mandate_type = $2, mandate_start_year = $3
+          WHERE id = $1 AND EXISTS (SELECT 1 FROM engagement e WHERE e.id = $4 AND e.client_id = client.id)`,
+        [clientId, type, startYear, engagementId],
+      );
     });
   });
 }

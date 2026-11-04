@@ -5,10 +5,12 @@
 import ExcelJS from "exceljs";
 import { withTenant } from "@/lib/db";
 import { requireTenant } from "@/lib/tenant";
+import { requireEngagementRead } from "@/lib/engagement-access";
 
 export async function exportFileIndex(
   engagementId: string,
 ): Promise<{ filename: string; content: Buffer } | null> {
+  await requireEngagementRead(engagementId);
   const { tenantId } = await requireTenant();
   return withTenant(tenantId, async (tx) => {
     const engagement = await tx.query<{ client_name: string; fiscal_year: number; phase: string }>(

@@ -9,6 +9,7 @@ import type { PoolClient } from "pg";
 import { JE_KEY_JOIN, jeKeyColumns } from "@/lib/dataset-mapping";
 import { withTenant } from "@/lib/db";
 import { requireTenant } from "@/lib/tenant";
+import { requireEngagementRead } from "@/lib/engagement-access";
 
 // ---------------------------------------------------------------------------
 // shared plumbing
@@ -89,6 +90,7 @@ async function distinctValues(tx: Tx, datasetId: string, column: string): Promis
 }
 
 export async function preparersReviewers(engagementId: string): Promise<PreparersReviewers | null> {
+  await requireEngagementRead(engagementId);
   const { tenantId } = await requireTenant();
   return withTenant(tenantId, async (tx) => {
     const { cy, py } = await glDatasets(tx, engagementId);
@@ -154,6 +156,7 @@ async function classTotals(tx: Tx, datasetId: string, accountCol: string): Promi
 }
 
 export async function classVolumes(engagementId: string): Promise<ClassVolumes | null> {
+  await requireEngagementRead(engagementId);
   const { tenantId } = await requireTenant();
   return withTenant(tenantId, async (tx) => {
     const { cy, py } = await glDatasets(tx, engagementId);
@@ -214,6 +217,7 @@ function jeExpr(mapping: Record<string, string>, params: unknown[]): string | nu
 }
 
 export async function weekdayAnalysis(engagementId: string): Promise<WeekdayAnalysis | null> {
+  await requireEngagementRead(engagementId);
   const { tenantId } = await requireTenant();
   return withTenant(tenantId, async (tx) => {
     const { cy } = await glDatasets(tx, engagementId);
@@ -267,6 +271,7 @@ export interface EntryLag {
 
 /** null when the JE entry date column is unmapped (the UI shows a mapping hint). */
 export async function entryLag(engagementId: string): Promise<EntryLag | null> {
+  await requireEngagementRead(engagementId);
   const { tenantId } = await requireTenant();
   return withTenant(tenantId, async (tx) => {
     const { cy } = await glDatasets(tx, engagementId);
@@ -322,6 +327,7 @@ export interface GlPrefix {
 
 /** Distinct 3-digit account prefixes of the CY GL, for the correlation picker. */
 export async function glAccountPrefixes(engagementId: string): Promise<GlPrefix[]> {
+  await requireEngagementRead(engagementId);
   const { tenantId } = await requireTenant();
   return withTenant(tenantId, async (tx) => {
     const { cy } = await glDatasets(tx, engagementId);
@@ -386,6 +392,7 @@ function pearson(xs: number[], ys: number[]): number | null {
  * day-of-month), and how the prefixes' daily line volumes co-move.
  */
 export async function correlationMatrix(engagementId: string, accounts: string[]): Promise<CorrelationResult | null> {
+  await requireEngagementRead(engagementId);
   const cleaned = [...new Set(accounts.map((a) => String(a).trim()))];
   if (cleaned.length < 2 || cleaned.length > 6 || cleaned.some((a) => !/^[0-9]{2,4}$/.test(a))) {
     throw new Error("invalid-accounts");

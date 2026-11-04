@@ -8,7 +8,7 @@ import { createNotification } from "@/lib/notifications";
 import { listTeam } from "@/lib/team";
 import { MGMT_OVERRIDE_PROCEDURE } from "@/lib/risks";
 import { withTenant } from "@/lib/db";
-import { carryForwardFromPriorYear } from "@/lib/forms";
+import { carryForwardOnCreation } from "@/lib/forms";
 import type { GateResult } from "@/lib/gates";
 import { uncorrectedMisstatementThreshold } from "@/lib/materiality-model";
 import { canPartnerSignoff } from "@/lib/rbac";
@@ -20,6 +20,7 @@ import { enqueueBackup } from "@/lib/backup-jobs";
 import { stampRetention } from "@/lib/retention";
 import { EQR_CRITERIA_KEYS } from "@/lib/papers/acceptance";
 import { ynKey } from "@/lib/papers/types";
+import { requireEngagementRead, requireEngagementWrite } from "@/lib/engagement-access";
 
 export class CompletionError extends Error {
   constructor(public readonly code: string) {
@@ -47,6 +48,7 @@ export async function recordCompletion(
    */
   expectedVersion?: string,
 ): Promise<void> {
+  await requireEngagementWrite(engagementId);
   // Four of these keys ARE completion gates, and recordExists() tests existence
   // rather than content — so writing the key is passing the gate. Senior is the
   // floor: in a small firm the senior running fieldwork legitimately performs
@@ -104,6 +106,7 @@ export async function recordCompletion(
 
 /** The version token of a completion record, for the form's hidden field ("" when none). */
 export async function completionRecordVersion(engagementId: string, key: string): Promise<string> {
+  await requireEngagementRead(engagementId);
   const { tenantId } = await requireTenant();
   return withTenant(tenantId, async (tx) => {
     const r = await tx.query<{ v: string }>(
@@ -118,6 +121,7 @@ export async function getCompletionRecord(
   engagementId: string,
   key: string,
 ): Promise<Record<string, unknown> | null> {
+  await requireEngagementRead(engagementId);
   const { tenantId } = await requireTenant();
   return withTenant(tenantId, async (tx) => {
     const result = await tx.query<{ data: Record<string, unknown> }>(
@@ -168,6 +172,7 @@ export async function eqrRequiredTx(tx: PoolClient, engagementId: string): Promi
 }
 
 export async function eqrRequired(engagementId: string): Promise<boolean> {
+  await requireEngagementRead(engagementId);
   const { tenantId } = await requireTenant();
   return withTenant(tenantId, (tx) => eqrRequiredTx(tx, engagementId));
 }
@@ -340,6 +345,7 @@ async function completionGatesTx(tx: PoolClient, engagementId: string): Promise<
 }
 
 export async function completionGates(engagementId: string): Promise<GateResult[]> {
+  await requireEngagementRead(engagementId);
   const { tenantId } = await requireTenant();
   return withTenant(tenantId, (tx) => completionGatesTx(tx, engagementId));
 }
@@ -353,6 +359,7 @@ export interface ConclusionState {
 }
 
 export async function getConclusionState(engagementId: string): Promise<ConclusionState> {
+  await requireEngagementRead(engagementId);
   const { tenantId } = await requireTenant();
   return withTenant(tenantId, async (tx) => {
     const result = await tx.query<{ report_date: string | null; opinion: string | null; archived_at: string | null; retention_until: string | null }>(
@@ -387,6 +394,7 @@ export async function issueReport(
   opinion: "unmodified" | "qualified" | "adverse" | "disclaimer",
   reportDate: string,
 ): Promise<void> {
+  await requireEngagementWrite(engagementId);
   const { tenantId, userId, role } = await requireWrite();
   if (!canPartnerSignoff(role)) throw new CompletionError("requires-partner");
   // the report is issued by the engagement partner or their delegate (F003)
@@ -545,6 +553,7 @@ async function untouchedTasksTx(tx: PoolClient, engagementId: string): Promise<s
 }
 
 export async function archiveGates(engagementId: string): Promise<ArchiveGate[]> {
+  await requireEngagementRead(engagementId);
   const { tenantId } = await requireTenant();
   const { paperFor, paperComplete, loadPaper } = await import("@/lib/working-papers");
   const [c62, c41] = await Promise.all([
@@ -640,6 +649,7 @@ export async function archiveGates(engagementId: string): Promise<ArchiveGate[]>
  * Post-archive modifications are impossible (guards in the document layer).
  */
 export async function archiveEngagement(engagementId: string): Promise<void> {
+  await requireEngagementWrite(engagementId);
   const { tenantId, userId, role } = await requireWrite();
   if (!canPartnerSignoff(role)) throw new CompletionError("archive-partner-only");
   {
@@ -838,6 +848,7 @@ export async function ensureNotArchived(tx: PoolClient, engagementId: string): P
  * understanding/related parties + C6.1 points forward injected.
  */
 export async function rollforward(engagementId: string, newYear: number): Promise<string> {
+  await requireEngagementWrite(engagementId);
   const { tenantId, userId } = await requireWrite();
   const { createEngagement } = await import("@/lib/engagements");
 
@@ -869,7 +880,7 @@ export async function rollforward(engagementId: string, newYear: number): Promis
     periodEnd,
     partnerId: source.partner_id,
   });
-  await carryForwardFromPriorYear(newEngagementId);
+  await carryForwardOnCreation(newEngagementId);
 
   // C6.1 points forward → injected into the new file (spec §8.6).
   const points = await getCompletionRecord(engagementId, "points_forward");

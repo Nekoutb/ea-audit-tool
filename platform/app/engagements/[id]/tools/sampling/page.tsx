@@ -6,6 +6,7 @@ import Link from "next/link";
 import { localizedTitle } from "@/lib/page-title";
 import { notFound, redirect } from "next/navigation";
 import { auth } from "@/auth";
+import { todCraLabel } from "@/lib/tod-plan";
 import { AppNav } from "@/components/AppNav";
 import { SamplingStudio } from "@/components/SamplingStudio";
 import { Panel, PanelHeader } from "@/components/ui/atlas";
@@ -138,7 +139,7 @@ export default async function SamplingPage(props: {
                     <td className="px-2 py-1">{nf.format(sheet.plan.populationValue)}</td>
                     <td className="px-2 py-1">{nf.format(sheet.plan.keyItems.length)} ({nf.format(sheet.plan.keyItemValue)})</td>
                     <td className="px-2 py-1">{nf.format(sheet.plan.te)}</td>
-                    <td className="px-2 py-1">{sheet.cra}</td>
+                    <td className="px-2 py-1">{todCraLabel(sheet.cra, fr ? "fr" : "en")}</td>
                     <td className="px-2 py-1">{sheet.plan.factor ?? "—"}</td>
                     <td className="px-2 py-1">{nf.format(sheet.plan.sampleSize)}</td>
                     <td className="px-2 py-1">{sheet.plan.interval !== null ? nf.format(Math.round(sheet.plan.interval)) : "—"}</td>

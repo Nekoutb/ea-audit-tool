@@ -197,6 +197,15 @@ vi.mock("@/lib/db", () => ({
       },
     }),
 }));
+// the membership rule has its own tests (engagement-write-guard); these mock the database
+vi.mock("@/lib/engagement-access", () => ({
+  requireEngagementRead: async () => undefined,
+  requireEngagementWrite: async () => undefined,
+  requireChildRead: async () => undefined,
+  requireChildWrite: async () => undefined,
+  visibleToUser: async () => true,
+}));
+
 vi.mock("@/lib/tenant", () => ({
   requireTenant: async () => ({ tenantId: TENANT, userId: "u", role: "firm_admin", locale: "en" }),
   requireWrite: async () => ({ tenantId: TENANT, userId: "u", role: "firm_admin", locale: "en" }),

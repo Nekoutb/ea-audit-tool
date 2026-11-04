@@ -7,6 +7,7 @@ import { recordActivity } from "@/lib/activity";
 import { withTenant } from "@/lib/db";
 import { createNotification } from "@/lib/notifications";
 import { requireTenant, requireWrite } from "@/lib/tenant";
+import { requireEngagementRead, requireEngagementWrite } from "@/lib/engagement-access";
 
 export class CommentError extends Error {
   constructor(public readonly code: string) {
@@ -31,6 +32,7 @@ export async function addComment(input: {
   body: string;
   parentId?: string | null;
 }): Promise<void> {
+  await requireEngagementWrite(input.engagementId);
   const { tenantId, userId } = await requireWrite();
   const body = input.body.trim();
   if (!body) throw new CommentError("body-required");
@@ -108,6 +110,7 @@ export async function addComment(input: {
 }
 
 export async function listComments(engagementId: string): Promise<CommentRow[]> {
+  await requireEngagementRead(engagementId);
   const { tenantId, userId } = await requireTenant();
   return withTenant(tenantId, async (tx) => {
     const r = await tx.query<{

@@ -22,6 +22,7 @@ import { recordActivity } from "@/lib/activity";
 import { withTenant } from "@/lib/db";
 import { FORM_DEFINITIONS, isFormComplete, p11FailedChecks, type FormValues } from "@/lib/forms";
 import { requireTenant, requireWrite } from "@/lib/tenant";
+import { requireChildWrite, requireEngagementRead, requireEngagementWrite } from "@/lib/engagement-access";
 
 export interface GateResult {
   key: string;
@@ -350,11 +351,13 @@ async function planningCloseGatesTx(tx: PoolClient, engagementId: string): Promi
 }
 
 export async function acceptanceGates(engagementId: string): Promise<GateResult[]> {
+  await requireEngagementRead(engagementId);
   const { tenantId } = await requireTenant();
   return withTenant(tenantId, (tx) => acceptanceGatesTx(tx, engagementId));
 }
 
 export async function planningCloseGates(engagementId: string): Promise<GateResult[]> {
+  await requireEngagementRead(engagementId);
   const { tenantId } = await requireTenant();
   return withTenant(tenantId, (tx) => planningCloseGatesTx(tx, engagementId));
 }
@@ -381,6 +384,7 @@ async function lockEngagementPhase(
 
 /** acceptance → planning: gate-check + transition atomically. */
 export async function advanceToPlanning(engagementId: string): Promise<void> {
+  await requireEngagementWrite(engagementId);
   const { tenantId } = await requireWrite();
   await withTenant(tenantId, async (tx) => {
     await lockEngagementPhase(tx, engagementId, "acceptance");
@@ -403,6 +407,7 @@ export async function advanceToPlanning(engagementId: string): Promise<void> {
 
 /** planning → execution: gates + snapshot + transition in one transaction (spec §5.4). */
 export async function closePlanning(engagementId: string): Promise<void> {
+  await requireEngagementWrite(engagementId);
   const { tenantId, userId } = await requireWrite();
   await withTenant(tenantId, async (tx) => {
     await lockEngagementPhase(tx, engagementId, "planning");
@@ -440,6 +445,7 @@ export async function closePlanning(engagementId: string): Promise<void> {
 
 /** Toggle the (Phase 2 manual) material flag on an E-section. */
 export async function setSectionMaterial(fileItemId: string, material: boolean): Promise<void> {
+  await requireChildWrite("file_item", fileItemId);
   const { tenantId } = await requireWrite();
   await withTenant(tenantId, async (tx) => {
     await tx.query("UPDATE file_item SET material = $2 WHERE id = $1 AND section = 'E'", [

@@ -5,6 +5,7 @@ import { addCommentAction } from "@/app/actions/comments";
 import { AppNav } from "@/components/AppNav";
 import { NavLink } from "@/components/NavLink";
 import { Panel, PanelHeader, btnPrimary } from "@/components/ui/atlas";
+import { ReadOnlyFieldset } from "@/components/ReadOnlyFieldset";
 import { SubmitButton } from "@/components/SubmitButton";
 import { listComments, type CommentRow } from "@/lib/comments";
 import { initials } from "@/lib/engagement-dashboard";
@@ -106,6 +107,7 @@ export default async function DiscussionPage(props: {
         </p>
       ) : null}
 
+      <ReadOnlyFieldset role={session.user.role} locale={locale}>
       <Panel className="p-5">
         <form action={addCommentAction} className="flex flex-col gap-3">
           <input type="hidden" name="engagementId" value={id} />
@@ -135,6 +137,7 @@ export default async function DiscussionPage(props: {
           )}
         </div>
       </Panel>
+      </ReadOnlyFieldset>
     </main>
   );
 }

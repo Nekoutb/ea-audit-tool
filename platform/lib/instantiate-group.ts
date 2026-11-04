@@ -6,8 +6,10 @@ import { withTenant } from "@/lib/db";
 import { DEFAULT_FILE_INDEX } from "@/lib/file-index";
 import { GROUP_BY_ID } from "@/lib/task-groups";
 import { requireWrite } from "@/lib/tenant";
+import { requireEngagementWrite } from "@/lib/engagement-access";
 
 export async function instantiateGroupTasks(engagementId: string, groupId: string): Promise<number> {
+  await requireEngagementWrite(engagementId);
   const group = GROUP_BY_ID[groupId];
   if (!group) return 0;
   const { tenantId } = await requireWrite();

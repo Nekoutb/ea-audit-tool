@@ -1,4 +1,4 @@
-import { localizedNotificationTitle } from "@/lib/activity-summary";
+import { localizedNotificationBody, localizedNotificationTitle } from "@/lib/activity-summary";
 import { auth, signOut } from "@/auth";
 import { EngagementSelector, type SelectorItem } from "@/components/EngagementSelector";
 import { NavLink } from "@/components/NavLink";
@@ -52,7 +52,11 @@ export async function AppNav({
     ]);
     branding = b;
     unread = u;
-    notifs = n.map((item) => ({ ...item, title: localizedNotificationTitle(item.title, locale) }));
+    notifs = n.map((item) => ({
+      ...item,
+      title: localizedNotificationTitle(item.title, locale),
+      body: item.body === null ? null : localizedNotificationBody(item.kind, item.body, locale),
+    }));
     recent = r.map((e) => ({
       id: e.id,
       title: e.name ?? e.clientName,

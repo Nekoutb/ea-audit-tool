@@ -15,8 +15,10 @@ import {
   type TocGridRow,
   type TocView,
 } from "@/lib/toc-workbook";
+import { requireEngagementRead } from "@/lib/engagement-access";
 
 export async function tocView(engagementId: string, locale: "en" | "fr" = "en"): Promise<TocView | null> {
+  await requireEngagementRead(engagementId);
   const { tenantId } = await requireTenant();
   const engagement = await getEngagement(engagementId);
   if (!engagement) return null;

@@ -4,6 +4,7 @@
 import { recordActivity } from "@/lib/activity";
 import { withTenant } from "@/lib/db";
 import { requireTenant, requireWrite } from "@/lib/tenant";
+import { requireChildWrite, requireEngagementRead, requireEngagementWrite } from "@/lib/engagement-access";
 
 export class TimeError extends Error {
   constructor(public readonly code: string) {
@@ -27,6 +28,8 @@ export async function logTime(input: {
   hours: number;
   note?: string | null;
 }): Promise<void> {
+  await requireEngagementWrite(input.engagementId);
+  if (input.fileItemId) await requireChildWrite("file_item", input.fileItemId);
   const { tenantId, userId } = await requireWrite();
   if (!input.engagementId) throw new TimeError("invalid");
   if (!/^\d{4}-\d{2}-\d{2}$/.test(input.date)) throw new TimeError("invalid-date");
@@ -47,6 +50,7 @@ export async function logTime(input: {
 }
 
 export async function deleteTimeEntry(id: string): Promise<void> {
+  await requireChildWrite("time_entry", id);
   const { tenantId, userId } = await requireWrite();
   await withTenant(tenantId, async (tx) => {
     // A person can only remove their own entries.
@@ -56,6 +60,7 @@ export async function deleteTimeEntry(id: string): Promise<void> {
 
 /** The current user's own time entries for an engagement, most recent first. */
 export async function listMyTime(engagementId: string): Promise<TimeEntryRow[]> {
+  await requireEngagementRead(engagementId);
   const { tenantId, userId } = await requireTenant();
   return withTenant(tenantId, async (tx) => {
     const r = await tx.query<{ id: string; date: string; hours: string; note: string | null; code: string | null }>(
@@ -83,6 +88,7 @@ export interface BudgetActualRow {
  * with no team grade fall under "unassigned").
  */
 export async function budgetVsActual(engagementId: string): Promise<BudgetActualRow[]> {
+  await requireEngagementRead(engagementId);
   const { tenantId } = await requireTenant();
   return withTenant(tenantId, async (tx) => {
     const r = await tx.query<{ grade: string; budget: string; actual: string }>(

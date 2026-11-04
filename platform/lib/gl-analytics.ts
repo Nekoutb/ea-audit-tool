@@ -19,6 +19,7 @@ import type { PoolClient } from "pg";
 import { withTenant } from "@/lib/db";
 import { glDataset, mappedFields, TOLERANCE } from "@/lib/gl-line";
 import { requireTenant } from "@/lib/tenant";
+import { requireChildRead, requireEngagementRead } from "@/lib/engagement-access";
 
 type Tx = PoolClient;
 type Locale = "en" | "fr";
@@ -1447,6 +1448,8 @@ export async function runAnalytic(
   key: string,
   params: AnalyticParams = {},
 ): Promise<AnalyticResult> {
+  await requireEngagementRead(engagementId);
+  if (datasetId) await requireChildRead("sub_ledger_dataset", datasetId);
   const def = ANALYTIC_BY_KEY.get(key);
   if (!def) throw new Error("unknown-analytic");
   const locale: Locale = params.locale === "fr" ? "fr" : "en";
@@ -1500,6 +1503,8 @@ export async function catalogue(
   datasetId: string,
   locale: Locale = "en",
 ): Promise<CatalogueEntry[]> {
+  await requireEngagementRead(engagementId);
+  if (datasetId) await requireChildRead("sub_ledger_dataset", datasetId);
   const { tenantId } = await requireTenant();
   return withTenant(tenantId, async (tx) => {
     const dataset = await glDataset(tx, engagementId, datasetId);

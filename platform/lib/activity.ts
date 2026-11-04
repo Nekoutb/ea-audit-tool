@@ -10,6 +10,7 @@
 
 import { withTenant } from "@/lib/db";
 import { requireTenant } from "@/lib/tenant";
+import { requireEngagementRead } from "@/lib/engagement-access";
 
 /** Did the attempt succeed, get refused, or fail? */
 export type ActivityOutcome = "success" | "denied" | "failed";
@@ -304,6 +305,7 @@ export interface ActivityRow {
 }
 
 export async function listActivity(engagementId: string, limit = 200): Promise<ActivityRow[]> {
+  await requireEngagementRead(engagementId);
   const { tenantId } = await requireTenant();
   return withTenant(tenantId, async (tx) => {
     const r = await tx.query<{

@@ -14,6 +14,7 @@ import type { Locale } from "@/lib/i18n";
 import { leadRef } from "@/lib/lead-taxonomy";
 import { createNotification } from "@/lib/notifications";
 import { requireTenant, requireWrite } from "@/lib/tenant";
+import { requireChildWrite, requireEngagementRead } from "@/lib/engagement-access";
 
 const XLSX_MIME = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet";
 
@@ -126,6 +127,7 @@ async function priorEngagementId(tx: PoolClient, engagementId: string): Promise<
  * unmapped accounts block lead-schedule generation for their section).
  */
 export async function sectionBalances(engagementId: string): Promise<Map<string, SectionBalances>> {
+  await requireEngagementRead(engagementId);
   const { tenantId } = await requireTenant();
   return withTenant(tenantId, async (tx) => {
     const clientRow = await tx.query<{ client_id: string }>(
@@ -225,6 +227,7 @@ export async function generateLeadSchedule(
   fileItemId: string,
   locale: Locale,
 ): Promise<LeadScheduleResult> {
+  await requireChildWrite("file_item", fileItemId);
   const { tenantId, userId } = await requireWrite();
   const fr = locale === "fr";
 
@@ -394,6 +397,7 @@ export async function generateLeadSchedule(
 
 /** Step 3.8: assign the section to a team member and deliver the lead schedule. */
 export async function assignSection(fileItemId: string, userId: string): Promise<void> {
+  await requireChildWrite("file_item", fileItemId);
   const { tenantId } = await requireWrite();
   const target = await withTenant(tenantId, async (tx) => {
     const updated = await tx.query<{ code: string; engagement_id: string }>(

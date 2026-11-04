@@ -3,6 +3,7 @@
 
 import { withTenant } from "@/lib/db";
 import { requireRole, requireTenant } from "@/lib/tenant";
+import { requireEngagementRead } from "@/lib/engagement-access";
 
 export interface EngagementDashboard {
   phase: string;
@@ -18,6 +19,7 @@ export interface EngagementDashboard {
 }
 
 export async function engagementDashboard(engagementId: string): Promise<EngagementDashboard> {
+  await requireEngagementRead(engagementId);
   const { tenantId } = await requireTenant();
   return withTenant(tenantId, async (tx) => {
     const summary = await tx.query<{

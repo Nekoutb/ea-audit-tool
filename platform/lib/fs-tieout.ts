@@ -9,6 +9,7 @@
 import type { PoolClient } from "pg";
 import { withTenant } from "@/lib/db";
 import { requireTenant } from "@/lib/tenant";
+import { requireEngagementRead } from "@/lib/engagement-access";
 
 interface Closings {
   get(prefixes: string[], exclude?: string[]): number;
@@ -208,6 +209,7 @@ export async function runFsTieout(
   engagementId: string,
   clientFs?: Buffer,
 ): Promise<TieoutResult> {
+  await requireEngagementRead(engagementId);
   const { tenantId } = await requireTenant();
   return withTenant(tenantId, async (tx) => {
     const { closings, rowCount } = await loadClosings(tx, engagementId);

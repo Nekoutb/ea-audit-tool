@@ -66,7 +66,11 @@ export default async function DocumentPage(props: {
   const archived = engagement?.phase === "archived";
   const checkedOutByMe = document.checkedOutBy === session.user.id;
   const openNotes = notes.filter((note) => note.status === "open");
-  const errorText = error ? (td.errors[error as keyof typeof td.errors] ?? error) : null;
+  // "paper-incomplete:Part G, Conclusion": the code, then what it is about
+  const [errorCode, errorAbout] = error ? [error.split(":")[0], error.split(":").slice(1).join(":")] : ["", ""];
+  const errorText = errorCode
+    ? `${td.errors[errorCode as keyof typeof td.errors] ?? (t.planning.errors as Record<string, string>)[errorCode] ?? errorCode}${errorAbout ? ` ${locale === "fr" ? "Réponses manquantes :" : "Missing answers:"} ${errorAbout}.` : ""}`
+    : null;
   // Reopening mirrors reopenDocument's floors: manager and above, and only a
   // partner may void a partner's signature (UAT B41: the button used to show
   // for everyone and the refusal was a 500).

@@ -50,7 +50,7 @@ function Spectrum({ risks, fr }: { risks: Risk[]; fr: boolean }) {
   const pos = { low: 0, medium: 1, high: 2 } as const;
   return (
     <figure className="flex flex-shrink-0 items-start gap-2" data-testid="risk-spectrum">
-    <svg viewBox="0 0 240 210" className="h-[178px] w-[210px] flex-shrink-0" role="img" aria-label={fr ? "Spectre du risque inhérent" : "Spectrum of inherent risk"}>
+    <svg viewBox="-14 0 254 210" className="h-[178px] w-[222px] flex-shrink-0" role="img" aria-label={fr ? "Spectre du risque inhérent" : "Spectrum of inherent risk"}>
       <rect x="30" y="10" width="195" height="160" rx="6" className="fill-[var(--color-surface-2,#f3f3f1)]" />
       {/* upper-end region — significant risks live here */}
       <path d="M 225 10 L 160 10 Q 225 55 225 90 Z" className="fill-rose-200/60 dark:fill-rose-900/40" />
@@ -81,7 +81,7 @@ function Spectrum({ risks, fr }: { risks: Risk[]; fr: boolean }) {
       <text x="127" y="198" textAnchor="middle" className="fill-[var(--color-muted,#888)] text-[9px]">
         {fr ? "Probabilité →" : "Likelihood →"}
       </text>
-      <text x="6" y="95" textAnchor="middle" transform="rotate(-90 6 95)" className="fill-[var(--color-muted,#888)] text-[9px]">
+      <text x="-6" y="95" textAnchor="middle" transform="rotate(-90 -6 95)" className="fill-[var(--color-muted,#888)] text-[9px]">
         {fr ? "Ampleur →" : "Magnitude →"}
       </text>
     </svg>

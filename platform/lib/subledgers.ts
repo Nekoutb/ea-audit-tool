@@ -9,6 +9,7 @@ import { withTenant } from "@/lib/db";
 import { type SubLedgerKind } from "@/lib/subledger-kinds";
 import { requireTenant, requireWrite } from "@/lib/tenant";
 import { parseAmount } from "@/lib/amount";
+import { requireEngagementRead, requireEngagementWrite } from "@/lib/engagement-access";
 
 export { isSubLedgerKind, SUB_LEDGER_KINDS, type SubLedgerKind } from "@/lib/subledger-kinds";
 
@@ -276,6 +277,7 @@ export async function createDataset(
   timing: DatasetTiming = "pre_audit",
   headerRow = true,
 ): Promise<{ datasetId: string; rowCount: number }> {
+  await requireEngagementWrite(engagementId);
   const { tenantId, userId } = await requireWrite();
   const table = await parseTabularFile(filename, buffer, headerRow);
   // the confirmed amount-bearing column wins over the guess; a ledger that
@@ -362,6 +364,7 @@ export async function previewDataset(filename: string, buffer: Buffer, headerRow
 }
 
 export async function listDatasets(engagementId: string): Promise<DatasetSummary[]> {
+  await requireEngagementRead(engagementId);
   const { tenantId } = await requireTenant();
   return withTenant(tenantId, async (tx) => {
     const result = await tx.query<{

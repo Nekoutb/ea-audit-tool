@@ -7,6 +7,7 @@
 import { withTenant } from "@/lib/db";
 import { requireTenant } from "@/lib/tenant";
 import { amountOr } from "@/lib/amount";
+import { requireEngagementRead } from "@/lib/engagement-access";
 
 export interface RollForwardRow {
   account: string;
@@ -37,6 +38,7 @@ const cents = (v: number): number => Math.round(v * 100) / 100;
 
 /** Null when there is no valid TB or no ingested general ledger to reconcile against. */
 export async function rollForward(engagementId: string): Promise<RollForwardResult | null> {
+  await requireEngagementRead(engagementId);
   const { tenantId } = await requireTenant();
   return withTenant(tenantId, async (tx) => {
     const tb = await tx.query<{

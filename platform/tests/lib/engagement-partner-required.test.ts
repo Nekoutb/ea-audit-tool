@@ -111,6 +111,7 @@ describe("createEngagement — the engagement partner is mandatory", () => {
   it("seats exactly one accepted engagement partner and meets the acceptance gate", async () => {
     const id = await createEngagement({ clientId, fiscalYear: 2031, periodEnd: "2031-12-31", partnerId: PARTNER });
     expect(await partnerSeats(id)).toEqual([{ user_id: PARTNER, status: "accepted" }]);
+    as(PARTNER, "partner");
     const gate = (await acceptanceGates(id)).find((g) => g.key === "engagement_partner_designated");
     expect(gate?.ok).toBe(true);
   });
@@ -138,6 +139,7 @@ describe("createEngagement — the engagement partner is mandatory", () => {
 describe("rollforward — the prior year's partner carries over", () => {
   it("seats the source engagement's accepted partner on the new file", async () => {
     const source = await createEngagement({ clientId, fiscalYear: 2034, periodEnd: "2034-12-31", partnerId: PARTNER });
+    as(PARTNER, "partner");
     const next = await rollforward(source, 2035);
     expect(await partnerSeats(next)).toEqual([{ user_id: PARTNER, status: "accepted" }]);
     expect((await acceptanceGates(next)).find((g) => g.key === "engagement_partner_designated")?.ok).toBe(true);
@@ -147,6 +149,11 @@ describe("rollforward — the prior year's partner carries over", () => {
     const source = await createEngagement({ clientId, fiscalYear: 2036, periodEnd: "2036-12-31", partnerId: PARTNER });
     // a file opened before the partner became mandatory: the seat is empty
     await admin.query("DELETE FROM team_member WHERE engagement_id = $1", [source]);
+    // the caller has to be on the file to roll it forward at all
+    await admin.query(
+      "INSERT INTO team_member (tenant_id, engagement_id, user_id, team_role, status) VALUES ($1, $2, $3, 'manager', 'accepted')",
+      [TENANT, source, ADMIN],
+    );
     const before = await engagementCount();
     await expect(rollforward(source, 2037)).rejects.toThrow("engagement-partner-required");
     // an invited (not yet accepted) partner does not carry over either

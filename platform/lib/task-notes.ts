@@ -8,6 +8,7 @@ import { isPreparerOfNote } from "@/lib/documents";
 import { atLeast } from "@/lib/rbac";
 import { ForbiddenError, requireTenant, requireWrite } from "@/lib/tenant";
 import { createNotification } from "@/lib/notifications";
+import { requireChildRead, requireEngagementRead, requireEngagementWrite } from "@/lib/engagement-access";
 
 export interface TaskNote {
   id: string;
@@ -21,6 +22,7 @@ export interface TaskNote {
 }
 
 export async function listTaskNotes(fileItemId: string): Promise<TaskNote[]> {
+  await requireChildRead("file_item", fileItemId);
   const { tenantId } = await requireTenant();
   return withTenant(tenantId, async (tx) => {
     const r = await tx.query<{
@@ -66,6 +68,7 @@ export async function addTaskNote(
   fileItemId: string,
   body: string,
 ): Promise<void> {
+  await requireEngagementWrite(engagementId);
   const { tenantId, userId } = await requireWrite();
   const text = body.trim();
   if (!text) throw new Error("note-required");
@@ -130,6 +133,7 @@ export async function addTaskNote(
  * person whose work the note queries — decides whether the point is resolved.
  */
 export async function respondToTaskNote(engagementId: string, noteId: string, text: string): Promise<void> {
+  await requireEngagementWrite(engagementId);
   const { tenantId, userId } = await requireWrite();
   const reply = text.trim();
   if (!reply) throw new Error("response-required");
@@ -197,6 +201,7 @@ async function assertNoteReachable(engagementId: string, tenantId: string, userI
 
 /** Answer and clear a note. */
 export async function clearTaskNote(engagementId: string, noteId: string, response: string): Promise<void> {
+  await requireEngagementWrite(engagementId);
   const { tenantId, userId, role } = await requireWrite();
   await assertNoteReachable(engagementId, tenantId, userId);
   const cleared = await withTenant(tenantId, async (tx) => {
@@ -327,6 +332,7 @@ export interface NoteRegisterRow {
 
 /** Every review note of the engagement, for the register panel. */
 export async function noteRegister(engagementId: string): Promise<NoteRegisterRow[]> {
+  await requireEngagementRead(engagementId);
   const { tenantId, userId } = await requireTenant();
   return withTenant(tenantId, async (tx) => {
     const r = await tx.query<{
