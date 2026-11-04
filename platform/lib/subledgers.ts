@@ -7,7 +7,7 @@ import { createHash } from "node:crypto";
 import ExcelJS from "exceljs";
 import { withTenant } from "@/lib/db";
 import { type SubLedgerKind } from "@/lib/subledger-kinds";
-import { requireTenant } from "@/lib/tenant";
+import { requireTenant, requireWrite } from "@/lib/tenant";
 import { parseAmount } from "@/lib/amount";
 
 export { isSubLedgerKind, SUB_LEDGER_KINDS, type SubLedgerKind } from "@/lib/subledger-kinds";
@@ -276,7 +276,7 @@ export async function createDataset(
   timing: DatasetTiming = "pre_audit",
   headerRow = true,
 ): Promise<{ datasetId: string; rowCount: number }> {
-  const { tenantId, userId } = await requireTenant();
+  const { tenantId, userId } = await requireWrite();
   const table = await parseTabularFile(filename, buffer, headerRow);
   // the confirmed amount-bearing column wins over the guess; a ledger that
   // states value as a debit/credit pair has no single amount column, so the

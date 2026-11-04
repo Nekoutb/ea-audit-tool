@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { CommentError, addComment } from "@/lib/comments";
+import { ForbiddenError } from "@/lib/tenant";
 
 export async function addCommentAction(formData: FormData): Promise<void> {
   const engagementId = String(formData.get("engagementId") ?? "");
@@ -15,6 +16,7 @@ export async function addCommentAction(formData: FormData): Promise<void> {
     });
   } catch (error) {
     if (error instanceof CommentError) redirect(`${back}?error=${encodeURIComponent(error.code)}`);
+    if (error instanceof ForbiddenError) redirect(`${back}?error=${encodeURIComponent(error.message)}`);
     throw error;
   }
   revalidatePath(back);

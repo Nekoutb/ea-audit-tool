@@ -21,7 +21,8 @@ import { readFile } from "node:fs/promises";
 import path from "node:path";
 import { withTenant } from "@/lib/db";
 import { ArchivedError, assertMutable } from "@/lib/mutability";
-import { requireTenant } from "@/lib/tenant";
+import { visibleToUser } from "@/lib/engagement-access";
+import { ForbiddenError, requireTenant, requireWrite } from "@/lib/tenant";
 import { DEFAULT_FILE_INDEX } from "@/lib/file-index";
 import { blankFsChecklistTemplate, buildFsChecklistWorkbook } from "@/lib/fs-checklist-workbook";
 import { buildSubstantiveWorkbook } from "@/lib/substantive-workbook";
@@ -264,7 +265,7 @@ async function attachBytes(
   name: string,
   content: Buffer,
 ): Promise<void> {
-  const { tenantId, userId } = await requireTenant();
+  const { tenantId, userId } = await requireWrite();
   await withTenant(tenantId, async (tx) => {
     await tx.query(
       `INSERT INTO task_attachment
@@ -327,7 +328,7 @@ export class TemplateError extends Error {
 export async function assignTemplate(fileItemId: string, key: string): Promise<{ name: string }> {
   if (!findTemplate(key)) throw new TemplateError("template-not-found");
 
-  const { tenantId } = await requireTenant();
+  const { tenantId, userId } = await requireWrite();
   const engagementId = await withTenant(tenantId, async (tx) => {
     const r = await tx.query<{ engagement_id: string }>(
       "SELECT engagement_id FROM file_item WHERE id = $1",
@@ -336,6 +337,8 @@ export async function assignTemplate(fileItemId: string, key: string): Promise<{
     return r.rows[0]?.engagement_id ?? null;
   });
   if (!engagementId) throw new TemplateError("task-not-found");
+  // The route's id is a task, so the proxy's engagement check does not reach it (F008).
+  if (!(await visibleToUser(engagementId, tenantId, userId))) throw new ForbiddenError("not-on-this-engagement");
 
   // An archived file is filed as it stood; nothing may be added to it.
   await assertMutable(engagementId);

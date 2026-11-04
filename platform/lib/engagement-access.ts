@@ -79,6 +79,28 @@ export async function visibleToUser(engagementId: string, tenantId: string, user
 }
 
 /**
+ * Throws unless the signed-in user is an accepted member of the team of the
+ * engagement that owns this program step. Routes keyed by a step id sit outside
+ * the proxy's /engagements/<id> check. An unknown step is refused the same way,
+ * so the answer never says whether the id exists.
+ */
+export async function requireStepAccess(stepId: string): Promise<void> {
+  const { tenantId, userId } = await requireTenant();
+  const visible =
+    UUID.test(stepId) &&
+    (await withTenant(tenantId, async (tx) => {
+      const r = await tx.query<{ visible: boolean }>(
+        `SELECT ${visibilitySql("e", 2)} AS visible
+           FROM program_step ps JOIN engagement e ON e.id = ps.engagement_id
+          WHERE ps.id = $1`,
+        [stepId, userId],
+      );
+      return r.rows[0]?.visible ?? false;
+    }));
+  if (!visible) throw new ForbiddenError("not-on-this-engagement");
+}
+
+/**
  * The user holds an open (invited, not yet answered) invitation to the
  * engagement: they may see the invitation and answer it, nothing else.
  */

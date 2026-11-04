@@ -1,10 +1,26 @@
 // The trail stores its summaries in English, as written; a French reader reads them in French (F086).
 
+import { editionLabel, isStandardsEdition } from "@/lib/standards-edition";
+
 /**
  * The trail stores its summaries in English; the materiality lines are
  * rendered in the reader's language (UAT B127: "Materiality v3 approved").
  */
 export function localizedSummary(summary: string, locale: string): string {
+  const lang = locale === "fr" ? "fr" : "en";
+  // the answer-history trigger's line carries storage keys, which mean nothing to a reader (F086)
+  const answer = /^(?:[a-z]+:)?(\S+) · \S+ (changed|cleared)$/.exec(summary);
+  if (answer) {
+    const done = answer[2] === "changed";
+    return lang === "fr"
+      ? `${answer[1]} : réponse ${done ? "modifiée" : "effacée"}`
+      : `${answer[1]}: answer ${done ? "changed" : "cleared"}`;
+  }
+  // the edition is stored as its key; the reader gets its label, in either language (F086)
+  summary = summary.replace(
+    /^Standards edition changed from (\S+) to (\S+):/,
+    (_, from: string, to: string) => `Standards edition changed from ${isStandardsEdition(from) ? editionLabel(from, lang) : from} to ${isStandardsEdition(to) ? editionLabel(to, lang) : to}:`,
+  );
   if (locale !== "fr") return summary;
   const m = /^Materiality v(\d+) (created|revised|approved)$/.exec(summary);
   if (m) {
@@ -46,7 +62,9 @@ export function localizedSummary(summary: string, locale: string): string {
     [/^Review note raised on (\S+)$/, (g) => `Note de revue émise sur ${g[1] === "task" ? "la tâche" : g[1]}`],
     [/^Review note on (\S+) (answered|cleared)$/, (g) => `Note de revue sur ${g[1] === "task" ? "la tâche" : g[1]} ${g[2] === "answered" ? "répondue" : "levée"}`],
     [/^(\S+) working paper generated \((.+)\)$/, (g) => `${g[1]} feuille de travail générée (${g[2]})`],
-    [/^(\S+) working paper saved — (.+)$/, (g) => `${g[1]} feuille de travail enregistrée — ${g[2]}`],
+    // the keys travel in the stored line; the reader gets how many, not the storage names
+    [/^(\S+) working paper saved — (.+)$/, (g) => `${g[1]} feuille de travail enregistrée — ${g[2].split(", ").length} champ(s)`],
+    [/^(\S+) — ([a-z0-9_]+(?:, [a-z0-9_]+)*)$/, (g) => `${g[1]} enregistré — ${g[2].split(", ").length} champ(s)`],
     [/^(\S+) tasks instantiated$/, (g) => `Tâches ${g[1]} ajoutées`],
     [/^Due date set to (\S+)$/, (g) => `Échéance fixée au ${g[1]}`],
     [/^Due date cleared$/, () => "Échéance supprimée"],
@@ -71,7 +89,12 @@ export function localizedSummary(summary: string, locale: string): string {
     [/^Exported (.+)$/, (g) => `Exporté : ${g[1]}`],
     [/^Firm audit log exported \((\d+) rows\)$/, (g) => `Journal d'audit du cabinet exporté (${g[1]} lignes)`],
     [/^Firm retention period set to (\d+) years$/, (g) => `Durée de conservation du cabinet fixée à ${g[1]} ans`],
-    [/^ISA 265 deficiency evaluated on C5\.11: graded (.+)$/, (g) => `Déficience ISA 265 évaluée en C5.11 : classée ${g[1]}`],
+    [/^ISA 265 deficiency evaluated on C5\.11: graded (\w+)(?:, communicated in writing on (\S+) to (.+))?$/, (g) => `Déficience ISA 265 évaluée en C5.11 : classée ${({ low: "faible", medium: "moyenne", high: "élevée", significant: "significative", deficiency: "déficience" } as Record<string, string>)[g[1]] ?? g[1]}${g[2] ? `, communiquée par écrit le ${g[2]} à ${g[3]}` : ""}`],
+    // the lines the data migrations wrote, shown under "System"
+    [/^C5\.11 Communications \(ISA 260\/265\) created next to C5\.1, retitled Opinion and auditor's report \(ISA 700–706\): (\d+) letter\(s\) and (\d+) finding\(s\) moved from C5\.1 to C5\.11$/, (g) => `C5.11 Communications (ISA 260/265) créée à côté de C5.1, retitrée Opinion et rapport de l'auditeur (ISA 700–706) : ${g[1]} lettre(s) et ${g[2]} constat(s) déplacés de C5.1 vers C5.11`],
+    [/^E4\.36 Cash Flow \(TFT\) Tie-out added: core paper on every file \(F047, firm decision 2026-10-27\)$/, () => "E4.36 Rapprochement du TFT ajoutée : feuille de base de tout dossier (F047, décision du cabinet du 27/10/2026)"],
+    [/^C5\.7 Registered Securities Register Attestation marked conditional: a (\S+) issues no titres nominatifs \(F052, firm decision 2026-10-27\)$/, (g) => `C5.7 Attestation du registre des titres rendue conditionnelle : une ${g[1]} n'émet pas de titres nominatifs (F052, décision du cabinet du 27/10/2026)`],
+    [/^Engagement partner designated by data migration: (.+)$/, (g) => `Associé de la mission désigné par reprise de données : ${g[1]}`],
     [/^Invitation re-sent to (.+)$/, (g) => `Invitation renvoyée à ${g[1]}`],
     [/^Invited (.+) \((.+)\)$/, (g) => `${g[1]} invité(e) (${role(g[2])})`],
     [/^Legal hold placed — retention expiry suspended\. Reason: (.+)$/, (g) => `Conservation légale posée, échéance suspendue. Motif : ${g[1]}`],
@@ -114,4 +137,33 @@ export function localizedSummary(summary: string, locale: string): string {
     if (hit) return fr([...hit]);
   }
   return summary;
+}
+
+/**
+ * Notification titles are stored as written, some in English alone; those are
+ * shown in the reader's language (F086). A title already written in both
+ * languages, or unknown, is shown as stored.
+ */
+export function localizedNotificationTitle(title: string, locale: string): string {
+  if (locale !== "fr") return title;
+  const rules: [RegExp, (g: string[]) => string][] = [
+    [/^Sign-off voided: (.+)$/, (g) => `Signature annulée : ${g[1]}`],
+    [/^(\S+) reopened after (\S+) closed$/, (g) => `${g[1]} rouverte après la clôture de la phase ${g[2]}`],
+    [/^Review note on a document$/, () => "Note de revue sur un document"],
+    [/^Review note on (\S+)$/, (g) => `Note de revue sur ${g[1]}`],
+    [/^You were mentioned in a discussion$/, () => "Vous avez été mentionné(e) dans une discussion"],
+    [/^New reply to your comment$/, () => "Nouvelle réponse à votre commentaire"],
+    [/^Risk added during execution — approval required$/, () => "Risque ajouté en cours d'exécution — approbation requise"],
+    [/^Section (\S+) assigned to you$/, (g) => `Section ${g[1]} qui vous est assignée`],
+    [/^Materiality revised$/, () => "Seuil de signification révisé"],
+    [/^Reminder — PBC: (.+)$/, (g) => `Relance — demande au client (PBC) : ${g[1]}`],
+    [/^PBC uploaded: (.+)$/, (g) => `Document déposé (PBC) : ${g[1]}`],
+    [/^PBC: (.+)$/, (g) => `Demande au client (PBC) : ${g[1]}`],
+    [/^SCOT assigned: (.+)$/, (g) => `SCOT assignée : ${g[1]}`],
+  ];
+  for (const [re, fr] of rules) {
+    const hit = re.exec(title);
+    if (hit) return fr([...hit]);
+  }
+  return title;
 }

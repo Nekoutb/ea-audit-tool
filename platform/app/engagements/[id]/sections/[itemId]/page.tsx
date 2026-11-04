@@ -934,20 +934,23 @@ export default async function SectionPage(props: {
         <span className="flex items-center gap-1.5 text-[12px] text-muted">
           {fr ? "Assigné à" : "Assigned to"}
           {canAssign && !viewOnly ? (
-            <form action={assignTaskAction.bind(null, id, itemId)} className="flex items-center gap-1 print:hidden">
-              <select name="assignee" defaultValue={assignee?.userId ?? ""} className={input} data-testid="task-assignee">
-                <option value="">—</option>
-                {assignableTeam.map((member) => (
-                  <option key={member.userId} value={member.userId}>{member.userName}</option>
-                ))}
-                {assignee && !team.some((member) => member.userId === assignee.userId) ? (
-                  <option value={assignee.userId}>
-                    {assignee.name} {fr ? "(hors équipe)" : "(not on team)"}
-                  </option>
-                ) : null}
-              </select>
-              <SubmitButton className="rounded-[var(--radius-atlas-sm)] border border-line-strong px-2 py-1 text-[11.5px] text-ink-soft hover:bg-surface-2" testId="task-assign-save">OK</SubmitButton>
-            </form>
+            <span className="flex items-center gap-1 print:hidden">
+              <AssignSelect
+                action={assignTaskAction.bind(null, id, itemId)}
+                current={assignee?.userId ?? ""}
+                options={[
+                  ...assignableTeam.map((member) => ({ value: member.userId, label: member.userName })),
+                  // an assignee no longer on the team is shown, not hidden behind "—" (UAT run 2 B04)
+                  ...(assignee && !team.some((member) => member.userId === assignee.userId)
+                    ? [{ value: assignee.userId, label: `${assignee.name} ${fr ? "(hors équipe)" : "(not on team)"}` }]
+                    : []),
+                ]}
+                selectClass={input}
+                testId="task-assignee"
+                ariaLabel={fr ? "Assigné à" : "Assigned to"}
+                labels={{ saved: fr ? "Affectation enregistrée" : "Assignment saved", undo: fr ? "Annuler" : "Undo" }}
+              />
+            </span>
           ) : null}
           {canAssign && !viewOnly ? (
             <b className="hidden text-ink-soft print:inline">{assignee?.name ?? "—"}</b>

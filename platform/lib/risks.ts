@@ -227,7 +227,7 @@ export async function addRisk(engagementId: string, input: AddRiskInput): Promis
     ? `${description} [Not identified by management's risk process: ${input.managementMissed.trim()}]`
     : description;
   const source = input.source?.trim() ? `Console (${input.source.trim().slice(0, 120)})` : "Console";
-  const { tenantId, userId } = await requireTenant();
+  const { tenantId, userId } = await requireWrite();
   return withTenant(tenantId, async (tx) => {
     const phase = await tx.query<{ phase: string }>("SELECT phase FROM engagement WHERE id = $1", [engagementId]);
     if (!phase.rows[0]) throw new Error("not-found");
@@ -288,7 +288,7 @@ export async function listPotentialRisks(engagementId: string): Promise<Potentia
 
 /** P5.2 decision: dismiss with documented rationale, or promote into S3.1. */
 export async function dismissPotentialRisk(id: string, rationale: string): Promise<void> {
-  const { tenantId, userId } = await requireTenant();
+  const { tenantId, userId } = await requireWrite();
   if (!rationale.trim()) throw new Error("rationale-required");
   await withTenant(tenantId, async (tx) => {
     await tx.query(

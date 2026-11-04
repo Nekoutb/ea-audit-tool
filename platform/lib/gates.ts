@@ -187,11 +187,32 @@ function reviewNotesGate(engagementId: string, open: { n: number; codes: string[
       };
 }
 
+/** A working paper's saved answers, as text (loadPaper's reading, inside the gate's transaction). */
+async function paperValues(tx: PoolClient, engagementId: string, code: string): Promise<Record<string, string>> {
+  const values = await formValues(tx, engagementId, `wp:${code}`);
+  return Object.fromEntries(
+    Object.entries(values).map(([key, value]) => [key, typeof value === "string" ? value : String(value ?? "")]),
+  );
+}
+
 async function acceptanceGatesTx(tx: PoolClient, engagementId: string): Promise<GateResult[]> {
+  // Files opened before F078 hold their answers in the legacy P1.1 form, which
+  // no screen reaches any more; everything since is answered on the paper
+  // (form_response under wp:P1.1). Either record satisfies the gates.
   const d31 = await formValues(tx, engagementId, "P1.1");
-  const formComplete = isFormComplete(FORM_DEFINITIONS["P1.1"], d31);
-  const concludedAccept = d31.conclusion === "accept";
-  const checksPassed = p11FailedChecks(d31).length === 0;
+  const legacyComplete = isFormComplete(FORM_DEFINITIONS["P1.1"], d31);
+  const { acceptancePaperVerdict } = await import("@/lib/working-papers");
+  const verdict = acceptancePaperVerdict(
+    await paperValues(tx, engagementId, "P1.1"),
+    await paperValues(tx, engagementId, "P1.2"),
+  );
+  const formComplete = (legacyComplete && d31.conclusion === "accept") || (verdict.complete && verdict.accepted);
+  const checksPassed = (legacyComplete && p11FailedChecks(d31).length === 0) || verdict.checksPassed;
+  const paper = await tx.query<{ id: string }>(
+    "SELECT id FROM file_item WHERE engagement_id = $1 AND code = 'P1.1'",
+    [engagementId],
+  );
+  const paperHref = paper.rows[0] ? `/engagements/${engagementId}/sections/${paper.rows[0].id}` : undefined;
   const signed = await approvalSigned(tx, engagementId, "P1.1");
   const partnerDesignated = await engagementPartnerDesignated(tx, engagementId);
 
@@ -199,8 +220,8 @@ async function acceptanceGatesTx(tx: PoolClient, engagementId: string): Promise<
   const openNotes = await openReviewNotes(tx, engagementId, ["P1.%"]);
 
   return [
-    { key: "d31_form_complete", ok: formComplete && concludedAccept },
-    { key: "d31_checks_passed", ok: formComplete && checksPassed },
+    { key: "d31_form_complete", ok: formComplete, detail: verdict.missing > 0 ? `P1.1 · ${verdict.missing}` : "P1.1", href: paperHref },
+    { key: "d31_checks_passed", ok: checksPassed, detail: verdict.predecessorRecorded ? "P1.1" : "P1.2", href: paperHref },
     { key: "d31_partner_signed", ok: signed },
     { key: "engagement_partner_designated", ok: partnerDesignated, href: `/engagements/${engagementId}/team` },
     reviewNotesGate(engagementId, openNotes),

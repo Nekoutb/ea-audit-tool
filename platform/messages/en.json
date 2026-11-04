@@ -781,7 +781,7 @@
     "gateReopened": "A gating paper was reopened after this phase closed: a condition of the acceptance gate is no longer met. The engagement stays in its current phase; the partner has been notified and the event is in the activity trail.",
     "closePlanning": "Close planning (snapshot & open execution)",
     "gateNames": {
-      "d31_form_complete": "P1.1 checklist complete and concluded \"accept\"",
+      "d31_form_complete": "P1.1 complete, concluding that acceptance is appropriate",
       "d31_partner_signed": "Partner sign-off on P1.1",
       "engagement_partner_designated": "Exactly one engagement partner designated on the team, who has accepted the engagement",
       "materiality_approved": "Materiality approved by a partner",
@@ -794,7 +794,7 @@
       "rebuttals_approved": "Rebuttals carry partner approval",
       "material_sections_covered": "Every material section has planned coverage (stand-back)",
       "tb_mapped": "Trial balance fully mapped (no unknown accounts)",
-      "d31_checks_passed": "Every required P1.1 acceptance check answered \"yes\" (predecessor contact for a new engagement)",
+      "d31_checks_passed": "P1.1 conclusions answered \"yes\", rating consistent with Part B, and P1.2 completed where the auditor changed",
       "review_notes_cleared": "No open review note on this phase's working papers"
     },
     "independence": {
@@ -1336,7 +1336,7 @@
       "title-required": "A title is required.",
       "wrong-phase": "The engagement is not in the right phase for this action.",
       "stale-version": "Only the latest materiality version can be approved.",
-      "invalid-materiality": "Check the materiality figures: amount > 0, percentage 0–100, performance 60–85 %, trivial 0.5–10 %.",
+      "invalid-materiality": "Check the materiality figures: amount > 0, percentage 0–100, performance 60–85 %, trivial 3–5 %.",
       "no-tb": "No trial balance has been imported for this engagement yet.",
       "no-mapped-rows": "No trial-balance accounts map to this section — check the groupings.",
       "unsupported-file": "Only .csv and .xlsx files are accepted.",

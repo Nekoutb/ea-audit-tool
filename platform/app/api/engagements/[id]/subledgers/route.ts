@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { ForbiddenError } from "@/lib/tenant";
 import { createDataset, isSubLedgerKind, SubLedgerError } from "@/lib/subledgers";
 import { oversizedBody } from "@/lib/api-errors";
 
@@ -39,6 +40,9 @@ export async function POST(request: Request, context: { params: Promise<{ id: st
   } catch (error) {
     if (error instanceof SubLedgerError) {
       return NextResponse.json({ error: error.code }, { status: 400 });
+    }
+    if (error instanceof ForbiddenError) {
+      return NextResponse.json({ error: error.message }, { status: 403 });
     }
     return NextResponse.json({ error: "unauthenticated" }, { status: 401 });
   }

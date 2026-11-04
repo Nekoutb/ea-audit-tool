@@ -382,7 +382,7 @@ export async function approveMateriality(engagementId: string, versionNo: number
 export async function reflagMisstatements(
   engagementId: string,
 ): Promise<{ nowReportable: number; nowTrivial: number }> {
-  const { tenantId } = await requireTenant();
+  const { tenantId } = await requireWrite();
   const approved = await approvedMateriality(engagementId);
   if (!approved) return { nowReportable: 0, nowTrivial: 0 };
 

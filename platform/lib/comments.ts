@@ -6,7 +6,7 @@
 import { recordActivity } from "@/lib/activity";
 import { withTenant } from "@/lib/db";
 import { createNotification } from "@/lib/notifications";
-import { requireTenant } from "@/lib/tenant";
+import { requireTenant, requireWrite } from "@/lib/tenant";
 
 export class CommentError extends Error {
   constructor(public readonly code: string) {
@@ -31,7 +31,7 @@ export async function addComment(input: {
   body: string;
   parentId?: string | null;
 }): Promise<void> {
-  const { tenantId, userId } = await requireTenant();
+  const { tenantId, userId } = await requireWrite();
   const body = input.body.trim();
   if (!body) throw new CommentError("body-required");
   if (body.length > 4000) throw new CommentError("too-long");

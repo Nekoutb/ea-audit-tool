@@ -1,7 +1,7 @@
 "use client";
 
-// The bell in the app nav: hovering (or focusing) it drops the notifications
-// in a panel that scrolls, each a link to the thing that changed — a task, a
+// The bell in the app nav: a click or a tap drops the notifications in a panel
+// that scrolls, each a link to the thing that changed — a task, a
 // paper, a register. Assignments and review notes arrive here rather than by
 // email, so this panel is the delivery surface, not a decoration; there is no
 // notifications page behind it. Opening one marks it read on the way through.
@@ -38,13 +38,14 @@ export function NotificationBell({
   const fr = locale === "fr";
   const router = useRouter();
   const [open, setOpen] = useState(false);
-  const closeTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const rootRef = useRef<HTMLDivElement>(null);
   const listRef = useRef<HTMLUListElement>(null);
   const [overflowing, setOverflowing] = useState(false);
 
-  // closes on an outside press, Escape or focus leaving it (F082), so it also
-  // behaves on touch and with the keyboard; the footer shows only when it is true
+  // Opens on click or tap only: opening on hover or focus as well meant the
+  // click that followed closed it again, and a tap (focus, then click) never
+  // opened it. Closes on an outside press, Escape or focus leaving it (F082);
+  // the footer shows only when the list overflows.
   useEffect(() => {
     if (!open) return;
     const list = listRef.current;
@@ -65,16 +66,6 @@ export function NotificationBell({
       document.removeEventListener("keydown", onKey);
     };
   }, [open]);
-
-  const show = () => {
-    if (closeTimer.current) clearTimeout(closeTimer.current);
-    setOpen(true);
-  };
-  // a short grace period so the pointer can travel from the bell to the panel
-  const hide = () => {
-    if (closeTimer.current) clearTimeout(closeTimer.current);
-    closeTimer.current = setTimeout(() => setOpen(false), 160);
-  };
 
   // the link itself navigates; this marks it read on the way through
   async function markItem(n: Notification) {
@@ -103,11 +94,10 @@ export function NotificationBell({
   };
 
   return (
-    <div ref={rootRef} className="relative" onMouseEnter={show} onMouseLeave={hide}>
+    <div ref={rootRef} className="relative max-sm:static">
       <button
         type="button"
         className="relative grid h-9 w-9 place-items-center rounded-[var(--radius-atlas-sm)] border border-line-strong bg-surface text-ink-soft transition hover:bg-surface-2"
-        onFocus={show}
         onClick={() => setOpen((o) => !o)}
         aria-haspopup="true"
         aria-expanded={open}
@@ -134,9 +124,7 @@ export function NotificationBell({
 
       {open ? (
         <div
-          className="absolute right-0 top-full z-[60] mt-1 w-[340px] overflow-hidden rounded-[var(--radius-atlas-sm)] border border-line-strong bg-surface-pop shadow-atlas-sm"
-          onMouseEnter={show}
-          onMouseLeave={hide}
+          className="absolute right-0 top-full z-[60] mt-1 w-[340px] overflow-hidden max-sm:left-0 max-sm:w-auto rounded-[var(--radius-atlas-sm)] border border-line-strong bg-surface-pop shadow-atlas-sm"
           data-testid="notif-panel"
         >
           <p className="border-b border-line bg-surface-2 px-3 py-1.5 text-[10px] font-extrabold uppercase tracking-[0.07em] text-muted">

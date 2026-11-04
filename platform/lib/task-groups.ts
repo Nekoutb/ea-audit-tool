@@ -16,6 +16,14 @@ export const SECTION_LABELS: Record<SectionKey, { en: string; fr: string }> = {
   conclusion: { en: "Conclusion & Reporting", fr: "Conclusion & rapports" },
 };
 
+/** One word each, for the top bar: the long labels wrapped it onto three rows at 1440 px. */
+const SECTION_SHORT_LABELS: Record<SectionKey, { en: string; fr: string }> = {
+  acceptance: { en: "Planning", fr: "Planification" },
+  strategy: { en: "Strategy", fr: "Stratégie" },
+  execution: { en: "Execution", fr: "Exécution" },
+  conclusion: { en: "Conclusion", fr: "Conclusion" },
+};
+
 /** The quality gate each phase closes against. */
 export const SECTION_GATE: Record<SectionKey, string> = {
   acceptance: "G1",
@@ -130,6 +138,10 @@ export function groupTitle(g: TaskGroupDef, locale: "en" | "fr"): string {
 
 export function sectionLabel(section: SectionKey, locale: "en" | "fr"): string {
   return SECTION_LABELS[section][locale];
+}
+
+export function sectionShortLabel(section: SectionKey, locale: "en" | "fr"): string {
+  return SECTION_SHORT_LABELS[section][locale];
 }
 
 /** Groups of one section, in framework order. */

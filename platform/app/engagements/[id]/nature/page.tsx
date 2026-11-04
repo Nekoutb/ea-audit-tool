@@ -3,6 +3,7 @@ import { localizedTitle } from "@/lib/page-title";
 import { auth } from "@/auth";
 import { classifyEntityAction } from "@/app/actions/audit-file";
 import { AppNav } from "@/components/AppNav";
+import { ReadOnlyFieldset } from "@/components/ReadOnlyFieldset";
 import { ErrorBanner } from "@/components/GatesPanel";
 import { NatureAssessment } from "@/components/NatureAssessment";
 import type { ComplexityAnswers } from "@/lib/complexity";
@@ -57,6 +58,7 @@ export default async function NaturePage(props: {
   return (
     <main className="flex min-h-screen w-full flex-col gap-4 px-6 py-8">
       <AppNav locale={locale} current={{ id, label: engagement.name ?? engagement.clientName }} />
+      <ReadOnlyFieldset role={session.user.role} locale={locale}>
       <div className="mx-auto w-full max-w-4xl pt-4">
         <h1 className="text-2xl font-bold tracking-[-0.02em] text-ink" data-testid="nature-title">
           {fr ? "Nature de l’entité" : "Nature of entity"}
@@ -114,6 +116,7 @@ export default async function NaturePage(props: {
           />
         </div>
       </div>
+    </ReadOnlyFieldset>
     </main>
   );
 }

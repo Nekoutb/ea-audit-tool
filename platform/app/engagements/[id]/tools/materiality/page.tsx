@@ -5,6 +5,7 @@ import { notFound, redirect } from "next/navigation";
 import { auth } from "@/auth";
 import { approveMaterialityAction, createMaterialityAction } from "@/app/actions/planning";
 import { AppNav } from "@/components/AppNav";
+import { ReadOnlyFieldset } from "@/components/ReadOnlyFieldset";
 import { SubmitButton } from "@/components/SubmitButton";
 import { MaterialityBasis } from "@/components/MaterialityBasis";
 import { MaterialityBenchmarkSelect } from "@/components/MaterialityBenchmarkSelect";
@@ -57,6 +58,7 @@ export default async function MaterialityPage(props: {
   return (
     <main className="min-h-screen w-full px-6 py-6">
       <AppNav locale={locale} hideLinks current={{ id, label: engagement.name ?? engagement.clientName }} />
+      <ReadOnlyFieldset role={session.user.role} locale={locale}>
       <div className="mt-5 flex items-center gap-3">
         <Link
           href={`/engagements/${id}/tools`}
@@ -193,7 +195,7 @@ export default async function MaterialityPage(props: {
                 </span>
               ) : null}
               <span className="text-muted">
-                <b className="text-ink">{fr ? "Seuil global (PM)" : "Planning Materiality"}</b>:{" "}
+                <b className="text-ink">{fr ? "Seuil global" : "Overall materiality"}</b>:{" "}
                 <span className="font-semibold text-ink tnum">{formatFCFA(latest.overall)}</span>{" "}
                 <span className="tnum">({latest.percentage}% {fr ? "de la base" : "of basis"})</span>
               </span>
@@ -283,6 +285,7 @@ export default async function MaterialityPage(props: {
           </div>
         ) : null}
       </Panel>
+    </ReadOnlyFieldset>
     </main>
   );
 }

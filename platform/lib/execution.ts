@@ -59,7 +59,7 @@ export async function completeStep(
   conclusion: string,
   engagementId?: string,
 ): Promise<void> {
-  const { tenantId, userId } = await requireTenant();
+  const { tenantId, userId } = await requireWrite();
   if (!conclusion.trim()) throw new ExecutionError("conclusion-required");
   await withTenant(tenantId, async (tx) => {
     const owner = await tx.query<{ engagement_id: string }>(
@@ -85,7 +85,7 @@ export async function completeStep(
  * are cleared, so a completed step can never show a stale attribution.
  */
 export async function uncompleteStep(stepId: string, engagementId?: string): Promise<void> {
-  const { tenantId } = await requireTenant();
+  const { tenantId } = await requireWrite();
   await withTenant(tenantId, async (tx) => {
     const updated = await tx.query(
       `UPDATE program_step

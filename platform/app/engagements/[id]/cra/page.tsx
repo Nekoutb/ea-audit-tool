@@ -8,7 +8,7 @@ import { NavLink } from "@/components/NavLink";
 import { Chip, Panel, PanelHeader } from "@/components/ui/atlas";
 import { craBoard } from "@/lib/cra";
 import { currentTbVersion } from "@/lib/materiality";
-import { listRisks } from "@/lib/risks";
+import { listRisks, riskTitle } from "@/lib/risks";
 import { listScots } from "@/lib/scots";
 import { getEngagement } from "@/lib/engagements";
 import { getMessages } from "@/lib/i18n";
@@ -93,7 +93,7 @@ export default async function CraPage(props: { params: Promise<{ id: string }> }
           {fr
             ? `${offBoard.length} risque(s) important(s) du registre ne figure(nt) pas sur ce tableau : `
             : `${offBoard.length} significant risk(s) on the register are not on this board: `}
-          {offBoard.map((r) => r.description).join(" ; ")}.{" "}
+          {offBoard.map((r) => riskTitle(r, fr ? "fr" : "en")).join(" ; ")}.{" "}
           <Link href={`/engagements/${id}/risks`} className="font-semibold underline">
             {fr ? "Les relier dans la console des risques ou en P6.2" : "Link them in the Risk Console or P6.2"}
           </Link>

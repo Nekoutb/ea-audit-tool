@@ -127,6 +127,8 @@ export interface PaperSignature {
   nonAssignee?: boolean;
 }
 
+const SAVED_AT_WINDOW_MS = 10 * 60 * 1000; // how long after a save the footer still says when it happened (F017)
+
 export function PaperWizard({
   code,
   def,
@@ -222,8 +224,15 @@ export function PaperWizard({
   // tick on the parts already answered, rather than "1/3" and no list of parts.
   const partTabs = useMemo(() => {
     const isAnswered = (it: StepItem): boolean => {
-      if (it.kind === "proc") return Boolean(values[procKey(it.key)]) || values[procNaKey(it.key)] === NA;
-      if (it.kind === "yn") return Boolean(values[ynKey(it.key)]);
+      // the same reading as the paper's completeness (lib/papers/types.ts keyAnswered,
+      // lib/working-papers.ts paperMissing): an N/A or a "No" nobody explained is no tick (F040)
+      if (it.kind === "proc") {
+        return values[procNaKey(it.key)] === NA ? Boolean(values[procWhyKey(it.key)]?.trim()) : Boolean(values[procKey(it.key)]?.trim());
+      }
+      if (it.kind === "yn") {
+        const answer = values[ynKey(it.key)];
+        return answer === NA || answer === "no" ? Boolean(values[ynWhyKey(it.key)]?.trim()) : Boolean(answer);
+      }
       return it.field.kind === "auto" || Boolean(values[it.field.key]);
     };
     const tabs: { label: string; title: string; page: number; done: boolean }[] = [];
@@ -243,7 +252,9 @@ export function PaperWizard({
         label: "Conclusion",
         title: "Conclusion",
         page: conclPage,
-        done: conclusions.length > 0 && conclusions.every((_, i) => Boolean(values[conclKey(i)])),
+        done:
+          conclusions.length > 0 &&
+          conclusions.every((_, i) => Boolean(values[conclKey(i)]) && (values[conclKey(i)] !== "no" || Boolean(values[conclWhyKey(i)]?.trim()))),
       });
     }
     return tabs;
@@ -287,12 +298,21 @@ export function PaperWizard({
       document.removeEventListener("click", check, true);
     };
   }, []);
+  const clock = (at: Date) =>
+    `${new Intl.DateTimeFormat("en-GB", { timeZone: "Africa/Douala", hour: "2-digit", minute: "2-digit", hourCycle: "h23" }).format(at)} WAT`;
+  // A save ends in a redirect that remounts this form, so state set on submit is
+  // lost (F017). The time comes from the version the page was rendered with: the
+  // paper's last save, read after mount, and only while it is recent.
+  useEffect(() => {
+    const at = Number(baseVersion) * 1000;
+    if (!Number.isFinite(at) || at <= 0 || Date.now() - at > SAVED_AT_WINDOW_MS) return;
+    const timer = setTimeout(() => setSavedAt(clock(new Date(at))), 0);
+    return () => clearTimeout(timer);
+  }, [baseVersion]);
   const onSubmitPaper = () => {
     baselineRef.current = snapshot();
     setDirty(false);
-    setSavedAt(
-      `${new Intl.DateTimeFormat("en-GB", { timeZone: "Africa/Douala", hour: "2-digit", minute: "2-digit", hourCycle: "h23" }).format(new Date())} WAT`,
-    );
+    setSavedAt(clock(new Date()));
   };
   // Compact view folds long answers to two lines until clicked; the default
   // shows every answer in full (lib/use-auto-size.ts).

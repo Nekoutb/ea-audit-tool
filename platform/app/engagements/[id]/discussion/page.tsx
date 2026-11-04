@@ -102,7 +102,7 @@ export default async function DiscussionPage(props: {
 
       {error ? (
         <p data-testid="discussion-error" className="rounded-[var(--radius-atlas-sm)] border border-line-strong bg-[var(--color-rose-soft)] px-4 py-3 text-sm text-rose">
-          {(tc.errors as Record<string, string>)[error] ?? error}
+          {(tc.errors as Record<string, string>)[error] ?? (t.planning.errors as Record<string, string>)[error] ?? error}
         </p>
       ) : null}
 

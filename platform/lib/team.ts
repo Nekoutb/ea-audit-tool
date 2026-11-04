@@ -565,7 +565,7 @@ export async function assignTasks(
           tenantId,
           userId: userIdOrNull,
           kind: "task_assigned",
-          title: `${result.n} task(s) assigned to you as ${role} · ${result.n} tâche(s) qui vous sont assignée(s) comme ${{ preparer: "préparateur", approver: "approbateur", assignee: "responsable" }[role]}`,
+          title: `${result.n} task(s) assigned to you as ${role === "approver" ? "reviewer" : role} · ${result.n} tâche(s) qui vous sont assignée(s) comme ${{ preparer: "préparateur", approver: "réviseur", assignee: "responsable" }[role]}`,
           body: result.codes.slice(0, 20).join(", "),
           href: `/engagements/${engagementId}/tasks`,
         });

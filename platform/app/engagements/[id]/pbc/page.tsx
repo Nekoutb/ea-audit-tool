@@ -4,6 +4,7 @@ import { localizedTitle } from "@/lib/page-title";
 import { auth } from "@/auth";
 import { acceptPbcAction, addPbcItemAction, attachPbcAction, chasePbcAction } from "@/app/actions/pbc";
 import { AppNav } from "@/components/AppNav";
+import { ReadOnlyFieldset } from "@/components/ReadOnlyFieldset";
 import { ErrorBanner } from "@/components/GatesPanel";
 import { Panel } from "@/components/ui/atlas";
 import { getEngagement, listFileItems } from "@/lib/engagements";
@@ -50,6 +51,7 @@ export default async function PbcPage(props: {
   return (
     <main className="min-h-screen w-full px-6 py-8">
       <AppNav locale={locale} current={{ id, label: engagement.name ?? engagement.clientName }} />
+      <ReadOnlyFieldset role={session.user.role} locale={locale}>
       <h1 className="mt-8 text-2xl font-semibold tracking-[-0.01em] text-ink">
         {engagement.clientName} — {engagement.fiscalYear} · {tp.title}
       </h1>
@@ -150,6 +152,7 @@ export default async function PbcPage(props: {
           </div>
         ) : null}
       </Panel>
+    </ReadOnlyFieldset>
     </main>
   );
 }

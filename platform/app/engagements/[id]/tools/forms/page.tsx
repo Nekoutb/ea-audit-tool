@@ -128,7 +128,7 @@ export default async function FormsPage(props: {
                     </label>
                     <select name="role" defaultValue="preparer" className={select} aria-label={fr ? "Rôle" : "Role"} data-testid={`assign-phase-role-${phase}`}>
                       <option value="preparer">{fr ? "Préparateur" : "Preparer"}</option>
-                      <option value="approver">{fr ? "Approbateur" : "Approver"}</option>
+                      <option value="approver">{fr ? "Réviseur" : "Reviewer"}</option>
                     </select>
                     <select id={`assign-phase-select-${phase}`} name="assignee" defaultValue="" className={select} data-testid={`assign-phase-select-${phase}`}>
                       <option value="">—</option>

@@ -320,7 +320,7 @@ describe("F050 — C5.3 regulated agreements by legal form", () => {
     expect(itemKeys("SARL")).toContain("approved");
     expect(itemKeys("SARL")).not.toContain("authorised");
     // the organs read right on each form
-    expect(proc(forForm("C5.3", "SARL"), "candidates").fr).toContain("gérant(s)");
+    expect(proc(forForm("C5.3", "SARL"), "candidates").fr).toContain("gérants");
     expect(proc(forForm("C5.3", "SA"), "unauthorised").fr).toContain("assemblée générale des actionnaires");
     expect(proc(forForm("C5.3", "SARL"), "unauthorised").fr).toContain("assemblée des associés");
   });

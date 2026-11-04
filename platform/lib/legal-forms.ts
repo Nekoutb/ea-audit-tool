@@ -59,6 +59,8 @@ export interface LegalFormVocabulary {
   members: Pair;
   /** the persons the regulated-agreements regime catches */
   officers: Pair;
+  /** the owners the same regime catches: every member, or those above the form's threshold */
+  holders: Pair;
 }
 
 const VOCAB: Record<LegalForm, LegalFormVocabulary> = {
@@ -71,6 +73,7 @@ const VOCAB: Record<LegalForm, LegalFormVocabulary> = {
     meeting: ["general meeting of shareholders", "assemblée générale des actionnaires"],
     members: ["shareholders", "actionnaires"],
     officers: ["directors, the managing director and the deputy managing directors", "administrateurs, directeur général et directeurs généraux adjoints"],
+    holders: ["shareholders holding ten per cent or more directly or indirectly", "actionnaires détenant directement ou indirectement au moins dix pour cent"],
   },
   SA_AG: {
     form: ["SA with an administrateur général (no board)", "SA avec administrateur général (sans conseil)"],
@@ -80,7 +83,8 @@ const VOCAB: Record<LegalForm, LegalFormVocabulary> = {
     executive: ["administrateur général", "administrateur général"],
     meeting: ["general meeting of shareholders", "assemblée générale des actionnaires"],
     members: ["shareholders", "actionnaires"],
-    officers: ["administrateur général and the administrateur général adjoint", "administrateur général et administrateur général adjoint"],
+    officers: ["administrateur général and the administrateur général adjoint", "administrateur général et l'administrateur général adjoint"],
+    holders: ["shareholders holding ten per cent or more directly or indirectly", "actionnaires détenant directement ou indirectement au moins dix pour cent"],
   },
   SARL: {
     form: ["SARL", "SARL"],
@@ -90,27 +94,30 @@ const VOCAB: Record<LegalForm, LegalFormVocabulary> = {
     executive: ["gérant", "gérant"],
     meeting: ["members' meeting", "assemblée des associés"],
     members: ["members", "associés"],
-    officers: ["gérant(s)", "gérant(s)"],
+    officers: ["gérant(s)", "gérants"],
+    holders: ["members", "associés"],
   },
   SAS: {
     form: ["SAS", "SAS"],
-    board: ["président and the organs the statutes create", "président et organes statutaires"],
+    board: ["président and the organs the statutes create", "président et les organes statutaires"],
     chair: ["président", "président"],
     ceo: ["président (or the directeur général the statutes provide for)", "président (ou le directeur général prévu par les statuts)"],
     executive: ["président", "président"],
     meeting: ["collective decisions of the members, in the form the statutes set", "décisions collectives des associés, dans les formes prévues par les statuts"],
     members: ["members", "associés"],
-    officers: ["président and the other dirigeants the statutes name", "président et autres dirigeants désignés par les statuts"],
+    officers: ["président and the other dirigeants the statutes name", "président et les autres dirigeants désignés par les statuts"],
+    holders: ["members holding more than ten per cent of the voting rights", "associés disposant de plus de dix pour cent des droits de vote"],
   },
   GIE: {
     form: ["GIE", "GIE"],
-    board: ["administrator(s) of the GIE", "administrateur(s) du GIE"],
+    board: ["administrator(s) of the GIE", "administrateurs du GIE"],
     chair: ["administrator", "administrateur"],
     ceo: ["administrator", "administrateur"],
     executive: ["administrator", "administrateur"],
     meeting: ["assembly of the members", "assemblée des membres"],
     members: ["members", "membres"],
-    officers: ["administrator(s)", "administrateur(s)"],
+    officers: ["administrator(s)", "administrateurs"],
+    holders: ["members", "membres"],
   },
   OTHER: {
     form: ["entity of another legal form", "entité d'une autre forme juridique"],
@@ -121,6 +128,7 @@ const VOCAB: Record<LegalForm, LegalFormVocabulary> = {
     meeting: ["general meeting", "assemblée générale"],
     members: ["members or shareholders", "associés ou actionnaires"],
     officers: ["officers", "dirigeants"],
+    holders: ["members or shareholders", "associés ou actionnaires"],
   },
 };
 
@@ -136,10 +144,47 @@ export function organName(form: string | null | undefined, key: LegalFormTokenKe
 
 const TOKEN = /\[\[lf\.([a-z]+)\]\]/g;
 
+/**
+ * How French determines each name: masculine, feminine, elided, plural. The
+ * papers write "à l'[[lf.board]]", which reads "l'conseil" on an SA and "l'gérant"
+ * on a SARL; "les [[lf.officers]]" read "les administrateur général" on an SA_AG.
+ * The article written before a token states the construction (none, de, à, or
+ * the demonstrative); this table decides the form it takes.
+ */
+type FrDeterminer = "m" | "f" | "v" | "p";
+const FR_DETERMINER: Record<LegalForm, Record<LegalFormTokenKey, FrDeterminer>> = {
+  SA: { form: "f", board: "m", chair: "m", ceo: "m", executive: "m", meeting: "v", members: "p", officers: "p", holders: "p" },
+  SA_AG: { form: "f", board: "v", chair: "v", ceo: "v", executive: "v", meeting: "v", members: "p", officers: "v", holders: "p" },
+  SARL: { form: "f", board: "m", chair: "m", ceo: "m", executive: "m", meeting: "v", members: "p", officers: "p", holders: "p" },
+  SAS: { form: "f", board: "m", chair: "m", ceo: "m", executive: "m", meeting: "p", members: "p", officers: "m", holders: "p" },
+  GIE: { form: "m", board: "p", chair: "v", ceo: "v", executive: "v", meeting: "v", members: "p", officers: "p", holders: "p" },
+  OTHER: { form: "f", board: "v", chair: "m", ceo: "m", executive: "m", meeting: "v", members: "p", officers: "p", holders: "p" },
+};
+const FR_ARTICLES: Record<"none" | "de" | "a" | "dem", Record<FrDeterminer, string>> = {
+  none: { m: "le ", f: "la ", v: "l'", p: "les " },
+  de: { m: "du ", f: "de la ", v: "de l'", p: "des " },
+  a: { m: "au ", f: "à la ", v: "à l'", p: "aux " },
+  dem: { m: "ce ", f: "cette ", v: "cet ", p: "ces " },
+};
+const FR_ARTICLE_TOKEN = /(^|[^\p{L}])(de l['’]|de la |du |des |à l['’]|à la |au |aux |l['’]|le |la |les |cette |cet |ce )\[\[lf\.([a-z]+)\]\]/giu;
+
+function frenchArticles(text: string, form: string | null | undefined): string {
+  const determiners = FR_DETERMINER[isLegalForm(form) ? form : "OTHER"];
+  return text.replace(FR_ARTICLE_TOKEN, (whole, before: string, article: string, key: string) => {
+    if (!(key in determiners)) return whole;
+    const a = article.toLowerCase();
+    const construction = /^(de |du |des )/.test(a) ? "de" : /^(à |au |aux )/.test(a) ? "a" : /^(cette|cet|ce) /.test(a) ? "dem" : "none";
+    const chosen = FR_ARTICLES[construction][determiners[key as LegalFormTokenKey]];
+    const cased = article[0] === article[0].toUpperCase() ? chosen[0].toUpperCase() + chosen.slice(1) : chosen;
+    return `${before}${cased}${organName(form, key as LegalFormTokenKey, "fr")}`;
+  });
+}
+
 /** Substitute every [[lf.key]] in one string for the form and language given. Unknown keys are left visible. */
 export function resolveLegalFormText(text: string, form: string | null | undefined, locale: "en" | "fr"): string {
   if (!text.includes("[[lf.")) return text;
-  return text.replace(TOKEN, (whole, key: string) =>
+  const prepared = locale === "fr" ? frenchArticles(text, form) : text;
+  return prepared.replace(TOKEN, (whole, key: string) =>
     key in VOCAB.OTHER ? organName(form, key as LegalFormTokenKey, locale) : whole,
   );
 }

@@ -176,3 +176,8 @@ export function suggestCaption(account: string): SadCaption {
   if (d1 === "8") return Number(d2[1] ?? 1) % 2 === 1 ? "expense" : "income";
   return "current_asset";
 }
+
+/** A percentage that rounds to nothing is 0, never "-0,00 %": Intl keeps the sign of a tiny negative. */
+export function noNegativeZero(value: number, digits: number): number {
+  return Number(value.toFixed(digits)) === 0 ? 0 : value;
+}

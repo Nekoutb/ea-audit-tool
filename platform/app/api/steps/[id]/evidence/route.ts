@@ -1,5 +1,7 @@
 import { NextResponse } from "next/server";
+import { requireStepAccess } from "@/lib/engagement-access";
 import { addEvidenceFile, ExecutionError } from "@/lib/execution";
+import { ForbiddenError } from "@/lib/tenant";
 import { allowedExtensions, checkUpload, UnsafeFileError } from "@/lib/upload-safety";
 
 const MAX_BYTES = 25 * 1024 * 1024;
@@ -8,6 +10,7 @@ const MAX_BYTES = 25 * 1024 * 1024;
 export async function POST(request: Request, context: { params: Promise<{ id: string }> }) {
   const { id } = await context.params;
   try {
+    await requireStepAccess(id);
     const form = await request.formData();
     const file = form.get("file");
     if (!(file instanceof File) || file.size === 0 || file.size > MAX_BYTES) {
@@ -26,6 +29,9 @@ export async function POST(request: Request, context: { params: Promise<{ id: st
     await addEvidenceFile(id, checked.name, checked.mime, content);
     return NextResponse.json({ ok: true });
   } catch (error) {
+    if (error instanceof ForbiddenError) {
+      return NextResponse.json({ error: error.message }, { status: 403 });
+    }
     if (error instanceof ExecutionError) {
       return NextResponse.json({ error: error.code }, { status: 400 });
     }

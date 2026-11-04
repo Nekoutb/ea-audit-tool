@@ -3,6 +3,9 @@
 // assets" for one file. Every total now comes from here: the révisé bilan, net
 // of amortisation and depreciation (28, 29, 39, 49, 59), class 4 by the sign of
 // each account's balance, and 56 (banques, crédits de trésorerie) on the passif.
+// 490 and 499 follow lib/lead-classes.ts, which files them under liability
+// indexes (N and P1): they sit on the passif, whatever their sign, and never
+// net the assets (F059).
 
 export interface TbBalance {
   account: string;
@@ -15,7 +18,7 @@ export interface BilanTotals {
   fixedAssets: number;
   /** class 3, net of 39 */
   inventory: number;
-  /** class 4 accounts in debit, net of 49 */
+  /** class 4 accounts in debit, net of 49 (490 and 499 excepted) */
   receivables: number;
   /** class 5 accounts in debit (56 excluded), net of 59 */
   cashAssets: number;
@@ -23,7 +26,7 @@ export interface BilanTotals {
   currentAssets: number;
   /** fixed + current assets: "Total actif net" */
   totalAssets: number;
-  /** class 4 accounts in credit (49 excluded) */
+  /** class 4 accounts in credit (49 excluded), plus 490 and 499 */
   class4Credit: number;
   /** 56, and class 5 accounts in credit */
   cashLiabilities: number;
@@ -55,7 +58,8 @@ export function bilanTotals(rows: readonly TbBalance[]): BilanTotals {
     else if (c1 === "2") fixedAssets += value;
     else if (c1 === "3") inventory += value;
     else if (c1 === "4") {
-      if (c2 === "49") prov49 += value;
+      if (account.startsWith("490") || account.startsWith("499")) credit4 -= value;
+      else if (c2 === "49") prov49 += value;
       else if (value > 0) debit4 += value;
       else credit4 -= value;
     } else if (c1 === "5") {

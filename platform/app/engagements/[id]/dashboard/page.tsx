@@ -10,6 +10,7 @@ import { TilesToggle } from "@/components/TilesToggle";
 import { engagementDashboard } from "@/lib/dashboards";
 import { DashboardLists } from "@/components/DashboardLists";
 import { listActivity } from "@/lib/activity";
+import { localizedSummary } from "@/lib/activity-summary";
 import {
   dashboardStats,
   engagementAttention,
@@ -187,12 +188,15 @@ export default async function EngagementDashboardPage(props: {
       {unassigned > 0 ? (
         <Link
           href={`/engagements/${id}/tools/forms`}
-          className="block rounded-[var(--radius-atlas-sm)] border border-amber-300 bg-amber-50 px-4 py-2.5 text-[13px] font-medium text-amber-900 transition hover:border-amber-500 dark:border-amber-900 dark:bg-amber-950/40 dark:text-amber-300"
+          className="flex flex-wrap items-center justify-between gap-x-4 gap-y-1 rounded-[var(--radius-atlas-sm)] border border-amber-300 bg-amber-50 px-4 py-2.5 text-[13px] font-medium text-amber-900 transition hover:border-amber-500 dark:border-amber-900 dark:bg-amber-950/40 dark:text-amber-300"
           data-testid="unassigned-banner"
         >
-          {fr
-            ? `⚠ ${unassigned} tâche(s) sans préparateur ni assigné — cliquer pour les répartir dans l'outil Formulaires.`
-            : `⚠ ${unassigned} task(s) have no preparer or assignee — click to hand them out in the Forms tool.`}
+          <span>
+            {fr
+              ? `⚠ ${unassigned} tâche(s) sans préparateur ni assigné. Choisissez un préparateur (P) et un réviseur (R) pour chacune dans l'outil Formulaires : elles apparaîtront alors dans « Mes tâches » de la personne choisie.`
+              : `⚠ ${unassigned} task(s) have no preparer or assignee. Choose a preparer (P) and a reviewer (R) for each in the Forms tool: they then appear under "My tasks" for the person chosen.`}
+          </span>
+          <span className="whitespace-nowrap font-semibold underline">{fr ? "Répartir les tâches →" : "Hand out the tasks →"}</span>
         </Link>
       ) : null}
 
@@ -240,7 +244,7 @@ export default async function EngagementDashboardPage(props: {
         userId={session.user.id}
         notes={{ forMe: stats.my.notesForMe, byMe: stats.my.notesByMe }}
         findings={{ deficiencies: dash.deficiencyCount, misstatements: dash.misstatementCount }}
-        feed={feed}
+        feed={feed.map((row) => ({ ...row, summary: row.summary ? localizedSummary(row.summary, locale) : row.summary }))}
       />
     </main>
   );

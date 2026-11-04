@@ -1,4 +1,5 @@
 import { localizedSummary } from "@/lib/activity-summary";
+import { paperFieldLabel } from "@/lib/working-papers";
 import { notFound, redirect } from "next/navigation";
 import { localizedTitle } from "@/lib/page-title";
 import { auth } from "@/auth";
@@ -125,7 +126,7 @@ export default async function ActivityPage(props: { params: Promise<{ id: string
                   <details>
                     <summary className="cursor-pointer text-[13px] text-ink">
                       <span className="font-mono text-[12px] font-semibold">{field.code.replace(/^wp:/, "")}</span>
-                      <span className="text-ink-soft"> · {field.field}</span>
+                      <span className="text-ink-soft"> · {paperFieldLabel(field.code.replace(/^wp:/, ""), field.field, locale === "fr" ? "fr" : "en")}</span>
                       <span className="ml-2 text-[11.5px] text-muted">
                         {th.changes.replace("{n}", String(field.changes.length))} · {field.changes[0]?.at}
                       </span>

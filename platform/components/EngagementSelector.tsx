@@ -58,7 +58,7 @@ export function EngagementSelector({
           <span className="block text-[9px] font-bold uppercase tracking-[0.09em] text-muted leading-tight">
             {labels.engagement}
           </span>
-          <span className="block max-w-[190px] truncate text-[13px] font-semibold text-ink leading-tight">
+          <span className="block max-w-[190px] truncate text-[13px] font-semibold text-ink leading-tight min-[1440px]:max-w-[130px] min-[1600px]:max-w-[190px]">
             {current ?? labels.none}
           </span>
         </span>

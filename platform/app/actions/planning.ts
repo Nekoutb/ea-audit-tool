@@ -354,6 +354,8 @@ export async function assignTaskAction(
   }
   revalidatePath(`/engagements/${engagementId}/tasks`);
   revalidatePath(path);
+  // applied in place with its Undo toast (components/AssignSelect.tsx): a redirect would remount the page
+  if (formData.get("stay") === "1") return;
   redirect(path);
 }
 
@@ -385,6 +387,7 @@ export async function assignFormsTasksAction(
   }
   revalidatePath(path);
   revalidatePath(`/engagements/${engagementId}/tasks`);
+  if (formData.get("stay") === "1") return;
   redirect(`${path}?assigned=${assigned}`);
 }
 

@@ -1,3 +1,4 @@
+import { localizedNotificationTitle } from "@/lib/activity-summary";
 import { auth, signOut } from "@/auth";
 import { EngagementSelector, type SelectorItem } from "@/components/EngagementSelector";
 import { NavLink } from "@/components/NavLink";
@@ -9,7 +10,7 @@ import { listMyNotifications, unreadCount, type Notification as NotificationItem
 import { NotificationBell } from "@/components/NotificationBell";
 import Link from "next/link";
 import { redirect } from "next/navigation";
-import { SECTION_ORDER, sectionLabel } from "@/lib/task-groups";
+import { SECTION_ORDER, sectionLabel, sectionShortLabel } from "@/lib/task-groups";
 
 function initials(source: string): string {
   const parts = source.replace(/@.*/, "").split(/[.\s_-]+/).filter(Boolean);
@@ -51,7 +52,7 @@ export async function AppNav({
     ]);
     branding = b;
     unread = u;
-    notifs = n;
+    notifs = n.map((item) => ({ ...item, title: localizedNotificationTitle(item.title, locale) }));
     recent = r.map((e) => ({
       id: e.id,
       title: e.name ?? e.clientName,
@@ -86,7 +87,7 @@ export async function AppNav({
   ];
 
   return (
-    <header className="relative z-50 flex flex-wrap items-center justify-between gap-3 rounded-[var(--radius-atlas)] border border-glass-border bg-surface px-4 py-2.5 shadow-[var(--shadow-atlas-sm)] backdrop-blur-xl">
+    <header className="relative z-50 flex flex-wrap items-center justify-between gap-3 min-[1440px]:flex-nowrap rounded-[var(--radius-atlas)] border border-glass-border bg-surface px-4 py-2.5 shadow-[var(--shadow-atlas-sm)] backdrop-blur-xl">
       <div className="flex items-center gap-5">
         <span className="flex items-center gap-2 text-sm font-bold tracking-[-0.01em] text-emerald-700 dark:text-emerald-400">
           {branding?.logo ? (
@@ -150,9 +151,10 @@ export async function AppNav({
               <Link
                 key={key}
                 href={`/engagements/${current.id}/dashboard?phase=${key}`}
-                className="rounded-[var(--radius-atlas-xs)] px-2.5 py-1.5 text-[12.5px] font-medium text-ink-soft transition hover:bg-surface-2"
+                title={sectionLabel(key, locale as "en" | "fr")}
+                className="whitespace-nowrap rounded-[var(--radius-atlas-xs)] px-2.5 py-1.5 text-[12.5px] font-medium text-ink-soft transition hover:bg-surface-2"
               >
-                {sectionLabel(key, locale as "en" | "fr")}
+                {sectionShortLabel(key, locale as "en" | "fr")}
               </Link>
             ))}
           </nav>
@@ -174,7 +176,7 @@ export async function AppNav({
         )}
       </div>
 
-      <div className="flex min-w-0 flex-1 flex-wrap items-center justify-end gap-2.5">
+      <div className="flex min-w-0 flex-1 flex-wrap items-center justify-end gap-2.5 min-[1440px]:flex-nowrap">
         <ThemeToggle />
         {recent.length > 0 && !minimal ? (
           <EngagementSelector
@@ -240,7 +242,7 @@ export async function AppNav({
             placeholder={fr ? "Rechercher…" : "Search…"}
             aria-label={fr ? "Rechercher dans le dossier" : "Search the audit file"}
             data-testid="nav-search"
-            className="h-9 w-[150px] rounded-[var(--radius-atlas-sm)] border border-line-strong bg-surface px-2.5 text-[12.5px] text-ink outline-none transition focus:w-[240px] focus:border-emerald-600 xl:w-[190px]"
+            className="h-9 w-[150px] rounded-[var(--radius-atlas-sm)] border border-line-strong bg-surface px-2.5 text-[12.5px] text-ink outline-none transition focus:w-[180px] focus:border-emerald-600 xl:w-[130px] min-[1600px]:w-[190px] min-[1600px]:focus:w-[240px]"
           />
         </form>
 
@@ -262,11 +264,12 @@ export async function AppNav({
         <div className="mx-0.5 hidden h-7 w-px bg-line-strong sm:block" />
 
         <div className="hidden items-center gap-2.5 sm:flex">
-          <div className="text-right leading-tight">
+          {/* the name and role yield first: the initials stay, and the top bar keeps to one row at 1440 */}
+          <div className="hidden text-right leading-tight min-[1600px]:block">
             <div className="max-w-[150px] truncate text-[13px] font-semibold text-ink">{name}</div>
             {roleLabel ? <div className="text-[11px] text-muted">{roleLabel}</div> : null}
           </div>
-          <span className="grid h-9 w-9 place-items-center rounded-[var(--radius-atlas-sm)] bg-emerald-700 text-[12px] font-bold text-white">
+          <span title={name} className="grid h-9 w-9 flex-shrink-0 place-items-center rounded-[var(--radius-atlas-sm)] bg-emerald-700 text-[12px] font-bold text-white">
             {initials(name)}
           </span>
         </div>
@@ -282,7 +285,7 @@ export async function AppNav({
         >
           <button
             type="submit"
-            className="rounded-[var(--radius-atlas-sm)] border border-line-strong px-3 py-1.5 text-[13px] font-medium text-ink-soft transition hover:bg-surface-2"
+            className="whitespace-nowrap rounded-[var(--radius-atlas-sm)] border border-line-strong px-3 py-1.5 text-[13px] font-medium text-ink-soft transition hover:bg-surface-2"
           >
             {t.common.signOut}
           </button>

@@ -4,6 +4,7 @@ import { notFound, redirect } from "next/navigation";
 import { auth } from "@/auth";
 import { clearFindingAction, raiseFindingAction, setCorrectedAction } from "@/app/actions/execution";
 import { AppNav } from "@/components/AppNav";
+import { ReadOnlyFieldset } from "@/components/ReadOnlyFieldset";
 import { ErrorBanner } from "@/components/GatesPanel";
 import { Panel, PanelHeader, Chip } from "@/components/ui/atlas";
 import { getEngagement, listFileItems } from "@/lib/engagements";
@@ -97,6 +98,7 @@ export default async function FindingsPage(props: {
   return (
     <main className="min-h-screen w-full px-6 py-8">
       <AppNav locale={locale} hideLinks current={{ id, label: engagement.name ?? engagement.clientName }} />
+      <ReadOnlyFieldset role={session.user.role} locale={locale}>
       <div className="mt-5 flex items-center gap-3">
         <Link
           href={`/engagements/${id}/tools`}
@@ -250,6 +252,7 @@ export default async function FindingsPage(props: {
 
       {renderFindings("b4", tf.b4)}
       {renderFindings("c1", tf.c1)}
+    </ReadOnlyFieldset>
     </main>
   );
 }

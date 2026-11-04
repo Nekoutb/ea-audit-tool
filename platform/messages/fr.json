@@ -781,7 +781,7 @@
     "gateReopened": "Une feuille bloquante a été rouverte après la clôture de cette phase : une condition du contrôle d'acceptation n'est plus remplie. La mission reste dans sa phase actuelle ; l'associé a été notifié et l'événement figure dans la piste d'audit.",
     "closePlanning": "Clore la planification (instantané et ouverture de l'exécution)",
     "gateNames": {
-      "d31_form_complete": "Liste P1.1 complète et conclusion « accepter »",
+      "d31_form_complete": "P1.1 complet, avec la conclusion que l'acceptation est appropriée",
       "d31_partner_signed": "Signature de l'associé sur P1.1",
       "engagement_partner_designated": "Un seul associé responsable désigné dans l'équipe, et qui a accepté la mission",
       "materiality_approved": "Seuil de signification approuvé par un associé",
@@ -794,7 +794,7 @@
       "rebuttals_approved": "Réfutations approuvées par un associé",
       "material_sections_covered": "Chaque section significative dispose d'une couverture planifiée (stand-back)",
       "tb_mapped": "Balance générale entièrement rattachée (aucun compte inconnu)",
-      "d31_checks_passed": "Chaque vérification d'acceptation requise de P1.1 répondue « oui » (contact du prédécesseur pour une nouvelle mission)",
+      "d31_checks_passed": "Conclusions de P1.1 répondues « oui », notation cohérente avec la partie B, et P1.2 complété en cas de changement d'auditeur",
       "review_notes_cleared": "Aucune note de revue ouverte sur les feuilles de travail de cette phase"
     },
     "independence": {
@@ -1336,7 +1336,7 @@
       "title-required": "Un intitulé est requis.",
       "wrong-phase": "La mission n'est pas dans la phase requise pour cette action.",
       "stale-version": "Seule la dernière version du seuil de signification peut être approuvée.",
-      "invalid-materiality": "Vérifiez les montants : montant > 0, pourcentage 0–100, seuil de planification 60–85 %, négligeable 0,5–10 %.",
+      "invalid-materiality": "Vérifiez les montants : montant > 0, pourcentage 0–100, seuil de planification 60–85 %, négligeable 3–5 %.",
       "no-tb": "Aucune balance générale n'a encore été importée pour cette mission.",
       "no-mapped-rows": "Aucun compte de la balance n'est affecté à cette section — vérifiez les regroupements.",
       "unsupported-file": "Seuls les fichiers .csv et .xlsx sont acceptés.",

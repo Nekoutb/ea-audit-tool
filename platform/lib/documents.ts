@@ -524,7 +524,7 @@ export async function checkinDocument(documentId: string, content: Buffer): Prom
 
 /** Restore an old version by copying it forward as a new version (history is never rewritten). */
 export async function restoreVersion(documentId: string, versionNo: number): Promise<number> {
-  const { tenantId, userId } = await requireTenant();
+  const { tenantId, userId } = await requireWrite();
   await guardDocument(documentId);
   const restoredAs = await withTenant(tenantId, async (tx) => {
     const doc = await tx.query<{ status: string; checked_out_by: string | null }>(

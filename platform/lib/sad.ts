@@ -292,7 +292,7 @@ export async function saveSad(engagementId: string, stepId: string, field: strin
   if (field === "mtype" && !(SAD_TYPES as readonly string[]).includes(value)) throw new Error("invalid-type");
   if (field === "corrected" && !CORRECTED_YES.includes(value) && !CORRECTED_NO.includes(value)) throw new Error("invalid-value");
   if (field === "rationale" && value.length > 4000) throw new Error("invalid-value");
-  const { tenantId, userId } = await requireTenant();
+  const { tenantId, userId } = await requireWrite();
   await withTenant(tenantId, async (tx) => {
     await tx.query(
       `INSERT INTO form_response (tenant_id, engagement_id, code, field_key, value, updated_by, carried_forward)
@@ -335,7 +335,7 @@ export async function saveSadMeta(engagementId: string, key: string, value: stri
     throw new Error("invalid-field");
   }
   if (value.length > 100000) throw new Error("invalid-value");
-  const { tenantId, userId } = await requireTenant();
+  const { tenantId, userId } = await requireWrite();
   await withTenant(tenantId, async (tx) => {
     await tx.query(
       `INSERT INTO form_response (tenant_id, engagement_id, code, field_key, value, updated_by, carried_forward)

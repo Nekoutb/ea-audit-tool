@@ -38,11 +38,36 @@ export const ART_525_HEADCOUNT_THRESHOLD = 200;
  * the preparer's own choice stands.
  */
 export function personsFromHeadcount(headcount: string | null | undefined): "five" | "ten" | null {
+  const n = headcountFigure(headcount);
+  if (n === null) return null;
+  return n > ART_525_HEADCOUNT_THRESHOLD ? "ten" : "five";
+}
+
+function headcountFigure(headcount: string | null | undefined): number | null {
   const m = /\d[\d\s\u00a0\u202f.]*/.exec(headcount ?? "");
   if (!m) return null;
   const n = Number(m[0].replace(/[\s\u00a0\u202f.]/g, ""));
-  if (!Number.isFinite(n)) return null;
-  return n > ART_525_HEADCOUNT_THRESHOLD ? "ten" : "five";
+  return Number.isFinite(n) ? n : null;
+}
+
+/**
+ * What a save of C5.10 stores as the number of persons (F058): the headcount
+ * decides it whenever its figure changed, and whenever none is stored yet. A
+ * different number posted on that same save is the preparer's own choice and
+ * stands; a number merely carried along by the form does not. Null: leave the
+ * posted value alone.
+ */
+export function personsOnSave(
+  stored: { headcount?: string; persons?: string },
+  posted: { headcount?: string; persons?: string },
+): "five" | "ten" | null {
+  if (posted.headcount === undefined) return null;
+  const postedPersons = (posted.persons ?? "").trim();
+  const storedPersons = (stored.persons ?? "").trim();
+  if (postedPersons && postedPersons !== storedPersons) return null;
+  const changed = headcountFigure(posted.headcount) !== headcountFigure(stored.headcount);
+  if (!changed && postedPersons) return null;
+  return personsFromHeadcount(posted.headcount);
 }
 
 const P = (

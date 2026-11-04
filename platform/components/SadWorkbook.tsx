@@ -10,6 +10,7 @@
 
 import { currencyLabel } from "@/lib/format";
 import { numLocale } from "@/lib/format";
+import { noNegativeZero } from "@/lib/sad-model";
 import { fmtDate } from "@/lib/format-date";
 import { useState } from "react";
 import { amountOr } from "@/lib/amount";
@@ -98,7 +99,7 @@ export function SadWorkbook({
     return v < 0 ? `(${new Intl.NumberFormat(numLocale(locale)).format(-v)})` : new Intl.NumberFormat(numLocale(locale)).format(v);
   };
   const pctf = (x: number) =>
-    `${new Intl.NumberFormat(numLocale(locale), { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(x * 100)}%`;
+    `${new Intl.NumberFormat(numLocale(locale), { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(noNegativeZero(x * 100, 2))}%`;
 
   async function call(body: Record<string, unknown>): Promise<boolean> {
     setError(null);

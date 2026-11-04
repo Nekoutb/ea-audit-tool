@@ -1,6 +1,6 @@
 import { expect, test, type Page } from "@playwright/test";
 
-// Notifications live in the bell's panel and nowhere else: hovering the bell
+// Notifications live in the bell's panel and nowhere else: clicking the bell
 // drops a scrolling list, opening one marks it read, and a notification is
 // seen only by the user it was created for.
 
@@ -18,7 +18,7 @@ async function login(page: Page, email: string): Promise<void> {
 }
 
 async function openBell(page: Page): Promise<void> {
-  await page.getByTestId("nav-notifications").hover();
+  await page.getByTestId("nav-notifications").click();
   await expect(page.getByTestId("notif-panel")).toBeVisible();
 }
 

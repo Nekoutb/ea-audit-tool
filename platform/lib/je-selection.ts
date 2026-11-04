@@ -1588,7 +1588,7 @@ export async function addFirmHoliday(input: FirmHolidayInput): Promise<string> {
   const engagementId = input.engagementId ?? null;
   if (engagementId) await assertMutable(engagementId);
 
-  const { tenantId, userId } = await requireTenant();
+  const { tenantId, userId } = await requireWrite();
   return withTenant(tenantId, async (tx) => {
     const q = await tx.query<{ id: string }>(
       `INSERT INTO firm_holiday

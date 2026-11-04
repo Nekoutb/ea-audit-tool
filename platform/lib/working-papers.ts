@@ -21,7 +21,7 @@ import { FINANCIAL_STATEMENT_PAPERS } from "@/lib/papers/financial-statements";
 import { STATUTORY_525_PAPERS } from "@/lib/papers/statutory-525";
 import { CONCLUSION_PAPERS } from "@/lib/papers/conclusion";
 import { GAM_PAPERS } from "@/lib/papers/gam";
-import { paperKeys, requiredKeys, unansweredKeys, type PaperDef, type PaperField, conclKey, conclWhyKey, ynKey, ynWhyKey } from "@/lib/papers/types";
+import { paperKeys, procKey, requiredKeys, unansweredKeys, type PaperDef, type PaperField, conclKey, conclWhyKey, ynKey, ynWhyKey } from "@/lib/papers/types";
 import { LEGAL_FORMS, resolveLegalFormPaper } from "@/lib/legal-forms";
 import { resolvePaper, type StandardsEdition } from "@/lib/standards-edition";
 import { groupOfTask, type SectionKey } from "@/lib/task-groups";
@@ -190,6 +190,61 @@ export function paperMissing(def: PaperDef, values: Record<string, string>): str
     if (v(conclKey(i)) === "no" && v(conclWhyKey(i)).length === 0) missing.push(conclWhyKey(i));
   });
   return missing;
+}
+
+/**
+ * What the acceptance gates read from the P1.1 paper, the one screen that task
+ * has (F078). The paper has no "accept" select and no ok-flags, so:
+ *  - the first conclusion statement ("acceptance of this engagement is
+ *    appropriate") answered Yes is the decision to accept;
+ *  - the second ("the risk rating is supported") answered Yes, a rating that
+ *    respects Part C (any No in Part B precludes Low), and, where the auditor
+ *    changed, a completed P1.2, are the checks.
+ * A "No" in Part B is an answer, not a refusal: the paper asks for it to be
+ * explained and weighed in the rating, and the partner decides.
+ */
+export function acceptancePaperVerdict(
+  p11: Record<string, string>,
+  p12: Record<string, string>,
+): { complete: boolean; missing: number; accepted: boolean; predecessorRecorded: boolean; checksPassed: boolean } {
+  const def = paperFor("P1.1");
+  const answer = (key: string) => (p11[key] ?? "").trim();
+  const missing = paperMissing(def, p11).length;
+  const complete = missing === 0;
+  const accepted = answer(conclKey(0)) === "yes";
+  const anyNo = (def.sections ?? []).some(
+    (s) => s.kind === "yn" && s.items.some((item) => answer(ynKey(item.key)) === "no"),
+  );
+  const ratingHolds = !(anyNo && answer("rating") === "low");
+  const predecessorRecorded = answer("auditor_change") !== "yes" || paperMissing(paperFor("P1.2"), p12).length === 0;
+  return {
+    complete,
+    missing,
+    accepted,
+    predecessorRecorded,
+    checksPassed: complete && accepted && answer(conclKey(1)) === "yes" && ratingHolds && predecessorRecorded,
+  };
+}
+
+/**
+ * A saved answer's key as the reader knows it (F086): the field's label, the
+ * procedure's or factor's opening words, "Conclusion n". A key the paper no
+ * longer defines is shown as stored.
+ */
+export function paperFieldLabel(code: string, key: string, locale: "en" | "fr"): string {
+  const def = paperFor(code);
+  const fr = locale === "fr";
+  const clip = (text: string) => (text.length > 80 ? `${text.slice(0, 78)}…` : text);
+  const stem = key.replace(/_(x|na)$/, "");
+  for (const f of def.fields ?? []) if (f.key === key) return clip(fieldLabelOf(f, locale));
+  for (const s of def.sections ?? []) {
+    if (s.kind === "fields") for (const f of s.fields) if (f.key === key) return clip(fieldLabelOf(f, locale));
+    if (s.kind === "proc") for (const p of s.procs) if (procKey(p.key) === stem) return clip(fr ? p.fr : p.en);
+    if (s.kind === "yn") for (const i of s.items) if (ynKey(i.key) === stem) return clip(fr ? i.fr : i.en);
+  }
+  const concl = /^c_(\d+)(_x)?$/.exec(key);
+  if (concl) return `Conclusion ${Number(concl[1]) + 1}`;
+  return key === "key_findings" ? (fr ? "Principaux constats" : "Key findings") : key;
 }
 
 const WP = (code: string) => `wp:${code}`;
@@ -475,7 +530,7 @@ export async function invalidateStaleSignoffs(
  * trail entry and warn the signers. Same pattern as the SCOT Studio writers.
  */
 export async function voidStaleSignoffsOfItem(fileItemId: string): Promise<void> {
-  const { tenantId, userId } = await requireTenant();
+  const { tenantId, userId } = await requireWrite();
   const found = await withTenant(tenantId, async (tx) => {
     const item = await tx.query<{ engagement_id: string; code: string }>(
       "SELECT engagement_id, code FROM file_item WHERE id = $1",
@@ -687,10 +742,10 @@ export async function savePaper(
   values = await filterPaperWrite(tenantId, engagementId, userId, role, code, values);
   // C5.10 (F058): the number of highest-paid persons follows the headcount
   // typed in Part A — ten above 200 employees, five at or below — unless the
-  // preparer has already chosen one by hand on this save.
-  if (code === "C5.10" && typeof values.headcount === "string" && !values.persons?.trim()) {
-    const { personsFromHeadcount } = await import("@/lib/papers/statutory-525");
-    const auto = personsFromHeadcount(values.headcount);
+  // preparer chose one by hand on this save.
+  if (code === "C5.10" && typeof values.headcount === "string") {
+    const { personsOnSave } = await import("@/lib/papers/statutory-525");
+    const auto = personsOnSave(await loadPaper(engagementId, code), values);
     if (auto) values = { ...values, persons: auto };
   }
   const allowed = allPaperKeys(code);
@@ -765,6 +820,18 @@ export async function savePaper(
       if (normText(before.get(key) ?? "") !== normText(value)) written.push(key);
     }
     await syncSeededResponseStep(tx, tenantId, engagementId, code, userId);
+    // The paper's own profile decides whether P1.2 applies, as the legacy form's
+    // engagement type did (lib/forms.ts): the gate reads P1.2 once the auditor changed.
+    if (code === "P1.1" && (typeof values.engagement_type === "string" || typeof values.auditor_change === "string")) {
+      const now = await tx.query<{ field_key: string; v: string | null }>(
+        `SELECT field_key, value #>> '{}' AS v FROM form_response
+          WHERE engagement_id = $1 AND code = $2 AND field_key IN ('engagement_type', 'auditor_change')`,
+        [engagementId, WP(code)],
+      );
+      const answer = (key: string) => now.rows.find((r) => r.field_key === key)?.v;
+      const { setPredecessorTaskActiveTx } = await import("@/lib/forms");
+      await setPredecessorTaskActiveTx(tx, engagementId, answer("engagement_type") === "new" || answer("auditor_change") === "yes");
+    }
     // P1.5 concluding that an EQR is required makes C4.2 a completion gate:
     // the paper must exist on the file whatever its complexity (UAT run 2 B13).
     // Part B has no single q_eqr answer: any criterion "yes" requires the review (UAT run 2 B33).

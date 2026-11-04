@@ -90,6 +90,8 @@ export async function createEngagementAction(formData: FormData): Promise<void> 
   // Three identity questions: the client name (typed — an existing client is
   // matched by name, a new name creates the entity), the fiscal year, and the
   // nature of the engagement (free text when "other").
+  const writer = await auth();
+  if (!writer?.user || !canWrite(writer.user.role)) redirect("/new-engagement?error=read-only-role");
   const clientName = String(formData.get("clientName") ?? "").trim();
   const fiscalYear = Number(formData.get("fiscalYear"));
   const natureChoice = String(formData.get("nature") ?? "statutory_audit");
@@ -216,7 +218,7 @@ export async function updateEngagementSetupAction(engagementId: string, formData
   try {
     await setEngagementSetup(engagementId, { framework, plannedAgmDate: planned || null });
   } catch (error) {
-    if (error instanceof Error && ["forbidden", "not-found", "archived", "invalid-framework"].includes(error.message)) {
+    if (error instanceof ForbiddenError || (error instanceof Error && ["forbidden", "not-found", "archived", "invalid-framework"].includes(error.message))) {
       redirect(`${path}?error=${error.message}`);
     }
     throw error;
@@ -234,7 +236,7 @@ export async function updateStandardsEditionAction(engagementId: string, formDat
   try {
     await setStandardsEdition(engagementId, edition, reason);
   } catch (error) {
-    if (error instanceof Error && ["forbidden", "not-found", "archived", "reason-required"].includes(error.message)) {
+    if (error instanceof ForbiddenError || (error instanceof Error && ["forbidden", "not-found", "archived", "reason-required"].includes(error.message))) {
       redirect(`${path}?error=${error.message === "reason-required" ? "justification-required" : error.message}`);
     }
     throw error;
@@ -361,7 +363,13 @@ export async function classifyEntityAction(engagementId: string, formData: FormD
 
 export async function generateDocumentAction(fileItemId: string): Promise<void> {
   const locale = await getLocale();
-  const documentId = await generateDocument(fileItemId, locale);
+  let documentId: string;
+  try {
+    documentId = await generateDocument(fileItemId, locale);
+  } catch (error) {
+    if (error instanceof ForbiddenError) redirect(`/engagements?error=${encodeURIComponent(error.message)}`);
+    throw error;
+  }
   redirect(docPath(documentId));
 }
 

@@ -19,6 +19,7 @@ import {
 } from "@/app/actions/conclusion";
 import { placeLegalHoldAction, releaseLegalHoldAction } from "@/app/actions/retention";
 import { AppNav } from "@/components/AppNav";
+import { ReadOnlyFieldset } from "@/components/ReadOnlyFieldset";
 import { ErrorBanner, GatesPanel } from "@/components/GatesPanel";
 import { Panel } from "@/components/ui/atlas";
 import { getClient } from "@/lib/clients";
@@ -108,6 +109,7 @@ export default async function ConclusionPage(props: {
   return (
     <main className="min-h-screen w-full px-6 py-8">
       <AppNav locale={locale} current={{ id, label: engagement.name ?? engagement.clientName }} />
+      <ReadOnlyFieldset role={session.user.role} locale={locale}>
       <h1 className="mt-8 text-2xl font-semibold text-ink">
         {engagement.clientName} — {engagement.fiscalYear} · {tc.title}
       </h1>
@@ -551,6 +553,7 @@ export default async function ConclusionPage(props: {
           })}
         </ul>
       </Panel>
+    </ReadOnlyFieldset>
     </main>
   );
 }

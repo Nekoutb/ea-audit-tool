@@ -74,6 +74,12 @@ const ENGAGEMENT_NOTIFICATION_VISIBLE = `(
                 AND tm.user_id = $1 AND tm.status = 'accepted')
 )`;
 
+/**
+ * The independence campaign is gone (F008) but its notifications remain in the
+ * table as history: the bell neither lists nor counts them.
+ */
+const RETIRED_KINDS = "kind <> 'independence-confirmation'";
+
 /** The signed-in user's notifications, newest first. */
 export async function listMyNotifications(limit = 50): Promise<Notification[]> {
   const { tenantId, userId } = await requireTenant();
@@ -82,7 +88,7 @@ export async function listMyNotifications(limit = 50): Promise<Notification[]> {
     const result = await client.query<NotificationRow>(
       `SELECT id, kind, title, body, href, read_at, created_at
          FROM notification
-        WHERE user_id = $1 AND ${ENGAGEMENT_NOTIFICATION_VISIBLE}
+        WHERE user_id = $1 AND ${RETIRED_KINDS} AND ${ENGAGEMENT_NOTIFICATION_VISIBLE}
         ORDER BY created_at DESC
         LIMIT $2`,
       [userId, capped],
@@ -97,7 +103,7 @@ export async function unreadCount(): Promise<number> {
   return withTenant(tenantId, async (client) => {
     const result = await client.query<{ n: string }>(
       `SELECT count(*)::text AS n FROM notification
-        WHERE user_id = $1 AND read_at IS NULL AND ${ENGAGEMENT_NOTIFICATION_VISIBLE}`,
+        WHERE user_id = $1 AND read_at IS NULL AND ${RETIRED_KINDS} AND ${ENGAGEMENT_NOTIFICATION_VISIBLE}`,
       [userId],
     );
     return Number(result.rows[0].n);

@@ -190,7 +190,7 @@ export const DEFAULT_FILE_INDEX: readonly FileIndexEntry[] = [
   // F — OHADA statutory section
   { code: "C5.2", section: "F", titleEn: "Statutory Deadlines Calendar", titleFr: "Calendrier des échéances légales" },
   { code: "C5.3", section: "F", titleEn: "Regulated Agreements Register & Special Report", titleFr: "Registre des conventions réglementées et rapport spécial" },
-  { code: "C5.4", section: "F", titleEn: "Article 715 Report to the Board", titleFr: "Rapport article 715 au conseil d'administration" },
+  { code: "C5.4", section: "F", titleEn: "Article 715 Report", titleFr: "Rapport article 715" },
   { code: "C5.5", section: "F", titleEn: "Alert Procedure File", titleFr: "Dossier de procédure d'alerte" },
   { code: "C5.6", section: "F", titleEn: "Disclosure of Criminal Offences to the Prosecutor", titleFr: "Révélation des faits délictueux" },
   { code: "C5.7", section: "F", titleEn: "Registered Securities Register Attestation", titleFr: "Attestation sur les registres de titres nominatifs" },
@@ -315,7 +315,7 @@ const SHORT_TITLES: Record<string, { en: string; fr: string }> = {
   "E5.5": { en: "Other Income", fr: "Autres produits" },
   "C5.2": { en: "Statutory Deadlines Calendar", fr: "Calendrier des échéances légales" },
   "C5.3": { en: "Regulated Agreements", fr: "Conventions réglementées" },
-  "C5.4": { en: "Article 715 Board Report", fr: "Rapport article 715" },
+  "C5.4": { en: "Article 715 Report", fr: "Rapport article 715" },
   "C5.5": { en: "Alert Procedure", fr: "Procédure d'alerte" },
   "C5.6": { en: "Criminal Offences Disclosure", fr: "Révélation des faits délictueux" },
   "C5.7": { en: "Registered Securities Attestation", fr: "Attestation titres nominatifs" },

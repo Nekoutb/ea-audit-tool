@@ -14,6 +14,7 @@ import {
   updateRiskAction,
 } from "@/app/actions/planning";
 import { AppNav } from "@/components/AppNav";
+import { ReadOnlyFieldset } from "@/components/ReadOnlyFieldset";
 import { AssertionLegend } from "@/components/AssertionLegend";
 import { DropdownChecklist } from "@/components/DropdownChecklist";
 import { ErrorBanner } from "@/components/GatesPanel";
@@ -175,6 +176,7 @@ export default async function RisksPage(props: {
   return (
     <main className="min-h-screen w-full px-6 py-8">
       <AppNav locale={locale} hideLinks current={{ id, label: engagement.name ?? engagement.clientName }} />
+      <ReadOnlyFieldset role={session.user.role} locale={locale}>
       <div className="mt-5 flex flex-wrap items-center gap-3">
         <Link
           href={`/engagements/${id}/tools`}
@@ -600,6 +602,7 @@ export default async function RisksPage(props: {
           P5.2
         </Link>
       </p>
+    </ReadOnlyFieldset>
     </main>
   );
 }

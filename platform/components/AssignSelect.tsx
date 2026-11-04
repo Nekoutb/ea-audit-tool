@@ -5,8 +5,10 @@ import { useEffect, useRef, useState, useTransition, type ReactNode } from "reac
 /**
  * An assignment applied as soon as it is chosen (F084), with an Undo toast: no
  * OK button to forget, and a wrong pick is one click from being put back. The
- * server action records it in the activity log either way. A server refusal
- * comes back as ?error=…, which puts the select back and drops the toast.
+ * server action records it in the activity log either way. `stay` asks the
+ * action not to navigate on success: a redirect remounted the page behind its
+ * loading screen, and the toast went with it. A server refusal comes back as a
+ * new ?error=…, which puts the select back and drops the toast.
  */
 export function AssignSelect({
   action,
@@ -57,10 +59,13 @@ export function AssignSelect({
     onChosen?.(next);
     const data = new FormData();
     data.set("assignee", next);
+    data.set("stay", "1");
     for (const [k, v] of Object.entries(hidden ?? {})) data.set(k, v);
+    const before = window.location.search;
     startTransition(async () => {
       await action(data);
-      if (new URLSearchParams(window.location.search).has("error")) {
+      const after = window.location.search;
+      if (after !== before && new URLSearchParams(after).has("error")) {
         setValue(lastCurrent.current);
         setUndoTo(null);
         onChosen?.(lastCurrent.current);

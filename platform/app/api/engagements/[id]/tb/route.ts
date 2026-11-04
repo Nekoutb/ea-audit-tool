@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { ForbiddenError } from "@/lib/tenant";
 import { SubLedgerError } from "@/lib/subledgers";
 import { addOverride, importTrialBalance, saveLeadIndexOverride, TbError, type TbMapping } from "@/lib/tb";
 import { getEngagement } from "@/lib/engagements";
@@ -70,6 +71,9 @@ export async function POST(request: Request, context: { params: Promise<{ id: st
   } catch (error) {
     if (error instanceof TbError || error instanceof SubLedgerError) {
       return NextResponse.json({ error: error.code }, { status: 400 });
+    }
+    if (error instanceof ForbiddenError) {
+      return NextResponse.json({ error: error.message }, { status: 403 });
     }
     // Only a missing session is "unauthenticated"; a file the parser could
     // not read or a query that failed is ours, and was being reported as a

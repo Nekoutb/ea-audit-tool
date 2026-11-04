@@ -51,7 +51,7 @@ export function SectionStage({ sections, initialOpen = null }: { sections: Stage
                   : "border-glass-border hover:border-line-strong"
               }`}
             >
-              <span className="whitespace-nowrap text-[11.5px] font-extrabold uppercase tracking-[0.08em] text-muted max-lg:whitespace-normal max-lg:text-center">
+              <span className="max-w-full text-balance text-center text-[11.5px] font-extrabold uppercase tracking-[0.08em] text-muted">
                 {s.label}
               </span>
               <span
