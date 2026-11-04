@@ -83,7 +83,8 @@ describe("F046 — practical tips", () => {
 
   it("counts the drafts written for the batch", () => {
     const n = TIPPED.reduce((acc, code) => acc + procs(ALL[code]).length, 0);
-    // 10 + 7 + 10 + 8 + 10 + 7 + 7 + 6 + 12 + 12
-    expect(n).toBe(89);
+    // 10 + 7 + 10 + 8 + 12 + 8 + 7 + 6 + 12 + 12 — C5.1 gained the art. 710
+    // certification and the specific verifications (F049), C5.5 the court step (F051)
+    expect(n).toBe(92);
   });
 });

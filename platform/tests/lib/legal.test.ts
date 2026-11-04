@@ -13,7 +13,7 @@ vi.mock("@/auth", () => ({
 }));
 
 import { auth } from "@/auth";
-import { advanceAlerte, getAlerte, resumeAlerte, startAlerte } from "@/lib/alerte";
+import { FIRST_REPLY_DAYS, advanceAlerte, getAlerte, resumeAlerte, startAlerte } from "@/lib/alerte";
 import { recordCompletion } from "@/lib/completion";
 import { closePool } from "@/lib/db";
 import { createEngagement } from "@/lib/engagements";
@@ -205,7 +205,8 @@ describe("8.5 C5.5 procédure d'alerte", () => {
     let state = await getAlerte(sarlEngagement);
     expect(state?.variant).toBe("non_sa");
     expect(state?.stage).toBe("request_sent");
-    expect(state?.stageDeadline).toBe(addDaysIso(new Date().toISOString().slice(0, 10), 15)); // art. 150
+    // art. 150: one month for the first reply (AUSCGIE 2014 reading — F051)
+    expect(state?.stageDeadline).toBe(addDaysIso(new Date().toISOString().slice(0, 10), FIRST_REPLY_DAYS));
 
     await expect(startAlerte(sarlEngagement, "again")).rejects.toThrow("alerte-open");
     await expect(advanceAlerte(state!.id, "rapport_special", "skip")).rejects.toThrow("invalid-transition");

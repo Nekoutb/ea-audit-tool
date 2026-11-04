@@ -110,13 +110,14 @@ describe("reflagMisstatements — the classification follows materiality, the ev
     // A percentage outside the benchmark's usual range (revenue 0.5–2 %) is
     // refused unless the judgement is written down (UAT B47) — and nothing
     // is written before the refusal.
-    await expect(createMaterialityVersion(engagementId, version(0.05, 1))).rejects.toThrow(
+    await expect(createMaterialityVersion(engagementId, version(0.05, 3))).rejects.toThrow(
       "materiality-out-of-range",
     );
     expect(await flagOf(id)).toBe(true);
 
-    // In range: same benchmark share, a much lower clearly-trivial share.
-    const lower = await createMaterialityVersion(engagementId, version(0.5, 1));
+    // In range: same benchmark share, the clearly-trivial share at the bottom
+    // of the firm's 3–5% range (F033).
+    const lower = await createMaterialityVersion(engagementId, version(0.5, 3));
     await approveMateriality(engagementId, lower);
     expect(await flagOf(id)).toBe(false);
   });
@@ -128,9 +129,10 @@ describe("reflagMisstatements — the classification follows materiality, the ev
     const id = await post(current!.trivial * 3, false);
     const before = await admin.query(
       "SELECT amount, description, accounts, created_by FROM misstatement WHERE id=$1", [id]);
-    // Top of the revenue range (2 %) with a higher clearly-trivial share; an
-    // out-of-range 5 % would need an overrideJustification (UAT B47).
-    const higher = await createMaterialityVersion(engagementId, version(2, 10));
+    // Top of the revenue range (2 %) with the clearly-trivial share back at the
+    // top of the firm's 3–5 % range (F033); an out-of-range 5 % benchmark share
+    // would need an overrideJustification (UAT B47).
+    const higher = await createMaterialityVersion(engagementId, version(2, 5));
     await approveMateriality(engagementId, higher);
     const after = await admin.query(
       "SELECT amount, description, accounts, created_by FROM misstatement WHERE id=$1", [id]);

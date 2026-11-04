@@ -171,11 +171,12 @@ describe("F045 — the papers read per edition", () => {
   it("E3.1 and P5.1 cite ISA 240 under its current title today and as (Revised) from 2026-12-15", () => {
     const e31c = resolvePaper(RAW["E3.1"], "current");
     const e31r = resolvePaper(RAW["E3.1"], "revised_2026");
-    expect(e31c.std).toBe("ISA 240 ¶31–34, ¶36–37 · ISA 240 ¶29(c) · ISA 315 (Revised 2019) ¶26 · IAM 321");
-    expect(e31r.std).toMatch(/^ISA 240 \(Revised\) ¶31–34/);
-    expect(procs(e31c).find((p) => p.key === "estimates")!.en).toMatch(/because ISA 240 ¶32 treats it/);
-    expect(procs(e31r).find((p) => p.key === "estimates")!.fr).toMatch(/l'ISA 240 révisée ¶32/);
-    expect(procs(e31c).find((p) => p.key === "criteria")!.srcEn).toMatch(/ISA 240 ¶33\(b\)/);
+    // F032: the paper is anchored on ¶31–33 and cites the sub-paragraphs of ¶32
+    expect(e31c.std).toBe("ISA 240 ¶31–33 · ISA 240 ¶29(c) · ISA 315 (Revised 2019) ¶26 · IAM 321");
+    expect(e31r.std).toMatch(/^ISA 240 \(Revised\) ¶31–33/);
+    expect(procs(e31c).find((p) => p.key === "estimates")!.en).toMatch(/because ISA 240 ¶32\(b\) treats it/);
+    expect(procs(e31r).find((p) => p.key === "estimates")!.fr).toMatch(/l'ISA 240 révisée ¶32 b\)/);
+    expect(procs(e31c).find((p) => p.key === "criteria")!.srcEn).toMatch(/ISA 240 ¶32\(a\)/);
     expect(resolvePaper(RAW["P5.1"], "current").std).toBe("ISA 240 ¶12–27, ¶31–33, ¶40–43");
     expect(resolvePaper(RAW["P5.1"], "revised_2026").std).toMatch(/^ISA 240 \(Revised\)/);
   });
@@ -234,7 +235,7 @@ describe("F042 — the materiality justification label", () => {
     expect(en.planning.materiality.justification).toBe("Justification of the benchmark, percentage and qualitative factors (ISA 320 ¶14)");
     expect(fr.planning.materiality.justification).toBe("Justification de la base, du pourcentage et des facteurs qualitatifs (ISA 320 ¶14)");
     // nothing else moved
-    expect(en.planning.materiality.performanceJustification).toBe("Justification of the TE percentage");
+    expect(en.planning.materiality.performanceJustification).toBe("Justification of the performance materiality percentage"); // F033 vocabulary
   });
 });
 
