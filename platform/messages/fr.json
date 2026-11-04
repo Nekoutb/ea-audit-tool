@@ -1594,5 +1594,9 @@
     "save": "Enregistrer",
     "saved": "Édition des normes enregistrée.",
     "managerOnly": "Seuls les managers et au-dessus peuvent modifier l'édition."
+  },
+  "errors": {
+    "framework-required": "Choisissez le référentiel comptable : il est obligatoire sur la fiche client.",
+    "invalid-framework": "Ce référentiel n'est pas disponible."
   }
 }

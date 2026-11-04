@@ -2,12 +2,13 @@ import type { PoolClient } from "pg";
 import { type ComplexityAnswers, type EngagementComplexity } from "@/lib/complexity";
 import { withTenant } from "@/lib/db";
 import { ensureTaskTx } from "@/lib/ensure-task";
-import { itemsForComplexity, type Section } from "@/lib/file-index";
+import { itemsForComplexity, natureHasAuditProgramme, type Section } from "@/lib/file-index";
 import type { LegalForm } from "@/lib/legal-forms";
 import { seedPresumedRisks } from "@/lib/risks";
 import { requireTenant, requireWrite } from "@/lib/tenant";
 import { visibilityClause } from "@/lib/engagement-access";
 import { recordActivity } from "@/lib/activity";
+import { FRAMEWORKS } from "@/lib/clients";
 import { atLeast, type Role } from "@/lib/rbac";
 import { editionForPeriod, isStandardsEdition, periodStartOf, type StandardsEdition } from "@/lib/standards-edition";
 
@@ -82,6 +83,10 @@ export interface EngagementRegisterRow extends EngagementSummary {
   retentionUntil: string | null;
   /** The signed-in user is on this engagement's team or owns tasks in it. */
   isMine: boolean;
+  /** Planned report/AGM date, when the team entered one (F073). */
+  plannedAgmDate: string | null;
+  /** P1.1 client acceptance signed by the partner (F076). */
+  acceptanceSigned: boolean;
 }
 
 export async function listEngagements(clientId?: string): Promise<EngagementRegisterRow[]> {
@@ -96,6 +101,8 @@ export async function listEngagements(clientId?: string): Promise<EngagementRegi
         report_date: string | null;
         retention_until: string | null;
         is_mine: boolean;
+        planned_agm_date: string | null;
+        acceptance_signed: boolean;
       }
     >(
       `SELECT e.id, e.client_id, c.name AS client_name, e.fiscal_year,
@@ -116,6 +123,9 @@ export async function listEngagements(clientId?: string): Promise<EngagementRegi
                         WHERE al.engagement_id = e.id), 'YYYY-MM-DD') AS last_activity,
               to_char(e.report_date, 'YYYY-MM-DD') AS report_date,
               to_char(e.retention_until, 'YYYY-MM-DD') AS retention_until,
+              to_char(e.planned_agm_date, 'YYYY-MM-DD') AS planned_agm_date,
+              EXISTS (SELECT 1 FROM file_item fi JOIN document d ON d.file_item_id = fi.id
+                       WHERE fi.engagement_id = e.id AND fi.code = 'P1.1' AND d.status = 'signed') AS acceptance_signed,
               (EXISTS (SELECT 1 FROM team_member tm WHERE tm.engagement_id = e.id AND tm.user_id = $2)
                OR EXISTS (SELECT 1 FROM file_item fi WHERE fi.engagement_id = e.id
                            AND (fi.owner_id = $2 OR fi.assignee_user_id = $2))) AS is_mine
@@ -134,6 +144,8 @@ export async function listEngagements(clientId?: string): Promise<EngagementRegi
       reportDate: row.report_date,
       retentionUntil: row.retention_until,
       isMine: row.is_mine,
+      plannedAgmDate: row.planned_agm_date,
+      acceptanceSigned: row.acceptance_signed,
     }));
   });
 }
@@ -275,6 +287,69 @@ async function legalFormOfEngagementTx(tx: PoolClient, engagementId: string): Pr
   return r.rows[0]?.legal_form ?? null;
 }
 
+/** The engagement's nature, read in the transaction: the file index is scoped by it (F075). */
+async function natureOfEngagementTx(tx: PoolClient, engagementId: string): Promise<string | null> {
+  const r = await tx.query<{ nature: string | null }>("SELECT nature FROM engagement WHERE id = $1", [engagementId]);
+  return r.rows[0]?.nature ?? null;
+}
+
+/**
+ * The reporting framework and planned report/AGM date of an engagement (F073).
+ * Partners and managers correct them while the file is open; the change is logged.
+ */
+export async function setEngagementSetup(
+  engagementId: string,
+  input: { framework: string; plannedAgmDate: string | null },
+): Promise<void> {
+  const { tenantId, role } = await requireWrite();
+  if (!atLeast(role as Role, "manager")) throw new Error("forbidden");
+  const before = await withTenant(tenantId, async (tx) => {
+    const r = await tx.query<{ framework: string | null; planned: string | null; archived_at: string | null }>(
+      "SELECT framework, planned_agm_date::text AS planned, archived_at::text AS archived_at FROM engagement WHERE id = $1 FOR UPDATE",
+      [engagementId],
+    );
+    const row = r.rows[0];
+    if (!row) throw new Error("not-found");
+    if (row.archived_at) throw new Error("archived");
+    // F073: only the firm's framework can be chosen; an older value may stay.
+    if (!(FRAMEWORKS as readonly string[]).includes(input.framework) && input.framework !== row.framework) {
+      throw new Error("invalid-framework");
+    }
+    await tx.query("UPDATE engagement SET framework = $2, planned_agm_date = $3 WHERE id = $1", [
+      engagementId,
+      input.framework,
+      input.plannedAgmDate,
+    ]);
+    return row;
+  });
+  if (before.framework === input.framework && before.planned === input.plannedAgmDate) return;
+  await recordActivity({
+    engagementId,
+    entityType: "engagement",
+    entityId: engagementId,
+    action: "engagement_setup_changed",
+    summary: `Reporting framework / planned AGM date changed to ${input.framework} / ${input.plannedAgmDate ?? "—"}`,
+    before: JSON.stringify({ framework: before.framework, plannedAgmDate: before.planned }),
+    after: JSON.stringify(input),
+  });
+}
+
+/** What the settings page shows of the engagement's set-up (F073). */
+export async function engagementSetupOf(
+  engagementId: string,
+): Promise<{ framework: string | null; plannedAgmDate: string | null; nature: string | null } | null> {
+  const { tenantId } = await requireTenant();
+  return withTenant(tenantId, async (tx) => {
+    const r = await tx.query<{ framework: string | null; planned: string | null; nature: string | null }>(
+      `SELECT coalesce(e.framework, c.framework) AS framework, e.planned_agm_date::text AS planned, e.nature
+         FROM engagement e JOIN client c ON c.id = e.client_id WHERE e.id = $1`,
+      [engagementId],
+    );
+    const row = r.rows[0];
+    return row ? { framework: row.framework, plannedAgmDate: row.planned, nature: row.nature } : null;
+  });
+}
+
 async function instantiateFileIndex(
   tx: PoolClient,
   tenantId: string,
@@ -282,8 +357,9 @@ async function instantiateFileIndex(
   complexity: EngagementComplexity,
 ): Promise<void> {
   const legalForm = await legalFormOfEngagementTx(tx, engagementId);
+  const nature = await natureOfEngagementTx(tx, engagementId);
   let sortOrder = 0;
-  for (const entry of itemsForComplexity(complexity, legalForm)) {
+  for (const entry of itemsForComplexity(complexity, legalForm, nature)) {
     sortOrder += 10;
     await tx.query(
       `INSERT INTO file_item
@@ -341,7 +417,8 @@ export async function createEngagement(input: {
     const result = await tx.query<{ id: string }>(
       `INSERT INTO engagement (tenant_id, client_id, fiscal_year, period_end, name, complexity, complexity_answers,
                                duration_months, nature, engagement_phase, framework, first_year, standards_edition)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10,
+               coalesce($11, (SELECT framework FROM client WHERE id = $2)), $12, $13)
        RETURNING id`,
       [
         tenantId,
@@ -438,8 +515,9 @@ export async function applyComplexity(
     );
     const have = new Set(existing.rows.map((r) => r.code));
     const legalForm = await legalFormOfEngagementTx(tx, engagementId);
+    const nature = await natureOfEngagementTx(tx, engagementId);
     let sortOrder = 0;
-    for (const entry of itemsForComplexity(complexity, legalForm)) {
+    for (const entry of itemsForComplexity(complexity, legalForm, nature)) {
       sortOrder += 10;
       if (have.has(entry.code)) continue;
       await tx.query(
@@ -455,7 +533,7 @@ export async function applyComplexity(
       "SELECT 1 FROM risk WHERE engagement_id = $1 AND presumed_type IS NOT NULL LIMIT 1",
       [engagementId],
     );
-    if (seeded.rowCount === 0) await seedPresumedRisks(tx, tenantId, engagementId);
+    if (seeded.rowCount === 0 && natureHasAuditProgramme(nature)) await seedPresumedRisks(tx, tenantId, engagementId);
     // First audit: the predecessor-auditor communication (P1.2) applies.
     if (answers.firstAudit) {
       await ensureTaskTx(tx, engagementId, "P1.2");

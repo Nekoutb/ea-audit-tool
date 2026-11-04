@@ -18,7 +18,7 @@ import {
   type PhaseTask,
 } from "@/lib/engagement-dashboard";
 import { eqrRequired } from "@/lib/completion";
-import { getEngagement } from "@/lib/engagements";
+import { engagementSetupOf, getEngagement } from "@/lib/engagements";
 import { itemsForComplexity, shortTitle } from "@/lib/file-index";
 import { phaseStillOpen } from "@/lib/gates";
 import { getMessages } from "@/lib/i18n";
@@ -76,7 +76,8 @@ export default async function GroupTasksPage(props: {
   // classification scopes in — a very-simple file must not grow a complex
   // one's programme because somebody opened a page.
   const [allTasks, existingCodes] = await Promise.all([engagementTasksWithActiveConditionals(id), existingTaskCodes(id)]);
-  const inScope = new Set(itemsForComplexity(engagement.complexity ?? "complex").map((e) => e.code));
+  const nature = (await engagementSetupOf(id))?.nature ?? null;
+  const inScope = new Set(itemsForComplexity(engagement.complexity ?? "complex", engagement.clientLegalForm, nature).map((e) => e.code));
   // C4.2 follows the EQR determination, not the tier (UAT run 2 B13).
   if (g.members.includes("C4.2") && !inScope.has("C4.2") && (await eqrRequired(id))) inScope.add("C4.2");
   const missing = g.members.filter((code) => !existingCodes.has(code) && inScope.has(code));

@@ -9,7 +9,7 @@ import { ErrorBanner } from "@/components/GatesPanel";
 import { NavLink } from "@/components/NavLink";
 import { SubmitButton } from "@/components/SubmitButton";
 import { Chip, Panel, PanelHeader, btnPrimary } from "@/components/ui/atlas";
-import { FRAMEWORKS, LEGAL_FORMS, SECTORS, getClient, isSector, legalFormLabel } from "@/lib/clients";
+import { DEFAULT_FRAMEWORK, FRAMEWORKS, GOVERNANCE_LABELS, GOVERNANCE_MODES, LEGAL_FORMS, REGULATORS, REGULATOR_LABELS, SECTORS, canEditClient, frameworkLabel, getClient, isGovernanceMode, isRegulator, isSector, legalFormLabel } from "@/lib/clients";
 import { withTenant } from "@/lib/db";
 import { listEngagements } from "@/lib/engagements";
 import { getMessages } from "@/lib/i18n";
@@ -35,6 +35,10 @@ const LABELS = {
     frameworkOther: "Other",
     pie: "Public-interest entity (PIE)",
     pieChip: "PIE",
+    shareCapital: "Share capital (FCFA)",
+    governance: "Governance",
+    regulator: "Regulator",
+    noRegulator: "None",
     yes: "Yes",
     no: "No",
     save: "Save",
@@ -63,6 +67,10 @@ const LABELS = {
     frameworkOther: "Autre",
     pie: "Entité d'intérêt public (EIP)",
     pieChip: "EIP",
+    shareCapital: "Capital social (FCFA)",
+    governance: "Mode d'administration",
+    regulator: "Régulateur",
+    noRegulator: "Aucun",
     yes: "Oui",
     no: "Non",
     save: "Enregistrer",
@@ -115,6 +123,8 @@ export default async function ClientDetailPage(props: {
   ]);
 
   const isAdmin = session.user.role === "firm_admin";
+  const canEdit = canEditClient(session.user.role);
+  const legacyFramework = client.framework && !(FRAMEWORKS as readonly string[]).includes(client.framework) ? client.framework : null;
 
   const inputClass =
     "rounded-[var(--radius-atlas-sm)] border border-line-strong bg-surface px-3 py-2 text-sm text-ink outline-none focus:border-emerald-600 focus:ring-2 focus:ring-emerald-600/20";
@@ -127,7 +137,11 @@ export default async function ClientDetailPage(props: {
     [L.niu, client.niu ?? null],
     [t.clients.sector, isSector(client.sector) ? t.clients.sectors[client.sector] : null],
     [L.yearEnd, client.yearEnd ?? null],
-    [L.framework, client.framework === "Other" ? L.frameworkOther : (client.framework ?? null)],
+    [L.framework, frameworkLabel(client.framework, locale)],
+    [L.shareCapital, client.shareCapital === null || client.shareCapital === undefined ? null : `${Number(client.shareCapital).toLocaleString("fr-FR")} FCFA`],
+    [t.clients.coCac, client.coCac ? L.yes : L.no],
+    [L.governance, isGovernanceMode(client.governanceMode) ? GOVERNANCE_LABELS[client.governanceMode][locale] : null],
+    [L.regulator, isRegulator(client.regulator) ? REGULATOR_LABELS[client.regulator][locale] : (client.regulator ?? null)],
     [L.pie, client.pie ? L.yes : L.no],
     [L.address, client.address ?? null],
   ];
@@ -172,7 +186,7 @@ export default async function ClientDetailPage(props: {
 
       <Panel className="mt-6 p-6" data-testid="entity-identity">
         <PanelHeader title={L.identity} hint={L.identityHint} />
-        {isAdmin ? (
+        {canEdit ? (
           <form
             action={updateClientMasterAction.bind(null, client.id)}
             className="mt-4 grid gap-4 sm:grid-cols-2 lg:grid-cols-3"
@@ -229,15 +243,38 @@ export default async function ClientDetailPage(props: {
               <span className="text-ink-soft">{L.framework}</span>
               <select
                 name="framework"
-                defaultValue={client.framework ?? ""}
+                required
+                defaultValue={client.framework ?? DEFAULT_FRAMEWORK}
                 className={inputClass}
                 data-testid="entity-framework"
               >
-                <option value="">—</option>
                 {FRAMEWORKS.map((framework) => (
                   <option key={framework} value={framework}>
-                    {framework === "Other" ? L.frameworkOther : framework}
+                    {frameworkLabel(framework, locale)}
                   </option>
+                ))}
+                {legacyFramework ? <option value={legacyFramework}>{frameworkLabel(legacyFramework, locale)}</option> : null}
+              </select>
+            </label>
+            <label className="flex flex-col gap-1 text-sm">
+              <span className="text-ink-soft">{L.shareCapital}</span>
+              <input name="shareCapital" inputMode="numeric" defaultValue={client.shareCapital ? String(Math.round(Number(client.shareCapital))) : ""} className={inputClass} data-testid="entity-share-capital" />
+            </label>
+            <label className="flex flex-col gap-1 text-sm">
+              <span className="text-ink-soft">{L.governance}</span>
+              <select name="governanceMode" defaultValue={client.governanceMode ?? ""} className={inputClass} data-testid="entity-governance">
+                <option value="">—</option>
+                {GOVERNANCE_MODES.map((mode) => (
+                  <option key={mode} value={mode}>{GOVERNANCE_LABELS[mode][locale]}</option>
+                ))}
+              </select>
+            </label>
+            <label className="flex flex-col gap-1 text-sm">
+              <span className="text-ink-soft">{L.regulator}</span>
+              <select name="regulator" defaultValue={client.regulator ?? ""} className={inputClass} data-testid="entity-regulator">
+                <option value="">{L.noRegulator}</option>
+                {REGULATORS.map((r) => (
+                  <option key={r} value={r}>{REGULATOR_LABELS[r][locale]}</option>
                 ))}
               </select>
             </label>
@@ -259,6 +296,10 @@ export default async function ClientDetailPage(props: {
                 data-testid="entity-pie"
               />
               {L.pie}
+            </label>
+            <label className="flex items-center gap-2 self-end pb-2 text-sm text-ink-soft">
+              <input type="checkbox" name="coCac" defaultChecked={client.coCac} className="h-4 w-4 accent-emerald-700" data-testid="entity-co-cac" />
+              {t.clients.coCac}
             </label>
             <div className="sm:col-span-2 lg:col-span-3">
               <SubmitButton className={btnPrimary} testId="entity-save">

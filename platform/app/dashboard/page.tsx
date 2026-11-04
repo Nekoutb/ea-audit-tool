@@ -3,6 +3,7 @@ import { localizedTitle } from "@/lib/page-title";
 import { redirect } from "next/navigation";
 import { auth } from "@/auth";
 import { sendTestNotification } from "@/app/actions/notifications";
+import { agoDeadline, fmtDate } from "@/lib/format-date";
 import { AppNav } from "@/components/AppNav";
 import { Panel, PanelHeader, btnGhost } from "@/components/ui/atlas";
 import { portfolioActions } from "@/lib/dashboards";
@@ -28,7 +29,7 @@ export const generateMetadata = localizedTitle("My engagements", "Mes missions")
  * tests that need it. The variable is read at request time, never inlined by
  * the build, so a deployed instance shows the panel only if its .env says so.
  */
-export default async function DashboardPage() {
+export default async function DashboardPage(props: { searchParams: Promise<{ partner?: string }> }) {
   const session = await auth();
   if (!session?.user) {
     redirect("/login");
@@ -66,9 +67,17 @@ export default async function DashboardPage() {
     review: { en: "Papers awaiting review", fr: "Feuilles de travail en attente de revue" },
     acceptance: { en: "Acceptance awaiting partner sign-off", fr: "Acceptation en attente de la signature de l'associé" },
   };
-  const myEngagements = register
-    .filter((e) => e.isMine && e.phase !== "archived")
-    .sort((a, b) => (b.lastActivity ?? "").localeCompare(a.lastActivity ?? ""));
+  const { partner: partnerFilter } = await props.searchParams;
+  const engaged = register.filter((e) => e.isMine && e.phase !== "archived");
+  // the partner portfolio filter (F076); a filtered list is sorted by the legal
+  // deadline, because that is what a partner reads it for
+  const partners = [...new Set(engaged.map((e) => e.partnerName).filter((n): n is string => Boolean(n)))].sort();
+  const dueBy = (e: (typeof engaged)[number]) => e.plannedAgmDate ?? agoDeadline(e.periodEnd);
+  const myEngagements = engaged
+    .filter((e) => !partnerFilter || e.partnerName === partnerFilter)
+    .sort((a, b) =>
+      partnerFilter ? dueBy(a).localeCompare(dueBy(b)) : (b.lastActivity ?? "").localeCompare(a.lastActivity ?? ""),
+    );
   const openTasks = tasks.filter((task) => task.status !== "signed");
 
   return (
@@ -122,6 +131,27 @@ export default async function DashboardPage() {
           </Panel>
         ) : null}
 
+        {partners.length > 1 ? (
+          <form method="get" className="mt-4 flex items-center gap-2 text-[13px] text-ink-soft" data-testid="portfolio-filter">
+            <label htmlFor="portfolio-partner">{fr ? "Portefeuille de l'associé" : "Partner portfolio"}</label>
+            <select
+              id="portfolio-partner"
+              name="partner"
+              defaultValue={partnerFilter ?? ""}
+              className="rounded-[var(--radius-atlas-sm)] border border-line-strong bg-surface px-2 py-1 text-[13px] text-ink"
+              data-testid="portfolio-partner"
+            >
+              <option value="">{fr ? "Tous" : "All"}</option>
+              {partners.map((name) => (
+                <option key={name} value={name}>{name}</option>
+              ))}
+            </select>
+            <button type="submit" className="rounded-[var(--radius-atlas-sm)] border border-line-strong px-2 py-1 font-semibold text-ink-soft hover:bg-surface-2">
+              {fr ? "Filtrer" : "Filter"}
+            </button>
+          </form>
+        ) : null}
+
         <Panel flush className="mt-4 flex flex-col">
           <div className="flex flex-col gap-1 p-1.5" data-testid="my-engagements">
             {myEngagements.length === 0 ? (
@@ -166,7 +196,15 @@ export default async function DashboardPage() {
                       </span>
                       <span className="block truncate text-[12px] text-muted tnum">
                         {t.engagements.stages[e.phase]} · {t.engagements.fiscalYear} {e.fiscalYear} ·{" "}
-                        {phaseDeadline(e.periodEnd, (e.phase === "archived" ? "conclusion" : e.phase) as DashboardPhase)}
+                        {fr ? "Échéance de phase" : "Phase target"}{" "}
+                        {fmtDate(phaseDeadline(e.periodEnd, (e.phase === "archived" ? "conclusion" : e.phase) as DashboardPhase))}
+                      </span>
+                      <span className="block truncate text-[12px] text-muted tnum" data-testid="portfolio-line">
+                        {fr ? "Rapport attendu avant le" : "Report due before"} <b className="font-semibold text-ink-soft">{fmtDate(dueBy(e))}</b>
+                        {" · "}
+                        {e.partnerName ?? "—"}
+                        {" · "}
+                        {e.acceptanceSigned ? (fr ? "Acceptation signée" : "Acceptance signed") : fr ? "Acceptation à signer" : "Acceptance not signed"}
                       </span>
                     </span>
                     <span className="flex flex-shrink-0 items-center gap-3">

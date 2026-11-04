@@ -70,10 +70,10 @@ export function EngagementWizard({
   const periodEnd = `${yearForName}-${effectiveMd}`;
   const natureForName =
     nature === "other" && natureText.trim() ? natureText.trim().toUpperCase() : nature;
-  const generatedName = applyNamingConvention(naming ?? "", clientName, yearForName, {
-    periodEnd,
-    nature: natureForName,
-  }, locale);
+  // No client typed yet: an em dash, not a name with a hole in it (F075).
+  const generatedName = clientName.trim()
+    ? applyNamingConvention(naming ?? "", clientName, yearForName, { periodEnd, nature: natureForName }, locale)
+    : "—";
 
   const input =
     "rounded-[var(--radius-atlas-sm)] border border-line-strong bg-surface px-3 py-2 text-sm text-ink outline-none focus:border-emerald-600 focus:ring-2 focus:ring-emerald-600/20";

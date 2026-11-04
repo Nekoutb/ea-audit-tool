@@ -619,6 +619,7 @@ export async function generateArticle715Report(engagementId: string): Promise<st
          FROM engagement e1
          JOIN engagement e2 ON e2.client_id = e1.client_id
                             AND e2.fiscal_year IN (e1.fiscal_year, e1.fiscal_year - 1)
+                            AND coalesce(e2.nature, 'statutory_audit') = coalesce(e1.nature, 'statutory_audit')
          LEFT JOIN trial_balance tb ON tb.engagement_id = e2.id
          LEFT JOIN trial_balance_version v ON v.trial_balance_id = tb.id AND v.version_no = tb.current_version_no
          LEFT JOIN trial_balance_row r ON r.version_id = v.id

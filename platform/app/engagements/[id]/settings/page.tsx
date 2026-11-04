@@ -2,13 +2,15 @@ import Link from "next/link";
 import { localizedTitle } from "@/lib/page-title";
 import { notFound, redirect } from "next/navigation";
 import { auth } from "@/auth";
-import { updatePeriodEndAction, updateStandardsEditionAction } from "@/app/actions/audit-file";
+import { updateEngagementSetupAction, updatePeriodEndAction, updateStandardsEditionAction } from "@/app/actions/audit-file";
 import { AppNav } from "@/components/AppNav";
 import { ErrorBanner } from "@/components/GatesPanel";
 import { SubmitButton } from "@/components/SubmitButton";
 import { Panel, btnPrimary } from "@/components/ui/atlas";
-import { getConclusionState } from "@/lib/completion";
-import { getEngagement, standardsEditionOf } from "@/lib/engagements";
+import { FRAMEWORKS, DEFAULT_FRAMEWORK, frameworkLabel } from "@/lib/clients";
+import { assemblyDeadline, getConclusionState } from "@/lib/completion";
+import { engagementSetupOf, getEngagement, standardsEditionOf } from "@/lib/engagements";
+import { agoDeadline, fmtDate } from "@/lib/format-date";
 import { getMessages } from "@/lib/i18n";
 import { getLocale } from "@/lib/locale";
 import { atLeast, canReview, type Role } from "@/lib/rbac";
@@ -39,6 +41,10 @@ export default async function EngagementSettingsPage(props: {
     (engagement.phase === "acceptance" || engagement.phase === "planning") && canReview(session.user.role as Role);
   // the standards edition (F045): derived from the period, overridable by a manager or above with a reason
   const se = getMessages(locale).standardsEdition;
+  const setup = await engagementSetupOf(id);
+  const setupEditable = engagement.phase !== "archived" && atLeast(session.user.role as Role, "manager");
+  const currentFramework = setup?.framework ?? DEFAULT_FRAMEWORK;
+  const legacyFramework = (FRAMEWORKS as readonly string[]).includes(currentFramework) ? null : currentFramework;
   const editionInfo = await standardsEditionOf(id);
   const editionEditable = engagement.phase !== "archived" && atLeast(session.user.role as Role, "manager");
   const input =
@@ -65,7 +71,11 @@ export default async function EngagementSettingsPage(props: {
       <ErrorBanner error={error} locale={locale} />
       {saved ? (
         <p className="mt-4 text-sm font-semibold text-emerald-700 dark:text-emerald-400" data-testid="engsettings-saved">
-          {saved === "edition" ? se.saved : fr ? "Date de clôture enregistrée." : "Period end saved."}
+          {saved === "edition"
+            ? se.saved
+            : saved === "setup"
+              ? fr ? "Référentiel et date prévue enregistrés." : "Framework and planned date saved."
+              : fr ? "Date de clôture enregistrée." : "Period end saved."}
         </p>
       ) : null}
 
@@ -73,12 +83,12 @@ export default async function EngagementSettingsPage(props: {
         <h2 className="text-sm font-semibold text-ink">{fr ? "Exercice" : "Period"}</h2>
         <p className="mt-1 text-xs text-muted">
           {fr ? "Exercice" : "Fiscal year"} {engagement.fiscalYear} · {fr ? "Date de clôture" : "Period end"}{" "}
-          <span className="tnum" data-testid="engsettings-period-end">{engagement.periodEnd}</span>
+          <span className="tnum" data-testid="engsettings-period-end">{fmtDate(engagement.periodEnd)}</span>
           {state.retentionUntil ? (
             <>
               {" · "}
               {fr ? "Conservation jusqu'au" : "Retain until"}{" "}
-              <span className="tnum" data-testid="engsettings-retention">{state.retentionUntil}</span>
+              <span className="tnum" data-testid="engsettings-retention">{fmtDate(state.retentionUntil)}</span>
             </>
           ) : null}
         </p>
@@ -100,6 +110,68 @@ export default async function EngagementSettingsPage(props: {
         ) : null}
       </Panel>
 
+      <Panel className="mt-4" data-testid="engsettings-status">
+        <h2 className="text-sm font-semibold text-ink">{fr ? "Rapport et verrouillage" : "Report and lock"}</h2>
+        <dl className="mt-2 grid gap-x-8 gap-y-2 text-xs sm:grid-cols-3">
+          <div>
+            <dt className="text-muted">{fr ? "Date du rapport" : "Report date"}</dt>
+            <dd className="tnum text-ink" data-testid="engsettings-report-date">
+              {fmtDate(state.reportDate)}{" "}
+              <Link href={`/engagements/${id}/conclusion`} className="font-semibold text-emerald-700 hover:underline dark:text-emerald-400">
+                {fr ? "Conclusion" : "Conclusion"}
+              </Link>
+            </dd>
+          </div>
+          <div>
+            <dt className="text-muted">{fr ? "Date limite d'assemblage (rapport + 60 jours)" : "Assembly deadline (report + 60 days)"}</dt>
+            <dd className="tnum text-ink" data-testid="engsettings-assembly">
+              {state.reportDate ? fmtDate(assemblyDeadline(state.reportDate)) : fr ? "— (date du rapport non fixée)" : "— (no report date yet)"}
+            </dd>
+          </div>
+          <div>
+            <dt className="text-muted">{fr ? "Verrouillage du dossier" : "File lock"}</dt>
+            <dd className="text-ink" data-testid="engsettings-lock">
+              {state.archivedAt
+                ? `${fr ? "Archivé et verrouillé le" : "Archived and locked on"} ${fmtDate(state.archivedAt)}`
+                : fr ? "Ouvert (verrouillé à l'archivage, C6.2)" : "Open (locked on archiving, C6.2)"}
+            </dd>
+          </div>
+        </dl>
+      </Panel>
+
+      <Panel className="mt-4" data-testid="engsettings-setup">
+        <h2 className="text-sm font-semibold text-ink">{fr ? "Référentiel et assemblée" : "Framework and general meeting"}</h2>
+        <p className="mt-1 text-xs text-muted">
+          {fr ? "Rapport attendu avant le" : "Report due before"}{" "}
+          <span className="tnum font-semibold text-ink" data-testid="engsettings-ago">{fmtDate(setup?.plannedAgmDate ?? agoDeadline(engagement.periodEnd))}</span>{" "}
+          {setup?.plannedAgmDate
+            ? fr ? "(date prévue saisie)" : "(planned date entered)"
+            : fr ? "(clôture + 6 mois)" : "(period end + 6 months)"}
+        </p>
+        {setupEditable ? (
+          <form action={updateEngagementSetupAction.bind(null, id)} className="mt-3 flex flex-wrap items-end gap-3">
+            <label className="flex flex-col gap-1 text-sm">
+              <span className="text-ink-soft">{fr ? "Référentiel comptable" : "Reporting framework"}</span>
+              <select name="framework" defaultValue={currentFramework} required className={input} data-testid="engsettings-framework">
+                {FRAMEWORKS.map((f) => (
+                  <option key={f} value={f}>{frameworkLabel(f, locale)}</option>
+                ))}
+                {legacyFramework ? <option value={legacyFramework}>{frameworkLabel(legacyFramework, locale)}</option> : null}
+              </select>
+            </label>
+            <label className="flex flex-col gap-1 text-sm">
+              <span className="text-ink-soft">{fr ? "Date prévue du rapport / de l'AGO" : "Planned report / AGM date"}</span>
+              <input name="plannedAgmDate" type="date" defaultValue={setup?.plannedAgmDate ?? ""} className={input} data-testid="engsettings-planned-agm" />
+            </label>
+            <SubmitButton className={btnPrimary} testId="engsettings-setup-save">
+              {fr ? "Enregistrer" : "Save"}
+            </SubmitButton>
+          </form>
+        ) : (
+          <p className="mt-1 text-xs text-muted">{frameworkLabel(currentFramework, locale)}</p>
+        )}
+      </Panel>
+
       {editionInfo ? (
         <Panel className="mt-4" data-testid="engsettings-edition">
           <h2 className="text-sm font-semibold text-ink">{se.label}</h2>
@@ -108,7 +180,7 @@ export default async function EngagementSettingsPage(props: {
             {" · "}
             {editionInfo.overridden ? se.overridden : se.derived}
             {" · "}
-            {fr ? "début d'exercice" : "period start"} <span className="tnum">{editionInfo.periodStart}</span>
+            {fr ? "début d'exercice" : "period start"} <span className="tnum">{fmtDate(editionInfo.periodStart)}</span>
             {editionInfo.overridden ? (
               <>
                 {" · "}

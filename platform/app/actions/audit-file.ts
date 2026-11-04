@@ -20,7 +20,7 @@ import {
   signDocument,
   type SignoffRole,
 } from "@/lib/documents";
-import { applyComplexity, createEngagement, setStandardsEdition } from "@/lib/engagements";
+import { applyComplexity, createEngagement, setEngagementSetup, setStandardsEdition } from "@/lib/engagements";
 import { getLocale } from "@/lib/locale";
 import { isStandardsEdition } from "@/lib/standards-edition";
 import { ForbiddenError } from "@/lib/tenant";
@@ -206,6 +206,25 @@ function isIsoDate(value: string): boolean {
  * a reason the activity log keeps. lib/engagements.ts setStandardsEdition does
  * the checks and the logging; this maps its refusals to the settings banner.
  */
+/** The engagement's reporting framework and planned report/AGM date (F073). */
+export async function updateEngagementSetupAction(engagementId: string, formData: FormData): Promise<void> {
+  const path = `/engagements/${engagementId}/settings`;
+  const framework = String(formData.get("framework") ?? "").trim();
+  const planned = String(formData.get("plannedAgmDate") ?? "").trim();
+  if (!framework) redirect(`${path}?error=framework-required`);
+  if (planned && !isIsoDate(planned)) redirect(`${path}?error=invalid-engagement`);
+  try {
+    await setEngagementSetup(engagementId, { framework, plannedAgmDate: planned || null });
+  } catch (error) {
+    if (error instanceof Error && ["forbidden", "not-found", "archived", "invalid-framework"].includes(error.message)) {
+      redirect(`${path}?error=${error.message}`);
+    }
+    throw error;
+  }
+  revalidatePath(path);
+  redirect(`${path}?saved=setup`);
+}
+
 export async function updateStandardsEditionAction(engagementId: string, formData: FormData): Promise<void> {
   const path = `/engagements/${engagementId}/settings`;
   const edition = String(formData.get("standardsEdition") ?? "").trim();
@@ -472,11 +491,11 @@ export async function instantiateGroupTasksAction(formData: FormData): Promise<v
   await withTenant(tenantId, async (tx) => {
     // Only the items the entity's classification scopes in: adding a group
     // must never grow a very-simple file into a complex one's programme.
-    const eng = await tx.query<{ complexity: "complex" | "non_complex" | "very_simple" | null }>(
-      "SELECT complexity FROM engagement WHERE id = $1",
+    const eng = await tx.query<{ complexity: "complex" | "non_complex" | "very_simple" | null; nature: string | null; legal_form: string | null }>(
+      "SELECT e.complexity, e.nature, c.legal_form FROM engagement e JOIN client c ON c.id = e.client_id WHERE e.id = $1",
       [engagementId],
     );
-    const inScope = itemsForComplexity(eng.rows[0]?.complexity ?? "complex");
+    const inScope = itemsForComplexity(eng.rows[0]?.complexity ?? "complex", eng.rows[0]?.legal_form, eng.rows[0]?.nature);
     // C4.2 follows the EQR determination, not the tier (UAT run 2 B13).
     if (group.members.includes("C4.2") && !inScope.some((e) => e.code === "C4.2")) {
       const { eqrRequiredTx } = await import("@/lib/completion");

@@ -7,9 +7,55 @@ import { ForbiddenError, requireTenant, requireWrite } from "@/lib/tenant";
 export { LEGAL_FORMS, isLegalForm, legalFormLabel, type LegalForm } from "@/lib/legal-forms";
 import type { LegalForm } from "@/lib/legal-forms";
 
-/** Accounting frameworks selectable on the entity record (free-text column). */
-export const FRAMEWORKS = ["SYSCOHADA", "IFRS", "Other"] as const;
+/**
+ * Accounting frameworks selectable on a client or an engagement (F073): the
+ * firm works under SYSCOHADA révisé, système normal, only. A value stored before
+ * this rule (IFRS, Other) stays on the record and shows as it was.
+ */
+export const FRAMEWORKS = ["SYSCOHADA"] as const;
 export type Framework = (typeof FRAMEWORKS)[number];
+export const DEFAULT_FRAMEWORK: Framework = "SYSCOHADA";
+
+export function frameworkLabel(raw: string | null | undefined, locale: "en" | "fr"): string | null {
+  if (!raw) return null;
+  if (raw === "SYSCOHADA") return locale === "fr" ? "SYSCOHADA révisé — système normal" : "SYSCOHADA revised — normal system";
+  if (raw === "Other") return locale === "fr" ? "Autre" : "Other";
+  return raw;
+}
+
+/** How the entity is run (F074). The legal form names the organs; this is the actual set-up. */
+export const GOVERNANCE_MODES = ["ca_pdg", "ca_dg", "administrateur_general", "gerance"] as const;
+export type GovernanceMode = (typeof GOVERNANCE_MODES)[number];
+export const GOVERNANCE_LABELS: Record<GovernanceMode, { en: string; fr: string }> = {
+  ca_pdg: { en: "Board with chair and CEO (PDG)", fr: "Conseil d'administration avec PDG" },
+  ca_dg: { en: "Board with a CEO (PCA + DG)", fr: "Conseil d'administration avec PCA et DG" },
+  administrateur_general: { en: "Sole director (administrateur général)", fr: "Administrateur général" },
+  gerance: { en: "Management by gérant(s)", fr: "Gérance" },
+};
+export function isGovernanceMode(value: unknown): value is GovernanceMode {
+  return typeof value === "string" && (GOVERNANCE_MODES as readonly string[]).includes(value);
+}
+
+/** Sector regulators offered on the client record (F074). */
+export const REGULATORS = ["COBAC", "CIMA", "COSUMAF", "CRCA", "BEAC", "ARSEL", "ART", "OTHER"] as const;
+export const REGULATOR_LABELS: Record<(typeof REGULATORS)[number], { en: string; fr: string }> = {
+  COBAC: { en: "COBAC (banking)", fr: "COBAC (banque)" },
+  CIMA: { en: "CIMA (insurance)", fr: "CIMA (assurance)" },
+  COSUMAF: { en: "COSUMAF (capital markets)", fr: "COSUMAF (marché financier)" },
+  CRCA: { en: "CRCA (cooperatives)", fr: "CRCA (coopératives)" },
+  BEAC: { en: "BEAC", fr: "BEAC" },
+  ARSEL: { en: "ARSEL (electricity)", fr: "ARSEL (électricité)" },
+  ART: { en: "ART (telecoms)", fr: "ART (télécommunications)" },
+  OTHER: { en: "Other", fr: "Autre" },
+};
+export function isRegulator(value: unknown): value is (typeof REGULATORS)[number] {
+  return typeof value === "string" && (REGULATORS as readonly string[]).includes(value);
+}
+
+/** Who may correct the client record (F074): firm admins and partners. */
+export function canEditClient(role: string | null | undefined): boolean {
+  return role === "firm_admin" || role === "partner";
+}
 
 /**
  * Sectors offered on the entity record (UAT B126); labels live in
@@ -52,6 +98,9 @@ export interface Client {
   yearEnd?: string | null;
   framework?: string | null;
   pie?: boolean;
+  shareCapital?: string | null;
+  governanceMode?: string | null;
+  regulator?: string | null;
 }
 
 interface ClientRow {
@@ -67,6 +116,9 @@ interface ClientRow {
   year_end?: string | null;
   framework?: string | null;
   pie?: boolean;
+  share_capital?: string | null;
+  governance_mode?: string | null;
+  regulator?: string | null;
   sector?: string | null;
   archived_at?: string | null;
 }
@@ -130,7 +182,7 @@ export async function getClient(id: string): Promise<Client | null> {
     const result = await tx.query<ClientRow>(
       `SELECT c.id, c.name, c.legal_form, c.listed, c.co_cac,
               c.registration_number, c.niu, c.address, c.year_end, c.framework, c.pie,
-              c.sector, c.archived_at::text,
+              c.sector, c.archived_at::text, c.share_capital::text, c.governance_mode, c.regulator,
               count(e.id)::text AS engagement_count
          FROM client c
          LEFT JOIN engagement e ON e.client_id = c.id
@@ -155,6 +207,9 @@ export async function getClient(id: string): Promise<Client | null> {
       pie: row.pie ?? false,
       sector: row.sector ?? null,
       archivedAt: row.archived_at ?? null,
+      shareCapital: row.share_capital ?? null,
+      governanceMode: row.governance_mode ?? null,
+      regulator: row.regulator ?? null,
     };
   });
 }
@@ -169,10 +224,10 @@ export async function createClient(input: {
   const { tenantId } = await requireWrite();
   return withTenant(tenantId, async (tx) => {
     const result = await tx.query<{ id: string }>(
-      `INSERT INTO client (tenant_id, name, legal_form, listed, co_cac, sector)
-       VALUES ($1, $2, $3, $4, $5, $6)
+      `INSERT INTO client (tenant_id, name, legal_form, listed, co_cac, sector, framework)
+       VALUES ($1, $2, $3, $4, $5, $6, $7)
        RETURNING id`,
-      [tenantId, input.name, input.legalForm, input.listed, input.coCac, input.sector ?? null],
+      [tenantId, input.name, input.legalForm, input.listed, input.coCac, input.sector ?? null, DEFAULT_FRAMEWORK],
     );
     return result.rows[0].id;
   });

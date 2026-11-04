@@ -374,18 +374,52 @@ export function tierOf(entry: FileIndexEntry): FileIndexTier {
 }
 
 /**
+ * Natures with their own file (F075). A limited review works by inquiry and
+ * analytical procedures, without tests of detail or controls; a contribution
+ * audit values a contribution, without a financial-statement programme. For
+ * these two the list below IS the file, whatever the complexity level.
+ */
+const NATURE_FILE_INDEX: Record<string, ReadonlySet<string>> = {
+  limited_review: new Set([
+    "P1.1", "P1.2", "P1.3", "P1.4", "P2.1", "P2.2", "S6.2",
+    "P3.1", "P3.2", "P6.1", "S4.2",
+    "E6.3", "E6.4", "E6.5", "E6.6", "E6.10",
+    "C1.1", "C1.2", "C2.1", "C2.2", "C3.1", "C4.1", "C4.3", "C5.1", "C5.11", "C6.1", "C6.2",
+  ]),
+  commissariat_apports: new Set([
+    "P1.1", "P1.3", "P1.4", "P2.1", "P2.2", "S6.2",
+    "P3.1", "S5.1",
+    "E6.4", "E6.7",
+    "C1.2", "C3.1", "C4.1", "C4.3", "C5.1", "C6.1", "C6.2",
+  ]),
+};
+
+/** The statutory-auditor papers that exist only under a statutory mandate (AUSCGIE). */
+const STATUTORY_ONLY = /^C5\.(?:[2-9]|10)$/;
+
+/** Natures that run the ISA audit programme, with its presumed ISA 240 risks. */
+export function natureHasAuditProgramme(nature?: string | null): boolean {
+  return !nature || !(nature in NATURE_FILE_INDEX);
+}
+
+/**
  * The file-index entries to instantiate for a given complexity level — the
  * concrete "extent of documentation" effect of the classification:
  * very_simple = core only (no conditional forms), non_complex = core + standard,
  * complex = the full index. The client's legal form, when known, removes the
- * tasks that do not exist for it (C5.7 on a SARL or a GIE — F052).
+ * tasks that do not exist for it (C5.7 on a SARL or a GIE — F052). The nature of
+ * the engagement, when known, narrows the file further (F075).
  */
 export function itemsForComplexity(
   complexity: "complex" | "non_complex" | "very_simple",
   legalForm?: string | null,
+  nature?: string | null,
 ): FileIndexEntry[] {
+  const ownScope = nature ? NATURE_FILE_INDEX[nature] : undefined;
+  if (ownScope) return DEFAULT_FILE_INDEX.filter((entry) => ownScope.has(entry.code));
   return DEFAULT_FILE_INDEX.filter((entry) => {
     if (!taskAppliesToForm(entry.code, legalForm)) return false;
+    if (nature === "contractual_audit" && STATUTORY_ONLY.test(entry.code)) return false;
     const tier = tierOf(entry);
     if (complexity === "very_simple") return tier === "core" && !entry.conditional;
     if (complexity === "non_complex") return tier !== "extended";

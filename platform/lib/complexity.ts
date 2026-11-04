@@ -114,6 +114,9 @@ export const DURATION_OPTIONS = [6, 12] as const;
 
 export const NATURE_OPTIONS = [
   { value: "statutory_audit", en: "Statutory audit", fr: "Commissariat aux comptes" },
+  { value: "contractual_audit", en: "Contractual audit", fr: "Audit contractuel" },
+  { value: "limited_review", en: "Limited review (ISRE 2400/2410)", fr: "Examen limité (ISRE 2400/2410)" },
+  { value: "commissariat_apports", en: "Contribution auditor (commissariat aux apports)", fr: "Commissariat aux apports" },
   { value: "agreed_procedures", en: "Agreed-upon procedures", fr: "Procédures convenues" },
   { value: "other", en: "Other", fr: "Autre" },
 ] as const;
