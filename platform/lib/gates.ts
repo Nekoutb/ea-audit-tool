@@ -16,6 +16,7 @@
 // row locked, so double-submits and check-then-act races cannot slip through.
 // [Adversarial-review fix]
 
+import { gateAppliesToNature } from "@/lib/file-index";
 import type { PoolClient } from "pg";
 import { recordActivity } from "@/lib/activity";
 import { withTenant } from "@/lib/db";
@@ -313,7 +314,7 @@ async function planningCloseGatesTx(tx: PoolClient, engagementId: string): Promi
     [engagementId],
   );
 
-  return [
+  const results: GateResult[] = [
     { key: "materiality_approved", ok: Number(materiality.rows[0].n) > 0 },
     ...gateDocs,
     { key: "cra_reliance_supported", ok: Number(unsupportedRely.rows[0].n) === 0 },
@@ -323,6 +324,8 @@ async function planningCloseGatesTx(tx: PoolClient, engagementId: string): Promi
     { key: "tb_mapped", ok: Number(unmapped.rows[0].n) === 0 },
     reviewNotesGate(engagementId, openNotes),
   ];
+  const nature = await tx.query<{ nature: string | null }>("SELECT nature FROM engagement WHERE id = $1", [engagementId]);
+  return results.filter((gate) => gateAppliesToNature(gate.key, nature.rows[0]?.nature));
 }
 
 export async function acceptanceGates(engagementId: string): Promise<GateResult[]> {

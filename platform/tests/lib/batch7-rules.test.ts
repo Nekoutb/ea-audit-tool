@@ -9,7 +9,7 @@ import { DEFAULT_FRAMEWORK, FRAMEWORKS, canEditClient, frameworkLabel, isGoverna
 import { NATURE_OPTIONS } from "@/lib/complexity";
 import { visibleE4Codes } from "@/lib/design-procedures";
 import { conditionalTriggerText } from "@/lib/engagement-dashboard";
-import { DEFAULT_FILE_INDEX, itemsForComplexity, natureHasAuditProgramme, shortTitle } from "@/lib/file-index";
+import { DEFAULT_FILE_INDEX, gateAppliesToNature, itemsForComplexity, natureHasAuditProgramme, shortTitle } from "@/lib/file-index";
 import { currencyLabel, formatAmount } from "@/lib/format";
 import { agoDeadline, fmtDate, fmtDateTime } from "@/lib/format-date";
 import { assetBasisLabel, bilanTotals, incomeFromTb } from "@/lib/fs-captions";
@@ -171,6 +171,14 @@ describe("F073–F075 — framework, client record, natures", () => {
     for (const code of [...review, ...apports]) expect(known.has(code)).toBe(true);
     expect(natureHasAuditProgramme("limited_review")).toBe(false);
     expect(natureHasAuditProgramme("statutory_audit")).toBe(true);
+  });
+  it("waives only the gates that test work not on that file", () => {
+    expect(gateAppliesToNature("p72_partner_signed", "limited_review")).toBe(false);
+    expect(gateAppliesToNature("materiality_approved", "limited_review")).toBe(true);
+    expect(gateAppliesToNature("materiality_approved", "commissariat_apports")).toBe(false);
+    expect(gateAppliesToNature("partner_conclusion", "commissariat_apports")).toBe(true);
+    expect(gateAppliesToNature("p72_partner_signed", "statutory_audit")).toBe(true);
+    expect(gateAppliesToNature("p72_partner_signed", null)).toBe(true);
   });
   it("drops the statutory papers from a contractual audit, keeps them on a statutory one", () => {
     const contractual = itemsForComplexity("complex", "SA", "contractual_audit").map((e) => e.code);

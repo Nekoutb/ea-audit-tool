@@ -2,6 +2,7 @@
 // the immutable archive, and rollforward (spec §7, §8.6, §9.6). Gates BLOCK
 // (spec §19.2): the report cannot be issued until every gate passes.
 
+import { gateAppliesToNature } from "@/lib/file-index";
 import type { PoolClient } from "pg";
 import { createNotification } from "@/lib/notifications";
 import { listTeam } from "@/lib/team";
@@ -320,7 +321,7 @@ async function completionGatesTx(tx: PoolClient, engagementId: string): Promise<
   );
   const c43Ok = (await paperAnswer("C4.3", "q_none_open")) === "yes" && openNotesAtReport === 0;
 
-  return [
+  const results: GateResult[] = [
     { key: "sections_concluded", ok: unconcluded === 0 && openSteps === 0 },
     { key: "risks_concluded", ok: openRisks === 0 && unapprovedAdditions === 0 },
     { key: "b5_within_materiality", ok: b5Ok },
@@ -334,6 +335,8 @@ async function completionGatesTx(tx: PoolClient, engagementId: string): Promise<
     { key: "c43_cleared", ok: c43Ok },
     { key: "partner_conclusion", ok: await recordExists(tx, engagementId, "partner_conclusion") },
   ];
+  const nature = await tx.query<{ nature: string | null }>("SELECT nature FROM engagement WHERE id = $1", [engagementId]);
+  return results.filter((gate) => gateAppliesToNature(gate.key, nature.rows[0]?.nature));
 }
 
 export async function completionGates(engagementId: string): Promise<GateResult[]> {

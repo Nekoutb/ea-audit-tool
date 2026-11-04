@@ -397,6 +397,36 @@ const NATURE_FILE_INDEX: Record<string, ReadonlySet<string>> = {
 /** The statutory-auditor papers that exist only under a statutory mandate (AUSCGIE). */
 const STATUTORY_ONLY = /^C5\.(?:[2-9]|10)$/;
 
+/**
+ * The gates that cannot apply to a nature with its own file (F075): they test
+ * work that is not on that file, and would leave it impossible to close.
+ */
+const LIMITED_REVIEW_WAIVED = [
+  "p72_partner_signed",
+  "cra_reliance_supported",
+  "significant_risks_linked",
+  "rebuttals_approved",
+  "material_sections_covered",
+  "fs_tieout_passed",
+  "disclosure_checklist",
+];
+const NATURE_WAIVED_GATES: Record<string, ReadonlySet<string>> = {
+  limited_review: new Set(LIMITED_REVIEW_WAIVED),
+  commissariat_apports: new Set([
+    ...LIMITED_REVIEW_WAIVED,
+    "materiality_approved",
+    "tb_mapped",
+    "b5_within_materiality",
+    "final_analytical_review",
+    "subsequent_events",
+  ]),
+};
+
+/** Whether a gate applies to an engagement of this nature. */
+export function gateAppliesToNature(gateKey: string, nature: string | null | undefined): boolean {
+  return !(nature && NATURE_WAIVED_GATES[nature]?.has(gateKey));
+}
+
 /** Natures that run the ISA audit programme, with its presumed ISA 240 risks. */
 export function natureHasAuditProgramme(nature?: string | null): boolean {
   return !nature || !(nature in NATURE_FILE_INDEX);
