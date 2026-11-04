@@ -26,7 +26,9 @@ export const LEAD_INDEXES: readonly LeadIndexDef[] = [
   { code: "P2", accountType: "Liabilities", accountClass: "Other Current Liabilities", labelEn: "Social & Payroll Liabilities", labelFr: "Dettes sociales" },
   { code: "P3", accountType: "Liabilities", accountClass: "Other Current Liabilities", labelEn: "Suspense & Deferred Income", labelFr: "Comptes d'attente & produits constatés d'avance" },
   { code: "P4", accountType: "Liabilities", accountClass: "Other LT Liabilities", labelEn: "Translation Difference — Liabilities", labelFr: "Écarts de conversion — passif" },
-  { code: "L", accountType: "Assets", accountClass: "Intangible Assets", labelEn: "Intangible Assets & Deferred Charges", labelFr: "Immobilisations incorporelles & charges différées" },
+  // F060: SYSCOHADA révisé removed class 20 (charges immobilisées); the index
+  // is intangible assets alone, and a class-20 balance is an alert (below).
+  { code: "L", accountType: "Assets", accountClass: "Intangible Assets", labelEn: "Intangible Assets", labelFr: "Immobilisations incorporelles" },
   { code: "K", accountType: "Assets", accountClass: "Fixed Assets", labelEn: "Property, Plant & Equipment", labelFr: "Immobilisations corporelles" },
   { code: "J", accountType: "Assets", accountClass: "Other LT Assets", labelEn: "Financial Assets", labelFr: "Immobilisations financières" },
   { code: "F", accountType: "Assets", accountClass: "Inventory", labelEn: "Inventories", labelFr: "Stocks" },
@@ -121,7 +123,9 @@ const PREFIX_INDEX: readonly [string, string][] = [
   // class 2
   ["20", "L"], ["21", "L"], ["22", "K"], ["23", "K"], ["24", "K"],
   ["25", "K"], ["26", "J"], ["27", "J"],
-  ["28", "K"], ["281", "L"], ["29", "J"], ["291", "L"], ["293", "K"], ["294", "K"],
+  // 292 (land) and 295 (advances on fixed assets) are impairments of tangible
+  // assets, with 293/294 (F059); 296–297 stay financial.
+  ["28", "K"], ["281", "L"], ["29", "J"], ["291", "L"], ["292", "K"], ["293", "K"], ["294", "K"], ["295", "K"],
   // class 3
   ["3", "F"],
   // class 4
@@ -130,7 +134,10 @@ const PREFIX_INDEX: readonly [string, string][] = [
   ["45", "I2"], ["46", "I2"], ["462", "I1"],
   ["47", "G2"], ["476", "G2"], ["477", "P3"], ["478", "G3"], ["479", "P4"],
   ["48", "P3"], ["481", "N"],
-  ["49", "G2"], ["490", "E"], ["491", "E"],
+  // 490 is the impairment of supplier DEBIT balances — it belongs with the
+  // payables, not with the receivables (F059); 499 (risques provisionnés) is
+  // a short-term liability provision, not an impairment of an asset.
+  ["49", "G2"], ["490", "N"], ["491", "E"], ["499", "P1"],
   // class 5
   ["5", "C"],
   // classes 6-8
@@ -160,17 +167,20 @@ export interface SubIndexDef {
   code: string;
   index: string;
   labelEn: string;
+  /** set where the firm named the sub-total in French too (F059/F060) */
+  labelFr?: string;
 }
 
 export const SUB_INDEXES: readonly SubIndexDef[] = [
   { code: "T-1", index: "T", labelEn: "Share capital & reserves" },
   { code: "Q-1", index: "Q", labelEn: "Borrowings" },
   { code: "P1-1", index: "P1", labelEn: "Provisions for risks & charges" },
+  { code: "P1-2", index: "P1", labelEn: "Short-term risk provisions (499)", labelFr: "Risques provisionnés (499)" },
   { code: "P2-1", index: "P2", labelEn: "Social & payroll liabilities" },
   { code: "P3-1", index: "P3", labelEn: "Suspense accounts" },
   { code: "P3-3", index: "P3", labelEn: "Deferred income" },
   { code: "P4-1", index: "P4", labelEn: "Translation difference — liabilities" },
-  { code: "L-1", index: "L", labelEn: "Deferred charges" },
+  { code: "L-1", index: "L", labelEn: "Legacy class 20 — non-compliant with SYSCOHADA révisé", labelFr: "Charges immobilisées (classe 20, supprimée)" },
   { code: "L-2", index: "L", labelEn: "Intangible assets, gross" },
   { code: "L-4", index: "L", labelEn: "Amortisation & impairment" },
   { code: "K-1", index: "K", labelEn: "Land" },
@@ -184,6 +194,7 @@ export const SUB_INDEXES: readonly SubIndexDef[] = [
   { code: "F-2", index: "F", labelEn: "Impairment of inventories" },
   { code: "N-1", index: "N", labelEn: "Trade payables & related accounts" },
   { code: "N-2", index: "N", labelEn: "Capital-expenditure payables" },
+  { code: "N-3", index: "N", labelEn: "Impairment of supplier debit balances", labelFr: "Dépréciations des comptes fournisseurs" },
   { code: "E-1", index: "E", labelEn: "Trade receivables, gross" },
   { code: "E-2", index: "E", labelEn: "Impairment of trade receivables" },
   { code: "O1-1", index: "O1", labelEn: "Tax receivables" },
@@ -225,16 +236,16 @@ const PREFIX_SUB: readonly [string, string][] = [
   ["1", "T-1"], ["16", "Q-1"], ["17", "Q-1"], ["18", "Q-1"], ["19", "P1-1"],
   ["20", "L-1"], ["21", "L-2"], ["281", "L-4"], ["291", "L-4"],
   ["22", "K-1"], ["23", "K-2"], ["24", "K-3"], ["25", "K-4"],
-  ["28", "K-6"], ["293", "K-6"], ["294", "K-6"],
+  ["28", "K-6"], ["292", "K-6"], ["293", "K-6"], ["294", "K-6"], ["295", "K-6"],
   ["26", "J-1"], ["27", "J-1"], ["29", "J-2"],
   ["3", "F-1"], ["39", "F-2"],
-  ["40", "N-1"], ["481", "N-2"],
-  ["41", "E-1"], ["490", "E-2"], ["491", "E-2"],
+  ["40", "N-1"], ["481", "N-2"], ["490", "N-3"],
+  ["41", "E-1"], ["491", "E-2"],
   ["42", "P2-1"], ["43", "P2-1"],
   ["44", "O2-1"], ["444", "O1-1"], ["445", "O1-1"], ["449", "O1-1"],
   ["45", "I2-1"], ["46", "I2-1"], ["462", "I1-1"],
   ["47", "G2-1"], ["476", "G2-3"], ["477", "P3-3"], ["478", "G3-1"], ["479", "P4-1"],
-  ["48", "P3-1"], ["49", "G2-4"],
+  ["48", "P3-1"], ["49", "G2-4"], ["499", "P1-2"],
   ["5", "C-1"], ["59", "C-3"],
   ["60", "VA1-1"], ["603", "VA2-1"], ["604", "VD1-1"], ["605", "VD1-1"], ["608", "VD1-1"],
   ["61", "VD1-2"], ["62", "VD1-3"], ["63", "VD1-3"], ["64", "VO-3"], ["65", "VD4-1"],
@@ -253,6 +264,52 @@ export function subIndexFor(account: string): string | null {
     if (!best || rule[0].length > best[0].length) best = rule;
   }
   return best ? best[1] : null;
+}
+
+/** The sub-total's label in the reader's language (French where the firm named it, else the workbook's English). */
+export function subIndexLabel(def: Pick<SubIndexDef, "labelEn" | "labelFr">, locale: "en" | "fr"): string {
+  return locale === "fr" && def.labelFr ? def.labelFr : def.labelEn;
+}
+
+/* ---- lead-schedule alerts (F059 / F060) ---- */
+
+export interface LeadScheduleAlert {
+  code: "supplier_debit_impairment" | "legacy_class_20";
+  /** the accounts that triggered it */
+  accounts: string[];
+  en: string;
+  fr: string;
+}
+
+/**
+ * What a lead schedule warns about from the balances it carries: a balance on
+ * 490 means supplier debit balances were impaired — the reclassification of
+ * debit suppliers (E6.10) and the impairment basis are checked; a balance on
+ * any class-20 account is non-compliant with the SYSCOHADA révisé, which
+ * removed the charges immobilisées — the balance is reclassified or written
+ * off, and the finding reported.
+ */
+export function leadScheduleAlerts(accounts: readonly { account: string; closing: number }[]): LeadScheduleAlert[] {
+  const out: LeadScheduleAlert[] = [];
+  const with490 = accounts.filter((a) => a.account.startsWith("490") && a.closing !== 0).map((a) => a.account);
+  if (with490.length > 0) {
+    out.push({
+      code: "supplier_debit_impairment",
+      accounts: with490,
+      en: `Account 490 carries a balance (${with490.join(", ")}): supplier debit balances are impaired — check the reclassification of debit suppliers on E6.10 and the basis of the impairment.`,
+      fr: `Le compte 490 porte un solde (${with490.join(", ")}) : des comptes fournisseurs débiteurs sont dépréciés — vérifier le reclassement des fournisseurs débiteurs en E6.10 et le fondement de la dépréciation.`,
+    });
+  }
+  const class20 = accounts.filter((a) => a.account.startsWith("20") && a.closing !== 0).map((a) => a.account);
+  if (class20.length > 0) {
+    out.push({
+      code: "legacy_class_20",
+      accounts: class20,
+      en: `Class 20 (charges immobilisées) carries a balance (${class20.join(", ")}): the class was removed by the SYSCOHADA révisé — the balance is non-compliant and must be reclassified or written off, and the finding carried to C1.1.`,
+      fr: `La classe 20 (charges immobilisées) porte un solde (${class20.join(", ")}) : la classe a été supprimée par le SYSCOHADA révisé — le solde est non conforme et doit être reclassé ou sorti, et le constat porté en C1.1.`,
+    });
+  }
+  return out;
 }
 
 /**

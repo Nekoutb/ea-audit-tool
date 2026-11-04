@@ -185,7 +185,18 @@ export function ApSchedules({
                   <span className="min-w-0 truncate text-[12.5px] font-semibold text-ink">
                     {leadIndexLabel(schedule.def, locale)}
                   </span>
+                  {schedule.alerts.length > 0 ? (
+                    <span className="ml-auto rounded-full bg-amber-100 px-2 py-0.5 text-[10.5px] font-semibold text-amber-900 dark:bg-amber-950/50 dark:text-amber-300" data-testid={`ap-alert-badge-${schedule.def.code}`}>
+                      {schedule.alerts.length}
+                    </span>
+                  ) : null}
                 </button>
+                {/* F059/F060: what the balances warn about — 490 carrying a balance, a legacy class-20 balance */}
+                {schedule.alerts.map((alert) => (
+                  <p key={alert.code} className="border-t border-line bg-amber-50 px-3 py-1.5 text-[11.5px] text-amber-900 dark:bg-amber-950/30 dark:text-amber-200" data-testid={`ap-alert-${schedule.def.code}-${alert.code}`}>
+                    ⚠ {fr ? alert.fr : alert.en}
+                  </p>
+                ))}
 
                 {/* a collapsed schedule still prints its figures (UAT B91 / run 3 B13) */}
                 {(

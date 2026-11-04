@@ -7,7 +7,7 @@
 import { withTenant } from "@/lib/db";
 import { RATIO_KEYS } from "@/lib/financial-analysis";
 import { requireTenant, requireWrite } from "@/lib/tenant";
-import { LEAD_INDEXES, leadIndexFor, type LeadIndexDef } from "@/lib/lead-classes";
+import { LEAD_INDEXES, leadIndexFor, leadScheduleAlerts, type LeadIndexDef, type LeadScheduleAlert } from "@/lib/lead-classes";
 
 export interface ApAccountRow {
   account: string;
@@ -32,6 +32,8 @@ export interface ApLeadSchedule {
   variancePct: number | null;
   /** where the comparatives come from (UAT B81) */
   priorSource: ApPriorSource;
+  /** what the balances warn about: 490 carrying a balance, legacy class 20 (F059/F060) */
+  alerts: LeadScheduleAlert[];
 }
 
 const pct = (movement: number, prior: number): number | null =>
@@ -128,6 +130,7 @@ export async function apLeadSchedules(engagementId: string): Promise<ApLeadSched
         movement: closing - prior,
         variancePct: pct(closing - prior, prior),
         priorSource,
+        alerts: leadScheduleAlerts(accounts),
       });
     }
     return out;

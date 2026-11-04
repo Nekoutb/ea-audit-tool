@@ -10,7 +10,7 @@ import type { PoolClient } from "pg";
 import { recordActivity } from "@/lib/activity";
 import { withTenant } from "@/lib/db";
 import { resolveSection } from "@/lib/leadsheets";
-import { LEAD_INDEXES, SUB_INDEX_BY_CODE, leadIndexFor, subIndexFor } from "@/lib/lead-classes";
+import { LEAD_INDEXES, SUB_INDEX_BY_CODE, leadIndexFor, subIndexFor, subIndexLabel } from "@/lib/lead-classes";
 import { parseTabularFile, sourceRowOf, type ParsedTable } from "@/lib/subledgers";
 import { requireTenant, requireWrite } from "@/lib/tenant";
 import { amountOr, parseAmount as parseAmountOrNull } from "@/lib/amount";
@@ -651,7 +651,7 @@ export async function leadSchedules(engagementId: string): Promise<LeadScheduleV
       const priorAmt = Math.round(cell.prior);
       list.push({
         code: cell.sub,
-        label: SUB_INDEX_BY_CODE[cell.sub]?.labelEn ?? cell.sub,
+        label: SUB_INDEX_BY_CODE[cell.sub] ? subIndexLabel(SUB_INDEX_BY_CODE[cell.sub], "en") : cell.sub,
         current,
         prior: priorAmt,
         variance: current - priorAmt,
