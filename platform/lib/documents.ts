@@ -837,7 +837,13 @@ export async function signDocument(documentId: string, requested: SignoffRole): 
         [row.engagement_id, `wp:${row.code}`],
       );
       const values = Object.fromEntries(answers.rows.map((r) => [r.field_key, r.value ?? ""]));
-      if (paperMissing(paperFor(row.code), values).length > 0) throw new DocumentRuleError("paper-incomplete");
+      // the paper as this client reads it: a procedure another legal form
+      // would carry is not demanded of this one (F052)
+      const form = await tx.query<{ legal_form: string }>(
+        "SELECT c.legal_form FROM engagement e JOIN client c ON c.id = e.client_id WHERE e.id = $1",
+        [row.engagement_id],
+      );
+      if (paperMissing(paperFor(row.code, "current", form.rows[0]?.legal_form), values).length > 0) throw new DocumentRuleError("paper-incomplete");
     }
     if (row.kind === "workpaper" && EMBED_ONLY_PAPERS.has(row.code)) {
       const gap = await embeddedWorkGap(tx, row.engagement_id, row.code);

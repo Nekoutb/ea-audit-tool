@@ -12,6 +12,7 @@ import { riskTitle } from "@/lib/risks";
 import { fileItemHasAssignee } from "@/lib/team";
 import { requireTenant } from "@/lib/tenant";
 import { visibilityClause } from "@/lib/engagement-access";
+import { isLegalForm } from "@/lib/legal-forms";
 import { isStandardsEdition } from "@/lib/standards-edition";
 
 /**
@@ -477,6 +478,7 @@ interface RecentRow {
   name: string | null;
   complexity: EngagementSummary["complexity"];
   standards_edition?: string | null;
+  legal_form?: string | null;
 }
 
 function toSummary(row: RecentRow): EngagementSummary {
@@ -490,6 +492,7 @@ function toSummary(row: RecentRow): EngagementSummary {
     name: row.name,
     complexity: row.complexity,
     standardsEdition: isStandardsEdition(row.standards_edition) ? row.standards_edition : "current",
+    clientLegalForm: isLegalForm(row.legal_form) ? row.legal_form : "OTHER",
   };
 }
 
@@ -510,7 +513,7 @@ export async function recentEngagements(limit = 6): Promise<EngagementSummary[]>
     const params: (number | string)[] = [limit, userId];
     const result = await tx.query<RecentRow>(
       `SELECT e.id, e.client_id, c.name AS client_name, e.fiscal_year,
-              to_char(e.period_end, 'YYYY-MM-DD') AS period_end, e.phase, e.name, e.complexity, e.standards_edition
+              to_char(e.period_end, 'YYYY-MM-DD') AS period_end, e.phase, e.name, e.complexity, e.standards_edition, c.legal_form
          FROM engagement e
          JOIN client c ON c.id = e.client_id
         WHERE e.phase <> 'archived'${visibility}

@@ -2,6 +2,8 @@
 // The numbering gaps are INTENTIONAL and follow the methodology's convention:
 // there is no D2 and no D5.3; S6.1 jumps to P1.1. Do not "normalize" them.
 
+import { taskAppliesToForm } from "@/lib/legal-forms";
+
 export type Section = "A" | "B" | "C" | "D" | "E" | "F";
 
 /**
@@ -82,7 +84,7 @@ export const DEFAULT_FILE_INDEX: readonly FileIndexEntry[] = [
   { code: "S5.1", section: "D", titleEn: "Reliance on Experts (ISA 620)", titleFr: "Utilisation des travaux d'un expert (ISA 620)", conditional: true },
   { code: "S5.2", section: "D", titleEn: "Service Organisations (ISA 402)", titleFr: "Sociétés de services (ISA 402)", conditional: true },
   { code: "S5.3", section: "D", titleEn: "Internal Audit (ISA 610)", titleFr: "Audit interne (ISA 610)", conditional: true },
-  { code: "P6.1", section: "D", titleEn: "Determine Materiality — PM, TE and SAD Nominal Amount (ISA 320)", titleFr: "Déterminer le seuil de signification — PM, TE et seuil SAD (ISA 320)" },
+  { code: "P6.1", section: "D", titleEn: "Determine Materiality — Overall, Performance and Clearly Trivial (ISA 320)", titleFr: "Déterminer le seuil de signification — global, de travail et manifestement négligeable (ISA 320)" },
   { code: "S4.1", section: "D", titleEn: "Commitments & Contingencies", titleFr: "Engagements et passifs éventuels" },
   { code: "P5.1", section: "D", titleEn: "Identify Fraud Risks and Determine Responses (ISA 240)", titleFr: "Identifier les risques de fraude et déterminer les réponses (ISA 240)" },
   { code: "S4.2", section: "D", titleEn: "Going Concern — Preliminary (ISA 570)", titleFr: "Continuité d'exploitation — préliminaire (ISA 570)" },
@@ -146,7 +148,10 @@ export const DEFAULT_FILE_INDEX: readonly FileIndexEntry[] = [
   { code: "E4.33", section: "E", titleEn: "Exceptional Expenses (V1)", titleFr: "Charges HAO (V1)" },
   { code: "E4.34", section: "E", titleEn: "Income Tax (O4)", titleFr: "Impôt sur le résultat (O4)" },
   { code: "E4.35", section: "E", titleEn: "Leases", titleFr: "Contrats de location" },
-  { code: "E4.36", section: "E", titleEn: "Cash Flow (TFT) Tie-out", titleFr: "Concordance du TFT" },
+  // The TFT is one of the four statements of the SYSCOHADA set and its tie-out
+  // is required whatever the entity's size (F047, firm decision 2026-10-27):
+  // core, and 20261104000002 adds it to the existing files that lack it.
+  { code: "E4.36", section: "E", titleEn: "Cash Flow (TFT) Tie-out", titleFr: "Concordance du TFT", tier: "core" },
   { code: "E6.8", section: "E", titleEn: "Reassess Combined Risk Assessments", titleFr: "Réévaluer l'évaluation combinée des risques", tier: "core" },
   { code: "E6.1", section: "E", titleEn: "Laws & Regulations / NOCLAR (ISA 250)", titleFr: "Textes légaux et réglementaires / NOCLAR (ISA 250)" },
   { code: "E6.2", section: "E", titleEn: "Related Parties (ISA 550)", titleFr: "Parties liées (ISA 550)" },
@@ -228,7 +233,7 @@ const SHORT_TITLES: Record<string, { en: string; fr: string }> = {
   "S5.1": { en: "Reliance on Experts (ISA 620)", fr: "Recours à un expert (ISA 620)" },
   "S5.2": { en: "Service Organisations (ISA 402)", fr: "Sociétés de services (ISA 402)" },
   "S5.3": { en: "Internal Audit (ISA 610)", fr: "Audit interne (ISA 610)" },
-  "P6.1": { en: "Materiality — PM, TE, SAD (ISA 320)", fr: "Seuil — PM, TE, SAD (ISA 320)" },
+  "P6.1": { en: "Materiality (ISA 320)", fr: "Seuil de signification (ISA 320)" },
   "S4.1": { en: "Commitments & Contingencies", fr: "Engagements et passifs éventuels" },
   "P5.1": { en: "Fraud Risks & Responses (ISA 240)", fr: "Risques de fraude & réponses (ISA 240)" },
   "S4.2": { en: "Going Concern — Prelim (ISA 570)", fr: "Continuité — préliminaire (ISA 570)" },
@@ -372,12 +377,15 @@ export function tierOf(entry: FileIndexEntry): FileIndexTier {
  * The file-index entries to instantiate for a given complexity level — the
  * concrete "extent of documentation" effect of the classification:
  * very_simple = core only (no conditional forms), non_complex = core + standard,
- * complex = the full index.
+ * complex = the full index. The client's legal form, when known, removes the
+ * tasks that do not exist for it (C5.7 on a SARL or a GIE — F052).
  */
 export function itemsForComplexity(
   complexity: "complex" | "non_complex" | "very_simple",
+  legalForm?: string | null,
 ): FileIndexEntry[] {
   return DEFAULT_FILE_INDEX.filter((entry) => {
+    if (!taskAppliesToForm(entry.code, legalForm)) return false;
     const tier = tierOf(entry);
     if (complexity === "very_simple") return tier === "core" && !entry.conditional;
     if (complexity === "non_complex") return tier !== "extended";

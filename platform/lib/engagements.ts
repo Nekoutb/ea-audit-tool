@@ -3,6 +3,7 @@ import { type ComplexityAnswers, type EngagementComplexity } from "@/lib/complex
 import { withTenant } from "@/lib/db";
 import { ensureTaskTx } from "@/lib/ensure-task";
 import { itemsForComplexity, type Section } from "@/lib/file-index";
+import type { LegalForm } from "@/lib/legal-forms";
 import { seedPresumedRisks } from "@/lib/risks";
 import { requireTenant, requireWrite } from "@/lib/tenant";
 import { visibilityClause } from "@/lib/engagement-access";
@@ -24,6 +25,8 @@ export interface EngagementSummary {
   complexity: EngagementComplexity;
   /** the ISA edition the papers cite (F045): derived from the period start, or set by hand */
   standardsEdition: StandardsEdition;
+  /** the client's legal form: the statutory papers name its organs from it (F052) */
+  clientLegalForm: LegalForm;
 }
 
 export interface FileItem {
@@ -50,6 +53,7 @@ interface EngagementRow {
   name: string | null;
   complexity: EngagementComplexity;
   standards_edition: string | null;
+  legal_form: LegalForm;
 }
 
 function toSummary(row: EngagementRow): EngagementSummary {
@@ -63,6 +67,7 @@ function toSummary(row: EngagementRow): EngagementSummary {
     name: row.name,
     complexity: row.complexity,
     standardsEdition: isStandardsEdition(row.standards_edition) ? row.standards_edition : "current",
+    clientLegalForm: row.legal_form,
   };
 }
 
@@ -94,7 +99,7 @@ export async function listEngagements(clientId?: string): Promise<EngagementRegi
       }
     >(
       `SELECT e.id, e.client_id, c.name AS client_name, e.fiscal_year,
-              to_char(e.period_end, 'YYYY-MM-DD') AS period_end, e.phase, e.name, e.complexity, e.standards_edition,
+              to_char(e.period_end, 'YYYY-MM-DD') AS period_end, e.phase, e.name, e.complexity, e.standards_edition, c.legal_form,
               (SELECT coalesce(u.name, u.email) FROM team_member tm
                  JOIN app_user u ON u.id = tm.user_id
                 WHERE tm.engagement_id = e.id AND tm.team_role = 'partner'
@@ -192,7 +197,7 @@ export async function getEngagement(id: string): Promise<EngagementSummary | nul
   return withTenant(tenantId, async (tx) => {
     const result = await tx.query<EngagementRow>(
       `SELECT e.id, e.client_id, c.name AS client_name, e.fiscal_year,
-              to_char(e.period_end, 'YYYY-MM-DD') AS period_end, e.phase, e.name, e.complexity, e.standards_edition
+              to_char(e.period_end, 'YYYY-MM-DD') AS period_end, e.phase, e.name, e.complexity, e.standards_edition, c.legal_form
          FROM engagement e
          JOIN client c ON c.id = e.client_id
         WHERE e.id = $1`,
@@ -261,14 +266,24 @@ export async function setStandardsEdition(engagementId: string, edition: Standar
   });
 }
 
+/** The client's legal form, read in the transaction: the file index is scoped by it (F052). */
+async function legalFormOfEngagementTx(tx: PoolClient, engagementId: string): Promise<string | null> {
+  const r = await tx.query<{ legal_form: string }>(
+    "SELECT c.legal_form FROM engagement e JOIN client c ON c.id = e.client_id WHERE e.id = $1",
+    [engagementId],
+  );
+  return r.rows[0]?.legal_form ?? null;
+}
+
 async function instantiateFileIndex(
   tx: PoolClient,
   tenantId: string,
   engagementId: string,
   complexity: EngagementComplexity,
 ): Promise<void> {
+  const legalForm = await legalFormOfEngagementTx(tx, engagementId);
   let sortOrder = 0;
-  for (const entry of itemsForComplexity(complexity)) {
+  for (const entry of itemsForComplexity(complexity, legalForm)) {
     sortOrder += 10;
     await tx.query(
       `INSERT INTO file_item
@@ -422,8 +437,9 @@ export async function applyComplexity(
       [engagementId],
     );
     const have = new Set(existing.rows.map((r) => r.code));
+    const legalForm = await legalFormOfEngagementTx(tx, engagementId);
     let sortOrder = 0;
-    for (const entry of itemsForComplexity(complexity)) {
+    for (const entry of itemsForComplexity(complexity, legalForm)) {
       sortOrder += 10;
       if (have.has(entry.code)) continue;
       await tx.query(

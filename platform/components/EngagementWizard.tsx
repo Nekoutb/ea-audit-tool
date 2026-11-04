@@ -5,9 +5,7 @@ import { createEngagementAction } from "@/app/actions/audit-file";
 import { Panel, btnPrimary } from "@/components/ui/atlas";
 import { SubmitButton } from "@/components/SubmitButton";
 import { NATURE_OPTIONS, applyNamingConvention } from "@/lib/complexity";
-
-// Mirrors LEGAL_FORMS in lib/clients.ts (that module is server-only).
-const LEGAL_FORMS = ["SA", "SARL", "SAS", "GIE", "OTHER"] as const;
+import { LEGAL_FORMS, legalFormLabel } from "@/lib/legal-forms";
 
 export interface WizardLabels {
   clientLabel: string;
@@ -126,7 +124,7 @@ export function EngagementWizard({
                 {LEGAL_FORMS.map((form) => (
                   <option key={form} value={form}>
                     {fr ? "Forme juridique : " : "Legal form: "}
-                    {form === "OTHER" ? (fr ? "Autre" : "Other") : form}
+                    {legalFormLabel(form, fr ? "fr" : "en")}
                   </option>
                 ))}
               </select>

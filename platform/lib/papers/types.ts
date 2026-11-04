@@ -44,6 +44,12 @@ export interface PaperProc {
   /** practical considerations: how to actually perform this, shown beside the wizard page */
   tipEn?: string;
   tipFr?: string;
+  /**
+   * The legal forms this procedure applies to (F052, lib/legal-forms.ts);
+   * absent = every form. The resolver drops it on the others, so a SARL file
+   * never shows the board's prior authorisation of an SA.
+   */
+  forms?: readonly string[];
 }
 
 /** One Yes/No factor. A "No" opens an explanation box beneath the question. */
@@ -51,6 +57,8 @@ export interface PaperItem {
   key: string;
   en: string;
   fr: string;
+  /** the legal forms this factor applies to (F052); absent = every form */
+  forms?: readonly string[];
   /**
    * Kept for the papers that set it: since F040 (2026-10-27) every item offers
    * Not-applicable, and an N/A must carry its reason. The flag no longer

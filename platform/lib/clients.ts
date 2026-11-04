@@ -2,18 +2,10 @@ import { withTenant } from "@/lib/db";
 import { canManageFirm } from "@/lib/rbac";
 import { ForbiddenError, requireTenant, requireWrite } from "@/lib/tenant";
 
-export type LegalForm = "SA" | "SARL" | "SAS" | "GIE" | "OTHER";
-
-export const LEGAL_FORMS: readonly LegalForm[] = ["SA", "SARL", "SAS", "GIE", "OTHER"];
-
-/** The legal form as the reader sees it: 'OTHER' reads 'Autre' / 'Other' (UAT B115). */
-export function legalFormLabel(form: string, locale: "en" | "fr"): string {
-  return form === "OTHER" ? (locale === "fr" ? "Autre" : "Other") : form;
-}
-
-export function isLegalForm(value: unknown): value is LegalForm {
-  return typeof value === "string" && (LEGAL_FORMS as readonly string[]).includes(value);
-}
+// The legal forms live in lib/legal-forms.ts (client-safe) since F052 added
+// SA_AG and the organ vocabulary; re-exported here for the server callers.
+export { LEGAL_FORMS, isLegalForm, legalFormLabel, type LegalForm } from "@/lib/legal-forms";
+import type { LegalForm } from "@/lib/legal-forms";
 
 /** Accounting frameworks selectable on the entity record (free-text column). */
 export const FRAMEWORKS = ["SYSCOHADA", "IFRS", "Other"] as const;

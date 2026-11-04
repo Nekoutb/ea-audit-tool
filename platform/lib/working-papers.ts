@@ -22,6 +22,7 @@ import { STATUTORY_525_PAPERS } from "@/lib/papers/statutory-525";
 import { CONCLUSION_PAPERS } from "@/lib/papers/conclusion";
 import { GAM_PAPERS } from "@/lib/papers/gam";
 import { paperKeys, requiredKeys, unansweredKeys, type PaperDef, type PaperField, conclKey, conclWhyKey, ynKey, ynWhyKey } from "@/lib/papers/types";
+import { resolveLegalFormPaper } from "@/lib/legal-forms";
 import { resolvePaper, type StandardsEdition } from "@/lib/standards-edition";
 import { groupOfTask, type SectionKey } from "@/lib/task-groups";
 
@@ -102,12 +103,14 @@ const GROUP_PAPERS = new Map<string, PaperDef>();
 /**
  * The paper for a task: bespoke where defined, otherwise built from its group,
  * with every ISA reference and wording rendered for the engagement's standards
- * edition (F045). Callers that only count keys may leave the edition out: the
- * keys are the same under both.
+ * edition (F045) and every organ named for the client's legal form (F052).
+ * Callers that only count keys may leave both out: the keys are the same under
+ * every edition, and a form-restricted procedure is only ever a subset — a
+ * save against the full key set stays valid for every form.
  */
-export function paperFor(code: string, edition: StandardsEdition = "current"): PaperDef {
+export function paperFor(code: string, edition: StandardsEdition = "current", legalForm?: string | null): PaperDef {
   const bespoke = ALL_PAPERS[code];
-  if (bespoke) return resolvePaper(bespoke, edition);
+  if (bespoke) return resolveLegalFormPaper(resolvePaper(bespoke, edition), legalForm);
   const group = groupOfTask(code);
   const groupId = group?.id ?? "";
   let def = GROUP_PAPERS.get(groupId);
@@ -125,7 +128,7 @@ export function paperFor(code: string, edition: StandardsEdition = "current"): P
     };
     GROUP_PAPERS.set(groupId, def);
   }
-  return resolvePaper(def, edition);
+  return resolveLegalFormPaper(resolvePaper(def, edition), legalForm);
 }
 
 export function paperOwns(def: PaperDef, locale: "en" | "fr"): string {
@@ -668,6 +671,14 @@ export async function savePaper(
   // C4.2 is their own paper: the review's record.
   // The guard covers the team-role EQR too, not only the firm role (UAT run 3 B03).
   values = await filterPaperWrite(tenantId, engagementId, userId, role, code, values);
+  // C5.10 (F058): the number of highest-paid persons follows the headcount
+  // typed in Part A — ten above 200 employees, five at or below — unless the
+  // preparer has already chosen one by hand on this save.
+  if (code === "C5.10" && typeof values.headcount === "string" && !values.persons?.trim()) {
+    const { personsFromHeadcount } = await import("@/lib/papers/statutory-525");
+    const auto = personsFromHeadcount(values.headcount);
+    if (auto) values = { ...values, persons: auto };
+  }
   const allowed = paperKeys(paperFor(code));
   // E6.10 (UAT B114): "column N agrees" cannot be answered Yes while the
   // tie-out of the trial balance shows differences nobody has explained.

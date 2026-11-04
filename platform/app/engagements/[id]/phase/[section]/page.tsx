@@ -150,7 +150,7 @@ export default async function PhasePage(props: {
         ) : (
           <ul className="mt-3 divide-y divide-line" data-testid="phase-tasks">
             {ordered.map(({ task, group }, i) => {
-              const paper = paperFor(task.code, engagement.standardsEdition);
+              const paper = paperFor(task.code, engagement.standardsEdition, engagement.clientLegalForm);
               return (
                 <li key={task.id}>
                   <Link
@@ -210,7 +210,7 @@ export default async function PhasePage(props: {
                       {shortTitle(task.code, locale, locale === "fr" ? task.titleFr : task.titleEn)}
                     </span>
                     <span className="block truncate font-mono text-[11px] text-muted">
-                      {displayCode(task.code)} · {paperFor(task.code, engagement.standardsEdition).std}
+                      {displayCode(task.code)} · {paperFor(task.code, engagement.standardsEdition, engagement.clientLegalForm).std}
                     </span>
                   </span>
                   <Chip tone="muted">{locale === "fr" ? "Conditionnel" : "Conditional"}</Chip>

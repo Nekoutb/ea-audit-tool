@@ -8,6 +8,7 @@ import { type Branding, letterheadFooter, letterheadParagraphs, loadBranding } f
 import { withTenant } from "@/lib/db";
 import { DOCX_MIME } from "@/lib/documents";
 import type { Locale } from "@/lib/i18n";
+import { legalFormLabel } from "@/lib/legal-forms";
 import { requireTenant, requireWrite } from "@/lib/tenant";
 import { createHash } from "node:crypto";
 
@@ -132,7 +133,7 @@ async function buildLetter(
         heading: HeadingLevel.TITLE,
         children: [new TextRun(fr ? "Lettre de mission" : "Engagement letter")],
       }),
-      p(`${f.clientName} (${f.legalForm})`),
+      p(`${f.clientName} (${legalFormLabel(f.legalForm, locale)})`),
     );
     // ISA 210 ¶10: the client's identity, then the objective and scope, the
     // responsibilities of each party, the framework and the expected reports.
