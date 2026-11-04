@@ -1,12 +1,12 @@
 "use client";
 
+import { AssignSelect } from "@/components/AssignSelect";
 import { useState } from "react";
-import { SubmitButton } from "@/components/SubmitButton";
 
 type Role = "preparer" | "approver";
 
 /**
- * The preparer (P) and approver (A) selects of one Forms row (F006). Each
+ * The preparer (P) and reviewer (R) selects of one Forms row (F006). Each
  * keeps its own form and OK button; neither offers the person chosen in the
  * other, so the matrix cannot be set up with one person on both sides. The
  * server refuses it anyway (preparer-equals-approver, lib/team.ts). A row
@@ -21,16 +21,14 @@ export function FormsAssignRow({
   approverUserId,
   labels,
   selectClass,
-  okClass,
 }: {
   code: string;
   action: (formData: FormData) => void | Promise<void>;
   team: { userId: string; userName: string }[];
   preparerUserId: string | null;
   approverUserId: string | null;
-  labels: { preparer: string; approver: string; conflict: string };
+  labels: { preparer: string; approver: string; conflict: string; saved: string; undo: string };
   selectClass: string;
-  okClass: string;
 }) {
   const [chosen, setChosen] = useState<Record<Role, string>>({
     preparer: preparerUserId ?? "",
@@ -51,34 +49,28 @@ export function FormsAssignRow({
         const label = labels[role];
         const exclude = chosen[other(role)];
         return (
-          <form key={role} action={action} className="flex items-center gap-1">
-            <input type="hidden" name="role" value={role} />
-            <span className="text-[10px] font-extrabold text-muted" title={label}>
-              {role === "preparer" ? "P" : "A"}
-            </span>
-            <select
-              name="assignee"
-              value={chosen[role]}
-              onChange={(e) => setChosen((c) => ({ ...c, [role]: e.target.value }))}
-              className={selectClass}
-              aria-label={`${label} ${code}`}
-              data-testid={`assign-${role}-${code}`}
-            >
-              <option value="">—</option>
-              {team
+          <span key={role} className="flex items-center gap-1">
+            <AssignSelect
+              action={action}
+              current={role === "preparer" ? (preparerUserId ?? "") : (approverUserId ?? "")}
+              hidden={{ role }}
+              prefix={
+                <span className="text-[10px] font-extrabold text-muted" title={label}>
+                  {role === "preparer" ? "P" : "R"}
+                </span>
+              }
+              options={team
                 // the person on the other side is not offered — unless this
                 // select already holds them (a stored conflict to correct)
                 .filter((m) => m.userId !== exclude || m.userId === chosen[role])
-                .map((m) => (
-                  <option key={m.userId} value={m.userId}>
-                    {m.userName}
-                  </option>
-                ))}
-            </select>
-            <SubmitButton className={okClass} testId={`assign-${role}-save-${code}`}>
-              OK
-            </SubmitButton>
-          </form>
+                .map((m) => ({ value: m.userId, label: m.userName }))}
+              selectClass={selectClass}
+              ariaLabel={`${label} ${code}`}
+              testId={`assign-${role}-${code}`}
+              labels={labels}
+              onChosen={(value) => setChosen((c) => ({ ...c, [role]: value }))}
+            />
+          </span>
         );
       })}
       {storedConflict ? (

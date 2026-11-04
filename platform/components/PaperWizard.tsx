@@ -218,6 +218,37 @@ export function PaperWizard({
   const lastPage = total - 1;
   const [step, setStep] = useState(0);
 
+  // Part tabs over the pager (F084): a paper reads "A · B · Conclusion", with a
+  // tick on the parts already answered, rather than "1/3" and no list of parts.
+  const partTabs = useMemo(() => {
+    const isAnswered = (it: StepItem): boolean => {
+      if (it.kind === "proc") return Boolean(values[procKey(it.key)]) || values[procNaKey(it.key)] === NA;
+      if (it.kind === "yn") return Boolean(values[ynKey(it.key)]);
+      return it.field.kind === "auto" || Boolean(values[it.field.key]);
+    };
+    const tabs: { label: string; title: string; page: number; done: boolean }[] = [];
+    steps.forEach((pageItems, pageIndex) => {
+      pageItems.forEach((it) => {
+        if (it.sectionTitle) {
+          const short = it.sectionTitle.split(" — ")[0].trim();
+          tabs.push({ label: short.length > 26 ? `${short.slice(0, 24)}…` : short, title: it.sectionTitle, page: pageIndex, done: true });
+        }
+        const current = tabs[tabs.length - 1];
+        if (current && !isAnswered(it)) current.done = false;
+      });
+    });
+    if (conclPage >= 0) {
+      const conclusions = (fr ? def.conclFr : def.conclEn) ?? [];
+      tabs.push({
+        label: "Conclusion",
+        title: "Conclusion",
+        page: conclPage,
+        done: conclusions.length > 0 && conclusions.every((_, i) => Boolean(values[conclKey(i)])),
+      });
+    }
+    return tabs;
+  }, [steps, conclPage, values, def, fr]);
+
   // The saved/unsaved indicator (F017): the form's content against what was last
   // saved, read a beat after any interaction so client-managed hidden fields and
   // selects outside the form (the scoping triggers) are counted too.
@@ -656,6 +687,31 @@ export function PaperWizard({
         </span>
         )}
       </div>
+
+      {partTabs.length > 1 ? (
+        <nav className="flex flex-wrap items-center gap-1 border-b border-line py-1 print:hidden" aria-label={fr ? "Parties de la feuille" : "Parts of the paper"} data-testid="wp-part-tabs">
+          {partTabs.map((tab, i) => {
+            const active = step >= tab.page && (i === partTabs.length - 1 || step < partTabs[i + 1].page);
+            return (
+              <button
+                key={`${tab.label}-${i}`}
+                type="button"
+                onClick={() => setStep(tab.page)}
+                title={tab.title}
+                aria-current={active ? "step" : undefined}
+                data-testid={`wp-part-tab-${i}`}
+                data-done={String(tab.done)}
+                className={`rounded-full px-2 py-0.5 text-[11px] font-semibold transition ${
+                  active ? "bg-emerald-700 text-white" : "bg-surface-2 text-ink-soft hover:text-ink"
+                }`}
+              >
+                {tab.done ? "✓ " : ""}
+                {tab.label}
+              </button>
+            );
+          })}
+        </nav>
+      ) : null}
 
       {/* the measuring shell: all steps render inside; its height drives packing */}
       {/* wp-steps / wp-step: print lays every step out in flow, in DOM order — the

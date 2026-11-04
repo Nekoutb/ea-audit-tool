@@ -1,3 +1,4 @@
+import { fileItemIdOf } from "@/lib/engagement-dashboard";
 import { notFound, redirect } from "next/navigation";
 import { auth } from "@/auth";
 import { setDueDateAction, signOffReviewerAction } from "@/app/actions/audit-file";
@@ -68,6 +69,10 @@ export default async function FormPage(props: {
   const definition = FORM_DEFINITIONS[code];
   const engagement = await getEngagement(id);
   if (!definition || !engagement) notFound();
+  // One paper, one screen (F078): a task's paper lives on its section page, and
+  // this older view showed the same procedures generically.
+  const paperItemId = await fileItemIdOf(id, code);
+  if (paperItemId) redirect(`/engagements/${id}/sections/${paperItemId}${error ? `?error=${encodeURIComponent(error)}` : ""}`);
 
   // Hub-and-spoke context: which phase this task belongs to, its sign-off
   // state, deadline read, template purpose/checklist, and any review notes.

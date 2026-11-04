@@ -251,3 +251,9 @@ export async function uncommunicatedSignificantDeficienciesTx(tx: PoolClient, en
   );
   return Number(r.rows[0].n);
 }
+
+/** The significant deficiencies not yet communicated in writing (ISA 265 ¶9), for the /conclusion list (D6). */
+export async function uncommunicatedSignificantDeficiencies(engagementId: string): Promise<number> {
+  const { tenantId } = await requireTenant();
+  return withTenant(tenantId, (tx) => uncommunicatedSignificantDeficienciesTx(tx, engagementId));
+}

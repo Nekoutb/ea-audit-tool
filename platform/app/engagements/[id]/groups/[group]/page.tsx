@@ -269,6 +269,7 @@ export default async function GroupTasksPage(props: {
               <tbody>
                 {rows.map((row, i) => (
                   <PhaseTaskRow
+                    fr={locale === "fr"}
                     key={row.id}
                     row={row}
                     engagementId={id}

@@ -293,6 +293,7 @@ export default async function PhaseTasksPage(props: {
               <tbody>
                 {rows.map((row) => (
                   <PhaseTaskRow
+                    fr={locale === "fr"}
                     key={row.id}
                     row={row}
                     engagementId={id}

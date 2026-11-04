@@ -24,6 +24,7 @@ const KIND_LABEL: Record<string, { en: string; fr: string }> = {
   SCOT: { en: "SCOT", fr: "Flux (SCOT)" },
   document: { en: "Document", fr: "Document" },
   "working paper": { en: "Working paper", fr: "Feuille de travail" },
+  methodology: { en: "Methodology", fr: "Méthodologie" },
 };
 
 /**

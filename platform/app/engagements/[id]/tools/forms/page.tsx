@@ -1,3 +1,4 @@
+import { SignatureMarks } from "@/components/SignatureMarks";
 import Link from "next/link";
 import { localizedTitle } from "@/lib/page-title";
 import { notFound, redirect } from "next/navigation";
@@ -9,7 +10,7 @@ import { SubmitButton } from "@/components/SubmitButton";
 import { Panel } from "@/components/ui/atlas";
 import { DEFAULT_FILE_INDEX, shortTitle } from "@/lib/file-index";
 import { getEngagement } from "@/lib/engagements";
-import { engagementTasksWithActiveConditionals } from "@/lib/engagement-dashboard";
+import { conditionalTriggerText, engagementTasksWithActiveConditionals } from "@/lib/engagement-dashboard";
 import { getMessages } from "@/lib/i18n";
 import { getLocale } from "@/lib/locale";
 import { canReview, type Role } from "@/lib/rbac";
@@ -157,12 +158,22 @@ export default async function FormsPage(props: {
                         data-testid={`form-${form.code}`}
                       >
                         <span className="w-11 flex-shrink-0 font-mono text-[10.5px] font-semibold text-muted">{form.code}</span>
-                        <span className="min-w-0 flex-1 truncate">{form.title}</span>
+                        <span className="line-clamp-2 min-w-0 flex-1" title={form.title}>{form.title}</span>
+                        <SignatureMarks code={form.code} fr={fr} />
                       </Link>
                     ) : (
-                      <span className="flex min-w-0 flex-1 items-baseline gap-2 px-1.5 py-1 text-[12.3px] text-muted" title={fr ? "Hors périmètre de cette mission" : "Not in this engagement's scope"}>
+                      <span className="flex min-w-0 flex-1 flex-wrap items-baseline gap-2 px-1.5 py-1 text-[12.3px] text-muted">
                         <span className="w-11 flex-shrink-0 font-mono text-[10.5px]">{form.code}</span>
-                        <span className="min-w-0 flex-1 truncate">{form.title}</span>
+                        <span className="line-clamp-2 min-w-0 flex-1" title={form.title}>{form.title}</span>
+                        <span className="flex-shrink-0 rounded-full bg-surface-2 px-1.5 py-0.5 text-[10.5px] font-semibold" data-testid={`form-out-of-scope-${form.code}`}>
+                          {fr ? "Hors périmètre" : "Out of scope"}
+                        </span>
+                        {conditionalTriggerText(form.code, locale) ? (
+                          <span className="w-full pl-[3.25rem] text-[11px]" data-testid={`form-trigger-${form.code}`}>
+                            {fr ? "Activée par : " : "Activated by: "}
+                            {conditionalTriggerText(form.code, locale)}
+                          </span>
+                        ) : null}
                       </span>
                     )}
                     {canAssign && team.length > 0 && form.itemId ? (
@@ -174,11 +185,12 @@ export default async function FormsPage(props: {
                         approverUserId={form.approverUserId}
                         labels={{
                           preparer: fr ? "Préparateur" : "Preparer",
-                          approver: fr ? "Approbateur" : "Approver",
+                          approver: fr ? "Réviseur" : "Reviewer",
                           conflict: t.planning.errors["assignment-preparer-is-approver"],
+                          saved: fr ? "Affectation enregistrée" : "Assignment saved",
+                          undo: fr ? "Annuler" : "Undo",
                         }}
                         selectClass={select}
-                        okClass={ok}
                       />
                     ) : null}
                   </li>

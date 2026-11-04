@@ -6,9 +6,25 @@
 // email, so this panel is the delivery surface, not a decoration; there is no
 // notifications page behind it. Opening one marks it read on the way through.
 
-import { useRef, useState } from "react";
+import Link from "next/link";
+import { useEffect, useRef, useState, type ReactNode } from "react";
 import { useRouter } from "next/navigation";
 import type { Notification } from "@/lib/notifications";
+
+/** A real link when the notification has a destination, so it can open in a new tab (F082). */
+function NotificationRow({ notification, onOpen, children }: { notification: Notification; onOpen: () => void; children: ReactNode }) {
+  const className = "flex w-full items-start gap-2 px-3 py-2 text-left transition hover:bg-surface-2";
+  const testId = `notif-row-${notification.id}`;
+  return notification.href ? (
+    <Link href={notification.href} onClick={onOpen} className={className} data-testid={testId}>
+      {children}
+    </Link>
+  ) : (
+    <button type="button" onClick={onOpen} className={className} data-testid={testId}>
+      {children}
+    </button>
+  );
+}
 
 export function NotificationBell({
   unread,
@@ -23,6 +39,32 @@ export function NotificationBell({
   const router = useRouter();
   const [open, setOpen] = useState(false);
   const closeTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const rootRef = useRef<HTMLDivElement>(null);
+  const listRef = useRef<HTMLUListElement>(null);
+  const [overflowing, setOverflowing] = useState(false);
+
+  // closes on an outside press, Escape or focus leaving it (F082), so it also
+  // behaves on touch and with the keyboard; the footer shows only when it is true
+  useEffect(() => {
+    if (!open) return;
+    const list = listRef.current;
+    const measure = setTimeout(() => setOverflowing(Boolean(list && list.scrollHeight > list.clientHeight)), 0);
+    const outside = (event: Event) => {
+      if (rootRef.current && !rootRef.current.contains(event.target as Node)) setOpen(false);
+    };
+    const onKey = (event: KeyboardEvent) => {
+      if (event.key === "Escape") setOpen(false);
+    };
+    document.addEventListener("pointerdown", outside);
+    document.addEventListener("focusin", outside);
+    document.addEventListener("keydown", onKey);
+    return () => {
+      clearTimeout(measure);
+      document.removeEventListener("pointerdown", outside);
+      document.removeEventListener("focusin", outside);
+      document.removeEventListener("keydown", onKey);
+    };
+  }, [open]);
 
   const show = () => {
     if (closeTimer.current) clearTimeout(closeTimer.current);
@@ -34,7 +76,8 @@ export function NotificationBell({
     closeTimer.current = setTimeout(() => setOpen(false), 160);
   };
 
-  async function openItem(n: Notification) {
+  // the link itself navigates; this marks it read on the way through
+  async function markItem(n: Notification) {
     setOpen(false);
     if (!n.readAt) {
       await fetch("/api/notifications/read", {
@@ -43,7 +86,6 @@ export function NotificationBell({
         body: JSON.stringify({ id: n.id }),
       }).catch(() => null);
     }
-    if (n.href) router.push(n.href);
     router.refresh();
   }
 
@@ -61,7 +103,7 @@ export function NotificationBell({
   };
 
   return (
-    <div className="relative" onMouseEnter={show} onMouseLeave={hide}>
+    <div ref={rootRef} className="relative" onMouseEnter={show} onMouseLeave={hide}>
       <button
         type="button"
         className="relative grid h-9 w-9 place-items-center rounded-[var(--radius-atlas-sm)] border border-line-strong bg-surface text-ink-soft transition hover:bg-surface-2"
@@ -107,15 +149,10 @@ export function NotificationBell({
               {fr ? "Rien à signaler." : "Nothing to report."}
             </p>
           ) : (
-            <ul className="max-h-[360px] overflow-y-auto overscroll-contain" data-testid="notifications-list">
+            <ul ref={listRef} className="max-h-[360px] overflow-y-auto overscroll-contain" data-testid="notifications-list">
               {items.map((n) => (
                 <li key={n.id} className="border-b border-line last:border-b-0">
-                  <button
-                    type="button"
-                    onClick={() => void openItem(n)}
-                    className="flex w-full items-start gap-2 px-3 py-2 text-left transition hover:bg-surface-2"
-                    data-testid={`notif-row-${n.id}`}
-                  >
+                  <NotificationRow notification={n} onOpen={() => void markItem(n)}>
                     <span
                       className={`mt-1.5 h-1.5 w-1.5 flex-shrink-0 rounded-full ${n.readAt ? "bg-line-strong" : "bg-emerald-600"}`}
                       aria-hidden="true"
@@ -134,17 +171,17 @@ export function NotificationBell({
                         {n.readAt ? "" : ` · ${fr ? "non lue" : "unread"}`}
                       </span>
                     </span>
-                  </button>
+                  </NotificationRow>
                 </li>
               ))}
             </ul>
           )}
 
-          <p className="border-t border-line px-3 py-1.5 text-center text-[10.5px] text-muted" data-testid="notif-footer">
-            {items.length === 0
-              ? ""
-              : fr ? `${items.length} notification(s) — faire défiler pour voir la suite` : `${items.length} notification(s) — scroll for more`}
-          </p>
+          {overflowing ? (
+            <p className="border-t border-line px-3 py-1.5 text-center text-[10.5px] text-muted" data-testid="notif-footer">
+              {fr ? `${items.length} notifications : faire défiler pour voir la suite` : `${items.length} notifications: scroll for more`}
+            </p>
+          ) : null}
         </div>
       ) : null}
     </div>

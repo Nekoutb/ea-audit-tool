@@ -2,6 +2,7 @@
 // attention" queue, and the most-recently-worked engagement (login landing).
 // All reads are tenant-scoped through withTenant — RLS guarantees isolation.
 
+import { currencyLabel } from "@/lib/format";
 import type { PoolClient } from "pg";
 import { withTenant } from "@/lib/db";
 import {
@@ -421,7 +422,7 @@ export async function engagementAttention(
     // (UAT run3-B17: English metas and a hard-coded XAF on a French XOF file).
     const fr = locale === "fr";
     const tb = await tx.query<{ currency: string }>("SELECT currency FROM trial_balance WHERE engagement_id = $1", [engagementId]);
-    const currency = tb.rows[0]?.currency ?? "XAF";
+    const currency = currencyLabel(tb.rows[0]?.currency);
     const money = (x: number) => `${new Intl.NumberFormat(fr ? "fr-FR" : "en-US").format(x)} ${currency}`;
 
     const items: AttentionItem[] = [];
@@ -584,6 +585,15 @@ export const CONDITIONAL_TRIGGERS: Record<string, string> = {
   "S5.2": "uses_service_org",
   "S5.3": "has_internal_audit",
 };
+
+/** The file item of a task code on this engagement, when it exists. */
+export async function fileItemIdOf(engagementId: string, code: string): Promise<string | null> {
+  const { tenantId } = await requireTenant();
+  return withTenant(tenantId, async (tx) => {
+    const r = await tx.query<{ id: string }>("SELECT id FROM file_item WHERE engagement_id = $1 AND code = $2", [engagementId, code]);
+    return r.rows[0]?.id ?? null;
+  });
+}
 
 /** What activates a conditional task, stated exactly (F031). */
 const TRIGGER_TEXT: Record<string, { en: string; fr: string }> = {

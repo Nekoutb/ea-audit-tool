@@ -15,12 +15,14 @@ import { withTenant } from "@/lib/db";
 import { DEFAULT_FILE_INDEX } from "@/lib/file-index";
 import { atLeast } from "@/lib/rbac";
 import { ForbiddenError, requireWrite } from "@/lib/tenant";
+import { PARTNER_GATED, PARTNER_ONLY_APPROVAL, defaultPartnerSignoff } from "@/lib/signature-marks";
+
+export { PARTNER_GATED, PARTNER_ONLY_APPROVAL };
 
 export const TEAM_LADDER = ["staff", "senior", "manager", "senior_manager", "director", "partner"] as const;
 export type LadderRole = (typeof TEAM_LADDER)[number];
 
 /** Tasks whose approval belongs to the audit partner alone (operator rule). */
-export const PARTNER_ONLY_APPROVAL: ReadonlySet<string> = new Set(["P5.2", "P7.2", "S6.1", "S6.2", "S3.1", "C1.1"]);
 
 /**
  * Papers whose phase gate looks for a PARTNER signature (lib/gates.ts). A
@@ -28,7 +30,6 @@ export const PARTNER_ONLY_APPROVAL: ReadonlySet<string> = new Set(["P5.2", "P7.2
  * to sign — and the engagement partner pressing the list's R chip is recorded
  * as the partner they are, so the gate sees it (UAT B20).
  */
-export const PARTNER_GATED: ReadonlySet<string> = new Set(["P1.1", "P2.2", "P5.2", "S3.1", "P7.2"]);
 
 /**
  * The firm's default sign-off matrix (F002, decision of 2026-10-27): the
@@ -61,15 +62,7 @@ const DEFAULT_MATRIX: readonly { match: (code: string) => boolean; minPreparer: 
   { match: (c) => /^C[56]\./.test(c), minPreparer: "manager", minReviewer: "partner" },
 ];
 
-/** The partner's own sign-off in the default matrix: P1.1, P2.2, P5.2, P7.2, S3.1, S6.1, S6.2, C1.1, every C5.x, C6.2. */
-const DEFAULT_PARTNER_SIGNOFF: readonly string[] = ["P1.1", "P2.2", "P5.2", "P7.2", "S3.1", "S6.1", "S6.2", "C1.1", "C6.2"];
 
-/** The matrix's partner sign-off, united with the two older operator sets (none is dropped). */
-function defaultPartnerSignoff(code: string): boolean {
-  return (
-    DEFAULT_PARTNER_SIGNOFF.includes(code) || /^C5\./.test(code) || PARTNER_GATED.has(code) || PARTNER_ONLY_APPROVAL.has(code)
-  );
-}
 
 /** The floor for any code outside the matrix (none in the default index today). */
 export const DEFAULT_MIN_PREPARER: LadderRole = "staff";

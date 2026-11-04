@@ -1,7 +1,8 @@
 "use client";
 
+import { SignatureMarks } from "@/components/SignatureMarks";
 import { useRouter } from "next/navigation";
-import type { KeyboardEvent, MouseEvent } from "react";
+import { useTransition, type KeyboardEvent, type MouseEvent } from "react";
 import { signOffPreparerAction, signOffReviewerAction } from "@/app/actions/audit-file";
 import { startPageLoad } from "@/components/PageLoader";
 
@@ -69,6 +70,7 @@ export function PhaseTaskRow({
   engagementId,
   phaseSlug,
   returnTo,
+  fr = false,
   signPreparerLabel,
   signReviewerLabel,
   canSign = true,
@@ -80,6 +82,8 @@ export function PhaseTaskRow({
   phaseSlug: string;
   /** Sign-off redirect target when not the phase list (e.g. a group page). */
   returnTo?: string;
+  /** the French UI, for the signature-mark tooltips */
+  fr?: boolean;
   signPreparerLabel: string;
   signReviewerLabel: string;
   /** false while an earlier phase's gates are still open: the chips are inert (UAT B15) */
@@ -90,10 +94,11 @@ export function PhaseTaskRow({
   selfReviewLabel?: string;
 }) {
   const router = useRouter();
+  const [pending, startTransition] = useTransition();
 
   const open = () => {
     startPageLoad({ overlay: true });
-    router.push(row.href);
+    startTransition(() => router.push(row.href));
   };
   const onKey = (e: KeyboardEvent<HTMLTableRowElement>) => {
     if (e.key === "Enter" || e.key === " ") {
@@ -119,12 +124,14 @@ export function PhaseTaskRow({
       onClick={open}
       onKeyDown={onKey}
       data-testid={`phase-task-${row.code}`}
-      className="cursor-pointer outline-none transition-colors hover:bg-surface-2 focus-visible:bg-surface-2 focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-solid focus-visible:outline-emerald-600"
+      aria-busy={pending || undefined}
+      className="cursor-pointer outline-none transition-colors aria-busy:opacity-60 hover:bg-surface-2 focus-visible:bg-surface-2 focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-solid focus-visible:outline-emerald-600"
     >
       <td className="border-t border-line px-5 py-4">
         <div className="flex min-w-0 items-center gap-2.5">
           <span className="w-11 flex-shrink-0 font-mono text-[11px] font-bold text-ink-soft">{row.code}</span>
           <span className="truncate text-[13.5px] font-semibold text-ink">{row.title}</span>
+          <SignatureMarks code={row.code} fr={fr} />
         </div>
       </td>
 

@@ -1,3 +1,4 @@
+import { methodologyMatches } from "@/lib/search-methodology";
 import { withTenant } from "@/lib/db";
 import { visibilityClause } from "@/lib/engagement-access";
 import { requireTenant } from "@/lib/tenant";
@@ -79,8 +80,9 @@ function branch(
 
 const ITEM_JOIN = "LEFT JOIN file_item fi ON fi.id = %ALIAS%.file_item_id";
 /** A working-paper answer is keyed by code ('wp:E4.1' or 'P1.1'); resolve it to the task. */
-const WP_ITEM_JOIN =
-  "LEFT JOIN file_item fi ON fi.engagement_id = fr2.engagement_id AND fi.code = regexp_replace(fr2.code, '^wp:', '')";
+// Any storage prefix ('wp:', 'psp:'…) is stripped: a hit never shows a raw key (F081).
+const STORAGE_PREFIX = "'^[a-z_]+:'";
+const WP_ITEM_JOIN = `LEFT JOIN file_item fi ON fi.engagement_id = fr2.engagement_id AND fi.code = regexp_replace(fr2.code, ${STORAGE_PREFIX}, '')`;
 
 /**
  * The engagement itself, by its own name or its client's.
@@ -146,9 +148,11 @@ function branchesFor(fr: boolean): string[] {
   const taskTitle = fr
     ? "coalesce(nullif(fi2.title_fr, ''), nullif(fi2.title_en, ''), fi2.code)"
     : "coalesce(nullif(fi2.title_en, ''), nullif(fi2.title_fr, ''), fi2.code)";
+  // a procedure-programme answer says so ahead of the task's title
+  const prefixLabel = `CASE WHEN fr2.code LIKE 'psp:%' THEN '${fr ? "Programme de travail" : "Work programme"} — ' ELSE '' END`;
   const wpTitle = fr
-    ? "coalesce(nullif(fi.title_fr, ''), nullif(fi.title_en, ''), regexp_replace(fr2.code, '^wp:', ''))"
-    : "coalesce(nullif(fi.title_en, ''), nullif(fi.title_fr, ''), regexp_replace(fr2.code, '^wp:', ''))";
+    ? `${prefixLabel} || coalesce(nullif(fi.title_fr, ''), nullif(fi.title_en, ''), regexp_replace(fr2.code, ${STORAGE_PREFIX}, ''))`
+    : `${prefixLabel} || coalesce(nullif(fi.title_en, ''), nullif(fi.title_fr, ''), regexp_replace(fr2.code, ${STORAGE_PREFIX}, ''))`;
   return [
   CLIENT_BRANCH,
   ENGAGEMENT_BRANCH,
@@ -162,7 +166,7 @@ function branchesFor(fr: boolean): string[] {
   branch("control test", "control_test", "ct", "left(coalesce(ct.description, ''), 90)", "coalesce(ct.description, '') || ' ' || coalesce(ct.note, '')", ITEM_JOIN.replace("%ALIAS%", "ct"), "fi.code", true, "fi.id"),
   branch("SCOT", "scot", "s", "coalesce(s.name, '')", "coalesce(s.description, '') || ' ' || coalesce(s.strategy, '')", "", "NULL", true),
   branch("document", "document", "d", "coalesce(d.title, '')", "coalesce(d.title, '')", ITEM_JOIN.replace("%ALIAS%", "d"), "fi.code", true, "fi.id"),
-  branch("working paper", "form_response", "fr2", wpTitle, "coalesce(fr2.value #>> '{}', '')", WP_ITEM_JOIN, "regexp_replace(fr2.code, '^wp:', '')", true, "fi.id"),
+  branch("working paper", "form_response", "fr2", wpTitle, "coalesce(fr2.value #>> '{}', '')", WP_ITEM_JOIN, `regexp_replace(fr2.code, ${STORAGE_PREFIX}, '')`, true, "fi.id"),
   ];
 }
 
@@ -243,6 +247,45 @@ export async function search(rawQuery: string, locale: "en" | "fr" = "en"): Prom
     return true;
   });
 
+  // The methodology lives in code, not in the database (F079): the standards,
+  // guidance and procedures of each paper, matched in memory and joined to the
+  // tasks of the engagements this reader can open. They rank after the file's
+  // own text, which is more specific.
+  const matched = methodologyMatches(query, locale);
+  if (matched.size > 0) {
+    const hits = await withTenant(tenantId, (tx) =>
+      tx
+        .query<{ item_id: string; code: string; engagement_id: string; engagement_name: string; client_name: string }>(
+          `WITH q AS (SELECT $1::uuid AS uid)
+           SELECT fi.id AS item_id, fi.code, e.id AS engagement_id, coalesce(e.name, '') AS engagement_name, c.name AS client_name
+             FROM file_item fi
+             JOIN engagement e ON e.id = fi.engagement_id
+             JOIN client c ON c.id = e.client_id
+            WHERE fi.code = ANY($2)${visibility}
+            ORDER BY e.fiscal_year DESC, fi.sort_order
+            LIMIT ${MAX_HITS}`,
+          [userId, [...matched.keys()]],
+        )
+        .then((r) => r.rows),
+    ).catch(() => []);
+    const seenTask = new Set(rows.filter((r) => r.item_id).map((r) => `${r.kind === "task" ? r.item_id : ""}`));
+    for (const h of hits) {
+      const entry = matched.get(h.code);
+      if (!entry || seenTask.has(h.item_id)) continue;
+      rows.push({
+        kind: "methodology",
+        engagement_id: h.engagement_id,
+        engagement_name: h.engagement_name,
+        client_name: h.client_name,
+        code: h.code,
+        item_id: h.item_id,
+        title: entry.title,
+        snippet: entry.snippet,
+        rank: 0,
+      });
+    }
+  }
+
   const truncated = rows.length > MAX_HITS;
   return {
     query,
@@ -263,7 +306,7 @@ export async function search(rawQuery: string, locale: "en" | "fr" = "en"): Prom
         : r.item_id
         ? `/engagements/${r.engagement_id}/sections/${r.item_id}`
         : r.code
-          ? `/engagements/${r.engagement_id}/forms/${encodeURIComponent(r.code.replace(/^wp:/, ""))}`
+          ? `/engagements/${r.engagement_id}/forms/${encodeURIComponent(r.code.replace(/^[a-z_]+:/, ""))}`
           : `/engagements/${r.engagement_id}/dashboard`,
       rank: Number(r.rank),
     })),

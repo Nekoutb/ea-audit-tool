@@ -65,7 +65,7 @@ interface TaskRef {
   titleFr: string;
 }
 
-const LABELS: Record<string, { en: string; fr: string }> = {
+export const ARCHIVE_GATE_LABELS: Record<string, { en: string; fr: string }> = {
   report_issued: { en: "Report issued and dated", fr: "Rapport émis et daté" },
   sections_concluded: { en: "Every worked E-section concluded and reviewed; no program step left planned", fr: "Chaque section E travaillée conclue et revue ; aucune diligence laissée planifiée" },
   risks_concluded: { en: "Every risk concluded, or validly rebutted; mid-audit additions partner-approved", fr: "Chaque risque conclu, ou valablement réfuté ; ajouts en cours de mission approuvés par l'associé" },
@@ -317,7 +317,7 @@ export async function archiveChecklist(engagementId: string, locale: "en" | "fr"
 
   const hrefs = HREF_OF(engagementId);
   const gate = (g: GateResult | ArchiveGate): ChecklistGate => {
-    const label = LABELS[g.key] ?? { en: g.key, fr: g.key };
+    const label = ARCHIVE_GATE_LABELS[g.key] ?? { en: g.key, fr: g.key };
     const own = items[g.key] ?? [];
     const pending = "pending" in g ? g.pending : own.length;
     return {

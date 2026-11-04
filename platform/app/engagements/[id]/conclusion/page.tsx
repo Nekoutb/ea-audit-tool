@@ -1,3 +1,5 @@
+import { ARCHIVE_GATE_LABELS } from "@/lib/archive-checklist";
+import { uncommunicatedSignificantDeficiencies } from "@/lib/deficiencies";
 import { fmtDate } from "@/lib/format-date";
 import Link from "next/link";
 import { localizedTitle } from "@/lib/page-title";
@@ -51,6 +53,7 @@ export default async function ConclusionPage(props: {
 
   const engagement = await getEngagement(id);
   if (!engagement) notFound();
+  const uncommunicated = await uncommunicatedSignificantDeficiencies(id);
   const [gates, archGates, state, disclosure, subsequent, points, partner, client, holds, retention] = await Promise.all([
     completionGates(id),
     archiveGates(id),
@@ -224,6 +227,19 @@ export default async function ConclusionPage(props: {
       <Panel className="mt-6">
         <h2 className="text-sm font-semibold text-ink">{tc.gates}</h2>
         <GatesPanel gates={gates} locale={locale} />
+        {/* ISA 265 ¶9: read here as well as on C6.1 (D6); it blocks archiving, not the report */}
+        <p
+          className={`mt-3 text-[13px] ${uncommunicated > 0 ? "font-semibold text-rose" : "text-emerald-700 dark:text-emerald-400"}`}
+          data-testid="gate-deficiencies-communicated"
+          data-ok={String(uncommunicated === 0)}
+        >
+          {uncommunicated === 0 ? "✓ " : "✗ "}
+          {ARCHIVE_GATE_LABELS.deficiencies_communicated[locale]}
+          {uncommunicated > 0 ? ` : ${uncommunicated}` : ""}
+          <span className="ml-1 font-normal text-muted">
+            {locale === "fr" ? "(bloque l'archivage, C6.1)" : "(blocks archiving, C6.1)"}
+          </span>
+        </p>
       </Panel>
 
       {/* An archived file is read-only: the generate/save actions would only

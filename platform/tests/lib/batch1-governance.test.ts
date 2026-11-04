@@ -191,9 +191,8 @@ describe("F006 — the Forms assignment row", () => {
         team,
         preparerUserId,
         approverUserId,
-        labels: { preparer: "Preparer", approver: "Approver", conflict: en.planning.errors["assignment-preparer-is-approver"] },
+        labels: { preparer: "Preparer", approver: "Reviewer", conflict: en.planning.errors["assignment-preparer-is-approver"], saved: "Saved", undo: "Undo" },
         selectClass: "",
-        okClass: "",
       }),
     );
   const select = (html: string, role: string) =>
@@ -212,7 +211,7 @@ describe("F006 — the Forms assignment row", () => {
     const html = render("u-a", "u-a");
     expect(html).toContain('data-conflict="true"');
     expect(html).toContain("assign-conflict-E4.1");
-    expect(html).toContain("The same person is preparer and approver");
+    expect(html).toContain("The same person is preparer and reviewer");
     expect(select(html, "preparer")).toContain('value="u-a"');
     expect(select(html, "approver")).toContain('value="u-a"');
   });

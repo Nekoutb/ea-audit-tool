@@ -1,3 +1,4 @@
+import { numLocale } from "@/lib/format";
 import Link from "next/link";
 import { toolOutputsMissing } from "@/lib/tool-fed-papers";
 import { ArchiveChecklist } from "@/components/ArchiveChecklist";
@@ -40,6 +41,8 @@ import { WalkthroughBoard } from "@/components/WalkthroughBoard";
 import { TocBoard } from "@/components/TocBoard";
 import { FscpForm } from "@/components/FscpForm";
 import { EstimatesRegister, RelatedPartyRegister } from "@/components/PlanningRegisters";
+import { SignatureMarks } from "@/components/SignatureMarks";
+import { AssignSelect } from "@/components/AssignSelect";
 import { TriggerPanel } from "@/components/TriggerPanel";
 import { signedByNonAssignee } from "@/lib/signoff-matrix";
 import { FORM_DEFINITIONS, loadForm } from "@/lib/forms";
@@ -163,7 +166,7 @@ export default async function SectionPage(props: {
     approvedM = await approvedMateriality(id);
     const m = approvedM;
     if (m) {
-      const n = (x: number) => new Intl.NumberFormat("fr-FR").format(x);
+      const n = (x: number) => new Intl.NumberFormat(numLocale(locale)).format(x);
       // in the reader's language: benchmark name and status, not the raw keys (UAT B127)
       const fr61 = locale === "fr";
       const statusLabel =
@@ -187,7 +190,7 @@ export default async function SectionPage(props: {
     const [m, risks] = await Promise.all([approvedMateriality(id), listRisks(id)]);
     const live = risks.filter((r) => !r.rebutted);
     const sig = live.filter((r) => r.significant).length;
-    const n = (x: number) => new Intl.NumberFormat("fr-FR").format(x);
+    const n = (x: number) => new Intl.NumberFormat(numLocale(locale)).format(x);
     // In the reader's language (UAT B74: Part C came out in English on a French file).
     const fr61 = locale === "fr";
     const risksLine = fr61
@@ -227,17 +230,15 @@ export default async function SectionPage(props: {
 
   // The fixed working-paper screen (non-execution tasks): sign-off state,
   // deadline, and the linked tasks resolved to their pages.
-  // Practical considerations per questionnaire item: bespoke tips where the
-  // paper carries them, otherwise the procedure&apos;s expected sources.
+  // Practical considerations per questionnaire item, only where the paper
+  // carries a tip: the expected sources already stand under each procedure (F078).
   const isFr = locale === "fr";
   const practicalTips: TipEntry[] = [];
   for (const sec of paperDef.sections ?? []) {
     if (sec.kind === "proc") {
       for (const proc of sec.procs) {
         const tip = isFr ? (proc.tipFr ?? proc.tipEn) : (proc.tipEn ?? proc.tipFr);
-        const src = isFr ? proc.srcFr : proc.srcEn;
-        const text = tip ?? (src ? (isFr ? "Sources attendues : " : "Expected sources: ") + src : null);
-        if (text) practicalTips.push({ key: "p:" + proc.key, text });
+        if (tip) practicalTips.push({ key: "p:" + proc.key, text: tip });
       }
     }
     if (sec.kind === "yn") {
@@ -620,6 +621,7 @@ export default async function SectionPage(props: {
             <Chip tone={overdue ? "rose" : "good"}>{overdue ? (fr ? "En retard" : "Overdue") : fr ? "Dans les temps" : "On track"}</Chip>
           </span>
           <span className="flex items-center gap-1.5">
+            <SignatureMarks code={section.code} fr={fr} />
             {chipsLocked ? (
               <>
                 <span className={chip(pSigned)} title={pSigned ? `${taskInfo?.preparerName} · ${taskInfo?.preparerAt}` : ""} data-testid="chip-preparer" data-signed={String(pSigned)}>P</span>
@@ -661,21 +663,23 @@ export default async function SectionPage(props: {
           <span className="flex items-center gap-1.5 text-[12px] text-muted">
             {fr ? "Assigné à" : "Assigned to"}
             {canAssign && !viewOnly ? (
-              <form action={assignTaskAction.bind(null, id, itemId)} className="flex items-center gap-1 print:hidden">
-                <select name="assignee" defaultValue={assignee?.userId ?? ""} className={input} data-testid="task-assignee">
-                  <option value="">—</option>
-                  {assignableTeam.map((member) => (
-                    <option key={member.userId} value={member.userId}>{member.userName}</option>
-                  ))}
-                  {/* an assignee no longer on the team is shown, not hidden behind "—" (UAT run 2 B04) */}
-                  {assignee && !team.some((member) => member.userId === assignee.userId) ? (
-                    <option value={assignee.userId}>
-                      {assignee.name} {fr ? "(hors équipe)" : "(not on team)"}
-                    </option>
-                  ) : null}
-                </select>
-                <SubmitButton className="rounded-[var(--radius-atlas-sm)] border border-line-strong px-2 py-1 text-[11.5px] text-ink-soft hover:bg-surface-2" testId="task-assign-save">OK</SubmitButton>
-              </form>
+              <span className="flex items-center gap-1 print:hidden">
+                <AssignSelect
+                  action={assignTaskAction.bind(null, id, itemId)}
+                  current={assignee?.userId ?? ""}
+                  options={[
+                    ...assignableTeam.map((member) => ({ value: member.userId, label: member.userName })),
+                    // an assignee no longer on the team is shown, not hidden behind "—" (UAT run 2 B04)
+                    ...(assignee && !team.some((member) => member.userId === assignee.userId)
+                      ? [{ value: assignee.userId, label: `${assignee.name} ${fr ? "(hors équipe)" : "(not on team)"}` }]
+                      : []),
+                  ]}
+                  selectClass={input}
+                  testId="task-assignee"
+                  ariaLabel={fr ? "Assigné à" : "Assigned to"}
+                  labels={{ saved: fr ? "Affectation enregistrée" : "Assignment saved", undo: fr ? "Annuler" : "Undo" }}
+                />
+              </span>
             ) : null}
             {canAssign && !viewOnly ? (
               <b className="hidden text-ink-soft print:inline">{assignee?.name ?? "—"}</b>
@@ -838,18 +842,24 @@ export default async function SectionPage(props: {
         >
           ←
         </Link>
-        <h1 className="wp-print-title min-w-0 flex-1 truncate text-[15px] font-bold tracking-[-0.01em] text-ink">
+        {/* the title has a row of its own (F084): nothing beside it can squeeze it to a letter */}
+        <h1
+          className="wp-print-title line-clamp-2 min-w-0 flex-1 basis-[60%] text-[15px] font-bold tracking-[-0.01em] text-ink"
+          title={`${section.code} — ${locale === "fr" ? section.title_fr : section.title_en}`}
+        >
           {section.code} — {locale === "fr" ? section.title_fr : section.title_en}
-          {hasTools ? (
-            <span
-              className="ml-2 inline-flex items-center rounded-md bg-[var(--color-warn-soft)] px-1.5 py-0.5 align-middle text-[10px] font-extrabold text-warn"
-              title={fr ? "Des outils sont utilisés sur cette tâche" : "Tools are used on this task"}
-              data-testid="tl-badge"
-            >
-              TL
-            </span>
-          ) : null}
         </h1>
+        {hasTools ? (
+          <a
+            href="#wp-linked-tasks"
+            className="inline-flex flex-shrink-0 items-center rounded-md bg-[var(--color-warn-soft)] px-1.5 py-0.5 text-[10.5px] font-bold text-warn"
+            title={fr ? "Des outils alimentent cette tâche : voir les liens" : "Tools feed this task: see the links"}
+            data-testid="tl-badge"
+          >
+            {fr ? "Outil lié" : "Linked tool"}
+          </a>
+        ) : null}
+        <div className="w-full" aria-hidden />
         <span className="hidden max-w-[220px] truncate text-[12px] text-muted lg:block">
           {engagement.name ?? engagement.clientName}
         </span>
@@ -859,6 +869,7 @@ export default async function SectionPage(props: {
           <Chip tone={overdue ? "rose" : "good"}>{overdue ? (fr ? "En retard" : "Overdue") : fr ? "Dans les temps" : "On track"}</Chip>
         </span>
         <span className="flex items-center gap-1.5">
+          <SignatureMarks code={section.code} fr={fr} />
           {chipsLocked ? (
             <>
               <span className={chip(pSigned)} title={pSigned ? `${taskInfo?.preparerName} · ${taskInfo?.preparerAt}` : ""} data-testid="chip-preparer" data-signed={String(pSigned)}>P</span>
@@ -1038,7 +1049,7 @@ export default async function SectionPage(props: {
 
       <div className={`wp-print-flow grid min-h-0 flex-1 grid-cols-1 gap-3 xl:overflow-hidden ${wideBoard ? "xl:grid-cols-[22fr_78fr]" : "xl:grid-cols-[25fr_50fr_25fr]"}`}>
         <div className="flex min-h-0 flex-col gap-3 xl:overflow-hidden">
-        <section className="flex min-h-0 flex-col overflow-hidden rounded-[var(--radius-atlas)] border border-glass-border bg-surface px-4 py-3 shadow-atlas-sm backdrop-blur-xl xl:max-h-[50%]" data-testid="wp-guidance">
+        <section className="flex min-h-0 flex-1 flex-col overflow-y-auto rounded-[var(--radius-atlas)] border border-glass-border bg-surface px-4 py-3 shadow-atlas-sm backdrop-blur-xl" data-testid="wp-guidance">
           <h2 className="text-[11px] font-extrabold uppercase tracking-[0.07em] text-muted">{fr ? "Orientations" : "Guidance"}</h2>
           <p className="mt-1 text-[10.5px] font-semibold text-emerald-700 dark:text-emerald-400">{paperDef.std}</p>
           <p className="text-[10.5px] text-muted">{editionLabel}</p>
@@ -1090,9 +1101,9 @@ export default async function SectionPage(props: {
           {approvedM ? (
             <div className="mb-2 flex flex-wrap items-center gap-x-4 gap-y-1 rounded-[var(--radius-atlas-sm)] border border-emerald-600/30 bg-emerald-50 px-3 py-2 text-[12px] dark:bg-emerald-950/30" data-testid="wp-materiality-strip">
               <span className="text-muted">{fr ? "Base approuvée" : "Approved basis"}: <b className="text-ink">{approvedM.benchmark}</b> · {approvedM.percentage}%</span>
-              <span className="text-muted">{fr ? "Seuil de signification global" : "Overall materiality"}: <b className="text-ink tnum">{new Intl.NumberFormat("fr-FR").format(approvedM.overall)}</b></span>
-              <span className="text-muted">{fr ? "Seuil de travail" : "Performance materiality"}: <b className="text-ink tnum">{new Intl.NumberFormat("fr-FR").format(approvedM.performance)}</b></span>
-              <span className="text-muted">{fr ? "Manifestement négligeable" : "Clearly trivial"}: <b className="text-ink tnum">{new Intl.NumberFormat("fr-FR").format(approvedM.trivial)}</b></span>
+              <span className="text-muted">{fr ? "Seuil de signification global" : "Overall materiality"}: <b className="text-ink tnum">{new Intl.NumberFormat(numLocale(locale)).format(approvedM.overall)}</b></span>
+              <span className="text-muted">{fr ? "Seuil de travail" : "Performance materiality"}: <b className="text-ink tnum">{new Intl.NumberFormat(numLocale(locale)).format(approvedM.performance)}</b></span>
+              <span className="text-muted">{fr ? "Manifestement négligeable" : "Clearly trivial"}: <b className="text-ink tnum">{new Intl.NumberFormat(numLocale(locale)).format(approvedM.trivial)}</b></span>
             </div>
           ) : null}
           {/* E6.10 tie-out board (UAT B114): the trial balance's own aggregates,
@@ -1118,22 +1129,22 @@ export default async function SectionPage(props: {
                         </td>
                         <td className="px-2 py-1 text-right tnum">—</td>
                         <td className="px-2 py-1 text-right tnum">—</td>
-                        <td className={`px-2 py-1 text-right tnum ${c.ok ? "text-emerald-700" : "font-semibold text-rose"}`}>{c.ok ? "0" : new Intl.NumberFormat("fr-FR").format(Math.round(c.amount) || 0)}</td>
+                        <td className={`px-2 py-1 text-right tnum ${c.ok ? "text-emerald-700" : "font-semibold text-rose"}`}>{c.ok ? "0" : new Intl.NumberFormat(numLocale(locale)).format(Math.round(c.amount) || 0)}</td>
                       </tr>
                     ))}
                     {tieout.clientDiffs.map((d) => (
                       <tr key={d.ref} className="border-t border-line bg-[var(--color-rose-soft)]" data-testid={`tieout-diff-${d.ref}`}>
                         <td className="px-2 py-1 text-ink">{d.ref}</td>
-                        <td className="px-2 py-1 text-right tnum">{new Intl.NumberFormat("fr-FR").format(d.recomputed)}</td>
-                        <td className="px-2 py-1 text-right tnum">{new Intl.NumberFormat("fr-FR").format(d.client)}</td>
-                        <td className="px-2 py-1 text-right font-semibold text-rose tnum">{new Intl.NumberFormat("fr-FR").format(d.difference)}</td>
+                        <td className="px-2 py-1 text-right tnum">{new Intl.NumberFormat(numLocale(locale)).format(d.recomputed)}</td>
+                        <td className="px-2 py-1 text-right tnum">{new Intl.NumberFormat(numLocale(locale)).format(d.client)}</td>
+                        <td className="px-2 py-1 text-right font-semibold text-rose tnum">{new Intl.NumberFormat(numLocale(locale)).format(d.difference)}</td>
                       </tr>
                     ))}
                     {tieout.bilan.map((l) => (
                       <tr key={l.ref} className="border-t border-line" data-testid={`tieout-line-${l.ref}`}>
                         <td className="px-2 py-1 text-ink-soft">{l.ref} · {fr ? l.label : l.labelEn ?? l.label}</td>
                         {/* "|| 0" folds a rounded -0 into 0 (UAT run2-B144) */}
-                        <td className="px-2 py-1 text-right tnum">{new Intl.NumberFormat("fr-FR").format(Math.round(l.amount) || 0)}</td>
+                        <td className="px-2 py-1 text-right tnum">{new Intl.NumberFormat(numLocale(locale)).format(Math.round(l.amount) || 0)}</td>
                         <td className="px-2 py-1 text-right text-muted tnum">{fr ? "à pointer" : "to tie"}</td>
                         <td className="px-2 py-1 text-right tnum">—</td>
                       </tr>
@@ -1288,7 +1299,7 @@ export default async function SectionPage(props: {
         <section className="flex min-h-0 flex-col gap-3 xl:overflow-hidden">
           <TaskAttachments fileItemId={itemId} initial={attachments} deletedInitial={deletedAttachments} documents={itemDocuments} locale={fr ? "fr" : "en"} canManage={canManageEvidence && !viewOnly} readOnly={viewOnly} readOnlyReason={archived ? "archived" : isEqr ? "eqr" : "role"} compact />
           <div className="flex min-h-0 flex-1 flex-col overflow-hidden rounded-[var(--radius-atlas)] border border-glass-border bg-surface px-4 py-3 shadow-atlas-sm backdrop-blur-xl" data-testid="wp-linked">
-            <h2 className="text-[11px] font-extrabold uppercase tracking-[0.07em] text-muted">
+            <h2 id="wp-linked-tasks" className="text-[11px] font-extrabold uppercase tracking-[0.07em] text-muted">
               {fr ? "Tâches liées" : "Linked tasks"}
             </h2>
             <ul className="mt-1.5 flex min-h-0 flex-col overflow-hidden">
@@ -1297,7 +1308,7 @@ export default async function SectionPage(props: {
                   {/* the E1.2 paper built from this file's controls, grids and
                       exceptions — the pre-filled one, not the blank template */}
                   <a href={`/api/engagements/${id}/toc/export?locale=${locale}`} className="flex items-baseline gap-1.5 rounded-[var(--radius-atlas-xs)] px-1.5 py-1 text-[12.3px] font-semibold text-emerald-700 transition hover:bg-surface-2 dark:text-emerald-400" data-testid="linked-toc-export">
-                    <span className="font-mono text-[10.5px] text-muted">TL</span>
+                    <span className="text-[10.5px] font-semibold text-muted">{fr ? "Outil" : "Tool"}</span>
                     <span className="min-w-0 flex-1 truncate">{fr ? "Générer le papier E1.2 (pré-rempli, .xlsx)" : "Generate the E1.2 paper (pre-filled, .xlsx)"}</span>
                   </a>
                 </li>
@@ -1305,7 +1316,7 @@ export default async function SectionPage(props: {
               {["S2.2", "S2.4", "S5.5"].includes(section.code) ? (
                 <li>
                   <Link href={`/engagements/${id}/tools/sampling`} className="flex items-baseline gap-1.5 rounded-[var(--radius-atlas-xs)] px-1.5 py-1 text-[12.3px] font-semibold text-emerald-700 transition hover:bg-surface-2 dark:text-emerald-400" data-testid="linked-sampling-tool">
-                    <span className="font-mono text-[10.5px] text-muted">TL</span>
+                    <span className="text-[10.5px] font-semibold text-muted">{fr ? "Outil" : "Tool"}</span>
                     <span className="min-w-0 flex-1 truncate">{fr ? "Outil d'échantillonnage — déterminer l'échantillon" : "Sampling tool — determine the sample"}</span>
                   </Link>
                 </li>
@@ -1314,7 +1325,7 @@ export default async function SectionPage(props: {
                 <li>
                   {/* the ISA 520 substantive analytics designed here are built in their own tool (F038) */}
                   <Link href={`/engagements/${id}/tools/sap`} className="flex items-baseline gap-1.5 rounded-[var(--radius-atlas-xs)] px-1.5 py-1 text-[12.3px] font-semibold text-emerald-700 transition hover:bg-surface-2 dark:text-emerald-400" data-testid="linked-sap-tool">
-                    <span className="font-mono text-[10.5px] text-muted">TL</span>
+                    <span className="text-[10.5px] font-semibold text-muted">{fr ? "Outil" : "Tool"}</span>
                     <span className="min-w-0 flex-1 truncate">{fr ? "Procédures analytiques substantives — attente, seuil, écart (ISA 520)" : "Substantive analytical procedures — expectation, threshold, difference (ISA 520)"}</span>
                   </Link>
                 </li>
@@ -1322,7 +1333,7 @@ export default async function SectionPage(props: {
               {section.code === "C5.11" ? (
                 <li>
                   <Link href={`/engagements/${id}/findings`} className="flex items-baseline gap-1.5 rounded-[var(--radius-atlas-xs)] px-1.5 py-1 text-[12.3px] font-semibold text-emerald-700 transition hover:bg-surface-2 dark:text-emerald-400" data-testid="linked-findings-register">
-                    <span className="font-mono text-[10.5px] text-muted">TL</span>
+                    <span className="text-[10.5px] font-semibold text-muted">{fr ? "Outil" : "Tool"}</span>
                     <span className="min-w-0 flex-1 truncate">{fr ? "Registre des constats — consigner une déficience" : "Findings register — raise a deficiency"}</span>
                   </Link>
                 </li>
@@ -1330,7 +1341,7 @@ export default async function SectionPage(props: {
               {section.code === "C1.1" ? (
                 <li>
                   <Link href={`/engagements/${id}/tools/sad`} className="flex items-baseline gap-1.5 rounded-[var(--radius-atlas-xs)] px-1.5 py-1 text-[12.3px] font-semibold text-emerald-700 transition hover:bg-surface-2 dark:text-emerald-400" data-testid="linked-sad-tool">
-                    <span className="font-mono text-[10.5px] text-muted">TL</span>
+                    <span className="text-[10.5px] font-semibold text-muted">{fr ? "Outil" : "Tool"}</span>
                     <span className="min-w-0 flex-1 truncate">{fr ? "Récapitulatif des écarts d'audit (SAD)" : "Summary of Audit Differences (SAD)"}</span>
                   </Link>
                 </li>
