@@ -5,6 +5,8 @@
 // The file never leaves the browser between the two calls — preview and ingest
 // each receive it directly.
 
+import { FilePicker } from "@/components/FilePicker";
+import { numLocale } from "@/lib/format";
 import { useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import type { Messages } from "@/lib/i18n";
@@ -59,7 +61,7 @@ const VARIANT_PAIR: Partial<Record<TbColumn, TbColumn>> = {
   debit: "credit", credit: "debit",
 };
 
-const fmt = (n: number) => new Intl.NumberFormat("fr-FR").format(n);
+const fmt = (n: number, locale: "en" | "fr") => new Intl.NumberFormat(numLocale(locale)).format(n);
 
 /** Accepted layouts and the template, shown before a file is chosen (F016). */
 function TbFormatHelp({ fr }: { fr: boolean }) {
@@ -179,14 +181,7 @@ export function TbAnalyzer({
           <option value="post_audit">{fr ? "TB post-audit" : "Post-audit TB"}</option>
           <option value="prior_year">{fr ? "TB exercice précédent" : "Prior year TB"}</option>
         </select>
-        <input
-          ref={fileRef}
-          type="file"
-          accept=".csv,.xlsx,.txt"
-          data-testid="tb-file"
-          onChange={() => { setPreview(null); setStatus(null); setError(null); }}
-          className="text-sm text-ink-soft file:mr-3 file:rounded-[var(--radius-atlas-sm)] file:border file:border-line-strong file:bg-surface file:px-3 file:py-1.5 file:text-sm file:font-medium file:text-ink-soft"
-        />
+        <FilePicker inputRef={fileRef} accept=".csv,.xlsx,.txt" locale={locale} testId="tb-file" onChange={() => { setPreview(null); setStatus(null); setError(null); }} />
         <label className="flex items-center gap-1.5 text-[12px] text-ink-soft">
           <input
             type="checkbox"
@@ -368,8 +363,8 @@ export function TbAnalyzer({
                       <tr key={row.account} className="border-t border-line">
                         <td className="px-3 py-1 font-mono">{row.account}</td>
                         <td className="px-3 py-1">{row.label ?? "—"}</td>
-                        <td className="px-3 py-1 text-right tnum">{fmt(row.opening)}</td>
-                        <td className="px-3 py-1 text-right tnum">{fmt(row.closing)}</td>
+                        <td className="px-3 py-1 text-right tnum">{fmt(row.opening, locale)}</td>
+                        <td className="px-3 py-1 text-right tnum">{fmt(row.closing, locale)}</td>
                       </tr>
                     ))}
                   </tbody>
@@ -410,7 +405,7 @@ export function TbAnalyzer({
                       <tr key={c.prefix} className={`border-t border-line ${indexMap[c.prefix] ? "" : "bg-[var(--color-warn-soft)]"}`} data-testid={`tb-class-${c.prefix}`}>
                         <td className="px-3 py-1 font-mono font-semibold">{c.prefix}</td>
                         <td className="px-3 py-1 text-right tnum">{c.accountCount}</td>
-                        <td className="px-3 py-1 text-right tnum">{fmt(c.closingTotal)}</td>
+                        <td className="px-3 py-1 text-right tnum">{fmt(c.closingTotal, locale)}</td>
                         <td className="px-3 py-1 text-ink-soft" data-testid={`tb-type-${c.prefix}`}>{idxDef?.accountType ?? "—"}</td>
                         <td className="px-3 py-1">
                           {/* picking a class re-homes the prefix to that class's first index */}

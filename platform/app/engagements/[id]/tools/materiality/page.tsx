@@ -1,3 +1,4 @@
+import { numLocale } from "@/lib/format";
 import Link from "next/link";
 import { localizedTitle } from "@/lib/page-title";
 import { notFound, redirect } from "next/navigation";
@@ -79,7 +80,7 @@ export default async function MaterialityPage(props: {
         ) : null}
         {tbBases ? (
           <span className="text-[11px] text-muted" data-testid="materiality-asset-basis">
-            {assetBasisLabel(locale, tbVersion)}: <span className="tnum">{new Intl.NumberFormat("fr-FR").format(tbBases.total_assets)}</span>
+            {assetBasisLabel(locale, tbVersion)}: <span className="tnum">{new Intl.NumberFormat(numLocale(locale)).format(tbBases.total_assets)}</span>
           </span>
         ) : (
           <p className="mt-3 text-[12.5px] text-muted" data-testid="materiality-no-tb">

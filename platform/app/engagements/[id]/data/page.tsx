@@ -1,3 +1,4 @@
+import { numLocale } from "@/lib/format";
 import Link from "next/link";
 import { localizedTitle } from "@/lib/page-title";
 import { notFound, redirect } from "next/navigation";
@@ -51,7 +52,7 @@ export default async function DataPage(props: {
       [...previousOf].map(async ([vNo, prevNo]) => [vNo, await diffTbVersions(id, prevNo, vNo)] as [number, TbDiffLine[]]),
     ),
   );
-  const amount = new Intl.NumberFormat(fr ? "fr-FR" : "en-US", { maximumFractionDigits: 0 });
+  const amount = new Intl.NumberFormat(numLocale(locale), { maximumFractionDigits: 0 });
   const slotLabel = (timing: "pre_audit" | "post_audit" | "prior_year") =>
     timing === "pre_audit" ? (fr ? "pré-audit" : "pre-audit") : timing === "post_audit" ? (fr ? "post-audit" : "post-audit") : fr ? "N-1" : "prior year";
   const slotOf = (timing: "pre_audit" | "post_audit" | "prior_year") => timings.find((x) => x.timing === timing);

@@ -6,6 +6,7 @@
 // the analyses to come. A units switch reformats amount rows without moving a
 // single column.
 
+import { numLocale } from "@/lib/format";
 import { useRef, useState } from "react";
 import type { RatioGroup, RatioRow } from "@/lib/financial-analysis";
 import { RATIO_FORMULAS, relativeVariance } from "@/lib/ratio-formulas";
@@ -35,7 +36,7 @@ const GROUP_LABEL: Record<RatioGroup, { en: string; fr: string }> = {
 
 /** A plain number in the UI language: "4,63" in French, "4.63" in English (UAT run2-B139). */
 function fmtNumber(value: number, locale: "en" | "fr", digits = 2): string {
-  return new Intl.NumberFormat(locale === "fr" ? "fr-FR" : "en-US", { maximumFractionDigits: digits }).format(value);
+  return new Intl.NumberFormat(numLocale(locale), { maximumFractionDigits: digits }).format(value);
 }
 
 /**
@@ -46,7 +47,7 @@ function fmtValue(row: RatioRow, value: number | null, unit: Unit, locale: "en" 
   if (value === null) return "—";
   if (row.unit === "FCFA") {
     const scaled = unit === "k" ? value / 1_000 : unit === "m" ? value / 1_000_000 : value;
-    return new Intl.NumberFormat("fr-FR", { maximumFractionDigits: unit === "m" ? 2 : 0 }).format(scaled);
+    return new Intl.NumberFormat(numLocale(locale), { maximumFractionDigits: unit === "m" ? 2 : 0 }).format(scaled);
   }
   if (row.unit === "%") return `${fmtNumber(value, locale)}${variance ? " pts" : locale === "fr" ? " %" : "%"}`;
   return fmtNumber(value, locale);

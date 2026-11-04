@@ -4,6 +4,7 @@
 // other grid in the tool, collapsible, with a units switch that never moves a
 // column.
 
+import { numLocale } from "@/lib/format";
 import { fmtDate } from "@/lib/format-date";
 import { useState } from "react";
 import type { AgingResult } from "@/lib/aging";
@@ -38,7 +39,7 @@ export function AgingGrid({
   const [open, setOpen] = useState(true);
   const fmt = (n: number) => {
     const v = unit === "k" ? n / 1_000 : unit === "m" ? n / 1_000_000 : n;
-    return new Intl.NumberFormat("fr-FR", { maximumFractionDigits: unit === "m" ? 2 : 0 }).format(v);
+    return new Intl.NumberFormat(numLocale(locale), { maximumFractionDigits: unit === "m" ? 2 : 0 }).format(v);
   };
   const unitBtn = (value: Unit, label: string) => (
     <button

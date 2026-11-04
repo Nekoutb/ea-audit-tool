@@ -1,5 +1,6 @@
 "use client";
 
+import { FilePicker } from "@/components/FilePicker";
 import { useActionState } from "react";
 import { importSignoffMatrixAction, type MatrixImportState } from "@/app/actions/signoff-policy";
 
@@ -20,14 +21,7 @@ export function SignoffMatrixImport({
     <form action={action} className="flex flex-col gap-3" data-testid="signoff-matrix-import">
       <label className="flex flex-col gap-1 text-sm text-ink-soft">
         {fr ? "Importer une matrice complétée (Excel)" : "Import a completed matrix (Excel)"}
-        <input
-          type="file"
-          name="matrix"
-          accept=".xlsx,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
-          required
-          className="text-sm text-ink"
-          data-testid="signoff-matrix-file"
-        />
+        <FilePicker name="matrix" accept=".xlsx,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" required locale={locale} testId="signoff-matrix-file" />
       </label>
       <div>
         <button

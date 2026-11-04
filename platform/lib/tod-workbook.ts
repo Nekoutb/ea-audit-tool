@@ -3,6 +3,7 @@
 // parameters (CRA from S3.1, key-item threshold, TE, assurance), its key
 // items and its representative sample, with the columns the tester fills as
 // they go. Pure over TodSideView; lib/tod-export.ts assembles the view.
+import { currencyLabel } from "@/lib/format";
 import ExcelJS from "exceljs";
 import type { TodAssurance, TodCra, TodPlan } from "@/lib/tod-plan";
 
@@ -125,7 +126,7 @@ export async function buildTodWorkbook(view: TodSideView): Promise<Buffer> {
     [T("Client / company", "Client / société"), view.clientName],
     [T("Fiscal year", "Exercice"), String(view.fiscalYear)],
     [T("Period end", "Clôture"), view.periodEnd],
-    [T("Currency", "Devise"), view.currency],
+    [T("Currency", "Devise"), currencyLabel(view.currency)],
     [T("Ledger tested", "Grand livre testé"), view.ledgerFilename ?? T("— none registered —", "— aucun enregistré —")],
     [T("Tolerable error (TE)", "Erreur tolérable (TE)"), view.te],
     [T("Prepared by", "Préparé par"), view.preparer ?? ""],

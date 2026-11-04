@@ -6,6 +6,7 @@
 // default; departing from the default demands a justification, and the grid
 // says so until one is written.
 
+import { numLocale } from "@/lib/format";
 import { useState } from "react";
 import type { SignificantAccountsView } from "@/lib/significant-accounts";
 import { LEAD_INDEX_BY_CODE } from "@/lib/lead-classes";
@@ -44,7 +45,7 @@ export function SignificantAccounts({
 
   const fmt = (n: number) => {
     const v = unit === "k" ? n / 1_000 : unit === "m" ? n / 1_000_000 : n;
-    return new Intl.NumberFormat("fr-FR", { maximumFractionDigits: unit === "m" ? 2 : 0 }).format(v);
+    return new Intl.NumberFormat(numLocale(locale), { maximumFractionDigits: unit === "m" ? 2 : 0 }).format(v);
   };
 
   async function save(

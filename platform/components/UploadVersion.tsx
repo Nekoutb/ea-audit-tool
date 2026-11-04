@@ -1,5 +1,6 @@
 "use client";
 
+import { FilePicker } from "@/components/FilePicker";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 import type { Messages } from "@/lib/i18n";
@@ -7,9 +8,11 @@ import type { Messages } from "@/lib/i18n";
 export function UploadVersion({
   documentId,
   messages,
+  locale = "fr",
 }: {
   documentId: string;
   messages: Messages["document"];
+  locale?: "en" | "fr";
 }) {
   const router = useRouter();
   const [error, setError] = useState<string | null>(null);
@@ -36,14 +39,7 @@ export function UploadVersion({
 
   return (
     <form onSubmit={onSubmit} className="flex flex-wrap items-center gap-3">
-      <input
-        type="file"
-        name="file"
-        accept=".docx"
-        required
-        data-testid="upload-file"
-        className="text-sm text-ink-soft file:mr-3 file:rounded-[var(--radius-atlas-sm)] file:border file:border-line-strong file:bg-surface file:px-3 file:py-1.5 file:text-sm file:font-medium file:text-ink-soft"
-      />
+      <FilePicker name="file" accept=".docx" required locale={locale} testId="upload-file" />
       <button
         type="submit"
         disabled={pending}

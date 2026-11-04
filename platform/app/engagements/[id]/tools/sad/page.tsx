@@ -1,3 +1,4 @@
+import { numLocale } from "@/lib/format";
 import Link from "next/link";
 import { localizedTitle } from "@/lib/page-title";
 import { notFound, redirect } from "next/navigation";
@@ -53,7 +54,7 @@ export default async function SadPage(props: { params: Promise<{ id: string }> }
           </p>
           {view.fsCaptions ? (
             <p className="text-[11px] text-muted" data-testid="sad-asset-basis">
-              {assetBasisLabel(locale, tbVersion)}: <span className="tnum">{new Intl.NumberFormat("fr-FR").format(view.fsCaptions[0] + view.fsCaptions[1])}</span>
+              {assetBasisLabel(locale, tbVersion)}: <span className="tnum">{new Intl.NumberFormat(numLocale(locale)).format(view.fsCaptions[0] + view.fsCaptions[1])}</span>
             </p>
           ) : null}
         </div>

@@ -6,6 +6,7 @@
 // Commentary auto-saves; a units switch shows bare figures in FCFA, '000 or
 // millions.
 
+import { numLocale } from "@/lib/format";
 import Link from "next/link";
 import { useRef, useState } from "react";
 import type { ApLeadChecks, ApLeadSchedule } from "@/lib/analytical-procedures";
@@ -17,11 +18,11 @@ const CELL = "border border-[color:var(--line-strong,#c9c9c9)] px-1.5 py-[2px] t
 const NUM = `${CELL} w-px text-right tnum`;
 const NUMHEAD = `${NUM} max-w-[76px] whitespace-normal leading-tight align-bottom`;
 
-function useFmt(unit: Unit) {
+function useFmt(unit: Unit, locale: "en" | "fr") {
   return (n: number): string => {
-    if (unit === "k") return new Intl.NumberFormat("fr-FR", { maximumFractionDigits: 0 }).format(n / 1_000);
-    if (unit === "m") return new Intl.NumberFormat("fr-FR", { maximumFractionDigits: 2 }).format(n / 1_000_000);
-    return new Intl.NumberFormat("fr-FR").format(n);
+    if (unit === "k") return new Intl.NumberFormat(numLocale(locale), { maximumFractionDigits: 0 }).format(n / 1_000);
+    if (unit === "m") return new Intl.NumberFormat(numLocale(locale), { maximumFractionDigits: 2 }).format(n / 1_000_000);
+    return new Intl.NumberFormat(numLocale(locale)).format(n);
   };
 }
 
@@ -102,7 +103,7 @@ function CommentCell({
 
 /** Contrôles (F018): what ties, what does not, and what the schedule left out. */
 function ChecksStrip({ engagementId, checks, fr }: { engagementId: string; checks: ApLeadChecks; fr: boolean }) {
-  const f = (n: number) => new Intl.NumberFormat("fr-FR").format(n);
+  const f = (n: number) => new Intl.NumberFormat(numLocale(fr ? "fr" : "en")).format(n);
   const item = (ok: boolean, label: string, testId: string) => (
     <span className={ok ? "text-emerald-700 dark:text-emerald-400" : "font-semibold text-rose"} data-testid={testId} data-ok={String(ok)}>
       {ok ? "✓" : "✗"} {label}
@@ -150,12 +151,12 @@ export function ApSchedules({
   const fr = locale === "fr";
   const [unit, setUnit] = useState<Unit>("fcfa");
   const [open, setOpen] = useState<Record<string, boolean>>({});
-  const fmt = useFmt(unit);
+  const fmt = useFmt(unit, locale);
   const overall = useAutoSave(engagementId, "OVR", "total", comments["OVR|total"] ?? "");
   // widths anchor to the FCFA rendering so switching units never moves a column
   const numWidth = (() => {
     let longest = 8;
-    const fcfa = new Intl.NumberFormat("fr-FR");
+    const fcfa = new Intl.NumberFormat(numLocale(locale));
     for (const sc of schedules) {
       for (const v of [sc.closing, sc.prior, sc.movement]) longest = Math.max(longest, fcfa.format(v).length);
       for (const a of sc.accounts) for (const v of [a.closing, a.prior, a.movement]) longest = Math.max(longest, fcfa.format(v).length);

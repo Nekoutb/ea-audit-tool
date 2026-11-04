@@ -6,6 +6,7 @@
 // declared as CSS custom properties on `.xl-sheet`, with a `[data-theme="dark"]`
 // override block that follows the project's dark-mode convention.
 
+import { numLocale } from "@/lib/format";
 import type { ReactNode } from "react";
 
 function cx(...parts: Array<string | false | null | undefined>): string {
@@ -116,7 +117,7 @@ const ALIGN: Record<SheetAlign, string> = {
   center: "xl-a-center",
 };
 
-const NUM_FMT = new Intl.NumberFormat("fr-FR", { maximumFractionDigits: 0 });
+const NUM_FMT = new Intl.NumberFormat(numLocale("fr"), { maximumFractionDigits: 0 });
 
 /**
  * Workbook number rule: thousands separated, negatives in parentheses and in
@@ -125,15 +126,15 @@ const NUM_FMT = new Intl.NumberFormat("fr-FR", { maximumFractionDigits: 0 });
  */
 export function num(
   value: number | null | undefined,
-  opts?: { digits?: number; minDigits?: number; suffix?: string; signed?: boolean },
+  opts?: { digits?: number; minDigits?: number; suffix?: string; signed?: boolean; locale?: "en" | "fr" },
 ): ReactNode {
   if (value === null || value === undefined || Number.isNaN(value)) return "—";
   const digits = opts?.digits ?? 0;
   const minDigits = opts?.minDigits ?? 0;
   const fmt =
-    digits === 0 && minDigits === 0
+    digits === 0 && minDigits === 0 && opts?.locale !== "en"
       ? NUM_FMT
-      : new Intl.NumberFormat("fr-FR", {
+      : new Intl.NumberFormat(numLocale(opts?.locale), {
           minimumFractionDigits: minDigits,
           maximumFractionDigits: Math.max(digits, minDigits),
         });

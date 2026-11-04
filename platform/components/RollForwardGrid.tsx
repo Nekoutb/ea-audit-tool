@@ -4,6 +4,7 @@
 // closing, against closing per TB. Collapsed to its result line until clicked;
 // the same fixed Excel geometry as every other grid.
 
+import { numLocale } from "@/lib/format";
 import { useState } from "react";
 import type { RollForwardResult } from "@/lib/tb-rollforward";
 import { GRID_CELL, GRID_HEAD, GRID_NUM } from "@/components/ui/grid";
@@ -26,7 +27,7 @@ export function RollForwardGrid({ result, locale }: { result: RollForwardResult;
   const [unit, setUnit] = useState<Unit>("fcfa");
   const fmt = (n: number) => {
     const v = unit === "k" ? n / 1_000 : unit === "m" ? n / 1_000_000 : n;
-    return new Intl.NumberFormat("fr-FR", { maximumFractionDigits: unit === "m" ? 2 : 0 }).format(v);
+    return new Intl.NumberFormat(numLocale(locale), { maximumFractionDigits: unit === "m" ? 2 : 0 }).format(v);
   };
   const unitBtn = (value: Unit, label: string) => (
     <button

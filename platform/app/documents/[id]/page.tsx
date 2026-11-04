@@ -206,7 +206,7 @@ export default async function DocumentPage(props: {
           {checkedOutByMe && !archived ? (
             <section className="rounded-[var(--radius-atlas)] border border-emerald-200 bg-emerald-50/40 p-4 dark:border-emerald-900 dark:bg-emerald-950/20">
               <p className="mb-3 text-sm text-ink-soft">{td.uploadHint}</p>
-              <UploadVersion documentId={id} messages={td} />
+              <UploadVersion documentId={id} messages={td} locale={locale} />
             </section>
           ) : null}
 

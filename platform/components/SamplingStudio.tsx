@@ -21,6 +21,7 @@
 //       (population − key items) ÷ TE × the audit-risk-table factor, drawn
 //       by systematic MUS), entry columns for the tester.
 
+import { numLocale } from "@/lib/format";
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { recordTodResultAction } from "@/app/actions/engines";
@@ -145,7 +146,7 @@ export function SamplingStudio({
     URL.revokeObjectURL(href);
   }
 
-  const n = (x: number) => new Intl.NumberFormat("fr-FR").format(x);
+  const n = (x: number) => new Intl.NumberFormat(numLocale(locale)).format(x);
   const input = "rounded-[var(--radius-atlas-sm)] border border-line-strong bg-surface px-2.5 py-1.5 text-[12.5px] text-ink outline-none focus:border-emerald-600";
 
   const REFUSALS: Record<string, [string, string]> = {

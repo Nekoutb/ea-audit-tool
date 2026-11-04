@@ -5,6 +5,7 @@
 // them, with a button that copies the list as text into the clipboard so the
 // memo starts from the file rather than from a blank box.
 
+import { numLocale } from "@/lib/format";
 import { useState } from "react";
 import type { SrmMatters } from "@/lib/summary-review-memo";
 import { MISSTATEMENT_TYPE_LABELS } from "@/lib/sad-model";
@@ -21,7 +22,7 @@ export function SrmMattersPanel({ matters, locale }: { matters: SrmMatters; loca
   const fr = locale === "fr";
   const T = (en: string, frText: string) => (fr ? frText : en);
   const [copied, setCopied] = useState(false);
-  const n = (x: number) => new Intl.NumberFormat("fr-FR").format(Math.round(x));
+  const n = (x: number) => new Intl.NumberFormat(numLocale(locale)).format(Math.round(x));
 
   const groups: { title: string; lines: string[]; testId: string }[] = [
     {

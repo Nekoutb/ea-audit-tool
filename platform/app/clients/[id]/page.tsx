@@ -1,3 +1,4 @@
+import { numLocale } from "@/lib/format";
 import Link from "next/link";
 import { localizedTitle } from "@/lib/page-title";
 import { notFound, redirect } from "next/navigation";
@@ -138,7 +139,7 @@ export default async function ClientDetailPage(props: {
     [t.clients.sector, isSector(client.sector) ? t.clients.sectors[client.sector] : null],
     [L.yearEnd, client.yearEnd ?? null],
     [L.framework, frameworkLabel(client.framework, locale)],
-    [L.shareCapital, client.shareCapital === null || client.shareCapital === undefined ? null : `${Number(client.shareCapital).toLocaleString("fr-FR")} FCFA`],
+    [L.shareCapital, client.shareCapital === null || client.shareCapital === undefined ? null : `${Number(client.shareCapital).toLocaleString(numLocale(locale))} FCFA`],
     [t.clients.coCac, client.coCac ? L.yes : L.no],
     [L.governance, isGovernanceMode(client.governanceMode) ? GOVERNANCE_LABELS[client.governanceMode][locale] : null],
     [L.regulator, isRegulator(client.regulator) ? REGULATOR_LABELS[client.regulator][locale] : (client.regulator ?? null)],

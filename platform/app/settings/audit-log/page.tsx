@@ -1,3 +1,4 @@
+import { localizedSummary } from "@/lib/activity-summary";
 import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
 import { auth } from "@/auth";
@@ -153,7 +154,7 @@ export default async function FirmAuditLogPage(props: {
                     {r.action}
                     {r.outcome !== "success" ? <span className="block text-rose">{r.outcome}</span> : null}
                   </td>
-                  <td className={td}>{r.summary ?? "—"}</td>
+                  <td className={td}>{r.summary ? localizedSummary(r.summary, locale) : "—"}</td>
                   <td className={`${td} max-w-[220px] break-words text-ink-soft`}>{clip(r.beforeValue)}</td>
                   <td className={`${td} max-w-[220px] break-words text-ink-soft`}>{clip(r.afterValue)}</td>
                 </tr>

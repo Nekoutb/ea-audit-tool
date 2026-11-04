@@ -8,6 +8,8 @@
 // The sheet area is deliberately a light "paper": it looks the same in dark
 // mode, exactly like the document it replicates.
 
+import { currencyLabel } from "@/lib/format";
+import { numLocale } from "@/lib/format";
 import { fmtDate } from "@/lib/format-date";
 import { useState } from "react";
 import { amountOr } from "@/lib/amount";
@@ -93,10 +95,10 @@ export function SadWorkbook({
   // rounding can leave -0 (a tax effect of nothing); it must not print as "-0" (F019)
   const n = (x: number) => {
     const v = Math.round(x) + 0;
-    return v < 0 ? `(${new Intl.NumberFormat("fr-FR").format(-v)})` : new Intl.NumberFormat("fr-FR").format(v);
+    return v < 0 ? `(${new Intl.NumberFormat(numLocale(locale)).format(-v)})` : new Intl.NumberFormat(numLocale(locale)).format(v);
   };
   const pctf = (x: number) =>
-    `${new Intl.NumberFormat("fr-FR", { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(x * 100)}%`;
+    `${new Intl.NumberFormat(numLocale(locale), { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(x * 100)}%`;
 
   async function call(body: Record<string, unknown>): Promise<boolean> {
     setError(null);
@@ -173,7 +175,7 @@ export function SadWorkbook({
         <b className="text-[12.5px]">{title}</b>
         <span><b>{fr ? "Entité :" : "Entity:"}</b> {view.entityName}</span>
         <span><b>{fr ? "Clôture :" : "Period ended:"}</b> {fmtDate(view.periodEnd)}</span>
-        <span><b>{fr ? "Devise :" : "Currency:"}</b> {view.currency ?? "XAF"}</span>
+        <span><b>{fr ? "Devise :" : "Currency:"}</b> {currencyLabel(view.currency)}</span>
         <span><b>{fr ? "Seuil global :" : "Overall materiality:"}</b> <span className="tnum">{mat ? n(mat.overall) : "—"}</span></span>
         <span><b>{fr ? "Seuil de travail :" : "Performance materiality:"}</b> <span className="tnum">{mat ? n(mat.performance) : "—"}</span></span>
         <span><b>{fr ? "Manifestement négligeable :" : "Clearly trivial:"}</b> <span className="tnum">{mat ? n(mat.trivial) : "—"}</span></span>

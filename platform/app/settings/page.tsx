@@ -1,3 +1,4 @@
+import { FilePicker } from "@/components/FilePicker";
 import Link from "next/link";
 import { localizedTitle } from "@/lib/page-title";
 import { redirect } from "next/navigation";
@@ -321,7 +322,7 @@ export default async function SettingsPage(props: {
             <div className="flex flex-wrap items-end gap-4">
               <label className={label}>
                 {ts.logo}
-                <input name="logo" type="file" accept="image/png,image/jpeg" className="text-sm" data-testid="branding-logo" />
+                <FilePicker name="logo" accept="image/png,image/jpeg" locale={locale} testId="branding-logo" />
               </label>
               {branding.logo ? (
                 <label className="flex items-center gap-2 pb-1 text-sm text-ink-soft">

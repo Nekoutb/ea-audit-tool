@@ -1,5 +1,6 @@
 "use client";
 
+import { FilePicker } from "@/components/FilePicker";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 import type { Messages } from "@/lib/i18n";
@@ -8,9 +9,11 @@ import { SUB_LEDGER_KINDS } from "@/lib/subledger-kinds";
 export function UploadDataset({
   engagementId,
   messages,
+  locale = "fr",
 }: {
   engagementId: string;
   messages: Messages["planning"];
+  locale?: "en" | "fr";
 }) {
   const router = useRouter();
   const [error, setError] = useState<string | null>(null);
@@ -49,14 +52,7 @@ export function UploadDataset({
           </option>
         ))}
       </select>
-      <input
-        type="file"
-        name="file"
-        accept=".csv,.xlsx,.txt"
-        required
-        data-testid="dataset-file"
-        className="text-sm text-ink-soft file:mr-3 file:rounded-[var(--radius-atlas-sm)] file:border file:border-line-strong file:bg-surface file:px-3 file:py-1.5 file:text-sm file:font-medium file:text-ink-soft"
-      />
+      <FilePicker name="file" accept=".csv,.xlsx,.txt" required locale={locale} testId="dataset-file" />
       <label className="flex items-center gap-1.5 text-[12px] text-ink-soft">
         <input
           type="checkbox"

@@ -7,6 +7,7 @@
 // (ISA 315 ¶34) and combine into the level; a significant risk overlays
 // special audit considerations, never a fifth level.
 
+import { numLocale } from "@/lib/format";
 import { useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
@@ -280,7 +281,7 @@ export function CraBoard({
                               type="text"
                               inputMode="numeric"
                               defaultValue={row.keyItemThreshold ?? ""}
-                              placeholder={view.te ? `${fr ? "Seuil de travail" : "Performance materiality"} ${new Intl.NumberFormat("fr-FR").format(view.te)}` : fr ? "Seuil de travail" : "Performance materiality"}
+                              placeholder={view.te ? `${fr ? "Seuil de travail" : "Performance materiality"} ${new Intl.NumberFormat(numLocale(locale)).format(view.te)}` : fr ? "Seuil de travail" : "Performance materiality"}
                               title={fr ? "Seuil au-delà duquel un élément du compte est examiné intégralement (vide = seuil de travail). Lu par l'échantillonnage des tests de détail." : "Amount at or above which an item of this account is examined in full (blank = performance materiality). Read by the tests-of-details sampling."}
                               onBlur={(e) => void saveThreshold(row.indexCode, e.target.value)}
                               className="w-[130px] rounded-[var(--radius-atlas-sm)] border border-line bg-[color:var(--wp-input)] px-2 py-0.5 text-[11.5px] text-ink tnum outline-none placeholder:text-muted focus:border-emerald-600"

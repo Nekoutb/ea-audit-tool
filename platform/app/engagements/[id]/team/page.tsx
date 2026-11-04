@@ -1,3 +1,4 @@
+import { numLocale } from "@/lib/format";
 import { notFound, redirect } from "next/navigation";
 import { localizedTitle } from "@/lib/page-title";
 import { auth } from "@/auth";
@@ -80,7 +81,7 @@ export default async function TeamPage(props: {
   const assignable = firmUsers.filter((u) => !team.some((m) => m.userId === u.id));
   const canManage = canReview(session.user.role);
   // "25 sept. 2026 19:20 WAT" in French, "25 Sep 2026 19:20 WAT" in English (UAT B123)
-  const respondedFormat = new Intl.DateTimeFormat(locale === "fr" ? "fr-FR" : "en-GB", {
+  const respondedFormat = new Intl.DateTimeFormat(numLocale(locale), {
     timeZone: DISPLAY_TIME_ZONE,
     day: "numeric",
     month: "short",

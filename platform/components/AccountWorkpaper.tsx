@@ -8,6 +8,7 @@
 //   (debit account/amount, credit account/amount). Fields blur-save.
 // One index per task; ＋ adds another substantive procedure.
 
+import { numLocale } from "@/lib/format";
 import { AutoTextarea } from "@/components/AutoTextarea";
 import { useState } from "react";
 import Link from "next/link";
@@ -123,7 +124,7 @@ export function AccountWorkpaper({
   // Shared parser — this one dropped the decimal comma, so a French-entered
   // adjustment was a hundred times too large in the control total.
   const num = (v: string) => amountOr(v, 0);
-  const money = (n: number) => new Intl.NumberFormat("fr-FR").format(Math.round(n));
+  const money = (n: number) => new Intl.NumberFormat(numLocale(locale)).format(Math.round(n));
   const label = "text-[10.5px] font-extrabold uppercase tracking-[0.07em] text-muted";
   const amber = "w-full resize-none overflow-hidden rounded-[var(--radius-atlas-xs)] bg-[color:var(--wp-input)] px-2.5 py-2 text-[12.5px] leading-relaxed text-ink outline-none placeholder:text-muted focus:ring-1 focus:ring-emerald-600/40";
   const inputCls = "rounded-[var(--radius-atlas-xs)] border border-line-strong bg-surface px-2 py-1.5 text-[12px] text-ink outline-none focus:border-emerald-600";

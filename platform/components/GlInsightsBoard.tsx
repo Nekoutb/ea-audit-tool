@@ -7,6 +7,7 @@
 // page; the account correlation study is interactive (pick 2..6 prefixes, POST,
 // render the month x day matrix and the pairwise Pearson table).
 
+import { numLocale } from "@/lib/format";
 import { useState } from "react";
 import { SCell, SRow, Sheet, SheetNote, SheetTable, num, type SheetCol } from "@/components/ui/excel";
 import type {
@@ -75,7 +76,7 @@ export function GlInsightsBoard({
   prefixes: GlPrefix[];
 }) {
   const fr = locale === "fr";
-  const fmt = (n: number) => new Intl.NumberFormat("fr-FR", { maximumFractionDigits: 0 }).format(n);
+  const fmt = (n: number) => new Intl.NumberFormat(numLocale(locale), { maximumFractionDigits: 0 }).format(n);
   const weekdayLabels = fr ? WEEKDAYS_FR : WEEKDAYS_EN;
   const monthLabels = fr ? MONTHS_FR : MONTHS_EN;
   const noGl = fr ? "Aucun grand livre importé." : "No general ledger imported.";

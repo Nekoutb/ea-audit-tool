@@ -6,6 +6,7 @@
 // by the adjustments proposed on the substantive working papers (each block
 // keeps the link back to its paper); cash-flow and disclosure rows are manual.
 
+import { numLocale } from "@/lib/format";
 import { Fragment, useState, type ReactNode } from "react";
 import { amountOr } from "@/lib/amount";
 import Link from "next/link";
@@ -116,8 +117,8 @@ export function SadBoard({
   const [cfRows, setCfRows] = useState<SadCfRow[]>(() => parseRows<SadCfRow>(view.meta.cf_rows));
   const [discRows, setDiscRows] = useState<SadDiscRow[]>(() => parseRows<SadDiscRow>(view.meta.disc_rows));
 
-  const n = (x: number) => new Intl.NumberFormat("fr-FR").format(Math.round(x));
-  const pct1 = (x: number) => `${new Intl.NumberFormat("fr-FR", { minimumFractionDigits: 1, maximumFractionDigits: 1 }).format(x)} %`;
+  const n = (x: number) => new Intl.NumberFormat(numLocale(locale)).format(Math.round(x));
+  const pct1 = (x: number) => `${new Intl.NumberFormat(numLocale(locale), { minimumFractionDigits: 1, maximumFractionDigits: 1 }).format(x)} %`;
   // Shared parser — see lib/amount.ts; the previous one lost the decimal comma.
   const amt = (v: string): number => amountOr(v, 0);
   const label = "text-[10px] font-extrabold uppercase tracking-[0.07em] text-muted";

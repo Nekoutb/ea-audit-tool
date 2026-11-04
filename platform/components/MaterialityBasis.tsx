@@ -6,6 +6,7 @@
 // typed from memory. One vocabulary (F033): overall materiality, performance
 // materiality, clearly trivial threshold.
 
+import { numLocale } from "@/lib/format";
 import { PERFORMANCE_PCT_RANGE, TRIVIAL_PCT_RANGE } from "@/lib/materiality-model";
 
 const RANGES: Record<string, { min: number; max: number }> = {
@@ -24,7 +25,7 @@ const LABELS: Record<string, { en: string; fr: string }> = {
   expenses: { en: "Total expenses", fr: "Total des charges" },
 };
 
-const fmt = (n: number) => new Intl.NumberFormat("fr-FR").format(n);
+const fmt = (n: number, locale: "en" | "fr") => new Intl.NumberFormat(numLocale(locale)).format(n);
 
 export function MaterialityBasis({
   locale,
@@ -64,7 +65,7 @@ export function MaterialityBasis({
             data-testid={`basis-${key}`}
           >
             <span className="text-[11px] text-muted">{fr ? LABELS[key].fr : LABELS[key].en}</span>
-            <span className="text-[15px] font-bold text-ink tnum">{fmt(bases[key] ?? 0)}</span>
+            <span className="text-[15px] font-bold text-ink tnum">{fmt(bases[key] ?? 0, locale)}</span>
             <span className="text-[10.5px] text-muted tnum">
               {RANGES[key].min}–{RANGES[key].max} %
             </span>

@@ -1,3 +1,4 @@
+import { currencyLabel } from "@/lib/format";
 import ExcelJS from "exceljs";
 import { NextResponse } from "next/server";
 import { amountOr } from "@/lib/amount";
@@ -65,7 +66,7 @@ export async function GET(request: Request, context: { params: Promise<{ id: str
       t.font = { bold: true, size: 13 };
       const r1 = ws.addRow([
         fr ? "Entité :" : "Entity:", view.entityName, fr ? "Clôture :" : "Period ended:", view.periodEnd,
-        fr ? "Devise :" : "Currency:", view.currency ?? "XAF",
+        fr ? "Devise :" : "Currency:", currencyLabel(view.currency),
       ]);
       const r2 = ws.addRow([
         fr ? "Seuil global :" : "Overall materiality:", mat?.overall ?? "", fr ? "Seuil de travail :" : "Performance materiality:", mat?.performance ?? "",

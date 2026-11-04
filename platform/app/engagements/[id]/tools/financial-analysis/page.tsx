@@ -1,3 +1,4 @@
+import { numLocale } from "@/lib/format";
 import Link from "next/link";
 import { localizedTitle } from "@/lib/page-title";
 import { notFound, redirect } from "next/navigation";
@@ -46,7 +47,7 @@ export default async function FinancialAnalysisPage(props: { params: Promise<{ i
             {fr ? "Bases : balance pré-audit — clôture / ouverture" : "Basis: pre-audit trial balance — closing / opening"}
             {" · "}
             <span data-testid="finanalysis-asset-basis">
-              {assetBasisLabel(locale, tbVersion)}: <span className="tnum">{new Intl.NumberFormat("fr-FR").format(analysis.totalAssets)}</span>
+              {assetBasisLabel(locale, tbVersion)}: <span className="tnum">{new Intl.NumberFormat(numLocale(locale)).format(analysis.totalAssets)}</span>
             </span>
           </span>
         ) : null}

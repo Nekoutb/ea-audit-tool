@@ -1,3 +1,4 @@
+import { FilePicker } from "@/components/FilePicker";
 import { redirect } from "next/navigation";
 import { auth, signOut } from "@/auth";
 import { uploadPbcAction } from "@/app/actions/pbc";
@@ -99,13 +100,7 @@ export default async function PortalPage(props: {
                   </div>
                   {item.status !== "accepted" ? (
                     <form action={uploadPbcAction.bind(null, item.id)} className="mt-3 flex items-center gap-2">
-                      <input
-                        type="file"
-                        name="file"
-                        required
-                        className="text-xs text-ink-soft"
-                        data-testid={`portal-file-${item.title}`}
-                      />
+                      <FilePicker name="file" required locale={locale} testId={`portal-file-${item.title}`} />
                       <button
                         type="submit"
                         className="rounded-[var(--radius-atlas-sm)] border border-line-strong bg-surface px-2.5 py-1 text-xs font-medium text-ink-soft hover:bg-surface-2"
