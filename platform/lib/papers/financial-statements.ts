@@ -43,7 +43,7 @@ const proc = (
 ): PaperSection => ({ kind: "proc", titleEn, titleFr, introEn, introFr, procs });
 
 export const FINANCIAL_STATEMENTS_PAPER: PaperDef = {
-  std: "ISA 700 (Revised) ¶10–15 · ISA 450 ¶5–13 · ISA 710 ¶7–9 · ISA 510 ¶5–8 · ISA 330 ¶30 · AUDCIF art. 34 · Handbook pp. 321–323",
+  std: "ISA 700 (Revised) ¶10–15 · ISA 450 ¶5–13 · ISA 710 ¶7–9 · ISA 510 ¶5–8 · ISA 330 ¶30 · AUDCIF art. 34 · AUSCGIE art. 710 · Handbook pp. 321–323",
   ownsEn:
     "the tie-out of the financial statements and notes to the final lead schedules and to the prior-year accounts, the bridge from audited to definitive accounts, and the review of content and presentation against the framework",
   ownsFr:
@@ -53,14 +53,14 @@ export const FINANCIAL_STATEMENTS_PAPER: PaperDef = {
     "The annual financial statements — balance sheet, income statement, cash-flow statement and notes — form an indivisible whole [tout indissociable]. Before the report is signed, every figure and every disclosure in them is tied to the audited accounting: column N to the final lead schedules, marked in each lead so that no account is left untied, and column N-1 to the definitive accounts attached to our prior-year report, because the opening balance sheet is the prior closing one and its presentation may not change from one year to the next (AUDCIF art. 34; ISA 510 ¶5–8; ISA 710 ¶7–9; ISA 330 ¶30).",
     "The audit points of the final phase are brought to bear on the definitive accounts: the summary review memorandum and the summary of audit differences are linked to this work, every adjustment agreed is confirmed as posted, and reclassifications — credit balances on customers, debit balances on suppliers — are watched for, because they are where a posted adjustment most often fails to reach the statements (Handbook p. 321; ISA 450 ¶5–13).",
     "The bridge from the audited accounts to the definitive accounts [passage comptes audités → comptes définitifs] is systematically formalised and concluded on, every significant difference explained. A point on the bridge that is not cleared is not left on the paper: it is reported to the senior (Handbook p. 321).",
-    "Content and presentation are reviewed critically against the framework: whether the level of information in the notes and the way it is presented give a true and fair view, whether an adjustment is called for, and whether the answer bears on the opinion (ISA 700 (Revised) ¶12–14; AUDCIF art. 710). A number of disclosures are mandatory, and the review of the notes is formalised in the disclosure checklist [questionnaire de contrôle de l'annexe] — the E6.10 OHADA financial statement checklist on this file — every 'No' commented and the significant ones carried to the summary of audit differences (Handbook pp. 322–323).",
+    "Content and presentation are reviewed critically against the framework: whether the level of information in the notes and the way it is presented give a true and fair view, whether an adjustment is called for, and whether the answer bears on the opinion (ISA 700 (Revised) ¶12–14; AUSCGIE art. 710). A number of disclosures are mandatory, and the review of the notes is formalised in the disclosure checklist [questionnaire de contrôle de l'annexe] — the E6.10 OHADA financial statement checklist on this file — every 'No' commented and the significant ones carried to the summary of audit differences (Handbook pp. 322–323).",
     "The object of the whole procedure is to identify presentation or method anomalies, errors and omissions and report them to the senior or manager. Prior-year answers are not copied and questions not understood are not answered 'not applicable'; where the note wording was tied to N-1, the preparer steps back to confirm no change was needed; the reasoning is by significance and relevance; and the N-1 figures AND the matrix of the notes are validated against our N-1 report, not against the client's draft (Handbook p. 323).",
   ],
   reqFr: [
     "Les états financiers annuels — bilan, compte de résultat, tableau des flux de trésorerie et notes annexes — forment un tout indissociable. Avant la signature du rapport, chaque chiffre et chaque information qu'ils contiennent sont pointés à la comptabilité auditée : la colonne N aux leads définitifs, en matérialisant dans chaque lead que tous les comptes ont été pointés, et la colonne N-1 aux comptes définitifs joints à notre rapport de l'exercice précédent, parce que le bilan d'ouverture est le bilan de clôture précédent et que sa présentation ne peut varier d'un exercice à l'autre (AUDCIF art. 34 ; ISA 510 ¶5–8 ; ISA 710 ¶7–9 ; ISA 330 ¶30).",
     "Les points d'audit de la phase finale sont rapprochés des comptes définitifs : le mémorandum récapitulatif de revue et le récapitulatif des écarts d'audit sont liés à ces travaux, chaque ajustement convenu est vérifié comme passé, et les reclassements — clients créditeurs, fournisseurs débiteurs — font l'objet d'un point d'attention, car c'est là qu'un ajustement passé manque le plus souvent d'atteindre les états (Handbook p. 321 ; ISA 450 ¶5–13).",
     "Le passage des comptes audités aux comptes définitifs est systématiquement formalisé et conclu, chaque écart significatif étant expliqué. Un point non levé sur ce passage ne reste pas sur le papier : il est signalé au senior (Handbook p. 321).",
-    "Le contenu et la présentation font l'objet d'une revue critique au regard du référentiel : le niveau d'information des notes et la manière dont elles sont présentées donnent-ils une image fidèle, un ajustement s'impose-t-il, et la réponse pèse-t-elle sur l'opinion (ISA 700 révisée ¶12–14 ; AUDCIF art. 710). Un certain nombre d'informations ont un caractère obligatoire, et la revue des notes est formalisée dans le questionnaire de contrôle de l'annexe — le contrôle des états financiers OHADA E6.10 de ce dossier — chaque « Non » étant commenté et les plus significatifs reportés au récapitulatif des écarts d'audit (Handbook pp. 322–323).",
+    "Le contenu et la présentation font l'objet d'une revue critique au regard du référentiel : le niveau d'information des notes et la manière dont elles sont présentées donnent-ils une image fidèle, un ajustement s'impose-t-il, et la réponse pèse-t-elle sur l'opinion (ISA 700 révisée ¶12–14 ; AUSCGIE art. 710). Un certain nombre d'informations ont un caractère obligatoire, et la revue des notes est formalisée dans le questionnaire de contrôle de l'annexe — le contrôle des états financiers OHADA E6.10 de ce dossier — chaque « Non » étant commenté et les plus significatifs reportés au récapitulatif des écarts d'audit (Handbook pp. 322–323).",
     "L'objectif de l'ensemble est de relever les anomalies de présentation ou de méthode, les erreurs et les omissions et de les signaler au senior ou au manager. Les réponses de l'exercice précédent ne sont pas recopiées et les questions non comprises ne sont pas mises en « sans objet » ; lorsque le libellé de l'annexe a été pointé iso N-1, le préparateur prend du recul pour s'assurer qu'aucune évolution n'était nécessaire ; le raisonnement se fait en fonction du caractère significatif et pertinent ; et les chiffres N-1 AINSI QUE la matrice de l'annexe sont validés avec notre rapport N-1, non avec le projet du client (Handbook p. 323).",
   ],
   sections: [
@@ -85,6 +85,15 @@ export const FINANCIAL_STATEMENTS_PAPER: PaperDef = {
           "Pointer la colonne N aux leads définitifs et matérialiser dans chaque lead que tous les comptes ont été pointés, de sorte que les leads eux-mêmes montrent qu'aucun compte n'a été omis.",
           "Final lead schedules (Tools → Lead Schedule) · trial balance · ISA 330 ¶30",
           "Leads définitifs (Outils → Feuilles maîtresses) · balance · ISA 330 ¶30",
+        ),
+        P(
+          "tft",
+          "Cross-refer the cash flow statement [TFT] to E4.36: the TFT ties to the opening and closing cash of the balance sheet, each line to its movement schedule, and the recomputation is on E4.36 — this paper only confirms the version tied there is the definitive one.",
+          "Renvoyer le tableau des flux de trésorerie (TFT) à E4.36 : le TFT se rapproche de la trésorerie d'ouverture et de clôture du bilan, chaque ligne de son tableau de mouvements, et le recalcul figure en E4.36 — la présente feuille vérifie seulement que la version rapprochée là est la version définitive.",
+          "E4.36 Cash Flow (TFT) Tie-out · definitive statements · SYSCOHADA — tableau des flux de trésorerie",
+          "E4.36 Concordance du TFT · états définitifs · SYSCOHADA — tableau des flux de trésorerie",
+          "The TFT is one of the four statements of the SYSCOHADA set, so it is tied on every file (E4.36 is a core paper). The recomputation is not automated: E4.36 holds it, and a TFT version changed after E4.36 concluded reopens E4.36.",
+          "Le TFT est l'un des quatre états du jeu SYSCOHADA : il est rapproché sur tout dossier (E4.36 est une feuille de base). Le recalcul n'est pas automatisé : E4.36 le porte, et une version du TFT modifiée après la conclusion de E4.36 rouvre E4.36.",
         ),
         P(
           "note_versions",
@@ -146,8 +155,8 @@ export const FINANCIAL_STATEMENTS_PAPER: PaperDef = {
           "presentation",
           "Review critically the level of information in the notes and the way the statements are presented, against the framework, asking of each shortfall whether an adjustment is called for and whether it bears on the opinion.",
           "Faire une revue critique du niveau d'information des notes et de la présentation des états au regard du référentiel, en se demandant pour chaque insuffisance si un ajustement s'impose et si elle pèse sur l'opinion.",
-          "Definitive statements · AUDCIF and SYSCOHADA révisé · ISA 700 (Revised) ¶12–14 · AUDCIF art. 710",
-          "États définitifs · AUDCIF et SYSCOHADA révisé · ISA 700 révisée ¶12–14 · AUDCIF art. 710",
+          "Definitive statements · AUDCIF and SYSCOHADA révisé · ISA 700 (Revised) ¶12–14 · AUSCGIE art. 710",
+          "États définitifs · AUDCIF et SYSCOHADA révisé · ISA 700 révisée ¶12–14 · AUSCGIE art. 710",
           "Reason by significance and relevance. A note that is technically required but immaterial is not the same finding as a material omission.",
           "Raisonner en fonction du caractère significatif et pertinent. Une note techniquement requise mais non significative n'est pas le même constat qu'une omission significative.",
         ),
@@ -159,6 +168,15 @@ export const FINANCIAL_STATEMENTS_PAPER: PaperDef = {
           "Outils → Modèles de papiers de travail → Contrôle des états financiers OHADA E6.10 · C1.1 · Handbook pp. 322–323",
           "Do not copy prior-year answers, and do not mark 'not applicable' a question that is not understood. Where the wording of a note was tied to N-1, step back and confirm no change was needed.",
           "Ne pas recopier les réponses de l'exercice précédent, et ne pas mettre en « sans objet » une question non comprise. Lorsque le libellé d'une note a été pointé iso N-1, prendre du recul et s'assurer qu'aucune évolution n'était nécessaire.",
+        ),
+        P(
+          "dsf",
+          "Agree the DSF filed [déclaration statistique et fiscale] to the definitive financial statements — balance sheet, income statement, TFT and notes, figure for figure — and reconcile the fiscal result to the accounting result through the tax computation (reintegrations, deductions, losses carried forward); explain every difference and carry an unexplained one to the senior.",
+          "Rapprocher la DSF déposée (déclaration statistique et fiscale) des états financiers définitifs — bilan, compte de résultat, TFT et notes, chiffre par chiffre — et rapprocher le résultat fiscal du résultat comptable au travers du tableau de détermination (réintégrations, déductions, déficits reportables) ; expliquer chaque écart et faire remonter au senior un écart inexpliqué.",
+          "DSF as filed (receipt) · definitive statements · tax computation · E4.34 income tax",
+          "DSF telle que déposée (récépissé) · états définitifs · tableau de détermination du résultat fiscal · E4.34 impôt sur le résultat",
+          "Obtain the DSF actually filed with the tax administration, with its receipt, not the draft the accountant keeps: a DSF filed before our adjustments were posted differs from the definitive statements by exactly those adjustments, and the difference is a report matter.",
+          "Obtenir la DSF effectivement déposée auprès de l'administration fiscale, avec son récépissé, non le projet que conserve le comptable : une DSF déposée avant la passation de nos ajustements diffère des états définitifs d'exactement ces ajustements, et l'écart est un point du rapport.",
         ),
         P(
           "comparatives",
@@ -200,6 +218,8 @@ export const FINANCIAL_STATEMENTS_PAPER: PaperDef = {
       items: [
         Q("n1_agrees", "Column N-1 agrees to the accounts attached to our prior-year report, figures and notes alike.", "La colonne N-1 concorde avec les comptes joints à notre rapport de l'exercice précédent, chiffres et notes compris."),
         Q("n_agrees", "Column N agrees to the final lead schedules, and each lead is marked as tied.", "La colonne N concorde avec les leads définitifs, et chaque lead est matérialisé comme pointé."),
+        Q("tft_tied", "The cash flow statement (TFT) of the definitive statements is the version tied and recomputed on E4.36.", "Le tableau des flux de trésorerie (TFT) des états définitifs est la version rapprochée et recalculée en E4.36."),
+        Q("dsf_agreed", "The DSF filed agrees to the definitive financial statements, and the fiscal result reconciles to the accounting result without unexplained difference.", "La DSF déposée concorde avec les états financiers définitifs, et le résultat fiscal se rapproche du résultat comptable sans écart inexpliqué."),
         Q("adjustments_in", "Every audit point of the final phase and every agreed adjustment, reclassifications included, is reflected in the definitive accounts.", "Chaque point d'audit de la phase finale et chaque ajustement convenu, reclassements compris, est reflété dans les comptes définitifs."),
         Q("bridge_ok", "The bridge from audited to definitive accounts is formalised and concluded, every significant difference explained, and no point is left uncleared.", "Le passage des comptes audités aux comptes définitifs est formalisé et conclu, chaque écart significatif expliqué, et aucun point n'est laissé non levé."),
         Q("checklist_done", "The financial statement checklist is complete, every 'No' is commented, and the significant ones are in the summary of audit differences.", "Le contrôle des états financiers est complet, chaque « Non » est commenté, et les plus significatifs figurent au récapitulatif des écarts d'audit."),

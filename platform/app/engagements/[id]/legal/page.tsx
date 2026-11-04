@@ -179,7 +179,7 @@ export default async function LegalPage(props: {
       </section>
 
       {/* C5.3 conventions */}
-      <section className={card}>
+      <section className={card} id="conventions">
         <div className="flex items-center justify-between">
           <h2 className={heading}>{tl.conventions}</h2>
           <form action={rapportSpecialAction.bind(null, id)}>
@@ -260,7 +260,7 @@ export default async function LegalPage(props: {
       </section>
 
       {/* C5.4 art. 715 + C5.7 attestation */}
-      <section className={card}>
+      <section className={card} id="titres">
         <div className="flex flex-wrap gap-2">
           <form action={article715Action.bind(null, id)}>
             <button type="submit" className={btn} data-testid="article-715">
@@ -279,6 +279,14 @@ export default async function LegalPage(props: {
               {tl.securitiesCount}
               <input name="securitiesCount" type="number" min={1} step={1} required className={`${input} mt-1`} data-testid="titres-count" />
             </label>
+            {/* F055: securities held in accounts by an authorised intermediary (art. 746-1 — à valider) */}
+            <label className="flex items-center gap-1 text-xs text-muted">
+              <input type="checkbox" name="heldByIntermediary" data-testid="titres-intermediary" /> {tl.heldByIntermediary}
+            </label>
+            <label className={label}>
+              {tl.intermediaryName}
+              <input name="intermediaryName" className={`${input} mt-1 w-56`} data-testid="titres-intermediary-name" />
+            </label>
             <button type="submit" className={btn} data-testid="titres-attestation">
               {tl.titres} · {tl.generateAttestation}
             </button>
@@ -288,8 +296,10 @@ export default async function LegalPage(props: {
       </section>
 
       {/* C5.5 alerte */}
-      <section className={card}>
+      <section className={card} id="alerte">
         <h2 className={heading}>{tl.alerte}</h2>
+        {/* F051: the first reply deadline follows the AUSCGIE 2014 reading (one month); the jurist validates it */}
+        <p className="mt-1 text-xs text-muted" data-testid="alerte-deadline-note">{tl.alerteDeadlineNote}</p>
         {/* A closed procedure is history: the last one stays readable below and
             a new one can be started — going-concern doubt can return. */}
         {alerte === null || alerte.stage === "closed" ? (
@@ -405,7 +415,7 @@ export default async function LegalPage(props: {
       ) : null}
 
       {/* C5.8 equity */}
-      <section className={card}>
+      <section className={card} id="equity">
         <h2 className={heading}>{tl.equity}</h2>
         <div className="mt-3 flex flex-wrap items-end gap-2">
           <form action={setShareCapitalAction.bind(null, id)} className="flex items-end gap-2">
@@ -439,6 +449,8 @@ export default async function LegalPage(props: {
               </>
             ) : null}
             {" "}· {equity.source === "post_audit" ? tl.sourceFinalTb : tl.sourcePreAuditTb}
+            {/* F056: the share capital defaults to the closing balance of account 101 until the client record overrides it */}
+            {equity.shareCapitalSource === "tb_101" ? <span data-testid="capital-from-tb"> · {tl.capitalFromTb101}</span> : null}
           </p>
         ) : (
           <p className="mt-3 text-xs text-muted" data-testid="equity-figures">{tl.noTbYet}</p>

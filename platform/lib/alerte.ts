@@ -3,20 +3,32 @@
 // a deadline timer set at each transition. E6.3/ISA 570 linkage: activeAlerte
 // feeds the going-concern conclusion and the report's material-uncertainty
 // paragraph.
+//
+// The first reply deadline (F051, firm decision 2026-10-27). Two readings of
+// the Act coexist in practice: the original AUSCGIE (1997) gave the gérant /
+// the PCA fifteen days to answer the request for explanations; the revised
+// AUSCGIE of 30 January 2014 (arts. 150 and 153) reads "dans le mois qui suit
+// la réception de la demande d'explication" — one month. The firm applies
+// the 2014 reading; the jurist validates it on DEV, and the UI text carries
+// "(à valider)" until then. Change FIRST_REPLY_DAYS alone to switch back.
 
 import { Document, HeadingLevel, Packer, Paragraph, TextRun } from "docx";
 import { type Branding, letterheadFooter, letterheadParagraphs, loadBranding } from "@/lib/branding";
 import { withTenant } from "@/lib/db";
 import { addDaysIso, addMonthsClamped, fileUnderCode, LegalError } from "@/lib/legal";
+import { organName } from "@/lib/legal-forms";
 import { periodEndFr } from "@/lib/report";
 import { requireTenant, requireWrite } from "@/lib/tenant";
 
 export type AlerteVariant = "sa" | "non_sa";
 
+/** One month (2014 reading of arts. 150 / 153 — à valider); the 1997 text read 15 days. */
+export const FIRST_REPLY_DAYS = 30;
+
 /** Ordered stages per variant; each entry: next-deadline days from transition. */
 const FLOWS: Record<AlerteVariant, { stage: string; deadlineDays: number | null; basis: string }[]> = {
   non_sa: [
-    { stage: "request_sent", deadlineDays: 15, basis: "Art. 150 — réponse du gérant sous 15 jours" },
+    { stage: "request_sent", deadlineDays: FIRST_REPLY_DAYS, basis: "Art. 150 — réponse du gérant dans le mois (à valider ; lecture 1997 : 15 jours)" },
     { stage: "reply_recorded", deadlineDays: null, basis: "Art. 151 — le CAC informe la juridiction compétente" },
     { stage: "court_informed", deadlineDays: null, basis: "Art. 151" },
     { stage: "rapport_special", deadlineDays: 8, basis: "Art. 152 — communication aux associés sous 8 jours (ou à la prochaine AG)" },
@@ -24,7 +36,7 @@ const FLOWS: Record<AlerteVariant, { stage: string; deadlineDays: number | null;
     { stage: "closed", deadlineDays: null, basis: "Résultats communiqués à la juridiction si mesures insuffisantes" },
   ],
   sa: [
-    { stage: "request_sent", deadlineDays: 15, basis: "Art. 153 — réponse du PCA/PDG sous 15 jours" },
+    { stage: "request_sent", deadlineDays: FIRST_REPLY_DAYS, basis: "Art. 153 — réponse du PCA/PDG ou de l'administrateur général dans le mois (à valider ; lecture 1997 : 15 jours)" },
     // No reply, or an unsatisfactory one: the CAC invites the chairman to have
     // the board deliberate, within 15 days of the reply (UAT run 2 B167).
     { stage: "reply_recorded", deadlineDays: 15, basis: "Art. 154 — invitation du président à faire délibérer le conseil sous 15 jours de la réponse" },
@@ -39,7 +51,7 @@ const FLOWS: Record<AlerteVariant, { stage: string; deadlineDays: number | null;
 const STAGE_LETTERS: Record<string, { title: string; body: string }> = {
   request_sent: {
     title: "Demande d'explications (procédure d'alerte)",
-    body: "Par lettre recommandée avec demande d'avis de réception, nous vous demandons des explications sur les faits de nature à compromettre la continuité de l'exploitation relevés dans le cadre de notre mission. Votre réponse est attendue dans les quinze jours.",
+    body: "Par lettre recommandée avec demande d'avis de réception, nous vous demandons des explications sur les faits de nature à compromettre la continuité de l'exploitation relevés dans le cadre de notre mission. Votre réponse est attendue dans le mois qui suit la réception de la présente (AUSCGIE, arts. 150 / 153).",
   },
   court_informed: {
     title: "Information de la juridiction compétente (alerte)",
@@ -47,7 +59,7 @@ const STAGE_LETTERS: Record<string, { title: string; body: string }> = {
   },
   board_invited: {
     title: "Invitation du conseil à délibérer (alerte)",
-    body: "Faute de réponse satisfaisante dans les quinze jours, nous invitons le président du conseil d'administration à faire délibérer le conseil sur les faits relevés. Le conseil doit se réunir dans le mois ; nous assisterons à la séance et un extrait du procès-verbal nous sera adressé ainsi qu'à la juridiction compétente dans le mois qui suit.",
+    body: "Faute de réponse satisfaisante dans le délai légal, nous invitons le président du conseil d'administration à faire délibérer le conseil sur les faits relevés. Le conseil doit se réunir dans le mois ; nous assisterons à la séance et un extrait du procès-verbal nous sera adressé ainsi qu'à la juridiction compétente dans le mois qui suit.",
   },
   rapport_special: {
     title: "Rapport spécial d'alerte",
@@ -103,11 +115,11 @@ function nextStagesOf(variant: AlerteVariant, stage: string, discontinued: boole
   return [flow[index + 1].stage];
 }
 
-/** Who each stage's letter is addressed to. */
-function stageAddressee(stage: string, variant: AlerteVariant): string {
+/** Who each stage's letter is addressed to: the PCA/PDG of an SA with a board, the administrateur général otherwise (F052). */
+function stageAddressee(stage: string, variant: AlerteVariant, legalForm?: string | null): string {
   if (stage === "court_informed") return "Au Président de la juridiction compétente";
   if (stage === "rapport_special") return variant === "sa" ? "Aux actionnaires" : "Aux associés";
-  return variant === "sa" ? "Au Président du conseil d'administration" : "Au gérant";
+  return variant === "sa" ? organName(legalForm, "executive", "fr").replace(/^./, (c) => `Au ${c}`) : "Au gérant";
 }
 
 /**
@@ -120,7 +132,7 @@ async function buildStageLetter(
   fiscalYear: number,
   stage: string,
   note: string,
-  context: { variant: AlerteVariant; eventDate: string; partnerName: string | null },
+  context: { variant: AlerteVariant; eventDate: string; partnerName: string | null; legalForm?: string | null },
 ): Promise<Buffer | null> {
   const template = STAGE_LETTERS[stage];
   if (!template) return null;
@@ -128,7 +140,7 @@ async function buildStageLetter(
     ...letterheadParagraphs(branding),
     new Paragraph({ heading: HeadingLevel.TITLE, children: [new TextRun(template.title)] }),
     new Paragraph({ children: [new TextRun({ text: `${clientName} — Exercice ${fiscalYear}`, bold: true })] }),
-    new Paragraph(`${stageAddressee(stage, context.variant)} de ${clientName}`),
+    new Paragraph(`${stageAddressee(stage, context.variant, context.legalForm)} de ${clientName}`),
     new Paragraph(template.body),
     ...(note.trim() ? [new Paragraph(`Faits relevés / observations : ${note}`)] : []),
     new Paragraph(`Fait le ${periodEndFr(context.eventDate)}.`),
@@ -163,7 +175,7 @@ export async function startAlerte(engagementId: string, note: string, eventDate?
     );
     if (open.rows[0]) throw new LegalError("alerte-open");
 
-    const variant: AlerteVariant = ["SA", "SAS"].includes(info.rows[0].legal_form) ? "sa" : "non_sa";
+    const variant: AlerteVariant = ["SA", "SA_AG", "SAS"].includes(info.rows[0].legal_form) ? "sa" : "non_sa";
     const first = flowOf(variant)[0];
     const deadline = first.deadlineDays === null ? null : addDaysIso(today, first.deadlineDays);
     const created = await tx.query<{ id: string }>(
@@ -174,7 +186,7 @@ export async function startAlerte(engagementId: string, note: string, eventDate?
     const alerteId = created.rows[0].id;
     const branding = await loadBranding(tx, tenantId);
     const letter = await buildStageLetter(branding, info.rows[0].client_name, info.rows[0].fiscal_year, "request_sent", note, {
-      variant, eventDate: today, partnerName: info.rows[0].partner_name,
+      variant, eventDate: today, partnerName: info.rows[0].partner_name, legalForm: info.rows[0].legal_form,
     });
     const documentId = letter
       ? await fileUnderCode(tx, {
@@ -207,10 +219,10 @@ export async function advanceAlerte(
   await withTenant(tenantId, async (tx) => {
     const current = await tx.query<{
       id: string; engagement_id: string; variant: AlerteVariant; stage: string;
-      discontinued_at: string | null; client_name: string; fiscal_year: number; partner_name: string | null;
+      discontinued_at: string | null; client_name: string; fiscal_year: number; partner_name: string | null; legal_form: string;
     }>(
       `SELECT a.id, a.engagement_id, a.variant, a.stage, a.discontinued_at::text,
-              c.name AS client_name, e.fiscal_year, ${PARTNER_NAME_SQL} AS partner_name
+              c.name AS client_name, e.fiscal_year, c.legal_form, ${PARTNER_NAME_SQL} AS partner_name
          FROM alerte a
          JOIN engagement e ON e.id = a.engagement_id
          JOIN client c ON c.id = e.client_id
@@ -251,7 +263,7 @@ export async function advanceAlerte(
     ]);
     const branding = await loadBranding(tx, tenantId);
     const letter = await buildStageLetter(branding, row.client_name, row.fiscal_year, toStage, note, {
-      variant: row.variant, eventDate: today, partnerName: row.partner_name,
+      variant: row.variant, eventDate: today, partnerName: row.partner_name, legalForm: row.legal_form,
     });
     const documentId = letter
       ? await fileUnderCode(tx, {
@@ -285,7 +297,7 @@ export async function resumeAlerte(alerteId: string, note: string): Promise<void
     const today = new Date().toISOString().slice(0, 10);
     await tx.query(
       "UPDATE alerte SET discontinued_at = NULL, stage = 'request_sent', stage_deadline = $2 WHERE id = $1",
-      [alerteId, addDaysIso(today, 15)],
+      [alerteId, addDaysIso(today, FIRST_REPLY_DAYS)],
     );
     await tx.query(
       `INSERT INTO alerte_event (tenant_id, alerte_id, stage, note, created_by)

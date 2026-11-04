@@ -13,6 +13,7 @@ import { withTenant } from "@/lib/db";
 import { DOCX_MIME } from "@/lib/documents";
 import { DEFAULT_FILE_INDEX } from "@/lib/file-index";
 import type { Locale } from "@/lib/i18n";
+import { isSocieteAnonyme, organName } from "@/lib/legal-forms";
 import { mandateExpiryYear } from "@/lib/letters";
 import { createNotification } from "@/lib/notifications";
 import { canPartnerSignoff } from "@/lib/rbac";
@@ -411,7 +412,7 @@ export interface ConventionInfo {
   continuing: boolean;
   boardAuthRef: string | null;
   notifiedAt: string | null;
-  /** SA only (art. 447): no prior board authorization → curable nullity. */
+  /** SA only (art. 447 — à valider): no prior authorization (board, or the general meeting on an SA_AG) → curable nullity. */
   unauthorized: boolean;
 }
 
@@ -473,7 +474,7 @@ export async function listConventions(
         nature: row.nature, terms: row.terms,
         amountsPeriod: row.amounts_period === null ? null : Number(row.amounts_period),
         continuing: row.continuing, boardAuthRef: row.board_auth_ref, notifiedAt: row.notified_at,
-        unauthorized: e.legal_form === "SA" && !row.board_auth_ref,
+        unauthorized: isSocieteAnonyme(e.legal_form) && !row.board_auth_ref,
       })),
     };
   });
@@ -488,7 +489,7 @@ const CAPACITY_FR: Record<ConventionCapacity, string> = {
   controlling: "société contrôlante",
 };
 
-/** 8.3: build the rapport spécial from the register (arts. 353/440/442). */
+/** 8.3: build the rapport spécial from the register (arts. 353/440/442 — à valider); the organs follow the legal form (F052). */
 export async function generateRapportSpecial(engagementId: string): Promise<string> {
   const { tenantId, userId } = await requireWrite(); // read_only may view the legal file, not change it (UAT B10)
   return withTenant(tenantId, async (tx) => {
@@ -512,8 +513,8 @@ export async function generateRapportSpecial(engagementId: string): Promise<stri
       p(`${e.client_name} — Exercice clos le ${periodEndFr(e.period_end)}`, true),
       p(
         e.agm_date
-          ? `À l'assemblée générale ordinaire des ${e.legal_form === "SA" ? "actionnaires" : "associés"} du ${periodEndFr(e.agm_date)}.`
-          : `À l'assemblée générale ordinaire des ${e.legal_form === "SA" ? "actionnaires" : "associés"}.`,
+          ? `À l'assemblée générale ordinaire des ${organName(e.legal_form, "members", "fr")} du ${periodEndFr(e.agm_date)}.`
+          : `À l'assemblée générale ordinaire des ${organName(e.legal_form, "members", "fr")}.`,
       ),
       p(
         "En notre qualité de commissaire aux comptes, nous vous présentons notre rapport sur les conventions réglementées dont nous avons été avisés, conformément aux dispositions de l'Acte uniforme relatif au droit des sociétés commerciales et du GIE.",
@@ -537,12 +538,20 @@ export async function generateRapportSpecial(engagementId: string): Promise<stri
             p(`Convention poursuivie — montants comptabilisés au titre de l'exercice : ${fmtAmount(convention.amounts_period)} FCFA.`),
           );
         }
+        // SA with a board: prior authorisation of the board (arts. 438, 440);
+        // SA with an administrateur général: of the general meeting (arts.
+        // 502–503); SARL: no prior authorisation, the members approve on this
+        // report (arts. 350–354); SAS: the statutes (art. 853-14) — à valider.
+        const authorisingOrgan =
+          e.legal_form === "SA_AG" ? "l'assemblée générale (arts. 502–503)" : `${organName(e.legal_form, "board", "fr")} (arts. 438 et 440)`;
         children.push(
           convention.board_auth_ref
-            ? p(`Autorisation préalable du conseil d'administration : ${convention.board_auth_ref}.`)
-            : e.legal_form === "SA"
-              ? p("ATTENTION : convention non autorisée préalablement par le conseil — nullité encourue, couvrable par un vote spécial de l'assemblée sur rapport explicatif du commissaire aux comptes (art. 447).", true)
-              : p("Autorisation préalable non requise pour cette forme sociale (arts. 350-353 / 853.14)."),
+            ? p(`Autorisation préalable de ${authorisingOrgan} : ${convention.board_auth_ref}.`)
+            : isSocieteAnonyme(e.legal_form)
+              ? p(`ATTENTION : convention non autorisée préalablement par ${authorisingOrgan} — nullité encourue, couvrable par un vote spécial de l'assemblée sur rapport explicatif du commissaire aux comptes (art. 447).`, true)
+              : e.legal_form === "SARL"
+                ? p("Autorisation préalable non requise dans la SARL : la convention est soumise à l'approbation des associés sur le présent rapport, l'intéressé ne prenant pas part au vote (arts. 350–354).")
+                : p("Autorisation préalable non requise pour cette forme sociale (SAS : art. 853-14 et statuts ; GIE : contrat constitutif)."),
         );
       });
     }
@@ -623,12 +632,13 @@ export async function generateArticle715Report(engagementId: string): Promise<st
     const branding = await loadBranding(tx, tenantId);
     const children: Paragraph[] = [
       ...letterheadParagraphs(branding),
-      title("Rapport du commissaire aux comptes au conseil d'administration (art. 715)"),
+      // addressed to the organ that arrêtes the accounts under this legal form (F052)
+      title(`Rapport du commissaire aux comptes à l'${organName(e.legal_form, "board", "fr")} (art. 715)`),
       p(`${e.client_name} — Exercice clos le ${periodEndFr(e.period_end)}`, true),
       p(
         e.board_date
-          ? `Au conseil d'administration, en sa réunion du ${periodEndFr(e.board_date)} consacrée à l'arrêté des comptes.`
-          : "Au conseil d'administration, en sa réunion consacrée à l'arrêté des comptes.",
+          ? `À l'${organName(e.legal_form, "board", "fr")}, lors de l'arrêté des comptes du ${periodEndFr(e.board_date)}.`
+          : `À l'${organName(e.legal_form, "board", "fr")}, lors de l'arrêté des comptes.`,
       ),
       h("1. Contrôles et vérifications effectués et sondages opérés"),
       p(
@@ -734,7 +744,7 @@ export async function generateIrregularitiesLetter(
   if (!points.trim()) throw new LegalError("fields-required");
   return withTenant(tenantId, async (tx) => {
     const e = await loadLegalContext(tx, engagementId);
-    const audience = target === "ag" ? "à la plus proche assemblée générale" : "au conseil d'administration";
+    const audience = target === "ag" ? "à la plus proche assemblée générale" : `à l'${organName(e.legal_form, "board", "fr")}`;
     const branding = await loadBranding(tx, tenantId);
     const children = [
       ...letterheadParagraphs(branding),
@@ -761,6 +771,14 @@ export interface TitresAttestationInput {
   inspectionDate?: string;
   /** total number of securities the register showed */
   securitiesCount?: number;
+  /**
+   * F055: the securities are held in accounts by an authorised financial
+   * intermediary (art. 746-1 — à valider) rather than in the company's own
+   * register; the attestation then rests on the intermediary's statement.
+   */
+  heldByIntermediary?: boolean;
+  /** the intermediary's name, required when heldByIntermediary */
+  intermediaryName?: string;
 }
 
 /** Whether C5.7 is on the file — /legal offers the attestation only then (UAT run 3 B25). */
@@ -787,6 +805,9 @@ export async function generateTitresAttestation(
   }
   const securitiesCount = Number(input.securitiesCount);
   if (!Number.isInteger(securitiesCount) || securitiesCount <= 0) throw new LegalError("titres-count-required");
+  const heldByIntermediary = input.heldByIntermediary === true;
+  const intermediaryName = String(input.intermediaryName ?? "").trim();
+  if (heldByIntermediary && !intermediaryName) throw new LegalError("titres-intermediary-required");
   return withTenant(tenantId, async (tx) => {
     const e = await loadLegalContext(tx, engagementId);
     // Without the C5.7 task on the file, "complete C5.7 first" pointed at a
@@ -802,22 +823,34 @@ export async function generateTitresAttestation(
     if (!yes("q_kept") || !yes("q_agrees")) throw new LegalError("titres-work-incomplete");
     const branding = await loadBranding(tx, tenantId);
     const capitalLine = e.share_capital === null ? "" : ` Le capital social figurant dans les états financiers s'élève à ${fmtAmount(e.share_capital)} FCFA.`;
+    // F055: the wording follows the holding mode — the company's own register,
+    // or accounts kept by an authorised intermediary (art. 746-1 — à valider).
     const children = [
       ...letterheadParagraphs(branding),
       title("Attestation sur les registres de titres nominatifs (art. 746-2)"),
       p(`${e.client_name} — Exercice clos le ${periodEndFr(e.period_end)}`, true),
+      heldByIntermediary
+        ? p(
+            `Les titres nominatifs de la société sont inscrits en compte auprès d'un intermédiaire financier agréé, ${intermediaryName} (art. 746-1). Nous avons procédé à la vérification de l'existence et de la tenue des registres : obtention directe auprès de l'intermédiaire du relevé des comptes-titres, tenue chronologique des inscriptions, concordance du total des titres et des titulaires avec le capital social et avec les enregistrements propres de la société.`,
+          )
+        : p(
+            "Nous avons procédé à la vérification de l'existence et de la conformité des registres de titres nominatifs tenus par la société : existence matérielle des registres, tenue chronologique des inscriptions, concordance avec les mouvements de titres portés à notre connaissance.",
+          ),
       p(
-        "Nous avons procédé à la vérification de l'existence et de la conformité des registres de titres nominatifs tenus par la société : existence matérielle des registres, tenue chronologique des inscriptions, concordance avec les mouvements de titres portés à notre connaissance.",
+        heldByIntermediary
+          ? `Nous avons examiné le relevé de l'intermédiaire arrêté au ${periodEndFr(inspectionDate)}. À cette date, il fait apparaître un total de ${fmtAmount(securitiesCount)} titres inscrits en compte.${capitalLine}`
+          : `Nous avons examiné les registres le ${periodEndFr(inspectionDate)}. À cette date, ils font apparaître un total de ${fmtAmount(securitiesCount)} titres inscrits.${capitalLine}`,
       ),
       p(
-        `Nous avons examiné les registres le ${periodEndFr(inspectionDate)}. À cette date, ils font apparaître un total de ${fmtAmount(securitiesCount)} titres inscrits.${capitalLine}`,
-      ),
-      p(
-        "Sur la base de nos travaux, nous attestons que les registres de titres nominatifs sont tenus conformément aux dispositions applicables.",
+        heldByIntermediary
+          ? "Sur la base de nos travaux, nous attestons que les registres de titres nominatifs, tenus en compte par l'intermédiaire agréé, existent et sont tenus conformément aux dispositions applicables, et que leur total concorde avec le capital social."
+          : "Sur la base de nos travaux, nous attestons que les registres de titres nominatifs sont tenus conformément aux dispositions applicables.",
       ),
       h("Annexe — Déclaration de la direction"),
       p(
-        "La direction déclare que les registres de titres nominatifs présentés au commissaire aux comptes sont complets, à jour, et retracent l'intégralité des mouvements de titres intervenus au cours de l'exercice.",
+        heldByIntermediary
+          ? `La direction déclare que le relevé des comptes-titres établi par ${intermediaryName} et présenté au commissaire aux comptes est complet, à jour, et retrace l'intégralité des mouvements de titres intervenus au cours de l'exercice.`
+          : "La direction déclare que les registres de titres nominatifs présentés au commissaire aux comptes sont complets, à jour, et retracent l'intégralité des mouvements de titres intervenus au cours de l'exercice.",
       ),
       p("Le représentant légal de la société", true),
       ...signatureBlock(e, branding.displayName),
@@ -842,19 +875,26 @@ export interface EquityCheck {
   hasTb: boolean;
   /** which trial balance the figures come from: the valid post-audit (final) TB when one exists */
   source: "post_audit" | "pre_audit" | null;
+  /** where the share capital comes from (F056): the client record, or by default the closing balance of account 101 */
+  shareCapitalSource: "client" | "tb_101" | null;
 }
 
 /**
  * The figures without side effects: capitaux propres from the final
- * (post-audit) TB when a valid one exists, else the working pre-audit TB.
+ * (post-audit) TB when a valid one exists, else the working pre-audit TB. The
+ * share capital is the client record's figure, or by default the closing
+ * credit balance of account 101 (capital social) of the same TB (F056) — the
+ * record stays the manual override.
  */
 async function computeEquity(tx: PoolClient, engagementId: string): Promise<EquityCheck> {
   const e = await loadLegalContext(tx, engagementId);
-  const totals = await tx.query<{ equity: string | null; result: string | null; rows: string; timing: string | null }>(
+  const totals = await tx.query<{ equity: string | null; result: string | null; capital101: string | null; rows: string; timing: string | null }>(
     `SELECT -sum(r.opening_debit - r.opening_credit + r.debit - r.credit)
               FILTER (WHERE r.account_code ~ '^1[0-5]') AS equity,
             -sum(r.opening_debit - r.opening_credit + r.debit - r.credit)
               FILTER (WHERE r.account_code ~ '^[678]') AS result,
+            -sum(r.opening_debit - r.opening_credit + r.debit - r.credit)
+              FILTER (WHERE r.account_code ~ '^101') AS capital101,
             count(r.id)::text AS rows,
             min(v.timing) AS timing
        FROM trial_balance tb
@@ -871,11 +911,14 @@ async function computeEquity(tx: PoolClient, engagementId: string): Promise<Equi
   );
   const hasTb = Number(totals.rows[0]?.rows ?? 0) > 0;
   const equity = Number(totals.rows[0]?.equity ?? 0) + Number(totals.rows[0]?.result ?? 0);
-  const shareCapital = e.share_capital === null ? null : Number(e.share_capital);
+  const capital101 = totals.rows[0]?.capital101 === null || totals.rows[0]?.capital101 === undefined ? null : Number(totals.rows[0].capital101);
+  const fromClient = e.share_capital === null ? null : Number(e.share_capital);
+  const shareCapital = fromClient ?? (hasTb && capital101 !== null && capital101 > 0 ? capital101 : null);
+  const shareCapitalSource: EquityCheck["shareCapitalSource"] = fromClient !== null ? "client" : shareCapital !== null ? "tb_101" : null;
   const halfCapital = shareCapital === null ? null : shareCapital / 2;
   const breach = hasTb && halfCapital !== null && equity < halfCapital;
   const source = !hasTb ? null : totals.rows[0]?.timing === "post_audit" ? "post_audit" : "pre_audit";
-  return { equity, shareCapital, halfCapital, breach, hasTb, source };
+  return { equity, shareCapital, halfCapital, breach, hasTb, source, shareCapitalSource };
 }
 
 export type EquityConclusion = "breach" | "unchecked-breach" | "stale" | "ok" | "none";
@@ -921,7 +964,7 @@ export async function equityCheck(engagementId: string): Promise<EquityCheck> {
          ON CONFLICT (engagement_id, key) DO UPDATE SET due_date = EXCLUDED.due_date, basis = EXCLUDED.basis`,
         [
           tenantId, engagementId, addMonthsClamped(basisDate, 4),
-          "Capitaux propres < ½ capital — AGE ≤ 4 mois de l'approbation des comptes déficitaires (SA arts. 664-669 ; SARL arts. 371-373)",
+          "Capitaux propres < ½ capital — AGE ≤ 4 mois de l'approbation des comptes déficitaires (SA arts. 664-668 ; SARL arts. 371-373 — à valider)",
         ],
       );
     } else if (figures.hasTb && figures.halfCapital !== null) {

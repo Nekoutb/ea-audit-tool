@@ -124,8 +124,9 @@ export default async function SectionPage(props: {
   if (!engagement || !section || section.engagement_id !== id) notFound();
 
   const group = groupOfTask(section.code);
-  // the paper cites the paragraph numbers and wording of the engagement's standards edition (F045)
-  const paperDef = paperFor(section.code, engagement.standardsEdition);
+  // the paper cites the paragraph numbers and wording of the engagement's
+  // standards edition (F045) and names the organs of the client's legal form (F052)
+  const paperDef = paperFor(section.code, engagement.standardsEdition, engagement.clientLegalForm);
   const editionLabel = editionLine(engagement.standardsEdition, locale);
   // version BEFORE values: a save in between then refuses (safe), never overwrites
   const paperBaseVersion = await paperVersion(id, section.code);
@@ -166,16 +167,18 @@ export default async function SectionPage(props: {
       const fr61 = locale === "fr";
       const statusLabel =
         m.status === "approved" ? (fr61 ? "approuvé" : "approved") : m.status === "draft" ? (fr61 ? "brouillon" : "draft") : (fr61 ? "remplacé" : "superseded");
-      autoValues.benchmark = `${benchmarkLabel(m.benchmark, fr61)} · PM ${n(m.overall)} (${m.percentage}% × ${n(m.benchmarkAmount)}) · TE ${n(m.performance)} (${m.performancePct}% PM) · SAD Nominal ${n(m.trivial)} (${m.trivialPct}% PM) FCFA (${statusLabel}${m.approvedByName ? " · " + m.approvedByName : ""})`;
+      autoValues.benchmark = fr61
+        ? `${benchmarkLabel(m.benchmark, fr61)} · seuil de signification global ${n(m.overall)} (${m.percentage}% × ${n(m.benchmarkAmount)}) · seuil de travail ${n(m.performance)} (${m.performancePct}% du seuil global) · seuil des anomalies manifestement négligeables ${n(m.trivial)} (${m.trivialPct}% du seuil global) FCFA (${statusLabel}${m.approvedByName ? " · " + m.approvedByName : ""})`
+        : `${benchmarkLabel(m.benchmark, fr61)} · overall materiality ${n(m.overall)} (${m.percentage}% × ${n(m.benchmarkAmount)}) · performance materiality ${n(m.performance)} (${m.performancePct}% of overall) · clearly trivial threshold ${n(m.trivial)} (${m.trivialPct}% of overall) FCFA (${statusLabel}${m.approvedByName ? " · " + m.approvedByName : ""})`;
       const sm = await specificThresholds(id);
       if (sm.size > 0) {
         autoValues.benchmark += fr61
           ? ` · ${sm.size} seuil${sm.size > 1 ? "s" : ""} spécifique${sm.size > 1 ? "s" : ""} (P6.2)`
           : ` · ${sm.size} specific threshold${sm.size > 1 ? "s" : ""} (P6.2)`;
       }
-      // the written reason for the TE percentage travels with the figure (UAT B42)
+      // the written reason for the performance materiality percentage travels with the figure (UAT B42)
       if (m.performanceJustification) {
-        autoValues.benchmark += ` · ${locale === "fr" ? "Justification TE : " : "TE justification: "}${m.performanceJustification}`;
+        autoValues.benchmark += ` · ${locale === "fr" ? "Justification du seuil de travail : " : "Performance materiality justification: "}${m.performanceJustification}`;
       }
     }
   }
@@ -190,7 +193,9 @@ export default async function SectionPage(props: {
       ? `${live.length} risque(s), dont ${sig} important(s)`
       : `${live.length} risk(s), ${sig} significant`;
     autoValues.context = m
-      ? `${benchmarkLabel(m.benchmark, fr61)} · PM ${n(m.overall)} · TE ${n(m.performance)} (${m.performancePct}% PM) · SAD ${n(m.trivial)} (${m.trivialPct}% PM) FCFA · ${risksLine}`
+      ? fr61
+        ? `${benchmarkLabel(m.benchmark, fr61)} · seuil global ${n(m.overall)} · seuil de travail ${n(m.performance)} (${m.performancePct}%) · manifestement négligeable ${n(m.trivial)} (${m.trivialPct}%) FCFA · ${risksLine}`
+        : `${benchmarkLabel(m.benchmark, fr61)} · overall materiality ${n(m.overall)} · performance materiality ${n(m.performance)} (${m.performancePct}%) · clearly trivial ${n(m.trivial)} (${m.trivialPct}%) FCFA · ${risksLine}`
       : `${fr61 ? "Seuil de signification non encore approuvé" : "Materiality not approved yet"} · ${risksLine}`;
   }
   // S5.4 — the journal-entry selection design recorded by the JE engine (UAT B76)
@@ -443,6 +448,14 @@ export default async function SectionPage(props: {
     // P3.2 rests on the analytical procedures run on the imported TB; S2.1/S2.2
     // (controls) pointed at unrelated TB/GL screens and are unlinked (UAT B60)
     "P3.2": { path: "analytics", en: "Analytical procedures", fr: "Procédures analytiques" },
+    // the OHADA statutory papers are driven from the legal tool (F050–F056)
+    "C5.2": { path: "legal", en: "Legal tool — statutory calendar", fr: "Outil juridique — calendrier légal" },
+    "C5.3": { path: "legal#conventions", en: "Legal tool — regulated agreements register", fr: "Outil juridique — registre des conventions" },
+    "C5.4": { path: "legal#titres", en: "Legal tool — article 715 report", fr: "Outil juridique — rapport article 715" },
+    "C5.5": { path: "legal#alerte", en: "Legal tool — alert procedure", fr: "Outil juridique — procédure d'alerte" },
+    "C5.6": { path: "legal", en: "Legal tool — faits délictueux", fr: "Outil juridique — faits délictueux" },
+    "C5.7": { path: "legal#titres", en: "Legal tool — securities attestation", fr: "Outil juridique — attestation titres" },
+    "C5.8": { path: "legal#equity", en: "Legal tool — equity monitor", fr: "Outil juridique — suivi des capitaux propres" },
   };
   const toolLink = TOOL_LINKS[section.code] ?? null;
   const toolChip = toolLink ? (
@@ -1076,9 +1089,9 @@ export default async function SectionPage(props: {
           {approvedM ? (
             <div className="mb-2 flex flex-wrap items-center gap-x-4 gap-y-1 rounded-[var(--radius-atlas-sm)] border border-emerald-600/30 bg-emerald-50 px-3 py-2 text-[12px] dark:bg-emerald-950/30" data-testid="wp-materiality-strip">
               <span className="text-muted">{fr ? "Base approuvée" : "Approved basis"}: <b className="text-ink">{approvedM.benchmark}</b> · {approvedM.percentage}%</span>
-              <span className="text-muted">{fr ? "Seuil global" : "Planning Materiality"}: <b className="text-ink tnum">{new Intl.NumberFormat("fr-FR").format(approvedM.overall)}</b></span>
-              <span className="text-muted">{fr ? "Seuil de travail" : "Tolerable Error"}: <b className="text-ink tnum">{new Intl.NumberFormat("fr-FR").format(approvedM.performance)}</b></span>
-              <span className="text-muted">SAD: <b className="text-ink tnum">{new Intl.NumberFormat("fr-FR").format(approvedM.trivial)}</b></span>
+              <span className="text-muted">{fr ? "Seuil de signification global" : "Overall materiality"}: <b className="text-ink tnum">{new Intl.NumberFormat("fr-FR").format(approvedM.overall)}</b></span>
+              <span className="text-muted">{fr ? "Seuil de travail" : "Performance materiality"}: <b className="text-ink tnum">{new Intl.NumberFormat("fr-FR").format(approvedM.performance)}</b></span>
+              <span className="text-muted">{fr ? "Manifestement négligeable" : "Clearly trivial"}: <b className="text-ink tnum">{new Intl.NumberFormat("fr-FR").format(approvedM.trivial)}</b></span>
             </div>
           ) : null}
           {/* E6.10 tie-out board (UAT B114): the trial balance's own aggregates,

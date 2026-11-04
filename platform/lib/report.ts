@@ -1,9 +1,14 @@
 // Phase 7 (7.9/7.10): opinion decision tree (ISA 700/705/706/570/701) and the
-// OHADA statutory report builder — FR wording per AUSCGIE arts. 710–711 and
-// the practice guide (descriptive formula, no "certifier"; report titled
-// "Rapport du commissaire aux comptes sur les états financiers annuels";
+// OHADA statutory report builder — FR wording per AUSCGIE arts. 710–711 (report
+// titled "Rapport du commissaire aux comptes sur les états financiers annuels";
 // Vérifications et informations spécifiques section; EoM on going concern;
 // KAM ("Points clés de l'audit") for listed entities).
+//
+// F049 (firm decision 2026-10-27): the opinion paragraph uses the art. 710
+// certification formula — « Nous certifions que les états financiers … sont
+// réguliers et sincères et donnent une image fidèle… » — in place of the
+// descriptive « À notre avis » the practice guide once suggested; the modified
+// opinions keep the same base (réserve, refus, impossibilité de certifier).
 
 import { createHash } from "node:crypto";
 import { Document, HeadingLevel, Packer, Paragraph, TextRun } from "docx";
@@ -52,28 +57,66 @@ export function periodEndFr(iso: string): string {
   return `${day === 1 ? "1er" : day} ${MONTHS_FR[Number(m[2]) - 1] ?? m[2]} ${m[1]}`;
 }
 
+/** The three qualities and the three objects of the art. 710 certification, in the Act's order. */
+const CERTIFIED_FR =
+  "sont réguliers et sincères et donnent une image fidèle du résultat des opérations de l'exercice écoulé ainsi que de la situation financière et du patrimoine de la société à la fin de cet exercice";
+const CERTIFIED_EN =
+  "are regular and sincere [réguliers et sincères] and give a true and fair view of the result of the operations of the period and of the financial position and assets of the company at its end";
+
 const OPINION_FR: Record<OpinionType, { title: string; body: (client: string, periodEnd: string) => string }> = {
   unmodified: {
     title: "Opinion",
     body: (client, periodEnd) =>
-      `À notre avis, les états financiers annuels de ${client} pour l'exercice clos le ${periodEnd} sont réguliers et sincères et donnent une image fidèle du résultat des opérations de l'exercice écoulé ainsi que de la situation financière et du patrimoine de la société à la fin de cet exercice, conformément au référentiel SYSCOHADA révisé.`,
+      `Nous certifions que les états financiers annuels de ${client} pour l'exercice clos le ${periodEnd} ${CERTIFIED_FR}, conformément au référentiel SYSCOHADA révisé.`,
   },
   qualified: {
     title: "Opinion avec réserves",
     body: (client, periodEnd) =>
-      `À notre avis, sous réserve des points décrits dans la section « Fondement de l'opinion avec réserves », les états financiers annuels de ${client} pour l'exercice clos le ${periodEnd} sont réguliers et sincères et donnent une image fidèle du résultat des opérations de l'exercice écoulé ainsi que de la situation financière et du patrimoine de la société.`,
+      `Nous certifions que, sous réserve des points décrits dans la section « Fondement de l'opinion avec réserves », les états financiers annuels de ${client} pour l'exercice clos le ${periodEnd} ${CERTIFIED_FR}.`,
   },
   adverse: {
     title: "Opinion défavorable",
     body: (client, periodEnd) =>
-      `À notre avis, en raison de l'importance des points décrits dans la section « Fondement de l'opinion défavorable », les états financiers annuels de ${client} pour l'exercice clos le ${periodEnd} ne sont pas réguliers et sincères et ne donnent pas une image fidèle du résultat des opérations, de la situation financière et du patrimoine de la société.`,
+      `En raison de l'importance des points décrits dans la section « Fondement de l'opinion défavorable », nous certifions que les états financiers annuels de ${client} pour l'exercice clos le ${periodEnd} ne sont pas réguliers et sincères et ne donnent pas une image fidèle du résultat des opérations de l'exercice écoulé ainsi que de la situation financière et du patrimoine de la société à la fin de cet exercice.`,
   },
   disclaimer: {
-    title: "Impossibilité d'exprimer une opinion",
+    title: "Impossibilité de certifier",
     body: (client, periodEnd) =>
-      `En raison de l'importance des points décrits dans la section « Fondement de l'impossibilité d'exprimer une opinion », nous ne sommes pas en mesure d'exprimer une opinion sur les états financiers annuels de ${client} pour l'exercice clos le ${periodEnd}.`,
+      `En raison de l'importance des points décrits dans la section « Fondement de l'impossibilité de certifier », nous ne sommes pas en mesure de certifier que les états financiers annuels de ${client} pour l'exercice clos le ${periodEnd} ${CERTIFIED_FR}.`,
   },
 };
+
+const OPINION_EN: Record<OpinionType, { title: string; body: (client: string, periodEnd: string) => string }> = {
+  unmodified: {
+    title: "Opinion",
+    body: (client, periodEnd) =>
+      `We certify that the annual financial statements of ${client} for the year ended ${periodEnd} ${CERTIFIED_EN}, in accordance with the SYSCOHADA révisé framework.`,
+  },
+  qualified: {
+    title: "Qualified opinion",
+    body: (client, periodEnd) =>
+      `We certify that, except for the matters described in the “Basis for qualified opinion” section, the annual financial statements of ${client} for the year ended ${periodEnd} ${CERTIFIED_EN}.`,
+  },
+  adverse: {
+    title: "Adverse opinion",
+    body: (client, periodEnd) =>
+      `Because of the significance of the matters described in the “Basis for adverse opinion” section, we certify that the annual financial statements of ${client} for the year ended ${periodEnd} are not regular and sincere and do not give a true and fair view of the result of the operations of the period or of the financial position and assets of the company at its end.`,
+  },
+  disclaimer: {
+    title: "Inability to certify",
+    body: (client, periodEnd) =>
+      `Because of the significance of the matters described in the “Basis for the inability to certify” section, we are not able to certify that the annual financial statements of ${client} for the year ended ${periodEnd} ${CERTIFIED_EN}.`,
+  },
+};
+
+/**
+ * The opinion paragraph in the art. 710 certification form (F049), for the
+ * papers and tests that quote it; the generated report is French.
+ */
+export function opinionParagraph(opinion: OpinionType, client: string, periodEnd: string, locale: "en" | "fr" = "fr"): { title: string; body: string } {
+  const o = (locale === "fr" ? OPINION_FR : OPINION_EN)[opinion];
+  return { title: o.title, body: o.body(client, periodEnd) };
+}
 
 /** Build and file the statutory report (FR) under C2.1 as kind='report'. */
 export async function generateAuditReport(input: {
@@ -150,7 +193,7 @@ export async function generateAuditReport(input: {
     children.push(
       new Paragraph({ heading: HeadingLevel.HEADING_1, children: [new TextRun("Vérifications et informations spécifiques")] }),
       new Paragraph(
-        "Nous avons procédé aux vérifications spécifiques prévues par les textes : concordance et sincérité des informations du rapport de gestion (art. 713), respect de l'égalité entre actionnaires (art. 714), détention d'actions par les administrateurs (art. 417). Les irrégularités et inexactitudes relevées, le cas échéant, sont signalées à la plus proche assemblée générale (art. 716).",
+        "Nous avons procédé aux vérifications spécifiques prévues par les textes : concordance avec les états financiers et sincérité des informations données dans le rapport de gestion et dans les documents adressés aux associés ou actionnaires (art. 713), respect de l'égalité entre les associés ou actionnaires (art. 714), détention d'actions par les administrateurs (art. 417). Les irrégularités et inexactitudes relevées, le cas échéant, sont signalées à la plus proche assemblée générale (art. 716).",
       ),
     );
     // C5.9 (spec §12.5.10): joint report by the co-CACs; any documented

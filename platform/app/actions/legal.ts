@@ -142,6 +142,8 @@ export async function titresAttestationAction(engagementId: string, formData: Fo
     const documentId = await generateTitresAttestation(engagementId, {
       inspectionDate: String(formData.get("inspectionDate") ?? ""),
       securitiesCount: Number(formData.get("securitiesCount") ?? ""),
+      heldByIntermediary: formData.get("heldByIntermediary") === "on",
+      intermediaryName: String(formData.get("intermediaryName") ?? ""),
     });
     return `/documents/${documentId}`;
   });
