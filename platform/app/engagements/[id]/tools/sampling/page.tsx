@@ -1,3 +1,7 @@
+import { numLocale } from "@/lib/format";
+import { PrerequisitesStrip } from "@/components/PrerequisitesStrip";
+import { todSideView } from "@/lib/tod-export";
+import { toolPrerequisites } from "@/lib/tool-prerequisites";
 import Link from "next/link";
 import { localizedTitle } from "@/lib/page-title";
 import { notFound, redirect } from "next/navigation";
@@ -48,6 +52,11 @@ export default async function SamplingPage(props: {
   const [draws, team] = await Promise.all([listTocDraws(id), listTeam(id)]);
   const myTeamRole = team.find((m) => m.userId === session.user.id && m.status === "accepted")?.teamRole ?? null;
   const mayRedrawAfterTesting = teamRank(myTeamRole) >= teamRank("manager");
+  // what the tool leans on, and what it would export, before the export (F063)
+  const prerequisites = await toolPrerequisites(id, locale);
+  const todViews = await Promise.all((["bs", "is"] as const).map((side) => todSideView(id, { side, locale }).catch(() => null)));
+  const todPreview = todViews.flatMap((view) => (view && typeof view === "object" ? view.sheets : []));
+  const nf = new Intl.NumberFormat(numLocale(locale));
   // the purpose list: every control selected for testing on S2.1, with the
   // attributes the frequency table needs — and whether it is the ONLY selected
   // control covering one of its assertions (larger minimum sample).
@@ -104,6 +113,42 @@ export default async function SamplingPage(props: {
           {fr ? "Échantillonnage" : "Sampling"}
         </h1>
       </div>
+
+      <PrerequisitesStrip items={prerequisites} title={fr ? "Prérequis" : "Prerequisites"} testId="sampling-prerequisites" />
+
+      {todPreview.length > 0 ? (
+        <Panel className="mt-4" data-testid="sampling-tod-preview">
+          <PanelHeader title={fr ? "Tests de détail : paramètres par indice, avant export" : "Tests of details: parameters per index, before export"} />
+          <div className="mt-2 overflow-x-auto">
+            <table className="w-full text-[12px]">
+              <thead>
+                <tr className="text-left text-[10.5px] uppercase tracking-[0.06em] text-muted">
+                  {(fr
+                    ? ["Indice", "Population", "Éléments clés", "Seuil de travail", "Évaluation combinée", "Facteur", "Taille", "Intervalle"]
+                    : ["Index", "Population", "Key items", "Performance materiality", "Combined assessment", "Factor", "Size", "Interval"]
+                  ).map((h) => (
+                    <th key={h} className="px-2 py-1">{h}</th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody>
+                {todPreview.map((sheet) => (
+                  <tr key={sheet.indexCode} className="border-t border-line tnum" data-testid={`tod-preview-${sheet.indexCode}`}>
+                    <td className="px-2 py-1 font-medium text-ink">{sheet.indexCode} {fr ? sheet.labelFr : sheet.labelEn}</td>
+                    <td className="px-2 py-1">{nf.format(sheet.plan.populationValue)}</td>
+                    <td className="px-2 py-1">{nf.format(sheet.plan.keyItems.length)} ({nf.format(sheet.plan.keyItemValue)})</td>
+                    <td className="px-2 py-1">{nf.format(sheet.plan.te)}</td>
+                    <td className="px-2 py-1">{sheet.cra}</td>
+                    <td className="px-2 py-1">{sheet.plan.factor ?? "—"}</td>
+                    <td className="px-2 py-1">{nf.format(sheet.plan.sampleSize)}</td>
+                    <td className="px-2 py-1">{sheet.plan.interval !== null ? nf.format(Math.round(sheet.plan.interval)) : "—"}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </Panel>
+      ) : null}
 
       <Panel className="mt-4">
         <PanelHeader

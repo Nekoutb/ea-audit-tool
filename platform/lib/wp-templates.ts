@@ -22,7 +22,9 @@ import path from "node:path";
 import { withTenant } from "@/lib/db";
 import { ArchivedError, assertMutable } from "@/lib/mutability";
 import { requireTenant } from "@/lib/tenant";
+import { DEFAULT_FILE_INDEX } from "@/lib/file-index";
 import { blankFsChecklistTemplate, buildFsChecklistWorkbook } from "@/lib/fs-checklist-workbook";
+import { buildSubstantiveWorkbook } from "@/lib/substantive-workbook";
 import { blankItgcTemplate, buildItgcWorkbook } from "@/lib/itgc-workbook";
 import { blankJeTemplate, buildJeWorkbook } from "@/lib/je-workbook";
 import { blankTocTemplate, buildTocWorkbook } from "@/lib/toc-workbook";
@@ -67,7 +69,7 @@ const XLSX_MIME = "application/vnd.openxmlformats-officedocument.spreadsheetml.s
  * paper; the E4.x account papers are the substantive ones, mapped through
  * INDEX_SECTION (E → E4.1, N → E4.2, F → E4.3, K → E4.4).
  */
-export const TEMPLATES: readonly WpTemplate[] = [
+const NAMED_TEMPLATES: readonly WpTemplate[] = [
   {
     key: "toc-scot",
     category: "test-of-controls",
@@ -166,6 +168,26 @@ export const TEMPLATES: readonly WpTemplate[] = [
   },
 ] as const;
 
+/**
+ * A generic substantive paper for every E4 index without one of its own (F062):
+ * same skeleton, generated, and seeded on the task like the named papers.
+ */
+const GENERIC_PREFIX = "substantive-generic-";
+const GENERIC_E4: readonly WpTemplate[] = DEFAULT_FILE_INDEX.filter(
+  (entry) => /^E4\./.test(entry.code) && !NAMED_TEMPLATES.some((t) => t.defaultFor.includes(entry.code)),
+).map((entry) => ({
+  key: `${GENERIC_PREFIX}${entry.code}`,
+  category: "substantive",
+  name: `${entry.code}_${entry.titleEn.replace(/[^A-Za-z0-9 &'-]+/g, " ").replace(/\s+/g, " ").trim()}.xlsx`,
+  titleEn: `${entry.code} ${entry.titleEn}`,
+  titleFr: `${entry.code} ${entry.titleFr}`,
+  descriptionEn: "Generic substantive paper: population, selection, tests, exceptions and conclusion.",
+  descriptionFr: "Feuille de substance générique : population, sélection, tests, anomalies et conclusion.",
+  defaultFor: [entry.code],
+}));
+
+export const TEMPLATES: readonly WpTemplate[] = [...NAMED_TEMPLATES, ...GENERIC_E4];
+
 export function findTemplate(key: string): WpTemplate | undefined {
   return TEMPLATES.find((t) => t.key === key);
 }
@@ -213,6 +235,15 @@ export async function templateContent(
   if (!template) return null;
 
   if (!template.file) {
+    if (template.key.startsWith(GENERIC_PREFIX)) {
+      const entry = DEFAULT_FILE_INDEX.find((item) => item.code === template.key.slice(GENERIC_PREFIX.length));
+      if (!entry) return null;
+      return {
+        name: template.name,
+        mime: XLSX_MIME,
+        content: await buildSubstantiveWorkbook({ code: entry.code, titleEn: entry.titleEn, titleFr: entry.titleFr, locale }),
+      };
+    }
     const build = GENERATED[template.key];
     const name = (locale === "fr" && GENERATED_NAME_FR[template.key]) || template.name;
     if (build) return { name, mime: XLSX_MIME, content: await build(locale) };
@@ -248,6 +279,14 @@ async function attachBytes(
   });
 }
 
+async function taskIsSigned(fileItemId: string): Promise<boolean> {
+  const { tenantId } = await requireTenant();
+  return withTenant(tenantId, async (tx) => {
+    const r = await tx.query("SELECT 1 FROM document WHERE file_item_id = $1 AND status = 'signed' LIMIT 1", [fileItemId]);
+    return (r.rowCount ?? 0) > 0;
+  });
+}
+
 /**
  * Attach the task's standard working paper if it has one and nothing by that
  * name is on the task yet. Never throws: the caller renders the page either way.
@@ -261,6 +300,8 @@ export async function ensureDefaultWorkpaper(
   if (!template) return;
   try {
     await assertMutable(engagementId);
+    // a signed paper stays as it was signed: no blank generic sheet appears on it
+    if (template.key.startsWith(GENERIC_PREFIX) && (await taskIsSigned(fileItemId))) return;
     const bytes = await templateContent(template.key);
     if (!bytes) return;
     await attachBytes(engagementId, fileItemId, bytes.name, bytes.content);

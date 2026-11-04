@@ -139,6 +139,7 @@ export function GlConsole({
   analyzerHref,
   initialAccounts = [],
   initialFigure = null,
+  staticCatalogue = [],
 }: {
   engagementId: string;
   locale: "en" | "fr";
@@ -152,6 +153,8 @@ export function GlConsole({
   initialAccounts?: string[];
   /** the TB opening and closing of the lead-schedule figure clicked */
   initialFigure?: { opening: number; closing: number } | null;
+  /** the catalogue with no dataset (F065); read-only */
+  staticCatalogue?: { id: number; key: string; title: string; objective: string; requiredFields: string[] }[];
 }) {
   const fr = locale === "fr";
   const T = (en: string, frText: string) => (fr ? frText : en);
@@ -432,6 +435,34 @@ export function GlConsole({
             {T("Open the GL Analyzer", "Ouvrir l'analyseur du grand livre")}
           </Link>
         </div>
+        {/* the catalogue reads without data; only running one needs a ledger (F065) */}
+        {staticCatalogue.length > 0 ? (
+          <div className="mt-3 overflow-x-auto" data-testid="gl-console-static-catalogue">
+            <p className="mb-1 text-[12px] font-semibold text-ink-soft">
+              {T("The analyses, available once a ledger is imported", "Les analyses, disponibles une fois le grand livre importé")}
+            </p>
+            <table className="w-full text-[12px]">
+              <thead>
+                <tr className="text-left text-[10.5px] uppercase tracking-[0.06em] text-muted">
+                  <th className="px-2 py-1">#</th>
+                  <th className="px-2 py-1">{T("Analysis", "Analyse")}</th>
+                  <th className="px-2 py-1">{T("Objective", "Objectif")}</th>
+                  <th className="px-2 py-1">{T("Columns needed", "Colonnes requises")}</th>
+                </tr>
+              </thead>
+              <tbody>
+                {staticCatalogue.map((a) => (
+                  <tr key={a.key} className="border-t border-line align-top">
+                    <td className="px-2 py-1 tnum text-muted">{a.id}</td>
+                    <td className="px-2 py-1 font-medium text-ink">{a.title}</td>
+                    <td className="px-2 py-1 text-ink-soft">{a.objective}</td>
+                    <td className="px-2 py-1 text-muted">{a.requiredFields.join(", ")}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        ) : null}
       </Sheet>
     );
   }

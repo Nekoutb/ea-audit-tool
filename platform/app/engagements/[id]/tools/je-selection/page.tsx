@@ -1,3 +1,5 @@
+import { PrerequisitesStrip } from "@/components/PrerequisitesStrip";
+import { toolPrerequisites } from "@/lib/tool-prerequisites";
 import Link from "next/link";
 import { localizedTitle } from "@/lib/page-title";
 import { notFound, redirect } from "next/navigation";
@@ -65,6 +67,8 @@ export default async function JeSelectionPage(props: { params: Promise<{ id: str
           </p>
         </div>
       </div>
+
+      <PrerequisitesStrip items={await toolPrerequisites(id, locale)} title={fr ? "Prérequis" : "Prerequisites"} testId="je-prerequisites" />
 
       <div className="mt-4">
         <JeSelectionStudio

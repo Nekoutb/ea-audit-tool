@@ -48,7 +48,8 @@ function Spectrum({ risks, fr }: { risks: Risk[]; fr: boolean }) {
   const live = risks.filter((r) => !r.rebutted);
   const pos = { low: 0, medium: 1, high: 2 } as const;
   return (
-    <svg viewBox="0 0 240 200" className="h-[170px] w-[210px] flex-shrink-0" aria-label="Spectrum of inherent risk">
+    <figure className="flex flex-shrink-0 items-start gap-2" data-testid="risk-spectrum">
+    <svg viewBox="0 0 240 210" className="h-[178px] w-[210px] flex-shrink-0" role="img" aria-label={fr ? "Spectre du risque inhérent" : "Spectrum of inherent risk"}>
       <rect x="30" y="10" width="195" height="160" rx="6" className="fill-[var(--color-surface-2,#f3f3f1)]" />
       {/* upper-end region — significant risks live here */}
       <path d="M 225 10 L 160 10 Q 225 55 225 90 Z" className="fill-rose-200/60 dark:fill-rose-900/40" />
@@ -69,13 +70,28 @@ function Spectrum({ risks, fr }: { risks: Risk[]; fr: boolean }) {
           </g>
         );
       })}
-      <text x="127" y="190" textAnchor="middle" className="fill-[var(--color-muted,#888)] text-[9px]">
+      {/* the graduation (F067): low, medium, high on both axes */}
+      {(fr ? ["Faible", "Moyen", "Élevé"] : ["Low", "Medium", "High"]).map((tick, i) => (
+        <g key={tick}>
+          <text x={30 + i * 65 + 32} y="181" textAnchor="middle" className="fill-[var(--color-muted,#888)] text-[8px]">{tick}</text>
+          <text x="26" y={170 - i * 53.3 - 24} textAnchor="end" className="fill-[var(--color-muted,#888)] text-[8px]">{tick}</text>
+        </g>
+      ))}
+      <text x="127" y="198" textAnchor="middle" className="fill-[var(--color-muted,#888)] text-[9px]">
         {fr ? "Probabilité →" : "Likelihood →"}
       </text>
-      <text x="12" y="95" textAnchor="middle" transform="rotate(-90 12 95)" className="fill-[var(--color-muted,#888)] text-[9px]">
+      <text x="6" y="95" textAnchor="middle" transform="rotate(-90 6 95)" className="fill-[var(--color-muted,#888)] text-[9px]">
         {fr ? "Ampleur →" : "Magnitude →"}
       </text>
     </svg>
+    <figcaption className="flex flex-col gap-1 pt-2 text-[10.5px] text-muted" data-testid="risk-spectrum-legend">
+      <span className="flex items-center gap-1"><span className="h-2 w-2 rounded-full bg-rose-600" aria-hidden />{fr ? "Fraude" : "Fraud"}</span>
+      <span className="flex items-center gap-1"><span className="h-2 w-2 rounded-full bg-emerald-700" aria-hidden />{fr ? "Activité" : "Business"}</span>
+      <span className="flex items-center gap-1"><span className="h-2 w-2 rounded-full bg-slate-500" aria-hidden />{fr ? "Autre" : "Other"}</span>
+      <span className="flex items-center gap-1"><span className="h-2.5 w-2.5 rounded-full border border-rose-700 bg-slate-500" aria-hidden />{fr ? "Risque important" : "Significant risk"}</span>
+      <span className="flex items-center gap-1"><span className="h-2 w-3 rounded-sm bg-rose-200/60 dark:bg-rose-900/40" aria-hidden />{fr ? "Zone des risques importants" : "Significant-risk zone"}</span>
+    </figcaption>
+    </figure>
   );
 }
 

@@ -18,7 +18,8 @@
 // explains what "SRM" stands for, so the paper says what the handbook says —
 // the summary review memorandum the file keeps as C1.2 — and no more. And the
 // bridge and the version comparison of the notes are handbook practice, not
-// ISA requirements, so they are cited as the handbook's.
+// ISA requirements; their references point to the nearest ISA paragraph (F026).
+import { OHADA_FS_CHECKLIST } from "@/lib/ohada-fs-checklist";
 import type { PaperDef, PaperItem, PaperProc, PaperSection } from "@/lib/papers/types";
 
 const P = (
@@ -42,6 +43,24 @@ const proc = (
   procs: PaperProc[],
 ): PaperSection => ({ kind: "proc", titleEn, titleFr, introEn, introFr, procs });
 
+/**
+ * Part G: the OHADA financial statement checklist as yes/no answers on the paper
+ * (F062), so the answers carry the paper's sign-offs. Kept in the same order as
+ * the catalogue the E6.10.1 workbook is generated from; each row names its article.
+ */
+const OHADA_CHECKLIST_SECTIONS: PaperSection[] = OHADA_FS_CHECKLIST.map((section) => ({
+  kind: "yn" as const,
+  titleEn: `Part G — E6.10.1 Checklist ${section.key}: ${section.titleEn}`,
+  titleFr: `Partie G — E6.10.1 Questionnaire ${section.key} : ${section.titleFr}`,
+  introEn: section.introEn,
+  introFr: section.introFr,
+  items: section.rows.map((row) => ({
+    key: `ohada_${row.ref.replace(/[^A-Za-z0-9]+/g, "_")}`,
+    en: `${row.ref} — ${row.en} (${row.article})`,
+    fr: `${row.ref} — ${row.fr} (${row.article})`,
+  })),
+}));
+
 export const FINANCIAL_STATEMENTS_PAPER: PaperDef = {
   std: "ISA 700 (Revised) ¶10–15 · ISA 450 ¶5–13 · ISA 710 ¶7–9 · ISA 510 ¶5–8 · ISA 330 ¶30 · AUDCIF art. 34 · AUSCGIE art. 710",
   ownsEn:
@@ -52,16 +71,16 @@ export const FINANCIAL_STATEMENTS_PAPER: PaperDef = {
   reqEn: [
     "The annual financial statements — balance sheet, income statement, cash-flow statement and notes — form an indivisible whole [tout indissociable]. Before the report is signed, every figure and every disclosure in them is tied to the audited accounting: column N to the final lead schedules, marked in each lead so that no account is left untied, and column N-1 to the definitive accounts attached to our prior-year report, because the opening balance sheet is the prior closing one and its presentation may not change from one year to the next (AUDCIF art. 34; ISA 510 ¶5–8; ISA 710 ¶7–9; ISA 330 ¶30).",
     "The audit points of the final phase are brought to bear on the definitive accounts: the summary review memorandum and the summary of audit differences are linked to this work, every adjustment agreed is confirmed as posted, and reclassifications — credit balances on customers, debit balances on suppliers — are watched for, because they are where a posted adjustment most often fails to reach the statements (ISA 450 ¶5–13).",
-    "The bridge from the audited accounts to the definitive accounts [passage comptes audités → comptes définitifs] is systematically formalised and concluded on, every significant difference explained. A point on the bridge that is not cleared is not left on the paper: it is reported to the senior (Handbook p. 321).",
-    "Content and presentation are reviewed critically against the framework: whether the level of information in the notes and the way it is presented give a true and fair view, whether an adjustment is called for, and whether the answer bears on the opinion (ISA 700 (Revised) ¶12–14; AUSCGIE art. 710). A number of disclosures are mandatory, and the review of the notes is formalised in the disclosure checklist [questionnaire de contrôle de l'annexe] — the E6.10 OHADA financial statement checklist on this file — every 'No' commented and the significant ones carried to the summary of audit differences (Handbook pp. 322–323).",
-    "The object of the whole procedure is to identify presentation or method anomalies, errors and omissions and report them to the senior or manager. Prior-year answers are not copied and questions not understood are not answered 'not applicable'; where the note wording was tied to N-1, the preparer steps back to confirm no change was needed; the reasoning is by significance and relevance; and the N-1 figures AND the matrix of the notes are validated against our N-1 report, not against the client's draft (Handbook p. 323).",
+    "The bridge from the audited accounts to the definitive accounts [passage comptes audités → comptes définitifs] is systematically formalised and concluded on, every significant difference explained. A point on the bridge that is not cleared is not left on the paper: it is reported to the senior (ISA 450 ¶8).",
+    "Content and presentation are reviewed critically against the framework: whether the level of information in the notes and the way it is presented give a true and fair view, whether an adjustment is called for, and whether the answer bears on the opinion (ISA 700 (Revised) ¶12–14; AUSCGIE art. 710). A number of disclosures are mandatory, and the review of the notes is formalised in the disclosure checklist [questionnaire de contrôle de l'annexe] — the E6.10 OHADA financial statement checklist on this file — every 'No' commented and the significant ones carried to the summary of audit differences (ISA 450 ¶5–8).",
+    "The object of the whole procedure is to identify presentation or method anomalies, errors and omissions and report them to the senior or manager. Prior-year answers are not copied and questions not understood are not answered 'not applicable'; where the note wording was tied to N-1, the preparer steps back to confirm no change was needed; the reasoning is by significance and relevance; and the N-1 figures AND the matrix of the notes are validated against our N-1 report, not against the client's draft (ISA 710 ¶7).",
   ],
   reqFr: [
     "Les états financiers annuels — bilan, compte de résultat, tableau des flux de trésorerie et notes annexes — forment un tout indissociable. Avant la signature du rapport, chaque chiffre et chaque information qu'ils contiennent sont pointés à la comptabilité auditée : la colonne N aux leads définitifs, en matérialisant dans chaque lead que tous les comptes ont été pointés, et la colonne N-1 aux comptes définitifs joints à notre rapport de l'exercice précédent, parce que le bilan d'ouverture est le bilan de clôture précédent et que sa présentation ne peut varier d'un exercice à l'autre (AUDCIF art. 34 ; ISA 510 ¶5–8 ; ISA 710 ¶7–9 ; ISA 330 ¶30).",
     "Les points d'audit de la phase finale sont rapprochés des comptes définitifs : le mémorandum récapitulatif de revue et le récapitulatif des écarts d'audit sont liés à ces travaux, chaque ajustement convenu est vérifié comme passé, et les reclassements — clients créditeurs, fournisseurs débiteurs — font l'objet d'un point d'attention, car c'est là qu'un ajustement passé manque le plus souvent d'atteindre les états (ISA 450 ¶5–13).",
-    "Le passage des comptes audités aux comptes définitifs est systématiquement formalisé et conclu, chaque écart significatif étant expliqué. Un point non levé sur ce passage ne reste pas sur le papier : il est signalé au senior (Handbook p. 321).",
-    "Le contenu et la présentation font l'objet d'une revue critique au regard du référentiel : le niveau d'information des notes et la manière dont elles sont présentées donnent-ils une image fidèle, un ajustement s'impose-t-il, et la réponse pèse-t-elle sur l'opinion (ISA 700 révisée ¶12–14 ; AUSCGIE art. 710). Un certain nombre d'informations ont un caractère obligatoire, et la revue des notes est formalisée dans le questionnaire de contrôle de l'annexe — le contrôle des états financiers OHADA E6.10 de ce dossier — chaque « Non » étant commenté et les plus significatifs reportés au récapitulatif des écarts d'audit (Handbook pp. 322–323).",
-    "L'objectif de l'ensemble est de relever les anomalies de présentation ou de méthode, les erreurs et les omissions et de les signaler au senior ou au manager. Les réponses de l'exercice précédent ne sont pas recopiées et les questions non comprises ne sont pas mises en « sans objet » ; lorsque le libellé de l'annexe a été pointé iso N-1, le préparateur prend du recul pour s'assurer qu'aucune évolution n'était nécessaire ; le raisonnement se fait en fonction du caractère significatif et pertinent ; et les chiffres N-1 AINSI QUE la matrice de l'annexe sont validés avec notre rapport N-1, non avec le projet du client (Handbook p. 323).",
+    "Le passage des comptes audités aux comptes définitifs est systématiquement formalisé et conclu, chaque écart significatif étant expliqué. Un point non levé sur ce passage ne reste pas sur le papier : il est signalé au senior (ISA 450 ¶8).",
+    "Le contenu et la présentation font l'objet d'une revue critique au regard du référentiel : le niveau d'information des notes et la manière dont elles sont présentées donnent-ils une image fidèle, un ajustement s'impose-t-il, et la réponse pèse-t-elle sur l'opinion (ISA 700 révisée ¶12–14 ; AUSCGIE art. 710). Un certain nombre d'informations ont un caractère obligatoire, et la revue des notes est formalisée dans le questionnaire de contrôle de l'annexe — le contrôle des états financiers OHADA E6.10 de ce dossier — chaque « Non » étant commenté et les plus significatifs reportés au récapitulatif des écarts d'audit (ISA 450 ¶5–8).",
+    "L'objectif de l'ensemble est de relever les anomalies de présentation ou de méthode, les erreurs et les omissions et de les signaler au senior ou au manager. Les réponses de l'exercice précédent ne sont pas recopiées et les questions non comprises ne sont pas mises en « sans objet » ; lorsque le libellé de l'annexe a été pointé iso N-1, le préparateur prend du recul pour s'assurer qu'aucune évolution n'était nécessaire ; le raisonnement se fait en fonction du caractère significatif et pertinent ; et les chiffres N-1 AINSI QUE la matrice de l'annexe sont validés avec notre rapport N-1, non avec le projet du client (ISA 710 ¶7).",
   ],
   sections: [
     proc(
@@ -162,8 +181,8 @@ export const FINANCIAL_STATEMENTS_PAPER: PaperDef = {
         ),
         P(
           "checklist",
-          "Complete the E6.10 OHADA financial statement checklist — every requirement answered, every 'No' commented, the completed checklist filed on this task — and carry the significant 'No's and any missing specific information to the summary of audit differences as misstatements in disclosures.",
-          "Compléter le contrôle des états financiers OHADA E6.10 — chaque exigence répondue, chaque « Non » commenté, le questionnaire complété joint à cette tâche — et reporter les « Non » significatifs et toute information spécifique manquante au récapitulatif des écarts d'audit en anomalies de présentation.",
+          "Complete the E6.10.1 OHADA financial statement checklist in Part G of this paper — every requirement answered, every 'No' commented, the completed checklist filed on this task — and carry the significant 'No's and any missing specific information to the summary of audit differences as misstatements in disclosures.",
+          "Compléter le contrôle des états financiers OHADA E6.10.1 en partie G de cette feuille — chaque exigence répondue, chaque « Non » commenté, le questionnaire complété joint à cette tâche — et reporter les « Non » significatifs et toute information spécifique manquante au récapitulatif des écarts d'audit en anomalies de présentation.",
           "Part G of this paper (E6.10.1) · C1.1 · ISA 700 (Revised) ¶12–14",
           "Partie G de cette feuille (E6.10.1) · C1.1 · ISA 700 révisée ¶12–14",
           "Do not copy prior-year answers, and do not mark 'not applicable' a question that is not understood. Where the wording of a note was tied to N-1, step back and confirm no change was needed.",
@@ -228,6 +247,7 @@ export const FINANCIAL_STATEMENTS_PAPER: PaperDef = {
         Q("reported", "Every anomaly, error and omission found was reported to the senior or manager.", "Chaque anomalie, erreur et omission relevée a été signalée au senior ou au manager."),
       ],
     },
+    ...OHADA_CHECKLIST_SECTIONS,
   ],
   conclEn: [
     "The financial statements agree to the final lead schedules and, for the comparative column, to the accounts attached to our prior-year report.",

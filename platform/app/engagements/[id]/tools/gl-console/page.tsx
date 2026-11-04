@@ -1,3 +1,4 @@
+import { ANALYTICS } from "@/lib/gl-analytics";
 import Link from "next/link";
 import { localizedTitle } from "@/lib/page-title";
 import { notFound, redirect } from "next/navigation";
@@ -90,6 +91,13 @@ export default async function GlConsolePage(props: {
           periodEnd={engagement.periodEnd}
           fiscalYear={engagement.fiscalYear}
           analyzerHref={`/engagements/${id}/analyzers/journal_entries`}
+          staticCatalogue={ANALYTICS.map((a) => ({
+            id: a.id,
+            key: a.key,
+            title: fr ? a.titleFr : a.titleEn,
+            objective: fr ? a.objectiveFr : a.objectiveEn,
+            requiredFields: a.requiredFields,
+          }))}
           initialAccounts={initialAccounts}
           initialFigure={initialAccounts.length > 0 ? initialFigure : null}
         />

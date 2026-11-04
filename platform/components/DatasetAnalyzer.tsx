@@ -5,6 +5,7 @@
 // shows the data behind it) → ingest. The confirmed mapping is stored with the
 // dataset and its amount column drives the total.
 
+import { FilePicker } from "@/components/FilePicker";
 import { useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import type { Messages } from "@/lib/i18n";
@@ -36,6 +37,19 @@ export function DatasetAnalyzer({
   const [pending, setPending] = useState<"analyze" | "ingest" | null>(null);
   const [headerRow, setHeaderRow] = useState(true);
   const [done, setDone] = useState<string | null>(null);
+  const [fileChosen, setFileChosen] = useState(false);
+
+  // The expected layout, before any file is read (F066): the template's headers
+  // are the first alias of each field, which the importer maps back on its own.
+  function downloadTemplate() {
+    const header = FIELDS[kind].map((f) => f.aliases[0] ?? f.key).join(";");
+    const url = URL.createObjectURL(new Blob([`\ufeff${header}\r\n`], { type: "text/csv;charset=utf-8" }));
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = `${kind}_${fr ? "modele" : "template"}.csv`;
+    link.click();
+    URL.revokeObjectURL(url);
+  }
 
   async function analyze() {
     const file = fileRef.current?.files?.[0];
@@ -106,6 +120,21 @@ export function DatasetAnalyzer({
 
   return (
     <div className="flex flex-col gap-3">
+      <div className="text-[12px] text-muted" data-testid="dataset-format-help">
+        <p>
+          {fr ? "Colonnes attendues : " : "Expected columns: "}
+          {FIELDS[kind].map((field, i) => (
+            <span key={field.key}>
+              {i > 0 ? ", " : ""}
+              <span className={field.required ? "font-semibold text-ink-soft" : ""}>{fr ? field.fr : field.en}</span>
+            </span>
+          ))}
+          {fr ? " (en gras : obligatoires). CSV, XLSX ou TXT. " : " (bold: required). CSV, XLSX or TXT. "}
+          <button type="button" onClick={downloadTemplate} className="font-semibold text-emerald-700 underline dark:text-emerald-400" data-testid="dataset-template">
+            {fr ? "Télécharger le modèle" : "Download the template"}
+          </button>
+        </p>
+      </div>
       <div className="flex flex-wrap items-center gap-3">
         {fixedKind ? null : (
           <select
@@ -131,14 +160,7 @@ export function DatasetAnalyzer({
             <option value="prior_year">{fr ? "Grand livre N-1" : "Prior-year GL"}</option>
           </select>
         ) : null}
-        <input
-          ref={fileRef}
-          type="file"
-          accept=".csv,.xlsx,.txt"
-          data-testid="dataset-file"
-          onChange={() => setPreview(null)}
-          className="text-sm text-ink-soft file:mr-3 file:rounded-[var(--radius-atlas-sm)] file:border file:border-line-strong file:bg-surface file:px-3 file:py-1.5 file:text-sm file:font-medium file:text-ink-soft"
-        />
+        <FilePicker inputRef={fileRef} accept=".csv,.xlsx,.txt" locale={locale} testId="dataset-file" onChange={(e) => { setPreview(null); setFileChosen(Boolean(e.target.files?.length)); }} />
         <label className="flex items-center gap-1.5 text-[12px] text-ink-soft">
           <input
             type="checkbox"
@@ -160,7 +182,8 @@ export function DatasetAnalyzer({
         <button
           type="button"
           onClick={analyze}
-          disabled={pending !== null}
+          disabled={pending !== null || !fileChosen}
+          title={fileChosen ? undefined : fr ? "Choisir d'abord un fichier" : "Choose a file first"}
           data-testid="dataset-analyze"
           className="rounded-[var(--radius-atlas-sm)] bg-emerald-700 px-3 py-1.5 text-sm font-medium text-white hover:bg-emerald-800 disabled:opacity-60"
         >
