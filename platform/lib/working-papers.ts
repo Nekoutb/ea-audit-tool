@@ -22,7 +22,7 @@ import { STATUTORY_525_PAPERS } from "@/lib/papers/statutory-525";
 import { CONCLUSION_PAPERS } from "@/lib/papers/conclusion";
 import { GAM_PAPERS } from "@/lib/papers/gam";
 import { paperKeys, requiredKeys, unansweredKeys, type PaperDef, type PaperField, conclKey, conclWhyKey, ynKey, ynWhyKey } from "@/lib/papers/types";
-import { resolveLegalFormPaper } from "@/lib/legal-forms";
+import { LEGAL_FORMS, resolveLegalFormPaper } from "@/lib/legal-forms";
 import { resolvePaper, type StandardsEdition } from "@/lib/standards-edition";
 import { groupOfTask, type SectionKey } from "@/lib/task-groups";
 
@@ -99,6 +99,20 @@ const ALL_PAPERS: Record<string, PaperDef> = {
 
 /** The group-derived default papers, built once so resolvePaper's cache holds them too. */
 const GROUP_PAPERS = new Map<string, PaperDef>();
+
+/**
+ * Every answer key the paper can hold, whatever the client's legal form. Reads
+ * and saves use this: paperFor() without a form resolves as OTHER, which drops
+ * the items restricted to named forms, so C5.3 and C5.5 answers on an SA file
+ * were skipped on save while paperMissing still demanded them.
+ */
+export function allPaperKeys(code: string): Set<string> {
+  const keys = new Set<string>();
+  for (const form of LEGAL_FORMS) {
+    for (const key of paperKeys(paperFor(code, "current", form))) keys.add(key);
+  }
+  return keys;
+}
 
 /**
  * The paper for a task: bespoke where defined, otherwise built from its group,
@@ -502,7 +516,7 @@ async function paperVersionTx(tx: PoolClient, engagementId: string, code: string
     `SELECT extract(epoch FROM max(updated_at))::text AS v
        FROM form_response
       WHERE engagement_id = $1 AND code = $2 AND field_key = ANY($3::text[])`,
-    [engagementId, WP(code), [...paperKeys(paperFor(code))]],
+    [engagementId, WP(code), [...allPaperKeys(code)]],
   );
   return r.rows[0]?.v ?? "";
 }
@@ -599,7 +613,7 @@ export async function filterPaperWrite(
     );
     const current = new Map(stored.rows.map((r) => [r.field_key, r.v ?? ""]));
     const same = (a: string, b: string) => a.replace(/\r\n/g, "\n").trim() === b.replace(/\r\n/g, "\n").trim();
-    const keys = paperKeys(paperFor(code));
+    const keys = allPaperKeys(code);
     const out: Record<string, string> = {};
     for (const [key, value] of Object.entries(values)) {
       if (!keys.has(key)) continue;
@@ -679,7 +693,7 @@ export async function savePaper(
     const auto = personsFromHeadcount(values.headcount);
     if (auto) values = { ...values, persons: auto };
   }
-  const allowed = paperKeys(paperFor(code));
+  const allowed = allPaperKeys(code);
   // E6.10 (UAT B114): "column N agrees" cannot be answered Yes while the
   // tie-out of the trial balance shows differences nobody has explained.
   if (code === "E6.10" && values.q_n_agrees === "yes") {
