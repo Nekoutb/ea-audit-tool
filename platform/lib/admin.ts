@@ -10,7 +10,8 @@ import bcrypt from "bcryptjs";
 import { randomBytes } from "node:crypto";
 import { auth } from "@/auth";
 import { pool, withTenant } from "@/lib/db";
-import { accountMail } from "@/lib/account-mail";
+import { accountMail, appUrl } from "@/lib/account-mail";
+import { createInvite } from "@/lib/invites";
 import { platformSender, sendEmail } from "@/lib/email";
 import { getLocale } from "@/lib/locale";
 
@@ -130,14 +131,15 @@ export async function addPlatformAdmin(input: {
   );
   if (existing.rows[0]?.is_super) throw new AdminError("already-admin");
 
-  const tempPassword = randomBytes(24).toString("base64url");
-  const hash = await bcrypt.hash(tempPassword, 10);
+  // Never revealed to anyone: a new account gets a one-time link instead (F071).
+  const hash = await bcrypt.hash(randomBytes(24).toString("base64url"), 10);
   const isNewUser = !existing.rows[0];
 
+  let userId = "";
   const client = await pool.connect();
   try {
     await client.query("BEGIN");
-    let userId = existing.rows[0]?.id;
+    userId = existing.rows[0]?.id ?? "";
     if (!userId) {
       const u = await client.query<{ id: string }>(
         `INSERT INTO app_user (email, name, password_hash, preferred_language, must_change_password, is_super)
@@ -177,7 +179,11 @@ export async function addPlatformAdmin(input: {
     to: email,
     ...accountMail(
       "admin-access",
-      { email, name: input.name.trim() || null, tempPassword: isNewUser ? tempPassword : null },
+      {
+        email,
+        name: input.name.trim() || null,
+        inviteUrl: isNewUser ? `${appUrl()}/invite/${await createInvite({ userId })}` : null,
+      },
       await getLocale(),
     ),
   });
@@ -309,10 +315,8 @@ export async function createFirm(input: {
   ]);
   if (mailTaken.rows[0]) throw new AdminError("mail-local-taken");
 
-  // 24 bytes, not 6: the old 48 bits was defensible only because the reset is
-  // forced, and an unread onboarding email would have been the whole account.
-  const tempPassword = randomBytes(24).toString("base64url");
-  const hash = await bcrypt.hash(tempPassword, 10);
+  // Never revealed to anyone: a new administrator gets a one-time link (F071).
+  const hash = await bcrypt.hash(randomBytes(24).toString("base64url"), 10);
   const existingUser = await pool.query<{ id: string }>(
     "SELECT id FROM app_user WHERE lower(email) = $1",
     [adminEmail],
@@ -321,6 +325,7 @@ export async function createFirm(input: {
 
   const client = await pool.connect();
   let tenantId = "";
+  let adminUserId = "";
   try {
     await client.query("BEGIN");
     const t = await client.query<{ id: string }>(
@@ -337,6 +342,7 @@ export async function createFirm(input: {
       );
       userId = u.rows[0].id;
     }
+    adminUserId = userId;
     await client.query(
       "INSERT INTO membership (tenant_id, user_id, role) VALUES ($1, $2, 'firm_admin')",
       [tenantId, userId],
@@ -363,14 +369,12 @@ export async function createFirm(input: {
         email: adminEmail,
         name: input.adminName.trim() || null,
         firmName: name,
-        tempPassword: isNewUser ? tempPassword : null,
+        inviteUrl: isNewUser ? `${appUrl()}/invite/${await createInvite({ userId: adminUserId })}` : null,
       },
       await getLocale(),
     ),
   });
 
-  // The generated secret leaves this function only by email. It is never
-  // returned to the console, put in a URL, or logged (Phase 0 item 1).
   return { tenantId, emailed: isNewUser };
 }
 

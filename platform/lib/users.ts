@@ -94,12 +94,13 @@ export async function listFirmUsers(): Promise<FirmUser[]> {
  * Issue (or re-issue) the one-time set-password link and mail it. The only
  * way a credential ever reaches a colleague: no password travels (UAT B39).
  */
-async function sendInvitation(input: {
+export async function sendInvitation(input: {
   tenantId: string;
   inviterId: string;
   userId: string;
   email: string;
   name: string | null;
+  nextPath?: string | null;
 }): Promise<void> {
   const context = await withTenant(input.tenantId, async (tx) => {
     const firm = await tx.query<{ name: string }>("SELECT name FROM tenant WHERE id = $1", [
@@ -111,7 +112,7 @@ async function sendInvitation(input: {
     );
     return { firmName: firm.rows[0]?.name ?? null, inviterName: inviter.rows[0]?.who ?? null };
   });
-  const inviteUrl = `${appUrl()}/invite/${await createInvite({ userId: input.userId, createdBy: input.inviterId })}`;
+  const inviteUrl = `${appUrl()}/invite/${await createInvite({ userId: input.userId, createdBy: input.inviterId, nextPath: input.nextPath })}`;
   const mail = accountMail(
     "invitation",
     { email: input.email, name: input.name, inviteUrl, ...context },
@@ -177,8 +178,9 @@ export async function inviteFirmUser(input: {
       return { userId: found.id, name, readmitted: true };
     }
     const user = await tx.query<{ id: string }>(
-      "INSERT INTO app_user (email, name, password_hash, must_change_password) VALUES ($1, $2, $3, true) RETURNING id",
-      [email, name, hash],
+      `INSERT INTO app_user (email, name, password_hash, must_change_password, preferred_language)
+       VALUES ($1, $2, $3, true, (SELECT default_language FROM tenant WHERE id = $4)) RETURNING id`,
+      [email, name, hash, tenantId],
     );
     await tx.query("INSERT INTO membership (user_id, tenant_id, role) VALUES ($1, $2, $3)", [
       user.rows[0].id,

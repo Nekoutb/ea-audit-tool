@@ -3,7 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { auth } from "@/auth";
-import { acceptPbc, addPbcItem, addPortalContact, attachAcceptedPbc, chasePbc, uploadPbc } from "@/lib/pbc";
+import { acceptPbc, addPbcItem, addPortalContact, attachAcceptedPbc, chasePbc, resendPortalInvite, uploadPbc } from "@/lib/pbc";
 import { UnsafeFileError } from "@/lib/upload-safety";
 
 async function guarded(path: string, fn: () => Promise<string | void>): Promise<never> {
@@ -89,7 +89,12 @@ export async function addPortalContactAction(clientId: string, formData: FormDat
     await addPortalContact(clientId, {
       email: String(formData.get("email") ?? ""),
       name: String(formData.get("name") ?? ""),
-      password: String(formData.get("password") ?? ""),
     });
+  });
+}
+
+export async function resendPortalInviteAction(clientId: string, contactId: string): Promise<void> {
+  await guarded(`/clients/${clientId}`, async () => {
+    await resendPortalInvite(clientId, contactId);
   });
 }

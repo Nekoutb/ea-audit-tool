@@ -64,6 +64,12 @@ function proceed(req: Parameters<Parameters<typeof auth>[0]>[0], nonce: string):
   requestHeaders.set("x-nonce", nonce);
   const res = NextResponse.next({ request: { headers: requestHeaders } });
   for (const [k, v] of Object.entries(securityHeaders(nonce))) res.headers.set(k, v);
+  // F072: authenticated HTML carries engagement and client identifiers in its
+  // URLs. no-transform stops an edge from rewriting it (e.g. injecting an
+  // analytics beacon). Only a signed-in page navigation: API responses and
+  // public pages keep their own caching headers.
+  const isPageNavigation = req.method === "GET" && !req.nextUrl.pathname.startsWith("/api/");
+  if (req.auth && isPageNavigation) res.headers.set("Cache-Control", "private, no-store, no-transform");
   return res;
 }
 

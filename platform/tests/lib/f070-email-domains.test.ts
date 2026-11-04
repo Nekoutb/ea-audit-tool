@@ -128,7 +128,7 @@ describe("inviting into an engagement team", () => {
 
   it("does not apply to client portal contacts", async () => {
     as(ADMIN, "firm_admin");
-    const id = await addPortalContact(clientId, { email: "client@client-sa.cm", name: "Client Contact", password: "long-enough-1" });
+    const id = await addPortalContact(clientId, { email: "client@client-sa.cm", name: "Client Contact" });
     expect(id).toBeTruthy();
   });
 });

@@ -280,8 +280,10 @@
     "contacts": "Contacts portail",
     "contactName": "Nom",
     "contactEmail": "Email",
-    "contactPassword": "Mot de passe (min. 8)",
-    "addContact": "Créer l'accès portail"
+    "addContact": "Créer l'accès portail",
+    "contactPending": "Lien envoyé — mot de passe non choisi",
+    "contactActive": "Actif",
+    "resendContactInvite": "Renvoyer l'invitation"
   },
   "notifications": {
     "title": "Notifications",

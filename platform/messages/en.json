@@ -280,8 +280,10 @@
     "contacts": "Portal contacts",
     "contactName": "Name",
     "contactEmail": "Email",
-    "contactPassword": "Password (min. 8)",
-    "addContact": "Create portal access"
+    "addContact": "Create portal access",
+    "contactPending": "Link sent — password not chosen yet",
+    "contactActive": "Active",
+    "resendContactInvite": "Resend invitation"
   },
   "notifications": {
     "title": "Notifications",

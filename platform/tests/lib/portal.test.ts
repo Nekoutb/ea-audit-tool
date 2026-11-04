@@ -8,6 +8,7 @@ let currentUser = {
   user: { id: FIRM_USER, tenantId: TENANT, role: "firm_admin", locale: "en", clientId: null as string | null },
 };
 
+vi.mock("@/lib/locale", () => ({ getLocale: async () => "fr" }));
 vi.mock("@/auth", () => ({
   auth: vi.fn(async () => currentUser),
 }));
@@ -94,7 +95,6 @@ describe("9.1 portal contacts + auth scoping", () => {
     portalUserId = await addPortalContact(clientId, {
       email: "Contact@portal-test.local",
       name: "Mme Contact",
-      password: "s3cret-pass",
     });
     const membership = await admin.query<{ role: string; client_id: string }>(
       "SELECT role, client_id FROM membership WHERE user_id = $1",
@@ -103,21 +103,18 @@ describe("9.1 portal contacts + auth scoping", () => {
     expect(membership.rows[0]).toEqual({ role: "client_user", client_id: clientId });
     const contacts = await listPortalContacts(clientId);
     expect(contacts.some((contact) => contact.email === "contact@portal-test.local")).toBe(true);
-    // Password is stored hashed, never in clear.
-    const stored = await admin.query<{ password_hash: string }>(
-      "SELECT password_hash FROM app_user WHERE id = $1",
+    // Random hash, forced change: nobody at the firm ever knows the password (F069).
+    const stored = await admin.query<{ password_hash: string; must_change_password: boolean }>(
+      "SELECT password_hash, must_change_password FROM app_user WHERE id = $1",
       [portalUserId],
     );
-    expect(stored.rows[0].password_hash).not.toContain("s3cret");
+    expect(stored.rows[0].must_change_password).toBe(true);
     expect(stored.rows[0].password_hash.startsWith("$2")).toBe(true);
   });
 
-  it("rejects weak passwords and duplicate emails", async () => {
+  it("rejects duplicate emails", async () => {
     await expect(
-      addPortalContact(clientId, { email: "x@portal-test.local", name: "X", password: "short" }),
-    ).rejects.toThrow("password-too-short");
-    await expect(
-      addPortalContact(clientId, { email: "contact@portal-test.local", name: "Dup", password: "longenough" }),
+      addPortalContact(clientId, { email: "contact@portal-test.local", name: "Dup" }),
     ).rejects.toThrow("email-taken");
   });
 });

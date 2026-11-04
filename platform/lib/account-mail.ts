@@ -3,11 +3,10 @@
 // a firm's first sign-in. Pure: subject, plain text and HTML from a few facts,
 // in the inviter's language.
 //
-// Every one of them carries a real link to the sign-in page with the email
-// already filled in (/login?email=…), an HTML button for it, and — where an
-// account was just provisioned — the temporary password that must be replaced
-// at first sign-in. The password never rides in the link: a link that signs
-// someone in by itself is a weaker control than a password they must change.
+// Every one of them carries a real link: to the sign-in page with the email
+// already filled in (/login?email=…), or, where an account was just provisioned
+// or reset, to a one-time page where the recipient chooses their own password.
+// No password ever travels by email (F071).
 
 export type MailLocale = "en" | "fr";
 
@@ -19,8 +18,6 @@ export interface AccountMailFacts {
   firmName?: string | null;
   /** who did it, when known */
   inviterName?: string | null;
-  /** present when an account was just provisioned (never for a reset) */
-  tempPassword?: string | null;
   /** a one-time link where the recipient chooses their own password (invitation, reset) */
   inviteUrl?: string | null;
   /** the engagement, for engagement invitations */
@@ -32,7 +29,6 @@ export interface AccountMailFacts {
 
 export type AccountMailKind =
   | "invitation"
-  | "new-account"
   | "added-to-engagement"
   | "password-reset"
   | "admin-access"
@@ -135,14 +131,6 @@ function render(subject: string, r: Rendered): AccountMail {
 
 export class AccountMailError extends Error {}
 
-/** The kind whose entire purpose is to carry a password cannot be sent without one. */
-export type ProvisioningKind = "new-account";
-
-export function accountMail(
-  kind: ProvisioningKind,
-  facts: AccountMailFacts & { tempPassword: string },
-  locale: MailLocale,
-): AccountMail;
 // A reset carries a one-time link where the person chooses a new password —
 // never a password (UAT B39). The link is mandatory at compile time too.
 export function accountMail(
@@ -150,11 +138,11 @@ export function accountMail(
   facts: AccountMailFacts & { inviteUrl: string },
   locale: MailLocale,
 ): AccountMail;
-// The general overload deliberately EXCLUDES the provisioning kinds. With
-// `AccountMailKind` here, a call missing the password would fall through to
-// this signature and compile happily — the first overload would never bite.
+// The general overload deliberately excludes the reset. With `AccountMailKind`
+// here, a call missing the link would fall through to this signature and
+// compile happily.
 export function accountMail(
-  kind: Exclude<AccountMailKind, ProvisioningKind | "password-reset">,
+  kind: Exclude<AccountMailKind, "password-reset">,
   facts: AccountMailFacts,
   locale: MailLocale,
 ): AccountMail;
@@ -174,34 +162,21 @@ export function accountMail(
     "If the button does not open, copy this address into your browser",
     "Si le bouton ne s'ouvre pas, copiez cette adresse dans votre navigateur",
   );
-  const credentials = (temp: string) => [
-    { label: T("Email", "Email"), value: facts.email },
-    { label: T("Temporary password", "Mot de passe temporaire"), value: temp, mono: true },
-  ];
-  const firstSignIn = T(
-    "At first sign-in you will be asked to choose your own password; the temporary one stops working after that.",
-    "À la première connexion, vous choisirez votre propre mot de passe ; le mot de passe temporaire cesse alors de fonctionner.",
-  );
-  const unexpected = T(
-    "If you did not expect this email, ignore it — nothing happens without the password above.",
-    "Si vous n'attendiez pas cet email, ignorez-le — rien ne se passe sans le mot de passe ci-dessus.",
-  );
-
-  // Rendering "Temporary password:" followed by nothing would lock the recipient
-  // out with no way to tell why, so these two kinds fail loudly instead. The
-  // overloads above catch it at compile time; this catches a value that was
-  // typed as a string and turned out to be empty.
-  if (kind === "new-account" && !facts.tempPassword?.trim()) {
-    throw new AccountMailError(`${kind} needs a temporary password`);
-  }
   // A reset mail without its link would tell the recipient a password they
   // knew has stopped working and give them no way back in.
   if (kind === "password-reset" && !facts.inviteUrl?.trim()) {
     throw new AccountMailError(`${kind} needs a set-password link`);
   }
-  const openWithTemp = T(
-    "Open AuditISA with the button below — your email is already filled in — and enter the temporary password.",
-    "Ouvrez AuditISA avec le bouton ci-dessous — votre email est déjà renseigné — et saisissez le mot de passe temporaire.",
+  // A newly provisioned account gets a link to choose its password; an existing
+  // one keeps the password it has.
+  const chooseButton = { label: T("Choose your password", "Choisir mon mot de passe"), url: facts.inviteUrl ?? signIn };
+  const chooseIntro = T(
+    "Open the button below to choose your own password, then sign in. The link works once and expires in 14 days.",
+    "Ouvrez le bouton ci-dessous pour choisir votre propre mot de passe, puis connectez-vous. Le lien ne sert qu'une fois et expire dans 14 jours.",
+  );
+  const nobodyElse = T(
+    "Nobody else knows your password — not your firm administrator, not the platform. It is set only by you, on that page.",
+    "Personne d'autre ne connaît votre mot de passe — ni l'administrateur de votre cabinet, ni la plateforme. Vous seul(e) le définissez, sur cette page.",
   );
 
   switch (kind) {
@@ -253,36 +228,6 @@ export function accountMail(
             "Si vous n'attendiez pas cet email, ignorez-le — le lien ne fait rien tant qu'aucun mot de passe n'est défini.",
           ),
         ],
-        fallbackLabel: fallback,
-      });
-    }
-    case "new-account": {
-      const subject = T(
-        `Your AuditISA account${firm ? ` — ${firm}` : ""}`,
-        `Votre compte AuditISA${firm ? ` — ${firm}` : ""}`,
-      );
-      const who = by
-        ? T(`${by} has created your AuditISA account`, `${by} a créé votre compte AuditISA`)
-        : T(
-            "An AuditISA account has been created for you",
-            "Un compte AuditISA a été créé pour vous",
-          );
-      const intro = [
-        `${who}${firm ? T(` at ${firm}`, ` chez ${firm}`) : ""}.` +
-          (facts.engagementName
-            ? T(
-                ` You have been added to the engagement "${facts.engagementName}"${facts.roleLabel ? ` as ${facts.roleLabel}` : ""}.`,
-                ` Vous avez été ajouté(e) à la mission « ${facts.engagementName} »${facts.roleLabel ? ` en tant que ${facts.roleLabel}` : ""}.`,
-              )
-            : ""),
-        openWithTemp,
-      ];
-      return render(subject, {
-        greeting,
-        intro,
-        button: { label: T("Open AuditISA", "Ouvrir AuditISA"), url: signIn },
-        fields: credentials(facts.tempPassword ?? ""),
-        notes: [firstSignIn, unexpected],
         fallbackLabel: fallback,
       });
     }
@@ -356,7 +301,7 @@ export function accountMail(
         "AuditISA — platform administrator access",
         "AuditISA — accès administrateur de la plateforme",
       );
-      const provisioned = Boolean(facts.tempPassword);
+      const provisioned = Boolean(facts.inviteUrl);
       return render(subject, {
         greeting,
         intro: [
@@ -365,17 +310,15 @@ export function accountMail(
             "L'accès administrateur de la plateforme AuditISA vous a été accordé.",
           ),
           provisioned
-            ? openWithTemp
+            ? chooseIntro
             : T(
                 "Use your existing password — the admin console is now available from your account.",
                 "Utilisez votre mot de passe habituel — la console d'administration est désormais disponible depuis votre compte.",
               ),
         ],
-        button: { label: T("Open AuditISA", "Ouvrir AuditISA"), url: signIn },
-        fields: provisioned
-          ? credentials(facts.tempPassword ?? "")
-          : [{ label: T("Email", "Email"), value: facts.email }],
-        notes: provisioned ? [firstSignIn] : [],
+        button: provisioned ? chooseButton : { label: T("Open AuditISA", "Ouvrir AuditISA"), url: signIn },
+        fields: [{ label: T("Email", "Email"), value: facts.email }],
+        notes: provisioned ? [nobodyElse] : [],
         fallbackLabel: fallback,
       });
     }
@@ -387,7 +330,7 @@ export function accountMail(
         `Welcome to AuditISA — ${firmLabel} is onboarded`,
         `Bienvenue sur AuditISA — ${firmLabel} est enregistré`,
       );
-      const provisioned = Boolean(facts.tempPassword);
+      const provisioned = Boolean(facts.inviteUrl);
       const thenSetUp = T(
         "Then create your clients and audit engagements and invite your team.",
         "Créez ensuite vos clients et vos missions d'audit, et invitez votre équipe.",
@@ -400,18 +343,16 @@ export function accountMail(
             `Votre cabinet d'audit « ${firmLabel} » a été créé sur AuditISA.`,
           ),
           provisioned
-            ? `${openWithTemp} ${thenSetUp}`
+            ? `${chooseIntro} ${thenSetUp}`
             : `${T("Use your existing password.", "Utilisez votre mot de passe habituel.")} ${thenSetUp}`,
           T(
             "Each firm's data is fully segregated, and every engagement is independent within the firm.",
             "Les données de chaque cabinet sont entièrement cloisonnées, et chaque mission est indépendante au sein du cabinet.",
           ),
         ],
-        button: { label: T("Open AuditISA", "Ouvrir AuditISA"), url: signIn },
-        fields: provisioned
-          ? credentials(facts.tempPassword ?? "")
-          : [{ label: T("Email", "Email"), value: facts.email }],
-        notes: provisioned ? [firstSignIn] : [],
+        button: provisioned ? chooseButton : { label: T("Open AuditISA", "Ouvrir AuditISA"), url: signIn },
+        fields: [{ label: T("Email", "Email"), value: facts.email }],
+        notes: provisioned ? [nobodyElse] : [],
         fallbackLabel: fallback,
       });
     }

@@ -3,7 +3,7 @@ import { localizedTitle } from "@/lib/page-title";
 import { notFound, redirect } from "next/navigation";
 import { auth } from "@/auth";
 import { setClientArchivedAction, updateClientMasterAction } from "@/app/actions/clients";
-import { addPortalContactAction } from "@/app/actions/pbc";
+import { addPortalContactAction, resendPortalInviteAction } from "@/app/actions/pbc";
 import { AppNav } from "@/components/AppNav";
 import { ErrorBanner } from "@/components/GatesPanel";
 import { NavLink } from "@/components/NavLink";
@@ -341,8 +341,18 @@ export default async function ClientDetailPage(props: {
         {contacts.length > 0 ? (
           <ul className="mt-3 flex flex-col gap-1 text-sm text-ink-soft" data-testid="portal-contacts">
             {contacts.map((contact) => (
-              <li key={contact.id}>
+              <li key={contact.id} className="flex flex-wrap items-center gap-2">
                 {contact.name ?? contact.email} — <span className="font-mono text-xs">{contact.email}</span>
+                <span className="text-xs font-semibold text-muted" data-testid="contact-status">
+                  {contact.pending ? t.pbc.contactPending : t.pbc.contactActive}
+                </span>
+                {contact.pending ? (
+                  <form action={resendPortalInviteAction.bind(null, client.id, contact.id)}>
+                    <button type="submit" className="text-xs font-semibold text-primary hover:underline" data-testid="resend-contact-invite">
+                      {t.pbc.resendContactInvite}
+                    </button>
+                  </form>
+                ) : null}
               </li>
             ))}
           </ul>
@@ -355,10 +365,6 @@ export default async function ClientDetailPage(props: {
           <label className="flex flex-col gap-1 text-sm">
             <span className="text-ink-soft">{t.pbc.contactEmail}</span>
             <input name="email" type="email" required className={inputClass} data-testid="contact-email" />
-          </label>
-          <label className="flex flex-col gap-1 text-sm">
-            <span className="text-ink-soft">{t.pbc.contactPassword}</span>
-            <input name="password" type="password" required minLength={8} className={inputClass} data-testid="contact-password" />
           </label>
           <button
             type="submit"

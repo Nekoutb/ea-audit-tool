@@ -22,40 +22,22 @@ describe("loginUrl", () => {
 });
 
 describe("accountMail", () => {
-  it("new account: link with the email, the temporary password, the button — and no password in any link", () => {
-    process.env.APP_URL = "https://www.auditisa.com";
-    const m = accountMail(
-      "new-account",
-      {
-        email: "anne@firm.com",
-        name: "Anne Dupont",
-        firmName: "Elite Advisors",
-        inviterName: "Nekout Boma",
-        tempPassword: "Xy7-tempPass",
-      },
-      "en",
-    );
-    expect(m.subject).toBe("Your AuditISA account — Elite Advisors");
-    expect(m.body).toContain("Hello Anne Dupont,");
-    expect(m.body).toContain("Nekout Boma has created your AuditISA account at Elite Advisors.");
-    expect(m.body).toContain("Open AuditISA: https://www.auditisa.com/login?email=anne%40firm.com");
-    expect(m.body).toContain("Temporary password: Xy7-tempPass");
-    expect(m.html).toContain('href="https://www.auditisa.com/login?email=anne%40firm.com"');
-    expect(m.html).toContain(">Open AuditISA<");
-    expect(m.html).toContain("Xy7-tempPass");
-    expect(m.html).not.toMatch(/href="[^"]*Xy7-tempPass/);
-  });
-
-  it("speaks French when the inviter works in French", () => {
-    const m = accountMail(
-      "new-account",
-      { email: "anne@firm.com", name: "Anne", firmName: "Elite Advisors", tempPassword: "abc" },
-      "fr",
-    );
-    expect(m.subject).toBe("Votre compte AuditISA — Elite Advisors");
-    expect(m.body).toContain("Bonjour Anne,");
-    expect(m.body).toContain("Mot de passe temporaire: abc");
-    expect(m.html).toContain(">Ouvrir AuditISA<");
+  it("no account mail carries a password or a temporary-password field (F071)", () => {
+    const facts = { email: "anne@firm.com", name: "Anne", firmName: "Elite Advisors", inviteUrl: "https://www.auditisa.com/invite/tok" };
+    for (const locale of ["en", "fr"] as const) {
+      for (const m of [
+        accountMail("invitation", facts, locale),
+        accountMail("password-reset", facts, locale),
+        accountMail("admin-access", facts, locale),
+        accountMail("firm-onboarded", facts, locale),
+        accountMail("added-to-engagement", { email: facts.email, engagementName: "X" }, locale),
+      ]) {
+        expect(m.body).not.toMatch(/temporary password|mot de passe temporaire|mot de passe provisoire/i);
+        expect(m.html).not.toMatch(/temporary password|mot de passe temporaire|mot de passe provisoire/i);
+      }
+      expect(accountMail("firm-onboarded", facts, locale).body).toContain("/invite/tok");
+      expect(accountMail("admin-access", facts, locale).body).toContain("/invite/tok");
+    }
   });
 
   it("existing user added to an engagement: the sign-in page, carrying the engagement", () => {
@@ -103,31 +85,21 @@ describe("accountMail", () => {
 
   it("escapes what it puts in HTML", () => {
     const m = accountMail(
-      "new-account",
-      { email: "x@y.com", name: "<script>alert(1)</script>", tempPassword: "p" },
+      "invitation",
+      { email: "x@y.com", name: "<script>alert(1)</script>", inviteUrl: "https://x/invite/t" },
       "en",
     );
     expect(m.html).not.toContain("<script>");
     expect(m.html).toContain("&lt;script&gt;");
   });
 
-  it("refuses to send a password email with no password", () => {
-    // A blank "Temporary password:" line locks the recipient out with nothing
-    // to explain it, so the two kinds that exist to carry one fail instead.
-    // The @ts-expect-error lines are half the test: the overloads must reject
-    // these at compile time, and the runtime guard is the backstop.
-    expect(() =>
-      // @ts-expect-error new-account requires a temporary password
-      accountMail("new-account", { email: "anne@firm.com", name: "Anne" }, "en"),
-    ).toThrow(AccountMailError);
+  it("refuses to send a reset email with no link", () => {
+    // The @ts-expect-error line is half the test: the overload must reject this
+    // at compile time, and the runtime guard is the backstop.
     expect(() =>
       // @ts-expect-error password-reset requires a set-password link
       accountMail("password-reset", { email: "anne@firm.com" }, "en"),
     ).toThrow(AccountMailError);
-    // Present but empty is the case types cannot catch.
-    expect(() =>
-      accountMail("new-account", { email: "anne@firm.com", tempPassword: "   " }, "en"),
-    ).toThrow(/needs a temporary password/);
   });
 
   it("falls back to the sign-in page when an engagement has no id", () => {
@@ -147,22 +119,22 @@ describe("account mail speaks the reader's language throughout", () => {
   it("welcomes a firm in French", () => {
     const m = accountMail(
       "firm-onboarded",
-      { email: "admin@cabinet.cm", name: "Anne", firmName: "Cabinet Alpha", tempPassword: "t3mp" },
+      { email: "admin@cabinet.cm", name: "Anne", firmName: "Cabinet Alpha", inviteUrl: "https://x/invite/t" },
       "fr",
     );
     expect(m.subject).toBe("Bienvenue sur AuditISA — Cabinet Alpha est enregistré");
     expect(m.body).toContain("Bonjour Anne,");
     expect(m.body).toContain("Votre cabinet d'audit « Cabinet Alpha » a été créé sur AuditISA.");
-    expect(m.body).toContain("Mot de passe temporaire: t3mp");
+    expect(m.body).toContain("Choisir mon mot de passe: https://x/invite/t");
     expect(m.body).toContain("Créez ensuite vos clients");
-    expect(m.html).toContain(">Ouvrir AuditISA<");
+    expect(m.html).toContain(">Choisir mon mot de passe<");
     expect(m.body).not.toMatch(/Welcome to AuditISA|Open AuditISA|your firm/);
   });
 
   it("welcomes a firm in English", () => {
     const m = accountMail(
       "firm-onboarded",
-      { email: "admin@firm.com", firmName: "Elite Advisors", tempPassword: "t3mp" },
+      { email: "admin@firm.com", firmName: "Elite Advisors" },
       "en",
     );
     expect(m.subject).toBe("Welcome to AuditISA — Elite Advisors is onboarded");
@@ -182,14 +154,14 @@ describe("account mail speaks the reader's language throughout", () => {
   it("grants platform-admin access in French, with and without a new account", () => {
     const fresh = accountMail(
       "admin-access",
-      { email: "ops@cm-ea.com", name: "Ops", tempPassword: "t3mp" },
+      { email: "ops@cm-ea.com", name: "Ops", inviteUrl: "https://x/invite/t" },
       "fr",
     );
     expect(fresh.subject).toBe("AuditISA — accès administrateur de la plateforme");
     expect(fresh.body).toContain(
       "L'accès administrateur de la plateforme AuditISA vous a été accordé.",
     );
-    expect(fresh.body).toContain("Mot de passe temporaire: t3mp");
+    expect(fresh.body).toContain("Choisir mon mot de passe: https://x/invite/t");
 
     const existing = accountMail("admin-access", { email: "ops@cm-ea.com", name: "Ops" }, "fr");
     expect(existing.body).toContain("Utilisez votre mot de passe habituel");
@@ -214,7 +186,7 @@ describe("account mail speaks the reader's language throughout", () => {
         "en",
       ),
       accountMail("admin-access", { email: "b@f.com" }, "fr"),
-      accountMail("new-account", { email: "b@f.com", tempPassword: "p" }, "fr"),
+      accountMail("invitation", { email: "b@f.com", inviteUrl: "https://x/invite/t" }, "fr"),
     ]) {
       expect(m.body).not.toContain("\n\n\n");
       expect(m.body.trimStart()).toBe(m.body);

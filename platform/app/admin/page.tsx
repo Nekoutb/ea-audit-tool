@@ -168,16 +168,16 @@ export default async function AdminPage(props: { searchParams: Promise<{ error?:
         <p className="mt-3 text-[13px] font-semibold text-emerald-700 dark:text-emerald-400" data-testid="admin-ok">
           {ok === "created-emailed"
             ? fr
-              ? "Cabinet créé. Le mot de passe provisoire a été envoyé à l'administrateur par email ; il devra le remplacer à la première connexion."
-              : "Firm created. The temporary password was emailed to the administrator, who must replace it at first sign-in."
+              ? "Cabinet créé. Un lien à usage unique a été envoyé à l'administrateur par email pour choisir son mot de passe."
+              : "Firm created. A one-time link was emailed to the administrator to choose a password."
             : ok === "deleted"
               ? fr
                 ? "Cabinet supprimé, ainsi que ses données et les comptes qui n'appartenaient qu'à lui."
                 : "Firm deleted, with its data and the accounts that belonged only to it."
               : ok === "admin-added-emailed"
                 ? fr
-                  ? "Administrateur ajouté. Le mot de passe provisoire lui a été envoyé par email ; il devra le remplacer à la première connexion."
-                  : "Administrator added. The temporary password was emailed to them; they must replace it at first sign-in."
+                  ? "Administrateur ajouté. Un lien à usage unique lui a été envoyé par email pour choisir son mot de passe."
+                  : "Administrator added. A one-time link was emailed to them to choose a password."
                 : ok === "admin-added"
                   ? fr
                     ? "Administrateur ajouté — le compte existant garde son mot de passe et voit désormais cette console."
@@ -358,7 +358,7 @@ export default async function AdminPage(props: { searchParams: Promise<{ error?:
           <p className="basis-full text-[11px] text-muted">
             {fr
               ? "Un compte existant garde son mot de passe ; un nouveau compte reçoit un mot de passe provisoire par email, à remplacer à la première connexion."
-              : "An existing account keeps its password; a new account is emailed a temporary password to replace at first sign-in."}
+              : "An existing account keeps its password; a new account is emailed a one-time link to choose one."}
           </p>
         </form>
       </Panel>

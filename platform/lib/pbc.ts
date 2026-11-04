@@ -4,7 +4,7 @@
 // the firm accepts an upload and can attach it to a working paper as a
 // versioned document.
 
-import { createHash } from "node:crypto";
+import { createHash, randomBytes } from "node:crypto";
 import bcrypt from "bcryptjs";
 import type { PoolClient } from "pg";
 import { recordActivity } from "@/lib/activity";
@@ -13,6 +13,7 @@ import { createNotification } from "@/lib/notifications";
 import { canReview } from "@/lib/rbac";
 import { requireTenant, requirePortalUser, ForbiddenError, requireWrite } from "@/lib/tenant";
 import { checkUpload } from "@/lib/upload-safety";
+import { sendInvitation } from "@/lib/users";
 
 export class PbcError extends Error {
   constructor(public readonly code: string) {
@@ -367,18 +368,21 @@ export async function attachAcceptedPbc(itemId: string, attachFileItemId: string
 /**
  * Firm side: create a portal contact for a client — an app_user whose single
  * membership is role 'client_user' scoped to that client.
+ *
+ * The auditor never sets or sees the password (F069): the account starts with
+ * a random hash nobody knows and the contact receives a one-time link that
+ * lands on /portal once they have chosen their own.
  */
 export async function addPortalContact(
   clientId: string,
-  input: { email: string; name: string; password: string },
+  input: { email: string; name: string },
 ): Promise<string> {
-  const { tenantId, role } = await requireWrite();
+  const { tenantId, userId, role } = await requireWrite();
   if (!canReview(role)) throw new PbcError("forbidden");
   const email = input.email.toLowerCase().trim();
   if (!email || !input.name.trim()) throw new PbcError("fields-required");
-  if (input.password.length < 8) throw new PbcError("password-too-short");
-  const hash = await bcrypt.hash(input.password, 10);
-  return withTenant(tenantId, async (tx) => {
+  const hash = await bcrypt.hash(randomBytes(24).toString("base64url"), 10);
+  const contactId = await withTenant(tenantId, async (tx) => {
     const client = await tx.query("SELECT 1 FROM client WHERE id = $1", [clientId]);
     if (!client.rows[0]) throw new PbcError("not-found");
     const existing = await tx.query<{ id: string }>(
@@ -387,8 +391,9 @@ export async function addPortalContact(
     );
     if (existing.rows[0]) throw new PbcError("email-taken");
     const user = await tx.query<{ id: string }>(
-      "INSERT INTO app_user (email, name, password_hash) VALUES ($1, $2, $3) RETURNING id",
-      [email, input.name, hash],
+      `INSERT INTO app_user (email, name, password_hash, must_change_password, preferred_language)
+       VALUES ($1, $2, $3, true, (SELECT default_language FROM tenant WHERE id = $4)) RETURNING id`,
+      [email, input.name, hash, tenantId],
     );
     await tx.query(
       "INSERT INTO membership (user_id, tenant_id, role, client_id) VALUES ($1, $2, 'client_user', $3)",
@@ -396,16 +401,39 @@ export async function addPortalContact(
     );
     return user.rows[0].id;
   });
+  await sendInvitation({ tenantId, inviterId: userId, userId: contactId, email, name: input.name, nextPath: "/portal" });
+  return contactId;
+}
+
+/**
+ * Send a portal contact who has not chosen a password yet a fresh link. The
+ * previous link stops working as soon as this one is issued.
+ */
+export async function resendPortalInvite(clientId: string, contactId: string): Promise<void> {
+  const { tenantId, userId, role } = await requireWrite();
+  if (!canReview(role)) throw new PbcError("forbidden");
+  const contact = await withTenant(tenantId, async (tx) => {
+    const r = await tx.query<{ email: string; name: string | null; must_change: boolean }>(
+      `SELECT u.email, u.name, coalesce(u.must_change_password, false) AS must_change
+         FROM membership m JOIN app_user u ON u.id = m.user_id
+        WHERE m.tenant_id = $1 AND m.role = 'client_user' AND m.client_id = $2 AND m.user_id = $3`,
+      [tenantId, clientId, contactId],
+    );
+    return r.rows[0] ?? null;
+  });
+  if (!contact) throw new PbcError("not-found");
+  if (!contact.must_change) throw new PbcError("already-active");
+  await sendInvitation({ tenantId, inviterId: userId, userId: contactId, email: contact.email, name: contact.name, nextPath: "/portal" });
 }
 
 /** Portal contacts of a client (for the client admin page). */
 export async function listPortalContacts(
   clientId: string,
-): Promise<{ id: string; email: string; name: string | null }[]> {
+): Promise<{ id: string; email: string; name: string | null; pending: boolean }[]> {
   const { tenantId } = await requireTenant();
   return withTenant(tenantId, async (tx) => {
-    const result = await tx.query<{ id: string; email: string; name: string | null }>(
-      `SELECT u.id, u.email, u.name
+    const result = await tx.query<{ id: string; email: string; name: string | null; pending: boolean }>(
+      `SELECT u.id, u.email, u.name, coalesce(u.must_change_password, false) AS pending
          FROM membership m JOIN app_user u ON u.id = m.user_id
         WHERE m.tenant_id = $1 AND m.role = 'client_user' AND m.client_id = $2
         ORDER BY u.email`,
