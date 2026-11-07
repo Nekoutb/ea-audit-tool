@@ -166,7 +166,7 @@ export default async function DashboardPage(props: { searchParams: Promise<{ par
                       : "You are signed in as the platform operator. Firms are managed from the console."}
                   </p>
                   <Link
-                    href="/admin"
+                    href="/admin/console"
                     data-testid="dashboard-admin-link"
                     className="mt-3 inline-flex min-h-[36px] items-center rounded-[var(--radius-atlas-sm)] bg-emerald-700 px-4 py-1.5 text-sm font-semibold text-white transition hover:bg-emerald-800"
                   >

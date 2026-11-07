@@ -224,7 +224,7 @@ export async function AppNav({
             they land on is empty and looks broken. */}
         {session?.user?.isSuper ? (
           <Link
-            href="/admin"
+            href="/admin/console"
             data-testid="nav-admin"
             className="hidden h-9 items-center gap-1.5 rounded-[var(--radius-atlas-sm)] border border-line-strong bg-surface px-2.5 text-[12.5px] font-semibold text-ink-soft transition hover:bg-surface-2 sm:inline-flex"
           >
