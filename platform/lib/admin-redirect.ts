@@ -3,7 +3,7 @@
  * null and /admin opens this tool's own console, as it does today: an environment variable must not be a
  * way to send a signed-in operator to another site.
  */
-const ALLOWED_HOST = "platform.auditisa.com";
+const ALLOWED_HOST = "console.auditisa.com";
 
 export function platformAdminUrl(raw: string | undefined = process.env.PLATFORM_ADMIN_URL): string | null {
   if (!raw) return null;

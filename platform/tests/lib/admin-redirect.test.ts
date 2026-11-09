@@ -10,16 +10,16 @@ describe("platformAdminUrl", () => {
   });
 
   it("goes to the admin Odoo when set", () => {
-    expect(platformAdminUrl("https://platform.auditisa.com")).toBe("https://platform.auditisa.com/");
-    expect(platformAdminUrl(" https://platform.auditisa.com/odoo ")).toBe("https://platform.auditisa.com/odoo");
+    expect(platformAdminUrl("https://console.auditisa.com")).toBe("https://console.auditisa.com/");
+    expect(platformAdminUrl(" https://console.auditisa.com/odoo ")).toBe("https://console.auditisa.com/odoo");
   });
 
   it.each([
-    "http://platform.auditisa.com",
-    "https://platform.auditisa.com.evil.example",
-    "https://evil.example/platform.auditisa.com",
-    "https://user:pw@platform.auditisa.com",
-    "https://platform.auditisa.com:8443",
+    "http://console.auditisa.com",
+    "https://console.auditisa.com.evil.example",
+    "https://evil.example/console.auditisa.com",
+    "https://user:pw@console.auditisa.com",
+    "https://console.auditisa.com:8443",
     "javascript:alert(1)",
     "not a url",
     "/admin/console",
